@@ -33,6 +33,7 @@ from ...components.spaces import (
 from ...components.systems import CompositeSystem
 from ...enums import ActivationKind, FormKind, OrderKind, VariableKind
 from ...errors import ConservationError, SimulationError, SpaceError, ValidationError
+from ...specs import VariableSpec
 from ...types import Array
 from .._utils import declarations_of, default_of
 from ..backends import SupportSpec
@@ -934,6 +935,7 @@ class AgentView:
             self._stepper._recount(self._agent, -1)
             self._agent.removed_ = True
             self._agent.remove()
+            self._stepper._clear_links(self._agent)
 
     def create(self, group: str | None = None, location: object = None, **values: object) -> 'AgentView':
         """Create an agent of a group.
@@ -966,8 +968,8 @@ class AgentView:
     def get_referenced(self, state: str) -> 'AgentView | None':
         """Return the member of another group that a reference state of the agent names.
 
-        The state names it by its id. A state declared with `StateSpec(reference=group)` holds the id of a member of the
-        group, or a negative value for none, such as the bank of a customer or the employer of a worker.
+        The state names it by its id. A value annotated as `Annotated[int, Member('firms')]` holds the id of a member
+        of the group, or -1 for none, such as the bank of a customer or the employer of a worker.
 
         Args:
             state:
@@ -1223,6 +1225,7 @@ class MesaSolver(ExternalSolver):
                 self.reports_[f'{path}.{name}'] = math.nan
         for spec in problem.agents:
             self._populate(spec)
+        self._links: dict[str, list[tuple[str, str]]] = {}
         for spec in problem.agents:
             self._resolve_references(spec)
         self._populating = False
@@ -1537,11 +1540,11 @@ class MesaSolver(ExternalSolver):
             KeyError:
                 The state names no member of a group.
         """
-        declaration = declarations_of(self._get_agent_type(spec), VariableKind.STATE).get(state)
+        declaration = self._get_declarations(spec).get(state)
         if declaration is None or declaration.reference is None:
             error_msg = (
-                f'The state {state!r} of {spec.path} names no member of a group. Declare it with '
-                '`StateSpec(reference=group)` to read the member it names.'
+                f'The state {state!r} of {spec.path} names no member of a group. Annotate it with the group, such as '
+                "`employer: Annotated[int, Member('firms')] = -1`, to read the member it names."
             )
             raise KeyError(error_msg)
         try:
@@ -1562,11 +1565,13 @@ class MesaSolver(ExternalSolver):
             SimulationError:
                 An initial position is beyond the initial members of the referenced group.
         """
-        declarations = declarations_of(self._get_agent_type(spec), VariableKind.STATE)
+        declarations = self._get_declarations(spec)
         for name, declaration in declarations.items():
             if declaration.reference is None:
                 continue
             path = self._get_reference_of(spec, name)
+            if path is not None:
+                self._links.setdefault(path, []).append((spec.path, name))
             members = sorted(self._get_group_agents(path), key=lambda agent: agent.unique_id) if path else []
             ids = [agent.unique_id for agent in members]
             for agent in self._get_group_agents(spec.path):
@@ -1578,6 +1583,16 @@ class MesaSolver(ExternalSolver):
                     )
                     raise SimulationError(error_msg)
                 setattr(agent, name, float(ids[position]) if position >= 0 else -1.0)
+
+    def _clear_links(self, agent: mesa.Agent) -> None:
+        """Set to -1 every value of another agent that names a removed agent.
+
+        A worker whose firm is removed then has no employer, as `employer = -1` says.
+        """
+        for path, name in self._links.get(self._get_spec_of(agent).path, []):
+            for other in self._get_group_agents(path):
+                if float(getattr(other, name)) == agent.unique_id:
+                    setattr(other, name, -1.0)
 
     def _get_spec_of(self, agent: mesa.Agent) -> _CompiledAgentsSpec:
         """Return the group of a Mesa agent created by the stepper.
@@ -2161,6 +2176,16 @@ class MesaSolver(ExternalSolver):
             view = (element.values or {}).get('view')
             return view if isinstance(view, type) else None
         return element.view if isinstance(element, DeclaredElement) else None
+
+    @staticmethod
+    def _get_declarations(spec: _CompiledAgentsSpec) -> dict[str, VariableSpec]:
+        """Return the declared states of the members of a compiled agent element or group.
+
+        A group of plain elements declares them on its members as data, such as the firm a worker names.
+        """
+        element = spec.element
+        declaring = element.get_declaring_element() if isinstance(element, GroupElement) else type(element)
+        return declarations_of(declaring, VariableKind.STATE)
 
     @staticmethod
     def _get_agent_type(spec: _CompiledAgentsSpec) -> type[BaseElement]:

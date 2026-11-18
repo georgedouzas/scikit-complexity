@@ -15,7 +15,16 @@ from sage.all__sagemath_symbolics import CC, RR, SR, ZZ, Expression
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ...components.base import BaseComponent
-from ...components.elements import BaseElement, DeclaredElement, Element, FieldElement, GroupElement, Period, Quantity
+from ...components.elements import (
+    BaseElement,
+    DeclaredElement,
+    Element,
+    FieldElement,
+    GroupElement,
+    Member,
+    Period,
+    Quantity,
+)
 from ...components.laws import (
     BaseLaw,
     ConstraintLaw,
@@ -232,6 +241,18 @@ class _StateInference:
                 return float(item.length)
         return None
 
+    @staticmethod
+    def _get_member(annotation: object) -> str | None:
+        """Return the label of the group in the `Annotated` of a value, or `None`.
+
+        A value annotated as `Annotated[int, Member('firms')]` names a member of the group `firms`, or none with -1.
+        """
+        for item in get_args(annotation)[1:] if get_origin(annotation) is Annotated else ():
+            if isinstance(item, Member):
+                item._check()
+                return item.group
+        return None
+
     def _get_spec(
         self,
         element: Element,
@@ -259,6 +280,7 @@ class _StateInference:
         domain = self._get_domain(annotation, value)
         quantity = self._get_quantity(annotation)
         period = self._get_period(annotation)
+        member = self._get_member(annotation)
         if period is not None and role is None:
             role = 'direction' if moving else 'phase'
         vector, n_dim, tensor = element._get_shape_of(value)
@@ -300,6 +322,7 @@ class _StateInference:
             period=period,
             role=role,
             quantity=quantity,
+            reference=member,
         )
         return DeclaredVariableSpec(value, spec)
 

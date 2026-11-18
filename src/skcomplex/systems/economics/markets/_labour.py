@@ -14,12 +14,11 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element, Member
 from ....core.components.interactions import MapInteraction, TransitionInteraction
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
 from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
-from ....core.specs import ParameterSpec, StateSpec
 from ....core.systems import BaseSystem, System
 from ...general.matching import MatchingInteraction, MatchSpec, StableMatchingSpec
 
@@ -66,10 +65,12 @@ class EmployerElement(Element):
         high_wage:
             The highest wage offer.
 
+        size:
+            The number of firms, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.markets import EmployerElement
-        >>> GroupElement('firms', element=EmployerElement, size=5).size
+        >>> EmployerElement('firms', size=5).size
         5
     """
 
@@ -77,14 +78,15 @@ class EmployerElement(Element):
         self,
         label: str,
         *,
-        bid: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        demand: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        posted: Annotated[float, StateSpec()] = -1.0,
-        vacancy_rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        low_wage: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        high_wage: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        bid: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        demand: Annotated[object, NN] = 0.0,
+        posted: object = -1.0,
+        vacancy_rate: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
+        low_wage: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
+        high_wage: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.bid = bid
         self.demand = demand
         self.posted = posted
@@ -161,7 +163,7 @@ class JobseekerElement(Element):
             One while the worker searches in the current step, zero otherwise.
 
         employer:
-            The id of the employer, or -1 for an unemployed worker.
+            The index of the employer among the firms, or -1 for an unemployed worker.
 
         wage:
             The wage of the current job.
@@ -184,10 +186,12 @@ class JobseekerElement(Element):
         decline:
             The relative fall of the reservation wage per step of search.
 
+        size:
+            The number of workers, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.markets import JobseekerElement
-        >>> GroupElement('workers', element=JobseekerElement, size=5).size
+        >>> JobseekerElement('workers', size=5).size
         5
     """
 
@@ -195,18 +199,19 @@ class JobseekerElement(Element):
         self,
         label: str,
         *,
-        ask: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        supply: Annotated[float, StateSpec(domain=NN)] = 1.0,
-        employer: Annotated[float, StateSpec(reference='firms')] = -1.0,
-        wage: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        duration: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        hired: Annotated[float, StateSpec()] = -1.0,
-        offer: Annotated[float, StateSpec()] = -1.0,
-        separation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        reservation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        decline: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        ask: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        supply: Annotated[object, NN] = 1.0,
+        employer: Annotated[object, Member('firms')] = -1,
+        wage: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        duration: Annotated[object, NN] = 0.0,
+        hired: object = -1.0,
+        offer: object = -1.0,
+        separation: Annotated[object, RealSet.closed_open(0, oo)] = 0.05,
+        reservation: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        decline: Annotated[object, RealSet.closed_open(0, oo)] = 0.1,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.ask = ask
         self.supply = supply
         self.employer = employer
@@ -399,31 +404,25 @@ class LabourMarketSystem(BaseSystem):
         super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         employed = rng.random(self.n_workers) >= self.unemployment
-        employers = np.where(employed, rng.integers(self.n_firms, size=self.n_workers), -1).astype(float)
-        firms = GroupElement(
+        employers = np.where(employed, rng.integers(self.n_firms, size=self.n_workers), -1)
+        firms = EmployerElement(
             'firms',
-            element=EmployerElement,
+            vacancy_rate=self.vacancy_rate,
+            low_wage=self.low_wage,
+            high_wage=self.high_wage,
+            bid=self.low_wage,
             size=self.n_firms,
-            values={
-                'vacancy_rate': self.vacancy_rate,
-                'low_wage': self.low_wage,
-                'high_wage': self.high_wage,
-                'bid': self.low_wage,
-            },
         )
-        workers = GroupElement(
+        workers = JobseekerElement(
             'workers',
-            element=JobseekerElement,
+            employer=employers,
+            wage=np.where(employed, (self.low_wage + self.high_wage) / 2, 0.0),
+            supply=0.0,
+            ask=self.reservation,
+            separation=self.separation,
+            reservation=self.reservation,
+            decline=self.decline,
             size=self.n_workers,
-            values={
-                'employer': employers,
-                'wage': np.where(employed, (self.low_wage + self.high_wage) / 2, 0.0),
-                'supply': 0.0,
-                'ask': self.reservation,
-                'separation': self.separation,
-                'reservation': self.reservation,
-                'decline': self.decline,
-            },
         )
         offers = [
             MapInteraction(f'{group}_{name}', target=group, state=name, function=function, form='agent', phase='offers')

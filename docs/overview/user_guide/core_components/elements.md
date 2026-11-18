@@ -367,6 +367,56 @@ when the system is prepared.
 
 See its [API entry][skcomplex.core.components.elements.Period].
 
+## Member
+
+A `Member` says that a value names a member of another group, such as the firm a worker works for or the bank of a
+customer. It is written in `Annotated`, as `employer: Annotated[int, Member('firms')] = -1`. The value is the index of
+the member in its group when the system starts, and -1 names none. During the run the value holds the id of that
+member, and a rule reads the member with `agent.get_referenced('employer')`. When a member of the group is removed,
+every value that names it becomes -1. Here four workers name their firms, and the first firm closes in the first step.
+
+```python
+from typing import Annotated
+
+from skcomplex.core.components.elements import Element, Member
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
+
+
+class Worker(Element):
+    def __init__(self, label, employer: Annotated[object, Member('firms')] = -1, size=None):
+        super().__init__(label, size=size)
+        self.employer = employer
+
+
+class Closing(Interaction):
+    def __init__(self, label, *, target: Role = 'workers', firms: Role = 'firms'):
+        super().__init__(label)
+        self.target = target
+        self.firms = firms
+
+    def _prepare(self, s):
+        super()._prepare(s)
+        self.laws_ = [UpdateLaw(s, self.close)]
+
+    def close(self, system):
+        if system.count('firms') == 2:
+            system.get_agents('firms')[0].remove()
+
+
+workers = Worker('workers', employer=[0, 1, 0, -1], size=4)
+firms = Element('firms', values={'wage': [1.0, 1.2]}, size=2)
+trajectory = System(elements=[workers, firms], interactions=[Closing('closing')]).prepare().simulate(until=1)
+[trajectory.get_agents('workers', step).values['employer'].tolist() for step in (0, 1)]
+```
+
+The firms have the ids 5 and 6, so the workers start with the employers 5, 6, 5, and -1. After the first firm closes,
+its two workers have the employer -1, and the worker of the second firm keeps it.
+
+See its [API entry][skcomplex.core.components.elements.Member].
+
 ## GroupElement
 
 A `GroupElement` holds many members of one element class, with one row per member in every state. Here three herds

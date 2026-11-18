@@ -15,7 +15,7 @@ from scipy.special import ive
 
 from skcomplex.core.analysis import alignment, displacement
 from skcomplex.core.components.base import BaseComponent
-from skcomplex.core.components.elements import Element, FieldElement, Period, Quantity
+from skcomplex.core.components.elements import Element, FieldElement, Member, Period, Quantity
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import (
     BoundaryLaw,
@@ -961,6 +961,43 @@ def test_get_declared_reads_the_quantity_of_a_value():
     burning = System(elements=[Reserve('reserve')], interactions=[Extraction('extraction', flow=False)])
     with pytest.raises(ValidationError, match=r"holds the quantity 'energy'"):
         burning.prepare()
+
+
+class Worker(Element):
+    """Workers, each with the index of its employer among the firms, or -1 for none."""
+
+    def __init__(self, label: str, *, employer: Annotated[int, Member('firms')] = -1, size: int | None = None) -> None:
+        super().__init__(label, size=size)
+        self.employer = employer
+
+
+class Closing(Interaction):
+    """Rule that closes the firm of the first worker and records what each worker's employer is."""
+
+    def __init__(self, label: str, *, target: Role = 'workers', firms: Role = 'firms') -> None:
+        super().__init__(label)
+        self.target = target
+        self.firms = firms
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rule of the whole system."""
+        super()._prepare(context)
+        self.laws_ = [UpdateLaw(context, self.close)]
+
+    def close(self, system):
+        """Remove the first firm."""
+        system.get_agents('firms')[0].remove()
+
+
+def test_get_declared_reads_a_member_of_another_group_and_clears_it_when_removed():
+    """Test that a value annotated with `Member` names a firm by its id, and becomes -1 when the firm closes."""
+    workers = Worker('workers', employer=np.array([0, 1, -1, 0]), size=4)
+    firms = Element('firms', values={'wage': [1.0, 2.0]}, size=2)
+    system = System(elements=[firms, workers], interactions=[Closing('closing')]).prepare()
+    trajectory = system.simulate(until=1, random_state=0)
+    first, second = trajectory.get_agents('firms', 0).ids.tolist()
+    assert trajectory.get_agents('workers', 0).values['employer'].tolist() == [first, second, -1, first]
+    assert trajectory.get_agents('workers', 1).values['employer'].tolist() == [-1, second, -1, -1]
 
 
 def _spread(center, left, right, *gates):
