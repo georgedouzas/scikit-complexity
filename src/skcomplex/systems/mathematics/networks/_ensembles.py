@@ -20,7 +20,7 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
-from ....core.components.interactions import Interaction, MapInteraction, TopologyInteraction
+from ....core.components.interactions import Interaction, TopologyInteraction
 from ....core.components.laws import TopologyRequestSpec, UpdateLaw
 from ....core.components.laws.utils import components, maximum, mod, neighbors, where
 from ....core.components.spaces import AdjacencyNeighborhood, BaseSpace, LayerSpec, NetworkSpace
@@ -391,9 +391,13 @@ class RandomGraphEnsemblesSystem(BaseSystem):
         self.steps = steps
 
     @staticmethod
-    def _get_degree() -> MapInteraction:
-        """Return the map that sets the degree of every node from its edges."""
-        return MapInteraction('degree', target='nodes', state='degree', function=lambda s: neighbors(1))
+    def _get_degree() -> Interaction:
+        """Return the update that sets the degree of every node from its edges."""
+        return Interaction(
+            'degree',
+            roles={'target': 'nodes'},
+            laws=lambda s: [UpdateLaw(s.target.degree, neighbors(1))],
+        )
 
     @staticmethod
     def _get_variable_network(space: NetworkSpace, rate: float = 0.0) -> list[Element]:
@@ -419,11 +423,10 @@ class RandomGraphEnsemblesSystem(BaseSystem):
             space = NetworkSpace(nx.empty_graph(self.n_nodes))
             rate = self.mean_degree / 2 / self.steps
             groups = RandomGraphEnsemblesSystem._get_variable_network(space, rate)
-            linking = TopologyInteraction(
+            linking = Interaction(
                 'linking',
-                target='nodes',
-                action='add-edge',
-                probability=lambda s: s.source.rate,
+                roles={'target': 'nodes'},
+                laws=lambda s: [UpdateLaw(TopologyRequestSpec('add-edge'), s.target.rate)],
             )
             self.system_ = System(
                 self.label,

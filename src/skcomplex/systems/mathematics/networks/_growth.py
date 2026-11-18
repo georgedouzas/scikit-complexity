@@ -17,7 +17,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import BaseInteraction, MapInteraction, TopologyInteraction
+from ....core.components.interactions import BaseInteraction, Interaction
+from ....core.components.laws import TopologyRequestSpec, UpdateLaw
 from ....core.components.laws.utils import logistic, neighbors, total, where
 from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
@@ -271,20 +272,28 @@ class BarabasiAlbertSystem(BaseSystem):
         return neighbors(1)
 
     @staticmethod
-    def _get_bookkeeping() -> list[MapInteraction]:
-        """Return the maps that age every node and read its degree from the edges.
+    def _get_bookkeeping() -> list[Interaction]:
+        """Return the updates that age every node and read its degree from the edges.
 
-        The maps run at the start of a step.
+        The updates run at the start of a step.
         """
         return [
-            MapInteraction('ageing', target='nodes', state='age', function=lambda s: 1, mode='increment'),
-            MapInteraction('degree', target='nodes', state='degree', function=lambda s: neighbors(1)),
+            Interaction(
+                'ageing',
+                roles={'target': 'nodes'},
+                laws=lambda s: [UpdateLaw(s.target.age, s.target.age + 1, increment=True)],
+            ),
+            Interaction(
+                'degree',
+                roles={'target': 'nodes'},
+                laws=lambda s: [UpdateLaw(s.target.degree, neighbors(1))],
+            ),
         ]
 
     @staticmethod
     def _get_grown(
         nodes: VertexElement,
-        growth: TopologyInteraction,
+        growth: Interaction,
         interactions: Sequence[BaseInteraction] = (),
         *,
         label: str,
@@ -325,24 +334,24 @@ class BarabasiAlbertSystem(BaseSystem):
         space = NetworkSpace(nx.complete_graph(self.seed_nodes))
         if not self.fitness:
             nodes = VertexElement('nodes', age=1.0, space=space)
-            growth = TopologyInteraction(
-                'growth',
-                action='add-node',
+            request = TopologyRequestSpec(
+                'add-node',
                 edges=self.edges,
-                values={'age': 0.0},
+                values=(('age', 0.0),),
                 toward=BarabasiAlbertSystem._get_degree,
             )
+            growth = Interaction('growth', laws=[UpdateLaw(request, 1)])
             self.system_ = BarabasiAlbertSystem._get_grown(nodes, growth, label=self.label)
             return
         seed_fitness = np.random.default_rng(self.random_state).uniform(0.0, 1.0, self.seed_nodes)
         nodes = FitnessVertexElement('nodes', age=1.0, fitness=seed_fitness, space=space)
-        growth = TopologyInteraction(
-            'growth',
-            action='add-node',
+        request = TopologyRequestSpec(
+            'add-node',
             edges=self.edges,
-            values={'age': 0.0, 'fitness': lambda rng: rng.uniform(0.0, 1.0)},
+            values=(('age', 0.0), ('fitness', lambda rng: rng.uniform(0.0, 1.0))),
             toward=lambda node: node.fitness * neighbors(1),
         )
+        growth = Interaction('growth', laws=[UpdateLaw(request, 1)])
         self.system_ = BarabasiAlbertSystem._get_grown(nodes, growth, label=self.label)
 
 
@@ -417,26 +426,19 @@ class HolmeKimSystem(BaseSystem):
         super()._prepare(context)
         space = NetworkSpace(nx.complete_graph(self.seed_nodes))
         nodes = TriadVertexElement('nodes', age=1.0, triad=self.triad, extra=self.edges - 1, space=space)
-        near = MapInteraction(
+        near = Interaction(
             'near',
-            target='nodes',
-            state='near',
-            function=lambda s: neighbors(where(s.target.other.age < JOINING_AGE, 1, 0)),
+            roles={'target': 'nodes'},
+            laws=lambda s: [UpdateLaw(s.target.near, neighbors(where(s.target.other.age < JOINING_AGE, 1, 0)))],
         )
-        closure = TopologyInteraction(
+        triad = TopologyRequestSpec('add-edge', edges=self.edges - 1, toward=self._get_triad_weight)
+        closure = Interaction(
             'closure',
-            target='nodes',
-            action='add-edge',
-            condition=lambda s: s.source.age < JOINING_AGE,
-            toward=self._get_triad_weight,
-            edges=self.edges - 1,
+            roles={'target': 'nodes'},
+            laws=lambda s: [UpdateLaw(triad, where(s.target.age < JOINING_AGE, 1, 0))],
         )
-        growth = TopologyInteraction(
-            'growth',
-            action='add-node',
-            values={'age': 0.0},
-            toward=BarabasiAlbertSystem._get_degree,
-        )
+        attachment = TopologyRequestSpec('add-node', values=(('age', 0.0),), toward=BarabasiAlbertSystem._get_degree)
+        growth = Interaction('growth', laws=[UpdateLaw(attachment, 1)])
         self.system_ = BarabasiAlbertSystem._get_grown(nodes, growth, [near, closure], label=self.label)
 
 
@@ -498,18 +500,17 @@ class VertexCopyingSystem(BaseSystem):
         """Set `system_` to the components of the system built from its model parameters."""
         super()._prepare(context)
         nodes = CopyingVertexElement('nodes', age=1.0, space=NetworkSpace(nx.complete_graph(self.seed_nodes)))
-        growth = TopologyInteraction(
-            'growth',
-            action='add-node',
+        request = TopologyRequestSpec(
+            'add-node',
             edges=self.edges,
-            values={'age': 0.0},
+            values=(('age', 0.0),),
             toward=lambda node: self.randomness + (1 - self.randomness) * neighbors(node.other.inverse),
         )
-        inverse = MapInteraction(
+        growth = Interaction('growth', laws=[UpdateLaw(request, 1)])
+        inverse = Interaction(
             'inverse',
-            target='nodes',
-            state='inverse',
-            function=lambda s: 1 / (neighbors(1) + SMALLEST_DEGREE),
+            roles={'target': 'nodes'},
+            laws=lambda s: [UpdateLaw(s.target.inverse, 1 / (neighbors(1) + SMALLEST_DEGREE))],
         )
         self.system_ = BarabasiAlbertSystem._get_grown(nodes, growth, [inverse], label=self.label)
 
@@ -637,11 +638,10 @@ class PopularitySimilarityNetworkSystem(BaseSystem):
             angle=angles,
             space=NetworkSpace(nx.complete_graph(seed_nodes)),
         )
-        growth = TopologyInteraction(
-            'growth',
-            action='add-node',
+        request = TopologyRequestSpec(
+            'add-node',
             edges=self.edges,
-            values={'age': 0.0, 'angle': lambda rng: rng.uniform(0.0, 2 * np.pi)},
+            values=(('age', 0.0), ('angle', lambda rng: rng.uniform(0.0, 2 * np.pi))),
             toward=lambda node: self._get_similarity_weight(
                 node,
                 seed_nodes + 1,
@@ -650,6 +650,7 @@ class PopularitySimilarityNetworkSystem(BaseSystem):
                 temperature=self.temperature,
             ),
         )
+        growth = Interaction('growth', laws=[UpdateLaw(request, 1)])
         self.system_ = BarabasiAlbertSystem._get_grown(nodes, growth, label=self.label)
 
 
@@ -706,19 +707,15 @@ class GraphletArrivalSystem(BaseSystem):
         """Set `system_` to growth by the arrival of three-node graphlets, a tree of exponent rising with alpha."""
         super()._prepare(context)
         nodes = VertexElement('nodes', age=1.0, space=NetworkSpace(nx.path_graph(2)))
-        growth = TopologyInteraction(
-            'growth',
-            action='add-node',
-            values={'age': 0.0},
-            toward=BarabasiAlbertSystem._get_degree,
-        )
-        graphlet = TopologyInteraction(
-            'graphlet',
-            action='add-node',
-            values={'age': 0.0},
+        attachment = TopologyRequestSpec('add-node', values=(('age', 0.0),), toward=BarabasiAlbertSystem._get_degree)
+        growth = Interaction('growth', laws=[UpdateLaw(attachment, 1)])
+        request = TopologyRequestSpec(
+            'add-node',
+            values=(('age', 0.0),),
             toward=lambda node: self.alpha * where(node.age < JOINING_AGE, 1, 0)
             + (1 - self.alpha)
             * where(node.age > JOINING_AGE, 1, 0)
             * neighbors(where(node.other.age < JOINING_AGE, 1, 0)),
         )
+        graphlet = Interaction('graphlet', laws=[UpdateLaw(request, 1)])
         self.system_ = BarabasiAlbertSystem._get_grown(nodes, growth, [graphlet], label=self.label)
