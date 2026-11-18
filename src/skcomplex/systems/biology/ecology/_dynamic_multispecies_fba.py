@@ -6,9 +6,14 @@ The two strains compete for the medium.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
+
+from ....core.components import Observable
 from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import CoSimulationSolver, RK4Solver
+from ....core.components.systems import CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, CoSimulationSolver, RK4Solver
+from ....core.systems import BaseSystem, System
 from ..common.metabolism import BiomassElement, ExchangeInteraction, GrowthInteraction, SubstrateElement, load_network
 
 GROWTH = 'Biomass_Ecoli_core'
@@ -46,6 +51,12 @@ class DynamicMultispeciesFBASystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         MissingExtraError:
             The extra is not installed.
@@ -61,7 +72,6 @@ class DynamicMultispeciesFBASystem(BaseSystem):
     references = ('Raman 2021', 'Zhuang et al. 2011')
     until = 8.0
     dt = SYNCHRONISATION
-    solver = CoSimulationSolver(sync_dt=SYNCHRONISATION, solvers={'culture': RK4Solver(dt=ODE_STEP)})
 
     def __init__(
         self,
@@ -72,19 +82,24 @@ class DynamicMultispeciesFBASystem(BaseSystem):
         glucose: float = 10.0,
         km: float = 0.015,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.fast_vmax = fast_vmax
         self.slow_vmax = slow_vmax
         self.biomass = biomass
         self.glucose = glucose
         self.km = km
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of two E. coli core strains that differ in glucose uptake.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of two E. coli core strains that differ in glucose uptake.
 
-        They differ in maximal glucose uptake on one medium.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         cells = []
         interactions = []
         for name, vmax in (('fast', self.fast_vmax), ('slow', self.slow_vmax)):
@@ -109,7 +124,7 @@ class DynamicMultispeciesFBASystem(BaseSystem):
                     reaction=GROWTH,
                 ),
             ]
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             systems=[
                 CompositeSystem('fba', elements=cells, time=DiscreteTime()),
@@ -123,4 +138,5 @@ class DynamicMultispeciesFBASystem(BaseSystem):
                 ),
             ],
             interactions=interactions,
+            solver=CoSimulationSolver(sync_dt=SYNCHRONISATION, solvers={'culture': RK4Solver(dt=ODE_STEP)}),
         )
