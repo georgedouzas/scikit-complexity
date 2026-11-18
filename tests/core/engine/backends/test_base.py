@@ -41,8 +41,8 @@ from skcomplex.core.errors import BackendWarning, SolverError
 from skcomplex.core.specs import BaseSpec, ParameterSpec, RoleSpec, StateSpec
 from skcomplex.systems.biology.common.populations import PopulationElement
 from skcomplex.systems.biology.epidemiology import InfectionInteraction, RecoveryInteraction
-from skcomplex.systems.physics.common.particles import HarmonicPotentialInteraction
 from skcomplex.systems.physics.statistical_mechanics import ContactProcessSystem
+from skcomplex.systems.physics.waves import HarmonicPotentialInteraction
 
 from ....conftest import BodyElement
 

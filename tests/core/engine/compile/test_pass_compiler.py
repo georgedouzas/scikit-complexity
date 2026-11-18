@@ -98,10 +98,10 @@ from skcomplex.systems.economics.finance import AssetElement, GeometricBrownianM
 from skcomplex.systems.economics.markets import CobwebInteraction, MarketElement
 from skcomplex.systems.physics.common.particles import (
     ConstantForceInteraction,
-    HarmonicPotentialInteraction,
 )
 from skcomplex.systems.physics.common.quantum import QubitElement
 from skcomplex.systems.physics.statistical_mechanics import ParticleSiteElement, ZeroRangeHopInteraction
+from skcomplex.systems.physics.waves import HarmonicPotentialInteraction
 from skcomplex.systems.social.cooperation import SimplexSpace
 
 from ....conftest import (

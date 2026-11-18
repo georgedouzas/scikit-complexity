@@ -7,13 +7,14 @@ The module covers chains of masses on springs, guitar strings, and standing wave
 # License: MIT
 
 import math
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import SR, Expression, oo, sin, vector
+from sage.all__sagemath_symbolics import SR, Expression, oo, sin, sqrt, vector
+from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
@@ -26,7 +27,8 @@ from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, VelocityVerletSolver
 from ....core.specs import Role
 from ....core.systems import BaseSystem, System
-from ..common.particles import HarmonicPotentialInteraction, MassPointElement, SpringInteraction
+from ...general.gradients import GradientInteraction
+from ..common.particles import MassPointElement
 
 
 class WaveStringElement(Element):
@@ -96,6 +98,184 @@ class WaveTensionInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             u = context.target.u
             self.laws_ = [RateLaw(u.diff(context.t, 2), context.c**2 * laplacian(u))]
+
+
+class PotentialEnergyInteraction(GradientInteraction):
+    """Potential energy of the positions of particles.
+
+    Its force on every particle changes its velocity.
+
+    It is the gradient of the energy with the mass as divisor: the force `-dU/dx` on every particle gives the second
+    derivative of its position of order 2, the force divided by its mass. A subclass binds one role per particle and
+    returns the energy from `_get_potential`, or a user passes the energy as `potential`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the particle or particle group.
+
+        potential:
+            A function of the namespace that returns the energy, or `None` for a subclass that returns it.
+
+        states:
+            The name of the vector state that holds the position of every particle.
+
+        divisor:
+            The name of the state or parameter that holds the mass of every particle.
+
+    Examples:
+        >>> from types import SimpleNamespace
+        >>> from sage.all__sagemath_symbolics import var, vector
+        >>> from skcomplex.systems.physics.waves import PotentialEnergyInteraction
+        >>> ball = SimpleNamespace(x=vector([var('x')]), m=2)
+        >>> trap = PotentialEnergyInteraction('trap', target='ball', potential=lambda s: s.target.x[0] ** 2)
+        >>> [law.value for law in trap.prepare(SimpleNamespace(target=ball)).laws_]
+        [(-x)]
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Role,
+        potential: Callable[[SimpleNamespace], object] | None = None,
+        states: str | Sequence[str] = 'x',
+        divisor: str = 'm',
+    ) -> None:
+        super().__init__(label, target=target, states=states, potential=potential, divisor=divisor, order=2)
+
+
+class HarmonicPotentialInteraction(PotentialEnergyInteraction):
+    """Harmonic potential that pulls a particle towards a center.
+
+    The energy is `k * |x - center|**2 / 2`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the particle.
+
+        k:
+            The stiffness.
+
+        center:
+            The center. A number applies to every component.
+
+        states:
+            The name of the vector state that holds the position of the particle.
+
+        divisor:
+            The name of the state or parameter that holds the mass of the particle.
+
+    Examples:
+        >>> from skcomplex.systems.physics.waves import HarmonicPotentialInteraction
+        >>> HarmonicPotentialInteraction('trap', target='ball', k=2.0).k
+        2.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Role,
+        k: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        center: npt.ArrayLike = 0.0,
+        states: str = 'x',
+        divisor: str = 'm',
+    ) -> None:
+        super().__init__(label, target=target, states=states, divisor=divisor)
+        self.k = k
+        self.center = center
+
+    def _get_center(self, s: SimpleNamespace) -> object:
+        """Return the center, the hook a subclass overrides to move it."""
+        return s.center
+
+    def _get_potential(self, s: SimpleNamespace) -> Expression:
+        """Return `k * |x - center|**2 / 2`.
+
+        Args:
+            s:
+                The namespace of the symbols the energy can use.
+
+        Returns:
+            energy:
+                The potential energy as a symbolic expression.
+        """
+        position, center = getattr(s.target, self._get_names()[0]), self._get_center(s)
+        if not isinstance(center, FreeModuleElement):
+            center = vector(SR, [center] * len(position))
+        displacement = position - center
+        return s.k * displacement.dot_product(displacement) / 2
+
+
+class SpringInteraction(PotentialEnergyInteraction):
+    """Spring between two particles.
+
+    The energy is `k * (|x_first - x_second| - length)**2 / 2`, and its gradient moves both particles.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        first:
+            The path of the first particle.
+
+        second:
+            The path of the second particle.
+
+        k:
+            The stiffness.
+
+        length:
+            The rest length.
+
+        states:
+            The name of the vector state that holds the positions of the particles.
+
+        divisor:
+            The name of the state or parameter that holds the masses of the particles.
+
+    Examples:
+        >>> from skcomplex.systems.physics.waves import SpringInteraction
+        >>> SpringInteraction('spring', first='a', second='b', k=3.0, length=1.0).length
+        1.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        first: Role,
+        second: Role,
+        k: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        length: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        states: str = 'x',
+        divisor: str = 'm',
+    ) -> None:
+        super().__init__(label, target=first, states=states, divisor=divisor)
+        self.first = first
+        self.second = second
+        self.k = k
+        self.length = length
+
+    def _get_potential(self, s: SimpleNamespace) -> Expression:
+        """Return `k * (|x_first - x_second| - length)**2 / 2`.
+
+        Args:
+            s:
+                The namespace of the symbols the energy can use.
+
+        Returns:
+            energy:
+                The potential energy as a symbolic expression.
+        """
+        gap = getattr(s.first, self._get_names()[0]) - getattr(s.second, self._get_names()[0])
+        return s.k * (sqrt(gap.dot_product(gap)) - s.length) ** 2 / 2
 
 
 class DrivenAnchorInteraction(HarmonicPotentialInteraction):

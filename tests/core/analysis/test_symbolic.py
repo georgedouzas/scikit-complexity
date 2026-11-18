@@ -29,10 +29,10 @@ from skcomplex.systems.mathematics.fractals import KochCurveSystem
 from skcomplex.systems.physics.active_matter import CuckerSmaleFlockingSystem
 from skcomplex.systems.physics.common.particles import (
     ConstantForceInteraction,
-    HarmonicPotentialInteraction,
 )
 from skcomplex.systems.physics.common.quantum import QuantumCompiler
 from skcomplex.systems.physics.statistical_mechanics import QuantumHeisenbergSystem
+from skcomplex.systems.physics.waves import HarmonicPotentialInteraction
 
 from ...conftest import BodyElement, CallableGrowthInteraction, HoldingElement
 

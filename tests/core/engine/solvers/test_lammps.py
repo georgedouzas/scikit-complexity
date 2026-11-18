@@ -31,11 +31,11 @@ from skcomplex.systems.physics.common.particles import (
     LAMMPS_FIXES,
     ConstantForceInteraction,
     DampingInteraction,
-    HarmonicPotentialInteraction,
     LangevinThermostatInteraction,
     LennardJonesInteraction,
 )
 from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem
+from skcomplex.systems.physics.waves import HarmonicPotentialInteraction
 
 from ....conftest import BodyElement
 
