@@ -8,7 +8,8 @@ The births, deaths, food, and quality of life of a population suffer from its po
 
 from types import SimpleNamespace
 
-from sage.all__sagemath_symbolics import Expression
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.laws.utils import series
@@ -141,6 +142,20 @@ class PopulationPollutionSystem(DynamicalSystem):
         return {
             'population': self.population,
             'pollution': self.pollution,
+        }
+
+    def _get_allowed(self) -> dict[str, object]:
+        """Return the allowed values of the states and parameters that have them, by name."""
+        return {
+            'population': RealSet.closed_open(0, oo),
+            'pollution': RealSet.closed_open(0, oo),
+            'pollution_normal': RealSet.closed_open(0, oo),
+            'pollution_standard': RealSet.open(0, oo),
+            'birth_normal': RealSet.closed_open(0, oo),
+            'death_normal': RealSet.closed_open(0, oo),
+            'subsistence_food': RealSet.open(0, oo),
+            'cultivated_land': RealSet.closed_open(0, oo),
+            'crop_yield': RealSet.closed_open(0, oo),
         }
 
     def _get_parameters(self) -> dict[str, object]:

@@ -6,23 +6,23 @@ The module covers gases, fluids, and spin systems.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import math
 from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, cos, oo, pi
+from sage.all__sagemath_symbolics import Expression, cos, oo
 from sage.sets.real_set import RealSet
 
 from ....core import systems
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element, Period
 from ....core.components.laws.utils import neighbors, where
 from ....core.components.spaces import BaseNeighborhood, BaseSpace, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.specs import RoleSpec
 from ..common.spins import IsingSamplingInteraction, IsingSpinElement, SpinSamplingInteraction
 
 
@@ -90,9 +90,8 @@ class XYSpinElement(Element):
         temperature:
             The temperature in units of the coupling.
 
-    Attributes:
-        default_visual_:
-            How the spin is drawn by default, the `visual` of its class.
+        space:
+            The lattice of the spins, or `None` for one spin.
 
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import XYSpinElement
@@ -104,11 +103,12 @@ class XYSpinElement(Element):
         self,
         label: str,
         *,
-        theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
-        J: Annotated[float, ParameterSpec()] = 1.0,
-        temperature: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        theta: Annotated[object, Period(2 * math.pi)] = 0.0,
+        J: float = 1.0,
+        temperature: Annotated[float, RealSet.open(0, oo)] = 0.5,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.theta = theta
         self.J = J
         self.temperature = temperature
@@ -431,7 +431,7 @@ class PottsSystem(systems.BaseSystem):
         )
 
 
-class XYSystem(BaseSystem):
+class XYSystem(systems.BaseSystem):
     """The XY system of planar spins on a torus.
 
     Its vortices bind below the Kosterlitz-Thouless point.
@@ -457,6 +457,12 @@ class XYSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import XYSystem
         >>> XYSystem(8).prepare().system_.interactions[0].width
@@ -478,27 +484,34 @@ class XYSystem(BaseSystem):
         width: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.size = size
         self.temperature = temperature
         self.J = J
         self.width = width
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the planar spins of a torus at random angles.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         shape = IsingSystem._get_square(self.size)
         angles = np.random.default_rng(self.random_state).uniform(0, 2 * np.pi, size=shape)
-        space = LatticeSpace(shape)
-        group = GroupElement(
+        group = XYSpinElement(
             'spins',
-            element=XYSpinElement,
-            space=space,
-            values={'theta': angles, 'J': self.J, 'temperature': self.temperature},
-            on='sites',
+            theta=angles.ravel(),
+            J=self.J,
+            temperature=self.temperature,
+            space=LatticeSpace(shape),
         )
-        return CompositeSystem(
+        self.system_ = systems.System(
             self.label,
             elements=[group],
             interactions=[XYSamplingInteraction('sampling', target='spins', width=self.width)],

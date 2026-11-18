@@ -343,6 +343,14 @@ class ThermostatSystem(DynamicalSystem):
             'T': self.T,
         }
 
+    def _get_allowed(self) -> dict[str, object]:
+        """Return the allowed values of the states and parameters that have them, by name."""
+        return {
+            'furnace': RealSet.closed_open(0, oo),
+            'leak': RealSet.closed_open(0, oo),
+            'swing': RealSet.closed_open(0, oo),
+        }
+
     def _get_parameters(self) -> dict[str, object]:
         """Return the value of every parameter by name."""
         return {
@@ -459,6 +467,15 @@ class PidLoopSystem(DynamicalSystem):
             'integral': 0.0,
         }
 
+    def _get_allowed(self) -> dict[str, object]:
+        """Return the allowed values of the states and parameters that have them, by name."""
+        return {
+            'tau': RealSet.open(0, oo),
+            'Kp': RealSet.closed_open(0, oo),
+            'Ki': RealSet.closed_open(0, oo),
+            'Kd': RealSet.closed_open(0, oo),
+        }
+
     def _get_parameters(self) -> dict[str, object]:
         """Return the value of every parameter by name."""
         return {
@@ -564,6 +581,13 @@ class PendulumSwingUpSystem(DynamicalSystem):
             "theta'": self.omega0,
             'f': 0.0,
             "f'": 0.0,
+        }
+
+    def _get_allowed(self) -> dict[str, object]:
+        """Return the allowed values of the states and parameters that have them, by name."""
+        return {
+            'omega': RealSet.open(0, oo),
+            'mu': RealSet.closed_open(0, oo),
         }
 
     def _get_parameters(self) -> dict[str, object]:
@@ -686,6 +710,14 @@ class SatelliteTransferSystem(DynamicalSystem):
             's': self.s,
             "s'": self.velocity,
             'theta': self.theta,
+        }
+
+    def _get_allowed(self) -> dict[str, object]:
+        """Return the allowed values of the states and parameters that have them, by name."""
+        return {
+            's': RealSet.open(0, oo),
+            'Lz': RealSet.open(0, oo),
+            'epsilon': RealSet.closed_open(0, oo),
         }
 
     def _get_parameters(self) -> dict[str, object]:

@@ -18,8 +18,10 @@ from ....core.components import Observable
 from ....core.components.elements import Element, FieldElement, GroupElement
 from ....core.components.interactions import CouplingInteraction, RateInteraction
 from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 
 
 class NetworkSaverElement(Element):
@@ -97,6 +99,12 @@ class BouchaudMezardWealthSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.finance import BouchaudMezardWealthSystem
         >>> BouchaudMezardWealthSystem(10).prepare().system_.elements[0].values['J']
@@ -119,8 +127,10 @@ class BouchaudMezardWealthSystem(BaseSystem):
         sigma: float = 0.5,
         wealth: float | Sequence[float] = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_agents = n_agents
         self.graph = graph
         self.J = J
@@ -137,8 +147,9 @@ class BouchaudMezardWealthSystem(BaseSystem):
         """Return the amplitude `sigma W` of the random returns."""
         return s.target.sigma * s.target.W
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         returns = RateInteraction('returns', target='agents', state='W', noise=self._returns, convention='stratonovich')
         if self.graph is None:
             values = {'W': self.wealth, 'J': self.J, 'sigma': self.sigma, 'degree': self.n_agents - 1}
@@ -162,4 +173,4 @@ class BouchaudMezardWealthSystem(BaseSystem):
             function=self._exchange,
             mode=mode,
         )
-        return CompositeSystem(self.label, elements=[agents], interactions=[exchange, returns])
+        self.system_ = System(self.label, elements=[agents], interactions=[exchange, returns])

@@ -6,13 +6,13 @@
 from collections.abc import Mapping, Sequence
 
 from ....core.components import Observable
-from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
 from ....core.systems import BaseSystem, System
+from ._annotated_element import AnnotatedElement
 from .types import FlowTable
 
 
@@ -26,7 +26,8 @@ class StockFlowSystem(BaseSystem):
     reports it as `<element>.<flow>`, and a flow between two stocks keeps their total.
 
     A subclass returns the stocks, flows, and parameters from the hooks `_get_stocks`, `_get_flows`, and
-    `_get_parameters`, and the label of the element from `_get_element_label`.
+    `_get_parameters`, the allowed values and quantities of its stocks from `_get_allowed` and `_get_quantities`, and
+    the label of the element from `_get_element_label`.
 
     Unlike `DynamicalSystem`, which writes a rate per state, it writes flows between stocks with a
     `TransferInteraction`, so what leaves one stock enters another. Choose it when a model is drawn as stocks and flows,
@@ -78,6 +79,8 @@ class StockFlowSystem(BaseSystem):
         flows: FlowTable | None = None,
         *,
         parameters: Mapping[str, object] | None = None,
+        allowed: Mapping[str, object] | None = None,
+        quantities: Mapping[str, str] | None = None,
         element: str = 'stocks',
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
@@ -97,6 +100,14 @@ class StockFlowSystem(BaseSystem):
             parameters:
                 The value of every parameter the rates read, by name, or `None` for none.
 
+            allowed:
+                The allowed values of some stocks by name, a `RealSet` such as `RealSet.closed_open(0, oo)` for a stock
+                that cannot go negative, or `None` for none. A stock outside them is rejected.
+
+            quantities:
+                The quantity some stocks hold by name, such as `{'water': 'water'}`, which the conservation monitor
+                follows, or `None` for none.
+
             element:
                 The label of the element that holds the stocks and the parameters.
 
@@ -113,6 +124,8 @@ class StockFlowSystem(BaseSystem):
         self.stocks = stocks
         self.flows = flows
         self.parameters = parameters
+        self.allowed = allowed
+        self.quantities = quantities
         self.element = element
 
     def _get_stocks(self) -> Mapping[str, object]:
@@ -135,6 +148,20 @@ class StockFlowSystem(BaseSystem):
         A subclass with parameters of its own returns them.
         """
         return self.parameters or {}
+
+    def _get_allowed(self) -> Mapping[str, object]:
+        """Return the allowed values of the stocks that have them, by name.
+
+        A subclass whose stocks cannot take every value returns them, such as a stock that cannot go negative.
+        """
+        return self.allowed or {}
+
+    def _get_quantities(self) -> Mapping[str, str]:
+        """Return the quantity of the stocks that hold one, by name.
+
+        A subclass whose stocks hold a conserved quantity returns them.
+        """
+        return self.quantities or {}
 
     def _get_element_label(self) -> str:
         """Return the label of the element that holds the stocks and the parameters.
@@ -202,7 +229,12 @@ class StockFlowSystem(BaseSystem):
         """
         super()._prepare(context)
         self._check_flows()
-        element = Element(self._get_element_label(), values={**self._get_stocks(), **self._get_parameters()})
+        element = AnnotatedElement(
+            self._get_element_label(),
+            values={**self._get_stocks(), **self._get_parameters()},
+            allowed=self._get_allowed(),
+            quantities=self._get_quantities(),
+        )
         self.system_ = System(
             self.label,
             elements=[element],

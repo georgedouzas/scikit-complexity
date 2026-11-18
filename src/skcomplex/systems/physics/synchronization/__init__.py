@@ -27,6 +27,7 @@ from ._hypergraphs import HypergraphKuramotoSystem, SimplexCouplingInteraction
 from ._kuramoto import (
     DelayedCouplingInteraction,
     DelayedKuramotoSystem,
+    KuramotoCouplingInteraction,
     KuramotoSakaguchiChimeraSystem,
     KuramotoSystem,
     NonlocalRingChimeraSystem,
@@ -49,7 +50,7 @@ from ._pulses import (
     WinfreeSystem,
 )
 from ._swarmalators import SwarmalatorCouplingInteraction, SwarmalatorElement, SwarmalatorsSystem
-from ._topological import TopologicalKuramotoSystem
+from ._topological import LinkCouplingInteraction, NodeCouplingInteraction, TopologicalKuramotoSystem
 
 __all__: list[str] = [
     'AdaptiveCouplingInteraction',
@@ -70,15 +71,18 @@ __all__: list[str] = [
     'HeterogeneousGlobalCouplingSystem',
     'HypergraphKuramotoSystem',
     'IntegrateAndFireOscillatorElement',
+    'KuramotoCouplingInteraction',
     'KuramotoOnNetworksSystem',
     'KuramotoSakaguchiChimeraSystem',
     'KuramotoSystem',
+    'LinkCouplingInteraction',
     'LinkElement',
     'LogisticCouplingInteraction',
     'LogisticNodeElement',
     'LogisticUnitElement',
     'LorenzFlowInteraction',
     'MirolloStrogatzSystem',
+    'NodeCouplingInteraction',
     'NonlocalRingChimeraSystem',
     'OscillatorDeathSystem',
     'OttAntonsenSystem',

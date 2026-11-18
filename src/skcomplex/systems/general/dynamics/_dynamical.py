@@ -7,12 +7,13 @@ import re
 from collections.abc import Mapping, Sequence
 
 from ....core.components import Observable
-from ....core.components.elements import BaseElement, Element
+from ....core.components.elements import BaseElement
 from ....core.components.interactions import BaseInteraction
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
 from ....core.systems import BaseSystem, System
+from ._annotated_element import AnnotatedElement
 from ._equation import EquationInteraction
 from .types import Equations, Noises
 
@@ -32,8 +33,9 @@ class DynamicalSystem(BaseSystem):
     starts from the value named with primes or a past index among the states, such as `{'y': 1.0, 'y[-1]': 1.0}`.
 
     A subclass takes the parameters of its model under its own names and returns the states, equations, parameters, and
-    noises from `_get_states`, `_get_equations`, `_get_parameters`, and `_get_noises`, the time from `_get_time`, and
-    the label of the element from `_get_element_label`.
+    noises from `_get_states`, `_get_equations`, `_get_parameters`, and `_get_noises`, the allowed values and
+    quantities of its states from `_get_allowed` and `_get_quantities`, the time from `_get_time`, and the label of the
+    element from `_get_element_label`.
 
     Unlike `System`, which takes any components, it is written with one element and one `EquationInteraction` per
     state. Choose it when a model is a set of equations, one per state.
@@ -93,6 +95,8 @@ class DynamicalSystem(BaseSystem):
         *,
         parameters: Mapping[str, object] | None = None,
         noises: Noises | None = None,
+        allowed: Mapping[str, object] | None = None,
+        quantities: Mapping[str, str] | None = None,
         time: str = 'continuous',
         convention: str = 'ito',
         element: str = 'state',
@@ -115,6 +119,14 @@ class DynamicalSystem(BaseSystem):
             noises:
                 The noise amplitude of every state that has one, by name, as a function of the namespace or a
                 number, or `None` for none. Only continuous time takes noise.
+
+            allowed:
+                The allowed values of some states by name, a `RealSet` such as `RealSet.closed_open(0, oo)` or a set
+                such as `{'S', 'I', 'R'}`, or `None` for none. A state outside them is rejected.
+
+            quantities:
+                The quantity some states hold by name, such as `{'n': 'people'}`, which the conservation monitor
+                follows, or `None` for none.
 
             time:
                 The time of the equations, `'continuous'` for rates or `'discrete'` for maps.
@@ -139,6 +151,8 @@ class DynamicalSystem(BaseSystem):
         self.equations = equations
         self.parameters = parameters
         self.noises = noises
+        self.allowed = allowed
+        self.quantities = quantities
         self.time = time
         self.convention = convention
         self.element = element
@@ -170,6 +184,20 @@ class DynamicalSystem(BaseSystem):
         A subclass with a noise returns it.
         """
         return self.noises or {}
+
+    def _get_allowed(self) -> Mapping[str, object]:
+        """Return the allowed values of the states that have them, by name.
+
+        A subclass whose states cannot take every value returns them, such as a stock that cannot go negative.
+        """
+        return self.allowed or {}
+
+    def _get_quantities(self) -> Mapping[str, str]:
+        """Return the quantity of the states that hold one, by name.
+
+        A subclass whose states hold a conserved quantity returns them.
+        """
+        return self.quantities or {}
 
     def _get_time(self) -> str:
         """Return the time of the equations, `'continuous'` or `'discrete'`.
@@ -257,7 +285,12 @@ class DynamicalSystem(BaseSystem):
         It is one element here, and a field on the sites of a space or a node of a graph in the subclasses that place
         the states.
         """
-        return Element(self._get_element_label(), values={**self._get_states(), **self._get_parameters()})
+        return AnnotatedElement(
+            self._get_element_label(),
+            values={**self._get_states(), **self._get_parameters()},
+            allowed=self._get_allowed(),
+            quantities=self._get_quantities(),
+        )
 
     def _get_interactions(self) -> list[BaseInteraction]:
         """Return the interactions of the system, the equations here.

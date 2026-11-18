@@ -18,7 +18,6 @@ import rerun as rr
 import rerun.blueprint as rrb
 from scipy.optimize import brentq
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.active_matter import BinaryCollisionFlockingSystem
 
@@ -39,7 +38,7 @@ blueprint = rrb.Blueprint(
 )
 system = BinaryCollisionFlockingSystem(sigma=0.3, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-trajectory = simulate(system, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # The order-disorder transition in noise
@@ -61,7 +60,7 @@ noises = np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 1.0])
 polarizations = []
 for sigma in noises:
     system_system = BinaryCollisionFlockingSystem(sigma=float(sigma), random_state=1)
-    run = simulate(system_system, until=150, random_state=1)
+    run = system_system.prepare().simulate(until=150, random_state=1)
     polarizations.append(np.mean(run.get_values('polarization')[75:]))
 fig, (series, transition) = plt.subplots(1, 2, figsize=(10, 4))
 series.plot(trajectory.times, trajectory.get_values('polarization'))

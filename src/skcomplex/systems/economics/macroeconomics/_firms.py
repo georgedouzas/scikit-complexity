@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Annotated
 
 import numpy as np
@@ -11,12 +11,11 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction
-from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.systems import BaseSystem, System
 
 
 class InvestingFirmView(AgentView):
@@ -79,9 +78,12 @@ class InvestingFirmElement(Element):
         pbar:
             The constant part of the price.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.economics.macroeconomics import InvestingFirmElement
-        >>> GroupElement('firms', element=InvestingFirmElement, size=10, values={'gamma': 1.2}).size
+        >>> InvestingFirmElement('firms', gamma=1.2, size=10).size
         10
     """
 
@@ -91,18 +93,19 @@ class InvestingFirmElement(Element):
         self,
         label: str,
         *,
-        A: Annotated[float, StateSpec()] = 1.0,
-        K: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        Z: Annotated[float, StateSpec()] = 0.0,
-        B: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        Y: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        P: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.1,
-        phi: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
-        r: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
-        pbar: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        A: object = 1.0,
+        K: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        Z: object = 0.0,
+        B: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        Y: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        P: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        gamma: Annotated[object, RealSet.open(0, oo)] = 1.1,
+        phi: Annotated[object, RealSet.open(0, oo)] = 0.1,
+        r: Annotated[object, RealSet.open(0, oo)] = 0.1,
+        pbar: Annotated[object, RealSet.closed_open(0, oo)] = 0.01,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.A = A
         self.K = K
         self.Z = Z
@@ -191,9 +194,15 @@ class ToyFirmInvestmentSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.macroeconomics import ToyFirmInvestmentSystem
-        >>> ToyFirmInvestmentSystem(20).prepare().system_.elements[0].prepare().size_
+        >>> ToyFirmInvestmentSystem(20).prepare().system_.elements[0].size
         20
     """
 
@@ -213,8 +222,10 @@ class ToyFirmInvestmentSystem(BaseSystem):
         pbar: float = 0.01,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_firms = n_firms
         self.gamma = gamma
         self.phi = phi
@@ -222,17 +233,21 @@ class ToyFirmInvestmentSystem(BaseSystem):
         self.pbar = pbar
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         profits = self.pbar + 2.0 * np.random.default_rng(self.random_state).random(self.n_firms)
-        firms = GroupElement(
+        firms = InvestingFirmElement(
             'firms',
-            element=InvestingFirmElement,
+            Z=profits,
+            gamma=self.gamma,
+            phi=self.phi,
+            r=self.r,
+            pbar=self.pbar,
             size=self.n_firms,
-            values={'Z': profits, 'gamma': self.gamma, 'phi': self.phi, 'r': self.r, 'pbar': self.pbar},
         )
         steps = [
             MapInteraction(label, target='firms', state=name, function=function, form='agent')
             for label, name, function in InvestingFirmElement.get_steps()
         ]
-        return CompositeSystem(self.label, elements=[firms], interactions=steps, time=DiscreteTime())
+        self.system_ = System(self.label, elements=[firms], interactions=steps)

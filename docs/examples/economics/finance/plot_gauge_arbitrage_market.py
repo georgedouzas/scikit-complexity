@@ -11,17 +11,15 @@ to the codifferential of the field at every time.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.finance import GaugeArbitrageMarketSystem
 
 SYSTEM = 'gauge_arbitrage_market'
 
-system = GaugeArbitrageMarketSystem()
-observables = system.get_run_settings()['observables']
+system = GaugeArbitrageMarketSystem(solver=RK4Solver(dt=0.02)).prepare()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, solver=RK4Solver(dt=0.02), observables=observables, observers=[observer])
+trajectory = system.simulate(observers=[observer])
 
 # %%
 # Conservation in the market

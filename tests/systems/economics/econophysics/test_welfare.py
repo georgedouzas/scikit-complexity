@@ -14,8 +14,8 @@ from skcomplex.systems.social.opinion_dynamics import KineticOpinionSystem
 
 def test_welfare_policy_lowers_the_gini_coefficient():
     """Test that a policy moving activity from the richest to the poorest classes lowers the stationary Gini."""
-    without = simulate(KineticWealthWelfareSystem(), until=200, dt=50.0, random_state=0)
-    with_policy = simulate(KineticWealthWelfareSystem(tax=0.2), until=200, dt=50.0, random_state=0)
+    without = KineticWealthWelfareSystem().prepare().simulate(until=200, dt=50.0, random_state=0)
+    with_policy = KineticWealthWelfareSystem(tax=0.2).prepare().simulate(until=200, dt=50.0, random_state=0)
     assert with_policy.get_values('gini')[-1] < without.get_values('gini')[-1] - 0.05
     assert with_policy.get_values('gini')[-1] == pytest.approx(with_policy.get_values('gini')[-2], abs=1e-4)
     np.testing.assert_allclose(without.get_values('density'), 1.0, rtol=1e-10)
@@ -23,7 +23,7 @@ def test_welfare_policy_lowers_the_gini_coefficient():
 
 def test_wealth_gini_matches_its_definition():
     """Test that the Gini observable equals the mean absolute difference of wealth over twice the mean."""
-    trajectory = simulate(KineticWealthWelfareSystem(), until=20, dt=20.0, random_state=0)
+    trajectory = KineticWealthWelfareSystem().prepare().simulate(until=20, dt=20.0, random_state=0)
     f = np.asarray(trajectory.get_values('wealth.x')[-1])
     wealth = np.linspace(0.0, 1.0, f.size)
     expected = (f[:, None] * f[None, :] * np.abs(wealth[:, None] - wealth[None, :])).sum() / (
@@ -32,10 +32,13 @@ def test_wealth_gini_matches_its_definition():
     assert trajectory.get_values('gini')[-1] == pytest.approx(expected, rel=1e-9)
 
 
-@pytest.mark.parametrize(
-    'system',
-    [KineticWealthWelfareSystem, ImmuneCompetitionSystem, KineticOpinionSystem, EvacuationSystem],
-)
+def test_kinetic_wealth_runs_with_the_particle_solver():
+    """Test that the kinetic wealth system of encounters alone validates and starts with the particle solver."""
+    system = KineticWealthWelfareSystem(solver=KineticSolver()).prepare()
+    assert system.simulate(until=0, random_state=0).times.tolist() == [0.0]
+
+
+@pytest.mark.parametrize('system', [ImmuneCompetitionSystem, KineticOpinionSystem, EvacuationSystem])
 def test_kinetic_systems_run_with_the_particle_solver(system):
     """Test that the kinetic systems of encounters alone validate and start with the particle solver."""
     trajectory = simulate(system().prepare().system_, until=0, solver=KineticSolver(), random_state=0)

@@ -122,9 +122,9 @@ def test_alignment_checks_its_settings():
 
 def test_alignment_on_three_domains():
     """Test the mean vector of a Vicsek flock and of an XY lattice, and the mean phase of Kuramoto oscillators."""
-    flock = simulate(VicsekSystem(), until=3, random_state=0)
-    spins = simulate(XYSystem(), until=3, random_state=0)
-    oscillators = simulate(KuramotoSystem(), until=3, random_state=0)
+    flock = VicsekSystem().prepare().simulate(until=3, random_state=0)
+    spins = XYSystem().prepare().simulate(until=3, random_state=0)
+    oscillators = KuramotoSystem().prepare().simulate(until=3, random_state=0)
     runs = (
         (_alignment('mean-vector', flock), flock),
         (_alignment('mean-vector', spins), spins),
@@ -164,8 +164,8 @@ def test_alignment_of_velocities_along_a_line():
     [(SwarmalatorsSystem, 'units.theta'), (KuramotoSystem, 'oscillators.theta')],
 )
 def test_alignment_reads_phases(system, state):
-    """Test that particles and series with the role phase give the synchrony of their phases, not their observables."""
-    trajectory = simulate(system(), until=1.0, random_state=0)
+    """Test that particles and series of periodic values give the synchrony of their angles, not their observables."""
+    trajectory = system().prepare().simulate(until=1.0, random_state=0)
     expected = np.abs(np.exp(1j * trajectory.get_values(state)).mean(axis=1))
     assert _alignment('mean-vector', trajectory).order == pytest.approx(expected, abs=1e-12)
 

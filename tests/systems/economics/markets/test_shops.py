@@ -8,13 +8,13 @@ import pytest
 from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RuleLaw
-from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.components.types import AgentViewProtocol, SystemViewProtocol
-from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
-from skcomplex.core.engine.runtime import Trajectory, simulate
+from skcomplex.core.engine.compile import PhaseSpec
+from skcomplex.core.engine.runtime import Trajectory
+from skcomplex.core.engine.solvers import MesaSolver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.economics.common.policy import PolicyRuleInteraction
 from skcomplex.systems.economics.markets import PriceAdjustmentInteraction, ShopsSystem
 
@@ -86,8 +86,8 @@ class QuoteElement(Element):
 
 def _run(element: Element, adjustment: PriceAdjustmentInteraction, until: int) -> Trajectory:
     """Return the trajectory of an element whose quote a price adjustment steps."""
-    system = CompositeSystem(elements=[element], interactions=[adjustment], time=DiscreteTime())
-    return simulate(system, until=until, random_state=0)
+    system = System(elements=[element], interactions=[adjustment])
+    return system.prepare().simulate(until=until, random_state=0)
 
 
 def _crowded(agent: AgentViewProtocol, system: SystemViewProtocol) -> float:
@@ -97,13 +97,13 @@ def _crowded(agent: AgentViewProtocol, system: SystemViewProtocol) -> float:
 
 def test_interest_rate_rule():
     """The interest rate changes only at steps where inflation exceeds the target."""
-    system = CompositeSystem(
+    system = System(
         elements=[GroupElement('shops', element=ShopElement, size=20)],
         interactions=[CentralBankInteraction('bank', phase='policy')],
-        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('policy')])),
+        solver=MesaSolver(phases=[PhaseSpec('policy')]),
     )
     observables = [Observable('price_level', group='shops', variable='price')]
-    trajectory = simulate(system, until=40, random_state=0, observables=observables)
+    trajectory = system.prepare().simulate(until=40, random_state=0, observables=observables)
     rate, inflation = trajectory.get_values('bank.rate'), trajectory.get_values('bank.inflation')
     changed = np.diff(rate) != 0
     assert changed.any()
@@ -114,8 +114,8 @@ def test_interest_rate_rule():
 
 def test_digital_market_closes_shops_and_lowers_prices():
     """Test that shopping online leaves fewer shops, a larger leader, and lower prices than shopping in person."""
-    local = simulate(ShopsSystem(online=0.0), until=100)
-    digital = simulate(ShopsSystem(online=1.0), until=100)
+    local = ShopsSystem(online=0.0).prepare().simulate(until=100)
+    digital = ShopsSystem(online=1.0).prepare().simulate(until=100)
     assert digital.get_values('open_shops')[-1] < local.get_values('open_shops')[-1]
     assert digital.get_values('concentration')[-1] > 2 * local.get_values('concentration')[-1]
     assert digital.get_values('mean_price')[50:].mean() < local.get_values('mean_price')[50:].mean()

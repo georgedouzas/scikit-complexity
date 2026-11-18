@@ -2,8 +2,6 @@
 
 import numpy as np
 
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.synchronization import TopologicalKuramotoSystem
 
 SYNCHRONIZATION_GAP = 0.3
@@ -11,7 +9,7 @@ SYNCHRONIZATION_GAP = 0.3
 
 def _final_order(coupling):
     """Return the mean over the last frames of the order parameter of the link phases of a run at a coupling."""
-    trajectory = simulate(TopologicalKuramotoSystem(coupling=coupling), until=40.0, dt=0.2)
+    trajectory = TopologicalKuramotoSystem(coupling=coupling).prepare().simulate(until=40.0, dt=0.2)
     return float(np.mean(trajectory.get_values('link_order')[-20:]))
 
 
@@ -26,7 +24,7 @@ def test_rates_follow_the_incidence_of_the_complex():
     6 of the review.
     """
     system = TopologicalKuramotoSystem(8, density=0.8, coupling=1.5).prepare().system_
-    problem = PassCompiler().prepare(system).run().problem_
+    problem = system._problem
     state = problem.initial_state
     rates = problem.drift(0.0, state, problem.initial_parameters)
     space = system.elements[0].space
@@ -49,7 +47,7 @@ def test_nodes_links_triangles_rates_follow_eq_8_of_the_review():
     8.
     """
     system = TopologicalKuramotoSystem(8, density=0.8, coupling=1.5, model='NLT').prepare().system_
-    problem = PassCompiler().prepare(system).run().problem_
+    problem = system._problem
     state = problem.initial_state
     rates = problem.drift(0.0, state, problem.initial_parameters)
     edges, faces = system.elements[0].space.incidences_[:2]
@@ -69,7 +67,7 @@ def test_nodes_links_triangles_system_stays_incoherent_where_the_nodes_links_sys
     """Test that at a weak coupling the nodes synchronize in the Nodes-Links system but not with the triangles."""
     orders = {}
     for model in ('NL', 'NLT'):
-        trajectory = simulate(TopologicalKuramotoSystem(coupling=0.5, model=model), until=40.0, dt=0.2)
+        trajectory = TopologicalKuramotoSystem(coupling=0.5, model=model).prepare().simulate(until=40.0, dt=0.2)
         orders[model] = float(np.mean(trajectory.get_values('node_order')[-20:]))
     assert orders['NL'] > 0.9
     assert orders['NLT'] < 0.4

@@ -6,7 +6,7 @@ Traders who move a good on sites source them.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from functools import partial
 from types import SimpleNamespace
 from typing import Annotated
@@ -23,9 +23,10 @@ from ....core.components.interactions import NeighborInteraction, RateInteractio
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import codifferential, exterior_derivative
 from ....core.components.spaces import CellComplexSpace, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
-from ....core.engine.solvers import RK4Solver
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, RK4Solver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
 SOLVER_TOLERANCE = 1e-15
@@ -200,6 +201,12 @@ class GaugeArbitrageMarketSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.finance import GaugeArbitrageMarketSystem
         >>> [element.label for element in GaugeArbitrageMarketSystem(4).prepare().system_.elements]
@@ -211,7 +218,6 @@ class GaugeArbitrageMarketSystem(BaseSystem):
     references = ('Schwichtenberg 2020',)
     until = 20.0
     dt = 0.5
-    solver = RK4Solver(dt=0.02)
 
     @staticmethod
     def _get_total_good(t: float, values: Mapping[str, object]) -> float:
@@ -233,7 +239,7 @@ class GaugeArbitrageMarketSystem(BaseSystem):
         return float(np.abs(-(edges.T @ electric) - (density - density.mean())).max())
 
     @staticmethod
-    def _get_market_observables(system: CompositeSystem) -> list[Observable]:
+    def _get_market_observables(system: System) -> list[Observable]:
         """Return the total of the good and the Gauss residual against its excess density."""
         space = system.elements[0].space.prepare()
         return [
@@ -253,8 +259,10 @@ class GaugeArbitrageMarketSystem(BaseSystem):
         bump: float = 1.0,
         seed: int = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.size = size
         self.D = D
         self.q = q
@@ -290,8 +298,9 @@ class GaugeArbitrageMarketSystem(BaseSystem):
         )[0]
         return np.asarray(field, dtype=float)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         space = CellComplexSpace(LatticeSpace((self.size, self.size))).prepare()
         density = 1.0 + self.bump * np.random.default_rng(self.seed).random(self.size * self.size)
         field = self._get_initial_field(space.incidences_[0], density - density.mean())
@@ -314,13 +323,5 @@ class GaugeArbitrageMarketSystem(BaseSystem):
             RateInteraction('field', target='links', state='E', rate=self._get_field_rate),
             TraderCurrentInteraction('current', target='sites', links='links', D=self.D, q=self.q),
         ]
-        return CompositeSystem(self.label, elements=[sites, links], interactions=interactions)
-
-    def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings.
-
-        The observables of the components are built from the model parameters.
-        """
-        settings = super().get_run_settings()
-        settings['observables'] = GaugeArbitrageMarketSystem._get_market_observables(self._get_pass_parameters())
-        return settings
+        self.system_ = System(self.label, elements=[sites, links], interactions=interactions, solver=RK4Solver(dt=0.02))
+        self.observables_ = tuple(GaugeArbitrageMarketSystem._get_market_observables(self.system_))

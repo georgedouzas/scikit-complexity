@@ -35,7 +35,6 @@ from skcomplex.core.engine.solvers import IMEXEulerSolver, ScipyODESolver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.systems.chemistry.pattern_formation import GrayScottSystem
-from skcomplex.systems.physics.common.oscillators import SitedOscillatorElement
 from skcomplex.systems.physics.fluids import KuramotoSivashinskySystem
 from skcomplex.systems.physics.heat import HeatDiffusionSystem, HeatLShapeSystem
 
@@ -111,10 +110,25 @@ def test_jacobian_against_finite_differences(laws):
     assert pattern[np.abs(estimate) > 1e-9].all()
 
 
+class _SitedElement(Element):
+    """Phase oscillator at a place that is no position of a particle."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        theta: Annotated[float, StateSpec()] = 0.0,
+        x: Annotated[object, StateSpec(vector=True, role='site')] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.theta = theta
+        self.x = x
+
+
 def _pair_ring(size):
     """Return phase oscillators on a periodic ring, coupled by the sine of their phase differences within two sites."""
     values = {'theta': RNG.uniform(0, 2 * np.pi, size), 'x': np.arange(size, dtype=float).reshape(-1, 1)}
-    ring = GroupElement('ring', element=SitedOscillatorElement, size=size, values=values)
+    ring = GroupElement('ring', element=_SitedElement, size=size, values=values)
     coupling = PairInteraction(
         'coupling',
         'ring',

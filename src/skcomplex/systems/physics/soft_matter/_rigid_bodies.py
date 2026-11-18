@@ -9,6 +9,7 @@ vector along the axis.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import math
 from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
@@ -19,7 +20,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.base import BaseComponent
-from ....core.components.elements import Element
+from ....core.components.elements import Element, Period
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BoundaryLaw, NoiseLaw, RateLaw
 from ....core.components.spaces import BaseSpace, ContinuousSpace
@@ -185,7 +186,8 @@ class AnisotropicDiffusionInteraction(Interaction):
 class DimerElement(Element):
     """Dimers of two spheres joined by a rigid rod, described by the centre `c` and the angle `phi` of the rod.
 
-    The spheres have the orientations `theta1` and `theta2`, along which active spheres swim.
+    The spheres have the orientations `theta1` and `theta2`, along which active spheres swim, and which wrap around the
+    circle.
 
     Args:
         label:
@@ -218,8 +220,8 @@ class DimerElement(Element):
         *,
         c: object = (0.0, 0.0),
         phi: object = 0.0,
-        theta1: object = 0.0,
-        theta2: object = 0.0,
+        theta1: Annotated[object, Period(2 * math.pi)] = 0.0,
+        theta2: Annotated[object, Period(2 * math.pi)] = 0.0,
         size: int | None = None,
     ) -> None:
         super().__init__(label, size=size)

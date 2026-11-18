@@ -3,16 +3,16 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.viz import ImageVisual
 from skcomplex.core.errors import ValidationError
+from skcomplex.core.systems import System
 from skcomplex.systems.chemistry.pattern_formation import GrayScottSystem
 from skcomplex.systems.computer_science.automata import ElementaryAutomatonSystem
 from skcomplex.systems.physics.fluids import BoltzmannEquationSystem, VlasovEquationSystem
 from skcomplex.systems.physics.statistical_mechanics import XYSpinElement
+from skcomplex.systems.physics.statistical_mechanics._spins import XYSamplingInteraction
 
 from .conftest import Logs, _first_frame, _frames
 
@@ -64,19 +64,9 @@ def test_image_visual_logs_one_row_as_rgb_image():
 
 def test_image_visual_colors_angles_cyclically():
     """Test that angles just either side of ±π get nearly the same color, as on a cyclic palette."""
-    space = LatticeSpace((2, 2))
-    system = CompositeSystem(
-        elements=[
-            GroupElement(
-                'spins',
-                element=XYSpinElement,
-                space=space,
-                values={'theta': [[-3.1, 3.1], [0.0, 1.5]]},
-                on='sites',
-            ),
-        ],
-    )
-    problem, frame = _first_frame(system)
+    spins = XYSpinElement('spins', theta=np.array([-3.1, 3.1, 0.0, 1.5]), space=LatticeSpace((2, 2)))
+    sampling = XYSamplingInteraction('sampling', target='spins')
+    problem, frame = _first_frame(System(elements=[spins], interactions=[sampling]).prepare()._composite)
     logs = Logs()
     ImageVisual(path=problem.elements[0].path, recording=logs).prepare(problem).run(frame)
     image = logs.of('spins/theta')[0]

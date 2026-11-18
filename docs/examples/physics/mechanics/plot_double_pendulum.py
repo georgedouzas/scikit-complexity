@@ -12,7 +12,6 @@ never repeating path, and two releases that differ by a hair soon move in comple
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.mechanics import DoublePendulumSystem
 
@@ -27,7 +26,7 @@ def bobs(theta1, theta2):
 
 system = DoublePendulumSystem(theta1=2.0, theta2=2.5)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=10)
-trajectory = simulate(system, until=12, dt=0.005, observers=[observer])
+trajectory = system.prepare().simulate(until=12, dt=0.005, observers=[observer])
 
 # %%
 # Sensitive dependence on the initial angle
@@ -36,7 +35,10 @@ trajectory = simulate(system, until=12, dt=0.005, observers=[observer])
 # of the two pendulums should grow exponentially, a straight line on the logarithmic axis, until it is as large as the
 # pendulum itself.
 
-runs = [simulate(DoublePendulumSystem(theta1=np.pi / 2 + shift, theta2=np.pi / 2), dt=0.005) for shift in [0.0, 1e-8]]
+runs = [
+    DoublePendulumSystem(theta1=np.pi / 2 + shift, theta2=np.pi / 2).prepare().simulate(dt=0.005)
+    for shift in [0.0, 1e-8]
+]
 lower = [
     bobs(np.ravel(run.get_values('pendulum.theta1')), np.ravel(run.get_values('pendulum.theta2')))[1] for run in runs
 ]

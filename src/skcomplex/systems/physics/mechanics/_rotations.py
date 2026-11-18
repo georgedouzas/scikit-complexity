@@ -15,7 +15,7 @@ from sage.all__sagemath_symbolics import Expression, cos, oo, sin
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element
+from ....core.components.elements import Element, Period
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.spaces import BaseSpace
@@ -81,9 +81,9 @@ class GyroscopeElement(Element):
         self,
         label: str,
         *,
-        alpha: float = 0.0,
+        alpha: Annotated[float, Period(2 * math.pi)] = 0.0,
         beta: float = 0.3,
-        gamma: float = 0.0,
+        gamma: Annotated[float, Period(2 * math.pi)] = 0.0,
         A: Annotated[float, RealSet.open(0, oo)] = 1.0,
         C: Annotated[float, RealSet.open(0, oo)] = 2.0,
         A1: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
@@ -141,7 +141,7 @@ class RotatingBallElement(Element):
         self,
         label: str,
         *,
-        theta: float = 0.0,
+        theta: Annotated[float, Period(2 * math.pi)] = 0.0,
         m: Annotated[float, RealSet.open(0, oo)] = 1.0,
         r: Annotated[float, RealSet.open(0, oo)] = 1.0,
         beta: Annotated[float, RealSet.open(0, oo)] = math.pi / 2,
@@ -206,7 +206,7 @@ class RotatingSwingElement(Element):
         self,
         label: str,
         *,
-        phi: float = 0.0,
+        phi: Annotated[float, Period(2 * math.pi)] = 0.0,
         theta: float = 0.1,
         J: Annotated[float, RealSet.open(0, oo)] = 10.0,
         m: Annotated[float, RealSet.open(0, oo)] = 1.0,

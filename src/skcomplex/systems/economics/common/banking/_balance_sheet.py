@@ -6,16 +6,14 @@ It holds its external assets, its equity, its payments, and its state of default
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from .....core.components.elements import Element
-from .....core.components.laws import BaseLaw
 from .....core.engine.solvers import AgentView
-from .....core.specs import StateSpec, VisualSpec
+from .....core.specs import VisualSpec
 
 SOLVENT = 0
 DEFAULTING = 1
@@ -54,27 +52,28 @@ class BalanceSheetElement(Element):
         status:
             0 for solvent, 1 for defaulting in this step, and 2 for defaulted.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.finance import BalanceSheetElement
-        >>> GroupElement('banks', element=BalanceSheetElement, size=3, values={'equity': 4.0}).size
+        >>> BalanceSheetElement('banks', equity=4.0, size=3).size
         3
     """
 
     visual = VisualSpec('agents', {'color_by': 'status'})
 
-    law_classes = ()
-
     def __init__(
         self,
         label: str,
         *,
-        external: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        equity: Annotated[float, StateSpec()] = 0.0,
-        payment: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        status: Annotated[float, StateSpec(domain=NN)] = SOLVENT,
+        external: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        equity: object = 0.0,
+        payment: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        status: Annotated[object, NN] = SOLVENT,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.external = external
         self.equity = equity
         self.payment = payment
@@ -84,16 +83,3 @@ class BalanceSheetElement(Element):
     def _get_view(cls) -> type[BalanceSheetView]:
         """Return the view of the agents of the element."""
         return BalanceSheetView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return no laws, since the contagion updates every bank at once.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return []

@@ -12,21 +12,19 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, cos, oo, pi, sign, sin
+from sage.all__sagemath_symbolics import Expression, cos, oo, sign, sin
 from sage.sets.real_set import RealSet
 
 from ....core import systems
 from ....core.components import Observable
-from ....core.components.elements import Element
+from ....core.components.elements import Element, Period
 from ....core.components.interactions import Interaction
 from ....core.components.laws import EventLaw, RateLaw
 from ....core.components.spaces import BaseSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, Role, RoleSpec, StateSpec, VisualSpec
-from ...general.mechanics import EulerLagrangeInteraction
+from ....core.specs import Role, VisualSpec
 from ..common.mechanics import LagrangianInteraction, PendulumSwingInteraction
 from ..common.particles import LinearDragInteraction, RestoringForceInteraction
 
@@ -77,7 +75,7 @@ class BallisticPendulumElement(Element):
         label: str,
         *,
         x: float = -1.0,
-        theta: float = 0.0,
+        theta: Annotated[float, Period(2 * math.pi)] = 0.0,
         m: Annotated[float, RealSet.open(0, oo)] = 0.01,
         M: Annotated[float, RealSet.open(0, oo)] = 1.0,
         l: Annotated[float, RealSet.open(0, oo)] = 1.0,
@@ -141,7 +139,7 @@ class CartPendulumElement(Element):
         label: str,
         *,
         y: float = 0.0,
-        theta: float = 0.5,
+        theta: Annotated[float, Period(2 * math.pi)] = 0.5,
         m1: Annotated[float, RealSet.open(0, oo)] = 1.0,
         m2: Annotated[float, RealSet.open(0, oo)] = 1.0,
         l: Annotated[float, RealSet.open(0, oo)] = 1.0,
@@ -243,8 +241,8 @@ class DoublePendulumElement(Element):
 
     A bob of mass `m2` on a rod of length `l2` hangs from a bob of mass `m1` on a rod `l1`.
 
-    The angles `theta1` and `theta2` of the rods from the vertical have order 2. The motion comes from
-    `DoublePendulumInteraction`.
+    The angles `theta1` and `theta2` of the rods from the vertical wrap around the circle, and their angular velocities
+    are `theta1'` and `theta2'`. The motion comes from `DoublePendulumInteraction`.
 
     Args:
         label:
@@ -253,14 +251,8 @@ class DoublePendulumElement(Element):
         theta1:
             The initial angle of the upper rod.
 
-        theta1_d1:
-            The initial angular velocity of the upper rod.
-
         theta2:
             The initial angle of the lower rod.
-
-        theta2_d1:
-            The initial angular velocity of the lower rod.
 
         m1:
             The mass of the upper bob.
@@ -277,6 +269,9 @@ class DoublePendulumElement(Element):
         g:
             The gravitational acceleration.
 
+        values:
+            Further values by name, such as the initial angular velocities `theta1'` and `theta2'`, or `None`.
+
     Examples:
         >>> from skcomplex.systems.physics.mechanics import DoublePendulumElement
         >>> DoublePendulumElement('pendulum', m2=2.0).m2
@@ -292,21 +287,18 @@ class DoublePendulumElement(Element):
         self,
         label: str,
         *,
-        theta1: Annotated[float, StateSpec(period=2 * pi, order=2)] = math.pi / 2,
-        theta1_d1: float = 0.0,
-        theta2: Annotated[float, StateSpec(period=2 * pi, order=2)] = math.pi / 2,
-        theta2_d1: float = 0.0,
-        m1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        m2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        l1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        l2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        g: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 9.81,
+        theta1: Annotated[float, Period(2 * math.pi)] = math.pi / 2,
+        theta2: Annotated[float, Period(2 * math.pi)] = math.pi / 2,
+        m1: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        m2: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        l1: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        l2: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        g: Annotated[float, RealSet.open(0, oo)] = 9.81,
+        values: Mapping[str, object] | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values)
         self.theta1 = theta1
-        self.theta1_d1 = theta1_d1
         self.theta2 = theta2
-        self.theta2_d1 = theta2_d1
         self.m1 = m1
         self.m2 = m2
         self.l1 = l1
@@ -345,7 +337,7 @@ class ParametricPendulumElement(Element):
         self,
         label: str,
         *,
-        theta: float = 0.1,
+        theta: Annotated[float, Period(2 * math.pi)] = 0.1,
         g: Annotated[float, RealSet.open(0, oo)] = 9.81,
         l: Annotated[float, RealSet.open(0, oo)] = 1.0,
         values: Mapping[str, object] | None = None,
@@ -498,7 +490,7 @@ class ClockPendulumInteraction(LagrangianInteraction):
         return kinetic + p.m * p.g * p.l * cos(theta)
 
 
-class DoublePendulumInteraction(EulerLagrangeInteraction):
+class DoublePendulumInteraction(LagrangianInteraction):
     """Motion of a double pendulum.
 
     The motion is the Euler-Lagrange equations of its kinetic energy and gravity.
@@ -515,29 +507,46 @@ class DoublePendulumInteraction(EulerLagrangeInteraction):
 
     Examples:
         >>> from skcomplex.systems.physics.mechanics import DoublePendulumInteraction
-        >>> DoublePendulumInteraction('motion', target='pendulum').states
-        ('theta1', 'theta2')
+        >>> DoublePendulumInteraction('motion', target='pendulum').target
+        'pendulum'
     """
 
-    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
-        super().__init__(label, target=target, states=('theta1', 'theta2'))
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
 
-    def _get_lagrangian(self, namespace: SimpleNamespace) -> Expression:
+    def _get_coordinates(self, context: SimpleNamespace) -> list[Expression]:
+        """Return the angles of the two rods."""
+        return [context.target.theta1, context.target.theta2]
+
+    def _get_lagrangian(
+        self,
+        context: SimpleNamespace,
+        positions: list[Expression],
+        velocities: list[Expression],
+    ) -> Expression:
         """Return the Lagrangian of the double pendulum.
 
         Args:
-            namespace:
-                The namespace of the symbols the Lagrangian can use.
+            context:
+                The namespace of the double pendulum and the time `t`.
+
+            positions:
+                The symbols of the two angles.
+
+            velocities:
+                The symbols of the two angular velocities.
 
         Returns:
             lagrangian:
                 The Lagrangian.
         """
-        p = namespace.target
-        w1, w2 = p.theta1.diff(namespace.t), p.theta2.diff(namespace.t)
+        p = context.target
+        theta1, theta2 = positions
+        w1, w2 = velocities
         kinetic = (p.m1 + p.m2) * p.l1**2 * w1**2 / 2 + p.m2 * p.l2**2 * w2**2 / 2
-        kinetic += p.m2 * p.l1 * p.l2 * w1 * w2 * cos(p.theta1 - p.theta2)
-        return kinetic + (p.m1 + p.m2) * p.g * p.l1 * cos(p.theta1) + p.m2 * p.g * p.l2 * cos(p.theta2)
+        kinetic += p.m2 * p.l1 * p.l2 * w1 * w2 * cos(theta1 - theta2)
+        return kinetic + (p.m1 + p.m2) * p.g * p.l1 * cos(theta1) + p.m2 * p.g * p.l2 * cos(theta2)
 
 
 class MagnetInteraction(Interaction):
@@ -853,7 +862,7 @@ class SupportSpringInteraction(Interaction):
             self.laws_ = laws
 
 
-class DoublePendulumSystem(BaseSystem):
+class DoublePendulumSystem(systems.BaseSystem):
     """A double pendulum, a pendulum hanging from the bob of another.
 
     The system is written as its two Lagrange equations.
@@ -861,7 +870,8 @@ class DoublePendulumSystem(BaseSystem):
     The equations `(m1 + m2) l1 θ1'' + m2 l2 θ2'' cos(θ1 - θ2) + m2 l2 θ2'² sin(θ1 - θ2) + (m1 + m2) g sin θ1 = 0` and
     `l2 θ2'' + l1 θ1'' cos(θ1 - θ2) - l1 θ1'² sin(θ1 - θ2) + g sin θ2 = 0` are solved jointly for the angular
     accelerations. The motion is chaotic at large amplitudes. The system has the angles `pendulum.theta1` and
-    `pendulum.theta2` of order 2.
+    `pendulum.theta2`, which wrap around the circle, and their angular velocities `pendulum.theta1'` and
+    `pendulum.theta2'`.
 
     Args:
         theta1:
@@ -894,6 +904,12 @@ class DoublePendulumSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.mechanics import DoublePendulumSystem
         >>> DoublePendulumSystem(m2=2.0).prepare().system_.elements[0].m2
@@ -919,8 +935,10 @@ class DoublePendulumSystem(BaseSystem):
         l2: float = 1.0,
         g: float = 9.81,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.theta1 = theta1
         self.theta2 = theta2
         self.omega1 = omega1
@@ -931,26 +949,27 @@ class DoublePendulumSystem(BaseSystem):
         self.l2 = l2
         self.g = g
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
-        return CompositeSystem(
-            self.label,
-            elements=[
-                DoublePendulumElement(
-                    'pendulum',
-                    theta1=self.theta1,
-                    theta2=self.theta2,
-                    theta1_d1=self.omega1,
-                    theta2_d1=self.omega2,
-                    m1=self.m1,
-                    m2=self.m2,
-                    l1=self.l1,
-                    l2=self.l2,
-                    g=self.g,
-                ),
-            ],
-            interactions=[DoublePendulumInteraction('motion', target='pendulum')],
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a pendulum hanging from the bob of another.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        pendulum = DoublePendulumElement(
+            'pendulum',
+            theta1=self.theta1,
+            theta2=self.theta2,
+            m1=self.m1,
+            m2=self.m2,
+            l1=self.l1,
+            l2=self.l2,
+            g=self.g,
+            values={"theta1'": self.omega1, "theta2'": self.omega2},
         )
+        motion = DoublePendulumInteraction('motion', target='pendulum')
+        self.system_ = systems.System(self.label, elements=[pendulum], interactions=[motion])
 
 
 class CoupledPendulumsSystem(systems.BaseSystem):

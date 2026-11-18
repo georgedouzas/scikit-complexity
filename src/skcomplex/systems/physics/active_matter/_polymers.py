@@ -6,6 +6,7 @@ The polymers are chains of self-propelled beads bonded by springs.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import math
 from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
@@ -15,7 +16,7 @@ from sage.all__sagemath_symbolics import cos, oo, sin, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element
+from ....core.components.elements import Element, Period
 from ....core.components.interactions import Interaction
 from ....core.components.laws import NoiseLaw, RateLaw
 from ....core.components.laws.utils import laplacian
@@ -57,7 +58,7 @@ class ActiveBeadElement(Element):
         *,
         x: object = 0.0,
         y: object = 0.0,
-        theta: object = 0.0,
+        theta: Annotated[object, Period(2 * math.pi)] = 0.0,
         space: BaseSpace | None = None,
     ) -> None:
         super().__init__(label, space=space)

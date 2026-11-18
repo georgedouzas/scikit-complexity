@@ -13,7 +13,6 @@ phases lock across the whole network, and the order parameter `r` climbs from no
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.synchronization import KuramotoOnNetworksSystem
 
@@ -22,7 +21,7 @@ SYSTEM = 'kuramoto_on_networks'
 system = KuramotoOnNetworksSystem(n_oscillators=200, K=3.0, sigma=0.5, seed=0)
 observables = KuramotoOnNetworksSystem.observables
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='observables', interval=1)
-trajectory = simulate(system, until=30, observers=[observer], observables=observables)
+trajectory = system.prepare().simulate(until=30, observers=[observer], observables=observables)
 
 # %%
 # Onset of synchronization on two networks
@@ -38,7 +37,7 @@ for network in ('erdos_renyi', 'watts_strogatz'):
     order = []
     for coupling in couplings:
         system_system = KuramotoOnNetworksSystem(n_oscillators=200, network=network, K=coupling, sigma=0.5, seed=1)
-        run = simulate(system_system, dt=0.5)
+        run = system_system.prepare().simulate(dt=0.5)
         order.append(np.mean(np.asarray(run.get_values('order'))[-20:]))
     ax.plot(couplings, order, 'o-', label=network.replace('_', '-'))
 ax.axvline(2 * 0.5 * np.sqrt(2 / np.pi), linestyle='--', color='black', label='all-to-all K_c')

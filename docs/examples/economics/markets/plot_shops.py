@@ -17,7 +17,6 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.markets import ShopsSystem
 
@@ -42,7 +41,7 @@ blueprint = rrb.Blueprint(
 )
 system = ShopsSystem(online=1.0, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(system, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Distance protects shops
@@ -56,7 +55,7 @@ shares = np.linspace(0.0, 1.0, 5)
 survivors, leaders, prices = [], [], []
 for share in shares:
     system = ShopsSystem(online=share, random_state=0)
-    run = simulate(system, random_state=0)
+    run = system.prepare().simulate(random_state=0)
     survivors.append(run.get_values('open_shops')[-1])
     leaders.append(run.get_values('concentration')[-1])
     prices.append(run.get_values('mean_price')[50:].mean())

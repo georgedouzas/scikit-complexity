@@ -19,9 +19,10 @@ from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
 NAND = (2, 0b0111)
@@ -399,6 +400,12 @@ class NkTechnologySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.innovation import NkTechnologySystem
         >>> NkTechnologySystem(5, 1).prepare().system_.interactions[0].dependencies[0]
@@ -418,8 +425,10 @@ class NkTechnologySystem(BaseSystem):
         *,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_components = n_components
         self.d = d
         self.random_state = random_state
@@ -436,8 +445,9 @@ class NkTechnologySystem(BaseSystem):
             matrix[others, column] = 1.0
         return matrix
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the elements and interactions of the system."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         dependencies = self._get_design_structure(self.n_components, self.d, rng)
         components = GroupElement(
@@ -446,7 +456,7 @@ class NkTechnologySystem(BaseSystem):
             size=self.n_components,
             values={'cost': rng.random(self.n_components)},
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[components],
             interactions=[RedesignInteraction('redesign', components='components', dependencies=dependencies.tolist())],
@@ -472,9 +482,15 @@ class ArthurPolakSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.innovation import ArthurPolakSystem
-        >>> ArthurPolakSystem().prepare().system_.elements[0].prepare().size_
+        >>> ArthurPolakSystem().prepare().system_.elements[0].size
         3
     """
 
@@ -489,13 +505,16 @@ class ArthurPolakSystem(BaseSystem):
         max_components: int = 12,
         max_inputs: int = 3,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.max_components = max_components
         self.max_inputs = max_inputs
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the elements and interactions of the system."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         primitives = (NAND, FALSE, TRUE)
         technologies = GroupElement(
             'technologies',
@@ -514,4 +533,4 @@ class ArthurPolakSystem(BaseSystem):
             max_components=float(self.max_components),
             max_inputs=float(self.max_inputs),
         )
-        return CompositeSystem(self.label, elements=[technologies], interactions=[invention])
+        self.system_ = System(self.label, elements=[technologies], interactions=[invention])

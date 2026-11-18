@@ -6,28 +6,30 @@ Oscillators swarm, and their phases and positions couple to each other.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import cos, oo, sin, sqrt
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import GroupElement
-from ....core.components.interactions import PairInteraction
-from ....core.components.spaces import ContinuousSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.components.types import Target
-from ....core.engine.solvers import RK4Solver
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.components import Observable
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
+from ....core.components.laws.utils import neighbors
+from ....core.components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, RK4Solver
+from ....core.specs import Role, VisualSpec
+from ....core.systems import BaseSystem, System
 from ..common.oscillators import SitedOscillatorElement
 
 
 class SwarmalatorElement(SitedOscillatorElement):
     """Phase oscillator whose place `x` is a position.
 
-    The position moves by the rates of interactions.
+    The position moves by the rates of interactions, and the phase wraps around the circle.
 
     Args:
         label:
@@ -40,7 +42,16 @@ class SwarmalatorElement(SitedOscillatorElement):
             The natural frequency.
 
         x:
-            The initial position. A number applies to every component.
+            The initial position, one row per member or shared.
+
+        size:
+            The number of swarmalators, or `None` for one.
+
+        space:
+            The continuous space of the swarmalators, or `None` for none.
+
+        values:
+            Further values by name, or `None`.
 
     Examples:
         >>> from skcomplex.systems.physics.synchronization import SwarmalatorElement
@@ -50,41 +61,23 @@ class SwarmalatorElement(SitedOscillatorElement):
 
     visual = VisualSpec('points', {'position': 'x', 'color_by': 'theta', 'radius': 0.03})
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        theta: float = 0.0,
-        omega: float = 1.0,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
-    ) -> None:
-        super().__init__(label, theta=theta, omega=omega, x=x)
 
+class SwarmalatorCouplingInteraction(Interaction):
+    """Coupling of swarmalators through their separations `r` and their phase differences `dtheta`.
 
-class SwarmalatorCouplingInteraction(PairInteraction):
-    """Coupling of two swarmalators.
-
-    The coupling acts through their separation `r` and their phase difference `dtheta`.
-
-    Each swarmalator moves toward the other at the speed `(A + J cos(dtheta)) / N`, away from it at `B / (N |r|)`, and
-    turns its phase toward the other's at the rate `K sin(dtheta) / (N |r|)`, as in O'Keeffe, Ceron, and Petersen. It
-    is a pair coupling of the positions and the phases jointly.
+    Each swarmalator moves toward every other at the speed `(A + J cos(dtheta)) / N`, away from it at `B / (N |r|)`,
+    and turns its phase toward the other's at the rate `K sin(dtheta) / (N |r|)`, as in O'Keeffe, Ceron, and Petersen.
+    The sums run over the others within the cutoff, as fireflies that swarm or sperm cells that swim and beat together.
 
     Args:
         label:
             The label of the interaction.
 
-        first:
-            The path of the group of the first members.
-
-        second:
-            The path of the group of the second members.
+        target:
+            The path of the group of swarmalators.
 
         cutoff:
             The distance beyond which pairs do not interact, large for the all-to-all system.
-
-        position:
-            The name of the vector state that holds the positions of the members.
 
         A:
             The strength of the attraction.
@@ -98,56 +91,56 @@ class SwarmalatorCouplingInteraction(PairInteraction):
         K:
             The phase coupling, synchronizing when positive.
 
-        period:
-            The side of a periodic box, for minimum image distances, or `None` for an open space.
-
         n_units:
             The number of swarmalators `N` that normalizes the coupling.
 
     Examples:
         >>> from skcomplex.systems.physics.synchronization import SwarmalatorCouplingInteraction
-        >>> SwarmalatorCouplingInteraction('coupling', first='units', second='units', J=0.5).J
+        >>> SwarmalatorCouplingInteraction('coupling', target='units', J=0.5).J
         0.5
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
         label: str,
-        first: Annotated[str, RoleSpec()],
-        second: Annotated[str, RoleSpec()],
-        cutoff: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1000000.0,
-        position: str = 'x',
         *,
-        A: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        B: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        J: Annotated[float, ParameterSpec()] = 1.0,
-        K: Annotated[float, ParameterSpec()] = 0.0,
-        period: float | None = None,
+        target: Role,
+        cutoff: Annotated[float, RealSet.open(0, oo)] = 1000000.0,
+        A: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        B: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        J: float = 1.0,
+        K: float = 0.0,
         n_units: int = 1,
     ) -> None:
-        super().__init__(
-            label,
-            first,
-            second,
-            cutoff=cutoff,
-            position=position,
-            write=(position, 'theta'),
-            function=self._get_terms,
-            period=period,
-        )
+        super().__init__(label)
+        self.target = target
+        self.cutoff = cutoff
         self.A = A
         self.B = B
         self.J = J
         self.K = K
         self.n_units = n_units
 
-    def _get_terms(self, s: SimpleNamespace) -> tuple[Target, Target]:
-        """Return the move and phase turn of the first member of a pair toward the second."""
-        separation = getattr(s.second, self.position) - getattr(s.first, self.position)
-        r = sqrt(separation.dot_product(separation))
-        difference = s.second.theta - s.first.theta
-        move = ((s.A + s.J * cos(difference)) / r - s.B / r**2) * separation / self.n_units
-        return move, s.K * sin(difference) / (self.n_units * r)
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the moves and the phase turns of the swarmalators toward the others.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context
+            unit, other = s.target, s.target.other
+            separation = other.x - unit.x
+            r = sqrt(separation.dot_product(separation))
+            difference = other.theta - unit.theta
+            over = RadiusNeighborhood(self.cutoff)
+            move = neighbors(((s.A + s.J * cos(difference)) / r - s.B / r**2) * separation / self.n_units, over=over)
+            turn = neighbors(s.K * sin(difference) / (self.n_units * r), over=over)
+            self.laws_ = [RateLaw(unit.x.diff(s.t), move), RateLaw(unit.theta.diff(s.t), turn)]
 
 
 class SwarmalatorsSystem(BaseSystem):
@@ -184,6 +177,12 @@ class SwarmalatorsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.synchronization import SwarmalatorsSystem
         >>> SwarmalatorsSystem(10, K=-0.1).prepare().system_.interactions[0].K
@@ -195,7 +194,6 @@ class SwarmalatorsSystem(BaseSystem):
     references = ("O'Keeffe, Ceron, and Petersen 2017", 'te Vrugt and Wittkowski 2024')
     until = 100.0
     dt = 1.0
-    solver = RK4Solver(dt=0.1)
 
     def __init__(
         self,
@@ -207,8 +205,10 @@ class SwarmalatorsSystem(BaseSystem):
         B: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_units = n_units
         self.J = J
         self.K = K
@@ -216,27 +216,30 @@ class SwarmalatorsSystem(BaseSystem):
         self.B = B
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of swarmalators in the plane.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
-        units = GroupElement(
+        units = SwarmalatorElement(
             'units',
-            element=SwarmalatorElement,
+            x=rng.uniform(-1.0, 1.0, (self.n_units, 2)),
+            theta=rng.uniform(-np.pi, np.pi, self.n_units),
+            omega=0.0,
             size=self.n_units,
-            values={
-                'x': rng.uniform(-1.0, 1.0, (self.n_units, 2)),
-                'theta': rng.uniform(-np.pi, np.pi, self.n_units),
-                'omega': 0.0,
-            },
+            space=ContinuousSpace(n_dim=2),
         )
         coupling = SwarmalatorCouplingInteraction(
             'coupling',
-            first='units',
-            second='units',
+            target='units',
             A=self.A,
             B=self.B,
             J=self.J,
             K=self.K,
             n_units=self.n_units,
         )
-        return CompositeSystem(self.label, elements=[units], interactions=[coupling], space=ContinuousSpace(n_dim=2))
+        self.system_ = System(self.label, elements=[units], interactions=[coupling], solver=RK4Solver(dt=0.1))

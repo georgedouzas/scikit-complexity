@@ -20,12 +20,12 @@ def test_nk_technology_costs_only_fall_and_fall_faster_for_modular_designs():
     modular = _run(
         NkTechnologySystem(10, 1).prepare().system_,
         2000,
-        observables=NkTechnologySystem().get_run_settings()['observables'],
+        observables=NkTechnologySystem().prepare().observables_,
     ).get_values('total_cost')
     coupled = _run(
         NkTechnologySystem(10, 4).prepare().system_,
         2000,
-        observables=NkTechnologySystem().get_run_settings()['observables'],
+        observables=NkTechnologySystem().prepare().observables_,
     ).get_values('total_cost')
     for costs in (modular, coupled):
         assert np.all(np.diff(costs) <= 1e-12)

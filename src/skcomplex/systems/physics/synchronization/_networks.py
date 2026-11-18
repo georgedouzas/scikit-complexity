@@ -13,22 +13,20 @@ from typing import Annotated
 
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import oo
+from sage.all__sagemath_symbolics import oo, sin
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import RateLaw, UpdateLaw
 from ....core.components.laws.utils import neighbors
 from ....core.components.spaces import BaseSpace, NetworkSpace
-from ....core.components.systems import BaseSystem as OldBaseSystem
-from ....core.components.systems import CompositeSystem
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import Role, RoleSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
-from ..common.oscillators import KuramotoCouplingInteraction, LinkElement, PhaseOscillatorElement, order_parameter
+from ..common.oscillators import LinkElement, PhaseOscillatorElement, PhaseRotationInteraction, order_parameter
 
 NETWORKS = ('watts_strogatz', 'erdos_renyi', 'barabasi_albert')
 
@@ -78,23 +76,23 @@ class LogisticNodeElement(Element):
         self.epsilon = epsilon
 
 
-class EdgeCouplingInteraction(KuramotoCouplingInteraction):
+class EdgeCouplingInteraction(Interaction):
     """Kuramoto coupling along the weighted edges of a network.
 
-    The coupling is `theta_i' += K w_ij sin(theta_j - theta_i)`.
+    The coupling is `theta_i' += K w_ij sin(theta_j - theta_i - alpha)` at both ends of every edge.
 
     The coupling runs once per edge of the network of its oscillators and reads the weight `w` of the edge from the
-    group on the edges.
+    element on the edges, as the lines of a power grid or the gap junctions of neurons.
 
     Args:
         label:
             The label of the interaction, unique among the components of its system.
 
-        target:
+        among:
             The path of the group of oscillators on the nodes.
 
-        links:
-            The path of the group on the edges, whose parameter `w` weighs every edge.
+        along:
+            `True` for the edges of the network of the oscillators, or the name of a layer.
 
         K:
             The coupling strength.
@@ -104,21 +102,41 @@ class EdgeCouplingInteraction(KuramotoCouplingInteraction):
 
     Examples:
         >>> from skcomplex.systems.physics.synchronization import EdgeCouplingInteraction
-        >>> EdgeCouplingInteraction('coupling', target='nodes', links='edges', K=0.5).weights
-        'w'
+        >>> EdgeCouplingInteraction('coupling', among='nodes', K=0.5).K
+        0.5
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        links: Annotated[str, RoleSpec()],
+        among: Role,
+        along: bool | str | None = True,
         K: float = 1.0,
         alpha: float = 0.0,
     ) -> None:
-        super().__init__(label, target=target, K=K, alpha=alpha, weights='w')
-        self.links = links
+        super().__init__(label, among=among, along=along)
+        self.K = K
+        self.alpha = alpha
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the turn of the phases at both ends of an edge towards each other.
+
+        Args:
+            context:
+                The namespace of the ends `source` and `target`, the edge `edge`, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context
+            first, second = s.source.theta, s.target.theta
+            weight = s.K * s.edge.w
+            self.laws_ = [
+                RateLaw(second.diff(s.t), weight * sin(first - second - s.alpha)),
+                RateLaw(first.diff(s.t), weight * sin(second - first - s.alpha)),
+            ]
 
 
 class LogisticCouplingInteraction(Interaction):
@@ -179,7 +197,7 @@ class NodeOscillatorElement(PhaseOscillatorElement):
     visual = VisualSpec('sites', {'states': ['theta'], 'low': 0.0, 'high': 2 * math.pi})
 
 
-class KuramotoOnNetworksSystem(OldBaseSystem):
+class KuramotoOnNetworksSystem(BaseSystem):
     """Kuramoto oscillators coupled along the edges of a network.
 
     The oscillators follow `theta_i' = omega_i + K sum_j A_ij sin(...)`.
@@ -216,6 +234,12 @@ class KuramotoOnNetworksSystem(OldBaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValueError:
             The network is unknown.
@@ -223,7 +247,7 @@ class KuramotoOnNetworksSystem(OldBaseSystem):
     Examples:
         >>> from skcomplex.systems.physics.synchronization import KuramotoOnNetworksSystem
         >>> system = KuramotoOnNetworksSystem(20, degree=4).prepare().system_
-        >>> system.elements[1].prepare().size_
+        >>> system.elements[1].space.graph.number_of_edges()
         40
     """
 
@@ -258,8 +282,10 @@ class KuramotoOnNetworksSystem(OldBaseSystem):
         sigma: float = 0.5,
         seed: int = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_oscillators = n_oscillators
         self.network = network
         self.degree = degree
@@ -268,8 +294,14 @@ class KuramotoOnNetworksSystem(OldBaseSystem):
         self.sigma = sigma
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of Kuramoto oscillators coupled along the edges of a network.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         space = KuramotoOnNetworksSystem._get_network(
             self.network,
             self.n_oscillators,
@@ -279,19 +311,18 @@ class KuramotoOnNetworksSystem(OldBaseSystem):
         )
         rng = np.random.default_rng(self.seed + 1)
         mean_degree = 2 * space.graph.number_of_edges() / self.n_oscillators
-        oscillators = GroupElement(
+        oscillators = NodeOscillatorElement(
             'oscillators',
-            element=NodeOscillatorElement,
+            theta=rng.uniform(0, 2 * math.pi, self.n_oscillators),
+            omega=rng.normal(0.0, self.sigma, self.n_oscillators),
             space=space,
-            values={
-                'theta': rng.uniform(0, 2 * math.pi, self.n_oscillators),
-                'omega': rng.normal(0.0, self.sigma, self.n_oscillators),
-            },
-            on='sites',
         )
-        links = GroupElement('links', element=LinkElement, space=space, on='edges')
-        coupling = EdgeCouplingInteraction('coupling', target='oscillators', links='links', K=self.K / mean_degree)
-        return CompositeSystem(self.label, elements=[oscillators, links], interactions=[coupling])
+        links = LinkElement('links', space=space, on='edges')
+        interactions = [
+            PhaseRotationInteraction('rotation', target='oscillators'),
+            EdgeCouplingInteraction('coupling', among='oscillators', K=self.K / mean_degree),
+        ]
+        self.system_ = System(self.label, elements=[oscillators, links], interactions=interactions)
 
 
 class CoupledMapLatticesOnNetworksSystem(BaseSystem):

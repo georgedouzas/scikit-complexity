@@ -319,11 +319,10 @@ def loops(
 
     Examples:
         >>> from skcomplex.core.analysis import loops
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.economics.innovation import BassDiffusionSystem
         >>> loops(BassDiffusionSystem().prepare().system_).polarities
         ['reinforcing', 'balancing']
-        >>> trajectory = simulate(BassDiffusionSystem().prepare().system_, until=2, dt=1)
+        >>> trajectory = BassDiffusionSystem().prepare().simulate(until=2, dt=1)
         >>> loops(trajectory, kind='dominance').gains.shape
         (3, 2)
     """

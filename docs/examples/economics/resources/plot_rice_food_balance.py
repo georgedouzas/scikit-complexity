@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.resources import RiceFoodBalanceSystem
 
@@ -30,7 +29,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(RiceFoodBalanceSystem(), observers=[observer])
+trajectory = RiceFoodBalanceSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Food security against time

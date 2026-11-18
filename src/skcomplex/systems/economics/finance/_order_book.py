@@ -19,11 +19,12 @@ from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
-from ....core.engine.solvers import AgentView, SystemView
+from ....core.components.spaces import LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.compile import PhaseSpec
+from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ...general.agents import ImitationInteraction
 from ...general.matching import ContinuousMatchingSpec, MatchingInteraction, MatchSpec, RandomSearchSpec
 from ...general.matching.types import MatchingRule
@@ -389,9 +390,15 @@ class OrderBookSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.finance import OrderBookSystem
-        >>> OrderBookSystem(5, 5).prepare().system_.elements[0].prepare().size_
+        >>> OrderBookSystem(5, 5).prepare().system_.elements[0].size
         25
     """
 
@@ -419,8 +426,10 @@ class OrderBookSystem(BaseSystem):
         imitation: float = 0.1,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.width = width
         self.height = height
         self.chartists = chartists
@@ -431,8 +440,9 @@ class OrderBookSystem(BaseSystem):
         self.imitation = imitation
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         cells = [(x, y) for x in range(self.width) for y in range(self.height)]
         traders = GroupElement(
@@ -462,7 +472,7 @@ class OrderBookSystem(BaseSystem):
             )
             for name, function in (('gain', StockTraderElement.get_gain), ('wealth', StockTraderElement.get_wealth))
         ]
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[traders],
             interactions=[
@@ -486,14 +496,12 @@ class OrderBookSystem(BaseSystem):
                 ),
             ],
             space=LatticeSpace((self.width, self.height), boundary='periodic', metric='manhattan'),
-            time=DiscreteTime(
-                schedule=PhasesScheduleSpec(
-                    [
-                        PhaseSpec('quote'),
-                        PhaseSpec('trade'),
-                        PhaseSpec('account'),
-                        PhaseSpec('imitation', activation='simultaneous'),
-                    ],
-                ),
+            solver=MesaSolver(
+                phases=[
+                    PhaseSpec('quote'),
+                    PhaseSpec('trade'),
+                    PhaseSpec('account'),
+                    PhaseSpec('imitation', activation='simultaneous'),
+                ],
             ),
         )

@@ -17,7 +17,7 @@ from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element
+from ....core.components.elements import Element, Period
 from ....core.components.interactions import Interaction
 from ....core.components.laws import NoiseLaw, RateLaw
 from ....core.components.laws.utils import clip, neighbors, where
@@ -62,7 +62,7 @@ class MotileCellElement(Element):
         label: str,
         *,
         x: object = (0.0, 0.0),
-        theta: object = 0.0,
+        theta: Annotated[object, Period(2 * math.pi)] = 0.0,
         size: int | None = None,
         space: BaseSpace | None = None,
     ) -> None:

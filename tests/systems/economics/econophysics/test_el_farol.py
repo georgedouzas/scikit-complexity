@@ -2,7 +2,6 @@
 
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.economics.econophysics import (
     ElFarolSystem,
 )
@@ -11,10 +10,9 @@ from skcomplex.systems.economics.econophysics import (
 def test_el_farol_attendance_near_capacity():
     """With 100 patrons and capacity 60, the mean attendance after the transient lies within 5 of 60."""
     system = ElFarolSystem(100, capacity=60, random_state=0).prepare().system_
-    attendance = simulate(
-        system,
+    attendance = system.prepare().simulate(
         until=500,
         random_state=0,
-        observables=ElFarolSystem().get_run_settings()['observables'],
+        observables=ElFarolSystem().prepare().observables_,
     )
     assert abs(np.mean(attendance.get_values('attendance')[100:]) - 60) < 5

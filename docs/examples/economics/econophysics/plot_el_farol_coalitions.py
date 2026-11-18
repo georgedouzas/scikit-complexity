@@ -14,15 +14,14 @@ fewer nights than lone patrons.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.econophysics import ElFarolCoalitionsSystem
 
 SYSTEM = 'el_farol_coalitions'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-grouped = simulate(ElFarolCoalitionsSystem(), observers=[observer])
-alone = simulate(ElFarolCoalitionsSystem(coalitions=False))
+grouped = ElFarolCoalitionsSystem().prepare().simulate(observers=[observer])
+alone = ElFarolCoalitionsSystem(coalitions=False).prepare().simulate()
 
 # %%
 # Lone patrons and coalitions

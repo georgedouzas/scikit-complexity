@@ -6,12 +6,11 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import Trajectory, simulate
+from skcomplex.core.engine.runtime import Trajectory
 from skcomplex.core.engine.solvers import AgentView, SystemView
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.economics.common.learning import PayoffLearningInteraction
 from skcomplex.systems.general.agents import ChoiceInteraction
 
@@ -65,8 +64,8 @@ class PoolElement(Element):
 def _run(interactions: list, values: dict, size: int, until: int) -> Trajectory:
     """Return the trajectory of a group of learners bound to interactions."""
     group = GroupElement('learners', element=LearnerElement, size=size, values=values)
-    system = CompositeSystem(elements=[group], interactions=interactions, time=DiscreteTime())
-    return simulate(system, until=until, random_state=0)
+    system = System(elements=[group], interactions=interactions)
+    return system.prepare().simulate(until=until, random_state=0)
 
 
 def _agent_payoff(agent: LearnerView, system: SystemView, index: int) -> float:
@@ -138,8 +137,8 @@ def test_reinforcement_interaction_reinforces_the_components_of_a_vector_state()
         form='agent',
     )
     group = GroupElement('pool', element=PoolElement, size=1, values={'scores': np.zeros((1, 4))})
-    system = CompositeSystem(elements=[group], interactions=[reinforcement], time=DiscreteTime())
-    trajectory = simulate(system, until=2, random_state=0)
+    system = System(elements=[group], interactions=[reinforcement])
+    trajectory = system.prepare().simulate(until=2, random_state=0)
     scores = np.array(trajectory.get_agents('pool', 2).values['scores'].tolist(), dtype=float)
     assert scores.ravel().tolist() == pytest.approx([0.0, 0.75, 1.5, 2.25])
 

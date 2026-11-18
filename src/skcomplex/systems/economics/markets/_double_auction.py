@@ -6,19 +6,20 @@ The traders trade with and without budget constraints.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from typing import Annotated, ClassVar
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction
-from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.compile import PhaseSpec
+from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
+from ....core.systems import BaseSystem, System
 from ...general.matching import BatchMatchingSpec, ContinuousMatchingSpec, MatchingInteraction, MatchSpec
 from ..common.policy import PolicyRuleInteraction
 
@@ -68,10 +69,12 @@ class ZeroIntelligenceBuyerElement(Element):
         constrained:
             One when the buyer never bids above its value, zero otherwise.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.markets import ZeroIntelligenceBuyerElement
-        >>> GroupElement('buyers', element=ZeroIntelligenceBuyerElement, size=5, values={'value': 100.0}).size
+        >>> ZeroIntelligenceBuyerElement('buyers', value=100.0, size=5).size
         5
     """
 
@@ -79,14 +82,15 @@ class ZeroIntelligenceBuyerElement(Element):
         self,
         label: str,
         *,
-        value: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
-        bid: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        demand: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        profit: Annotated[float, StateSpec()] = 0.0,
-        ceiling: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 200.0,
-        constrained: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        value: Annotated[object, RealSet.closed_open(0, oo)] = 100.0,
+        bid: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        demand: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        profit: object = 0.0,
+        ceiling: Annotated[object, RealSet.open(0, oo)] = 200.0,
+        constrained: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.value = value
         self.bid = bid
         self.demand = demand
@@ -161,10 +165,12 @@ class ZeroIntelligenceSellerElement(Element):
         constrained:
             One when the seller never asks below its cost, zero otherwise.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.markets import ZeroIntelligenceSellerElement
-        >>> GroupElement('sellers', element=ZeroIntelligenceSellerElement, size=5, values={'value': 50.0}).size
+        >>> ZeroIntelligenceSellerElement('sellers', value=50.0, size=5).size
         5
     """
 
@@ -172,14 +178,15 @@ class ZeroIntelligenceSellerElement(Element):
         self,
         label: str,
         *,
-        value: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
-        ask: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 200.0,
-        supply: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        profit: Annotated[float, StateSpec()] = 0.0,
-        ceiling: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 200.0,
-        constrained: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        value: Annotated[object, RealSet.closed_open(0, oo)] = 100.0,
+        ask: Annotated[object, RealSet.closed_open(0, oo)] = 200.0,
+        supply: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        profit: object = 0.0,
+        ceiling: Annotated[object, RealSet.open(0, oo)] = 200.0,
+        constrained: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.value = value
         self.ask = ask
         self.supply = supply
@@ -324,6 +331,12 @@ class DoubleAuctionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValueError:
             The protocol is unknown.
@@ -350,8 +363,10 @@ class DoubleAuctionSystem(BaseSystem):
         ceiling: float = 200.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_buyers = n_buyers
         self.n_sellers = n_sellers
         self.protocol = protocol
@@ -370,8 +385,9 @@ class DoubleAuctionSystem(BaseSystem):
         buyer.profit += trade.quantity * (buyer.value - trade.value)
         seller.profit += trade.quantity * (trade.value - seller.value)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         if self.protocol not in PROTOCOLS:
             error_msg = f'Unknown protocol {self.protocol!r}. Use one of {PROTOCOLS}.'
             raise ValueError(error_msg)
@@ -379,17 +395,19 @@ class DoubleAuctionSystem(BaseSystem):
         values = rng.uniform(0.25 * self.ceiling, self.ceiling, self.n_buyers)
         costs = rng.uniform(0.0, 0.75 * self.ceiling, self.n_sellers)
         limit = float(self.constrained)
-        buyers = GroupElement(
+        buyers = ZeroIntelligenceBuyerElement(
             'buyers',
-            element=ZeroIntelligenceBuyerElement,
+            value=values,
+            ceiling=self.ceiling,
+            constrained=limit,
             size=self.n_buyers,
-            values={'value': values, 'ceiling': self.ceiling, 'constrained': limit},
         )
-        sellers = GroupElement(
+        sellers = ZeroIntelligenceSellerElement(
             'sellers',
-            element=ZeroIntelligenceSellerElement,
+            value=costs,
+            ceiling=self.ceiling,
+            constrained=limit,
             size=self.n_sellers,
-            values={'value': costs, 'ceiling': self.ceiling, 'constrained': limit},
         )
         market = MatchingInteraction(
             'auction',
@@ -408,11 +426,9 @@ class DoubleAuctionSystem(BaseSystem):
                 ('asks', 'sellers', 'ask', ZeroIntelligenceSellerElement.get_ask),
             )
         ]
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[buyers, sellers],
             interactions=[*quotes, market, AuctionLedgerInteraction('ledger', phase='close')],
-            time=DiscreteTime(
-                schedule=PhasesScheduleSpec([PhaseSpec('trade', repeat=self.rounds), PhaseSpec('close')]),
-            ),
+            solver=MesaSolver(phases=[PhaseSpec('trade', repeat=self.rounds), PhaseSpec('close')]),
         )

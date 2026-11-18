@@ -3,18 +3,21 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.systems import BaseSystem, System
 
 WASH = 0
 VALET = 1
@@ -402,9 +405,15 @@ class CarWashSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.markets import CarWashSystem
-        >>> CarWashSystem(5).prepare().system_.elements[0].prepare().size_
+        >>> CarWashSystem(5).prepare().system_.elements[0].size
         5
     """
 
@@ -427,8 +436,10 @@ class CarWashSystem(BaseSystem):
         valet_price: float = 10.0,
         balk: int = 3,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_workers = n_workers
         self.n_cars = n_cars
         self.p_pass = p_pass
@@ -440,8 +451,9 @@ class CarWashSystem(BaseSystem):
         self.valet_price = valet_price
         self.balk = balk
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         operation = CarWashOperationInteraction(
             'wash',
             cars='cars',
@@ -455,7 +467,7 @@ class CarWashSystem(BaseSystem):
             valet_price=self.valet_price,
             balk=float(self.balk),
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[
                 GroupElement('workers', element=WasherElement, size=self.n_workers, variable=True),

@@ -4,7 +4,6 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.economics.innovation import InteractingUrnsNetworkSystem
 
 
@@ -26,7 +25,7 @@ def _heaps(adjacency, rho, nu, steps):
 def _run(graph, steps, seed=0, **arguments):
     """Return the trajectory of the urns of a graph."""
     system = InteractingUrnsNetworkSystem(graph, **arguments).prepare().system_
-    return simulate(system, until=steps, random_state=seed)
+    return system.prepare().simulate(until=steps, random_state=seed)
 
 
 def test_isolated_urns_follow_heaps_law_of_the_urn_with_triggering():

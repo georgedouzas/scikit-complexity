@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.econophysics import ElFarolSystem
 
@@ -36,7 +35,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
 system = ElFarolSystem(n_agents=100, capacity=CAPACITY, random_state=0)
-trajectory = simulate(system, until=WEEKS, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=WEEKS, observers=[observer], random_state=0)
 
 # %%
 # Self-organization around the capacity

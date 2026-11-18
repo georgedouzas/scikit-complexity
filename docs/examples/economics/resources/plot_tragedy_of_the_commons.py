@@ -16,7 +16,6 @@ in cycles of boom and bust.
 import matplotlib.pyplot as plt
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.resources import TragedyOfTheCommonsSystem
 
@@ -35,7 +34,7 @@ blueprint = rrb.Blueprint(
 )
 system = TragedyOfTheCommonsSystem(random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(system, until=STEPS, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=STEPS, observers=[observer], random_state=0)
 
 # %%
 # A regulator saves the meadow
@@ -47,7 +46,7 @@ trajectory = simulate(system, until=STEPS, observers=[observer], random_state=0)
 # grass above a quarter of its capacity and a steady herd.
 
 regulated_system = TragedyOfTheCommonsSystem(quota=2.0, random_state=0)
-regulated = simulate(regulated_system, until=STEPS, random_state=0)
+regulated = regulated_system.prepare().simulate(until=STEPS, random_state=0)
 fig, (grass, herd) = plt.subplots(1, 2, figsize=(11, 4))
 for label, run in (('open access', trajectory), ('regulated quota', regulated)):
     grass.plot(run.times, run.get_values('grass') / run.get_values('grass')[0], label=label)

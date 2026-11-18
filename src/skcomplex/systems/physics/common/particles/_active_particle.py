@@ -6,7 +6,10 @@ The particle has a position `x` and an orientation `theta`.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from .....core.components.elements import Element
+import math
+from typing import Annotated
+
+from .....core.components.elements import Element, Period
 from .....core.components.spaces import BaseSpace
 from .....core.specs import VisualSpec
 
@@ -48,7 +51,7 @@ class ActiveParticleElement(Element):
         label: str,
         *,
         x: object = (0.0, 0.0),
-        theta: object = 0.0,
+        theta: Annotated[object, Period(2 * math.pi)] = 0.0,
         size: int | None = None,
         space: BaseSpace | None = None,
     ) -> None:

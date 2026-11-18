@@ -4,7 +4,6 @@ import numpy as np
 
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems import FrameSpec
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import PhaseRingVisual, RerunObserver
 from skcomplex.systems.physics.synchronization import NonlocalRingChimeraSystem
 
@@ -26,7 +25,7 @@ class Logs:
 
 def test_phase_ring_visual_logs_wrapped_phases_against_index():
     """Test that every oscillator of a chimera ring is a point at its index and its phase in (-π, π], drawn upward."""
-    trajectory = simulate(NonlocalRingChimeraSystem(n_oscillators=20, R=3).prepare().system_, until=0.0)
+    trajectory = NonlocalRingChimeraSystem(n_oscillators=20, R=3).prepare().simulate(until=0.0)
     problem = trajectory.problem
     frame = FrameSpec(0, 0.0, trajectory.states[-1], trajectory.parameters[-1], problem)
     logs = Logs()

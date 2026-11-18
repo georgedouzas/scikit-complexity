@@ -71,7 +71,7 @@ def test_coarse_grain_density():
 
 def test_coarse_grain_agents_of_a_trajectory():
     """Test that the walkers of a trajectory give one grid per frame in the box of their space."""
-    trajectory = simulate(RunAndTumbleSystem(n_agents=50), until=3, random_state=0)
+    trajectory = RunAndTumbleSystem(n_agents=50).prepare().simulate(until=3, random_state=0)
     field = _coarse_grain(trajectory, [5, 5])
     assert field.shape == (4, 5, 5)
     assert np.all(field.sum(axis=(1, 2)) == 50)

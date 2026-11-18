@@ -15,7 +15,7 @@ from scipy.special import ive
 
 from skcomplex.core.analysis import alignment, displacement
 from skcomplex.core.components.base import BaseComponent
-from skcomplex.core.components.elements import Element, FieldElement, Quantity
+from skcomplex.core.components.elements import Element, FieldElement, Period, Quantity
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import (
     BoundaryLaw,
@@ -41,7 +41,7 @@ from skcomplex.core.components.spaces import (
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from skcomplex.core.engine.runtime import ConservationObserver, simulate
-from skcomplex.core.engine.solvers import ETDRK4Solver, IMEXEulerSolver, RK4Solver, SSPRKSolver
+from skcomplex.core.engine.solvers import AgentView, ETDRK4Solver, IMEXEulerSolver, RK4Solver, SSPRKSolver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import Role, StateSpec, VisualSpec
 from skcomplex.core.systems import System
@@ -1092,3 +1092,117 @@ def test_get_declared_accepts_an_array_for_a_hint_of_several_types():
     system = System(elements=[Charges('charges', q=np.array([1.0, -2.0, 0.5]), size=3)]).prepare()
     assert system.parameters_ == ('charges.q[i]',)
     assert system.simulate(until=0).get_values('charges.q')[0] == pytest.approx([1.0, -2.0, 0.5])
+
+
+class Rotor(Element):
+    """Rotors whose angles wrap around the circle, placed on a line when they have a position."""
+
+    def __init__(
+        self,
+        label: str,
+        theta: Annotated[object, Period(2 * np.pi)] = 0.0,
+        *,
+        size: int | None = None,
+        space: BaseSpace | None = None,
+        values: dict[str, object] | None = None,
+    ) -> None:
+        super().__init__(label, size=size, space=space, values=values)
+        self.theta = theta
+
+
+class Spin(Interaction):
+    """Turn of the angles of a target at the unit rate."""
+
+    def __init__(self, label: str, *, target: Role = 'rotors') -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the unit rate of the angles."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [RateLaw(context.target.theta.diff(context.t), 1)]
+
+
+def test_get_declared_wraps_a_periodic_value_and_reads_it_as_a_phase():
+    """Test that an angle with a period comes back within one period and is the phase the alignment reads."""
+    rotors = Rotor('rotors', theta=np.array([0.0, 0.0]), size=2)
+    trajectory = System(elements=[rotors], interactions=[Spin('spin')]).prepare().simulate(until=4.0, dt=1.0)
+    assert trajectory.get_values('rotors.theta')[-1] == pytest.approx([4.0 - 2 * np.pi] * 2)
+    assert [element.roles for element in trajectory.problem.elements] == [{'theta': 'phase'}]
+    assert alignment(trajectory).order == pytest.approx(np.ones(5))
+
+
+def test_get_declared_reads_a_periodic_value_of_a_mover_as_a_heading():
+    """Test that the angle of an element with a position in a space is its heading."""
+    rotors = Rotor('rotors', size=2, space=ContinuousSpace(n_dim=1), values={'x': np.array([[0.0], [1.0]])})
+    trajectory = System(elements=[rotors], interactions=[Spin('spin')]).prepare().simulate(until=1.0)
+    assert trajectory.problem.elements[0].roles == {'theta': 'direction', 'x': 'position'}
+
+
+class Echo(Interaction):
+    """Map that sets every angle to a tenth of the sum of the angles of its neighbours two steps ago."""
+
+    def __init__(self, label: str, *, target: Role = 'rotors') -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the angle to a tenth of the delayed sum of the neighbours."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            past = context.target.other.theta(t=context.t - 2)
+            self.laws_ = [UpdateLaw(context.target.theta, neighbors(past, over=RadiusNeighborhood(1.5)) / 10)]
+
+
+def test_get_declared_keeps_the_past_values_neighbours_read_from_each_member():
+    """Test that past values read through neighbours are kept, and start at the value of each member."""
+    line = {'space': ContinuousSpace(n_dim=1), 'values': {'x': np.array([[0.0], [1.0], [2.0]])}}
+    rotors = Rotor('rotors', theta=np.array([0.1, 0.2, 0.3]), size=3, **line)
+    trajectory = System(elements=[rotors], interactions=[Echo('echo')]).prepare().simulate(until=1)
+    assert trajectory.get_values('rotors.theta')[-1] == pytest.approx([0.02, 0.04, 0.02])
+
+
+class CountedView(AgentView):
+    """View of a counter, with its count as an attribute."""
+
+    count: float
+
+
+class CounterElement(Element):
+    """Counters whose agents are seen through `CountedView`."""
+
+    def __init__(self, label: str, *, count: float = 0.0, size: int | None = None) -> None:
+        super().__init__(label, size=size)
+        self.count = count
+
+    @classmethod
+    def _get_view(cls) -> type[CountedView]:
+        """Return the view of the counters."""
+        return CountedView
+
+
+class TallyInteraction(Interaction):
+    """Rule of the whole system that raises the count of every counter."""
+
+    def __init__(self, label: str, *, target: Role = 'counters') -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context=None):
+        """Set the tally as a rule of the system."""
+        super()._prepare(context)
+        self.laws_ = [UpdateLaw(context, self.tally)]
+
+    def tally(self, system):
+        """Raise the count of every counter by one."""
+        for counter in system.get_agents('target', CountedView):
+            counter.count += 1
+
+
+def test_a_rule_of_the_system_reads_the_typed_agents_of_a_group_it_binds():
+    """Test that a group read only by a rule of the system is agents, seen through the view of its element class."""
+    counters = CounterElement('counters', count=np.array([0.0, 5.0]), size=2)
+    system = System(elements=[counters], interactions=[TallyInteraction('tally')]).prepare()
+    trajectory = system.simulate(until=3, random_state=0)
+    assert trajectory.get_agents('counters', 3).values['count'].tolist() == [3.0, 8.0]

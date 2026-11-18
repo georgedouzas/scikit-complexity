@@ -6,6 +6,7 @@ It runs under a Covid shock and policies.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
@@ -13,13 +14,14 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import BaseLaw
+from ....core.components import Observable
+from ....core.components.elements import Element
 from ....core.components.spaces import BaseSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver, SystemView
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ..common.policy import PolicyRuleInteraction
 
@@ -72,28 +74,29 @@ class Mark0FirmElement(Element):
         active:
             1 for a firm in business, 0 for a bankrupt firm waiting to be revived.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.macroeconomics import Mark0FirmElement
-        >>> GroupElement('firms', element=Mark0FirmElement, size=3).size
+        >>> Mark0FirmElement('firms', size=3).size
         3
     """
-
-    law_classes = ()
 
     def __init__(
         self,
         label: str,
         *,
-        workforce: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        demand: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        price: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
-        wage: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
-        cash: Annotated[float, StateSpec()] = 0.0,
-        profit: Annotated[float, StateSpec()] = 0.0,
-        active: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 1.0,
+        workforce: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
+        demand: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
+        price: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        wage: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        cash: object = 0.0,
+        profit: object = 0.0,
+        active: Annotated[object, RealSet.closed(0, 1)] = 1.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.workforce = workforce
         self.demand = demand
         self.price = price
@@ -106,19 +109,6 @@ class Mark0FirmElement(Element):
     def _get_view(cls) -> type[Mark0FirmView]:
         """Return the view of the agents of the element."""
         return Mark0FirmView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return no laws, since the economy updates every firm at once.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return []
 
 
 class Mark0EconomyInteraction(PolicyRuleInteraction[SystemView]):
@@ -238,24 +228,24 @@ class Mark0EconomyInteraction(PolicyRuleInteraction[SystemView]):
         *,
         rule: None = None,
         phase: str | None = None,
-        firms: Annotated[str, RoleSpec()],
-        c0: Annotated[float, ParameterSpec(domain=RealSet.open(0, 1))] = 0.5,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, 1))] = 0.01,
-        eta_minus: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.2,
-        ratio: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        delta: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.02,
-        theta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
-        phi: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.1,
-        zeta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        omega: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.2,
-        f: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.5,
-        shock_time: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
-        shock_length: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        dc: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, 1))] = 0.0,
-        dzeta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, 1))] = 0.0,
-        kappa: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        offset: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.25,
+        firms: Role,
+        c0: Annotated[float, RealSet.open(0, 1)] = 0.5,
+        beta: Annotated[float, RealSet.closed_open(0, oo)] = 2.0,
+        gamma: Annotated[float, RealSet.closed_open(0, 1)] = 0.01,
+        eta_minus: Annotated[float, RealSet.closed(0, 1)] = 0.2,
+        ratio: Annotated[float, RealSet.closed_open(0, oo)] = 2.0,
+        delta: Annotated[float, RealSet.closed(0, 1)] = 0.02,
+        theta: Annotated[float, RealSet.open(0, oo)] = 3.0,
+        phi: Annotated[float, RealSet.closed(0, 1)] = 0.1,
+        zeta: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        omega: Annotated[float, RealSet.closed(0, 1)] = 0.2,
+        f: Annotated[float, RealSet.closed(0, 1)] = 0.5,
+        shock_time: Annotated[float, RealSet.closed_open(0, oo)] = 100.0,
+        shock_length: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        dc: Annotated[float, RealSet.closed_open(0, 1)] = 0.0,
+        dzeta: Annotated[float, RealSet.closed_open(0, 1)] = 0.0,
+        kappa: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        offset: Annotated[float, RealSet.open(0, oo)] = 1.25,
         credit: str = 'none',
     ) -> None:
         super().__init__(label, rule=rule, phase=phase)
@@ -532,9 +522,15 @@ class Mark0System(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.macroeconomics import Mark0System
-        >>> Mark0System(10).prepare().system_.elements[0].prepare().size_
+        >>> Mark0System(10).prepare().system_.elements[0].size
         10
     """
 
@@ -563,8 +559,10 @@ class Mark0System(BaseSystem):
         credit: str = 'none',
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_firms = n_firms
         self.c0 = c0
         self.beta = beta
@@ -582,18 +580,16 @@ class Mark0System(BaseSystem):
         self.credit = credit
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
-        firms = GroupElement(
+        firms = Mark0FirmElement(
             'firms',
-            element=Mark0FirmElement,
+            workforce=rng.uniform(0.9, 1.0, self.n_firms),
+            price=1 + 0.1 * (rng.random(self.n_firms) - 0.5),
+            wage=1.0,
             size=self.n_firms,
-            values={
-                'workforce': rng.uniform(0.9, 1.0, self.n_firms),
-                'price': 1 + 0.1 * (rng.random(self.n_firms) - 0.5),
-                'wage': 1.0,
-            },
         )
         economy = Mark0EconomyInteraction(
             'economy',
@@ -613,4 +609,4 @@ class Mark0System(BaseSystem):
             kappa=self.kappa,
             credit=self.credit,
         )
-        return CompositeSystem(self.label, elements=[firms], interactions=[economy])
+        self.system_ = System(self.label, elements=[firms], interactions=[economy])

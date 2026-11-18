@@ -16,7 +16,6 @@ from math import comb
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.markets import ProduceMarketSystem
 
@@ -25,7 +24,7 @@ N_SHOPPERS, N_STALLS, N_KINDS, MEAN_LIST = 1000, 9, 12, 4.5
 
 system = ProduceMarketSystem(n_shoppers=N_SHOPPERS, n_stalls=N_STALLS, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, until=N_STALLS, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=N_STALLS, observers=[observer], random_state=0)
 
 # %%
 # Items left on the lists
@@ -52,7 +51,7 @@ def expected_left(trajectory):
 fig, (left, spent) = plt.subplots(1, 2, figsize=(10, 4))
 for index, stocked in enumerate((3, 6, 9)):
     system = ProduceMarketSystem(n_shoppers=N_SHOPPERS, n_stalls=N_STALLS, n_items_stocked=stocked, random_state=0)
-    trajectory = simulate(system, until=N_STALLS, random_state=0)
+    trajectory = system.prepare().simulate(until=N_STALLS, random_state=0)
     color = f'C{index}'
     left.semilogy(steps, trajectory.get_values('items_left'), 'o', color=color, label=f'{stocked} kinds per stall')
     left.semilogy(steps, MEAN_LIST * (1 - stocked / N_KINDS) ** steps, '--', color=color, lw=0.8)
