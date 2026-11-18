@@ -16,7 +16,6 @@ from .....core.analysis import InvariantsResult, invariants
 from .....core.analysis.types import Source
 from .....core.components import Observable
 from .....core.components.interactions import BaseInteraction
-from .....core.components.laws.utils import derivative
 from .....core.components.systems import CompositeSystem
 from .....core.errors import AnalysisError
 from ....general.mechanics import EulerLagrangeInteraction
@@ -282,14 +281,13 @@ def _get_lagrangian(base: InvariantsResult) -> tuple[Expression, dict[Expression
                 positions = _components(getattr(member, state))
                 rates = _components(getattr(member, f'{state}_d1'))
                 velocities.update(dict(zip(positions, rates, strict=True)))
-        lagrangian += interaction._get_symbolic_lagrangian(own)
+        lagrangian += interaction._get_lagrangian_of(own, velocities)
     if not velocities:
         error_msg = (
             'The system has neither a HamiltonianInteraction nor an EulerLagrangeInteraction, so it has no Hamiltonian '
             'or Lagrangian to check a symmetry against.'
         )
         raise AnalysisError(error_msg)
-    lagrangian = lagrangian.subs({derivative(q, 1): v for q, v in velocities.items()})
     return lagrangian, velocities
 
 
