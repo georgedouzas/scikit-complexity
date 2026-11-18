@@ -21,11 +21,11 @@ from ....core.components import Observable
 from ....core.components.elements import Element, Period
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.laws.utils import clip, delayed, where
+from ....core.components.laws.utils import clip, where
 from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, Role
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ..common.excitable import ThetaNeuronElement, ThetaNeuronInteraction
@@ -314,10 +314,10 @@ class DelayAdaptationInteraction(Interaction):
         source: Role,
         target: Role,
         axon: Role,
-        kappa: Annotated[float, ParameterSpec()] = 0.1,
-        epsilon: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        rho: Annotated[float, ParameterSpec()] = 1.0,
-        width: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.05,
+        kappa: float = 0.1,
+        epsilon: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        rho: float = 1.0,
+        width: Annotated[float, RealSet.open(0, oo)] = 0.05,
         shortest: float = 0.1,
     ) -> None:
         super().__init__(label)
@@ -330,22 +330,22 @@ class DelayAdaptationInteraction(Interaction):
         self.width = width
         self.shortest = shortest
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the delayed coupling of the target and the adaptation of the delay.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the delayed coupling of the target and the adaptation of the delay.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the units and the axon.
         """
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        s, t = context, context.t
         source, target, tau = s.source.theta, s.target.theta, s.axon.tau
         step = (1 + tanh(tau / s.width)) / 2
-        return [
-            RateLaw(target, s.kappa * sin(delayed(source, clip(tau, low=self.shortest), self.shortest) - target)),
-            RateLaw(tau, s.epsilon * step * (-(tau - s.axon.tau0) + s.rho * sin(source - target))),
+        self.laws_ = [
+            RateLaw(target.diff(t), s.kappa * sin(source(t=t - clip(tau, low=self.shortest)) - target)),
+            RateLaw(tau.diff(t), s.epsilon * step * (-(tau - s.axon.tau0) + s.rho * sin(source - target))),
         ]
 
 
