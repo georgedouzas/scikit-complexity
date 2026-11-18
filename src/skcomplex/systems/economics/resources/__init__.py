@@ -26,7 +26,7 @@ from ._harvesting import (
     StockGrowthInteraction,
 )
 from ._land_use import BidRentInteraction, LandCellElement, VonThunenSystem
-from ._measurement_errors import FisheryMeasurementErrorsSystem, MeasuredFisheryElement
+from ._measurement_errors import FisheryMeasurementErrorsSystem, MeasuredFisheryElement, QuotaHarvestInteraction
 from ._optimal_harvesting import OptimalHarvestingSystem
 from ._plantations import CocoaSystem, PlantationElement
 
@@ -54,6 +54,7 @@ __all__: list[str] = [
     'PartialAdjustmentInteraction',
     'PastureElement',
     'PlantationElement',
+    'QuotaHarvestInteraction',
     'QuotaRegulatorInteraction',
     'RegrassingInteraction',
     'RiceBalanceElement',
