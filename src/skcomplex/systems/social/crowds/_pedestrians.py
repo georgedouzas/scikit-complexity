@@ -13,22 +13,22 @@ from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import GroupElement
-from ....core.components.interactions import BaseInteraction, PairInteraction, RateInteraction
-from ....core.components.spaces import ContinuousSpace
+from ....core.components.interactions import BaseInteraction, Interaction, PairInteraction
+from ....core.components.laws import RateLaw
+from ....core.components.spaces import BaseSpace, ContinuousSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver
-from ....core.specs import ParameterSpec, RoleSpec
+from ....core.specs import ParameterSpec, Role, RoleSpec
 from ....core.systems import BaseSystem, System
 from ...general.elements import PointElement
 from ...general.gradients import GradientInteraction
 
 
-class MotivationInteraction(RateInteraction):
-    """Driving force of the social force system.
+class MotivationInteraction(Interaction):
+    """Driving force of the social force system, which relaxes a walker's velocity to its desired velocity.
 
-    It relaxes a walker's velocity to its desired velocity. The force per unit mass is
-    `(speed * direction - x_d1) / tau`, where the velocity `x_d1` is the first derivative of the position `x`.
+    The force per unit mass is `(speed * direction - x') / tau`, where the velocity `x'` is the derivative of the
+    position `x`.
 
     Args:
         label:
@@ -52,33 +52,35 @@ class MotivationInteraction(RateInteraction):
         1.34
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        speed: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.34,
-        direction: Annotated[npt.ArrayLike, ParameterSpec(vector=True)] = 0.0,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        target: Role,
+        speed: Annotated[float, RealSet.closed_open(0, oo)] = 1.34,
+        direction: npt.ArrayLike = 0.0,
+        tau: Annotated[float, RealSet.open(0, oo)] = 0.5,
     ) -> None:
-        super().__init__(label, target=target, state='x_d1')
+        super().__init__(label)
+        self.target = target
         self.speed = speed
         self.direction = direction
         self.tau = tau
 
-    def _get_rate(self, namespace: SimpleNamespace) -> object:
-        """Return the relaxation `(speed * direction - x_d1) / tau` of the velocity.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the relaxation of the velocity of the target towards its desired velocity.
 
         Args:
-            namespace:
-                The namespace of the symbols the rate can use.
-
-        Returns:
-            rate:
-                The force per unit mass towards the desired velocity.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        velocity = getattr(self._get_member(namespace, 'target'), self.state)
-        return (namespace.speed * namespace.direction - velocity) / namespace.tau
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s, t = context, context.t
+            x = s.target.x
+            self.laws_ = [RateLaw(x.diff(t, 2), (s.speed * s.direction - x.diff(t)) / s.tau)]
 
 
 class SocialRepulsionInteraction(PairInteraction):
@@ -142,6 +144,7 @@ class SocialRepulsionInteraction(PairInteraction):
             position=position,
             potential=self._get_pair_energy,
             period=period,
+            order=2,
         )
         self.strength = strength
         self.falloff = falloff
@@ -268,12 +271,13 @@ class SocialForceSystem(BaseSystem):
         super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         cutoff = 2.0
+        corridor = ContinuousSpace(extent=(self.length, self.length), boundary='periodic')
         walkers = [
-            GroupElement(
+            PointElement(
                 label,
-                element=PointElement,
+                x=rng.uniform([0.0, 0.5], [self.length, self.length - 0.5], (self.n_walkers, 2)),
                 size=self.n_walkers,
-                values={'x': rng.uniform([0.0, 0.5], [self.length, self.length - 0.5], (self.n_walkers, 2))},
+                space=corridor,
             )
             for label in ('rightward', 'leftward')
         ]
@@ -298,6 +302,6 @@ class SocialForceSystem(BaseSystem):
             self.label,
             elements=walkers,
             interactions=interactions,
-            space=ContinuousSpace(extent=(self.length, self.length), boundary='periodic'),
+            space=corridor,
             solver=RK4Solver(dt=0.05),
         )
