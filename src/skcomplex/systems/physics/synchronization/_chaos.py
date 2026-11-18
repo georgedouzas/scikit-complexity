@@ -15,7 +15,7 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import DeclaredElement, Element
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw, UpdateLaw
 from ....core.components.laws.utils import mod
@@ -23,62 +23,11 @@ from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import DeclaredVariableSpec, Role, StateSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 
 MAPS = ('logistic', 'bernoulli')
 PAIR = 2
-
-
-class DelayedUnitElement(DeclaredElement):
-    """Value `x` of a map that keeps its last `delay` values.
-
-    A delayed coupling reads the values.
-
-    The state `x` has `delay` lags, `x_lag1` to `x_lag<delay>`, and before the start every lag holds the initial value.
-
-    Args:
-        label:
-            The label of the unit.
-
-        value:
-            The initial value of `x`, also its value before the start.
-
-        delay:
-            The number of past values the unit keeps, at least 1.
-
-        variables:
-            The declared variables that replace the derived ones, or `None` for none.
-
-    Attributes:
-        default_visual_:
-            How the unit is drawn by default, the `visual` of its class.
-
-    Examples:
-        >>> from skcomplex.systems.physics.synchronization import DelayedUnitElement
-        >>> DelayedUnitElement('unit', delay=2).get_value('x')
-        0.3
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        value: float = 0.3,
-        delay: int = 1,
-        variables: Mapping[str, DeclaredVariableSpec] | None = None,
-    ) -> None:
-        super().__init__(label, variables=variables)
-        self.value = value
-        self.delay = delay
-
-    def _declare_variables(self) -> Mapping[str, DeclaredVariableSpec]:
-        """Return the value `x` with its `delay` lags, and the replacing variables.
-
-        The lags all hold the initial value.
-        """
-        lagged = StateSpec(lags=self.delay, initial=(self.value,) * self.delay)
-        return {'x': DeclaredVariableSpec(self.value, lagged), **(self.variables or {})}
 
 
 class LogisticUnitElement(Element):
