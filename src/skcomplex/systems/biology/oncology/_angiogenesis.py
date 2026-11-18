@@ -6,6 +6,7 @@ The tumour recruits the vessels by secreting growth factor.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated, cast
 
@@ -14,15 +15,18 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, FieldElement, GroupElement
 from ....core.components.interactions import MapInteraction, RateInteraction, TransferInteraction
 from ....core.components.laws import Source
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.systems import CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.engine.solvers import AgentView
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ...general.agents import BirthDeathInteraction, MovementInteraction
 
 OXYGEN = 'tissue/tissue.oxygen'
@@ -313,6 +317,12 @@ class TumourAngiogenesisSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import TumourAngiogenesisSystem
         >>> [group.label for group in TumourAngiogenesisSystem().prepare().system_.systems[0].elements]
@@ -335,8 +345,10 @@ class TumourAngiogenesisSystem(BaseSystem):
         chemotaxis: float = 30.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.width = width
         self.height = height
         self.n_sprouts = n_sprouts
@@ -547,8 +559,14 @@ class TumourAngiogenesisSystem(BaseSystem):
             ),
         ]
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of a tumour."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a tumour.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         center = (3 * self.width // 4, self.height // 2)
         tumour = [
@@ -581,7 +599,7 @@ class TumourAngiogenesisSystem(BaseSystem):
             element=TissueElement,
             space=LatticeSpace((self.width, self.height), boundary='reflecting'),
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             systems=[
                 CompositeSystem(
