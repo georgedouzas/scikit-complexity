@@ -61,7 +61,7 @@ class Interaction(BaseInteraction):
 
         among:
             The group whose members sit at the ends of the edges, such as `'people'`, or `None` to bind elements by
-            their roles only. A subclass annotates it as a role.
+            their roles only. A subclass annotates it as a role, and a rule written without a class binds it as one.
 
         along:
             `True` for the edges of the network the group lives on, the name of a layer of a network with several, such
@@ -119,10 +119,12 @@ class Interaction(BaseInteraction):
         self.along = along
 
     def _get_declared(self) -> Mapping[str, DeclaredVariableSpec]:
-        """Return the numeric arguments as parameters and the entries of `roles` as roles."""
+        """Return the numeric arguments as parameters, and the entries of `roles` and the group `among` as roles."""
         declared = dict(super()._get_declared())
         for name, binding in (self.roles or {}).items():
             declared[name] = DeclaredVariableSpec(binding, RoleSpec())
+        if self.among is not None and 'among' not in self._get_specs():
+            declared['among'] = DeclaredVariableSpec(self.among, RoleSpec())
         return declared
 
     def _get_binding(self, role: str) -> object:
