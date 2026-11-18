@@ -17,7 +17,7 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, Member
-from ....core.components.interactions import Interaction, MapInteraction
+from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import transfer
 from ....core.components.spaces import BaseSpace, LatticeSpace
@@ -26,7 +26,7 @@ from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
 from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
 from ....core.errors import SimulationError
-from ....core.specs import Role, RoleSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 from ...general.agents import BirthDeathInteraction
 from ...general.matching import MatchingInteraction, MatchSpec, PartnerMatchingSpec, RandomSearchSpec
@@ -348,11 +348,11 @@ class GrazingInteraction(MatchingInteraction[SystemView]):
         self,
         label: str,
         *,
-        requesters: Annotated[str, RoleSpec()],
-        providers: Annotated[str, RoleSpec()],
+        requesters: Role,
+        providers: Role,
         rule: MatchingRule = RandomSearchSpec(),
         phase: str | None = 'grazing',
-        herders: Annotated[str, RoleSpec()],
+        herders: Role,
         appetite: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
         metabolism: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
         milk: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
@@ -603,10 +603,11 @@ class TragedyOfTheCommonsSystem(BaseSystem):
         return tuple(int(system.rng.integers(int(size))) for size in system.dimensions or ())
 
     @staticmethod
-    def _get_cleared(herder: AgentViewProtocol, system: SystemViewProtocol) -> float:
-        """Return zero, the income and the herd a herder starts a step with."""
-        del herder, system
-        return 0.0
+    def _clear(herder: HerderView, system: SystemView) -> None:
+        """Clear the income and the herd a herder starts a step with."""
+        del system
+        herder.income = 0.0
+        herder.herd = 0.0
 
     def __init__(
         self,
@@ -636,10 +637,10 @@ class TragedyOfTheCommonsSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _get_investment() -> list[BirthDeathInteraction | MapInteraction]:
+    def _get_investment() -> list[BirthDeathInteraction | Interaction]:
         """Return the member interactions of a herder.
 
-        They buy or sell a cow, then clear its income and herd.
+        They buy or sell a cow, then clear its income and herd, one herder after the other.
         """
         return [
             BirthDeathInteraction(
@@ -654,17 +655,10 @@ class TragedyOfTheCommonsSystem(BaseSystem):
                 schedule='member',
                 phase='herding',
             ),
-            *(
-                MapInteraction(
-                    f'{state}_clearing',
-                    target='herders',
-                    state=state,
-                    function=TragedyOfTheCommonsSystem._get_cleared,
-                    form='agent',
-                    schedule='member',
-                    phase='herding',
-                )
-                for state in ('income', 'herd')
+            Interaction(
+                'clearing',
+                roles={'target': 'herders'},
+                laws=lambda s: [UpdateLaw(s.target, TragedyOfTheCommonsSystem._clear, phase='herding')],
             ),
         ]
 

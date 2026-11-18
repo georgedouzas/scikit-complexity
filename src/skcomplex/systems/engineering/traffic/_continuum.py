@@ -16,8 +16,9 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import ConservationInteraction, RateInteraction
-from ....core.components.laws.utils import laplacian, shifted
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
+from ....core.components.laws.utils import divergence, laplacian, shifted
 from ....core.components.spaces import BaseSpace, FiniteVolumeSpec, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, SSPRKSolver
@@ -115,7 +116,7 @@ class GasKineticTrafficElement(Element):
 class KernerKonhauserElement(Element):
     """Cell of a road with the density and the flow of the Kerner-Konhäuser system.
 
-    The density is `rho` and the flow is `q`. The density and the flow are conserved by conservation interactions, the
+    The density is `rho` and the flow is `q`. The density and the flow are conserved by conservation laws, the
     flow relaxes to the equilibrium flow by a relaxation interaction, and the viscosity adds the rate `mu laplacian(q /
     rho)` to the flow.
     """
@@ -167,7 +168,7 @@ class LighthillWhithamRichardsElement(Element):
 class PayneElement(Element):
     """Cell of a road with the density `rho` and the flow `q` of the Payne system.
 
-    The density and the flow are conserved by conservation interactions, and the flow relaxes to the Greenshields flow
+    The density and the flow are conserved by conservation laws, and the flow relaxes to the Greenshields flow
     by a relaxation interaction.
     """
 
@@ -279,7 +280,11 @@ class LighthillWhithamRichardsSystem(BaseSystem):
             space=space,
         )
         flux = self._get_lighthill_whitham_richards_flux
-        density = ConservationInteraction('density', target='road', state='rho', flux=flux)
+        density = Interaction(
+            'density',
+            roles={'target': 'road'},
+            laws=lambda s: [RateLaw(s.target.rho, -divergence([flux(s)]))],
+        )
         self.system_ = System(self.label, elements=[road], interactions=[density], solver=SSPRKSolver())
 
 
@@ -362,6 +367,12 @@ class PayneSystem(BaseSystem):
         self.rho_max = rho_max
         self.tau = tau
 
+    @staticmethod
+    def _get_payne_flux(s: SimpleNamespace) -> Expression:
+        """Return the flux `q^2 / rho + P(rho)` of the flow with the anticipation pressure."""
+        road = s.target
+        return road.q**2 / road.rho + road.vmax * road.rho / (2 * road.tau * road.rho_max)
+
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set `system_` to the components of the system built from its model parameters."""
         super()._prepare(context)
@@ -376,13 +387,15 @@ class PayneSystem(BaseSystem):
             tau=self.tau,
             space=LatticeSpace(self.n, spacing=1 / self.n, discretization='finite-volume'),
         )
-        density = ConservationInteraction('density', target='road', state='rho', flux=lambda s: s.target.q)
-        flow = ConservationInteraction(
+        density = Interaction(
+            'density',
+            roles={'target': 'road'},
+            laws=lambda s: [RateLaw(s.target.rho, -divergence([s.target.q]))],
+        )
+        flow = Interaction(
             'flow',
-            target='road',
-            state='q',
-            flux=lambda s: s.target.q**2 / s.target.rho
-            + s.target.vmax * s.target.rho / (2 * s.target.tau * s.target.rho_max),
+            roles={'target': 'road'},
+            laws=lambda s: [RateLaw(s.target.q, -divergence([self._get_payne_flux(s)]))],
         )
         relaxation = SpeedAdaptationInteraction(
             'relaxation',
@@ -513,12 +526,17 @@ class KernerKonhauserSystem(BaseSystem):
             mu=self.mu,
             space=LatticeSpace(self.n, spacing=self.length / self.n, discretization='finite-volume'),
         )
-        density = ConservationInteraction('density', target='road', state='rho', flux=lambda s: s.target.q)
-        flow = ConservationInteraction(
+        density = Interaction(
+            'density',
+            roles={'target': 'road'},
+            laws=lambda s: [RateLaw(s.target.rho, -divergence([s.target.q]))],
+        )
+        flow = Interaction(
             'flow',
-            target='road',
-            state='q',
-            flux=lambda s: s.target.q**2 / s.target.rho + s.target.c0**2 * s.target.rho,
+            roles={'target': 'road'},
+            laws=lambda s: [
+                RateLaw(s.target.q, -divergence([s.target.q**2 / s.target.rho + s.target.c0**2 * s.target.rho])),
+            ],
         )
         relaxation = SpeedAdaptationInteraction(
             'relaxation',
@@ -527,11 +545,10 @@ class KernerKonhauserSystem(BaseSystem):
             goal=lambda s: s.target.rho * self._get_kerner_konhauser_speed(s.target),
             time=lambda s: s.target.tau,
         )
-        viscosity = RateInteraction(
+        viscosity = Interaction(
             'viscosity',
-            target='road',
-            state='q',
-            rate=lambda s: s.target.mu * laplacian(s.target.q / s.target.rho),
+            roles={'target': 'road'},
+            laws=lambda s: [RateLaw(s.target.q, s.target.mu * laplacian(s.target.q / s.target.rho))],
         )
         self.system_ = System(
             self.label,
@@ -722,13 +739,18 @@ class GktTrafficSystem(BaseSystem):
             gamma=self.gamma,
             space=LatticeSpace(self.n, spacing=self.length / self.n, discretization='finite-volume'),
         )
-        vehicles = ConservationInteraction('density', target='road', state='rho', flux=lambda s: s.target.Q)
-        momentum = ConservationInteraction(
+        vehicles = Interaction(
+            'density',
+            roles={'target': 'road'},
+            laws=lambda s: [RateLaw(s.target.rho, -divergence([s.target.Q]))],
+        )
+        momentum = Interaction(
             'flow',
-            target='road',
-            state='Q',
-            flux=self._get_gkt_momentum_flux,
-            source=self._get_gkt_relaxation,
+            roles={'target': 'road'},
+            laws=lambda s: [
+                RateLaw(s.target.Q, -divergence([self._get_gkt_momentum_flux(s)])),
+                RateLaw(s.target.Q, self._get_gkt_relaxation(s)),
+            ],
         )
         self.system_ = System(
             self.label,

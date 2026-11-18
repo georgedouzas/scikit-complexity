@@ -399,11 +399,24 @@ class GroupElement(BaseElement):
         space = self._get_site_space(context)
         self.values_ = self._flatten_values(space)
         self._check_value_rows()
-        if space is not None and (
-            self.default_visual_ == VisualSpec() or self.default_visual_.kind in space._get_lacks()
+        drawn = space if space is not None else self._get_filled_space(context)
+        if drawn is not None and (
+            self.default_visual_ == VisualSpec() or self.default_visual_.kind in drawn._get_lacks()
         ):
             options = {name: value for name, value in self.default_visual_.options.items() if name in SHARED_OPTIONS}
-            self.default_visual_ = VisualSpec(space.default_visual_ or 'sites', options)
+            self.default_visual_ = VisualSpec(drawn.default_visual_ or 'sites', options)
+
+    def _get_filled_space(self, context: BaseSpace | None) -> BaseSpace | None:
+        """Return the space whose sites the members fill one each, or `None`.
+
+        A group of plain elements on the sites of a group space, such as cells on a Cayley graph, has its size given,
+        and is drawn as that space draws its sites.
+        """
+        space = self.space if self.space is not None else context
+        if self.on != 'sites' or space is None or not space._has_sites():
+            return None
+        prepared = space if 'size_' in vars(space) else space.prepare()
+        return prepared if prepared._count_parts('sites') == self.size else None
 
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the laws of the element type for a namespace of symbols.

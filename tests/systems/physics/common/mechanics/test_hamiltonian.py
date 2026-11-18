@@ -166,5 +166,5 @@ def test_prepare_reports_a_coordinate_of_order_2():
     errors = [issue for issue in PassCompiler().prepare(system).report_.issues if issue.severity == 'error']
     assert len(errors) == 1
     assert errors[0].path == 'energy'
-    assert 'StateSpec(order=1)' in errors[0].message
+    assert 'RateLaw of its second derivative' in errors[0].message
     assert 'EulerLagrangeInteraction' in errors[0].message

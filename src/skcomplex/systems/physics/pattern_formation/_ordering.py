@@ -17,12 +17,13 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import BaseInteraction, RateInteraction
+from ....core.components.interactions import BaseInteraction, Interaction
+from ....core.components.laws import NoiseLaw
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, ETDRK4Solver
-from ....core.specs import ParameterSpec, RoleSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ...general.gradients import GradientInteraction
 
@@ -95,9 +96,9 @@ class LandauEnergyInteraction(GradientInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         state: str = 'phi',
-        kappa: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        kappa: Annotated[float, RealSet.open(0, oo)] = 1.0,
         conserved: bool = False,
     ) -> None:
         super().__init__(label, target=target, states=state, variational=True, conserved=conserved)
@@ -198,12 +199,10 @@ class AllenCahnSystem(BaseSystem):
             LandauEnergyInteraction('energy', target='mixture', kappa=kappa, conserved=conserved),
         ]
         if temperature:
-            noise = RateInteraction(
+            noise = Interaction(
                 'noise',
-                target='mixture',
-                state='phi',
-                noise=math.sqrt(2 * temperature),
-                conserved=True,
+                roles={'target': 'mixture'},
+                laws=lambda s: [NoiseLaw(s.target.phi, math.sqrt(2 * temperature), conserved=True)],
             )
             interactions.append(noise)
         return System(

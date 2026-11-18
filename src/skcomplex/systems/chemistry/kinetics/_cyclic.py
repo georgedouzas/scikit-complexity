@@ -13,13 +13,13 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.base import BaseComponent
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace, LatticeSpace, RadiusNeighborhood
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, Role, StateSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
@@ -48,6 +48,9 @@ class CyclicCellElement(Element):
         threshold:
             The number of neighbours at the following level that advance a cell.
 
+        space:
+            The lattice of the cells, or `None` for one cell.
+
     Examples:
         >>> from skcomplex.systems.chemistry.kinetics import CyclicCellElement
         >>> CyclicCellElement('cell').n
@@ -58,11 +61,12 @@ class CyclicCellElement(Element):
         self,
         label: str,
         *,
-        level: Annotated[float, StateSpec(domain=NN)] = 0,
-        n: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 14.0,
-        threshold: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        level: Annotated[object, NN] = 0,
+        n: Annotated[float, RealSet.open(0, oo)] = 14.0,
+        threshold: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.level = level
         self.n = n
         self.threshold = threshold
@@ -145,7 +149,7 @@ class CyclicCellularAutomatonSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.chemistry.kinetics import CyclicCellularAutomatonSystem
-        >>> CyclicCellularAutomatonSystem((10, 10), n=8).prepare().system_.elements[0].values['n']
+        >>> CyclicCellularAutomatonSystem((10, 10), n=8).prepare().system_.elements[0].n
         8
     """
 
@@ -180,13 +184,7 @@ class CyclicCellularAutomatonSystem(BaseSystem):
         self.system_ = System(
             self.label,
             elements=[
-                GroupElement(
-                    'cells',
-                    element=CyclicCellElement,
-                    space=LatticeSpace(shape),
-                    values={'level': levels, 'n': self.n, 'threshold': self.threshold},
-                    on='sites',
-                ),
+                CyclicCellElement('cells', level=levels, n=self.n, threshold=self.threshold, space=LatticeSpace(shape)),
             ],
             interactions=[
                 CyclicAdvanceInteraction('advance', target='cells'),

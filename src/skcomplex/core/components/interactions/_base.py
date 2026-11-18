@@ -33,6 +33,7 @@ from ..laws.utils._fractional import fractional_of
 from ..spaces import BaseSpace, ContinuousSpace
 from ..types import AgentViewProtocol, SystemViewProtocol
 from ._interaction_requirement_spec import _InteractionRequirementSpec
+from ._wiener_process_spec import WienerProcessSpec
 
 GRID_CANDIDATES = ('neighbors', 'cell', 'local')
 RATE_DOMAINS = (DomainKind.REAL, DomainKind.INTEGER, DomainKind.COMPLEX, DomainKind.VECTOR)
@@ -167,7 +168,8 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         list or an array of numbers is a vector parameter of its length, such as the stiffness of a trap along each
         axis, and a square matrix of numbers a matrix parameter. The allowed values of an argument come from
         `Annotated`, as for the values of an element, such as `k: Annotated[float, RealSet.open(0, oo)] = 1.0` for a
-        positive rate. The parameters keep the order of the arguments.
+        positive rate. An argument whose value is a `WienerProcessSpec` binds those processes, as the market noise
+        that drives the prices of several assets does. The parameters keep the order of the arguments.
         """
         if not self._is_preparing_laws():
             return {}
@@ -177,6 +179,9 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         declared = {}
         for name in inspect.signature(type(self)).parameters:
             value = params.get(name)
+            if isinstance(value, WienerProcessSpec) and name not in specs:
+                declared[name] = DeclaredVariableSpec(value, RoleSpec(noise=True))
+                continue
             if name in specs or name == 'label' or not self._is_numeric(value):
                 continue
             vector, n_dim, tensor = self._get_shape_of(value)
@@ -472,7 +477,8 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
                 laws.append(rule)
                 continue
             translated = self._get_law_in_states(law, time, functions)
-            terms = FlowTermLaw._get_terms(translated, self.label) if isinstance(translated, RateLaw) else [translated]
+            flow = isinstance(translated, RateLaw | UpdateLaw)
+            terms = FlowTermLaw._get_terms(translated, self.label) if flow else [translated]
             laws.extend(self._get_local_rule(self._get_normalized(term)) for term in terms)
         return laws
 
@@ -914,6 +920,10 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
     def _runs_on_hyperedges(self) -> bool:
         """Return whether the laws run once per hyperedge of a network, false by default."""
         return False
+
+    def _get_hyperedge_size(self) -> int | None:
+        """Return the size of the hyperedges the laws run on, or `None` for every size."""
+        return None
 
     def _get_layer(self) -> str | None:
         """Return the layer of the network the laws run along, or `None` for its graph."""

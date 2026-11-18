@@ -59,21 +59,13 @@ class HamiltonianInteraction(Interaction):
             or a coordinate and its momentum differ in size or are not of order 1.
 
     Examples:
-        >>> from typing import Annotated
         >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.physics.common.mechanics import HamiltonianInteraction
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> class OscillatorElement(Element):
-        ...     def __init__(self, label, q: Annotated[float, StateSpec()] = 1.0, p: Annotated[float, StateSpec()] = 0):
-        ...         super().__init__(label)
-        ...         self.q = q
-        ...         self.p = p
         >>> energy = lambda s: (s.target.p**2 + s.target.q**2) / 2
         >>> spring = HamiltonianInteraction('spring', target='mass', hamiltonian=energy)
-        >>> system = CompositeSystem(elements=[OscillatorElement('mass')], interactions=[spring])
-        >>> trajectory = simulate(system, until=3.14159, dt=0.01)
+        >>> system = System(elements=[Element('mass', values={'q': 1.0, 'p': 0.0})], interactions=[spring]).prepare()
+        >>> trajectory = system.simulate(until=3.14159, dt=0.01)
         >>> round(float(trajectory.get_values('mass.q')[-1]), 3)
         -1.0
     """
@@ -100,11 +92,12 @@ class HamiltonianInteraction(Interaction):
         return (names,) if isinstance(names, str) else tuple(names)
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Raise an error for a state not a name, an unpaired state, or a bad Hamiltonian.
+        """Set the rates of the canonical pairs, after checking the states and the Hamiltonian.
 
         Args:
             context:
-                The space the interaction inherits from its system.
+                The space the interaction inherits from its system, or the namespace of its roles, the time `t`, and
+                the parameters.
 
         Raises:
             ValidationError:
@@ -128,6 +121,8 @@ class HamiltonianInteraction(Interaction):
         if self.hamiltonian is not None and not callable(self.hamiltonian):
             error_msg = f'The hamiltonian of {self.label!r} is {self.hamiltonian!r}. Give a function of the namespace.'
             raise ValidationError(error_msg)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = self._get_canonical_laws(context)
 
     def _get_hamiltonian(self, namespace: SimpleNamespace) -> object:
         """Return the Hamiltonian.
@@ -155,8 +150,8 @@ class HamiltonianInteraction(Interaction):
         if hasattr(member, f'{name}_d1'):
             error_msg = (
                 f'{type(self).__name__} {self.label!r} reads the state {name} of order above 1, but canonical '
-                'coordinates and momenta have order 1. Declare it with `StateSpec(order=1)`, or derive the equations '
-                'of a coordinate of order 2 with `EulerLagrangeInteraction`.'
+                'coordinates and momenta have order 1. Give the rates of a coordinate of order 2 with a RateLaw of '
+                'its second derivative, or derive its equations with `EulerLagrangeInteraction`.'
             )
             raise ValidationError(error_msg)
         state: Target = getattr(member, name)
@@ -191,10 +186,21 @@ class HamiltonianInteraction(Interaction):
         For a vector state, it returns that of every component.
         """
         if isinstance(state, FreeModuleElement):
-            return vector(SR, [hamiltonian.diff(component) for component in state])
-        return hamiltonian.diff(state)
+            return vector(SR, [self._get_partial(hamiltonian, component) for component in state])
+        return self._get_partial(hamiltonian, state)
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
+    @staticmethod
+    def _get_partial(hamiltonian: Expression, state: Expression) -> Expression:
+        """Return the partial derivative of the Hamiltonian with respect to a scalar state.
+
+        A state that is a function of the time, such as `q(t)`, stands in for a symbol while the derivative is taken.
+        """
+        if state.is_symbol():
+            return hamiltonian.diff(state)
+        symbol = SR.symbol()
+        return hamiltonian.subs({state: symbol}).diff(symbol).subs({symbol: state})
+
+    def _get_canonical_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
         """Return the rate of every coordinate, `dH/dp`, and of every momentum, `-dH/dq`.
 
         Args:

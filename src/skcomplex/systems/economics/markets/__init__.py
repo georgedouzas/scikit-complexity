@@ -13,6 +13,7 @@ from ._commodities import CommodityCycleSystem, CommodityMarketElement
 from ._double_auction import (
     AuctionLedgerInteraction,
     DoubleAuctionSystem,
+    QuotingInteraction,
     ZeroIntelligenceBuyerElement,
     ZeroIntelligenceSellerElement,
     maximum_surplus,
@@ -21,9 +22,9 @@ from ._duopoly import CournotAdjustmentInteraction, CournotDuopolySystem, Duopol
 from ._fair_food import ConsumerElement, FairFoodSystem
 from ._fair_food_program import FairFoodMarketInteraction, FairFoodProgramSystem, ProgramMemberElement
 from ._goods_traders import GoodsTraderElement, GoodsTradersSystem
-from ._household_demand import BudgetHouseholdElement, HouseholdDemandSystem
+from ._household_demand import BudgetHouseholdElement, HouseholdDemandInteraction, HouseholdDemandSystem
 from ._inventory import CarDealershipElement, CarDealerSystem
-from ._labour import EmployerElement, JobseekerElement, LabourMarketSystem, hire
+from ._labour import EmployerElement, JobOffersInteraction, JobseekerElement, LabourMarketSystem, hire
 from ._oligopoly import (
     CournotBestResponseElement,
     CournotBestResponseInteraction,
@@ -36,7 +37,14 @@ from ._oligopoly import (
 from ._perishables import CustomerElement, PerishableGoodsDuopolySystem, ProductElement
 from ._prices import RiccatiPricesSystem
 from ._produce import ProduceMarketSystem, ShopperElement, ShoppingInteraction, StallElement
-from ._queues import CarElement, CarWashOperationInteraction, CarWashSystem, TillElement, WasherElement
+from ._queues import (
+    CarElement,
+    CarWashOperationInteraction,
+    CarWashSystem,
+    TillElement,
+    WasherElement,
+    WashingInteraction,
+)
 from ._shops import PriceAdjustmentInteraction, ResidentElement, ShopsSystem, StoreElement
 from ._sugarscape import ForagerElement, SugarPatchElement, SugarscapeSystem
 from ._supply_chains import (
@@ -92,8 +100,10 @@ __all__: list[str] = [
     'GoodsTradersSystem',
     'HeuristicPricingInteraction',
     'HeuristicTraderElement',
+    'HouseholdDemandInteraction',
     'HouseholdDemandSystem',
     'IndifferenceInteraction',
+    'JobOffersInteraction',
     'JobseekerElement',
     'LabourMarketSystem',
     'MarketElement',
@@ -106,6 +116,7 @@ __all__: list[str] = [
     'ProduceMarketSystem',
     'ProductElement',
     'ProgramMemberElement',
+    'QuotingInteraction',
     'ResidentElement',
     'RetailDemandInteraction',
     'RetailerElement',
@@ -123,6 +134,7 @@ __all__: list[str] = [
     'ToyTraderElement',
     'ToyTraderSystem',
     'WasherElement',
+    'WashingInteraction',
     'WilhiteTradeNetworksSystem',
     'ZeroIntelligenceBuyerElement',
     'ZeroIntelligenceSellerElement',

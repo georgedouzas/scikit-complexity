@@ -192,7 +192,7 @@ def test_closed_economy_changes_money_only_by_lending_and_repayment():
         + trajectory.get_values('firms.deposits')
         + trajectory.get_values('bank.deposits')
     )
-    created = trajectory.get_values('circuit.lending') - trajectory.get_values('circuit.repayments')
+    created = trajectory.get_values('firms.lending') - trajectory.get_values('firms.repayments')
     assert np.diff(money) == pytest.approx(created[:-1], abs=1e-9)
     for frame in (0, 50, 100):
         matrix = loops(trajectory, kind='flow-matrix', frame=frame).matrix

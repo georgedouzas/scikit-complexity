@@ -360,7 +360,7 @@ The total stays 50.0 under each of the three rates.
   operators.
 - A drift `a` carries a state as the flux `a u`.
 - Diffusion is the rate `D laplacian(u)`, the divergence of the flux `-D gradient(u)`, which keeps the total of a
-  periodic field. Physics names these forms by the subclasses `AdvectionInteraction` and `DiffusivityInteraction`.
+  periodic field. Physics names these forms by the interactions `AdvectionInteraction` and `DiffusivityInteraction`.
 
 ## Discrete time
 

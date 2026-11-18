@@ -76,6 +76,21 @@ def _subshift_system(space, neighborhood, forbidden, states=2):
     )
 
 
+class GoldenCellElement(Element):
+    """Cells of the golden mean shift, written as a plain element with the subshift in `Annotated`."""
+
+    def __init__(self, label, alive: Annotated[int, SubshiftSpec(GOLDEN_PAIR, ((1, 1),))] = 0, space=None):
+        super().__init__(label, space=space)
+        self.alive = alive
+
+
+def test_automaton_reads_a_subshift_in_the_annotation_of_a_plain_element():
+    """Test that six cells of the golden mean shift hold 21 words, and that two adjacent ones are not one of them."""
+    golden = System(elements=[GoldenCellElement('cells', space=LatticeSpace(6, boundary='fixed'))])
+    assert _automaton('count', golden).count == 21
+    assert not _automaton('admissible', golden, configuration=np.array([0, 1, 1, 0, 0, 0])).admissible
+
+
 def _automaton(kind, source, **settings):
     """Return the decision or measure of an automaton for one kind."""
     return automaton(source, kind=kind, **settings)

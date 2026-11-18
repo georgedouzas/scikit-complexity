@@ -29,9 +29,11 @@ from skcomplex.core.components.interactions import (
     TrainingInteraction,
     TransferInteraction,
     TransitionInteraction,
+    WienerProcessSpec,
 )
 from skcomplex.core.components.laws import (
     CallSpec,
+    NoiseLaw,
     PartnerSpec,
     RateLaw,
     TopologyRequestSpec,
@@ -890,3 +892,57 @@ def test_parameters_of_an_interaction_keep_the_order_of_its_arguments():
     """Test that the parameters come in the order of the arguments, not the alphabetical one."""
     system = System(elements=[Element('p', values={'x': 1.0})], interactions=[SpringInteraction('spring')]).prepare()
     assert system.parameters_ == ('spring.k', 'spring.a')
+
+
+def langevin(noise):
+    """Return a damped particle whose velocity `x'` is driven by the given noise law."""
+
+    def laws(s):
+        x, t = s.target.x, s.t
+        return [RateLaw(x.diff(t, 2), -x.diff(t)), noise(x, t)]
+
+    interaction = Interaction('kick', roles={'target': 'p'}, laws=laws)
+    return System(elements=[Element('p', values={'x': 0.0})], interactions=[interaction]).prepare()
+
+
+def test_noise_on_a_derivative_is_written_in_sage():
+    """Test that `NoiseLaw(x.diff(t, 2), g)` drives the velocity `x'` as the order 2 does."""
+    sage = langevin(lambda x, t: NoiseLaw(x.diff(t, 2), 0.5)).simulate(until=1.0, dt=0.1, random_state=0)
+    ordered = langevin(lambda x, t: NoiseLaw(x, 0.5, order=2)).simulate(until=1.0, dt=0.1, random_state=0)
+    assert np.ptp(sage.get_values("p.x'")) > 0
+    assert sage.get_values("p.x'") == pytest.approx(ordered.get_values("p.x'"))
+
+
+def test_noise_of_a_lower_order_names_the_derivative_to_write():
+    """Test that a noise on `x` of a state of order 2 asks for `x.diff(t, 2)`."""
+    with pytest.raises(ValidationError, match=r'x\.diff\(t, 2\)'):
+        langevin(lambda x, t: NoiseLaw(x, 0.5))
+
+
+class _SharedNoiseInteraction(Interaction):
+    """Noise of one value driven by the Wiener processes it is given."""
+
+    def __init__(self, label, *, target: Role, process=None):
+        super().__init__(label)
+        self.target = target
+        self.process = process
+
+    def _prepare(self, context=None):
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [NoiseLaw(context.target.x, 1.0, process=context.process.dW)]
+
+
+def test_an_argument_holding_wiener_processes_binds_them():
+    """Two interactions given the same processes, with no annotation, share their increments."""
+    market = WienerProcessSpec('market')
+    system = System(
+        elements=[Element('a', values={'x': 0.0}), Element('b', values={'x': 0.0})],
+        interactions=[
+            _SharedNoiseInteraction('first', target='a', process=market),
+            _SharedNoiseInteraction('second', target='b', process=market),
+        ],
+    )
+    trajectory = system.prepare().simulate(until=1.0, dt=0.1, random_state=0)
+    assert np.ptp(trajectory.get_values('a.x')) > 0
+    np.testing.assert_allclose(trajectory.get_values('a.x'), trajectory.get_values('b.x'))

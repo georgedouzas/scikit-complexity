@@ -219,12 +219,14 @@ class CompositeSystem(BaseSystem['CompositeSystem']):
     def _find_element(self, path: str) -> BaseElement | None:
         """Return the element at a path relative to the system.
 
-        The result is `None` when no element of a system has the path.
+        The result is `None` when no element of a system has the path. A nested system that is not prepared yet is
+        searched as it is.
         """
         *scopes, label = path.split('/')
         system: CompositeSystem | None = self
         for scope in scopes:
-            system = next((item.system_ for item in system.systems if item.label == scope), None) if system else None
+            nested = next((item for item in system.systems if item.label == scope), None) if system else None
+            system = getattr(nested, 'system_', nested)
         if system is None:
             return None
         return next((element for element in system.elements if element.label == label), None)

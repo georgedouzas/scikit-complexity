@@ -19,8 +19,8 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
-from ....core.components.interactions import Interaction, MapInteraction, TopologyInteraction
-from ....core.components.laws import RateLaw, UpdateLaw
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw, TopologyRequestSpec, UpdateLaw
 from ....core.components.laws.utils import neighbors, total
 from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
@@ -300,14 +300,22 @@ class GrowingSimplicialComplexSystem(BaseSystem):
         super().__init__(label, solver=solver, backend=backend)
 
     @staticmethod
-    def _get_bookkeeping() -> list[MapInteraction]:
-        """Return the maps that age every node and read its degree from the edges.
+    def _get_bookkeeping() -> list[Interaction]:
+        """Return the updates that age every node and read its degree from the edges.
 
-        The maps run at the start of a step.
+        The updates run at the start of a step.
         """
         return [
-            MapInteraction('ageing', target='nodes', state='age', function=lambda s: 1, mode='increment'),
-            MapInteraction('degree', target='nodes', state='degree', function=lambda s: neighbors(1)),
+            Interaction(
+                'ageing',
+                roles={'target': 'nodes'},
+                laws=lambda s: [UpdateLaw(s.target.age, s.target.age + 1, increment=True)],
+            ),
+            Interaction(
+                'degree',
+                roles={'target': 'nodes'},
+                laws=lambda s: [UpdateLaw(s.target.degree, neighbors(1))],
+            ),
         ]
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
@@ -317,7 +325,8 @@ class GrowingSimplicialComplexSystem(BaseSystem):
         nodes = VertexElement('nodes', age=1.0, space=space)
         links = Element('links', space=space, on='edges')
         triangles = SimplexElement('triangles', space=space)
-        growth = TopologyInteraction('growth', action='add-node', hyperedge=3, values={'age': 0.0})
+        request = TopologyRequestSpec('add-node', hyperedge=3, values=(('age', 0.0),))
+        growth = Interaction('growth', laws=[UpdateLaw(request, 1)])
         ageing = SimplexAgeingInteraction('triangle_ageing')
         self.system_ = System(
             self.label,

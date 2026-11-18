@@ -15,12 +15,14 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, FieldElement, GroupElement
-from ....core.components.interactions import CouplingInteraction, RateInteraction
-from ....core.components.spaces import NetworkSpace
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import NoiseLaw, RateLaw
+from ....core.components.laws.utils import total
+from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, StateSpec
 from ....core.systems import BaseSystem, System
 
 
@@ -46,6 +48,12 @@ class NetworkSaverElement(Element):
             The mean number of exchange partners `c`, which divides the exchange rate, `N - 1` for exchange with every
             other saver.
 
+        size:
+            The number of savers, or `None` for one or one per node of the space.
+
+        space:
+            The network whose nodes hold the savers, or `None` for none.
+
     Examples:
         >>> from skcomplex.systems.economics.finance import NetworkSaverElement
         >>> NetworkSaverElement('saver', W=2.0).W
@@ -56,12 +64,14 @@ class NetworkSaverElement(Element):
         self,
         label: str,
         *,
-        W: Annotated[object, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
-        J: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        sigma: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        degree: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        W: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        J: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        sigma: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
+        degree: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size, space=space)
         self.W = W
         self.J = J
         self.sigma = sigma
@@ -107,7 +117,7 @@ class BouchaudMezardWealthSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.economics.finance import BouchaudMezardWealthSystem
-        >>> BouchaudMezardWealthSystem(10).prepare().system_.elements[0].values['J']
+        >>> BouchaudMezardWealthSystem(10).prepare().system_.elements[0].J
         1.0
     """
 
@@ -138,39 +148,50 @@ class BouchaudMezardWealthSystem(BaseSystem):
         self.wealth = wealth
 
     @staticmethod
-    def _exchange(s: SimpleNamespace) -> Expression:
+    def _get_flow(member: SimpleNamespace, other: SimpleNamespace) -> Expression:
         """Return the flow `(J / c) (W_j - W_i)` from saver `j` to saver `i`."""
-        return s.member.J / s.member.degree * (s.other.W - s.member.W)
+        return member.J / member.degree * (other.W - member.W)
 
     @staticmethod
-    def _returns(s: SimpleNamespace) -> Expression:
-        """Return the amplitude `sigma W` of the random returns."""
-        return s.target.sigma * s.target.W
+    def _get_returns(s: SimpleNamespace) -> list[BaseComponent]:
+        """Return the random returns `sigma W dB` of every saver, in the Stratonovich sense."""
+        return [NoiseLaw(s.target.W, s.target.sigma * s.target.W, convention='stratonovich')]
+
+    @staticmethod
+    def _get_exchange(s: SimpleNamespace) -> list[BaseComponent]:
+        """Return the exchange of every saver with every other saver."""
+        saver = s.target
+        return [RateLaw(saver.W, total(BouchaudMezardWealthSystem._get_flow(saver, saver.other), over=saver.other))]
+
+    @staticmethod
+    def _get_edge_exchange(s: SimpleNamespace) -> list[BaseComponent]:
+        """Return the exchange of both ends of a link."""
+        flow = BouchaudMezardWealthSystem._get_flow
+        return [RateLaw(s.target.W, flow(s.target, s.source)), RateLaw(s.source.W, flow(s.source, s.target))]
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of the components built from the model parameters."""
         super()._prepare(context)
-        returns = RateInteraction('returns', target='agents', state='W', noise=self._returns, convention='stratonovich')
+        returns = Interaction('returns', roles={'target': 'agents'}, laws=self._get_returns)
         if self.graph is None:
-            values = {'W': self.wealth, 'J': self.J, 'sigma': self.sigma, 'degree': self.n_agents - 1}
-            agents: FieldElement | GroupElement = GroupElement(
+            agents = NetworkSaverElement(
                 'agents',
-                element=NetworkSaverElement,
+                W=self.wealth,
+                J=self.J,
+                sigma=self.sigma,
+                degree=self.n_agents - 1,
                 size=self.n_agents,
-                values=values,
             )
-            mode = 'group'
+            exchange = Interaction('exchange', roles={'target': 'agents'}, laws=self._get_exchange)
         else:
             degree = 2 * nx.number_of_edges(self.graph) / nx.number_of_nodes(self.graph)
-            values = {'W': self.wealth, 'J': self.J, 'sigma': self.sigma, 'degree': degree}
-            agents = FieldElement('agents', element=NetworkSaverElement, space=NetworkSpace(self.graph), values=values)
-            mode = 'edges'
-        exchange = CouplingInteraction(
-            'exchange',
-            target='agents',
-            read='W',
-            write='W',
-            function=self._exchange,
-            mode=mode,
-        )
+            agents = NetworkSaverElement(
+                'agents',
+                W=self.wealth,
+                J=self.J,
+                sigma=self.sigma,
+                degree=degree,
+                space=NetworkSpace(self.graph),
+            )
+            exchange = Interaction('exchange', among='agents', along=True, laws=self._get_edge_exchange)
         self.system_ = System(self.label, elements=[agents], interactions=[exchange, returns])

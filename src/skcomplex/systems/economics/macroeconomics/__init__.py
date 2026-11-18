@@ -7,14 +7,15 @@ from ._banking import (
     DepositorElement,
     FractionalReserveBankingSystem,
     LendingInteraction,
+    PaymentsInteraction,
     PolicySwitchInteraction,
     ReserveBankElement,
 )
 from ._capital import CapitalStockSystem
-from ._credit import CreditMarketInteraction, CreditNetworksSystem, FirmElement, LenderElement
-from ._firms import InvestingFirmElement, ToyFirmInvestmentSystem
+from ._credit import BalanceSheetsInteraction, CreditMarketInteraction, CreditNetworksSystem, FirmElement, LenderElement
+from ._firms import InvestingFirmElement, InvestmentInteraction, ToyFirmInvestmentSystem
 from ._growth import EconomyElement, MultiplierAcceleratorSystem, SolowGrowthInteraction, SolowSystem
-from ._herding import HerdingAgentElement, NetworkHerdingSystem
+from ._herding import HerdingAgentElement, HerdingInteraction, NetworkHerdingSystem
 from ._mark0 import Mark0EconomyInteraction, Mark0FirmElement, Mark0System
 from ._metaphoria import (
     BusinessElement,
@@ -37,11 +38,12 @@ from ._monetary import (
     StockFlowConsistentEconomySystem,
 )
 from ._optimal_growth import OptimalConsumptionSystem
-from ._purchasing_power import CategorizedPurchasingPowerSystem, PurchasingPowerElement
+from ._purchasing_power import CategorizedPurchasingPowerSystem, PurchasingPowerInteraction
 from ._stochastic_growth import BrockMirmanGrowthSystem, StochasticGrowthElement
 from ._trade import ExchangeRatesSystem, TradingEconomyElement
 
 __all__: list[str] = [
+    'BalanceSheetsInteraction',
     'BrockMirmanGrowthSystem',
     'BusinessElement',
     'CapitalStockSystem',
@@ -60,8 +62,10 @@ __all__: list[str] = [
     'FoodMarketInteraction',
     'FractionalReserveBankingSystem',
     'HerdingAgentElement',
+    'HerdingInteraction',
     'HouseholdsElement',
     'InvestingFirmElement',
+    'InvestmentInteraction',
     'LabourMarketInteraction',
     'LenderElement',
     'LendingInteraction',
@@ -74,10 +78,11 @@ __all__: list[str] = [
     'MultiplierAcceleratorSystem',
     'NetworkHerdingSystem',
     'OptimalConsumptionSystem',
+    'PaymentsInteraction',
     'PlotElement',
     'PolicySwitchInteraction',
     'ProductionInteraction',
-    'PurchasingPowerElement',
+    'PurchasingPowerInteraction',
     'ReserveBankElement',
     'SettlerElement',
     'SolowGrowthInteraction',

@@ -15,6 +15,7 @@ from scipy.linalg import expm
 from scipy.special import ive
 
 from skcomplex.core.analysis import alignment, displacement
+from skcomplex.core.components import Observable
 from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element, FieldElement, Member, Period, Quantity
 from skcomplex.core.components.interactions import Interaction
@@ -1343,6 +1344,35 @@ def test_a_rule_of_the_system_reads_the_typed_agents_of_a_group_it_binds():
     assert trajectory.get_agents('counters', 3).values['count'].tolist() == [3.0, 8.0]
 
 
+class WorkInteraction(Interaction):
+    """Agent rule of workers with no values that raises the count of every counter."""
+
+    def __init__(self, label: str, *, target: Role = 'workers', counters: Role = 'counters') -> None:
+        super().__init__(label)
+        self.target = target
+        self.counters = counters
+
+    def _prepare(self, context=None):
+        """Set the work of every worker as its rule."""
+        super()._prepare(context)
+        self.laws_ = [UpdateLaw(context.target, self.work)]
+
+    def work(self, worker, system):
+        """Raise the count of every counter by one."""
+        for counter in system.get_agents('counters', CountedView):
+            counter.count += 1
+
+
+def test_a_group_with_no_values_runs_its_agent_rules():
+    """Test that every member of a group with no values, such as workers who change other agents, runs its rules."""
+    workers = Element('workers', size=3)
+    counters = CounterElement('counters', size=2)
+    system = System(elements=[workers, counters], interactions=[WorkInteraction('work')]).prepare()
+    trajectory = system.simulate(until=2, random_state=0)
+    assert len(trajectory.get_agents('workers', 2).ids) == 3
+    assert trajectory.get_agents('counters', 2).values['count'].tolist() == [6.0, 6.0]
+
+
 class Combination(Interaction):
     """Interaction that adds one node at every step, made from two nodes with which it forms a hyperedge."""
 
@@ -1375,3 +1405,31 @@ def test_get_declared_grows_a_group_on_the_hyperedges_the_laws_add():
     assert trajectory.get_values('functions._active').sum(axis=1).tolist() == [0, 1, 2, 3, 4]
     members = trajectory.get_values('functions._members')[-1][trajectory.get_values('functions._active')[-1] > 0]
     assert sorted(members[:, -1].tolist()) == [3.0, 4.0, 5.0, 6.0]
+
+
+def tally_count(s):
+    """Return the count of the tally."""
+    return s.tally.n
+
+
+def test_law_reading_an_observable_changes_a_plain_value():
+    """Test that the running peak of an observable of a nested system is a state of a plain element."""
+    counter = System(
+        'counter',
+        elements=[Element('tally', values={'n': 0.0})],
+        interactions=[
+            Interaction('tick', roles={'target': 'tally'}, laws=lambda s: [UpdateLaw(s.target.n, 3 - s.target.n)]),
+        ],
+    )
+
+    def keep(s):
+        return [UpdateLaw(s.target.high, where(s.source.value > s.target.high, s.source.value, s.target.high))]
+
+    system = System(
+        elements=[Element('peak', values={'high': 0.0})],
+        interactions=[Interaction('keep', roles={'target': 'peak', 'source': 'counter/level'}, laws=keep)],
+        systems=[counter],
+    ).prepare([Observable('counter/level', tally_count)])
+    assert 'peak.high' in system.states_
+    trajectory = system.simulate(until=4)
+    assert trajectory.get_values('peak.high').tolist() == [0.0, 0.0, 3.0, 3.0, 3.0]

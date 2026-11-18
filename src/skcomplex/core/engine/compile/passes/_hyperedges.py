@@ -11,6 +11,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
+from ....components.interactions import BaseInteraction
 from ....components.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....components.laws._reduction_spec import _ReductionSpec
 from ....components.laws.utils import maximum, minimum, where
@@ -202,7 +203,7 @@ class HyperedgeTables:
                 The network has no hyperedge of the size of the interaction.
         """
         sizes = sorted({len(hyperedge) for hyperedge in space.hyperedges_})
-        size = getattr(node.component, 'size', None)
+        size = node.component._get_hyperedge_size() if isinstance(node.component, BaseInteraction) else None
         if size is None:
             return sizes
         if size not in sizes:
@@ -316,7 +317,7 @@ class HyperedgeTables:
                 f'Bind the variable group on its hyperedges, {growing.node.path}.'
             )
             raise RoleError(error_msg)
-        given = getattr(node.component, 'size', None)
+        given = node.component._get_hyperedge_size() if isinstance(node.component, BaseInteraction) else None
         if given not in {None, size}:
             error_msg = (
                 f'Hyperedge interaction {node.path} runs on hyperedges of size {given}, but the '

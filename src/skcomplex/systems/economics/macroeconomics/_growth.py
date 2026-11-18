@@ -11,11 +11,14 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
-from ....core.components.interactions import RateInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
+from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
@@ -41,17 +44,16 @@ class EconomyElement(Element):
         self,
         label: str,
         *,
-        k: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        k: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
     ) -> None:
         super().__init__(label)
         self.k = k
 
 
-class SolowGrowthInteraction(RateInteraction):
+class SolowGrowthInteraction(Interaction):
     """Solow growth of the capital per worker `k` of a target.
 
-    It follows `dk/dt = s * k**alpha - delta * k`. A rate interaction on the state `k` whose rate is the saving of a
-    Cobb-Douglas output minus depreciation.
+    It follows `dk/dt = s * k**alpha - delta * k`, the saving of a Cobb-Douglas output minus depreciation.
 
     Args:
         label:
@@ -75,34 +77,29 @@ class SolowGrowthInteraction(RateInteraction):
         0.3
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        s: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
-        delta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.05,
+        target: Role,
+        s: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
+        alpha: Annotated[float, RealSet.open(0, oo)] = 0.3,
+        delta: Annotated[float, RealSet.open(0, oo)] = 0.05,
     ) -> None:
-        super().__init__(label, target=target, state='k')
+        super().__init__(label)
+        self.target = target
         self.s = s
         self.alpha = alpha
         self.delta = delta
 
-    def _get_rate(self, namespace: SimpleNamespace) -> Expression:
-        """Return the rate `s * k**alpha - delta * k`.
-
-        Args:
-            namespace:
-                The namespace of the symbols the rate can use, with the namespace of the target.
-
-        Returns:
-            rate:
-                The rate of the capital per worker.
-        """
-        k = namespace.target.k
-        rate: Expression = namespace.s * k**namespace.alpha - namespace.delta * k
-        return rate
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rate `s * k**alpha - delta * k` of the capital per worker as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            k = context.target.k
+            self.laws_: list[BaseComponent] = [RateLaw(k, context.s * k**context.alpha - context.delta * k)]
 
 
 class SolowSystem(BaseSystem):

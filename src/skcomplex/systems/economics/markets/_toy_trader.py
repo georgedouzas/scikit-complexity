@@ -15,13 +15,12 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import BaseLaw
+from ....core.components.elements import Element
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver, SystemView
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ..common.policy import PolicyRuleInteraction
@@ -92,34 +91,35 @@ class ToyTraderElement(Element):
         price_down:
             The factor that lowers the toy price when the toys pile up.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.markets import ToyTraderElement
-        >>> GroupElement('traders', element=ToyTraderElement, size=3).size
+        >>> ToyTraderElement('traders', size=3).size
         3
     """
 
     visual = VisualSpec('agents', {'color_by': 'money'})
 
-    law_classes = ()
-
     def __init__(
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec()] = 0.0,
-        y: Annotated[float, StateSpec()] = 0.0,
-        money: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
-        toys: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-        crayons: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        blackboards: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        toy_price: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 10.0,
-        crayon_price: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 10.0,
-        blackboard_price: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 10.0,
-        price_up: Annotated[float, StateSpec(domain=RealSet.closed_open(1, oo))] = PRICE_UP,
-        price_down: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = PRICE_DOWN,
+        x: object = 0.0,
+        y: object = 0.0,
+        money: Annotated[object, RealSet.closed_open(0, oo)] = 100.0,
+        toys: Annotated[object, RealSet.closed_open(0, oo)] = 5.0,
+        crayons: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        blackboards: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        toy_price: Annotated[object, RealSet.open(0, oo)] = 10.0,
+        crayon_price: Annotated[object, RealSet.open(0, oo)] = 10.0,
+        blackboard_price: Annotated[object, RealSet.open(0, oo)] = 10.0,
+        price_up: Annotated[object, RealSet.closed_open(1, oo)] = PRICE_UP,
+        price_down: Annotated[object, RealSet.closed(0, 1)] = PRICE_DOWN,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.x = x
         self.y = y
         self.money = money
@@ -136,19 +136,6 @@ class ToyTraderElement(Element):
     def _get_view(cls) -> type[ToyTraderView]:
         """Return the view of the agents of the element."""
         return ToyTraderView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return no laws, since the market moves and trades for every trader.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return []
 
 
 class ToyMarketInteraction(PolicyRuleInteraction[SystemView]):
@@ -218,12 +205,12 @@ class ToyMarketInteraction(PolicyRuleInteraction[SystemView]):
         *,
         rule: None = None,
         phase: str | None = None,
-        traders: Annotated[str, RoleSpec()],
-        sight: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        mutation: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.0,
-        imitation: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.1,
-        elite: Annotated[float, ParameterSpec(domain=RealSet.open(0, 1))] = 0.05,
-        size: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 51.0,
+        traders: Role,
+        sight: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        mutation: Annotated[float, RealSet.closed(0, 1)] = 0.0,
+        imitation: Annotated[float, RealSet.closed(0, 1)] = 0.1,
+        elite: Annotated[float, RealSet.open(0, 1)] = 0.05,
+        size: Annotated[float, RealSet.open(0, oo)] = 51.0,
         n_goods: int = 1,
         fitness: str = 'none',
     ) -> None:
@@ -464,12 +451,7 @@ class ToyTraderSystem(BaseSystem):
         rng = np.random.default_rng(self.random_state)
         places = rng.uniform(0, self.size, (self.n_traders, 2))
         stocks = dict(zip(GOODS, STOCKS[: self.n_goods] + (0.0,) * (len(GOODS) - self.n_goods), strict=True))
-        traders = GroupElement(
-            'traders',
-            element=ToyTraderElement,
-            size=self.n_traders,
-            values={'x': places[:, 0], 'y': places[:, 1], **stocks},
-        )
+        traders = ToyTraderElement('traders', x=places[:, 0], y=places[:, 1], **stocks, size=self.n_traders)
         market = ToyMarketInteraction(
             'market',
             traders='traders',

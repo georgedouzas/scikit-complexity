@@ -91,6 +91,15 @@ def test_group_prepares_its_size_values_and_visual():
     assert plain.default_visual_ == VisualSpec()
 
 
+def test_group_with_one_member_per_site_draws_as_its_space():
+    """Test that a group whose given size fills every site of a network draws as the network, and a smaller one not."""
+    network = NetworkSpace(nx.path_graph(4))
+    filled = GroupElement('cells', element=CellElement, size=4, space=network, on='sites').prepare()
+    assert filled.default_visual_ == VisualSpec('sites')
+    partial = GroupElement('cells', element=CellElement, size=2, space=network, on='sites').prepare()
+    assert partial.default_visual_ == VisualSpec()
+
+
 def test_group_runs_into_the_laws_of_one_member():
     """Test that a group runs into the laws of its element type, written for one member."""
     n = var('n')

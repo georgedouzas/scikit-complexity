@@ -17,9 +17,9 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import ConservationInteraction, Interaction
+from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
-from ....core.components.laws.utils import gradient, inverse_helmholtz, laplacian
+from ....core.components.laws.utils import divergence, gradient, inverse_helmholtz, laplacian
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, ETDRK4Solver, SSPRKSolver
@@ -140,7 +140,7 @@ class ShallowWaterElement(Element):
 
     Every cell has the depth `h` and the discharge `q` per unit width.
 
-    The mass `h` and the momentum `q` are conserved by two conservation interactions, with the fluxes `q` and
+    The mass `h` and the momentum `q` are conserved by two conservation laws, with the fluxes `q` and
     `q^2 / h + g h^2 / 2`, which form one hyperbolic system.
 
     Args:
@@ -293,11 +293,10 @@ class KuramotoSivashinskySystem(BaseSystem):
         positions = np.arange(1, self.modes + 1) * spacing
         u = np.cos(positions / 16) * (1 + np.sin(positions / 16))
         space = LatticeSpace(self.modes, spacing=spacing, discretization='spectral')
-        transport = ConservationInteraction(
+        transport = Interaction(
             'transport',
-            target='line',
-            state='u',
-            flux=lambda s: s.target.u**2 / 2,
+            roles={'target': 'line'},
+            laws=lambda s: [RateLaw(s.target.u, -divergence([s.target.u**2 / 2]))],
         )
         linear = Interaction(
             'linear',
@@ -693,7 +692,11 @@ class BurgersSystem(BaseSystem):
             self.label,
             elements=[BurgersElement('line', u=self.mean + self.amplitude * np.sin(centers), space=space)],
             interactions=[
-                ConservationInteraction('transport', target='line', state='u', flux=lambda s: s.target.u**2 / 2),
+                Interaction(
+                    'transport',
+                    roles={'target': 'line'},
+                    laws=lambda s: [RateLaw(s.target.u, -divergence([s.target.u**2 / 2]))],
+                ),
             ],
             solver=SSPRKSolver(),
         )
@@ -779,11 +782,16 @@ class ShallowWaterSystem(BaseSystem):
             discretization='finite-volume',
         )
         channel = ShallowWaterElement('channel', h=depth, q=np.zeros(self.n), g=self.g, space=space)
-        mass = ConservationInteraction('mass', target='channel', state='h', flux=lambda s: s.target.q)
-        momentum = ConservationInteraction(
+        mass = Interaction(
+            'mass',
+            roles={'target': 'channel'},
+            laws=lambda s: [RateLaw(s.target.h, -divergence([s.target.q]))],
+        )
+        momentum = Interaction(
             'momentum',
-            target='channel',
-            state='q',
-            flux=lambda s: s.target.q**2 / s.target.h + s.target.g * s.target.h**2 / 2,
+            roles={'target': 'channel'},
+            laws=lambda s: [
+                RateLaw(s.target.q, -divergence([s.target.q**2 / s.target.h + s.target.g * s.target.h**2 / 2])),
+            ],
         )
         self.system_ = System(self.label, elements=[channel], interactions=[mass, momentum], solver=SSPRKSolver())

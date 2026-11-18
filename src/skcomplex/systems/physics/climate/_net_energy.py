@@ -14,11 +14,11 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element
-from ....core.components.laws import BaseLaw, RateLaw, Sink, Source, TransferLaw
+from ....core.components.elements import Element, Quantity
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, StateSpec
 from ....core.systems import BaseSystem, System
 
 
@@ -91,25 +91,20 @@ class EnergySectorElement(Element):
         20.0
     """
 
-    law_classes = (
-        RateLaw,
-        TransferLaw,
-    )
-
     def __init__(
         self,
         label: str,
         *,
-        reserve: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='energy')] = 1000.0,
-        capacity: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        population: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='people')] = 1.0,
-        reserve_size: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1000.0,
-        initial_eroi: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 20.0,
-        decline: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
-        reinvestment: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        lifetime: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 20.0,
-        birth_rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.03,
-        death_rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.015,
+        reserve: Annotated[float, RealSet.closed_open(0, oo), Quantity('energy')] = 1000.0,
+        capacity: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        population: Annotated[float, RealSet.closed_open(0, oo), Quantity('people')] = 1.0,
+        reserve_size: Annotated[float, RealSet.open(0, oo)] = 1000.0,
+        initial_eroi: Annotated[float, RealSet.open(0, oo)] = 20.0,
+        decline: Annotated[float, RealSet.open(0, oo)] = 3.0,
+        reinvestment: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        lifetime: Annotated[float, RealSet.open(0, oo)] = 20.0,
+        birth_rate: Annotated[float, RealSet.closed_open(0, oo)] = 0.03,
+        death_rate: Annotated[float, RealSet.closed_open(0, oo)] = 0.015,
     ) -> None:
         super().__init__(label)
         self.reserve = reserve
@@ -122,29 +117,6 @@ class EnergySectorElement(Element):
         self.lifetime = lifetime
         self.birth_rate = birth_rate
         self.death_rate = death_rate
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the extraction of the reserve and its energy cost.
-
-        The laws also hold the growth of the capacity and the population.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The transfers out of the reserve, the rate law of the capacity, and the births and deaths.
-        """
-        cost = _get_extraction_cost(s)
-        net = _get_gross_energy(s) - cost
-        return [
-            TransferLaw(s.reserve, Sink('extraction_work'), cost, label='energy_cost'),
-            TransferLaw(s.reserve, Sink('society'), net, label='net_energy'),
-            RateLaw(s.capacity, s.reinvestment * net - s.capacity / s.lifetime),
-            TransferLaw(Source('births'), s.population, s.birth_rate * s.population, label='births'),
-            TransferLaw(s.population, Sink('deaths'), s.death_rate * s.population, label='deaths'),
-        ]
 
 
 def _get_net_per_capita(s: SimpleNamespace) -> Expression:
@@ -232,6 +204,30 @@ class EnergyReturnSystem(BaseSystem):
         self.reinvestment = reinvestment
         self.birth_rate = birth_rate
 
+    @staticmethod
+    def _get_sector_laws(s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the extraction of the reserve and its energy cost.
+
+        The laws also hold the growth of the capacity and the population.
+
+        Args:
+            s:
+                The namespace of the energy sector.
+
+        Returns:
+            laws:
+                The flows out of the reserve, the rate law of the capacity, and the births and deaths.
+        """
+        cost = _get_extraction_cost(s)
+        net = _get_gross_energy(s) - cost
+        return [
+            RateLaw({s.reserve: -1}, cost, label='energy_cost'),
+            RateLaw({s.reserve: -1}, net, label='net_energy'),
+            RateLaw(s.capacity, s.reinvestment * net - s.capacity / s.lifetime),
+            RateLaw({s.population: +1}, s.birth_rate * s.population, label='births'),
+            RateLaw({s.population: -1}, s.death_rate * s.population, label='deaths'),
+        ]
+
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of the energy sector and its finite reserve.
 
@@ -249,4 +245,9 @@ class EnergyReturnSystem(BaseSystem):
             reinvestment=self.reinvestment,
             birth_rate=self.birth_rate,
         )
-        self.system_ = System(self.label, elements=[sector])
+        flows = Interaction(
+            'flows',
+            roles={'target': 'energy'},
+            laws=lambda s: EnergyReturnSystem._get_sector_laws(s.target),
+        )
+        self.system_ = System(self.label, elements=[sector], interactions=[flows])

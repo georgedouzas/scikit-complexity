@@ -14,12 +14,12 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.spaces import LatticeSpace
+from ....core.components.elements import Element
+from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
 from ....core.engine.solvers import BaseSolver, MesaSolver
-from ....core.specs import StateSpec, VisualSpec
+from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ...general.agents import MovementInteraction
@@ -54,10 +54,18 @@ class GoodsTraderElement(Element):
         salt_weight:
             The Cobb-Douglas weight of salt, zero when salt is not traded.
 
+        values:
+            Further values by name, such as the cell `x` and `y` of every member.
+
+        size:
+            The number of members, or `None` for one.
+
+        space:
+            The grid whose axes `x` and `y` place the members, or `None` for none.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.markets import GoodsTraderElement
-        >>> GroupElement('traders', element=GoodsTraderElement, size=4, values={'sugar': 5.0}).size
+        >>> GoodsTraderElement('traders', sugar=5.0, size=4).size
         4
     """
 
@@ -67,14 +75,17 @@ class GoodsTraderElement(Element):
         self,
         label: str,
         *,
-        sugar: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        spice: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        salt: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        sugar_weight: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        spice_weight: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        salt_weight: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        sugar: Annotated[object, RealSet.closed_open(0, oo)] = 10.0,
+        spice: Annotated[object, RealSet.closed_open(0, oo)] = 10.0,
+        salt: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        sugar_weight: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
+        spice_weight: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
+        salt_weight: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.sugar = sugar
         self.spice = spice
         self.salt = salt
@@ -199,14 +210,9 @@ class GoodsTradersSystem(BaseSystem):
         holdings = rng.uniform(self.low, self.high, (self.n_traders, self.goods))
         values: dict[str, Array] = {GOODS[index]: holdings[:, index] for index in range(self.goods)}
         values |= {WEIGHTS[index]: weights[:, index] for index in range(self.goods)}
-        traders = GroupElement(
-            'traders',
-            element=GoodsTraderElement,
-            size=self.n_traders,
-            values=values,
-            variable=True,
-            location=locations,
-        )
+        space = LatticeSpace((self.width, self.height), boundary='periodic', metric='chebyshev')
+        x, y = np.array(locations).T
+        traders = GoodsTraderElement('traders', values={**values, 'x': x, 'y': y}, size=self.n_traders, space=space)
         self.system_ = System(
             self.label,
             elements=[traders],
@@ -214,13 +220,12 @@ class GoodsTradersSystem(BaseSystem):
                 MovementInteraction('wander', target='traders', probability=self.mobility, phase='move'),
                 ExchangeInteraction(
                     'exchange',
-                    source='traders',
                     target='traders',
                     goods=GOODS[: self.goods],
                     pairing='neighbor-pairs',
                     quantity=self.quantity,
                 ),
             ],
-            space=LatticeSpace((self.width, self.height), boundary='periodic', metric='chebyshev'),
+            space=space,
             solver=MesaSolver(phases=[PhaseSpec('move'), PhaseSpec('trade')]),
         )

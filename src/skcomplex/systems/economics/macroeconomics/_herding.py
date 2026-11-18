@@ -10,14 +10,17 @@ from collections.abc import Sequence
 from types import SimpleNamespace
 
 import numpy as np
-from sage.all__sagemath_symbolics import Expression
 
 from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
-from ....core.components.interactions import CouplingInteraction
-from ....core.components.laws.utils import normal
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
+from ....core.components.laws.utils import normal, total
+from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
@@ -67,6 +70,46 @@ class HerdingAgentElement(Element):
         self.x = x
         self.gamma = gamma
         self.sigma = sigma
+
+
+class HerdingInteraction(Interaction):
+    """Herding of agents on the past choices of the agents they are linked to.
+
+    The next choice of agent `i` is `c_i = sum_j theta_ij c_j + gamma (x_i + sigma eps_i)`, the past choices of the
+    others weighted by the links `theta`, plus `gamma` times its individual characteristic shocked by a standard normal
+    `eps_i`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of agents.
+
+        weights:
+            The weight `theta_ij` of the link from agent `i` to agent `j`, one row per agent.
+
+    Examples:
+        >>> from skcomplex.systems.economics.macroeconomics import HerdingInteraction
+        >>> HerdingInteraction('herding', target='agents', weights=((0.0, 0.5), (0.5, 0.0))).weights
+        ((0.0, 0.5), (0.5, 0.0))
+    """
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role, weights: tuple[tuple[float, ...], ...] = ()) -> None:
+        super().__init__(label)
+        self.target = target
+        self.weights = weights
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the update of the choice of every agent as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            agent = context.target
+            herding = total(agent.other.c, over=agent.other, weights=np.asarray(self.weights, dtype=float))
+            choice = herding + agent.gamma * (agent.x + agent.sigma * normal('shock', 0, 1))
+            self.laws_: list[BaseComponent] = [UpdateLaw(agent.c, choice)]
 
 
 class NetworkHerdingSystem(BaseSystem):
@@ -158,14 +201,6 @@ class NetworkHerdingSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _get_choice(s: SimpleNamespace, herding: Expression) -> Expression:
-        """Return the next choice.
-
-        It is the herding term plus `gamma` times the shocked individual characteristic.
-        """
-        return herding + s.member.gamma * (s.member.x + s.member.sigma * normal('shock', 0, 1))
-
-    @staticmethod
     def _get_random_links(n_agents: int, density: float, herding: float, rng: np.random.Generator) -> Array:
         """Return random directed weights with no self-links.
 
@@ -195,16 +230,5 @@ class NetworkHerdingSystem(BaseSystem):
             sigma=self.sigma,
             size=size,
         )
-        herding_map = CouplingInteraction(
-            'herding',
-            target='agents',
-            read='c',
-            write='c',
-            function=lambda s: s.other.c,
-            reduce='sum',
-            mode='group',
-            weights=weights.tolist(),
-            form='map',
-            combine=self._get_choice,
-        )
+        herding_map = HerdingInteraction('herding', target='agents', weights=tuple(map(tuple, weights.tolist())))
         self.system_ = System(self.label, elements=[agents], interactions=[herding_map])

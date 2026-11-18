@@ -1,15 +1,12 @@
 """Test the `_payoff_learning` module of `skcomplex.systems.economics.common.learning`."""
 
-from typing import Annotated
-
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.engine.runtime import Trajectory
 from skcomplex.core.engine.solvers import AgentView, SystemView
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec
 from skcomplex.core.systems import System
 from skcomplex.systems.economics.common.learning import PayoffLearningInteraction
 from skcomplex.systems.general.agents import ChoiceInteraction
@@ -31,12 +28,13 @@ class LearnerElement(Element):
         self,
         label: str,
         *,
-        choice: Annotated[float, StateSpec()] = 0.0,
-        first: Annotated[float, StateSpec()] = 0.0,
-        second: Annotated[float, StateSpec()] = 0.0,
-        value: Annotated[float, StateSpec()] = 1.0,
+        choice: float = 0.0,
+        first: float = 0.0,
+        second: float = 0.0,
+        value: float = 1.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.choice = choice
         self.first = first
         self.second = second
@@ -55,15 +53,16 @@ class PoolElement(Element):
         self,
         label: str,
         *,
-        scores: Annotated[object, StateSpec(vector=True)] = 0.0,
+        scores: object = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.scores = scores
 
 
 def _run(interactions: list, values: dict, size: int, until: int) -> Trajectory:
     """Return the trajectory of a group of learners bound to interactions."""
-    group = GroupElement('learners', element=LearnerElement, size=size, values=values)
+    group = LearnerElement('learners', size=size, **values)
     system = System(elements=[group], interactions=interactions)
     return system.prepare().simulate(until=until, random_state=0)
 
@@ -136,7 +135,7 @@ def test_reinforcement_interaction_reinforces_the_components_of_a_vector_state()
         rate=0.5,
         form='agent',
     )
-    group = GroupElement('pool', element=PoolElement, size=1, values={'scores': np.zeros((1, 4))})
+    group = PoolElement('pool', scores=np.zeros((1, 4)), size=1)
     system = System(elements=[group], interactions=[reinforcement])
     trajectory = system.prepare().simulate(until=2, random_state=0)
     scores = np.array(trajectory.get_agents('pool', 2).values['scores'].tolist(), dtype=float)
@@ -146,13 +145,13 @@ def test_reinforcement_interaction_reinforces_the_components_of_a_vector_state()
 @pytest.mark.parametrize(
     ('arguments', 'message'),
     [
-        ({'form': 'table'}, 'The form of map'),
+        ({'form': 'table'}, 'Unknown form'),
         ({'rule': 'median'}, 'Unknown rule'),
         ({'scores': 'first'}, 'sequence of state names'),
         ({'scores': ()}, 'sequence of state names'),
         ({'payoff': 1.0}, 'must be callable'),
-        ({'schedule': 'parallel'}, 'The schedule of map'),
-        ({'schedule': 'member'}, 'only the agent form'),
+        ({'schedule': 'parallel'}, 'Unknown schedule'),
+        ({'schedule': 'member'}, 'runs agent rules'),
         ({'schedule': 'sequential'}, 'runs agent rules'),
     ],
 )

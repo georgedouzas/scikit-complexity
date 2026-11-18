@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, Expression
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.interactions import BaseInteraction
 from ....core.components.spaces import BaseSpace
 from ....core.components.systems import CompositeSystem
@@ -120,14 +120,9 @@ class RewritingCompiler(BaseCompiler):
             found:
                 Whether one of its elements, at any depth, is rewritten.
         """
-        return any(
-            RewritingCompiler._get_structure_of(RewritingCompiler._get_type_of(element)) for element in system.elements
-        ) or any(RewritingCompiler._is_rewriting(child) for child in system.systems)
-
-    @staticmethod
-    def _get_type_of(component: object) -> type:
-        """Return the element type of a group, or the type of any other component."""
-        return component.element if isinstance(component, GroupElement) else type(component)
+        return any(RewritingCompiler._get_structure_of(type(element)) for element in system.elements) or any(
+            RewritingCompiler._is_rewriting(child) for child in system.systems
+        )
 
     @staticmethod
     def _get_bound(path: str, scope: str, interaction: BaseInteraction, rewritten: Collection[str]) -> dict[str, str]:
@@ -308,16 +303,13 @@ class RewritingCompiler(BaseCompiler):
             ('rewriting system', ['algae.A', 'algae.B', 'algae.size'])
         """
         nodes = FlattenPass._flatten_system(system)
-        rewritten = {
-            node.path: node
-            for node in nodes
-            if RewritingCompiler._get_structure_of(RewritingCompiler._get_type_of(node.component))
-        }
+        rewritten = {node.path: node for node in nodes if RewritingCompiler._get_structure_of(type(node.component))}
         interactions = {
             node.path: (node.scope, node.component) for node in nodes if isinstance(node.component, BaseInteraction)
         }
         for node in nodes:
-            if isinstance(node.component, GroupElement) and RewritingCompiler._get_structure_of(node.component.element):
+            structured = RewritingCompiler._get_structure_of(type(node.component))
+            if structured and getattr(node.component, 'size', None) is not None:
                 error_msg = f'{node.path} is a group of rewritten elements. Declare one element per structure.'
                 raise RewritingError(error_msg)
             if node.path not in rewritten and node.path not in interactions:

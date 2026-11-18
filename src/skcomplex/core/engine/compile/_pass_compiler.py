@@ -902,7 +902,7 @@ class PassCompiler(BaseCompiler):
             issues:
                 The issue of a size no hyperedge has, or of the first two members of a hyperedge joined by no edge.
         """
-        size = getattr(node.component, 'size', None)
+        size = node.component._get_hyperedge_size() if isinstance(node.component, BaseInteraction) else None
         sizes = sorted({len(hyperedge) for hyperedge in space.hyperedges_})
         if size is not None and size not in sizes:
             known = ', '.join(map(str, sizes))

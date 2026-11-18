@@ -15,8 +15,9 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import Interaction, TransitionInteraction
+from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
+from ....core.components.laws.utils import categorical, where
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -210,6 +211,15 @@ class BrockMirmanGrowthSystem(BaseSystem):
         self.persistence = persistence
         self.regime = regime
 
+    @staticmethod
+    def _draw_regime(regime: Expression, chain: Sequence[Sequence[float]]) -> Expression:
+        """Return the next regime drawn from the row of the Markov chain that the current regime selects."""
+        weights = [
+            sum(where(regime == row, chain[row][column], 0) for row in range(len(chain)))
+            for column in range(len(chain[0]))
+        ]
+        return categorical('productivity', weights)
+
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of the components built from the model parameters."""
         super()._prepare(context)
@@ -238,6 +248,10 @@ class BrockMirmanGrowthSystem(BaseSystem):
                         ),
                     ],
                 ),
-                TransitionInteraction('productivity', target='economy', state='regime', matrix=lambda s: chain),
+                Interaction(
+                    'productivity',
+                    roles={'target': 'economy'},
+                    laws=lambda s: [UpdateLaw(s.target.regime, self._draw_regime(s.target.regime, chain))],
+                ),
             ],
         )

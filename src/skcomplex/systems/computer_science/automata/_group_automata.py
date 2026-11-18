@@ -15,13 +15,13 @@ from sage.all__sagemath_symbolics import ZZ
 
 from ....core.components import Observable
 from ....core.components.base import BaseComponent
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import TotalisticSpec, UpdateLaw
 from ....core.components.spaces import BaseNeighborhood, BaseSpace, LatticeNeighborhood, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import Role, StateSpec, SubshiftSpec
+from ....core.specs import Role, SubshiftSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ..common.automata import CayleySpace, MemoryNeighborhood
@@ -40,14 +40,17 @@ THREE_CELLS = LatticeNeighborhood(((-1,), (0,), (1,)))
 class GoldenCellElement(Element):
     """Cell of the golden mean shift, whose state `alive` is 0 or 1.
 
-    Its configurations hold no two adjacent ones.
+    Its configurations hold no two adjacent ones. With `space`, the element holds one cell on every site.
 
     Args:
         label:
-            The label of the cell or the lattice group.
+            The label of the cells.
 
         alive:
-            The initial value, 0 or 1.
+            The initial value, 0 or 1, or one value per cell.
+
+        space:
+            The space with one cell on every site, such as a lattice, or `None` for one cell.
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import GoldenCellElement
@@ -59,9 +62,10 @@ class GoldenCellElement(Element):
         self,
         label: str,
         *,
-        alive: Annotated[float | Array, StateSpec(domain=GOLDEN_MEAN)] = 0,
+        alive: Annotated[float | Array, GOLDEN_MEAN] = 0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.alive = alive
 
 
@@ -688,7 +692,7 @@ class SubshiftsSystem(BaseSystem):
         super()._prepare(context)
         self.system_ = System(
             self.label,
-            elements=[GroupElement('cells', element=GoldenCellElement, space=LatticeSpace(self.size), on='sites')],
+            elements=[GoldenCellElement('cells', space=LatticeSpace(self.size))],
             interactions=[GoldenMeanMoveInteraction('flips', target='cells')],
         )
 

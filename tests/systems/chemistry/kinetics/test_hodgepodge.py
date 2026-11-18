@@ -23,4 +23,4 @@ def test_hodgepodge_passes_its_parameters_to_its_components():
     """Test that a model parameter changed with `set_params` changes the cells of the next `prepare`."""
     system = HodgepodgeSystem((10, 10)).set_params(g=20.0)
     assert system.get_params()['g'] == 20.0
-    assert system.prepare().system_.elements[0].values['g'] == 20.0
+    assert system.prepare().system_.elements[0].g == 20.0

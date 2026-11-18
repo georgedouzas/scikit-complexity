@@ -390,7 +390,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         The term with the sign `-1` is on the stock the flow leaves and the term with the sign `+1` on the stock it
         enters. A flow from outside the system has only the term on the stock it enters, and a flow out of it only the
         term on the stock it leaves. The flow is reported under the element of its stocks, or under the component when
-        its stocks belong to several elements.
+        its stocks belong to several elements, and a flow that draws reports its mean.
 
         Raises:
             ValidationError:
@@ -439,7 +439,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         born = _BornSpec(spec, compiled, amount, 1 if source is None else -1 if sink is None else 0)
         self.flows_.append(born)
         self.born_.update({id(term): born for term in terms})
-        self.records_.append(_RecordSpec(path, amount, spec))
+        self.records_.append(_RecordSpec(path, self._get_expected(amount), spec))
         self.terms_.append(_FlowTermSpec(spec, 'flow', path, amount, source, sink))
 
     def _check_conserved(self, spec: KernelSpec, law: BaseLaw) -> None:
@@ -633,7 +633,10 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
                 self._check_conserved(spec, law)
         declared = isinstance(self.compilation_.system.time, DiscreteTime)
         discrete = declared or any(
-            isinstance(law, UpdateLaw) and id(law) not in self.born_ for _, laws in specs for law in laws
+            (isinstance(law, UpdateLaw) and id(law) not in self.born_)
+            or (isinstance(law, FlowTermLaw) and law.increment)
+            for _, laws in specs
+            for law in laws
         )
         if discrete:
             self._rewrite_to_updates(specs)

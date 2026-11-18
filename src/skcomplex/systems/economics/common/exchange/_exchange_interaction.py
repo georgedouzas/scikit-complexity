@@ -12,18 +12,26 @@ from typing import ClassVar
 
 import numpy as np
 
-from .....core.components.interactions import TransferInteraction
-from .....core.components.laws import BaseLaw, RuleLaw, TransferLaw
+from .....core.components.base import BaseComponent
+from .....core.components.interactions import Interaction
+from .....core.components.laws import PartnerSpec, UpdateLaw
+from .....core.components.laws.utils import pairs
+from .....core.components.spaces import BaseSpace
 from .....core.components.types import AgentViewProtocol, SystemViewProtocol
+from .....core.specs import Role
 from ._exchange import trade_goods
 
 GOODS = ('sugar', 'spice', 'salt')
+PAIRINGS = {
+    'pairs': PartnerSpec('all', 'uniform', capacity=1),
+    'neighbor-pairs': PartnerSpec('neighbors', 'uniform', capacity=1),
+}
 
 
-class ExchangeInteraction(TransferInteraction):
+class ExchangeInteraction(Interaction):
     """Bilateral barter between paired traders.
 
-    It is a transfer whose trades repeat while both traders gain. Every step the transfer pairs the traders, and every
+    Its trades repeat while both traders gain. Every step the exchange pairs the traders, and every
     pair barters small quantities of every pair of goods at the geometric mean of their marginal rates of substitution
     while both gain. A trader holds every good in the state of its name and its Cobb-Douglas weight in the state
     `<good>_weight`. Every trade moves goods between the two traders, so the total of every good stays the same, which
@@ -35,18 +43,15 @@ class ExchangeInteraction(TransferInteraction):
         label:
             The label of the exchange.
 
-        source:
-            The path of the group of traders.
-
         target:
-            The path of the group of traders, the source again.
+            The path of the group of traders.
 
         goods:
             The names of the traded goods.
 
         pairing:
-            How the transfer pairs the traders, such as `'neighbor-pairs'` for disjoint pairs of neighbours or
-            `'pairs'` for disjoint random pairs.
+            How the exchange pairs the traders, `'neighbor-pairs'` for disjoint pairs of neighbours or `'pairs'` for
+            disjoint random pairs.
 
         quantity:
             The quantity of the bought good in every trade.
@@ -56,11 +61,11 @@ class ExchangeInteraction(TransferInteraction):
 
     Examples:
         >>> from skcomplex.systems.economics.markets import ExchangeInteraction
-        >>> ExchangeInteraction('exchange', source='traders', target='traders').reports
+        >>> ExchangeInteraction('exchange', target='traders').reports
         ('price', 'dispersion', 'volume')
     """
 
-    law_classes = (RuleLaw, TransferLaw)
+    law_classes = (UpdateLaw,)
 
     reports: ClassVar[tuple[str, ...]] = ('price', 'dispersion', 'volume')
 
@@ -68,40 +73,41 @@ class ExchangeInteraction(TransferInteraction):
         self,
         label: str,
         *,
-        source: str,
-        target: str,
+        target: Role,
         goods: tuple[str, ...] = GOODS,
         pairing: str = 'pairs',
         quantity: float = 0.1,
         phase: str = 'trade',
     ) -> None:
-        super().__init__(
-            label,
-            source=source,
-            target=target,
-            state=goods[0],
-            amount=quantity,
-            pairing=pairing,
-            form='agent',
-            phase=phase,
-        )
+        super().__init__(label)
+        self.target = target
         self.goods = goods
+        self.pairing = pairing
         self.quantity = quantity
+        self.phase = phase
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the barter of every pair of traders and the trade report.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the barter of every pair of traders and then the report of the trades as rules of the system."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [
+                UpdateLaw(context, self.trade, phase=self.phase),
+                UpdateLaw(context, self.report_trades, phase=self.phase),
+            ]
 
-        The report covers the trades of the step.
+    def trade(self, system: SystemViewProtocol) -> None:
+        """Pair the traders and let every pair barter, in random order.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            system:
+                The system view of the exchange.
         """
-        return [*super()._get_laws(s), RuleLaw(self.report_trades, phase=self.phase)]
+        traders = system.get_agents('target')
+        found = list(pairs(traders, traders, system.rng, PAIRINGS[self.pairing]))
+        for index in system.rng.permutation(len(found)):
+            first, second = found[int(index)]
+            if first.alive and second.alive:
+                self.transfer(first, second, system)
 
     def transfer(self, source: AgentViewProtocol, target: AgentViewProtocol, system: SystemViewProtocol) -> bool:
         """Barter between two traders while both gain.

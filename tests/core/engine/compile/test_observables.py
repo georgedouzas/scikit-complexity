@@ -4,6 +4,7 @@ import dataclasses
 from types import SimpleNamespace
 from typing import Annotated
 
+import networkx as nx
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import I, exp
@@ -11,9 +12,9 @@ from sage.all__sagemath_symbolics import I, exp
 from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element, FieldElement, GroupElement
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import RateLaw, RuleLaw
+from skcomplex.core.components.laws import RateLaw, RuleLaw, TopologyRequestSpec, UpdateLaw
 from skcomplex.core.components.laws.utils import distributed_delay, inverse_helmholtz, mean, total
-from skcomplex.core.components.spaces import LatticeSpace, StaticTime
+from skcomplex.core.components.spaces import LatticeSpace, NetworkSpace, StaticTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine._utils import symbol
 from skcomplex.core.engine.backends import NumpyBackend
@@ -651,3 +652,23 @@ def test_observable_of_a_derivative_the_system_does_not_hold_raises():
     system = System(elements=[Element('mass', values={'x': 1.0})], interactions=[SpringInteraction('spring')])
     with pytest.raises(ValidationError, match=r"mass\.x'''"):
         system.prepare().simulate(until=1.0, observables=[Observable('jerk', _spring_jerk)])
+
+
+def _age(s):
+    """Return the age of a good."""
+    return s.age
+
+
+def test_reductions_over_a_grown_group_read_only_its_members():
+    """Test that a network that gains one node per step counts and sums its nodes, not the spare rows of the group."""
+    goods = Element('goods', values={'age': 1.0}, space=NetworkSpace(nx.empty_graph(3)))
+    request = TopologyRequestSpec('add-node', independent=True, one=True)
+    growth = Interaction('growth', roles={'goods': 'goods'}, laws=[UpdateLaw(request, 1.0)])
+    observables = [
+        Observable('count', group='goods', reduce='count'),
+        Observable('total', group='goods', variable='age', reduce='sum'),
+        Observable('aged', _age, group='goods', reduce='count'),
+    ]
+    trajectory = System(elements=[goods], interactions=[growth]).prepare(observables).simulate(until=4, random_state=0)
+    for name in ('count', 'total', 'aged'):
+        assert trajectory.get_values(name).tolist() == [3.0, 4.0, 5.0, 6.0, 7.0]

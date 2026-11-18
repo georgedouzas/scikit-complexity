@@ -9,7 +9,6 @@ The module covers amplitude equations and rolls.
 import math
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
@@ -22,7 +21,7 @@ from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, ETDRK4Solver
-from ....core.specs import ParameterSpec, Role, RoleSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ...general.gradients import GradientInteraction
@@ -170,10 +169,10 @@ class SwiftHohenbergEnergyInteraction(GradientInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         state: str = 'u',
-        r: Annotated[float, ParameterSpec()] = 0.3,
-        g: Annotated[float, ParameterSpec()] = 0.0,
+        r: float = 0.3,
+        g: float = 0.0,
     ) -> None:
         super().__init__(label, target=target, states=state, variational=True)
         self.state = state

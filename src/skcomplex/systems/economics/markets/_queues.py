@@ -5,18 +5,20 @@
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import Annotated
 
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
+from ....core.components.laws import UpdateLaw
+from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver, SystemView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 
 WASH = 0
@@ -52,24 +54,25 @@ class CarElement(Element):
         crew:
             The number of workers on the car in the current second.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.markets import CarElement
-        >>> GroupElement('cars', element=CarElement, size=1).size
+        >>> CarElement('cars', size=1).size
         1
     """
-
-    law_classes = ()
 
     def __init__(
         self,
         label: str,
         *,
-        stage: Annotated[float, StateSpec(domain=NN)] = WASH,
-        work: Annotated[float, StateSpec()] = 525.0,
-        crew: Annotated[float, StateSpec(domain=NN)] = 0,
+        stage: Annotated[object, NN] = WASH,
+        work: object = 525.0,
+        crew: Annotated[object, NN] = 0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.stage = stage
         self.work = work
         self.crew = crew
@@ -79,53 +82,62 @@ class CarElement(Element):
         """Return the view of a car, with its stage, work, and crew."""
         return CarView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return no laws, since the workers and the till act on the cars.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return []
-
 
 class WasherElement(Element):
-    """Worker who joins the front car of the wash or of the valet.
-
-    It joins while the car has fewer than two workers. A worker who finds both areas staffed helps at a random one of
-    them. One second of work removes one person-second from the car.
+    """Worker of the car wash, whose work `WashingInteraction` sets.
 
     Args:
         label:
             The label of the agent or group.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.markets import WasherElement
-        >>> GroupElement('workers', element=WasherElement, size=4).size
+        >>> WasherElement('workers', size=4).size
         4
     """
 
-    law_classes = (RuleLaw,)
+    def __init__(self, label: str, *, size: int | None = None) -> None:
+        super().__init__(label, size=size)
 
-    cars: ClassVar[str] = 'cars'
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the work rule.
+class WashingInteraction(Interaction):
+    """Work of the workers of the car wash on the front car of the wash or of the valet.
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
+    A worker joins the front car while it has fewer than two workers. A worker who finds both areas staffed helps at a
+    random one of them. One second of work removes one person-second from the car.
 
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.work)]
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of workers.
+
+        cars:
+            The path of the group of cars.
+
+    Examples:
+        >>> from skcomplex.systems.economics.markets import WashingInteraction
+        >>> WashingInteraction('washing', target='workers', cars='cars').cars
+        'cars'
+    """
+
+    law_classes = (UpdateLaw,)
+    draws = True
+
+    def __init__(self, label: str, *, target: Role, cars: Role) -> None:
+        super().__init__(label)
+        self.target = target
+        self.cars = cars
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the work of every worker as its rule."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.work)]
 
     def work(self, agent: AgentView, system: SystemView) -> None:
         """Work one second on the front car of an area.
@@ -137,10 +149,10 @@ class WasherElement(Element):
             system:
                 The system.
         """
-        cars = system.get_agents(self.cars, CarView)
+        cars = system.get_agents('cars', CarView)
         fronts = [
             car
-            for car in (WasherElement._get_front(cars, WASH), WasherElement._get_front(cars, VALET))
+            for car in (WashingInteraction._get_front(cars, WASH), WashingInteraction._get_front(cars, VALET))
             if car is not None
         ]
         if not fronts:
@@ -193,25 +205,26 @@ class TillElement(Element):
         turned_away:
             The number of drivers who did not turn in because of the queue.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.markets import TillElement
-        >>> GroupElement('till', element=TillElement, size=1).size
+        >>> TillElement('till', size=1).size
         1
     """
-
-    law_classes = ()
 
     def __init__(
         self,
         label: str,
         *,
-        revenue: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        washes: Annotated[float, StateSpec(domain=NN)] = 0,
-        valets: Annotated[float, StateSpec(domain=NN)] = 0,
-        turned_away: Annotated[float, StateSpec(domain=NN)] = 0,
+        revenue: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        washes: Annotated[object, NN] = 0,
+        valets: Annotated[object, NN] = 0,
+        turned_away: Annotated[object, NN] = 0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.revenue = revenue
         self.washes = washes
         self.valets = valets
@@ -221,19 +234,6 @@ class TillElement(Element):
     def _get_view(cls) -> type[TillView]:
         """Return the view of the till, with its revenue and counts."""
         return TillView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return no laws, since the car wash books the payments.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return []
 
 
 class CarWashOperationInteraction(Interaction):
@@ -282,22 +282,22 @@ class CarWashOperationInteraction(Interaction):
         0.01
     """
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        cars: Annotated[str, RoleSpec()],
-        till: Annotated[str, RoleSpec()],
-        p_pass: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.33,
-        p_enter: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005,
-        p_valet: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        wash_work: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 525.0,
-        valet_work: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1750.0,
-        wash_price: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
-        valet_price: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        balk: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
+        cars: Role,
+        till: Role,
+        p_pass: Annotated[float, RealSet.closed_open(0, oo)] = 0.33,
+        p_enter: Annotated[float, RealSet.closed_open(0, oo)] = 0.005,
+        p_valet: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        wash_work: Annotated[float, RealSet.open(0, oo)] = 525.0,
+        valet_work: Annotated[float, RealSet.open(0, oo)] = 1750.0,
+        wash_price: Annotated[float, RealSet.closed_open(0, oo)] = 4.0,
+        valet_price: Annotated[float, RealSet.closed_open(0, oo)] = 10.0,
+        balk: Annotated[float, RealSet.open(0, oo)] = 3.0,
     ) -> None:
         super().__init__(label)
         self.cars = cars
@@ -327,18 +327,11 @@ class CarWashOperationInteraction(Interaction):
             till.valets += 1
         car.remove()
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule of one second.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.operate)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rule of one second as the rule of the system."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context, self.operate)]
 
     def operate(self, system: SystemView) -> None:
         """Finish the cars whose work is done and reset the crews.
@@ -470,15 +463,9 @@ class CarWashSystem(BaseSystem):
         self.system_ = System(
             self.label,
             elements=[
-                GroupElement('workers', element=WasherElement, size=self.n_workers, variable=True),
-                GroupElement(
-                    'cars',
-                    element=CarElement,
-                    size=self.n_cars,
-                    values={'work': self.wash_work},
-                    variable=True,
-                ),
-                GroupElement('till', element=TillElement, size=1, variable=True),
+                WasherElement('workers', size=self.n_workers),
+                CarElement('cars', work=self.wash_work, size=self.n_cars),
+                TillElement('till', size=1),
             ],
-            interactions=[operation],
+            interactions=[WashingInteraction('washing', target='workers', cars='cars'), operation],
         )
