@@ -26,6 +26,7 @@ from ...specs import BaseSpec, DeclaredVariableSpec, ParameterSpec, RoleSpec, St
 from .._tags import Tags
 from ..base import BaseComponent
 from ..laws import BaseLaw, NoiseLaw, PartnerSpec, RateLaw, RuleLaw, UpdateLaw
+from ..laws._flow_term import FlowTermLaw
 from ..laws.utils import delayed, derivative, lag
 from ..laws.utils._fractional import fractional_of
 from ..spaces import BaseSpace, ContinuousSpace
@@ -458,11 +459,16 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         functional = SimpleNamespace(**roles)
         prepared = clone(self)
         prepared.prepare(functional)
-        return [
-            self._get_rule(law, roles, functional)
-            or self._get_local_rule(self._get_normalized(self._get_law_in_states(law, time, functions)))
-            for law in prepared.laws_
-        ]
+        laws: list[BaseComponent] = []
+        for law in prepared.laws_:
+            rule = self._get_rule(law, roles, functional)
+            if rule is not None:
+                laws.append(rule)
+                continue
+            translated = self._get_law_in_states(law, time, functions)
+            terms = FlowTermLaw._get_terms(translated, self.label) if isinstance(translated, RateLaw) else [translated]
+            laws.extend(self._get_local_rule(self._get_normalized(term)) for term in terms)
+        return laws
 
     @staticmethod
     def _get_local_rule(law: BaseComponent) -> BaseComponent:

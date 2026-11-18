@@ -269,8 +269,8 @@ def loops(
     They come with their dominance, or its flow matrix. The signed dependency graph of a system has the state variables
     as nodes and an edge from `x_j` to `x_i` when the rate of `x_i` depends on `x_j`, with the sign of the partial
     derivative `df_i/dx_j`, the entry of the Jacobian. The rate of a map is the change of its state in one step, its
-    next value minus itself. A flow is the rate terms of one interaction that share a label, such as
-    `RateLaw(source.n, -f, label='births')` and `RateLaw(sink.n, f, label='births')`, or a transfer. When a system
+    next value minus itself. A flow is a rate law whose target maps each stock to the sign of its change, such as
+    `RateLaw({s.source.n: -1, s.sink.n: +1}, f, label='births')`, or a transfer. When a system
     declares flows, the flows are nodes too: an edge goes from each state to every flow whose amount depends on it, with
     the sign of the partial derivative, and from each flow to its sink with sign `+` and to its source with sign `-`, so
     the graph shows the path of every influence through the flows. Rate laws of single elements give the edges into the

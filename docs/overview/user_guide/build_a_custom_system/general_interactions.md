@@ -51,7 +51,7 @@ its subsection.
   [Array updates that read the step](#array-updates-that-read-the-step).
 - Write an operation as symbolic laws or as agent rules: in [Agent and symbolic forms](#agent-and-symbolic-forms).
 - Learn from payoffs: `EquationInteraction`, in [Learning](#learning).
-- Move amounts between stocks, form groups, or rewire a network: rate terms that share a label and
+- Move amounts between stocks, form groups, or rewire a network: rate laws whose targets map stocks to signs and
   [`FlowInteraction`](../core_components/general.md#flowinteraction),
   [`GroupingInteraction`](../core_components/interactions.md#groupinginteraction), and [`TopologyInteraction`](../core_components/interactions.md#topologyinteraction),
   in [Agents, groups, and exchange](#agents-groups-and-exchange).
@@ -882,9 +882,9 @@ movement, the birth and death, and the matching of agents are general realizatio
 
 ### Transfers
 
-A flow moves an amount from one stock to another, so that the total is kept. It is two rate terms that share a
-label, `-f` on the stock it leaves and `f` on the stock it enters, set by one interaction. Here an upper tank drains
-into a lower one through a pipe.
+A flow moves an amount from one stock to another, so that the total is kept. It is one rate law whose target maps
+each stock to the sign of its change, `-1` for the stock it leaves and `+1` for the stock it enters, with a label that
+names the flow. Here an upper tank drains into a lower one through a pipe.
 
 ```python
 from skcomplex.core.components.elements import Element
@@ -903,8 +903,7 @@ class Pipe(Interaction):
 
     def _prepare(self, s):
         super()._prepare(s)
-        flow = s.k * s.upper.level
-        self.laws_ = [RateLaw(s.upper.level, -flow, label='flow'), RateLaw(s.lower.level, flow, label='flow')]
+        self.laws_ = [RateLaw({s.upper.level: -1, s.lower.level: +1}, s.k * s.upper.level, label='flow')]
 
 
 tanks = [Element('upper', values={'level': 4.0}), Element('lower', values={'level': 0.0})]
@@ -916,10 +915,10 @@ The two levels still sum to 4.0, and the flow falls from 2.0 to 1.213 as the upp
 
 - The trajectory records the flow under its label, `pipe.flow`. A flow whose stocks belong to one element is recorded
   under that element instead, such as `population.births`.
-- A flow from outside the system has only the term on the stock it enters, and a flow out of it only the term `-f` on
-  the stock it leaves.
-- The [loops analysis](stocks_and_flows.md#feedback-loops) and its flow matrix read the terms that share a label as one
-  flow between its stocks.
+- A flow from outside the system names only the stock it enters, such as `RateLaw({s.tank.level: +1}, f, label='tap')`,
+  and a flow out of it only the stock it leaves.
+- The [loops analysis](stocks_and_flows.md#feedback-loops) and its flow matrix read the signs of the stocks, so they
+  draw every flow from the stock it leaves to the stock it enters.
 - [`FlowInteraction`](../core_components/general.md#flowinteraction) writes such a flow between two stocks of one
   element from a function of its amount, and [`StockFlowSystem`](../core_components/general.md#stockflowsystem) builds a
   whole system of stocks and flows.

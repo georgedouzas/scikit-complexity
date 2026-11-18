@@ -18,6 +18,7 @@ from .._owners_spec import _OwnersSpec
 from .._plan_spec import _PlanSpec
 from .._planned_partition_spec import _PlannedPartitionSpec
 from ._form import FormPass
+from ._kernels import KernelsPass
 
 
 class PlanPass(BasePass):
@@ -165,7 +166,7 @@ class PlanPass(BasePass):
         """
         declared: dict[str, set[type]] = {}
         for record in census.records:
-            declared.setdefault(record.owner, set()).add(type(record.law))
+            declared.setdefault(record.owner, set()).add(KernelsPass._get_kind_of(record.law))
         unregistered = PlanPass._get_unregistered_issues(kinds)
         if unregistered:
             return _PlanSpec((), tuple(unregistered))

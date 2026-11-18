@@ -101,6 +101,7 @@ from .passes._compile_encounters import CompileEncountersPass
 from .passes._conserved_noise import ConservedNoisePass
 from .passes._core import PASSES
 from .passes._fractional_form import FractionalFormPass
+from .passes._kernels import KernelsPass
 from .passes._lattices import LatticeProblemPass
 from .passes._layout import LayoutPass
 from .passes._linear_programs import LinearProgramsPass
@@ -1742,7 +1743,7 @@ class PassCompiler(BaseCompiler):
         records = census.records
         return {
             'time': {kind for kind in FractionalFormPass._get_declared_times(system).values() if kind is not None},
-            'laws': {type(record.law) for record in records},
+            'laws': {KernelsPass._get_kind_of(record.law) for record in records},
             'space': {None if record.space is None else type(record.space) for record in records},
         }
 
