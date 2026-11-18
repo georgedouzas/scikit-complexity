@@ -10,7 +10,6 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from functools import lru_cache, partial
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
@@ -19,7 +18,7 @@ from scipy.optimize import minimize_scalar
 from scipy.special import rel_entr
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import ArrayUpdateLaw, BaseLaw
 from ....core.components.spaces import BaseSpace, LatticeSpace
@@ -29,7 +28,7 @@ from ....core.engine.runtime import Trajectory
 from ....core.engine.solvers import BaseSolver
 from ....core.engine.viz import PointsVisual
 from ....core.errors import AnalysisError, ValidationError
-from ....core.specs import RoleSpec, StateSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ..._extras import import_extra
@@ -173,6 +172,9 @@ class DihedralAngleElement(Element):
             The structure whose chain the angles rebuild, which the element is drawn as, or `None` for an image of the
             angles.
 
+        space:
+            The lattice whose sites hold one angle each, or `None` for one angle.
+
     Examples:
         >>> from skcomplex.systems.biology.systems_biology import DihedralAngleElement
         >>> DihedralAngleElement('site').angle
@@ -184,10 +186,11 @@ class DihedralAngleElement(Element):
     def __init__(
         self,
         label: str,
-        angle: Annotated[float, StateSpec()] = 0.0,
+        angle: float | Array = 0.0,
         structure: StructureSpec | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.angle = angle
         self.structure = structure
 
@@ -229,7 +232,7 @@ class EnsembleReplayInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         state: str,
         ensemble: Array,
     ) -> None:
@@ -242,9 +245,12 @@ class EnsembleReplayInteraction(Interaction):
         """Return the member of the time of a step."""
         return self.ensemble[min(int(time), len(self.ensemble) - 1)].reshape(values.shape)
 
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseLaw]:
-        """Return the drive of the state."""
-        return [ArrayUpdateLaw(getattr(self._get_member(namespace, 'target'), self.state), self._read_member)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the drive of the state."""
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        self.laws_: Sequence[BaseLaw] = [ArrayUpdateLaw(getattr(context.target, self.state), self._read_member)]
 
 
 @dataclass(frozen=True)
@@ -669,12 +675,11 @@ class FuzzyOilDropSystem(BaseSystem):
         self.system_ = System(
             self.label,
             elements=[
-                GroupElement(
+                DihedralAngleElement(
                     'chain',
-                    element=DihedralAngleElement,
+                    angle=angles[None],
+                    structure=structure,
                     space=LatticeSpace((1, angles.size), boundary='fixed'),
-                    values={'angle': angles[None], 'structure': structure},
-                    on='sites',
                 ),
             ],
             interactions=[

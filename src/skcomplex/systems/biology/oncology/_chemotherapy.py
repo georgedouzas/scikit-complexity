@@ -17,7 +17,7 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import RateLaw
-from ....core.components.laws.utils import clip, delayed
+from ....core.components.laws.utils import clip
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -1102,7 +1102,7 @@ class DelayedRestingHuntingChemotherapySystem(BaseSystem):
                 reactants={'Q': 1},
                 products={'E': 1},
                 modifiers={'E': 1},
-                propensity=lambda s: s.target.m1 * s.target.E * delayed(s.target.Q, s.target.tau),
+                propensity=lambda s: s.target.m1 * s.target.E * s.target.Q(t=s.t - s.target.tau),
             ),
             ReactionInteraction(
                 'effector_death',
@@ -1324,7 +1324,7 @@ class DelayedMetastasisSystem(BaseSystem):
                 'arrival',
                 roles={'target': 'patient'},
                 laws=lambda s: [
-                    RateLaw(s.target.As, s.target.epsilon * s.target.delta * delayed(s.target.Ap, s.target.tau)),
+                    RateLaw(s.target.As, s.target.epsilon * s.target.delta * s.target.Ap(t=s.t - s.target.tau)),
                 ],
             ),
         ]

@@ -42,7 +42,7 @@ from ...components.spaces import CellComplexSpace, ContinuousSpace, LatticeSpace
 from ...components.systems import CompositeSystem
 from ...enums import TopologyKind, VariableKind
 from ...errors import ValidationError
-from ...specs import DeclaredVariableSpec, MatrixGroupSpec, ParameterSpec, StateSpec, VisualSpec
+from ...specs import BaseSpec, DeclaredVariableSpec, MatrixGroupSpec, ParameterSpec, StateSpec, VisualSpec
 from .._utils import binding_of, bound_labels, declarations_of
 from ..problems._bilinear_law import BilinearLaw
 from ._compilation import Compilation
@@ -87,7 +87,8 @@ class _StateInference:
 
         The values keep the order in which they are given, the arguments of the class first and then the entries of
         `values`, so the states and parameters come out in that order. The starting values of derivatives and past
-        values, such as `"x'"` or `'y[-1]'`, are left out.
+        values, such as `"x'"` or `'y[-1]'`, are left out, and so are the arguments that hold a spec, such as the
+        structure a chain of angles is drawn from, which are settings of the element.
         """
         given = {name: value for name, value in (element.values or {}).items() if not STARTING.fullmatch(name)}
         for name in given:
@@ -99,7 +100,11 @@ class _StateInference:
                 )
                 raise ValidationError(error_msg)
         params = element.get_params(deep=False)
-        arguments = {name: params[name] for name in element._get_hints() if name in params and name not in RESERVED}
+        arguments = {
+            name: params[name]
+            for name in element._get_hints()
+            if name in params and name not in RESERVED and not isinstance(params[name], BaseSpec)
+        }
         return arguments | given
 
     @staticmethod

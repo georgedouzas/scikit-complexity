@@ -19,9 +19,10 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import bernoulli, total
+from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import RoleSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
@@ -171,7 +172,7 @@ class CovidTransmissionInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         contacts: tuple[scipy.sparse.csr_array | npt.NDArray[np.float64], ...],
         temperature: float = 0.1,
         hard: bool = False,
@@ -182,8 +183,12 @@ class CovidTransmissionInteraction(Interaction):
         self.temperature = temperature
         self.hard = hard
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the updates of the states of every agent."""
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the updates of the states of every agent."""
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        namespace = context
         s = namespace.target
         betas = (s.beta_household, s.beta_school, s.beta_company)
         pressure = sum(
@@ -191,7 +196,7 @@ class CovidTransmissionInteraction(Interaction):
         )
         infected = bernoulli('infect', 1 - exp(-s.psi * pressure), temperature=self.temperature, hard=self.hard)
         recovered = bernoulli('recover', s.gamma, temperature=self.temperature, hard=self.hard)
-        return [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(s.s, s.s - s.s * infected),
             UpdateLaw(s.i, s.i + s.s * infected - s.i * recovered),
             UpdateLaw(s.r, s.r + s.i * recovered),
@@ -228,8 +233,8 @@ class CaseCountInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        source: Annotated[str, RoleSpec()],
+        target: Role,
+        source: Role,
         children: npt.NDArray[np.float64],
     ) -> None:
         super().__init__(label)
@@ -237,11 +242,15 @@ class CaseCountInteraction(Interaction):
         self.source = source
         self.children = children
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the counts of the new infections of children and of adults."""
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the counts of the new infections of children and of adults."""
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        namespace = context
         cases, people = namespace.target, namespace.source
         children = np.asarray(self.children, dtype=float)
-        return [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(cases.children, total(people.new, over=people, weights=children)),
             UpdateLaw(cases.adults, total(people.new, over=people, weights=1.0 - children)),
         ]

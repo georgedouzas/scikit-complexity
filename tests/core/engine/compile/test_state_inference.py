@@ -1,6 +1,7 @@
 """Test the `_state_inference` module of `skcomplex.core.engine.compile`."""
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -43,7 +44,7 @@ from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from skcomplex.core.engine.runtime import ConservationObserver, simulate
 from skcomplex.core.engine.solvers import AgentView, ETDRK4Solver, IMEXEulerSolver, RK4Solver, SSPRKSolver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import Role, StateSpec, VisualSpec
+from skcomplex.core.specs import BaseSpec, Role, StateSpec, VisualSpec
 from skcomplex.core.systems import System
 from skcomplex.systems.mathematics.networks import TriadicPercolationSystem
 
@@ -669,6 +670,28 @@ def test_get_declared_gives_new_members_the_default_of_their_class():
     system = System(elements=[nodes], interactions=[Growth('growth')]).prepare()
     recorded = system.simulate(until=2, dt=1, random_state=0).get_values('nodes.x')
     assert recorded[-1][:5] == pytest.approx([2.0, 3.0, 4.0, 0.5, 0.5])
+
+
+@dataclass(frozen=True)
+class OutlineSpec(BaseSpec):
+    """Spec of the outline a cell is drawn with."""
+
+    sides: int = 6
+
+
+class OutlinedCellElement(Element):
+    """Cell with a size and the outline it is drawn with."""
+
+    def __init__(self, label: str, *, size_: float = 1.0, outline: OutlineSpec | None = None) -> None:
+        super().__init__(label)
+        self.size_ = size_
+        self.outline = outline
+
+
+def test_get_declared_reads_a_spec_argument_as_a_setting():
+    """Test that an argument that holds a spec, such as the outline a cell is drawn with, is no value of the element."""
+    system = System(elements=[OutlinedCellElement('cell', outline=OutlineSpec())]).prepare()
+    assert system.parameters_ == ('cell.size_',)
 
 
 class Count(Interaction):

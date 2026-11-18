@@ -20,7 +20,7 @@ from ....core.components.laws import BaseLaw, CallSpec, RateLaw
 from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, RoleSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
@@ -105,12 +105,12 @@ class FlowAdaptationInteraction(Interaction):
         self,
         label: str,
         *,
-        vessels: Annotated[str, RoleSpec()],
+        vessels: Role,
         edges: Sequence[tuple[int, int]] = (),
         h: Sequence[float] = (),
-        alpha1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        alpha2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        alpha1: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        alpha2: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        gamma: Annotated[float, RealSet.open(0, oo)] = 2.0,
     ) -> None:
         super().__init__(label)
         self.vessels = vessels
@@ -120,21 +120,21 @@ class FlowAdaptationInteraction(Interaction):
         self.alpha2 = alpha2
         self.gamma = gamma
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the adaptation of every conductance to the pressure drop.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the adaptation of every conductance to the pressure drop.
 
         The pressure drop is that of the current flows.
 
         Args:
-            s:
+            context:
                 The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
         """
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        s = context
         rate = CallSpec(self._get_adaptation, (s.vessels.C, s.alpha1, s.alpha2, s.gamma), vectorized=True)
-        return [RateLaw(s.vessels.C, rate)]
+        self.laws_: list[BaseLaw] = [RateLaw(s.vessels.C, rate)]
 
     def _get_adaptation(
         self,

@@ -14,11 +14,13 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import TransferInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import mod, where
+from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, RoleSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 
 
@@ -79,7 +81,7 @@ class ChamberElement(Element):
         self.systole = systole
 
 
-class ResistiveFlowInteraction(TransferInteraction):
+class ResistiveFlowInteraction(Interaction):
     """Flow of blood from one chamber to another through a resistance.
 
     The flow is `Q = (P_source - P_target) / R`.
@@ -108,18 +110,34 @@ class ResistiveFlowInteraction(TransferInteraction):
         True
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        source: Annotated[str, RoleSpec()],
-        target: Annotated[str, RoleSpec()],
-        R: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        source: Role,
+        target: Role,
+        R: Annotated[float, RealSet.open(0, oo)] = 1.0,
         valve: bool = False,
     ) -> None:
-        super().__init__(label, source=source, target=target, state='V', amount=self._get_flow)
+        super().__init__(label)
+        self.source = source
+        self.target = target
         self.R = R
         self.valve = valve
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the flow of blood from the source chamber to the target chamber.
+
+        Args:
+            context:
+                The namespace of the two chambers.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            flow = {context.source.V: -1, context.target.V: +1}
+            self.laws_: list[BaseLaw] = [RateLaw(flow, self._get_flow(context), label='flow')]
 
     def _get_pressure(self, chamber: SimpleNamespace, t: Expression) -> Expression:
         """Return the pressure of a chamber.

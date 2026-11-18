@@ -62,25 +62,17 @@ class SizeGrowthInteraction(ConservationInteraction):
             The state is not a name, or a function is not callable.
 
     Examples:
-        >>> from typing import Annotated
         >>> import numpy as np
-        >>> from skcomplex.core.components.elements import Element, FieldElement
+        >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.spaces import LatticeSpace
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.biology.ecology import SizeGrowthInteraction
-        >>> class CellElement(Element):
-        ...     def __init__(self, label, u: Annotated[float, StateSpec()] = 0.0):
-        ...         super().__init__(label)
-        ...         self.u = u
-        >>> space = LatticeSpace((50,), spacing=0.1, boundary='periodic')
+        >>> space = LatticeSpace((50,), spacing=0.1, boundary='periodic', discretization='finite-volume')
         >>> values = {'u': np.exp(-((np.arange(50) - 25) / 5.0) ** 2)}
-        >>> volumes = 'finite-volume'
-        >>> field = FieldElement('tracer', element=CellElement, space=space, values=values, discretization=volumes)
+        >>> field = Element('tracer', values=values, space=space)
         >>> drift = SizeGrowthInteraction('drift', target='tracer', state='u', drift=lambda s: 1.0)
-        >>> system = CompositeSystem(elements=[field], interactions=[drift])
-        >>> trajectory = simulate(system, until=1.0, dt=0.01)
+        >>> system = System(elements=[field], interactions=[drift]).prepare()
+        >>> trajectory = system.simulate(1.0, dt=0.01)
         >>> total = trajectory.get_values('tracer.u')[-1].sum()
         >>> round(float(total), 6) == round(float(values['u'].sum()), 6)
         True
