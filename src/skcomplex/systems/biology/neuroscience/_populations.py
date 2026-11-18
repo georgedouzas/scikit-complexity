@@ -484,7 +484,7 @@ class WilsonCowanSystem(BaseSystem):
         return inhibition
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
-        """Set the system of the system.
+        """Set the Wilson-Cowan system of interacting excitatory and inhibitory populations.
 
         Args:
             context:

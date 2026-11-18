@@ -289,7 +289,7 @@ class ClosedContourCellExchangeSystem(BaseSystem):
         self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
-        """Set the system of the system.
+        """Set the exchange of signalling molecules between logistic cells.
 
         Args:
             context:
@@ -400,7 +400,7 @@ class NanotubeGapJunctionExchangeSystem(BaseSystem):
         self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
-        """Set the system of the system.
+        """Set the intercellular exchange of a substance on a network.
 
         Args:
             context:

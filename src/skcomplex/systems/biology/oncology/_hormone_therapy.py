@@ -1828,7 +1828,7 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
         return division
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
-        """Set the system of the system.
+        """Set the Jain system of prostate epithelium and cancer, with PSA.
 
         Args:
             context:
@@ -2010,7 +2010,7 @@ class PiecewiseLinearIASSystem(BaseSystem):
         self.h1 = h1
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
-        """Set the system of the system.
+        """Set the Hirata piecewise-linear system of intermittent androgen suppression.
 
         Args:
             context:
@@ -2133,7 +2133,7 @@ class TamoxifenCellCycleSystem(BaseSystem):
         return room
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
-        """Set the system of the system.
+        """Set a breast tumour in Gompertzian cell-cycle phases under daily tamoxifen.
 
         Args:
             context:

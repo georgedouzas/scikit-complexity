@@ -309,7 +309,7 @@ class ThreeWayFateDecisionSystem(BaseSystem):
         self.seed = seed
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
-        """Set the system of the system.
+        """Set cells that choose among three fates on a compactified elliptic umbilic.
 
         Args:
             context:
