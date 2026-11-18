@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import inspect
 import re
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Collection, Mapping
 from typing import Annotated, get_args, get_origin
 
 import numpy as np
@@ -30,6 +30,7 @@ from ...components.laws import (
     BaseLaw,
     ConstraintLaw,
     JumpLaw,
+    LinearProgramLaw,
     LocalRuleLaw,
     NoiseLaw,
     RateLaw,
@@ -37,7 +38,7 @@ from ...components.laws import (
     TopologyRequestSpec,
     UpdateLaw,
 )
-from ...components.laws.utils import derivative, lag
+from ...components.laws.utils import delayed, derivative, lag
 from ...components.spaces import BaseSpace, CellComplexSpace, ContinuousSpace, LatticeSpace, NetworkSpace
 from ...components.systems import CompositeSystem
 from ...enums import TopologyKind, VariableKind
@@ -108,11 +109,16 @@ class _StateInference:
         return arguments | given
 
     @staticmethod
-    def _get_starting(element: Element, values: Mapping[str, object]) -> dict[str, dict[int, object]]:
+    def _get_starting(
+        element: Element,
+        values: Mapping[str, object],
+        skipped: Collection[str] = (),
+    ) -> dict[str, dict[int, object]]:
         """Return the starting values of derivatives and past values, by value and index.
 
         A derivative named with `k` primes and a past value named with the index `-k` both have the index `k`. An
-        element with many members takes one starting value per member as an array, such as the velocities of a gas.
+        element with many members takes one starting value per member as an array, such as the velocities of a gas. The
+        names in `skipped`, such as the history of a delayed value, are left out.
 
         Raises:
             ValidationError:
@@ -121,7 +127,7 @@ class _StateInference:
         starting: dict[str, dict[int, object]] = {}
         for name, value in (element.values or {}).items():
             found = STARTING.fullmatch(name)
-            if found is None:
+            if found is None or name in skipped:
                 continue
             base = found.group('name')
             if base not in values:
@@ -133,6 +139,37 @@ class _StateInference:
             index = len(found.group('primes')) if found.group('primes') else int(found.group('lag'))
             starting.setdefault(base, {})[index] = value
         return starting
+
+    @staticmethod
+    def _get_histories(element: Element, delays: Collection[str]) -> dict[str, tuple[str, object]]:
+        """Return the history of every value the laws read with a delay.
+
+        The history is the value before the start, given as the past value with the index `-1`, a number or a
+        function of time, such as `values={'I': 0.01, 'I[-1]': 0.0}` for infected people who were none before an
+        outbreak. Each comes with the name it is given under.
+        """
+        histories = {}
+        for name, value in (element.values or {}).items():
+            found = STARTING.fullmatch(name)
+            if found is not None and found.group('lag') == '1' and found.group('name') in delays:
+                histories[found.group('name')] = (name, value)
+        return histories
+
+    @staticmethod
+    def _get_rule_derivatives(element: Element) -> dict[str, tuple[str, str, object]]:
+        """Return the starting derivatives of the values of agents, by engine name.
+
+        The engine name of `"x'"` is `x_d1`. Rules change such a derivative as a value of its own, such as the
+        velocity `"x'"` of a boid that its steering turns and its flight adds to `x`, and read it as `agent.x_d1`.
+        Each comes with the name it is given under and the value it derives.
+        """
+        derivatives = {}
+        for name, value in (element.values or {}).items():
+            found = STARTING.fullmatch(name)
+            if found is not None and found.group('primes'):
+                base = found.group('name')
+                derivatives[f'{base}_d{len(found.group("primes"))}'] = (name, base, value)
+        return derivatives
 
     @staticmethod
     def _get_free_order(element: Element, name: str) -> int | None:
@@ -152,6 +189,20 @@ class _StateInference:
         return max(primes) + 1 if primes else None
 
     @staticmethod
+    def _get_link(element: Element) -> tuple[str, str | None] | None:
+        """Return the part of a network an element sits on and its layer.
+
+        It is `None` for the sites. An element on the edges of a layer, such as
+        `Element('immune_links', values={...}, space=network, on='immune')`, sits on the edges of that layer, and
+        `on='edges'` on those of the graph of the network.
+        """
+        if element.on in LINKS:
+            return str(element.on), None
+        if isinstance(element.space, NetworkSpace) and isinstance(element.on, str):
+            return 'edges', element.on
+        return None
+
+    @staticmethod
     def _get_count(element: Element) -> int | None:
         """Return the number of members of an element, or `None` for one element.
 
@@ -162,8 +213,9 @@ class _StateInference:
             return int(element.size)
         if isinstance(element.space, NetworkSpace) and element.on == 'hyperedges':
             return len(element.space.prepare().hyperedges_)
-        if element.space is not None and element.on in LINKS:
-            return element.space.prepare()._count_parts(element.on, None)
+        link = _StateInference._get_link(element)
+        if element.space is not None and link is not None:
+            return element.space.prepare()._count_parts(*link)
         if element.space is not None and not element.space._has_sites():
             return 1
         if element.space is not None:
@@ -352,6 +404,7 @@ class _StateInference:
         starting: Mapping[int, object] | None = None,
         role: str | None = None,
         moving: bool = False,
+        history: object = None,
     ) -> DeclaredVariableSpec:
         """Return the declaration of a value as a state or a parameter.
 
@@ -419,6 +472,7 @@ class _StateInference:
             role=role,
             quantity=quantity,
             reference=member,
+            history=history,
         )
         return DeclaredVariableSpec(value, spec)
 
@@ -486,6 +540,30 @@ class _StateInference:
                     name = named[read]
                     lags[name] = max(int(steps), lags.get(name, 0))
         return lags
+
+    @staticmethod
+    def _get_delays(compilation: Compilation) -> set[str]:
+        """Return the dotted names of the values the laws read with a delay.
+
+        A law reads such a value as `x(t=t - tau)`.
+        """
+        census = Compilation._get_required(compilation.census, 'census')
+        layout = Compilation._get_required(compilation.layout, 'layout')
+        named = {
+            str(block.symbols[variable]): entry.name
+            for block in layout.blocks.values()
+            for variable, entry in block.entries.items()
+        }
+        patterns = (delayed(SR.wild(0), SR.wild(1)), delayed(SR.wild(0), SR.wild(1), SR.wild(2)))
+        delays = set()
+        for record in census.records:
+            values = record.law._get_values() if isinstance(record.law, BaseLaw) else []
+            for value in values:
+                if not isinstance(value, Expression):
+                    continue
+                found = [item for pattern in patterns for item in value.find(pattern)]
+                delays |= {named[str(item.operands()[0])] for item in found if str(item.operands()[0]) in named}
+        return delays
 
     @staticmethod
     def _get_derivative_orders(law: BaseLaw, named: Mapping[str, str]) -> dict[str, int]:
@@ -561,7 +639,11 @@ class _StateInference:
                 orders[name] = _StateInference._get_order(name, 1, orders.get(name))
             for name, steps in _StateInference._get_lags(law, named).items():
                 lags[name] = max(steps, lags.get(name, 0))
-            order = (law.order or 1) if isinstance(law, RateLaw | NoiseLaw) else 1
+            order = (
+                (law.order or 1)
+                if isinstance(law, RateLaw | NoiseLaw)
+                else 0 if isinstance(law, LinearProgramLaw) else 1
+            )
             names = [entry.name for entry in record.targets]
             if isinstance(law, ConstraintLaw) and law.target is not None and str(law.target) in named:
                 names.append(named[str(law.target)])
@@ -598,6 +680,7 @@ class _StateInference:
         links = self._get_edge_spaces(system)
         agents = self._get_agent_groups(compilation)
         steps = self._get_steps(compilation)
+        delays = self._get_delays(compilation)
 
         def declare(element: Element, path: str, space: BaseSpace | None) -> list[BaseElement]:
             return self._get_declared_elements(
@@ -608,6 +691,7 @@ class _StateInference:
                 agents=path in agents,
                 sizes=sizes,
                 links=links,
+                delays=frozenset(name.removeprefix(f'{path}.') for name in delays if name.startswith(f'{path}.')),
                 steps={
                     name.removeprefix(f'{path}.'): moved.removeprefix(f'{path}.')
                     for name, moved in steps.items()
@@ -778,7 +862,7 @@ class _StateInference:
     @staticmethod
     def _get_link_group(
         element: Element,
-        on: str,
+        link: tuple[str, str | None],
         count: int | None,
         values: Mapping[str, object],
         *,
@@ -790,8 +874,10 @@ class _StateInference:
         When the laws change the network, the group grows and shrinks with its edges or hyperedges. A group on
         hyperedges of several sizes holds the largest hyperedge, its rank, and a group whose hyperedges, those it starts
         with and those the laws add, have one size has no rank, so laws can run along them. A group on a network
-        without hyperedges starts empty, as the production functions of goods that are yet to be made.
+        without hyperedges starts empty, as the production functions of goods that are yet to be made. A group on the
+        edges of a layer has one member on each edge of that layer.
         """
+        on, layer = link
         empty = on == 'hyperedges' and count == 0
         space = element.space
         variable = isinstance(space, NetworkSpace) and (changing or empty)
@@ -806,6 +892,7 @@ class _StateInference:
             size=0 if empty else None,
             space=element.space,
             on=on,
+            layer=layer,
             values=values,
             variable=variable,
             rank=rank,
@@ -827,6 +914,24 @@ class _StateInference:
         return 'sites'
 
     @staticmethod
+    def _get_rule_derivative_specs(
+        element: Element,
+        derivatives: Mapping[str, tuple[str, str, object]],
+        count: int | None,
+        axes: Collection[str],
+    ) -> dict[str, DeclaredVariableSpec]:
+        """Return the declarations of the derivatives that the rules of agents change.
+
+        They are keyed by engine name, and the first derivative of a position, such as `"x'"`, is a velocity.
+        """
+        declared = {}
+        for name, (_, base, given) in derivatives.items():
+            role = 'velocity' if name == f'{base}_d1' and base in axes else None
+            member = _StateInference._get_member_value(element, base, given, count)
+            declared[name] = DeclaredVariableSpec(member, StateSpec(domain=RR, role=role))
+        return declared
+
+    @staticmethod
     def _get_past_arrays(name: str, values: object, lags: int) -> dict[str, object]:
         """Return the past values of many members, each its value before the start."""
         return {f'{name}_lag{index}': values for index in range(1, lags + 1)}
@@ -844,6 +949,7 @@ class _StateInference:
         links: frozenset[int] = frozenset(),
         steps: Mapping[str, str] | None = None,
         space: BaseSpace | None = None,
+        delays: frozenset[str] = frozenset(),
     ) -> list[BaseElement]:
         """Return the declared element of a plain element, or a group of declared members.
 
@@ -860,11 +966,14 @@ class _StateInference:
         drawing of agents for members that run no agent rules, and the view of its agents.
         """
         values = self._get_values(element)
-        starting = {} if probing else self._get_starting(element, values)
+        histories = self._get_histories(element, delays)
+        derivatives = self._get_rule_derivatives(element) if agents else {}
+        skipped = [name for name, _ in histories.values()] + [name for name, _, _ in derivatives.values()]
+        starting = {} if probing else self._get_starting(element, values, skipped)
         count = self._get_count(element)
         count = 1 if count is None and agents else count
-        on = next((part for part in LINKS if element.on == part), None)
-        network = bool(kinds) and isinstance(element.space, NetworkSpace) and on is None
+        link = self._get_link(element)
+        network = bool(kinds) and isinstance(element.space, NetworkSpace) and link is None
         growing = network and bool(kinds & MEMBERSHIP)
         axes = self._get_axes(element, agents, space)
         velocities = {name for name, moved in (steps or {}).items() if moved in axes}
@@ -890,6 +999,7 @@ class _StateInference:
                 },
                 role='position' if name in axes else 'velocity' if name in velocities else None,
                 moving=any(axis in values for axis in axes),
+                history=histories[name][1] if name in histories else None,
             )
             annotation = element._get_hints().get(name, inspect.Parameter.empty)
             tensor = None if self._get_symmetry(annotation) else element._get_shape_of(member)[2]
@@ -903,6 +1013,11 @@ class _StateInference:
                         given,
                         tensor,
                     )
+        if not probing:
+            variables |= self._get_rule_derivative_specs(element, derivatives, count, axes)
+            arrays |= {
+                name: given for name, (_, _, given) in derivatives.items() if np.ndim(np.asarray(given, dtype=object))
+            }
         visual = element._get_visual()
         drawing = None if visual == VisualSpec() or (visual.kind == 'agents' and not agents) else visual
         view = element._get_view()
@@ -920,8 +1035,8 @@ class _StateInference:
                 values=values,
             )
             return [nodes, *self._get_node_edges(element, links)]
-        if on is not None:
-            return [self._get_link_group(element, on, count, values, changing=bool(kinds), sizes=sizes)]
+        if link is not None:
+            return [self._get_link_group(element, link, count, values, changing=bool(kinds), sizes=sizes)]
         if isinstance(element.space, LatticeSpace | NetworkSpace) and element.size is None:
             return [self._get_field(element.label, element.space, values)]
         place = self._get_group_on(element, count, agents)

@@ -71,7 +71,8 @@ class Element(BaseElement):
 
         on:
             The part of a network space that holds one member each: `'edges'` for every link, such as the signed
-            links of a network, `'hyperedges'` for every hyperedge, or `None` for every site.
+            links of a network, `'hyperedges'` for every hyperedge, the name of a layer for every link of that layer,
+            such as `'immune'` for the links between immune cells, or `None` for every site.
 
     Attributes:
         default_visual_:
@@ -170,11 +171,12 @@ class Element(BaseElement):
         if isinstance(type(self)._get_specs().get('on'), StateSpec | ParameterSpec):
             return
         on = getattr(self, 'on', None)
-        if on is None or (on in LINKS and isinstance(self.space, NetworkSpace)):
+        if on is None or (isinstance(self.space, NetworkSpace) and (on in LINKS or on in self.space.prepare().graphs_)):
             return
         error_msg = (
             f'Element {self.label!r} has on = {on!r}, but on is the part of a network space that holds one member '
-            "each, 'edges' or 'hyperedges', such as Element('links', values={'sign': 1}, space=network, on='edges')."
+            "each, 'edges', 'hyperedges', or the name of a layer for its edges, such as "
+            "Element('links', values={'sign': 1}, space=network, on='edges')."
         )
         raise ValidationError(error_msg)
 

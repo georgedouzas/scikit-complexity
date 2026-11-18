@@ -503,3 +503,12 @@ def test_an_interaction_without_a_class_rejects_wrong_arguments(arguments, match
     """Test that a role named after an argument, or laws that are no function, raise an error."""
     with pytest.raises(ValidationError, match=match):
         System(elements=[Element('ball', values={'x': 1.0})], interactions=[Interaction('rule', **arguments)]).prepare()
+
+
+def test_an_interaction_without_a_class_binds_among_as_a_role():
+    """Test that `among` of a rule written without a class binds its group, which the laws read as `s.among`."""
+    cells = Element('cells', values={'n': np.ones(3)}, size=3)
+    decay = Interaction('decay', among='cells', laws=lambda s: [RateLaw(s.among.n.diff(s.t), -s.among.n)])
+    system = System(elements=[cells], interactions=[decay]).prepare()
+    assert system.equations_ == {'cells.n[i]': '-cells.n[i]'}
+    assert system.simulate(until=1.0).get_values('cells.n')[-1] == pytest.approx(np.full(3, np.exp(-1.0)), rel=1e-3)

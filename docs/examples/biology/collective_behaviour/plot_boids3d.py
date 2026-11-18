@@ -33,7 +33,8 @@ trajectory = (
 polarization, depth = [], []
 for frame in range(len(trajectory.times)):
     boids = trajectory.get_agents('flock', frame)
-    headings = boids.values['velocity'] / np.linalg.norm(boids.values['velocity'], axis=1, keepdims=True)
+    velocity = np.column_stack([boids.values[name] for name in ('x_d1', 'y_d1', 'z_d1')])
+    headings = velocity / np.linalg.norm(velocity, axis=1, keepdims=True)
     polarization.append(np.linalg.norm(headings.mean(axis=0)))
     depth.append(np.ptp(boids.locations[:, 2]))
 fig, axes = plt.subplots(1, 2, figsize=(9, 4))

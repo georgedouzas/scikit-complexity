@@ -33,7 +33,7 @@ from ._many_body_swarms import (
     FlankingInteraction,
     ManyBodyAlignmentSwarmSystem,
     MorseAlignmentInteraction,
-    SwarmAgentElement,
+    RayleighPropulsionInteraction,
 )
 from ._trails import ActiveWalkersSystem, GroundElement, WalkerElement
 from ._zones import ClampSpec, RadiusSpec, ZoneCouplingInteraction
@@ -67,6 +67,7 @@ __all__: list[str] = [
     'RadiusSpec',
     'RatsElement',
     'RatsSystem',
+    'RayleighPropulsionInteraction',
     'SchoolingInteraction',
     'SelfPropulsionInteraction',
     'ShepherdElement',
@@ -75,7 +76,6 @@ __all__: list[str] = [
     'ShoalMemberElement',
     'SpatialBoidElement',
     'SpatialFlightInteraction',
-    'SwarmAgentElement',
     'SwimmingInteraction',
     'TrailChoiceInteraction',
     'TrailSegmentElement',

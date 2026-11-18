@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import operator
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from types import SimpleNamespace
@@ -23,8 +24,11 @@ from ....components.laws import (
     ConstraintLaw,
     EventLaw,
     JumpLaw,
+    LinearObjectiveSpec,
+    LinearProgramLaw,
     LocalRuleLaw,
     NoiseLaw,
+    ObjectiveLaw,
     RateLaw,
     RuleLaw,
     SampleLaw,
@@ -965,7 +969,7 @@ class CensusPass(BasePass):
         if not isinstance(returned, list | tuple) or len(laws) < len(returned):
             error_msg = f'`_get_laws` of {spec.owner} must return a list of laws.'
             raise ValidationError(error_msg)
-        lowered = [BilinearLaw._get_lowered(law) for law in laws]
+        lowered = [BilinearLaw._get_lowered(law) for law in CensusPass._get_programs(laws, spec.owner)]
         split = [item for law in lowered for item in CensusPass._get_component_rates(spec, law)]
         declared = [CensusPass._get_relaxation(law).prepare(spec.owner) for law in split]
         if spec.hyperedge is not None:
@@ -1021,6 +1025,85 @@ class CensusPass(BasePass):
                 error_msg = f'{type(law).__name__} of {spec.owner}: {error}'
                 raise ValidationError(error_msg) from error
         return [*rules, *checked]
+
+    @staticmethod
+    def _get_programs(laws: Sequence[BaseLaw], owner: str) -> list[BaseLaw]:
+        """Return the laws of a component, its linear objectives as linear programs.
+
+        An objective without controls that is linear in its targets, or a sum of their absolute values, is minimised
+        as a linear program, under the constraints of the component that read its targets, such as the balances and the
+        bounds of the fluxes of a metabolic network. A sequence of values is minimised in order, each minimum held
+        while the next one is sought, as the smallest total flux at the greatest growth. An inequality of another
+        component is a constraint of the program of the value its `target` names, such as the uptake a medium allows.
+
+        Raises:
+            ValidationError:
+                A sequence of values is not linear in the targets, or an inequality outside a program names no target.
+        """
+        programs = {
+            id(law): law
+            for law in laws
+            if isinstance(law, ObjectiveLaw) and law.controls is None and CensusPass._is_linear_objective(law)
+        }
+        targets = {str(item) for law in programs.values() for item in law._get_targets()}
+        kept: list[BaseLaw] = []
+        constraints: list[Expression] = []
+        for law in laws:
+            if id(law) in programs:
+                continue
+            sequence = not isinstance(law.value, Expression) and isinstance(law.value, Sequence)
+            if isinstance(law, ObjectiveLaw) and law.controls is None and sequence:
+                error_msg = (
+                    f'The objective of {owner} is a sequence of values, which is minimised in order as a linear '
+                    'program, so every value is linear in the targets or a sum of their absolute values.'
+                )
+                raise ValidationError(error_msg)
+            if not isinstance(law, ConstraintLaw):
+                kept.append(law)
+                continue
+            relation = SR(law.lhs) if law.rhs is None else SR(law.lhs) == SR(law.rhs)
+            inequality = relation.operator() is not operator.eq
+            if targets & {str(item) for item in relation.variables()}:
+                constraints.append(relation)
+            elif inequality and law.target is None:
+                error_msg = (
+                    f'The inequality {relation} of {owner} holds in a linear program, so it names the value it bounds '
+                    'in `target`, such as `ConstraintLaw(flux >= -uptake, target=flux)`.'
+                )
+                raise ValidationError(error_msg)
+            elif inequality:
+                kept.append(LinearProgramLaw([SR(law.target)], [relation], label=law.label))
+            else:
+                kept.append(law)
+        converted = [
+            LinearProgramLaw(
+                list(law._get_targets()),
+                constraints if position == 0 else [],
+                [LinearObjectiveSpec(value, sense='min') for value in law._get_values_in_order()],
+                active=law.active,
+                infeasible=law.infeasible,
+                label=law.label,
+            )
+            for position, law in enumerate(programs.values())
+        ]
+        return [*kept, *converted]
+
+    @staticmethod
+    def _is_linear_objective(law: ObjectiveLaw) -> bool:
+        """Return whether an objective is linear or sums absolute values of its targets."""
+        targets = {str(item) for item in law._get_targets()}
+        for value in law._get_values_in_order():
+            expression = SR(value)
+            absolutes = {
+                item: symbol(f'_absolute_{index}')
+                for index, item in enumerate(BasePass._get_calls_of(expression, 'abs'))
+                if str(item.operands()[0]) in targets
+            }
+            expression = expression.subs(absolutes)
+            for item in expression.variables():
+                if str(item) in targets and targets & {str(other) for other in expression.diff(item).variables()}:
+                    return False
+        return True
 
     @staticmethod
     def _get_component_of(node: _NodeSpec) -> BaseComponent:
