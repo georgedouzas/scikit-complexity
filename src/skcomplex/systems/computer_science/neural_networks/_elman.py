@@ -19,7 +19,7 @@ from ....core.components.interactions import CouplingInteraction, TrainingIntera
 from ....core.components.laws import DatasetSpec
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.specs import ParameterSpec, Role, StateSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
@@ -165,8 +165,8 @@ class InputCouplingInteraction(CouplingInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        source: Annotated[str, RoleSpec()],
+        target: Role,
+        source: Role,
         D: Annotated[object, ParameterSpec(shape=('target', 'source'), adaptive=True)] = 0.0,
     ) -> None:
         super().__init__(
@@ -217,8 +217,8 @@ class ReadoutCouplingInteraction(CouplingInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        source: Annotated[str, RoleSpec()],
+        target: Role,
+        source: Role,
         W: Annotated[object, ParameterSpec(shape=('target', 'source'), adaptive=True)] = 0.0,
     ) -> None:
         super().__init__(
@@ -273,7 +273,7 @@ class RecurrenceCouplingInteraction(CouplingInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         A: Annotated[object, ParameterSpec(shape=('target', 'target'), adaptive=True)] = 0.0,
     ) -> None:
         super().__init__(
