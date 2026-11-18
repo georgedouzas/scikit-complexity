@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
 from typing import Annotated, cast
 
@@ -13,16 +13,15 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, FieldElement, GroupElement
-from ....core.components.interactions import Interaction, TransferInteraction
-from ....core.components.laws import RateLaw, Source, UpdateLaw
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw, UpdateLaw
 from ....core.components.laws.utils import laplacian
-from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import CompositeSystem
+from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ...general.agents import MovementInteraction
 from ..common.stigmergy import EvaporationInteraction
@@ -51,6 +50,9 @@ class PheromoneElement(Element):
         evaporation:
             The rate at which the pheromone evaporates.
 
+        space:
+            The lattice whose cells hold the pheromone, or `None` for one cell.
+
     Examples:
         >>> from skcomplex.systems.biology.collective_behaviour import PheromoneElement
         >>> PheromoneElement('pheromone').evaporation
@@ -61,11 +63,12 @@ class PheromoneElement(Element):
         self,
         label: str,
         *,
-        level: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        D: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        evaporation: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        level: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        D: Annotated[object, RealSet.closed_open(0, oo)] = 0.05,
+        evaporation: Annotated[object, RealSet.closed_open(0, oo)] = 0.05,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.level = level
         self.D = D
         self.evaporation = evaporation
@@ -134,10 +137,18 @@ class AntElement(Element):
         deposit:
             The pheromone an ant deposits per step home.
 
+        values:
+            Further values by name, such as the cells `x` and `y` of the ants, or `None`.
+
+        size:
+            The number of ants, or `None` for one.
+
+        space:
+            The grid the ants walk on, whose axes `x` and `y` place them, or `None`.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.biology.collective_behaviour import AntElement
-        >>> GroupElement('ants', element=AntElement, size=5, location=(0, 0)).size
+        >>> AntElement('ants', size=5).size
         5
     """
 
@@ -147,18 +158,21 @@ class AntElement(Element):
         self,
         label: str,
         *,
-        carrying: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        arrived: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        nest_x: Annotated[float, ParameterSpec()] = 5.0,
-        nest_y: Annotated[float, ParameterSpec()] = 10.0,
-        food_x: Annotated[float, ParameterSpec()] = 34.0,
-        food_y: Annotated[float, ParameterSpec()] = 10.0,
-        food_radius: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
-        attraction: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-        outward: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        deposit: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        carrying: Annotated[float, FiniteEnumeratedSet([0, 1])] = 0.0,
+        arrived: Annotated[float, FiniteEnumeratedSet([0, 1])] = 0.0,
+        nest_x: float = 5.0,
+        nest_y: float = 10.0,
+        food_x: float = 34.0,
+        food_y: float = 10.0,
+        food_radius: Annotated[float, RealSet.closed_open(0, oo)] = 3.0,
+        attraction: Annotated[float, RealSet.closed_open(0, oo)] = 5.0,
+        outward: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        deposit: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.carrying = carrying
         self.arrived = arrived
         self.nest_x = nest_x
@@ -321,6 +335,13 @@ class PheromoneForagingSystem(BaseSystem):
         del cell, system
         return float(ant.deposit) if isinstance(ant, AntView) else 0.0
 
+    def _mark(self, ant: AgentViewProtocol, system: SystemViewProtocol) -> None:
+        """Leave the pheromone of an ant that carries food on the ground of its cell."""
+        cell = ant.location_key
+        if not ant.alive or not self._carries(ant, cell, system):
+            return
+        system.deposit('pheromone.level', cell, self._get_deposit(ant, cell, system))
+
     @staticmethod
     def _get_carrying(ant: AgentViewProtocol, system: SystemViewProtocol) -> float:
         """Return whether an ant carries food next.
@@ -359,35 +380,29 @@ class PheromoneForagingSystem(BaseSystem):
         """
         super()._prepare(context)
         nest, food = (5, self.height // 2), (self.width - 6, self.height // 2)
-        ants = GroupElement(
+        grid = LatticeSpace((self.width, self.height), boundary='fixed')
+        ants = AntElement(
             'ants',
-            element=AntElement,
+            nest_x=float(nest[0]),
+            nest_y=float(nest[1]),
+            food_x=float(food[0]),
+            food_y=float(food[1]),
+            attraction=self.attraction,
+            values={'x': np.full(self.n_ants, nest[0]), 'y': np.full(self.n_ants, nest[1])},
             size=self.n_ants,
-            values={
-                'nest_x': float(nest[0]),
-                'nest_y': float(nest[1]),
-                'food_x': float(food[0]),
-                'food_y': float(food[1]),
-                'attraction': self.attraction,
-            },
-            location=nest,
+            space=grid,
         )
-        pheromone = FieldElement(
+        pheromone = PheromoneElement(
             'pheromone',
-            element=PheromoneElement,
-            space=LatticeSpace((self.width, self.height)),
-            boundary={'level': 'zero-flux'},
-            values={'D': self.D, 'evaporation': self.evaporation},
+            D=self.D,
+            evaporation=self.evaporation,
+            space=LatticeSpace((self.width, self.height), boundary={'level': 'zero-flux'}),
         )
         self.system_ = System(
             self.label,
             systems=[
-                CompositeSystem(
-                    'colony',
-                    elements=[ants],
-                    space=LatticeSpace((self.width, self.height), boundary='fixed'),
-                ),
-                CompositeSystem(
+                System('colony', elements=[ants], space=grid),
+                System(
                     'ground',
                     elements=[pheromone],
                     interactions=[
@@ -410,17 +425,10 @@ class PheromoneForagingSystem(BaseSystem):
                     condition=self._is_homing,
                     schedule='member',
                 ),
-                TransferInteraction(
+                Interaction(
                     'marking',
-                    source='colony/ants',
-                    target='ground/pheromone',
-                    state=Source(),
-                    into='level',
-                    amount=self._get_deposit,
-                    pairing='site',
-                    guard=self._carries,
-                    form='agent',
-                    schedule='member',
+                    roles={'target': 'colony/ants', 'pheromone': 'ground/pheromone'},
+                    laws=lambda s: [UpdateLaw(s.target, self._mark)],
                 ),
                 MovementInteraction(
                     'search',
