@@ -36,6 +36,7 @@ from ._exchange import (
     ContourCellElement,
     ContourUptakeInteraction,
     ExchangingCellElement,
+    MetabolismInteraction,
     NanotubeGapJunctionExchangeSystem,
 )
 from ._pharmacokinetics import TwoCompartmentElement, TwoCompartmentPharmacokineticsSystem
@@ -85,6 +86,7 @@ __all__: list[str] = [
     'MackeyGlassElement',
     'MackeyGlassInteraction',
     'MackeyGlassSystem',
+    'MetabolismInteraction',
     'NanotubeGapJunctionExchangeSystem',
     'RegionSamplingInteraction',
     'RegionScoreSpec',
