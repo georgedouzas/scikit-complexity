@@ -8,7 +8,6 @@ import numpy as np
 import pytest
 from scipy.stats import spearmanr
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError, ValidationError
 from skcomplex.systems.biology.evolution import (
     RNANeutralNetworksSystem,
@@ -41,7 +40,7 @@ def _sequences(trajectory):
 
 def _run(until=300, **arguments):
     """Return a trajectory of the system."""
-    return simulate(RNANeutralNetworksSystem(**arguments), random_state=0, until=until)
+    return RNANeutralNetworksSystem(**arguments).prepare().simulate(random_state=0, until=until)
 
 
 def test_fold_sequence_gives_the_hairpin():
