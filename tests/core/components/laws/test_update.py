@@ -1,5 +1,6 @@
 """Test the `_update` module of `skcomplex.core.components.laws`."""
 
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -16,13 +17,14 @@ from skcomplex.core.components.laws import (
     TotalisticSpec,
     UpdateLaw,
 )
-from skcomplex.core.components.laws.utils import lag, total, where
+from skcomplex.core.components.laws.utils import bernoulli, lag, shift_member, total, where
 from skcomplex.core.components.spaces import LatticeSpace, RadiusNeighborhood
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
+from skcomplex.core.systems import System
 
 ROW = LatticeSpace(5)
 AROUND = RadiusNeighborhood(1, center=True)
@@ -325,3 +327,32 @@ def test_update_check_rejects_a_bad_local_rule(settings, message):
     x = var('x')
     with pytest.raises(ValidationError, match=message):
         UpdateLaw(x, TotalisticSpec({1: 1}), **settings).prepare()
+
+
+class StepTransferInteraction(Interaction):
+    """Moves of one unit along a ring of cells in one step, each with probability one half."""
+
+    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: object = None) -> None:
+        """Set the increment of every cell, which loses its unit and gains the unit of the cell behind it."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            level = context.target.level
+            move = bernoulli('move', 0.5)
+            leaves = level * (1 - shift_member(level, 1)) * move
+            arrives = shift_member(level, -1) * (1 - level) * shift_member(move, -1)
+            self.laws_ = [UpdateLaw(level, level - leaves + arrives, increment=True)]
+
+
+def test_update_increments_move_units_once_per_step_with_one_draw_per_edge():
+    """Test that units move along a ring once per step, both ends of an edge reading one draw, so none is lost."""
+    cells = Element('cells', values={'level': np.tile([1.0, 0.0], 25)}, space=LatticeSpace(50))
+    system = System(elements=[cells], interactions=[StepTransferInteraction('moves', target='cells')]).prepare()
+    levels = np.asarray(system.simulate(until=50, random_state=0).get_values('cells.level'))
+    assert system.form_ == 'discrete map'
+    assert set(np.unique(levels)) == {0.0, 1.0}
+    assert set(levels.sum(axis=1)) == {25.0}
+    assert (levels[1:] != levels[:-1]).any()
