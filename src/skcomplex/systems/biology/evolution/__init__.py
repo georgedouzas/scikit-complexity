@@ -11,7 +11,7 @@ from ._assembly import (
     PolymerElement,
     PolymerJoiningInteraction,
 )
-from ._coevolution import BakSneppenSystem, SpeciesElement
+from ._coevolution import BakSneppenSystem, ExtinctionInteraction, SpeciesElement
 from ._drift import AlleleFrequencyElement, KimuraDiffusionSystem, KimuraDriftInteraction
 from ._finite_populations import (
     AdaptiveClimbingInteraction,
@@ -81,6 +81,7 @@ __all__: list[str] = [
     'CyclicSpeciesElement',
     'DependencyFieldInteraction',
     'EigenQuasispeciesSystem',
+    'ExtinctionInteraction',
     'GenotypeClassElement',
     'HypercyclesSystem',
     'IndividualElement',
