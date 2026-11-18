@@ -3,7 +3,6 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.experiments import IndividualCalibrationResult, calibrate_individuals
 from skcomplex.systems.biology.ecology import LogisticGrowthSystem
@@ -65,7 +64,7 @@ def test_digital_twins_of_virtual_patients_recover_their_rates():
     for index, dose in enumerate((80.0, 160.0, 240.0, 320.0, 480.0)):
         truth = {'growth': float(rng.uniform(0.01, 0.05)), 'kill': float(rng.uniform(5e-11, 2e-10))}
         patient = ImmunoOncologyQspSystem(dose=dose, start=START, **truth)
-        diameters = simulate(patient, until=180.0, dt=1.0).get_values('diameter')
+        diameters = patient.prepare().simulate(until=180.0, dt=1.0).get_values('diameter')
         noisy = diameters[DAYS.astype(int)] * (1 + 0.02 * rng.standard_normal(DAYS.size))
         name = f'patient-{index}'
         truths[name], data[name], known[name] = truth, {'diameter': (DAYS, noisy)}, {'dose': dose}

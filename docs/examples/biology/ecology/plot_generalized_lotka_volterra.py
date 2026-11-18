@@ -13,14 +13,13 @@ point of their interaction matrix.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import GeneralizedLotkaVolterraSystem
 
 SYSTEM = 'generalized_lotka_volterra'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(GeneralizedLotkaVolterraSystem(), observers=[observer])
+trajectory = GeneralizedLotkaVolterraSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Coexistence at the interior fixed point

@@ -13,14 +13,13 @@ mutation, grow back into a tumour of 10^11 cells.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import MultidrugResistanceSystem
 
 SYSTEM = 'multidrug_resistance'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(MultidrugResistanceSystem(u2=0.0, u3=0.0), dt=2.0, observers=[observer], until=600)
+trajectory = MultidrugResistanceSystem(u2=0.0, u3=0.0).prepare().simulate(dt=2.0, observers=[observer], until=600)
 
 # %%
 # One drug against three
@@ -31,7 +30,7 @@ trajectory = simulate(MultidrugResistanceSystem(u2=0.0, u3=0.0), dt=2.0, observe
 
 names = ('S', 'R1', 'R2', 'R3', 'R12', 'R13', 'R23', 'R123')
 single = trajectory
-combined = simulate(MultidrugResistanceSystem(), dt=2.0, until=600)
+combined = MultidrugResistanceSystem().prepare().simulate(dt=2.0, until=600)
 fig, (one, three) = plt.subplots(1, 2, figsize=(10, 4), sharey=True)
 for axis, trajectory, title in ((one, single, 'Drug 1 alone'), (three, combined, 'All three drugs')):
     for name in ('S', 'R1', 'R12', 'R123'):

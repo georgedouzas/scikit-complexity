@@ -5,17 +5,21 @@
 
 
 import math
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, oo, sin
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws.utils import mod, where
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import ParameterSpec, RoleSpec
+from ....core.systems import BaseSystem, System
 
 
 class ChamberElement(Element):
@@ -59,12 +63,12 @@ class ChamberElement(Element):
         self,
         label: str,
         *,
-        V: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
-        V0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        E_min: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        E_max: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        period: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.8,
-        systole: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
+        V: Annotated[float, RealSet.closed_open(0, oo)] = 100.0,
+        V0: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        E_min: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        E_max: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        period: Annotated[float, RealSet.open(0, oo)] = 0.8,
+        systole: Annotated[float, RealSet.open(0, oo)] = 0.3,
     ) -> None:
         super().__init__(label)
         self.V = V
@@ -168,6 +172,12 @@ class CardiovascularSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.physiology import CardiovascularSystem
         >>> sum(chamber.V for chamber in CardiovascularSystem().prepare().system_.elements)
@@ -190,8 +200,10 @@ class CardiovascularSystem(BaseSystem):
         C_venous: float = 50.0,
         volume: float = 1500.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.heart_rate = heart_rate
         self.E_max = E_max
         self.R_systemic = R_systemic
@@ -199,8 +211,14 @@ class CardiovascularSystem(BaseSystem):
         self.C_venous = C_venous
         self.volume = volume
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the system.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         period = 60.0 / self.heart_rate
         systole = 0.375 * period
         ventricle = ChamberElement(
@@ -235,4 +253,4 @@ class CardiovascularSystem(BaseSystem):
             ResistiveFlowInteraction('systemic', source='arteries', target='veins', R=self.R_systemic),
             ResistiveFlowInteraction('mitral_valve', source='veins', target='ventricle', R=0.02, valve=True),
         ]
-        return CompositeSystem(self.label, elements=[ventricle, arteries, veins], interactions=flows)
+        self.system_ = System(self.label, elements=[ventricle, arteries, veins], interactions=flows)

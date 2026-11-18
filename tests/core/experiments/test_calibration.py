@@ -216,7 +216,7 @@ def test_mcmc_with_a_normal_prior_narrows_it():
 def test_mcmc_of_the_event_likelihood_runs_the_ensemble_sampler():
     """Test that MCMC of a recorded Gillespie run uses the gradient-free ensemble sampler and recovers the rates."""
     system = SIRSystem(198, 2, beta=0.0015, gamma=0.1, stochastic=True)
-    recorded = simulate(system, until=60, random_state=3, record_draws=True)
+    recorded = system.prepare().simulate(until=60, random_state=3, record_draws=True)
     bounds = {'beta': (0.0003, 0.005), 'gamma': (0.02, 0.4)}
     result = calibrate(
         SIRSystem(198, 2, stochastic=True),
@@ -247,7 +247,7 @@ def test_abc_smc_covers_the_rates_of_a_stochastic_epidemic():
     The transmission rate 0.3 per day of a well-mixed population of 200 is the mass-action rate 0.3 / 200.
     """
     system = SIRSystem(198, 2, beta=0.0015, gamma=0.1, stochastic=True)
-    truth = simulate(system, until=60, random_state=3)
+    truth = system.prepare().simulate(until=60, random_state=3)
     times = np.arange(0.0, 61.0, 3.0)
     data = {'I.x': (times, np.interp(times, truth.times, truth.get_values('I.x')))}
     bounds = {'beta': (0.0003, 0.005), 'gamma': (0.02, 0.4)}

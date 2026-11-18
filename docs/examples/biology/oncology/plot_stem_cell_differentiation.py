@@ -20,7 +20,7 @@ from skcomplex.systems.biology.oncology import StemCellDifferentiationSystem
 SYSTEM = 'stem_cell_differentiation'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(StemCellDifferentiationSystem(seed=0), observers=[observer])
+trajectory = StemCellDifferentiationSystem(seed=0).prepare().simulate(observers=[observer])
 
 # %%
 # Mutation feeds the malignant lineage

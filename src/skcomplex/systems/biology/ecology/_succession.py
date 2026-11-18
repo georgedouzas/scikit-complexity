@@ -4,17 +4,23 @@
 # License: MIT
 
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import RateInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import clip
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 
 
 class StandElement(Element):
@@ -40,15 +46,15 @@ class StandElement(Element):
         self,
         label: str,
         *,
-        volume: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        mature: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
+        volume: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        mature: Annotated[float, RealSet.open(0, oo)] = 100.0,
     ) -> None:
         super().__init__(label)
         self.volume = volume
         self.mature = mature
 
 
-class PioneerGrowthInteraction(RateInteraction):
+class PioneerGrowthInteraction(Interaction):
     """Michaelis-Menten regrowth of pioneer trees.
 
     The other groups suppress their input from seeds.
@@ -85,23 +91,37 @@ class PioneerGrowthInteraction(RateInteraction):
         3.65
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        intermediate: Annotated[str, RoleSpec()],
-        climax: Annotated[str, RoleSpec()],
-        half_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.65,
-        w_intermediate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.32,
-        w_climax: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.68,
+        target: Role,
+        intermediate: Role,
+        climax: Role,
+        half_time: Annotated[float, RealSet.open(0, oo)] = 3.65,
+        w_intermediate: Annotated[float, RealSet.closed_open(0, oo)] = 0.32,
+        w_climax: Annotated[float, RealSet.closed_open(0, oo)] = 0.68,
     ) -> None:
-        super().__init__(label, target=target, state='volume')
+        super().__init__(label)
+        self.target = target
         self.intermediate = intermediate
         self.climax = climax
         self.half_time = half_time
         self.w_intermediate = w_intermediate
         self.w_climax = w_climax
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rate of the `volume` of the target.
+
+        Args:
+            context:
+                The namespace of the bound elements, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [RateLaw(context.target.volume, self._get_rate(context))]
 
     def _get_rate(self, namespace: SimpleNamespace) -> Expression:
         """Return the regrowth with the suppressed input from seeds.
@@ -137,7 +157,7 @@ class PioneerGrowthInteraction(RateInteraction):
         )
 
 
-class SuccessionalGrowthInteraction(RateInteraction):
+class SuccessionalGrowthInteraction(Interaction):
     """Logistic growth of intermediate or climax trees with seedling input.
 
     They are crowded by their own group and another.
@@ -176,25 +196,39 @@ class SuccessionalGrowthInteraction(RateInteraction):
         0.1
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        first: Annotated[str, RoleSpec()],
-        second: Annotated[str, RoleSpec()],
-        g: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        w_first: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        w_second: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        seedlings: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        target: Role,
+        first: Role,
+        second: Role,
+        g: Annotated[float, RealSet.closed_open(0, oo)] = 0.05,
+        w_first: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        w_second: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        seedlings: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
     ) -> None:
-        super().__init__(label, target=target, state='volume')
+        super().__init__(label)
+        self.target = target
         self.first = first
         self.second = second
         self.g = g
         self.w_first = w_first
         self.w_second = w_second
         self.seedlings = seedlings
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rate of the `volume` of the target.
+
+        Args:
+            context:
+                The namespace of the bound elements, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [RateLaw(context.target.volume, self._get_rate(context))]
 
     def _get_rate(self, namespace: SimpleNamespace) -> Expression:
         """Return the crowded logistic growth with the seedling input.
@@ -245,6 +279,12 @@ class MangroveSuccessionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.ecology import MangroveSuccessionSystem
         >>> [element.mature for element in MangroveSuccessionSystem().prepare().system_.elements]
@@ -267,8 +307,10 @@ class MangroveSuccessionSystem(BaseSystem):
         g_sundari: float = 0.03,
         seedlings: float = 0.01,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.keora = keora
         self.gewa = gewa
         self.sundari = sundari
@@ -276,12 +318,17 @@ class MangroveSuccessionSystem(BaseSystem):
         self.g_sundari = g_sundari
         self.seedlings = seedlings
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the regrowth of a mangrove forest after a clear cut.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the regrowth of a mangrove forest after a clear cut.
 
         The forest is of the Sundarbans.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        return CompositeSystem(
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[
                 StandElement('keora', volume=self.keora, mature=196.11),

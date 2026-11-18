@@ -3,7 +3,6 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.systems_biology import CircadianClockSystem
 
 
@@ -16,7 +15,7 @@ def _crossing_periods(times, series, level):
 
 def test_circadian_clock_period_is_about_a_day():
     """Test that Goldbeter's PER system oscillates with a period of about 23.7 hours."""
-    trajectory = simulate(CircadianClockSystem(), dt=0.5, until=240)
+    trajectory = CircadianClockSystem().prepare().simulate(dt=0.5, until=240)
     keep = trajectory.times > 48
     mrna = trajectory.get_values('clock.M')[keep]
     periods = _crossing_periods(trajectory.times[keep], mrna, mrna.mean())
@@ -27,7 +26,7 @@ def test_circadian_clock_period_lengthens_with_degradation():
     """Test that a larger maximal degradation rate of PER lengthens the period of Goldbeter's clock."""
     periods = []
     for v_d in (0.8, 1.6):
-        trajectory = simulate(CircadianClockSystem(v_d=v_d), dt=0.1, until=480)
+        trajectory = CircadianClockSystem(v_d=v_d).prepare().simulate(dt=0.1, until=480)
         keep = trajectory.times > 240
         mrna = trajectory.get_values('clock.M')[keep]
         periods.append(_crossing_periods(trajectory.times[keep], mrna, mrna.mean()).mean())

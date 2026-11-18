@@ -8,42 +8,45 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
+import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import GroupElement
-from ....core.components.interactions import BaseInteraction, Interaction, JumpInteraction
-from ....core.components.laws import BaseLaw, JumpLaw
-from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.backends import NumbaBackend
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..common.kinetics import CompartmentElement
+from ....core.components.elements import Element
+from ....core.components.interactions import BaseInteraction, Interaction
+from ....core.components.laws import JumpLaw
+from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend, NumbaBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import RoleSpec, VisualSpec
+from ....core.systems import BaseSystem, System
+from ..common.populations import NeutralBirthInteraction, NeutralDeathInteraction
 
 
-class HabitatPatchElement(CompartmentElement):
+class HabitatPatchElement(Element):
     """Patch of space, a compartment of `x` organisms that divide and die.
 
-    The organisms divide and die at the same rate `alpha`.
-
-    The divisions and deaths are jumps of `NeutralClusteringSystem`, so the number of organisms is a symmetric random
-    walk, and an empty patch stays empty without arrivals from its neighbours.
+    The divisions and deaths of `NeutralClusteringSystem` happen at the same rate, so the number of organisms is a
+    symmetric random walk, and an empty patch stays empty without arrivals from its neighbours.
 
     Args:
         label:
-            The label of the patch or the lattice of patches.
+            The label of the patch or of the lattice of patches.
 
         x:
             The initial number of organisms.
 
-        alpha:
-            The rate at which an organism divides, equal to the rate at which it dies.
+        size:
+            The number of patches, or `None` for one.
+
+        space:
+            The lattice with one patch per site, or `None` for none.
 
     Examples:
         >>> from skcomplex.systems.biology.ecology import HabitatPatchElement
-        >>> HabitatPatchElement('patch', x=5.0).alpha
-        1.0
+        >>> HabitatPatchElement('patch', x=5.0).x
+        5.0
     """
 
     visual = VisualSpec('image', {'low': 0.0})
@@ -52,11 +55,12 @@ class HabitatPatchElement(CompartmentElement):
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec(domain=NN)] = 10.0,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        x: Annotated[float | npt.ArrayLike, NN] = 10.0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, x=x)
-        self.alpha = alpha
+        super().__init__(label, size=size, space=space)
+        self.x = x
 
 
 class HoppingInteraction(Interaction):
@@ -93,7 +97,7 @@ class HoppingInteraction(Interaction):
         label: str,
         *,
         patches: Annotated[list[str], RoleSpec(variadic=True)],
-        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        beta: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
         links: Sequence[tuple[int, int]] = (),
     ) -> None:
         super().__init__(label)
@@ -101,19 +105,18 @@ class HoppingInteraction(Interaction):
         self.beta = beta
         self.links = links
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return one hop per ordered pair of neighbouring patches.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set one hop per ordered pair of neighbouring patches.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the bound elements, the time `t`, and the parameters.
         """
-        patches = s.patches
-        return [JumpLaw(s.beta * patches[i].x, {patches[i].x: -1, patches[j].x: 1}) for i, j in self.links]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context
+            patches = s.patches
+            self.laws_ = [JumpLaw(s.beta * patches[i].x, {patches[i].x: -1, patches[j].x: 1}) for i, j in self.links]
 
 
 class NeutralClusteringSystem(BaseSystem):
@@ -143,9 +146,15 @@ class NeutralClusteringSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.ecology import NeutralClusteringSystem
-        >>> NeutralClusteringSystem(8).prepare().system_.elements[0].prepare().size_
+        >>> len(NeutralClusteringSystem(8).prepare().system_.elements[0].x)
         8
     """
 
@@ -154,7 +163,6 @@ class NeutralClusteringSystem(BaseSystem):
     references = ('Bertin 2021', 'Houchmandzadeh 2002', 'Houchmandzadeh 2009')
     until = 50.0
     dt = 0.5
-    backend = NumbaBackend()
     observables = (
         Observable('mean', group='patches', variable='x', reduce='mean'),
         Observable('variance', group='patches', variable='x', reduce='var'),
@@ -168,8 +176,10 @@ class NeutralClusteringSystem(BaseSystem):
         alpha: float = 1.0,
         beta: float = 0.5,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.n = n
         self.alpha = alpha
@@ -189,27 +199,28 @@ class NeutralClusteringSystem(BaseSystem):
                 pairs.extend(zip(indices.ravel().tolist(), neighbours.ravel().tolist(), strict=True))
         return pairs
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of organisms that divide."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of organisms that divide.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         lattice = (self.shape,) if isinstance(self.shape, int) else tuple(self.shape)
-        patches = GroupElement(
-            'patches',
-            element=HabitatPatchElement,
-            space=LatticeSpace(lattice),
-            values={'x': np.full(lattice, float(self.n)), 'alpha': self.alpha},
-            on='sites',
-        )
+        patches = HabitatPatchElement('patches', x=np.full(lattice, float(self.n)), space=LatticeSpace(lattice))
         members = [f'patches[{index}]' for index in range(int(np.prod(lattice)))]
         interactions: list[BaseInteraction] = [
-            JumpInteraction('division', target='patches', changes={'x': 1}, rate=lambda s: s.target.alpha * s.target.x),
-            JumpInteraction('death', target='patches', changes={'x': -1}, rate=lambda s: s.target.alpha * s.target.x),
+            NeutralBirthInteraction('division', target='patches', b0=0.0, b1=self.alpha),
+            NeutralDeathInteraction('death', target='patches', d0=0.0, d1=self.alpha),
         ]
         if self.beta:
             interactions.append(
                 HoppingInteraction('hopping', patches=members, links=self._get_neighbor_pairs(lattice), beta=self.beta),
             )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[patches],
             interactions=interactions,
+            backend=NumbaBackend(),
         )

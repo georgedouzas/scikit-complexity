@@ -13,14 +13,13 @@ catches up and pulls it down, and the cycle repeats as relaxation oscillations.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.neuroscience import FitzhughNagumoODESystem
 
 SYSTEM = 'fitzhugh_nagumo_ode'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(FitzhughNagumoODESystem(I=0.5), observers=[observer])
+trajectory = FitzhughNagumoODESystem(I=0.5).prepare().simulate(observers=[observer])
 
 # %%
 # Limit cycle and nullclines

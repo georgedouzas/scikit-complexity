@@ -13,14 +13,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.signal import find_peaks
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import HutchinsonSystem
 
 SYSTEM = 'hutchinson'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-trajectory = simulate(HutchinsonSystem(n=50.0, r=1.0, K=100.0, tau=2.0), observers=[observer])
+trajectory = HutchinsonSystem(n=50.0, r=1.0, K=100.0, tau=2.0).prepare().simulate(observers=[observer])
 
 # %%
 # Period of the oscillation

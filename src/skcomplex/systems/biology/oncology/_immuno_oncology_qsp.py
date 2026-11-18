@@ -3,13 +3,15 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 
 from sage.all__sagemath_symbolics import Expression, pi
 
 from ....core.components import Observable
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import ScipyODESolver
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, ScipyODESolver
+from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction
 from ..common.kinetics import CompartmentElement
 from ..common.pharmacokinetics import DosingInteraction
@@ -121,13 +123,17 @@ class ImmunoOncologyQspSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         Treatment shrinks the tumour of the default patient within six months.
-
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.biology.oncology import ImmunoOncologyQspSystem
-        >>> treated = simulate(ImmunoOncologyQspSystem(), until=180.0, dt=1.0)
-        >>> untreated = simulate(ImmunoOncologyQspSystem(dose=0.0), until=180.0, dt=1.0)
+        >>> treated = ImmunoOncologyQspSystem().prepare().simulate(until=180.0, dt=1.0)
+        >>> untreated = ImmunoOncologyQspSystem(dose=0.0).prepare().simulate(until=180.0, dt=1.0)
         >>> round(float(treated.get_values('diameter')[-1]), 2), round(float(untreated.get_values('diameter')[-1]), 2)
         (1.7, 3.85)
     """
@@ -137,7 +143,6 @@ class ImmunoOncologyQspSystem(BaseSystem):
     references = ('Wang et al. 2024', 'Jafarnejad et al. 2019', 'Milberg et al. 2019')
     until = 180.0
     dt = 1.0
-    solver = QSP_SOLVER
     observables = (
         Observable('diameter', _get_diameter),
         Observable('effector_treg_ratio', _get_effector_treg_ratio),
@@ -168,8 +173,10 @@ class ImmunoOncologyQspSystem(BaseSystem):
         k12: float = 0.2,
         k21: float = 0.2,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.cancer = cancer
         self.effector = effector
         self.treg = treg
@@ -192,8 +199,14 @@ class ImmunoOncologyQspSystem(BaseSystem):
         self.k12 = k12
         self.k21 = k21
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the cells and the antibody of the patient, and their reactions."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of cells and the antibody of the patient, and their reactions.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         elements = [
             CompartmentElement('cancer', x=self.cancer),
             CompartmentElement('effector', x=self.effector),
@@ -243,4 +256,4 @@ class ImmunoOncologyQspSystem(BaseSystem):
             ReactionInteraction('redistribution', reactants={PERIPHERAL: 1}, products={CENTRAL: 1}, k=self.k21),
             ReactionInteraction('elimination', reactants={CENTRAL: 1}, k=self.clearance),
         ]
-        return CompositeSystem(self.label, elements=elements, interactions=interactions)
+        self.system_ = System(self.label, elements=elements, interactions=interactions, solver=QSP_SOLVER)

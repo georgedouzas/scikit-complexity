@@ -13,14 +13,13 @@ succession.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import MangroveSuccessionSystem
 
 SYSTEM = 'mangrove_succession'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(MangroveSuccessionSystem(), observers=[observer], until=299)
+trajectory = MangroveSuccessionSystem().prepare().simulate(observers=[observer], until=299)
 
 # %%
 # The order of dominance

@@ -22,7 +22,7 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 system = LotkaVolterraSystem(prey=30.0, predators=4.0, r=0.55, a=0.028, b=0.024, d=0.80)
-trajectory = simulate(system, until=100, dt=0.1)
+trajectory = system.prepare().simulate(until=100, dt=0.1)
 found = applicable_analyses(trajectory)
 found.kinds, found.readings['series'], len(found.analyses['series']) > 10
 ```
@@ -218,7 +218,7 @@ lynx = np.array(
     + [8.0, 12.3, 19.5, 45.7, 51.1, 29.7, 15.8, 9.7, 10.1, 8.6]
 )
 records = np.column_stack([hares, lynx])
-model = spectrum(simulate(system, until=200, dt=0.1), dt=0.1)
+model = spectrum(system.prepare().simulate(until=200, dt=0.1), dt=0.1)
 data = spectrum(records, dt=1.0)
 [round(float(1 / result.frequencies[result.power[0].argmax()]), 2) for result in (model, data)]
 ```
@@ -239,7 +239,7 @@ Two more series analyses describe the shape of the cycle.
 ```python continuation
 from skcomplex.core.analysis import embedding, entropy, recurrence
 
-prey = simulate(system, until=100, dt=0.1).get_values('prey.x')
+prey = system.prepare().simulate(until=100, dt=0.1).get_values('prey.x')
 delayed = embedding(prey)
 order = entropy(prey, kind='permutation', dimension=4).entropy
 delayed.delay, delayed.dimension, round(recurrence(delayed.points).determinism, 2), order.round(2).tolist()

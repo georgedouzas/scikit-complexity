@@ -6,6 +6,7 @@ The stem cells feed the lineages.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated, Literal
 
@@ -13,12 +14,14 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, exp, log, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import delayed, pulse
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import ScipyODESolver
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, ScipyODESolver
 from ....core.specs import ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
@@ -142,36 +145,36 @@ class BoneMarrowBloodElement(Element):
         self,
         label: str,
         *,
-        NBM: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10000000000000.0,
-        NPB: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 3500000000.0,
-        ABM: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 400000000000.0,
-        APB: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 5000000000.0,
-        AS: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 100000.0,
-        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.149,
-        b1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 58000000000000.0,
-        b2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10000000000000.0,
-        theta1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10000000000.0,
-        m1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0013,
-        m2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 27000.0,
-        theta2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10000000000.0,
-        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1e-12,
-        m3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1e-07,
-        c1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1e-14,
-        alpha1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
-        tau1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 96.0,
-        c2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1e-14,
-        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0083,
-        r3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.00396,
-        b3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 368800000000000.0,
-        theta3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10000000000.0,
-        m4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0065,
-        m5: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        alpha2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.002,
-        tau2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 576.0,
-        r4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1e-12,
-        d2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        r5: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        b4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1e-06,
+        NBM: Annotated[float, RealSet.closed_open(0, oo)] = 10000000000000.0,
+        NPB: Annotated[float, RealSet.closed_open(0, oo)] = 3500000000.0,
+        ABM: Annotated[float, RealSet.closed_open(0, oo)] = 400000000000.0,
+        APB: Annotated[float, RealSet.closed_open(0, oo)] = 5000000000.0,
+        AS: Annotated[float, RealSet.closed_open(0, oo)] = 100000.0,
+        r1: Annotated[float, RealSet.closed_open(0, oo)] = 0.149,
+        b1: Annotated[float, RealSet.open(0, oo)] = 58000000000000.0,
+        b2: Annotated[float, RealSet.open(0, oo)] = 10000000000000.0,
+        theta1: Annotated[float, RealSet.open(0, oo)] = 10000000000.0,
+        m1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0013,
+        m2: Annotated[float, RealSet.closed_open(0, oo)] = 27000.0,
+        theta2: Annotated[float, RealSet.open(0, oo)] = 10000000000.0,
+        r2: Annotated[float, RealSet.closed_open(0, oo)] = 1e-12,
+        m3: Annotated[float, RealSet.closed_open(0, oo)] = 1e-07,
+        c1: Annotated[float, RealSet.closed_open(0, oo)] = 1e-14,
+        alpha1: Annotated[float, RealSet.closed_open(0, oo)] = 0.02,
+        tau1: Annotated[float, RealSet.open(0, oo)] = 96.0,
+        c2: Annotated[float, RealSet.closed_open(0, oo)] = 1e-14,
+        d1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0083,
+        r3: Annotated[float, RealSet.closed_open(0, oo)] = 0.00396,
+        b3: Annotated[float, RealSet.open(0, oo)] = 368800000000000.0,
+        theta3: Annotated[float, RealSet.open(0, oo)] = 10000000000.0,
+        m4: Annotated[float, RealSet.closed_open(0, oo)] = 0.0065,
+        m5: Annotated[float, RealSet.closed_open(0, oo)] = 0.05,
+        alpha2: Annotated[float, RealSet.closed_open(0, oo)] = 0.002,
+        tau2: Annotated[float, RealSet.open(0, oo)] = 576.0,
+        r4: Annotated[float, RealSet.closed_open(0, oo)] = 1e-12,
+        d2: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
+        r5: Annotated[float, RealSet.closed_open(0, oo)] = 0.05,
+        b4: Annotated[float, RealSet.closed_open(0, oo)] = 1e-06,
     ) -> None:
         super().__init__(label)
         self.NBM = NBM
@@ -296,27 +299,27 @@ class LeukaemiaStemCellsElement(Element):
         self,
         label: str,
         *,
-        NS: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
-        NPr: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        ND: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        AS: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        AD: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.6,
-        m1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        r3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        d2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.4,
-        m2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        d3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        r4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.7,
-        m3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        d4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        r5: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        d5: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        beta1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        beta2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        beta3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        NS: Annotated[float, RealSet.closed_open(0, oo)] = 100.0,
+        NPr: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        ND: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        AS: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        AD: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        r1: Annotated[float, RealSet.closed_open(0, oo)] = 0.6,
+        m1: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
+        d1: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        r2: Annotated[float, RealSet.closed_open(0, oo)] = 0.3,
+        r3: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        d2: Annotated[float, RealSet.closed_open(0, oo)] = 0.4,
+        m2: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        d3: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
+        r4: Annotated[float, RealSet.closed_open(0, oo)] = 0.7,
+        m3: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
+        d4: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        r5: Annotated[float, RealSet.closed_open(0, oo)] = 0.3,
+        d5: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
+        beta1: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        beta2: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        beta3: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
     ) -> None:
         super().__init__(label)
         self.NS = NS
@@ -630,6 +633,12 @@ class StemCellDifferentiationSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import StemCellDifferentiationSystem
         >>> 0.005 <= StemCellDifferentiationSystem(seed=1).prepare().system_.elements[0].m1 < 0.01
@@ -653,8 +662,10 @@ class StemCellDifferentiationSystem(BaseSystem):
         duration: float = 100.0,
         seed: int = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.m0 = m0
         self.beta0 = beta0
         self.delta = delta
@@ -694,11 +705,16 @@ class StemCellDifferentiationSystem(BaseSystem):
             )
         return target.d2, SR(1)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the eight-compartment system of stem-cell lineages.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the eight-compartment system of stem-cell lineages.
 
         The lineages are normal and malignant.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         m1 = self.m0 * (1 + np.random.default_rng(self.seed).uniform())
         tissue = StemCellDifferentiationElement(
             'tissue',
@@ -852,7 +868,7 @@ class StemCellDifferentiationSystem(BaseSystem):
                 propensity=lambda s: s.target.d8 * s.target.AD,
             ),
         ]
-        return CompositeSystem(self.label, elements=[tissue], interactions=interactions)
+        self.system_ = System(self.label, elements=[tissue], interactions=interactions)
 
 
 class BoneMarrowBloodLeukaemiaSystem(BaseSystem):
@@ -886,6 +902,12 @@ class BoneMarrowBloodLeukaemiaSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import BoneMarrowBloodLeukaemiaSystem
         >>> BoneMarrowBloodLeukaemiaSystem(tau1=144.0).prepare().system_.elements[0].tau1
@@ -897,7 +919,6 @@ class BoneMarrowBloodLeukaemiaSystem(BaseSystem):
     references = (BOOK, 'Afenya, Ouifki, and Mundle 2019')
     until = 3000.0
     dt = 10.0
-    solver = ScipyODESolver(method='BDF')
 
     def __init__(
         self,
@@ -907,15 +928,23 @@ class BoneMarrowBloodLeukaemiaSystem(BaseSystem):
         tau1: float = 96.0,
         tau2: float = 576.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.m1 = m1
         self.m3 = m3
         self.tau1 = tau1
         self.tau2 = tau2
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the bone marrow and blood system of leukaemia."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the bone marrow and blood system of leukaemia.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         patient = BoneMarrowBloodElement('patient', m1=self.m1, m3=self.m3, tau1=self.tau1, tau2=self.tau2)
         interactions = [
             RateInteraction(
@@ -1018,7 +1047,12 @@ class BoneMarrowBloodLeukaemiaSystem(BaseSystem):
                 rate=lambda s: -s.target.m5 * exp(-s.target.r4 * s.target.APB) * s.target.AS,
             ),
         ]
-        return CompositeSystem(self.label, elements=[patient], interactions=interactions)
+        self.system_ = System(
+            self.label,
+            elements=[patient],
+            interactions=interactions,
+            solver=ScipyODESolver(method='BDF'),
+        )
 
 
 class LeukaemiaStemCellsSystem(BaseSystem):
@@ -1061,6 +1095,12 @@ class LeukaemiaStemCellsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import LeukaemiaStemCellsSystem
         >>> LeukaemiaStemCellsSystem(r4=0.5).prepare().system_.elements[0].r4
@@ -1085,8 +1125,10 @@ class LeukaemiaStemCellsSystem(BaseSystem):
         m3: float = 0.2,
         d4: float = 0.1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.NS = NS
         self.AS = AS
         self.r1 = r1
@@ -1096,8 +1138,14 @@ class LeukaemiaStemCellsSystem(BaseSystem):
         self.m3 = m3
         self.d4 = d4
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of normal and leukaemic stem cells."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of normal and leukaemic stem cells.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         niche = LeukaemiaStemCellsElement(
             'niche',
             NS=self.NS,
@@ -1198,4 +1246,4 @@ class LeukaemiaStemCellsSystem(BaseSystem):
                 propensity=lambda s: s.target.d5 * s.target.AD,
             ),
         ]
-        return CompositeSystem(self.label, elements=[niche], interactions=interactions)
+        self.system_ = System(self.label, elements=[niche], interactions=interactions)

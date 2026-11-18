@@ -11,48 +11,69 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.laws.utils import delayed, hill
-from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
+from ....core.components.laws.utils import hill
+from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 from ...general.dynamics import ReactionDiffusionSystem
 from ..common.excitable import FitzHughNagumoInteraction
 
 
 class MackeyGlassElement(Element):
-    """Concentration `x` of circulating blood cells.
-
-    The cells are made at a delayed Hill rate and lost at a constant rate.
-
-    The concentration follows `x' = beta x(t - tau) / (1 + x(t - tau)^n) - gamma x`.
+    """Blood cells of Mackey and Glass, with the number `x` of cells.
 
     Args:
         label:
-            The label of the element.
+            The label of the cells.
 
         x:
-            The initial concentration, also its history.
+            The initial number of cells.
+
+    Examples:
+        >>> from skcomplex.systems.biology.physiology import MackeyGlassElement
+        >>> MackeyGlassElement('cells').x
+        0.5
+    """
+
+    def __init__(self, label: str, *, x: Annotated[float, RealSet.closed_open(0, oo)] = 0.5) -> None:
+        super().__init__(label)
+        self.x = x
+
+
+class MackeyGlassInteraction(Interaction):
+    """Delayed production and loss of blood cells, `x' = beta x_tau / (1 + x_tau^n) - gamma x`.
+
+    The production reads the number of cells `x_tau` a delay `tau` earlier.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the cells.
 
         beta:
-            The production rate.
+            The rate of production.
 
         gamma:
-            The loss rate.
+            The rate of loss.
 
         n:
-            The Hill coefficient of the production.
+            The exponent of the feedback.
 
         tau:
             The delay of the production.
 
     Examples:
-        >>> from skcomplex.systems.biology.physiology import MackeyGlassElement
-        >>> MackeyGlassElement('blood', tau=6.0).tau
-        6.0
+        >>> from skcomplex.systems.biology.physiology import MackeyGlassInteraction
+        >>> MackeyGlassInteraction('production', target='cells').tau
+        17.0
     """
 
     law_classes = (RateLaw,)
@@ -61,32 +82,32 @@ class MackeyGlassElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        beta: Annotated[float, ParameterSpec()] = 0.2,
-        gamma: Annotated[float, ParameterSpec()] = 0.1,
-        n: Annotated[float, ParameterSpec()] = 10.0,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 17.0,
+        target: Role,
+        beta: float = 0.2,
+        gamma: float = 0.1,
+        n: float = 10.0,
+        tau: Annotated[float, RealSet.open(0, oo)] = 17.0,
     ) -> None:
         super().__init__(label)
-        self.x = x
+        self.target = target
         self.beta = beta
         self.gamma = gamma
         self.n = n
         self.tau = tau
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the delayed production and the loss of the cells.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the delayed production and the loss of the cells.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the cells, the time `t`, and the parameters.
         """
-        history = delayed(s.x, s.tau)
-        return [RateLaw(s.x, s.beta * history * (1 - hill(history, 1, s.n)) - s.gamma * s.x)]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context
+            x = s.target.x
+            history = x(t=s.t - s.tau)
+            self.laws_ = [RateLaw(x, s.beta * history * (1 - hill(history, 1, s.n)) - s.gamma * x)]
 
 
 class FitzhughNagumoSystem(ReactionDiffusionSystem):
@@ -214,9 +235,15 @@ class MackeyGlassSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.physiology import MackeyGlassSystem
-        >>> MackeyGlassSystem(tau=6.0).prepare().system_.elements[0].tau
+        >>> MackeyGlassSystem(tau=6.0).prepare().system_.interactions[0].tau
         6.0
     """
 
@@ -235,17 +262,35 @@ class MackeyGlassSystem(BaseSystem):
         n: float = 10.0,
         tau: float = 17.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.beta = beta
         self.gamma = gamma
         self.n = n
         self.tau = tau
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system."""
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the system.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
-            elements=[MackeyGlassElement('cells', x=self.x, beta=self.beta, gamma=self.gamma, n=self.n, tau=self.tau)],
+            elements=[MackeyGlassElement('cells', x=self.x)],
+            interactions=[
+                MackeyGlassInteraction(
+                    'production',
+                    target='cells',
+                    beta=self.beta,
+                    gamma=self.gamma,
+                    n=self.n,
+                    tau=self.tau,
+                ),
+            ],
         )

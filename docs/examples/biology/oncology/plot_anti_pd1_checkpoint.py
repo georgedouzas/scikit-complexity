@@ -12,7 +12,6 @@ cells low, and the tumour falls at first and then grows back toward its capacity
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import AntiPD1CheckpointSystem
@@ -21,7 +20,7 @@ SYSTEM = 'anti_pd1_checkpoint'
 
 solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(AntiPD1CheckpointSystem(), dt=1.0, solver=solver, observers=[observer])
+trajectory = AntiPD1CheckpointSystem().set_params(solver=solver).prepare().simulate(dt=1.0, observers=[observer])
 
 # %%
 # Dose response
@@ -30,7 +29,10 @@ trajectory = simulate(AntiPD1CheckpointSystem(), dt=1.0, solver=solver, observer
 # should leave more T cells and a smaller tumour. At twenty times the book's infusion the drug blocks all PD-1, and the
 # T cells should grow without bound and clear the tumour.
 
-runs = {dose: simulate(AntiPD1CheckpointSystem(u_ap=dose), dt=1.0, solver=solver) for dose in (0.0, 1e-9, 2e-9)}
+runs = {
+    dose: AntiPD1CheckpointSystem(u_ap=dose).set_params(solver=solver).prepare().simulate(dt=1.0)
+    for dose in (0.0, 1e-9, 2e-9)
+}
 runs[1e-10] = trajectory
 fig, (tumour, t_cells) = plt.subplots(1, 2, figsize=(10, 4))
 for dose, run in sorted(runs.items()):

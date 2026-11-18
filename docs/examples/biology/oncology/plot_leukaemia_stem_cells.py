@@ -12,14 +12,13 @@ their progeny out of it.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import LeukaemiaStemCellsSystem
 
 SYSTEM = 'leukaemia_stem_cells'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(LeukaemiaStemCellsSystem(), observers=[observer])
+trajectory = LeukaemiaStemCellsSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Competitive exclusion in the niche
@@ -38,7 +37,7 @@ series.legend()
 renewals = [0.45, 0.5, 0.55, 0.58, 0.6, 0.62, 0.65, 0.7, 0.8]
 shares = []
 for r4 in renewals:
-    run = simulate(LeukaemiaStemCellsSystem(r4=r4), dt=5.0, until=3000)
+    run = LeukaemiaStemCellsSystem(r4=r4).prepare().simulate(dt=5.0, until=3000)
     shares.append(run.get_values('niche.AS')[-1] / (run.get_values('niche.AS')[-1] + run.get_values('niche.NS')[-1]))
 switch.plot(renewals, shares, 'o-')
 switch.axvline(0.6, color='grey', linestyle=':', label='normal renewal r1')

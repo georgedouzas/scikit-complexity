@@ -13,14 +13,13 @@ exponent keeps the growth fast for longer before it stops.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import GeneralizedLogisticSystem
 
 SYSTEM = 'generalized_logistic'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(GeneralizedLogisticSystem(n=10.0, p=2.0), observers=[observer])
+trajectory = GeneralizedLogisticSystem(n=10.0, p=2.0).prepare().simulate(observers=[observer])
 
 # %%
 # Exponents of the saturation
@@ -32,7 +31,7 @@ trajectory = simulate(GeneralizedLogisticSystem(n=10.0, p=2.0), observers=[obser
 r, K, n0 = 0.305, 1221.0, 10.0
 fig, (curves, rates) = plt.subplots(1, 2, figsize=(10, 4))
 for p in (0.5, 1.0, 2.0):
-    trajectory = simulate(GeneralizedLogisticSystem(n=n0, p=p))
+    trajectory = GeneralizedLogisticSystem(n=n0, p=p).prepare().simulate()
     times, volume = trajectory.times, trajectory.get_values('tumour.x')
     exact = n0 * K / (n0**p + (K**p - n0**p) * np.exp(-r * p * times)) ** (1 / p)
     curves.plot(times, volume, label=f'p = {p}')

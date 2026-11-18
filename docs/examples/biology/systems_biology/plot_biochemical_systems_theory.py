@@ -13,14 +13,13 @@ the linear equations in the logarithms of the concentrations predict.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.systems_biology import BiochemicalSystemsTheorySystem
 
 SYSTEM = 'biochemical_systems_theory'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(BiochemicalSystemsTheorySystem(), dt=0.1, observers=[observer])
+trajectory = BiochemicalSystemsTheorySystem().prepare().simulate(dt=0.1, observers=[observer])
 
 # %%
 # The steady state of an S-system
@@ -33,7 +32,7 @@ trajectory = simulate(BiochemicalSystemsTheorySystem(), dt=0.1, observers=[obser
 g = np.array([[0.0, 0.0, -0.5], [0.5, 0.0, 0.0], [0.0, 0.5, 0.0]])
 h = 0.5 * np.eye(3)
 steady = np.exp(np.linalg.solve(g - h, np.log(np.array([1.0, 1.0, 1.0]) / np.array([2.0, 1.0, 1.0]))))
-gma = simulate(BiochemicalSystemsTheorySystem(form='gma'), dt=0.1)
+gma = BiochemicalSystemsTheorySystem(form='gma').prepare().simulate(dt=0.1)
 fig, ax = plt.subplots(figsize=(7, 4))
 for index, color in zip((1, 2, 3), ('C0', 'C1', 'C2'), strict=False):
     ax.plot(trajectory.times, trajectory.get_values(f'X{index}.x'), color=color, label=f'X{index}, S-system')

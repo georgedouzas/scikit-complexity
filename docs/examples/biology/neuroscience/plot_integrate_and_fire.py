@@ -13,14 +13,13 @@ the potential reaches the threshold the neuron spikes and resets, which gives a 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.neuroscience import IntegrateAndFireSystem
 
 SYSTEM = 'integrate_and_fire'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-trajectory = simulate(IntegrateAndFireSystem(I=2.0), observers=[observer])
+trajectory = IntegrateAndFireSystem(I=2.0).prepare().simulate(observers=[observer])
 
 # %%
 # The firing-rate curve
@@ -32,7 +31,7 @@ trajectory = simulate(IntegrateAndFireSystem(I=2.0), observers=[observer])
 currents = np.linspace(1.0, 5.0, 17)
 rates = []
 for current in currents:
-    events = simulate(IntegrateAndFireSystem(I=current), until=200).events
+    events = IntegrateAndFireSystem(I=current).prepare().simulate(until=200).events
     rates.append(1000 * sum(event.label == 'spike' for event in events) / 200)
 grid = np.linspace(1.51, 5.0, 200)
 fig, ax = plt.subplots(figsize=(7, 4))

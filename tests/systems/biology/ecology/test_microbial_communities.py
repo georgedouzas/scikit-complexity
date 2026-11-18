@@ -3,7 +3,6 @@
 import numpy as np
 from scipy.integrate import solve_ivp
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.experiments import sweep
 from skcomplex.systems.biology.ecology import GeneralizedLotkaVolterraSystem
 from skcomplex.systems.biology.ecology._microbial_communities import COMMUNITY_GROWTH, COMMUNITY_INTERACTIONS
@@ -27,7 +26,7 @@ def test_generalized_lotka_volterra_reaches_coexistence():
 def test_generalized_lotka_volterra_keeps_the_trajectory_of_the_constant_matrix():
     """Test that the matrix parameter gives the trajectory of the rate `x_i (b_i + sum_j a_ij x_j)` of NumPy."""
     b, a = np.array(COMMUNITY_GROWTH), np.array(COMMUNITY_INTERACTIONS)
-    trajectory = simulate(GeneralizedLotkaVolterraSystem())
+    trajectory = GeneralizedLotkaVolterraSystem().prepare().simulate()
     expected = solve_ivp(
         lambda t, x: x * (b + a @ x),
         (0.0, 30.0),

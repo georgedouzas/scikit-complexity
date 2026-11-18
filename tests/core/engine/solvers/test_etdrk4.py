@@ -119,7 +119,7 @@ def test_implicit_explicit_steppers_agree(stepper):
 def test_steppers_need_linear_terms():
     """Test that split steppers reject problems without linear terms of fields, and ETDRK4 finite differences."""
     with pytest.raises(SolverError, match='no linear terms'):
-        simulate(LogisticGrowthSystem().prepare().system_, until=1, solver=IMEXEulerSolver())
+        LogisticGrowthSystem().prepare().system_.set_params(solver=IMEXEulerSolver()).prepare().simulate(until=1)
     with pytest.raises(SolverError, match='spectral'):
         simulate(
             CompositeSystem(elements=[FieldElement('rod', element=HeatElement, space=LatticeSpace(8))]),

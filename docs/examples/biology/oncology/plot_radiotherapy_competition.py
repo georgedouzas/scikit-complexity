@@ -13,14 +13,13 @@ would push out, decline towards a level at which the two coexist.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import RadiotherapyCompetitionSystem
 
 SYSTEM = 'radiotherapy_competition'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(RadiotherapyCompetitionSystem(), dt=7.0, observers=[observer])
+trajectory = RadiotherapyCompetitionSystem().prepare().simulate(dt=7.0, observers=[observer])
 
 # %%
 # Coexistence instead of exclusion
@@ -33,7 +32,7 @@ trajectory = simulate(RadiotherapyCompetitionSystem(), dt=7.0, observers=[observ
 r1, r2, c1, c2, a2, epsilon = 0.008, 0.4, 0.01, 0.15, 0.2, 0.001
 kill = a2 * 5 / 7
 normal = (r1 - epsilon - c1 * (1 - kill / r2)) / (r1 - c1 * c2 / r2)
-untreated = simulate(RadiotherapyCompetitionSystem(a2=0.0, epsilon=0.0), dt=7.0)
+untreated = RadiotherapyCompetitionSystem(a2=0.0, epsilon=0.0).prepare().simulate(dt=7.0)
 treated = trajectory
 fig, (cells, tumour) = plt.subplots(1, 2, figsize=(10, 4))
 cells.plot(treated.times, treated.get_values('tissue.N'), label='irradiated')

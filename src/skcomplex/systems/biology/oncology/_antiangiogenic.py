@@ -4,19 +4,20 @@
 # License: MIT
 
 import math
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, exp, log, oo, pi
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import logistic, pulse_train
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, ScipyODESolver
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ...general.reactions import ReactionInteraction
@@ -92,16 +93,16 @@ class AngiogenicTumourElement(Element):
         self,
         label: str,
         *,
-        A: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 17347.0,
-        Vb: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 17347.0,
-        U: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        lambda1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.192,
-        lambda2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        xi_s: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.85,
-        xi_i: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.00873,
-        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.66,
-        du: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.3,
-        dose: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
+        A: Annotated[float, RealSet.closed_open(0, oo)] = 17347.0,
+        Vb: Annotated[float, RealSet.open(0, oo)] = 17347.0,
+        U: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        lambda1: Annotated[float, RealSet.open(0, oo)] = 0.192,
+        lambda2: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        xi_s: Annotated[float, RealSet.open(0, oo)] = 5.85,
+        xi_i: Annotated[float, RealSet.open(0, oo)] = 0.00873,
+        a: Annotated[float, RealSet.closed_open(0, oo)] = 0.66,
+        du: Annotated[float, RealSet.open(0, oo)] = 1.3,
+        dose: Annotated[float, RealSet.closed_open(0, oo)] = 20.0,
         period: float = 1.0,
         width: float = 1.0,
         start: float = 0.0,
@@ -175,6 +176,12 @@ class HahnfeldtSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import HahnfeldtSystem
         >>> HahnfeldtSystem(dose=0.0).prepare().system_.elements[0].dose
@@ -203,8 +210,10 @@ class HahnfeldtSystem(BaseSystem):
         width: float = 1.0,
         start: float = 0.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.A = A
         self.Vb = Vb
         self.lambda1 = lambda1
@@ -218,8 +227,14 @@ class HahnfeldtSystem(BaseSystem):
         self.width = width
         self.start = start
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the Hahnfeldt system."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the Hahnfeldt system.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         tumour = AngiogenicTumourElement(
             'tumour',
             A=self.A,
@@ -277,7 +292,7 @@ class HahnfeldtSystem(BaseSystem):
                 propensity=lambda s: s.target.du * s.target.U,
             ),
         ]
-        return CompositeSystem(self.label, elements=[tumour], interactions=interactions)
+        self.system_ = System(self.label, elements=[tumour], interactions=interactions)
 
 
 class VascularCorePeripherySystem(DynamicalSystem):

@@ -6,7 +6,6 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.biology.systems_biology import EnzymeAdaptationCircuitSystem
 
@@ -21,7 +20,7 @@ def _sensitivity_and_precision(links=None) -> tuple[float, float]:
         if links is None
         else EnzymeAdaptationCircuitSystem(links).prepare().system_
     )
-    trajectory = simulate(system, dt=0.1, until=800)
+    trajectory = system.prepare().simulate(dt=0.1, until=800)
     output, times = trajectory.get_values('C.X'), trajectory.times
     before, after = output[times < 300][-1], output[times >= 300]
     peak = after[np.argmax(np.abs(after - before))]

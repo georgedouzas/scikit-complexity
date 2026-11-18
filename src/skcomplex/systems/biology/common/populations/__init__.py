@@ -7,6 +7,7 @@ from ._exponential_growth import ExponentialGrowthInteraction
 from ._growth import GrowthInteraction
 from ._logistic_growth import LogisticGrowthInteraction
 from ._mortality import MortalityInteraction
+from ._neutral import NeutralBirthInteraction, NeutralDeathInteraction
 from ._population import PopulationElement
 from ._population_density import PopulationDensityElement
 from ._predation import PredationInteraction
@@ -17,6 +18,8 @@ __all__: list[str] = [
     'GrowthInteraction',
     'LogisticGrowthInteraction',
     'MortalityInteraction',
+    'NeutralBirthInteraction',
+    'NeutralDeathInteraction',
     'PopulationDensityElement',
     'PopulationElement',
     'PredationInteraction',

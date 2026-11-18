@@ -12,7 +12,6 @@ it recruits cut it back, and it regrows once regulatory T cells, IL-10, and TGF-
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import TumourImmuneSuppressionSystem
@@ -21,7 +20,7 @@ SYSTEM = 'tumour_immune_suppression'
 
 solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(TumourImmuneSuppressionSystem(), dt=1.0, solver=solver, observers=[observer])
+trajectory = TumourImmuneSuppressionSystem().set_params(solver=solver).prepare().simulate(dt=1.0, observers=[observer])
 
 # %%
 # Antigenicity decides escape
@@ -32,7 +31,9 @@ trajectory = simulate(TumourImmuneSuppressionSystem(), dt=1.0, solver=solver, ob
 
 fig, (tumour, cells) = plt.subplots(1, 2, figsize=(10, 4))
 for antigenicity in (1e-5, 1e-4, 1e-3, 1e-2, 1.0, 100.0):
-    trajectory = simulate(TumourImmuneSuppressionSystem(alpha_a=antigenicity), dt=1.0, solver=solver)
+    trajectory = (
+        TumourImmuneSuppressionSystem(alpha_a=antigenicity).set_params(solver=solver).prepare().simulate(dt=1.0)
+    )
     tumour.semilogy(trajectory.times, trajectory.get_values('site.A'), label=f'alpha_a = {antigenicity:g}')
 tumour.set_xlabel('time (days)')
 tumour.set_ylabel('tumour cells')

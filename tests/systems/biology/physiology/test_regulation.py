@@ -5,7 +5,6 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.physiology import (
     CoagulationPositiveFeedbackSystem,
     GlucoseDualHormoneControlSystem,
@@ -15,8 +14,10 @@ from skcomplex.systems.biology.physiology import (
 
 def test_glucose_dual_hormone_control_attenuates_the_drop():
     """Test that the glucagon loop limits the drop of glucose during exercise, which insulin alone cannot."""
-    dual = simulate(GlucoseDualHormoneControlSystem(), dt=0.05, until=24).get_values('organism.G')
-    single = simulate(GlucoseDualHormoneControlSystem(glucagon=False), dt=0.05, until=24).get_values('organism.G')
+    dual = GlucoseDualHormoneControlSystem().prepare().simulate(dt=0.05, until=24).get_values('organism.G')
+    single = (
+        GlucoseDualHormoneControlSystem(glucagon=False).prepare().simulate(dt=0.05, until=24).get_values('organism.G')
+    )
     assert 1 - dual.min() < 0.8 * (1 - single.min())
     assert dual[-1] == pytest.approx(1.0, abs=1e-3)
     assert single[-1] == pytest.approx(1.0, abs=1e-3)
@@ -26,7 +27,7 @@ def test_coagulation_positive_feedback_is_all_or_nothing():
     """Test that a weak injury fades, a stronger one bursts to a similar peak, and fibrinolysis dissolves the clot."""
     peaks, clots = {}, {}
     for injury in (0.3, 0.7, 1.0):
-        trajectory = simulate(CoagulationPositiveFeedbackSystem(injury=injury), dt=0.1, until=120)
+        trajectory = CoagulationPositiveFeedbackSystem(injury=injury).prepare().simulate(dt=0.1, until=120)
         peaks[injury], clots[injury] = trajectory.get_values('blood.T').max(), trajectory.get_values('blood.F')
     threshold = (3 - math.sqrt(5)) / 2
     assert peaks[0.3] < threshold < peaks[0.7]

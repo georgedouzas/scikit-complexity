@@ -3,17 +3,19 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import CrossingInteraction, RateInteraction
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 from ..common.excitable import FitzHughNagumoInteraction
 from .types import GateRates
 
@@ -43,8 +45,8 @@ class FitzHughNagumoNeuronElement(Element):
         self,
         label: str,
         *,
-        v: Annotated[float, StateSpec()] = -1.2,
-        w: Annotated[float, StateSpec()] = -0.6,
+        v: float = -1.2,
+        w: float = -0.6,
     ) -> None:
         super().__init__(label)
         self.v = v
@@ -112,18 +114,18 @@ class HodgkinHuxleyElement(Element):
         self,
         label: str,
         *,
-        v: Annotated[float, StateSpec()] = -65.0,
-        n: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.3177,
-        m: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0529,
-        h: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5961,
-        C: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        g_na: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 120.0,
-        g_k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 36.0,
-        g_l: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        e_na: Annotated[float, ParameterSpec()] = 50.0,
-        e_k: Annotated[float, ParameterSpec()] = -77.0,
-        e_l: Annotated[float, ParameterSpec()] = -54.387,
-        I: Annotated[float, ParameterSpec()] = 10.0,
+        v: float = -65.0,
+        n: Annotated[float, RealSet.closed_open(0, oo)] = 0.3177,
+        m: Annotated[float, RealSet.closed_open(0, oo)] = 0.0529,
+        h: Annotated[float, RealSet.closed_open(0, oo)] = 0.5961,
+        C: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        g_na: Annotated[float, RealSet.closed_open(0, oo)] = 120.0,
+        g_k: Annotated[float, RealSet.closed_open(0, oo)] = 36.0,
+        g_l: Annotated[float, RealSet.closed_open(0, oo)] = 0.3,
+        e_na: float = 50.0,
+        e_k: float = -77.0,
+        e_l: float = -54.387,
+        I: float = 10.0,
     ) -> None:
         super().__init__(label)
         self.v = v
@@ -172,6 +174,12 @@ class HodgkinHuxleySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.neuroscience import HodgkinHuxleySystem
         >>> round(HodgkinHuxleySystem().prepare().system_.elements[0].h, 4)
@@ -194,8 +202,10 @@ class HodgkinHuxleySystem(BaseSystem):
         g_k: float = 36.0,
         g_l: float = 0.3,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.v = v
         self.I = I
         self.C = C
@@ -235,10 +245,16 @@ class HodgkinHuxleySystem(BaseSystem):
             gate: float(opening / (opening + closing)) for gate, (opening, closing) in self._get_gate_rates(v).items()
         }
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the Hodgkin-Huxley neuron."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the Hodgkin-Huxley neuron.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         gates = self._get_resting_gates(self.v)
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[
                 HodgkinHuxleyElement(
@@ -317,6 +333,12 @@ class FitzhughNagumoODESystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.neuroscience import FitzhughNagumoODESystem
         >>> FitzhughNagumoODESystem(I=0.0).prepare().system_.interactions[0].I
@@ -339,8 +361,10 @@ class FitzhughNagumoODESystem(BaseSystem):
         epsilon: float = 0.08,
         I: float = 0.5,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.v = v
         self.w = w
         self.a = a
@@ -348,8 +372,14 @@ class FitzhughNagumoODESystem(BaseSystem):
         self.epsilon = epsilon
         self.I = I
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the FitzHugh-Nagumo neuron."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the FitzHugh-Nagumo neuron.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         kinetics = FitzHughNagumoInteraction(
             'kinetics',
             target='neuron',
@@ -358,7 +388,7 @@ class FitzhughNagumoODESystem(BaseSystem):
             epsilon=self.epsilon,
             I=self.I,
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[FitzHughNagumoNeuronElement('neuron', v=self.v, w=self.w)],
             interactions=[kinetics],

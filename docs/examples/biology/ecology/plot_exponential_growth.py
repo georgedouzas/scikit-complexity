@@ -13,14 +13,13 @@ size, so its curve bends ever more steeply upwards.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import ExponentialGrowthSystem
 
 SYSTEM = 'exponential_growth'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(ExponentialGrowthSystem(n=10.0, r=0.2), observers=[observer])
+trajectory = ExponentialGrowthSystem(n=10.0, r=0.2).prepare().simulate(observers=[observer])
 
 # %%
 # A straight line on a logarithmic scale

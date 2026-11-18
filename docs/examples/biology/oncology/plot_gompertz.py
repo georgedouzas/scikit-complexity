@@ -13,14 +13,13 @@ capacity of 1964 mm³.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import GompertzSystem
 
 SYSTEM = 'gompertz'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(GompertzSystem(n=10.0), observers=[observer])
+trajectory = GompertzSystem(n=10.0).prepare().simulate(observers=[observer])
 
 # %%
 # Closed-form solution
