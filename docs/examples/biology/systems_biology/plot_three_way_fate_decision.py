@@ -13,14 +13,13 @@ disappear and their cells switch to the one that remains.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.systems_biology import ThreeWayFateDecisionSystem
 
 SYSTEM = 'three_way_fate_decision'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(ThreeWayFateDecisionSystem(), observers=[observer])
+trajectory = ThreeWayFateDecisionSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Landscape and decisions
@@ -30,7 +29,7 @@ trajectory = simulate(ThreeWayFateDecisionSystem(), observers=[observer])
 grid = np.linspace(-1.5, 1.5, 200)
 x, y = np.meshgrid(grid, grid)
 potential = x**4 + y**4 + x**3 - 2 * x * y**2 - 0.2 * (x**2 + y**2)
-drifted = simulate(ThreeWayFateDecisionSystem(v1=0.05))
+drifted = ThreeWayFateDecisionSystem(v1=0.05).prepare().simulate()
 fig, ax = plt.subplots(figsize=(6.5, 5.5))
 ax.contour(x, y, potential, levels=30, cmap='Greys')
 ax.plot(trajectory.get_values('cells.x'), trajectory.get_values('cells.y'), color='tab:blue', lw=0.5)
