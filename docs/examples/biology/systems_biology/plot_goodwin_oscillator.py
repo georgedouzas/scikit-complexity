@@ -13,14 +13,13 @@ a Hill coefficient of 12.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.systems_biology import GoodwinOscillatorSystem
 
 SYSTEM = 'goodwin_oscillator'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=3)
-trajectory = simulate(GoodwinOscillatorSystem(n=12.0), observers=[observer])
+trajectory = GoodwinOscillatorSystem(n=12.0).prepare().simulate(observers=[observer])
 
 # %%
 # The threshold of the Hill coefficient
@@ -32,7 +31,7 @@ trajectory = simulate(GoodwinOscillatorSystem(n=12.0), observers=[observer])
 coefficients = np.arange(4.0, 15.0)
 amplitudes = []
 for n in coefficients:
-    late = simulate(GoodwinOscillatorSystem(n=float(n)), until=200)
+    late = GoodwinOscillatorSystem(n=float(n)).prepare().simulate(until=200)
     product = late.get_values('x3.x')[late.times >= 150.0]
     amplitudes.append(product.max() - product.min())
 fig, (series, threshold) = plt.subplots(1, 2, figsize=(10, 4))

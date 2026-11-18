@@ -12,14 +12,13 @@ stays on, and the cell remembers that choice.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.systems_biology import ToggleSwitchSystem
 
 SYSTEM = 'toggle_switch'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(ToggleSwitchSystem(proteins=(60.0, 0.0)), observers=[observer])
+trajectory = ToggleSwitchSystem(proteins=(60.0, 0.0)).prepare().simulate(observers=[observer])
 
 # %%
 # Two basins of attraction
@@ -31,7 +30,7 @@ grid = np.linspace(0, 120, 9)
 fig, ax = plt.subplots(figsize=(6, 5))
 for first in grid:
     for second in grid:
-        trajectory = simulate(ToggleSwitchSystem(proteins=(first, second)))
+        trajectory = ToggleSwitchSystem(proteins=(first, second)).prepare().simulate()
         winner = (
             'tab:blue'
             if trajectory.get_values('gene_0.p')[-1] > trajectory.get_values('gene_1.p')[-1]

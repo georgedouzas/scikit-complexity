@@ -12,13 +12,16 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import SR, Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import DeclaredElement, Element
 from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import BaseSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
 from ....core.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction
 from ..common.kinetics import MichaelisMentenInteraction, RepressionInteraction, SpeciesElement
 
@@ -245,21 +248,21 @@ class PhosphorylationLoopElement(Element):
         self,
         label: str,
         *,
-        A: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        B: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        C: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        kp1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        kd1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        kp2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        kd2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        kp3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        kd3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        K1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
-        K2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
-        K3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
-        A_T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        B_T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        C_T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        A: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        B: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        C: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        kp1: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        kd1: Annotated[float, RealSet.closed_open(0, oo)] = 2.0,
+        kp2: Annotated[float, RealSet.closed_open(0, oo)] = 2.0,
+        kd2: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        kp3: Annotated[float, RealSet.closed_open(0, oo)] = 2.0,
+        kd3: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        K1: Annotated[float, RealSet.open(0, oo)] = 0.01,
+        K2: Annotated[float, RealSet.open(0, oo)] = 0.01,
+        K3: Annotated[float, RealSet.open(0, oo)] = 0.01,
+        A_T: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        B_T: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        C_T: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
         super().__init__(label)
         self.A = A
@@ -374,11 +377,11 @@ class GeneralizedMassActionInteraction(Interaction):
         return self.stoichiometry
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Raise an error for matrices that do not match the species and the fluxes.
+        """Set the sum of the power-law fluxes of every species.
 
         Args:
             context:
-                The space the interaction inherits from its system.
+                The namespace of the bound elements, the time `t`, and the parameters.
 
         Raises:
             ValidationError:
@@ -386,24 +389,14 @@ class GeneralizedMassActionInteraction(Interaction):
         """
         super()._prepare(context)
         self._check_matrices()
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the sum of the power-law fluxes of every species.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        values = [item.x for item in s.species]
-        fluxes = self._get_fluxes(s, values)
-        return [
-            RateLaw(value, sum((c * flux for c, flux in zip(row, fluxes, strict=True) if c), start=SR(0)))
-            for value, row in zip(values, self._get_stoichiometry(), strict=True)
-        ]
+        if isinstance(context, SimpleNamespace):
+            s = context
+            values = [item.x for item in s.species]
+            fluxes = self._get_fluxes(s, values)
+            self.laws_ = [
+                RateLaw(value, sum((c * flux for c, flux in zip(row, fluxes, strict=True) if c), start=SR(0)))
+                for value, row in zip(values, self._get_stoichiometry(), strict=True)
+            ]
 
 
 class SSystemInteraction(GeneralizedMassActionInteraction):
@@ -532,6 +525,12 @@ class PhosphorylationOscillatorSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.systems_biology import PhosphorylationOscillatorSystem
         >>> PhosphorylationOscillatorSystem(K=0.1).prepare().system_.elements[0].K2
@@ -558,8 +557,10 @@ class PhosphorylationOscillatorSystem(BaseSystem):
         kd3: float = 1.0,
         K: float = 0.01,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.A = A
         self.B = B
         self.C = C
@@ -571,8 +572,14 @@ class PhosphorylationOscillatorSystem(BaseSystem):
         self.kd3 = kd3
         self.K = K
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of three proteins."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of three proteins.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         loop = PhosphorylationLoopElement(
             'loop',
             A=self.A,
@@ -641,7 +648,7 @@ class PhosphorylationOscillatorSystem(BaseSystem):
                 km=lambda s: s.target.K3,
             ),
         ]
-        return CompositeSystem(self.label, elements=[loop], interactions=reactions)
+        self.system_ = System(self.label, elements=[loop], interactions=reactions)
 
 
 class BiochemicalSystemsTheorySystem(BaseSystem):
@@ -688,6 +695,12 @@ class BiochemicalSystemsTheorySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The form is unknown.
@@ -717,8 +730,10 @@ class BiochemicalSystemsTheorySystem(BaseSystem):
         gamma: Sequence[float] = PATHWAY_GAMMA,
         orders: Sequence[Sequence[float]] = PATHWAY_ORDERS,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.form = form
         self.alpha = alpha
@@ -729,8 +744,14 @@ class BiochemicalSystemsTheorySystem(BaseSystem):
         self.gamma = gamma
         self.orders = orders
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of a biochemical system of power-law rates."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a biochemical system of power-law rates.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         species = [SpeciesElement(f'X{index}', x=float(value)) for index, value in enumerate(self.x, start=1)]
         paths = [item.label for item in species]
         if self.form == 's-system':
@@ -753,7 +774,7 @@ class BiochemicalSystemsTheorySystem(BaseSystem):
         else:
             error_msg = f'Unknown form {self.form!r}. Use s-system or gma.'
             raise ValidationError(error_msg)
-        return CompositeSystem(self.label, elements=species, interactions=[rates])
+        self.system_ = System(self.label, elements=species, interactions=[rates])
 
 
 class GoodwinOscillatorSystem(BaseSystem):
@@ -794,6 +815,12 @@ class GoodwinOscillatorSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             There are fewer than two stages, or the initial concentrations do not match them.
@@ -821,8 +848,10 @@ class GoodwinOscillatorSystem(BaseSystem):
         n: float = 12.0,
         k: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.variables = variables
         self.x = x
         self.a = a
@@ -831,8 +860,14 @@ class GoodwinOscillatorSystem(BaseSystem):
         self.n = n
         self.k = k
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the Goodwin oscillator."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the Goodwin oscillator.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         initial = [0.1 * index for index in range(1, self.variables + 1)] if self.x is None else list(self.x)
         if self.variables < MIN_GOODWIN_STAGES or len(initial) != self.variables:
             error_msg = (
@@ -862,7 +897,7 @@ class GoodwinOscillatorSystem(BaseSystem):
         degradations = [
             ReactionInteraction(f'degradation_{label}', reactants={(label, 'x'): 1}, k=self.b) for label in labels
         ]
-        return CompositeSystem(self.label, elements=stages, interactions=[repression, *syntheses, *degradations])
+        self.system_ = System(self.label, elements=stages, interactions=[repression, *syntheses, *degradations])
 
 
 class GlycolysisOscillationsSystem(BaseSystem):
@@ -886,6 +921,12 @@ class GlycolysisOscillationsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.systems_biology import GlycolysisOscillationsSystem
         >>> GlycolysisOscillationsSystem(flow=0.02).prepare().system_.elements[0].get_value('flow')
@@ -904,15 +945,23 @@ class GlycolysisOscillationsSystem(BaseSystem):
         flow: float = 0.011,
         V4: float = 10.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.flow = flow
         self.V4 = V4
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the glycolysis of a yeast extract in a flow reactor."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the glycolysis of a yeast extract in a flow reactor.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         variables = {
             'flow': DeclaredVariableSpec(self.flow, ParameterSpec(domain=RealSet.closed_open(0, oo))),
             'V4': DeclaredVariableSpec(self.V4, ParameterSpec(domain=RealSet.closed_open(0, oo))),
         }
-        return CompositeSystem(self.label, elements=[GlycolysisElement('extract', variables=variables)])
+        self.system_ = System(self.label, elements=[GlycolysisElement('extract', variables=variables)])
