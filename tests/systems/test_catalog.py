@@ -69,7 +69,7 @@ def test_simulate_reads_the_run_settings_of_an_instance():
     trajectory = system.simulate(until=1, random_state=0)
     assert system.observables_
     assert all(len(trajectory.get_values(spec.label)) == len(trajectory.times) for spec in system.observables_)
-    assert OrderBookSystem().get_run_settings()['invariants'] == {'total_money': 1e-6, 'total_shares': 1e-6}
+    assert OrderBookSystem().invariants == {'total_money': 1e-6, 'total_shares': 1e-6}
 
 
 def test_importing_the_systems_imports_no_system_module():

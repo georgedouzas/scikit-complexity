@@ -494,8 +494,8 @@ def _logged_paths(monkeypatch, tmp_path, system, until, **settings):
 
 def test_rerun_observer_logs_observables_of_elements_under_their_element(monkeypatch, tmp_path):
     """Test that an observable of an element of a stock and flow system is logged under its element, not blank."""
-    system = HilsaFisherySystem().prepare().system_
-    observables = HilsaFisherySystem().get_run_settings()['observables']
+    prepared = HilsaFisherySystem().prepare()
+    system, observables = prepared.system_, prepared.observables_
     logged, _ = _logged_paths(monkeypatch, tmp_path, system, until=10, dt=1, observables=observables)
     assert 'hilsa/adult_weight' in logged
     assert 'hilsa.adult_weight' not in logged

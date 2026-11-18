@@ -83,7 +83,8 @@ Each task rewrites the systems of its fields on the new API: elements as data wi
   - [ ] 5.6.2 Member links, agents on network nodes, and per-member constraints for labour, credit, commons, discovery, and oligopoly.
   - [ ] 5.6.3 The remaining old parts: groups, elements with laws, and old wrapper interactions.
 - [ ] 5.7 Wave 2: `social`.
-  - [ ] 5.7.1 Every social system on the new API.
+  - [x] 5.7.1 Every social system on the new base with identical results, interactions setting `laws_`, and plain elements.
+  - [ ] 5.7.2 The remaining old parts: the agent recipes' groups, symbolic groupings, pair potentials, position vectors, and the groups of growing networks.
 - [x] 5.8 Rewrite the experiment functions in `src/skcomplex/core/experiments` to clone, set parameters, prepare, and simulate, preparing once when only initial or random states vary. Verify with tests that an ensemble prepares once and a sweep leaves the user's system unchanged.
 
 ## 6. The old API goes
