@@ -25,7 +25,7 @@ tuned run settings as class attributes. `simulate` SHALL use the tuned run setti
 out.
 
 #### Scenario: Direct use
-- **WHEN** a user runs `simulate(SIRSystem())` after `from skcomplex.systems.biology.epidemiology import SIRSystem`
+- **WHEN** a user runs `SIRSystem().prepare().simulate()` after `from skcomplex.systems.biology.epidemiology import SIRSystem`
 - **THEN** the run uses the class's tuned end time, solver hint, and observables
 
 ### Requirement: Systems are discovered with all_systems

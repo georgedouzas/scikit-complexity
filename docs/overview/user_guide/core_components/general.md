@@ -2319,20 +2319,20 @@ See its [API entry][skcomplex.systems.general.rewriting].
 One ordered test, the placement rule of the package layout, decides where any new component goes. The source tests check
 it mechanically. It reads, word for word:
 
-> Every new component SHALL be placed by one ordered test. A structural base SHALL go to the core. A component the
-> engine handles by type, or an operator generated from one function, SHALL go to the core under a mathematical name.
-> Any other component is a recipe, placed by its users: `skcomplex.systems.general.<concept>` for several fields,
-> `systems/<field>/common/<family>` for one field, its system's module for one system. Every analysis SHALL be placed
-> by its users too: an analysis that measures what systems of several fields share SHALL go to
-> `skcomplex.core.analysis`, and an analysis of one field SHALL go to `systems/<field>/common/<family>`. The core SHALL
-> never import `skcomplex.systems`.
+> Every new component SHALL be placed by one ordered test. A structural base SHALL go to the core. A law kind, an
+> operator generated from one function, or numerics the engine handles by type SHALL go to the core under a mathematical
+> name, and the engine SHALL key only on the seven law kinds. Any other component is a recipe of core components, placed
+> by its users: `skcomplex.systems.general.<concept>` for several fields, `systems/<field>/common/<family>` for one
+> field, its system's module for one system. Numerics that serve one field alone SHALL come as a solver or a compiler
+> built on the public engine bases, in the package of that field. Every analysis SHALL be placed by its users too: an
+> analysis that measures what systems of several fields share SHALL go to `skcomplex.core.analysis`, and an analysis of
+> one field SHALL go to `systems/<field>/common/<family>`. The core SHALL never import `skcomplex.systems`.
 
 A field with its own term names its recipe, and `general` uses neutral names. One example for each step follows.
 
-**A structural base.** A base where laws run once per triangle of a cell complex goes to the core, as
-[`HyperedgeInteraction`](interactions.md#hyperedgeinteraction) does, which runs its laws once per hyperedge, and
-[`CompositeSystem`](systems.md#compositesystem), which holds the components of a system. Components of every field build
-on them.
+**A structural base.** A way for laws to run once per triangle of a cell complex goes to the core, as
+[`Interaction`](interactions.md#interaction) with `along='hyperedges'` runs its laws once per hyperedge, and `System`
+holds the components of a system. Components of every field build on them.
 
 **A component the engine handles by type.** A law that a kernel lowers goes to the core under a mathematical name.
 [`GroupingInteraction`](interactions.md#groupinginteraction) stays in the core, since a compile pass lowers it by type

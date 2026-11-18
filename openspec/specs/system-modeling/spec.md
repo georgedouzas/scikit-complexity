@@ -663,7 +663,7 @@ checks SHALL be an argument of the run.
 - **THEN** the trajectory holds `leverage`, and the system has no quantity among its components
 
 ### Requirement: Runs check invariants
-`simulate(system, invariants={name: tolerance})` SHALL check, at every frame, that each named observable stays within its
+`system.simulate(invariants={name: tolerance})` on a prepared system SHALL check, at every frame, that each named observable stays within its
 tolerance of its first value, and SHALL raise `ConservationError` naming the observable and the first frame that
 breaks it.
 
