@@ -16,15 +16,15 @@ from sage.all__sagemath_symbolics import exp, ln, oo, pi, sin
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import Interaction, MapInteraction, TopologyInteraction
-from ....core.components.laws import UpdateLaw
-from ....core.components.laws.utils import draw, logistic, neighbors
-from ....core.components.spaces import NetworkSpace
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import TopologyRequestSpec, UpdateLaw
+from ....core.components.laws.utils import draw, logistic, neighbors, where
+from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import StateSpec, VisualSpec
+from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 
 MEETINGS_VISUAL = VisualSpec('sites', {'states': ['meetings']})
@@ -53,6 +53,9 @@ class CityDwellerElement(Element):
         meetings:
             The number of neighbours the resident met in the last step.
 
+        space:
+            The network whose nodes hold the residents, or `None` for one resident.
+
     Examples:
         >>> from skcomplex.systems.social.organizations import CityDwellerElement
         >>> CityDwellerElement('residents', angle=1.5).angle
@@ -65,12 +68,13 @@ class CityDwellerElement(Element):
         self,
         label: str,
         *,
-        angle: Annotated[float, StateSpec()] = 0.0,
-        age: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        degree: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        meetings: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        angle: object = 0.0,
+        age: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        degree: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        meetings: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.angle = angle
         self.age = age
         self.degree = degree
@@ -205,33 +209,30 @@ class UrbanScalingInteractionsSystem(BaseSystem):
 
         angles = np.random.default_rng(self.random_state).uniform(0.0, 2 * np.pi, seed_nodes)
         ages = np.arange(seed_nodes - 1, -1, -1, dtype=float)
-        residents = GroupElement(
-            'residents',
-            element=CityDwellerElement,
-            on='sites',
-            variable=True,
-            capacity=self.population,
-            values={'age': ages.tolist(), 'angle': angles.tolist()},
-        )
-        capacity = self.edges * self.population + seed_nodes**2 + int(np.ceil(self.internal * self.population**2))
-        links = GroupElement('links', element=Element, on='edges', variable=True, capacity=capacity)
-        growth = TopologyInteraction(
-            'growth',
-            action='add-node',
+        space = NetworkSpace(nx.complete_graph(seed_nodes))
+        residents = CityDwellerElement('residents', age=ages.tolist(), angle=angles.tolist(), space=space)
+        links = Element('links', space=space, on='edges')
+        arrival = TopologyRequestSpec(
+            'add-node',
             edges=self.edges,
-            condition=lambda s: s.t < self.population - seed_nodes,
-            values={'angle': lambda rng: rng.uniform(0.0, 2 * np.pi)},
             toward=closeness,
+            values=(('angle', lambda rng: rng.uniform(0.0, 2 * np.pi)),),
         )
-        bridging = TopologyInteraction(
+        growth = Interaction(
+            'growth',
+            laws=lambda s: [UpdateLaw(arrival, where(s.t < self.population - seed_nodes, 1, 0))],
+        )
+        bridge = TopologyRequestSpec('add-edge', toward=closeness)
+        bridging = Interaction(
             'bridging',
-            target='residents',
-            action='add-edge',
-            probability=self.internal,
-            condition=lambda s: s.t < self.population - seed_nodes,
-            toward=closeness,
+            roles={'target': 'residents'},
+            laws=lambda s: [UpdateLaw(bridge, where(s.t < self.population - seed_nodes, self.internal, 0))],
         )
-        ageing = MapInteraction('ageing', target='residents', state='age', function=lambda s: 1, mode='increment')
+        ageing = Interaction(
+            'ageing',
+            roles={'target': 'residents'},
+            laws=lambda s: [UpdateLaw(s.target.age, s.target.age + 1)],
+        )
         degree = Interaction(
             'degree',
             roles={'target': 'residents'},
@@ -246,5 +247,5 @@ class UrbanScalingInteractionsSystem(BaseSystem):
             self.label,
             elements=[residents, links],
             interactions=[growth, bridging, ageing, degree, meetings],
-            space=NetworkSpace(nx.complete_graph(seed_nodes)),
+            space=space,
         )
