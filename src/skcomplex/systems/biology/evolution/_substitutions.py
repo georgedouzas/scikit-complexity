@@ -6,6 +6,7 @@ They walk by the origin and fixation of mutants.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from functools import partial
 from types import SimpleNamespace
 from typing import Annotated
@@ -16,13 +17,15 @@ from sage.all__sagemath_symbolics import ZZ, Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable, Tags
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.interactions import TransitionInteraction
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.laws.utils import total
-from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import ParameterSpec, RoleSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
 
@@ -39,11 +42,14 @@ class LocusElement(Element):
         h:
             The random field of the locus, the fitness gained by the allele `1` over the allele `-1`, halved.
 
+        space:
+            The lattice whose sites hold one locus each, or `None` for one locus.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
+        >>> from skcomplex.core.components.spaces import LatticeSpace
         >>> from skcomplex.systems.biology.evolution import LocusElement
-        >>> GroupElement('genome', element=LocusElement, size=10, values={'h': 0.05}).size
-        10
+        >>> LocusElement('genome', h=0.05, space=LatticeSpace(10)).h
+        0.05
     """
 
     visual = VisualSpec('image', {'low': -1.0, 'high': 1.0, 'history': 64})
@@ -52,10 +58,11 @@ class LocusElement(Element):
         self,
         label: str,
         *,
-        s: Annotated[float, StateSpec(domain=ZZ)] = -1.0,
-        h: Annotated[float, ParameterSpec()] = 0.0,
+        s: Annotated[float | Array, ZZ] = -1.0,
+        h: float | Array = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.s = s
         self.h = h
 
@@ -210,10 +217,16 @@ class OriginFixationWalkSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.evolution import OriginFixationWalkSystem
-        >>> OriginFixationWalkSystem(8).prepare().system_.elements[0].prepare().size_
-        8
+        >>> OriginFixationWalkSystem(8).prepare().system_.elements[0].h.shape
+        (8,)
     """
 
     field = 'biology/evolution'
@@ -244,13 +257,11 @@ class OriginFixationWalkSystem(BaseSystem):
         return s.substitution.F0 + s.field_share + s.coupling_share
 
     @staticmethod
-    def _walk_observables(system: CompositeSystem) -> list[Observable]:
+    def _walk_observables(loci: int, couplings: Array | None) -> list[Observable]:
         """Return the shares of the fields and the couplings, and the genome fitness.
 
         The shares are those in the fitness of the genome.
         """
-        couplings = system.interactions[0].couplings
-        loci = system.elements[0].prepare().size_
         matrix = np.zeros((loci, loci)) if couplings is None else np.asarray(couplings)
         return [
             Observable('field_share', OriginFixationWalkSystem._get_field_share, group='genome', reduce='sum'),
@@ -274,8 +285,10 @@ class OriginFixationWalkSystem(BaseSystem):
         F0: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.loci = loci
         self.N = N
         self.mu = mu
@@ -284,34 +297,21 @@ class OriginFixationWalkSystem(BaseSystem):
         self.F0 = F0
         self.random_state = random_state
 
-    def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a monomorphic population.
 
-        They include the shares and the fitness of the genome of the built components.
-
-        Returns:
-            settings:
-                The tuned run settings by name.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        settings = super().get_run_settings()
-        settings['observables'] = OriginFixationWalkSystem._walk_observables(self._build_system())
-        return settings
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of a monomorphic population."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         fields = rng.normal(0.0, self.field_scale, self.loci)
         upper = np.triu(rng.normal(0.0, self.coupling / np.sqrt(self.loci), (self.loci, self.loci)), 1)
         matrix = upper + upper.T
         couplings = matrix if self.coupling else None
-        genome = GroupElement(
-            'genome',
-            element=LocusElement,
-            space=LatticeSpace(self.loci),
-            values={'s': -np.ones(self.loci), 'h': fields},
-            on='sites',
-        )
-        return CompositeSystem(
+        genome = LocusElement('genome', s=-np.ones(self.loci), h=fields, space=LatticeSpace(self.loci))
+        self.system_ = System(
             self.label,
             elements=[genome],
             interactions=[
@@ -325,3 +325,4 @@ class OriginFixationWalkSystem(BaseSystem):
                 ),
             ],
         )
+        self.observables_ = tuple(OriginFixationWalkSystem._walk_observables(self.loci, couplings))

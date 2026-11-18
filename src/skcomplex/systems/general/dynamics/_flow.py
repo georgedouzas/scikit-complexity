@@ -20,9 +20,9 @@ from ....core.specs import Role
 class FlowInteraction(Interaction):
     """An interaction that moves an amount from one stock of an element to another.
 
-    The flow `f` takes `f` from the stock it leaves and gives `f` to the stock it enters, as the two rate terms
-    `RateLaw(leaves, -f, label=label)` and `RateLaw(enters, f, label=label)`, so the total of the stocks is kept and the
-    trajectory records `f` as `<element>.<label>`. A flow from outside the system enters a stock and leaves none, and a
+    The flow `f` takes `f` from the stock it leaves and gives `f` to the stock it enters, as the one rate law
+    `RateLaw({leaves: -1, enters: +1}, f, label=label)`, so the total of the stocks is kept and the trajectory records
+    `f` as `<element>.<label>`. A flow from outside the system enters a stock and leaves none, and a
     flow out of the system leaves a stock and enters none. The amount is a function of the namespace whose `target`
     holds the values of the element and whose `t` holds the time.
 
@@ -77,7 +77,7 @@ class FlowInteraction(Interaction):
         self.amount = amount
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rate term of the stock the flow leaves and of the stock it enters.
+        """Set the rate law of the flow, which maps its stocks to signs.
 
         Args:
             context:
@@ -94,9 +94,6 @@ class FlowInteraction(Interaction):
         if not isinstance(context, SimpleNamespace):
             return
         amount = SR(self.amount(context) if callable(self.amount) else self.amount)
-        laws: list[BaseComponent] = []
-        if self.leaves is not None:
-            laws.append(RateLaw(getattr(context.target, self.leaves), -amount, label=self.label))
-        if self.enters is not None:
-            laws.append(RateLaw(getattr(context.target, self.enters), amount, label=self.label))
-        self.laws_: list[BaseComponent] = laws
+        signs = {self.leaves: -1, self.enters: 1}
+        stocks = {getattr(context.target, name): sign for name, sign in signs.items() if name is not None}
+        self.laws_: list[BaseComponent] = [RateLaw(stocks, amount, label=self.label)]

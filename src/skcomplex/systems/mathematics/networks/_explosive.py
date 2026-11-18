@@ -6,6 +6,7 @@ Edges chosen by the Achlioptas product rule delay and sharpen the giant componen
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -14,12 +15,14 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction, TopologyInteraction
 from ....core.components.laws.utils import components
-from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import StateSpec, VisualSpec
+from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import VisualSpec
+from ....core.systems import BaseSystem, System
 
 SIZE_VISUAL = VisualSpec('sites', {'states': ['cluster_size']})
 
@@ -37,6 +40,9 @@ class ClusterNodeElement(Element):
         cluster_size:
             The number of nodes of the connected component of the node.
 
+        space:
+            The network whose nodes hold one member each, or `None` for one node.
+
     Examples:
         >>> from skcomplex.systems.mathematics.networks import ClusterNodeElement
         >>> ClusterNodeElement('nodes').cluster_size
@@ -49,9 +55,10 @@ class ClusterNodeElement(Element):
         self,
         label: str,
         *,
-        cluster_size: Annotated[float, StateSpec(domain=RealSet.closed_open(1, oo))] = 1.0,
+        cluster_size: Annotated[float, RealSet.closed_open(1, oo)] = 1.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.cluster_size = cluster_size
 
 
@@ -78,10 +85,15 @@ class ExplosivePercolationSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.networks import ExplosivePercolationSystem
-        >>> trajectory = simulate(ExplosivePercolationSystem(100), until=50, random_state=0)
+        >>> trajectory = ExplosivePercolationSystem(100).prepare().simulate(until=50, random_state=0)
         >>> len(trajectory.get_network(-1).sources)
         50
     """
@@ -98,8 +110,10 @@ class ExplosivePercolationSystem(BaseSystem):
         *,
         candidates: int = 2,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_nodes = n_nodes
         self.candidates = candidates
 
@@ -111,13 +125,12 @@ class ExplosivePercolationSystem(BaseSystem):
         """
         return node.cluster_size * node.source.cluster_size
 
-    def _build_system(self) -> CompositeSystem:
-        """Return explosive percolation.
-
-        The Achlioptas product rule delays and sharpens the giant component.
-        """
-        nodes = GroupElement('nodes', element=ClusterNodeElement, on='sites', variable=True, capacity=self.n_nodes)
-        links = GroupElement('links', element=Element, on='edges', variable=True, capacity=2 * self.n_nodes)
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to explosive percolation, whose product rule delays and sharpens the giant component."""
+        super()._prepare(context)
+        space = NetworkSpace(nx.empty_graph(self.n_nodes))
+        nodes = ClusterNodeElement('nodes', space=space)
+        links = Element('links', space=space, on='edges')
         interactions = [
             MapInteraction(
                 'size',
@@ -127,11 +140,4 @@ class ExplosivePercolationSystem(BaseSystem):
             ),
             TopologyInteraction('linking', action='add-edge', candidates=self.candidates, score=self._get_product),
         ]
-        space = NetworkSpace(nx.empty_graph(self.n_nodes))
-        return CompositeSystem(
-            self.label,
-            elements=[nodes, links],
-            interactions=interactions,
-            space=space,
-            time=DiscreteTime(),
-        )
+        self.system_ = System(self.label, elements=[nodes, links], interactions=interactions, space=space)

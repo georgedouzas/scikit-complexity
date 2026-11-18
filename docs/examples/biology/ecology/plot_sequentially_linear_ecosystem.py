@@ -13,14 +13,13 @@ which changes the network and starts a new linear stretch. Bursts of extinctions
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import SequentiallyLinearEcosystemSystem
 
 SYSTEM = 'sequentially_linear_ecosystem'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(SequentiallyLinearEcosystemSystem(), observers=[observer], random_state=1, until=299)
+trajectory = SequentiallyLinearEcosystemSystem().prepare().simulate(observers=[observer], random_state=1, until=299)
 
 # %%
 # Extinctions and the turnover of the network

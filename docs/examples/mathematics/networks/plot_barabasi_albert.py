@@ -15,7 +15,6 @@ import numpy as np
 import rerun.blueprint as rrb
 
 from skcomplex.core.analysis import distribution
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.networks import BarabasiAlbertSystem
 
@@ -37,7 +36,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-trajectory = simulate(BarabasiAlbertSystem(), dt=2.0, observers=[observer], random_state=0)
+trajectory = BarabasiAlbertSystem().prepare().simulate(dt=2.0, observers=[observer], random_state=0)
 
 # %%
 # Degree distribution
@@ -45,7 +44,7 @@ trajectory = simulate(BarabasiAlbertSystem(), dt=2.0, observers=[observer], rand
 # The complementary cumulative distribution of the degrees should fall as `k^-2`, the integral of `P(k) ~ k^-3`, in a
 # larger network grown with the same law, with the mean-field prediction `P(K >= k) = m^2 / k^2` for `m = 2` edges.
 
-grown = simulate(BarabasiAlbertSystem(n_nodes=5003), until=5000, dt=1000.0, random_state=0)
+grown = BarabasiAlbertSystem().prepare().simulate(until=5000, dt=1000.0, random_state=0)
 snapshot = grown.get_network(-1)
 degrees = np.bincount(np.concatenate([snapshot.sources, snapshot.targets]))
 ccdf = distribution(degrees, kind='ccdf')

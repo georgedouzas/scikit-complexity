@@ -63,107 +63,102 @@ value. Without one it keeps its initial value.
 
 ## Objectives and optimal control
 
-This section finds the control that minimises a cost over a run. An objective defines a control problem, not a component
-of a system, so the optimal control solvers take it as arguments. The plant `x' = u` starts at `x = 1`, and the cost
-integrates `(x^2 + u^2) / 2` over one time unit, so the control must pull the state to zero without spending too much
-effort. `PontryaginSolver` solves the problem by the maximum principle of Pontryagin.
+This section finds the control that minimises a cost over a run. The cost is an objective law that names the values it
+steers, `ObjectiveLaw(cost, controls=[s.plant.u])`, and the bounds of a control are the allowed values of its element.
+The plant `x' = u` starts at `x = 1`, and the cost integrates `(x^2 + u^2) / 2` over one time unit, so the control must
+pull the state to zero without spending too much effort. `PontryaginSolver` solves the problem by the maximum
+principle of Pontryagin.
 
 ```python
 from typing import Annotated
 
+from sage.sets.real_set import RealSet
+
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import ObjectiveLaw, RateLaw
 from skcomplex.core.engine.solvers import CollocationSolver, PontryaginSolver
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.systems import System
 
 
 class PlantElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        x: Annotated[float, StateSpec()] = 1.0,
-        u: Annotated[float, ParameterSpec(adaptive=True, bounds=(-10, 10))] = 0.0,
-    ):
+    def __init__(self, label, x=1.0, u: Annotated[float, RealSet.closed(-10, 10)] = 0.0):
         super().__init__(label)
         self.x = x
         self.u = u
 
-    def _get_laws(self, s):
-        return [RateLaw(s.x, s.u)]
+
+def regulate(s):
+    plant = s.target
+    return [RateLaw(plant.x.diff(s.t), plant.u), ObjectiveLaw((plant.x**2 + plant.u**2) / 2, controls=[plant.u])]
 
 
-plant = CompositeSystem(elements=[PlantElement('plant')])
-
-
-def cost(s):
-    return (s.plant.x**2 + s.plant.u**2) / 2
-
-
-optimal = simulate(plant, until=1.0, dt=0.1, solver=PontryaginSolver(cost))
-solution = PontryaginSolver(cost, until=1.0).prepare(optimal.problem).solution_
+regulator = Interaction('regulator', roles={'target': 'plant'}, laws=regulate)
+plant = System(elements=[PlantElement('plant')], interactions=[regulator], solver=PontryaginSolver())
+optimal = plant.prepare().simulate(until=1.0, dt=0.1)
+solution = PontryaginSolver(until=1.0).prepare(optimal.problem).solution_
 round(float(optimal.get_values('plant.u')[0]), 3), round(float(solution.cost), 4)
 ```
 
 The optimal control starts at -0.762, and the cost of the run is 0.3808. Both match the exact solution of this problem,
-`u(0) = -tanh(1)` and a cost of `tanh(1) / 2`. `CollocationSolver` solves the same problem by direct transcription.
+`u(0) = -tanh(1)` and a cost of `tanh(1) / 2`. `CollocationSolver`, the solver a system with controls takes by
+default, solves the same problem by direct transcription.
 
 ```python continuation
-transcribed = simulate(plant, until=1.0, dt=0.1, solver=CollocationSolver(cost, nodes=21))
+transcribed = plant.set_params(solver=CollocationSolver(nodes=21)).prepare().simulate(until=1.0, dt=0.1)
 round(float(transcribed.get_values('plant.u')[0]), 3)
 ```
 
-Collocation on 21 nodes gives the initial control -0.761, within 0.001 of the sweep. The objective has two parts.
+Collocation on 21 nodes gives the initial control -0.761, within 0.001 of the sweep. The objective law has two parts.
 
-- `objective` is the running cost.
-- `terminal` is the terminal cost at the horizon, the time `until` of the run.
+- Its value is the running cost, integrated over the run.
+- `terminal` is the terminal cost at the horizon, the time `until` of the run, such as the value of the capital an
+  economy leaves, `ObjectiveLaw(-utility, controls=[s.target.c], terminal=-value)`.
 
-Each is a number, or a function of the namespace `s` of the states, parameters, and time of the system by dotted name,
-such as `lambda s: s.plant.x**2`. The value of a run is the integral of the running cost over the run plus the terminal
-cost. `sense` is `'min'` to minimise it or `'max'` to maximise it.
+The run minimises the integral of the running cost plus the terminal cost. A cost to maximise, such as a profit, is
+minimised with its sign changed.
 
-Two solvers optimise the objective over the bounded adaptive parameters of the system.
+Two solvers optimise the objective over the controls of the system.
 
-- `PontryaginSolver(objective)` builds the Hamiltonian `H = L + λ · f` of the running cost `L` and the rates `f`. It
-  derives the costate equations `λ' = -∂H/∂x` and the stationarity condition `∂H/∂u = 0` symbolically, and projects
-  the controls onto their bounds. Where `H` is linear in a control, it takes a bound. It solves the two-point problem
-  by a forward-backward sweep.
-- `CollocationSolver(objective, nodes=..., scheme=...)` transcribes the problem with the `'hermite-simpson'` or
-  `'trapezoidal'` scheme, and solves it with the `minimize` of SciPy, with the Jacobians derived symbolically.
-  Collocation solves bang-bang controls, singular arcs, and saddle paths on which the sweep diverges.
+- `PontryaginSolver()` builds the Hamiltonian `H = L + λ · f` of the running cost `L` and the rates `f`. It derives
+  the costate equations `λ' = -∂H/∂x` and the stationarity condition `∂H/∂u = 0` symbolically, and projects the
+  controls onto their bounds. Where `H` is linear in a control, it takes a bound. It solves the two-point problem by a
+  forward-backward sweep.
+- `CollocationSolver(nodes=..., scheme=...)` transcribes the problem with the `'hermite-simpson'` or `'trapezoidal'`
+  scheme, and solves it with the `minimize` of SciPy, with the Jacobians derived symbolically. Collocation solves
+  bang-bang controls, singular arcs, and saddle paths on which the sweep diverges.
 
 Both solve the problem over the whole run when it starts. A solver prepared on the `problem` of a trajectory, with the
 same `until`, holds in its `solution_` the solution on its grid, its cost, and, for `PontryaginSolver`, the costates.
 
-Every solver declares what it supports. The optimal control solvers declare continuous time, no space, rate and
-equation laws, real and angle states, and elements. `PontryaginSolver` also applies boundary laws after every step of
-its sweep, and `CollocationSolver` keeps the states of nonnegative domains nonnegative instead.
+Every solver declares what it supports. The optimal control solvers declare continuous time, no space, rate,
+constraint, and objective laws, real and angle states, and elements. `PontryaginSolver` also applies boundary laws
+after every step of its sweep, and `CollocationSolver` keeps the states of nonnegative domains nonnegative instead.
 
 | Solver | Laws | Method |
 | --- | --- | --- |
-| `PontryaginSolver` | rate, equation, boundary | symbolic costates and a forward-backward sweep |
-| `CollocationSolver` | rate, equation | direct transcription solved by SLSQP or trust-constr |
+| `PontryaginSolver` | rate, constraint, objective, boundary | symbolic costates and a forward-backward sweep |
+| `CollocationSolver` | rate, constraint, objective | direct transcription solved by SLSQP or trust-constr |
 
 `simulate` raises a `SolverError` for each of these cases.
 
 - A system with noise, jumps, or updates runs with an optimal control solver.
-- A solver has no objective.
+- A system has no objective law with controls.
 - A system runs under discrete time, since an objective needs static or continuous time.
 
 ```python continuation
 from skcomplex.core.errors import SolverError
 
+drift = Interaction('drift', roles={'target': 'plant'}, laws=lambda s: [RateLaw(s.target.x.diff(s.t), s.target.u)])
 try:
-    simulate(plant, until=1.0, solver=PontryaginSolver())
+    System(elements=[PlantElement('plant')], interactions=[drift], solver=PontryaginSolver()).prepare().simulate(until=1.0)
 except SolverError as error:
     message = str(error)
 message
 ```
 
-The message reads "PontryaginSolver has no objective", and the fix is to pass the running cost as `objective`, such
-as `lambda s: s.plant.x**2`.
+The message reads "PontryaginSolver has no objective", and the fix is to state the cost with an objective law that
+names its controls, such as `ObjectiveLaw(s.plant.x**2 + s.plant.u**2, controls=[s.plant.u])`.
 
 ## Feedback controllers
 

@@ -13,14 +13,14 @@ every size. The view shows the space-time history of the fitnesses of the ring, 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.evolution import BakSneppenSystem
 
 SYSTEM = 'bak_sneppen'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(BakSneppenSystem(size=200), until=400_000, dt=2_000, observers=[observer], random_state=0)
+system = BakSneppenSystem(size=200).prepare()
+trajectory = system.simulate(until=400_000, dt=2_000, observers=[observer], random_state=0)
 
 # %%
 # The gap and the distribution of fitnesses

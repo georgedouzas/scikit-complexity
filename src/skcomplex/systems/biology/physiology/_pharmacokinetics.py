@@ -116,7 +116,7 @@ class TwoCompartmentPharmacokineticsSystem(BaseSystem):
         self.k21 = k21
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
-        """Set the system of the system.
+        """Set the two-compartment pharmacokinetics of a bolus dose.
 
         Args:
             context:

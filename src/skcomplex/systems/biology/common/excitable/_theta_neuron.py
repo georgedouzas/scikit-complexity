@@ -6,20 +6,61 @@ The phase follows `theta' = (1 - cos theta) + (1 + cos theta) eta`.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import math
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import cos, pi
+from sage.all__sagemath_symbolics import cos
 
-from .....core.components.elements import Element
-from .....core.components.laws import BaseLaw, RateLaw
-from .....core.specs import ParameterSpec, StateSpec
+from .....core.components.elements import Element, Period
+from .....core.components.interactions import Interaction
+from .....core.components.laws import RateLaw
+from .....core.components.spaces import BaseSpace
+from .....core.specs import Role
+from .....core.types import Array
 
 
 class ThetaNeuronElement(Element):
-    """Theta neuron of Ermentrout and Kopell, a spiking phase.
+    """Theta neurons, each with a phase `theta` that wraps around and an excitability `eta`.
 
-    The phase follows `theta' = (1 - cos theta) + (1 + cos theta) eta`.
+    Args:
+        label:
+            The label of the neuron or the group.
+
+        theta:
+            The initial phase, one per neuron or shared.
+
+        eta:
+            The excitability, one per neuron or shared.
+
+        size:
+            The number of neurons, or `None` for one.
+
+        space:
+            The space whose sites hold one neuron each, such as a network, or `None` for none.
+
+    Examples:
+        >>> from skcomplex.systems.biology.neuroscience import ThetaNeuronElement
+        >>> ThetaNeuronElement('neurons', eta=0.5, size=10).size
+        10
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        theta: Annotated[float | Array, Period(2 * math.pi)] = 0.0,
+        eta: float | Array = 1.0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
+    ) -> None:
+        super().__init__(label, size=size, space=space)
+        self.theta = theta
+        self.eta = eta
+
+
+class ThetaNeuronInteraction(Interaction):
+    """Phase dynamics of theta neurons, `theta' = (1 - cos theta) + (1 + cos theta) eta`.
 
     The neuron fires when its phase passes π. With `eta > 0` it fires periodically with period `π / sqrt(eta)`, and
     with `eta < 0` it is excitable. The change of variable `V = tan(theta / 2)` turns it into the quadratic
@@ -27,43 +68,31 @@ class ThetaNeuronElement(Element):
 
     Args:
         label:
-            The label of the neuron or the group.
+            The label of the interaction.
 
-        theta:
-            The initial phase.
-
-        eta:
-            The excitability.
+        target:
+            The path of the neurons, whose values are `theta` and `eta`.
 
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
-        >>> from skcomplex.systems.biology.neuroscience import ThetaNeuronElement
-        >>> GroupElement('neurons', element=ThetaNeuronElement, size=10, values={'eta': 0.5}).size
-        10
+        >>> from skcomplex.systems.biology.neuroscience import ThetaNeuronInteraction
+        >>> ThetaNeuronInteraction('phases', target='neurons').target
+        'neurons'
     """
 
     law_classes = (RateLaw,)
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
-        eta: Annotated[float, ParameterSpec()] = 1.0,
-    ) -> None:
+    def __init__(self, label: str, *, target: Role) -> None:
         super().__init__(label)
-        self.theta = theta
-        self.eta = eta
+        self.target = target
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the phase dynamics.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the phase dynamics of the target.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        return [RateLaw(s.theta, 1 - cos(s.theta) + (1 + cos(s.theta)) * s.eta)]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            theta, eta = context.target.theta, context.target.eta
+            self.laws_ = [RateLaw(theta, 1 - cos(theta) + (1 + cos(theta)) * eta)]

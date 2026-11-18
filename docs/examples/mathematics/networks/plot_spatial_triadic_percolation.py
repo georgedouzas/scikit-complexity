@@ -14,7 +14,6 @@ that move and blink instead of settling.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.networks import SpatialTriadicPercolationSystem
 
@@ -22,7 +21,7 @@ SYSTEM = 'spatial_triadic_percolation'
 
 system = SpatialTriadicPercolationSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(system, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(observers=[observer], random_state=0)
 active = trajectory.get_values('nodes.active').astype(float)
 positions = system.prepare().system_.elements[0].space.prepare().positions_
 

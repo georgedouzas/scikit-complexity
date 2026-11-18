@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import CoSimulationSolver, RK4Solver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.systems_biology import DynamicFBASystem
@@ -26,7 +25,7 @@ KM = 0.015
 blueprint = rrb.Blueprint(rrb.TimeSeriesView(origin='culture', name='culture'), collapse_panels=True)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
 solver = CoSimulationSolver(sync_dt=FRAME, solvers={'culture': RK4Solver(dt=0.005)})
-trajectory = simulate(DynamicFBASystem(), solver=solver, dt=FRAME, observers=[observer])
+trajectory = DynamicFBASystem(solver=solver).prepare().simulate(dt=FRAME, observers=[observer])
 
 # %%
 # One exponential phase and a plateau

@@ -19,7 +19,6 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from skcomplex.core.components import Observable
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.collective_behaviour import CouzinLeadershipSystem
 
@@ -51,13 +50,10 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
 heading_x = Observable('heading_x', group='shoal', variable='vx')
-trajectory = simulate(
-    CouzinLeadershipSystem(n_fish=50, informed=0.1, side=SIDE, random_state=0),
-    until=150,
-    dt=1,
-    observers=[observer],
-    observables=[heading_x],
-    random_state=0,
+trajectory = (
+    CouzinLeadershipSystem(n_fish=50, informed=0.1, side=SIDE, random_state=0)
+    .prepare()
+    .simulate(until=150, dt=1, observers=[observer], observables=[heading_x], random_state=0)
 )
 
 # %%
@@ -74,11 +70,10 @@ accuracy = []
 for fraction in fractions:
     cosines = []
     for seed in range(3):
-        run = simulate(
-            CouzinLeadershipSystem(n_fish=20, informed=fraction, random_state=seed),
-            until=120,
-            dt=1,
-            random_state=seed,
+        run = (
+            CouzinLeadershipSystem(n_fish=20, informed=fraction, random_state=seed)
+            .prepare()
+            .simulate(until=120, dt=1, random_state=seed)
         )
         cosines.extend(np.cos(mean_heading(run, frame)) for frame in range(80, 121))
     accuracy.append(np.mean(cosines))

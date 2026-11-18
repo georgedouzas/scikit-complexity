@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.physiology import AdaptiveFlowNetworkSystem
 
@@ -22,7 +21,7 @@ SYSTEM = 'adaptive_flow_network'
 
 system = AdaptiveFlowNetworkSystem().prepare().system_
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, dt=0.1, observers=[observer], until=20)
+trajectory = system.prepare().simulate(dt=0.1, observers=[observer], until=20)
 
 # %%
 # Balanced pressure drops

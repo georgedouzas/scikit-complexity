@@ -49,7 +49,7 @@ class LedgerElement(Element):
 
 
 class TermsInteraction(Interaction):
-    """An interaction that returns the rate terms of a function of its namespace."""
+    """An interaction that returns the flows of a function of its namespace."""
 
     def __init__(self, label: str, *, target: Role, terms=None) -> None:
         super().__init__(label)
@@ -57,7 +57,7 @@ class TermsInteraction(Interaction):
         self.terms = terms
 
     def _prepare(self, context=None):
-        """Set the rate terms."""
+        """Set the flows."""
         super()._prepare(context)
         if hasattr(context, 'target'):
             self.laws_ = self.terms(context.target)
@@ -66,20 +66,19 @@ class TermsInteraction(Interaction):
 def _births_and_deaths(s):
     """Return births into the living and deaths from the living into the dead."""
     return [
-        RateLaw(s.n, RATES['births'] * s.n, label='births'),
-        RateLaw(s.n, -RATES['deaths'] * s.n, label='deaths'),
-        RateLaw(s.m, RATES['deaths'] * s.n, label='deaths'),
+        RateLaw({s.n: +1}, RATES['births'] * s.n, label='births'),
+        RateLaw({s.n: -1, s.m: +1}, RATES['deaths'] * s.n, label='deaths'),
     ]
 
 
 def _system(terms, *elements):
-    """Return a prepared system of the elements and one interaction of the terms."""
+    """Return a prepared system of the elements and one interaction of the flows."""
     elements = elements or (PeopleElement('population'),)
     interaction = TermsInteraction('process', target=elements[0].label, terms=terms)
     return System(elements=list(elements), interactions=[interaction]).prepare()
 
 
-def test_labelled_rate_terms_are_recorded_as_flows_under_their_element():
+def test_flows_are_recorded_under_the_element_of_their_stocks():
     """Test that the trajectory holds every labelled flow by its label, under the element of its stocks."""
     trajectory = _system(_births_and_deaths).simulate(until=2.0, dt=1.0)
     n = trajectory.get_values('population.n')
@@ -88,7 +87,7 @@ def test_labelled_rate_terms_are_recorded_as_flows_under_their_element():
     np.testing.assert_allclose(n, 10.0 * np.exp((RATES['births'] - RATES['deaths']) * np.arange(3)), rtol=1e-4)
 
 
-def test_flow_matrix_and_loops_read_the_labelled_terms():
+def test_flow_matrix_and_loops_read_the_signs_of_the_flows():
     """Test that a flow with only a sink comes from the environment and one with both moves between stocks."""
     system = _system(_births_and_deaths)
     trajectory = system.simulate(until=1.0, dt=1.0)
@@ -109,8 +108,8 @@ def test_flow_matrix_and_loops_read_the_labelled_terms():
 
 
 def test_a_flow_out_of_the_system_has_only_its_source():
-    """Test that a lone term with a minus sign is an outflow, recorded as a positive amount."""
-    trajectory = _system(lambda s: [RateLaw(s.n, -0.5 * s.n, label='deaths')]).simulate(until=1.0, dt=1.0)
+    """Test that a flow that maps one stock to -1 is an outflow, recorded as a positive amount."""
+    trajectory = _system(lambda s: [RateLaw({s.n: -1}, 0.5 * s.n, label='deaths')]).simulate(until=1.0, dt=1.0)
     np.testing.assert_allclose(trajectory.get_values('population.deaths'), 0.5 * trajectory.get_values('population.n'))
     matrix = loops(trajectory, kind='flow-matrix')
     assert matrix.holders == ('population.n', 'environment')
@@ -128,14 +127,10 @@ def test_a_flow_between_elements_is_reported_under_its_interaction():
             self.lower = lower
 
         def _prepare(self, context=None):
-            """Set the two terms of the flow."""
+            """Set the flow."""
             super()._prepare(context)
             if hasattr(context, 'upper'):
-                amount = context.upper.n / 2
-                self.laws_ = [
-                    RateLaw(context.upper.n, -amount, label='drain'),
-                    RateLaw(context.lower.n, amount, label='drain'),
-                ]
+                self.laws_ = [RateLaw({context.upper.n: -1, context.lower.n: +1}, context.upper.n / 2, label='drain')]
 
     tanks = [PeopleElement('upper'), PeopleElement('lower', n=0.0)]
     system = System(elements=tanks, interactions=[TwoTanksInteraction('pipe', upper='upper', lower='lower')])
@@ -146,13 +141,20 @@ def test_a_flow_between_elements_is_reported_under_its_interaction():
 @pytest.mark.parametrize(
     ('terms', 'error', 'match'),
     [
-        (lambda s: [RateLaw(s.n, -s.n, label='f'), RateLaw(s.m, 2 * s.n, label='f')], ValidationError, 'add up'),
-        (lambda s: [RateLaw(s.n, -s.n, label='f'), RateLaw(s.n, s.n, label='f')], ValidationError, 'one term'),
-        (lambda s: [RateLaw(s.n, -s.n, label='f'), RateLaw(s.k, s.n, label='f')], ConservationError, 'quantities'),
+        (
+            lambda s: [RateLaw({s.n: -1}, s.n, label='f'), RateLaw({s.m: +1}, 2 * s.n, label='f')],
+            ValidationError,
+            'move',
+        ),
+        (lambda s: [RateLaw({s.n: -1}, s.n, label='f'), RateLaw({s.m: -1}, s.n, label='f')], ValidationError, 'Rename'),
+        (lambda s: [RateLaw({s.n: -1, s.m: -1}, s.n, label='f')], ValidationError, 'signs'),
+        (lambda s: [RateLaw({s.n: 2}, s.n, label='f')], ValidationError, 'signs'),
+        (lambda s: [RateLaw({s.n: -1, s.m: +1}, s.n)], ValidationError, 'no label'),
+        (lambda s: [RateLaw({s.n: -1, s.k: +1}, s.n, label='f')], ConservationError, 'quantities'),
     ],
 )
-def test_terms_that_are_no_flow_are_rejected(terms, error, match):
-    """Test that terms that do not cancel, change one stock twice, or join two quantities raise an error."""
+def test_flows_that_break_the_rules_are_rejected(terms, error, match):
+    """Test that unequal amounts, two sources, wrong signs, no label, or two quantities raise an error."""
     with pytest.raises(error, match=match):
         _system(terms, LedgerElement('population'))
 
@@ -160,8 +162,22 @@ def test_terms_that_are_no_flow_are_rejected(terms, error, match):
 def test_two_flows_with_one_label_on_one_element_are_rejected():
     """Test that two interactions setting a flow of the same label on one element raise a label error."""
     interactions = [
-        TermsInteraction(label, target='population', terms=lambda s: [RateLaw(s.n, 1.0, label='births')])
+        TermsInteraction(label, target='population', terms=lambda s: [RateLaw({s.n: +1}, 1.0, label='births')])
         for label in ('first', 'second')
     ]
     with pytest.raises(LabelError, match='births'):
         System(elements=[PeopleElement('population')], interactions=interactions).prepare()
+
+
+def test_an_inflow_that_sage_writes_with_a_minus_sign_enters_its_stock():
+    """Test that an inflow such as `x (1 - y)`, which Sage writes as `-x (y - 1)`, is drawn into its stock."""
+
+    def logistic(s):
+        return [RateLaw({s.n: +1}, s.n * (1 - s.m), label='growth')]
+
+    system = _system(logistic, PeopleElement('population', n=1.0, m=0.5))
+    graph = loops(system).graph
+    assert graph.edges['population.growth', 'population.n']['sign'] == 1
+    assert ('population.growth', 'environment') not in graph.edges
+    trajectory = system.simulate(until=1.0, dt=1.0)
+    np.testing.assert_allclose(trajectory.get_values('population.n'), [1.0, np.exp(0.5)], rtol=1e-4)

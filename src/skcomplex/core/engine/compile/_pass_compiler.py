@@ -76,7 +76,7 @@ from ...errors import (
 )
 from ...specs import RoleSpec
 from ...types import Array, ProcessKey, VectorFunction
-from .._utils import bound_labels, declarations_of, default_of, symbol
+from .._utils import binding_of, bound_labels, declarations_of, default_of, symbol
 from ..backends import BaseBackend
 from ..problems import BaseProblemSpec, ProblemSpec
 from ..problems._bilinear_law import BilinearLaw
@@ -101,6 +101,7 @@ from .passes._compile_encounters import CompileEncountersPass
 from .passes._conserved_noise import ConservedNoisePass
 from .passes._core import PASSES
 from .passes._fractional_form import FractionalFormPass
+from .passes._kernels import KernelsPass
 from .passes._lattices import LatticeProblemPass
 from .passes._layout import LayoutPass
 from .passes._linear_programs import LinearProgramsPass
@@ -950,8 +951,8 @@ class PassCompiler(BaseCompiler):
                 over = 'hyperedges'
             else:
                 continue
-            roles = declarations_of(type(interaction), VariableKind.ROLE)
-            labels = [getattr(interaction, name, None) for name in roles]
+            roles = declarations_of(interaction, VariableKind.ROLE)
+            labels = [binding_of(interaction, name) for name in roles]
             bound = [
                 by_path.get(f'{node.scope}{label}')
                 for value in labels
@@ -991,7 +992,7 @@ class PassCompiler(BaseCompiler):
         A member of a group counts as an element.
         """
         found = []
-        for label in bound_labels(getattr(node.component, role, None)):
+        for label in bound_labels(binding_of(node.component, role)):
             path = f'{node.scope}{label}'
             if path in by_path:
                 found.append((CensusPass._get_component_kind(by_path[path]), by_path[path]))
@@ -1742,7 +1743,7 @@ class PassCompiler(BaseCompiler):
         records = census.records
         return {
             'time': {kind for kind in FractionalFormPass._get_declared_times(system).values() if kind is not None},
-            'laws': {type(record.law) for record in records},
+            'laws': {KernelsPass._get_kind_of(record.law) for record in records},
             'space': {None if record.space is None else type(record.space) for record in records},
         }
 

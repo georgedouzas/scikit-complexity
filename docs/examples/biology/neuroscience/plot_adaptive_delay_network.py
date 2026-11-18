@@ -13,14 +13,13 @@ synchrony back.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.neuroscience import AdaptiveDelayNetworkSystem
 
 SYSTEM = 'adaptive_delay_network'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(AdaptiveDelayNetworkSystem(), observers=[observer])
+trajectory = AdaptiveDelayNetworkSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Synchrony with fixed and adaptive delays
@@ -34,7 +33,7 @@ def order(trajectory):
     return np.abs(np.exp(1j * phases).mean(axis=1))
 
 
-fixed = simulate(AdaptiveDelayNetworkSystem(epsilon=0.0))
+fixed = AdaptiveDelayNetworkSystem(epsilon=0.0).prepare().simulate()
 fig, (coherence, delays) = plt.subplots(1, 2, figsize=(11, 4.5))
 coherence.plot(fixed.times, order(fixed), label='fixed delays')
 coherence.plot(trajectory.times, order(trajectory), label='adaptive delays')

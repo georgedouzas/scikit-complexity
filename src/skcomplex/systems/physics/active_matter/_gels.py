@@ -16,7 +16,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import RateInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import inverse_helmholtz, partial
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
@@ -260,7 +261,11 @@ class ActiveViscoelasticGelSystem(BaseSystem):
             drift=self._transport,
         )
         diffusion = DiffusivityInteraction('diffusion', target='gel', state='c', coefficient=self._get_diffusion)
-        displacement = RateInteraction('displacement', target='gel', state='u', rate=self._transport)
+        displacement = Interaction(
+            'displacement',
+            roles={'target': 'gel'},
+            laws=lambda s: [RateLaw(s.target.u.diff(s.t), self._transport(s))],
+        )
         self.system_ = System(
             self.label,
             elements=[gel],

@@ -15,7 +15,6 @@ import numpy as np
 import rerun.blueprint as rrb
 
 from skcomplex.core.analysis import distribution
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.networks import VertexCopyingSystem
 
@@ -37,7 +36,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-trajectory = simulate(VertexCopyingSystem(), dt=2.0, observers=[observer], random_state=0)
+trajectory = VertexCopyingSystem().prepare().simulate(dt=2.0, observers=[observer], random_state=0)
 
 # %%
 # Degree tails
@@ -47,7 +46,7 @@ trajectory = simulate(VertexCopyingSystem(), dt=2.0, observers=[observer], rando
 
 fig, axis = plt.subplots(figsize=(6, 4))
 for randomness in (1.0, 0.5, 0.1):
-    run = simulate(VertexCopyingSystem(n_nodes=3004, randomness=randomness), until=3000, dt=1000.0, random_state=0)
+    run = VertexCopyingSystem(randomness=randomness).prepare().simulate(until=3000, dt=1000.0, random_state=0)
     snapshot = run.get_network(-1)
     ccdf = distribution(np.bincount(np.concatenate([snapshot.sources, snapshot.targets])), kind='ccdf')
     values, shares = ccdf.support, ccdf.survival

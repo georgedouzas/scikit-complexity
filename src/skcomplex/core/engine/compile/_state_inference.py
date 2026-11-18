@@ -43,7 +43,7 @@ from ...components.systems import CompositeSystem
 from ...enums import TopologyKind, VariableKind
 from ...errors import ValidationError
 from ...specs import DeclaredVariableSpec, MatrixGroupSpec, ParameterSpec, StateSpec, VisualSpec
-from .._utils import bound_labels, declarations_of
+from .._utils import binding_of, bound_labels, declarations_of
 from ..problems._bilinear_law import BilinearLaw
 from ._compilation import Compilation
 
@@ -128,6 +128,23 @@ class _StateInference:
             index = len(found.group('primes')) if found.group('primes') else int(found.group('lag'))
             starting.setdefault(base, {})[index] = value
         return starting
+
+    @staticmethod
+    def _get_free_order(element: Element, name: str) -> int | None:
+        """Return the order of a value that moves freely, or `None`.
+
+        A value that no law changes but that starts with a derivative, such as a point given `values={"x'": 1.0}`, moves
+        at that derivative, as Newton's first law says, so it has the order one above its highest starting derivative,
+        whose own derivative is zero.
+        """
+        primes = [
+            len(found.group('primes'))
+            for given in (element.values or {})
+            if (found := STARTING.fullmatch(given)) is not None
+            and found.group('name') == name
+            and found.group('primes')
+        ]
+        return max(primes) + 1 if primes else None
 
     @staticmethod
     def _get_count(element: Element) -> int | None:
@@ -667,7 +684,7 @@ class _StateInference:
             if not isinstance(record.law, RuleLaw) or node is None:
                 continue
             for role in declarations_of(node.component, VariableKind.ROLE):
-                groups.update(f'{node.scope}{label}' for label in bound_labels(getattr(node.component, role, None)))
+                groups.update(f'{node.scope}{label}' for label in bound_labels(binding_of(node.component, role)))
         return groups
 
     @staticmethod
@@ -802,11 +819,16 @@ class _StateInference:
         for name, value in values.items():
             member = self._get_member_value(element, name, value, count)
             kept = growing or name in axes
+            free = None if probing else self._get_free_order(element, name)
             variables[name] = self._get_spec(
                 element,
                 name,
                 member,
-                1 if order(name) is None and kept else order(name),
+                (
+                    free
+                    if order(name) is None and free is not None
+                    else 1 if order(name) is None and kept else order(name)
+                ),
                 lags=lags(name),
                 starting={
                     index: self._get_member_value(element, name, given, count)

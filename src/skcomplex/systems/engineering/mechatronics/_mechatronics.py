@@ -22,7 +22,7 @@ from ....core.components.laws.utils import step
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, Role, StateSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ...general.mechanics import EulerLagrangeInteraction
 from ..common.electrical import (
@@ -45,10 +45,7 @@ class InertiaElement(Element):
             The label of the element, unique among the components of its system.
 
         phi:
-            The initial angle.
-
-        phi_d1:
-            The initial angular velocity.
+            The initial angle, whose derivative `phi'` is the angular velocity.
 
         J:
             The moment of inertia.
@@ -66,14 +63,12 @@ class InertiaElement(Element):
         self,
         label: str,
         *,
-        phi: Annotated[object, StateSpec(order=2)] = 0.0,
-        phi_d1: object = 0.0,
-        J: Annotated[object, ParameterSpec(domain=POSITIVE)] = 1.0,
-        b: Annotated[object, ParameterSpec(domain=POSITIVE)] = 1.0,
+        phi: object = 0.0,
+        J: Annotated[object, POSITIVE] = 1.0,
+        b: Annotated[object, POSITIVE] = 1.0,
     ) -> None:
         super().__init__(label)
         self.phi = phi
-        self.phi_d1 = phi_d1
         self.J = J
         self.b = b
 
@@ -120,7 +115,7 @@ class TireInteraction(Interaction):
         target: Role,
         state: str = 'y2',
         mass: str = 'm2',
-        kt: Annotated[float, ParameterSpec(domain=POSITIVE)] = 160000.0,
+        kt: Annotated[float, POSITIVE] = 160000.0,
         height: float = 0.05,
         at: float = 0.5,
     ) -> None:
@@ -201,7 +196,7 @@ class MotorCouplingInteraction(BranchInteraction):
 
 def _get_speed_of_rotor(s: SimpleNamespace) -> Expression:
     """Return the angular velocity of the rotor."""
-    speed: Expression = s.rotor.phi_d1
+    speed: Expression = s.rotor.phi.diff(s.t)
     return speed
 
 
@@ -217,7 +212,7 @@ class DcMotorSystem(BaseSystem):
     The armature circuit is made of components and the inertia is on a Lagrangian coordinate. A voltage source drives a
     resistor, an inductor, and the armature in series. The armature has the voltage `k phi'`, and its current exerts the
     torque `k i` on the angle of an inertia with viscous friction, so the angular velocity settles at
-    `k V / (R b + k^2)`. The system has the angle `rotor.phi`, the angular velocity `rotor.phi_d1`, and the current
+    `k V / (R b + k^2)`. The system has the angle `rotor.phi`, the angular velocity `rotor.phi'`, and the current
     `winding.i`.
 
     Args:

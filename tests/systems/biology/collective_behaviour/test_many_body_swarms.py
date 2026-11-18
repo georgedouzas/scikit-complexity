@@ -7,7 +7,6 @@ import pytest
 
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.collective_behaviour import ManyBodyAlignmentSwarmSystem
 
 BACKENDS = pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
@@ -86,7 +85,7 @@ def test_body_order_terms_match_the_paper(backend):
 def test_swarm_moves_at_a_bounded_speed():
     """Test that the swarm with its defaults stays finite and near its preferred speed for 200 time units."""
     swarm = ManyBodyAlignmentSwarmSystem(40, random_state=0)
-    trajectory = simulate(swarm, until=200.0, dt=1.0, backend=NumbaBackend())
+    trajectory = swarm.set_params(backend=NumbaBackend()).prepare().simulate(until=200.0, dt=1.0)
     positions, velocities = trajectory.get_values('agents.x'), trajectory.get_values('agents.x_d1')
     speeds = np.linalg.norm(velocities, axis=-1) / np.sqrt(swarm.alpha / swarm.beta)
     assert np.isfinite(positions).all()

@@ -6,6 +6,7 @@ The infection is in the mean-field limit and between subpopulations.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -14,13 +15,14 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction, RateInteraction
 from ....core.components.laws.utils import laplacian
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ...general.dynamics import NetworkDynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -54,7 +56,7 @@ class DegreeClassElement(Element):
         >>> from skcomplex.systems.biology.epidemiology import DegreeClassElement
         >>> GroupElement(
         ...     'network', element=DegreeClassElement, size=2, values={'k': [1.0, 2.0], 'P': [0.5, 0.5]}
-        ... ).prepare().size_
+        ... ).size
         2
     """
 
@@ -101,9 +103,15 @@ class HeterogeneousMeanFieldSISSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import HeterogeneousMeanFieldSISSystem
-        >>> HeterogeneousMeanFieldSISSystem(k_min=2, k_max=5).prepare().system_.elements[0].prepare().size_
+        >>> HeterogeneousMeanFieldSISSystem(k_min=2, k_max=5).prepare().system_.elements[0].size
         4
     """
 
@@ -122,8 +130,10 @@ class HeterogeneousMeanFieldSISSystem(BaseSystem):
         lam: float = 0.2,
         rho: float = 0.01,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.exponent = exponent
         self.k_min = k_min
         self.k_max = k_max
@@ -149,8 +159,14 @@ class HeterogeneousMeanFieldSISSystem(BaseSystem):
         member = namespace.member
         return member.lam * member.k * (1 - member.rho) * namespace.other.rho
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the SIS epidemic on a network with power-law degrees."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the SIS epidemic on a network with power-law degrees.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         degrees = np.arange(self.k_min, self.k_max + 1, dtype=float)
         weights = degrees**-self.exponent / np.sum(degrees**-self.exponent)
         classes = GroupElement(
@@ -173,7 +189,7 @@ class HeterogeneousMeanFieldSISSystem(BaseSystem):
                 include_self=True,
             ),
         ]
-        return CompositeSystem(self.label, elements=[classes], interactions=interactions)
+        self.system_ = System(self.label, elements=[classes], interactions=interactions)
 
 
 class MetapopulationSystem(NetworkDynamicalSystem):

@@ -14,14 +14,13 @@ avalanches. New species fill the empty niches, so the number of species stays co
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.evolution import SoleManrubiaSystem
 
 SYSTEM = 'sole_manrubia'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(SoleManrubiaSystem(), observers=[observer], random_state=1, until=299)
+trajectory = SoleManrubiaSystem().prepare().simulate(observers=[observer], random_state=1, until=299)
 
 # %%
 # Sizes of the extinction avalanches

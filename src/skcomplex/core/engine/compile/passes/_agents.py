@@ -10,7 +10,7 @@ from ....components.elements import BaseElement, GroupElement
 from ....components.interactions import BaseInteraction
 from ....components.laws import RuleLaw
 from ....enums import VariableKind
-from ..._utils import bound_labels, declarations_of, probe_laws
+from ..._utils import binding_of, bound_labels, declarations_of, probe_laws
 from ...problems._node_spec import _NodeSpec
 from .._base import BasePass
 from .._compilation import Compilation
@@ -58,8 +58,8 @@ class AgentsPass(BasePass):
         The paths have no member indices.
         """
         paths = set()
-        for name in declarations_of(type(node.component), VariableKind.ROLE):
-            for item in bound_labels(getattr(node.component, name)):
+        for name in declarations_of(node.component, VariableKind.ROLE):
+            for item in bound_labels(binding_of(node.component, name)):
                 paths.add(MEMBER_SUFFIX.sub('', f'{node.scope}{item}'))
         return paths
 

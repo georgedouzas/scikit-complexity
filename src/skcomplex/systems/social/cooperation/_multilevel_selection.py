@@ -16,7 +16,8 @@ from sage.modules.free_module_element import FreeModuleElement
 from scipy.stats import irwinhall
 
 from ....core.components import Observable
-from ....core.components.interactions import ConservationInteraction, RateInteraction
+from ....core.components.interactions import ConservationInteraction, Interaction, RateInteraction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import coordinate, integral_transform, integration_variable
 from ....core.components.spaces import AxisSpec, BaseSpace, FiniteVolumeSpec, LatticeSpace, PhaseSpace
 from ....core.engine.backends import BaseBackend
@@ -434,11 +435,15 @@ class NonlinearPairwiseGroupConflictSystem(BaseSystem):
             state='x',
             drift=lambda _: [0, z * (1 - z) * advantage],
         )
-        between = RateInteraction(
+        between = Interaction(
             'between',
-            target='groups',
-            state='x',
-            rate=lambda s: self.group_strength * s.target.x * integral_transform(s.target.x, gain, ('z',)),
+            roles={'target': 'groups'},
+            laws=lambda s: [
+                RateLaw(
+                    s.target.x.diff(s.t),
+                    self.group_strength * s.target.x * integral_transform(s.target.x, gain, ('z',)),
+                ),
+            ],
         )
         self.system_ = System(self.label, elements=[groups], interactions=[within, between], solver=RK4Solver(dt=0.01))
 
@@ -566,11 +571,15 @@ class TwoLevelReplicatorSystem(BaseSystem):
             state='x',
             drift=lambda _: [0, z * (1 - z) * advantage],
         )
-        between = RateInteraction(
+        between = Interaction(
             'between',
-            target='groups',
-            state='x',
-            rate=lambda s: self.group_strength * s.target.x * integral_transform(s.target.x, gain, ('z',)),
+            roles={'target': 'groups'},
+            laws=lambda s: [
+                RateLaw(
+                    s.target.x.diff(s.t),
+                    self.group_strength * s.target.x * integral_transform(s.target.x, gain, ('z',)),
+                ),
+            ],
         )
         self.system_ = System(self.label, elements=[groups], interactions=[within, between], solver=RK4Solver(dt=0.01))
 

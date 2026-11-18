@@ -286,7 +286,13 @@ class KernelsPass(BasePass):
                 reduced = isinstance(law, UpdateLaw) and spec.reduce is not None
                 phase = law.phase if isinstance(law, UpdateLaw) else None
                 combined = (
-                    KernelsPass._check_assignments(spec, law, targets, assigned[(type(law), phase)], once=once)
+                    KernelsPass._check_assignments(
+                        spec,
+                        law,
+                        targets,
+                        assigned[(KernelsPass._get_kind_of(law), phase)],
+                        once=once,
+                    )
                     if isinstance(law, ASSIGNED_KINDS) and not reduced
                     else set()
                 )
@@ -351,7 +357,7 @@ class KernelsPass(BasePass):
     def _get_kind_of(law: BaseLaw) -> type:
         """Return the class of a law that decides its form.
 
-        Every noise law counts as a noise law.
+        Every noise law counts as a noise law, and every rate law, such as the term of a flow, as a rate law.
 
         Args:
             law:
@@ -361,7 +367,7 @@ class KernelsPass(BasePass):
             kind:
                 The class.
         """
-        return NoiseLaw if isinstance(law, NoiseLaw) else type(law)
+        return next((kind for kind in (NoiseLaw, RateLaw) if isinstance(law, kind)), type(law))
 
     @staticmethod
     def _is_sympy(value: object) -> bool:

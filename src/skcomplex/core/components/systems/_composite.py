@@ -244,7 +244,7 @@ class CompositeSystem(BaseSystem['CompositeSystem']):
             for role, needs in interaction.get_requirements().roles.items():
                 if not needs.domains:
                     continue
-                for path in self._get_bound_labels(getattr(interaction, role, None)):
+                for path in self._get_bound_labels(interaction._get_binding(role)):
                     element = self._find_element(path)
                     if element is None:
                         continue

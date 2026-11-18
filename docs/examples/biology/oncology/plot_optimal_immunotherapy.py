@@ -14,14 +14,13 @@ tumour is cleared, after which the treatments stop.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import OptimalImmunotherapySystem
 
 SYSTEM = 'optimal_immunotherapy'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(OptimalImmunotherapySystem(), observers=[observer])
+trajectory = OptimalImmunotherapySystem().prepare().simulate(observers=[observer])
 
 # %%
 # Treated against untreated
@@ -29,7 +28,7 @@ trajectory = simulate(OptimalImmunotherapySystem(), observers=[observer])
 # With prohibitive weights on both treatments, the optimal treatment is nearly none and the tumour grows at nearly its
 # intrinsic rate 0.18 per day. With the optimal treatments the tumour should fall by orders of magnitude within weeks.
 
-free = simulate(OptimalImmunotherapySystem(w1=1e6, w2=1e6))
+free = OptimalImmunotherapySystem(w1=1e6, w2=1e6).prepare().simulate()
 fig, (tumour, doses) = plt.subplots(1, 2, figsize=(10, 4))
 tumour.semilogy(free.times, free.get_values('site.y'), label='untreated')
 tumour.semilogy(trajectory.times, trajectory.get_values('site.y') + 1e-9, label='optimal treatment')

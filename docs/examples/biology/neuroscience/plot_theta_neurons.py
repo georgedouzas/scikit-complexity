@@ -13,14 +13,15 @@ excitatory pulses, they kick each other over threshold and the whole network fir
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.neuroscience import ThetaNeuronsSystem
 
 SYSTEM = 'theta_neurons'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(ThetaNeuronsSystem(n_neurons=4, kappa=1.5, random_state=0), observers=[observer], until=10)
+trajectory = (
+    ThetaNeuronsSystem(n_neurons=4, kappa=1.5, random_state=0).prepare().simulate(observers=[observer], until=10)
+)
 
 # %%
 # Coupling switches on collective firing
@@ -37,8 +38,8 @@ def spikes_of(trajectory):
     return trajectory.times[steps + 1], neurons
 
 
-coupled = simulate(ThetaNeuronsSystem(n_neurons=50, kappa=1.5, random_state=0))
-uncoupled = simulate(ThetaNeuronsSystem(n_neurons=50, kappa=0.0, random_state=0))
+coupled = ThetaNeuronsSystem(n_neurons=50, kappa=1.5, random_state=0).prepare().simulate()
+uncoupled = ThetaNeuronsSystem(n_neurons=50, kappa=0.0, random_state=0).prepare().simulate()
 fig, axes = plt.subplots(1, 2, figsize=(11, 4), sharey=True)
 for ax, trajectory, label in zip(axes, [uncoupled, coupled], ['kappa = 0', 'kappa = 1.5'], strict=True):
     times, neurons = spikes_of(trajectory)

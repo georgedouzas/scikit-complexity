@@ -14,7 +14,7 @@ from ....components.spaces import BaseSpace, LatticeSpace, NetworkSpace
 from ....components.systems import CompositeSystem
 from ....enums import VariableKind
 from ....errors import LabelError, RoleError, SkcomplexError, ValidationError
-from ..._utils import declarations_of, probe_laws
+from ..._utils import binding_of, declarations_of, probe_laws
 from ...problems._node_spec import _NodeSpec
 from .._base import BasePass
 from .._laws import AGENT_LAWS
@@ -139,8 +139,8 @@ class FlattenPass(BasePass):
         it unbound.
         """
         processes = []
-        for name, declaration in declarations_of(type(interaction), VariableKind.ROLE).items():
-            value = getattr(interaction, name)
+        for name, declaration in declarations_of(interaction, VariableKind.ROLE).items():
+            value = binding_of(interaction, name)
             if (declaration.noise or declaration.optional) and value is None:
                 continue
             if declaration.noise != isinstance(value, WienerProcessSpec):
@@ -150,7 +150,7 @@ class FlattenPass(BasePass):
                     f'{expected}. Bind {expected}, and declare a role of Wiener processes with `role(noise=True)`.'
                 )
                 raise RoleError(error_msg)
-            if declaration.noise:
+            if isinstance(value, WienerProcessSpec):
                 processes.append(value)
         return processes
 

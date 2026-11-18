@@ -16,13 +16,14 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 from scipy.spatial import Delaunay
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import RoleSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.specs import RoleSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
 CUTS = 2
@@ -53,6 +54,9 @@ class TrailSegmentElement(Element):
         passable:
             1 while the segment can be walked and 0 once it is cut.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.biology.collective_behaviour import TrailSegmentElement
         >>> TrailSegmentElement('segment').tau
@@ -63,10 +67,11 @@ class TrailSegmentElement(Element):
         self,
         label: str,
         *,
-        tau: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        passable: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
+        tau: Annotated[float | Array, RealSet.closed_open(0, oo)] = 1.0,
+        passable: Annotated[float | Array, FiniteEnumeratedSet([0, 1])] = 1.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.tau = tau
         self.passable = passable
 
@@ -329,6 +334,12 @@ class AntColonyOptimizationSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.collective_behaviour import AntColonyOptimizationSystem
         >>> AntColonyOptimizationSystem(10).prepare().system_.interactions[0].ants
@@ -353,8 +364,10 @@ class AntColonyOptimizationSystem(BaseSystem):
         cut: int | None = None,
         seed: int | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_points = n_points
         self.ants = ants
         self.steps = steps
@@ -365,11 +378,14 @@ class AntColonyOptimizationSystem(BaseSystem):
         self.cut = cut
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of ants that find the shortest path on a Delaunay road network.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of ants that find the shortest path on a Delaunay road network.
 
-        The path joins two points of the network.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         points = np.random.default_rng(self.seed).random((self.n_points, 2))
         triangles = Delaunay(points).simplices
         pairs = {
@@ -379,7 +395,7 @@ class AntColonyOptimizationSystem(BaseSystem):
         lengths = [float(np.linalg.norm(points[a] - points[b])) for a, b in edges]
         start = int(np.argmin(np.linalg.norm(points, axis=1)))
         target = int(np.argmin(np.linalg.norm(points - 1.0, axis=1)))
-        roads = GroupElement('roads', element=TrailSegmentElement, size=len(edges))
+        roads = TrailSegmentElement('roads', size=len(edges))
         search = ColonySearchInteraction(
             'search',
             segments='roads',
@@ -395,4 +411,4 @@ class AntColonyOptimizationSystem(BaseSystem):
             Q=self.Q,
             cut=self.cut,
         )
-        return CompositeSystem(self.label, elements=[roads], interactions=[search], time=DiscreteTime())
+        self.system_ = System(self.label, elements=[roads], interactions=[search])

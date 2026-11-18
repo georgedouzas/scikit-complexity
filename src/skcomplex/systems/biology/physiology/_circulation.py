@@ -212,7 +212,7 @@ class CardiovascularSystem(BaseSystem):
         self.volume = volume
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
-        """Set the system of the system.
+        """Set a closed lumped system of the systemic circulation.
 
         Args:
             context:

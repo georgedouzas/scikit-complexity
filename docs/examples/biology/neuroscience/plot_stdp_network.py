@@ -12,14 +12,13 @@ fire at different rates meet at all delays, so the window's balance of potentiat
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.neuroscience import STDPNetworkSystem
 
 SYSTEM = 'stdp_network'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(STDPNetworkSystem(A_minus=1.3), observers=[observer])
+trajectory = STDPNetworkSystem(A_minus=1.3).prepare().simulate(observers=[observer])
 
 # %%
 # Drift of the efficacies
@@ -29,7 +28,7 @@ trajectory = simulate(STDPNetworkSystem(A_minus=1.3), observers=[observer])
 
 fig, (drift, spread) = plt.subplots(1, 2, figsize=(11, 4.5))
 for a_minus in (0.6, 1.0, 1.3):
-    run = simulate(STDPNetworkSystem(A_minus=a_minus))
+    run = STDPNetworkSystem(A_minus=a_minus).prepare().simulate()
     drift.plot(run.times, run.get_values('synapses.kappa').mean(axis=1), label=f'A_minus = {a_minus}')
 drift.set_xlabel('time')
 drift.set_ylabel('mean efficacy')

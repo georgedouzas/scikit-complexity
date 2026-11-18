@@ -6,6 +6,7 @@ The infections spread along partnerships that overlap in time.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -14,13 +15,16 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import TopologyInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import delayed
 from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ..common.networks import HostElement, SpreadingInteraction
 
 FRACTION = RealSet.closed(0, 1)
@@ -180,6 +184,12 @@ class WattsMayConcurrencySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import WattsMayConcurrencySystem
         >>> WattsMayConcurrencySystem(tau=3.0).prepare().system_.elements[0].tau
@@ -202,8 +212,10 @@ class WattsMayConcurrencySystem(BaseSystem):
         T: float = 0.5,
         nu: float = 0.1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.infected = infected
         self.c = c
         self.beta = beta
@@ -211,8 +223,14 @@ class WattsMayConcurrencySystem(BaseSystem):
         self.T = T
         self.nu = nu
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the SEIR epidemic of Watts and May."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the SEIR epidemic of Watts and May.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         population = PartnershipEpidemicElement(
             'population',
             S=1 - self.infected,
@@ -223,7 +241,7 @@ class WattsMayConcurrencySystem(BaseSystem):
             T=self.T,
             nu=self.nu,
         )
-        return CompositeSystem(self.label, elements=[population])
+        self.system_ = System(self.label, elements=[population])
 
 
 class PairFormationSISSystem(BaseSystem):
@@ -268,6 +286,12 @@ class PairFormationSISSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import PairFormationSISSystem
         >>> PairFormationSISSystem(n=20, k=4).prepare().system_.interactions[0].beta
@@ -293,8 +317,10 @@ class PairFormationSISSystem(BaseSystem):
         infected: float = 0.05,
         seed: int | None = 1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.k = k
         self.beta = beta
@@ -305,11 +331,14 @@ class PairFormationSISSystem(BaseSystem):
         self.infected = infected
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the SIS epidemic on partnerships that are replaced at once.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the SIS epidemic on partnerships that are replaced at once.
 
-        The partnerships dissolve and are replaced at once.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         beta = self.beta
         sigma = self.sigma
         beta = self.pressure / self.k if beta is None else beta
@@ -333,7 +362,7 @@ class PairFormationSISSystem(BaseSystem):
             variable=True,
             capacity=space.graph.number_of_edges(),
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[people, partnerships],
             interactions=[

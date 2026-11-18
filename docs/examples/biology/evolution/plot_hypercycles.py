@@ -14,18 +14,16 @@ dominates the soup, boosts the next one, and gives way to it.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.evolution import HypercyclesSystem
 
 SYSTEM = 'hypercycles'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(
-    HypercyclesSystem(molecules=6, alpha=0.01, topology='cycle'),
-    dt=1.0,
-    observers=[observer],
-    until=290,
+trajectory = (
+    HypercyclesSystem(molecules=6, alpha=0.01, topology='cycle')
+    .prepare()
+    .simulate(dt=1.0, observers=[observer], until=290)
 )
 
 # %%
@@ -36,7 +34,7 @@ trajectory = simulate(
 # over instead: about `sqrt(2 omega / alpha) ≈ 4.5` of them survive for `alpha = 0.1` and the slowest die out.
 
 ring = trajectory
-complete = simulate(HypercyclesSystem(molecules=10, topology='complete'), until=200).get_values('soup.x')
+complete = HypercyclesSystem(molecules=10, topology='complete').prepare().simulate(until=200).get_values('soup.x')
 fig, (left, right) = plt.subplots(1, 2, figsize=(11, 4))
 left.semilogy(ring.times, ring.get_values('soup.x'))
 left.set_ylim(1e-5, 1)

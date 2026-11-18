@@ -13,7 +13,11 @@ from ._cell_kinetics import (
     ErythropoiesisElement,
     ErythropoiesisMercaptopurineSystem,
 )
-from ._cell_survival import LinearQuadraticSurvivalElement, LQCellSurvivalSystem
+from ._cell_survival import (
+    LinearQuadraticSurvivalElement,
+    LinearQuadraticSurvivalInteraction,
+    LQCellSurvivalSystem,
+)
 from ._chemotherapy import (
     DelayedMetastasisSystem,
     DelayedRestingHuntingChemotherapySystem,
@@ -184,6 +188,7 @@ __all__: list[str] = [
     'LeukaemiaStemCellsElement',
     'LeukaemiaStemCellsSystem',
     'LinearQuadraticSurvivalElement',
+    'LinearQuadraticSurvivalInteraction',
     'LogKillInteraction',
     'MetastasisChemotherapyElement',
     'MultidrugResistanceElement',

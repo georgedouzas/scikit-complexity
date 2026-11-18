@@ -24,10 +24,10 @@ def test_rice_milling_passes_the_harvest_through():
     )
     last_years = np.asarray(trajectory.times) >= 72
     assert trajectory.get_values('mill.milling')[last_years].mean() == pytest.approx(2000.0, rel=0.05)
-    assert trajectory.get_values('mill.rice_sales')[last_years].mean() == pytest.approx(0.65 * 2000.0, rel=0.05)
+    assert trajectory.get_values('flows.rice_sales')[last_years].mean() == pytest.approx(0.65 * 2000.0, rel=0.05)
     np.testing.assert_allclose(
-        trajectory.get_values('mill.husk_output'),
-        0.2 / 0.65 * trajectory.get_values('mill.milled_rice'),
+        trajectory.get_values('flows.husk_output'),
+        0.2 / 0.65 * trajectory.get_values('flows.milled_rice'),
     )
     assert trajectory.get_values('mill.paddy').max() > 2 * trajectory.get_values('mill.paddy').min()
 
@@ -48,8 +48,8 @@ def test_food_relief_delays_then_meets_the_need():
     trajectory = _run_monitored(FoodReliefSystem(onset=10.0, shipping_delay=14.0).prepare().system_, 0.5, 120)
     times = np.asarray(trajectory.times)
     need = 1e5 * 5e-4
-    assert trajectory.get_values('relief.distribution')[times <= 13].max() < 0.1 * need
-    assert trajectory.get_values('relief.distribution')[-1] == pytest.approx(need, rel=1e-2)
+    assert trajectory.get_values('flows.distribution')[times <= 13].max() < 0.1 * need
+    assert trajectory.get_values('flows.distribution')[-1] == pytest.approx(need, rel=1e-2)
     assert trajectory.get_values('relief.warehouse').max() > 7 * need
 
 

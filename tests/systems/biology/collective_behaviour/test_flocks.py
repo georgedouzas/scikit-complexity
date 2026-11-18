@@ -9,6 +9,7 @@ from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.collective_behaviour import (
     BirdSwarmSystem,
     BoidElement,
@@ -24,7 +25,7 @@ from skcomplex.systems.biology.collective_behaviour import (
 
 def test_boids_align():
     """Test that boids starting with random headings become a polarized flock."""
-    trajectory = simulate(BoidsSystem().prepare().system_, until=100, dt=1, random_state=0)
+    trajectory = BoidsSystem().prepare().system_.simulate(until=100, dt=1, random_state=0)
 
     def polarization(frame):
         snapshot = trajectory.get_agents('flock', frame)
@@ -38,7 +39,7 @@ def test_boids_align():
 def test_boids_3d_align_in_three_dimensions():
     """Test that boids with only the alignment rule polarize and keep their spread over the depth of the box."""
     system = Boids3dSystem(50, cohesion=0.0, separation=0.0, alignment=0.1, random_state=0).prepare().system_
-    trajectory = simulate(system, dt=1, random_state=0, until=200)
+    trajectory = system.prepare().simulate(dt=1, random_state=0, until=200)
 
     def polarization(frame):
         velocity = trajectory.get_agents('flock', frame).values['velocity']
@@ -64,10 +65,8 @@ def _velocities(values, locations, interactions, until=1):
     """Return the group of boids at the last frame of a run in a periodic cube of side 10."""
     flock = GroupElement('flock', element=SpatialBoidElement, size=len(locations), values=values, location=locations)
     space = ContinuousSpace(extent=(10.0, 10.0, 10.0), boundary='periodic')
-    trajectory = simulate(
-        CompositeSystem(elements=[flock], interactions=interactions, space=space),
-        until=until,
-        random_state=0,
+    trajectory = (
+        System(elements=[flock], interactions=interactions, space=space).prepare().simulate(until=until, random_state=0)
     )
     return trajectory.get_agents('flock', until)
 

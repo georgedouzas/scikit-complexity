@@ -13,14 +13,13 @@ a constant rate in the logarithm of time.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.epidemiology import RecordDynamicsEpidemicSystem
 
 SYSTEM = 'record_dynamics_epidemic'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(RecordDynamicsEpidemicSystem(n=2000), observers=[observer], random_state=0, until=300)
+trajectory = RecordDynamicsEpidemicSystem(n=2000).prepare().simulate(observers=[observer], random_state=0, until=300)
 
 # %%
 # Outbreaks in logarithmic time
@@ -31,7 +30,7 @@ trajectory = simulate(RecordDynamicsEpidemicSystem(n=2000), observers=[observer]
 years = np.arange(1, 301)
 counts = []
 for seed in range(20):
-    run = simulate(RecordDynamicsEpidemicSystem(n=2000, seed=seed), until=300, random_state=seed)
+    run = RecordDynamicsEpidemicSystem(n=2000, seed=seed).prepare().simulate(until=300, random_state=seed)
     counts.append(np.cumsum(run.get_values('residents.infected').sum(axis=1)[1:] > 0))
 fig, ax = plt.subplots(figsize=(7, 4.5))
 ax.plot(years, np.mean(counts, axis=0), label='mean of 20 runs')

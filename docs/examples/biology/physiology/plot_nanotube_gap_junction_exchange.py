@@ -20,7 +20,6 @@ import networkx as nx
 import numpy as np
 from scipy.optimize import brentq
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.physiology import NanotubeGapJunctionExchangeSystem
 
@@ -38,10 +37,10 @@ def leading_rate(xi):
 
 critical = brentq(leading_rate, 0.0, 1.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(
-    NanotubeGapJunctionExchangeSystem(graph=graph, xi=1.2 * critical),
-    observers=[observer],
-    random_state=0,
+trajectory = (
+    NanotubeGapJunctionExchangeSystem(graph=graph, xi=1.2 * critical)
+    .prepare()
+    .simulate(observers=[observer], random_state=0)
 )
 
 # %%
@@ -61,7 +60,7 @@ spectrum.set_ylabel('leading eigenvalue of the Jacobian')
 spectrum.set_title('Distance to instability')
 spectrum.legend()
 for share in (0.0, 0.8, 1.0, 1.2):
-    run = simulate(NanotubeGapJunctionExchangeSystem(graph=graph, xi=share * critical, x=0.01))
+    run = NanotubeGapJunctionExchangeSystem(graph=graph, xi=share * critical, x=0.01).prepare().simulate()
     totals.semilogy(run.times, run.get_values('cells.x').sum(axis=1), label=f'xi = {share} xi_crit')
 totals.set_xlabel('time')
 totals.set_ylabel('total substance')

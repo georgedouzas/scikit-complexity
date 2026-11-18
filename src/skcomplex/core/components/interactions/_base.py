@@ -27,6 +27,7 @@ from ...specs import BaseSpec, DeclaredVariableSpec, ParameterSpec, RoleSpec, St
 from .._tags import Tags
 from ..base import BaseComponent
 from ..laws import BaseLaw, NoiseLaw, PartnerSpec, RateLaw, RuleLaw, UpdateLaw
+from ..laws._flow_term import FlowTermLaw
 from ..laws.utils import delayed, derivative, lag
 from ..laws.utils._fractional import fractional_of
 from ..spaces import BaseSpace, ContinuousSpace
@@ -275,14 +276,18 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         """Return the state, derivative, lag, or delay a function of time stands for."""
         operator = value.operator()
         if isinstance(operator, FDerivativeOperator) and operator.function().name() in symbols:
-            return derivative(symbols[operator.function().name()], len(operator.parameter_set()))
-        name = str(getattr(operator, 'name', lambda: '')())
-        if name not in symbols or len(value.operands()) != 1:
+            state = derivative(symbols[operator.function().name()], len(operator.parameter_set()))
+        else:
+            name = str(getattr(operator, 'name', lambda: '')())
+            if name not in symbols:
+                return None
+            state = symbols[name]
+        if len(value.operands()) != 1:
             return None
         shift = SR(time - value.operands()[0]).simplify_full()
         if shift.is_zero():
-            return symbols[name]
-        return (lag if discrete else delayed)(symbols[name], shift)
+            return state
+        return (lag if discrete else delayed)(state, shift)
 
     @staticmethod
     def _get_translated(value: object, time: Expression, symbols: Mapping[str, Expression], discrete: bool) -> object:
@@ -459,11 +464,16 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         functional = SimpleNamespace(**roles)
         prepared = clone(self)
         prepared.prepare(functional)
-        return [
-            self._get_rule(law, roles, functional)
-            or self._get_local_rule(self._get_normalized(self._get_law_in_states(law, time, functions)))
-            for law in prepared.laws_
-        ]
+        laws: list[BaseComponent] = []
+        for law in prepared.laws_:
+            rule = self._get_rule(law, roles, functional)
+            if rule is not None:
+                laws.append(rule)
+                continue
+            translated = self._get_law_in_states(law, time, functions)
+            terms = FlowTermLaw._get_terms(translated, self.label) if isinstance(translated, RateLaw) else [translated]
+            laws.extend(self._get_local_rule(self._get_normalized(term)) for term in terms)
+        return laws
 
     @staticmethod
     def _get_local_rule(law: BaseComponent) -> BaseComponent:
@@ -557,6 +567,21 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
                 The namespace of the symbols the laws can use.
         """
         self.laws_ = self._get_laws_of(inputs)
+
+    def _get_binding(self, role: str) -> object:
+        """Return what a role binds, such as the label of an element.
+
+        It is the argument of the same name, such as `target='ball'`.
+
+        Args:
+            role:
+                The name of the role.
+
+        Returns:
+            binding:
+                The label, labels, or entries the role binds, or `None` when it binds nothing.
+        """
+        return getattr(self, role, None)
 
     def _get_role(self, role: str) -> str:
         """Return the role a subclass binds in place of a role of its general interaction.
@@ -950,7 +975,7 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
             sites=any(need.sites for need in needs),
             roles={
                 name: replace(spec, states=self._get_state_names(spec.states))
-                for name, spec in self._get_specs().items()
+                for name, spec in self._get_component_specs().items()
                 if isinstance(spec, RoleSpec)
             },
             laws=laws,

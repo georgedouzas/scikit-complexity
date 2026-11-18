@@ -15,7 +15,7 @@ from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, RateLaw
 from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
-from .....core.specs import ParameterSpec, Role
+from .....core.specs import Role
 
 N_STATES = 2
 
@@ -69,8 +69,8 @@ class SpringDamperInteraction(Interaction):
         target: Role,
         states: Sequence[str] = ('x1', 'x2'),
         masses: Sequence[str] = ('m1', 'm2'),
-        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        k: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        b: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
     ) -> None:
         super().__init__(label)
         self.target = target

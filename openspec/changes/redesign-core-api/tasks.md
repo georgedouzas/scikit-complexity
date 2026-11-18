@@ -68,7 +68,7 @@ Each task rewrites the systems of its fields on the new API: elements as data wi
   - [x] 5.2.1 Every chemistry and engineering ready-made system on the new base with `solver=` and `backend=`.
   - [x] 5.2.2 Companion states `x_d1` replaced by `x'`, and ports rewritten as interactions between node elements.
   - [x] 5.2.3 The shared bases of `general` with their subclasses, and the reactions, agents, matching, kinetics, gradients, mechanics, and rewriting recipes.
-  - [x] 5.2.4 Stock-flow flows as rate terms that share a label, with the loops analysis and the flow matrix.
+  - [x] 5.2.4 Stock-flow flows as one labelled `RateLaw` whose target maps stocks to signs, with the loops analysis and the flow matrix.
   - [ ] 5.2.5 The remaining old parts of engineering: process, control, robot, and driver elements with laws of their own.
 - [ ] 5.3 Wave 1: `mathematics`.
   - [x] 5.3.1 Maps, flows, normal forms, ensembles, stochastic processes, fractals, walks, fractional dynamics, and the agent systems.
@@ -79,7 +79,8 @@ Each task rewrites the systems of its fields on the new API: elements as data wi
   - [ ] 5.4.2 The remaining agent rules of DNA computation, genetic algorithms, Hopfield, and the perceptron as `UpdateLaw` rules.
 - [ ] 5.5 Wave 2: `biology`.
   - [x] 5.5.1 Ecology, neuroscience, physiology, systems biology, oncology, and collective decisions on the new base.
-  - [ ] 5.5.2 The modules the first pass left, the agent modules, and the old parts of the families on the new base.
+  - [x] 5.5.2 The modules the first pass left and the agent modules on the new base, with identical runs.
+  - [ ] 5.5.3 The old parts of biology: element laws, old wrapper interactions, old groups, and the three modules still on the old base.
 - [ ] 5.6 Wave 2: `economics`.
   - [x] 5.6.1 All ready-made systems but oligopoly on the new base, with identical values.
   - [x] 5.6.2 Member links, agents on network nodes, and per-member constraints for labour, credit, commons, discovery, and oligopoly.

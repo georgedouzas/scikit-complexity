@@ -22,7 +22,7 @@ from ....core.components.laws.utils import pulse_train, sign
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, Role
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
@@ -75,10 +75,10 @@ class WheelLoadInteraction(Interaction):
         target: Role,
         state: str = 'z',
         mass: str = 'Mr',
-        F: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1000.0,
-        T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
-        width: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        spacing: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
+        F: Annotated[float, RealSet.closed_open(0, oo)] = 1000.0,
+        T: Annotated[float, RealSet.open(0, oo)] = 10.0,
+        width: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        spacing: Annotated[float, RealSet.closed_open(0, oo)] = 3.0,
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -148,9 +148,9 @@ class BallastInteraction(Interaction):
         target: Role,
         state: str = 'zs',
         mass: str = 'Ms',
-        ks: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1500.0,
-        bs: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 520.0,
-        k2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        ks: Annotated[float, RealSet.closed_open(0, oo)] = 1500.0,
+        bs: Annotated[float, RealSet.closed_open(0, oo)] = 520.0,
+        k2: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
         alpha: float = 1.75,
         beta: float = -1.0,
     ) -> None:

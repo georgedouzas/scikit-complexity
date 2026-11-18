@@ -14,19 +14,20 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.networks import DavidsenEbelBornholdtSystem
 
 SYSTEM = 'davidsen_ebel_bornholdt'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(DavidsenEbelBornholdtSystem(), until=10000, dt=100.0, observers=[observer], random_state=0)
+trajectory = (
+    DavidsenEbelBornholdtSystem().prepare().simulate(until=10000, dt=100.0, observers=[observer], random_state=0)
+)
 
 
 def graphs(turnover, until=10000):
     """Return the networks of the steady state, every 200 steps after the first fifth of the run."""
-    run = simulate(DavidsenEbelBornholdtSystem(turnover=turnover), until=until, random_state=0)
+    run = DavidsenEbelBornholdtSystem(turnover=turnover).prepare().simulate(until=until, random_state=0)
     found = []
     for frame in range(until // 5, until + 1, 200):
         network = run.get_network(frame)

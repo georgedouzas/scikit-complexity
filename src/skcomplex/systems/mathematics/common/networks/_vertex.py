@@ -9,7 +9,8 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from .....core.components.elements import Element
-from .....core.specs import StateSpec, VisualSpec
+from .....core.components.spaces import BaseSpace
+from .....core.specs import VisualSpec
 
 DEGREE_VISUAL = VisualSpec('sites', {'states': ['degree']})
 
@@ -17,8 +18,8 @@ DEGREE_VISUAL = VisualSpec('sites', {'states': ['degree']})
 class VertexElement(Element):
     """Node of a growing network, with its age in steps and its degree.
 
-    New nodes start with age 0, and the maps of the system age the node and read its degree from the edges at the start
-    of every step.
+    New nodes start with the age their growth gives, and the maps of the system age the node and read its degree from
+    the edges at the start of every step.
 
     Args:
         label:
@@ -29,6 +30,9 @@ class VertexElement(Element):
 
         degree:
             The number of edges of the node.
+
+        space:
+            The network whose nodes hold one member each, or `None` for one node.
 
     Examples:
         >>> from skcomplex.systems.mathematics.networks import VertexElement
@@ -42,9 +46,10 @@ class VertexElement(Element):
         self,
         label: str,
         *,
-        age: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        degree: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        age: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        degree: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.age = age
         self.degree = degree

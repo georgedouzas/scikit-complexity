@@ -13,14 +13,13 @@ monogamy, because the infection passes on before the partnership that brought it
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.epidemiology import PairFormationSISSystem
 
 SYSTEM = 'pair_formation_sis'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(PairFormationSISSystem(n=200, k=3), observers=[observer], random_state=1, until=30)
+trajectory = PairFormationSISSystem(n=200, k=3).prepare().simulate(observers=[observer], random_state=1, until=30)
 
 # %%
 # Prevalence and concurrency
@@ -30,7 +29,7 @@ trajectory = simulate(PairFormationSISSystem(n=200, k=3), observers=[observer], 
 
 fig, ax = plt.subplots(figsize=(7, 4.5))
 for k in (1, 2, 4):
-    run = simulate(PairFormationSISSystem(n=300, k=k), random_state=0, until=30)
+    run = PairFormationSISSystem(n=300, k=k).prepare().simulate(random_state=0, until=30)
     ax.plot(run.times, run.get_values('people.i').mean(axis=1), label=f'k = {k}')
 ax.plot(trajectory.times, trajectory.get_values('people.i').mean(axis=1), ':', label='run above')
 ax.set_xlabel('time')

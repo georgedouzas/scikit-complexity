@@ -16,7 +16,6 @@ import itertools
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import NeutralBiodiversitySystem
 
@@ -24,11 +23,10 @@ SYSTEM = 'neutral_biodiversity'
 SIZE, NU = 200, 0.01
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-trajectory = simulate(
-    NeutralBiodiversitySystem(individuals=SIZE, nu=NU, random_state=0),
-    until=1000,
-    observers=[observer],
-    random_state=0,
+trajectory = (
+    NeutralBiodiversitySystem(individuals=SIZE, nu=NU, random_state=0)
+    .prepare()
+    .simulate(until=1000, observers=[observer], random_state=0)
 )
 
 # %%

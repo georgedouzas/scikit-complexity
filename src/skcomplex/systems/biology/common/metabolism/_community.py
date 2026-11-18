@@ -21,11 +21,13 @@ from .....core.analysis.types import Source
 from .....core.components.elements import DeclaredElement
 from .....core.components.laws import LinearObjectiveSpec, LinearProgramLaw
 from .....core.components.spaces import StaticTime
-from .....core.components.systems import BaseSystem, CompositeSystem
+from .....core.components.systems import BaseSystem as OldBaseSystem
+from .....core.components.systems import CompositeSystem
 from .....core.engine.problems import ProblemSpec, RunStateSpec
 from .....core.engine.runtime import simulate
 from .....core.errors import AnalysisError
 from .....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from .....core.systems import BaseSystem, System
 from ...._extras import import_extra
 from ._analyses import _check_choice, _networks_of
 from ._cobra_io import load_extra, to_cobra
@@ -144,9 +146,9 @@ def community_growth(
     _check_choice('community_growth', 'kind', kind, COMMUNITY_KINDS)
     if kind == 'tradeoff':
         load_extra(f'community_growth(kind={kind!r})')
-    if isinstance(source, BaseSystem) and not isinstance(source, CompositeSystem):
+    if isinstance(source, OldBaseSystem | BaseSystem) and not isinstance(source, CompositeSystem | System):
         source = source.prepare().system_
-    members = _networks_of(source) if isinstance(source, CompositeSystem) else []
+    members = _networks_of(source) if isinstance(source, CompositeSystem | System) else []
     if not members:
         error_msg = 'community_growth reads a system that holds a metabolic network element.'
         raise AnalysisError(error_msg)

@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.epidemiology import MetapopulationSystem
 
@@ -22,7 +21,7 @@ SYSTEM = 'metapopulation'
 
 graph = nx.barabasi_albert_graph(30, 2, seed=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(MetapopulationSystem(graph=graph), observers=[observer])
+trajectory = MetapopulationSystem(graph=graph).prepare().simulate(observers=[observer])
 
 # %%
 # Arrival time against distance

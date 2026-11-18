@@ -8,8 +8,10 @@ The members are joined through a shared medium.
 
 from collections.abc import Mapping, Sequence
 
-from ....core.components.spaces import StaticTime
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components import Observable
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 from ..common.metabolism import CommunityInteraction, community_medium_type, load_network
 
 GROWTH = 'Biomass_Ecoli_core'
@@ -47,14 +49,19 @@ class CommunityFBASystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         MissingExtraError:
             The extra is not installed.
 
     Examples:
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.biology.ecology import CommunityFBASystem
-        >>> trajectory = simulate(CommunityFBASystem(), until=0.0)
+        >>> trajectory = CommunityFBASystem().prepare().simulate(until=0.0)
         >>> round(float(trajectory.get_values('medium.objective_0')[0]), 3)
         0.862
     """
@@ -72,15 +79,23 @@ class CommunityFBASystem(BaseSystem):
         exchanges: Mapping[str, float] | None = None,
         common_rate: bool = False,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.knockouts = knockouts
         self.abundances = abundances
         self.exchanges = exchanges
         self.common_rate = common_rate
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of two members of the E. coli core system that share a medium."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of two members of the E. coli core system that share a medium.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         shared = dict(self.exchanges) if self.exchanges is not None else dict.fromkeys(CROSS_FED, 0.0)
         members = []
         for position, knockout in enumerate(self.knockouts):
@@ -93,7 +108,7 @@ class CommunityFBASystem(BaseSystem):
                 identifier = member._get_identifier(knockout)
                 member.set_params(**{f'lower_{identifier}': 0.0, f'upper_{identifier}': 0.0})
             members.append(member)
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[*members, community_medium_type(list(shared))('medium')],
             interactions=[
@@ -107,5 +122,4 @@ class CommunityFBASystem(BaseSystem):
                     common_rate=self.common_rate,
                 ),
             ],
-            time=StaticTime(),
         )

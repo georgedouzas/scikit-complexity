@@ -3,9 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
@@ -13,11 +13,13 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import BaseLaw, RuleLaw
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver, SystemView
-from ....core.specs import StateSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
@@ -55,10 +57,7 @@ def _items_of(mask: int) -> list[int]:
 
 
 class ShopperElement(Element):
-    """Shopper who visits one stall a step and buys what it wants there.
-
-    It only visits stalls it has not visited yet. A shopper gives up the items that it has not found once it has visited
-    every stall.
+    """Shopper with a shopping list, who visits stalls by `ShoppingInteraction`.
 
     Args:
         label:
@@ -76,27 +75,34 @@ class ShopperElement(Element):
         spent:
             The money spent.
 
+        values:
+            Further values by name, or `None` for none.
+
+        size:
+            The number of shoppers, or `None` for one.
+
+        space:
+            The space of the shoppers, or `None` for none.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.markets import ShopperElement
-        >>> GroupElement('shoppers', element=ShopperElement, size=5, values={'wanted': 3}).size
+        >>> ShopperElement('shoppers', wanted=3, size=5).size
         5
     """
-
-    law_classes = (RuleLaw,)
-
-    stalls: ClassVar[str] = 'stalls'
 
     def __init__(
         self,
         label: str,
         *,
-        wanted: Annotated[float, StateSpec(domain=NN)] = 0,
-        visited: Annotated[float, StateSpec(domain=NN)] = 0,
-        missed: Annotated[float, StateSpec(domain=NN)] = 0,
-        spent: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        wanted: Annotated[object, NN] = 0,
+        visited: Annotated[object, NN] = 0,
+        missed: Annotated[object, NN] = 0,
+        spent: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.wanted = wanted
         self.visited = visited
         self.missed = missed
@@ -107,18 +113,46 @@ class ShopperElement(Element):
         """Return the view of a shopper, with its list, visits, misses, and spending."""
         return ShopperView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the shopping rule.
+
+class ShoppingInteraction(Interaction):
+    """Shopping of every shopper, who visits one stall a step and buys what it wants there.
+
+    A shopper only visits stalls it has not visited yet, and gives up the items that it has not found once it has
+    visited every stall.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of shoppers.
+
+        stalls:
+            The path of the group of stalls.
+
+    Examples:
+        >>> from skcomplex.systems.economics.markets import ShoppingInteraction
+        >>> ShoppingInteraction('shopping', target='shoppers', stalls='stalls').stalls
+        'stalls'
+    """
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role, stalls: Role) -> None:
+        super().__init__(label)
+        self.target = target
+        self.stalls = stalls
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the shopping rule of every shopper.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the shoppers and the stalls.
         """
-        return [RuleLaw(self.shop)]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.shop)]
 
     def shop(self, agent: ShopperView, system: SystemView) -> None:
         """Visit a random stall not visited yet and buy every wanted item that it sells.
@@ -133,9 +167,7 @@ class ShopperElement(Element):
         wanted, visited = int(agent.wanted), int(agent.visited)
         if not wanted:
             return
-        unvisited = [
-            stall for stall in system.get_agents(self.stalls, StallView) if not visited >> int(stall.stall) & 1
-        ]
+        unvisited = [stall for stall in system.get_agents('stalls', StallView) if not visited >> int(stall.stall) & 1]
         if not unvisited:
             agent.missed, agent.wanted = wanted, 0
             return
@@ -164,24 +196,33 @@ class StallElement(Element):
         markup:
             The relative markup on the wholesale prices.
 
+        values:
+            Further values by name, or `None` for none.
+
+        size:
+            The number of stalls, or `None` for one.
+
+        space:
+            The space of the stalls, or `None` for none.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.markets import StallElement
-        >>> GroupElement('stalls', element=StallElement, size=3, values={'stall': [0, 1, 2]}).size
+        >>> StallElement('stalls', stall=[0, 1, 2], size=3).size
         3
     """
-
-    law_classes = ()
 
     def __init__(
         self,
         label: str,
         *,
-        stall: Annotated[float, StateSpec(domain=NN)] = 0,
-        stock: Annotated[float, StateSpec(domain=NN)] = 0,
-        markup: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        stall: Annotated[object, NN] = 0,
+        stock: Annotated[object, NN] = 0,
+        markup: Annotated[object, RealSet.closed_open(0, oo)] = 0.1,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.stall = stall
         self.stock = stock
         self.markup = markup
@@ -190,19 +231,6 @@ class StallElement(Element):
     def _get_view(cls) -> type[StallView]:
         """Return the view of a stall, with its index, stock, and markup."""
         return StallView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return no laws, since stalls only wait for shoppers.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return []
 
 
 def _get_items_left(wanted: object) -> float:
@@ -289,14 +317,16 @@ class ProduceMarketSystem(BaseSystem):
         stocks = self._get_random_masks(np.full(self.n_stalls, self.n_items_stocked), rng)
         markups = rng.integers(1, MAX_MARKUP + 1, self.n_stalls) / 100
         lists = self._get_random_masks(rng.integers(1, MAX_LIST_LENGTH + 1, self.n_shoppers), rng)
-        stalls = GroupElement(
+        stalls = StallElement(
             'stalls',
-            element=StallElement,
+            stall=np.arange(self.n_stalls, dtype=float),
+            stock=stocks,
+            markup=markups,
             size=self.n_stalls,
-            values={'stall': np.arange(self.n_stalls, dtype=float), 'stock': stocks, 'markup': markups},
         )
-        shoppers = GroupElement('shoppers', element=ShopperElement, size=self.n_shoppers, values={'wanted': lists})
+        shoppers = ShopperElement('shoppers', wanted=lists, size=self.n_shoppers)
         self.system_ = System(
             self.label,
             elements=[stalls, shoppers],
+            interactions=[ShoppingInteraction('shopping', target='shoppers', stalls='stalls')],
         )

@@ -11,7 +11,8 @@ from typing import Annotated
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from .....core.components.elements import Element
-from .....core.specs import StateSpec, VisualSpec
+from .....core.components.spaces import BaseSpace
+from .....core.specs import VisualSpec
 
 ACTIVITY_VISUAL = VisualSpec('sites', {'states': ['active'], 'low': 0.0, 'high': 1.0})
 
@@ -28,6 +29,9 @@ class RegulatedNodeElement(Element):
         active:
             1 when the node is in the giant component of the active links, and 0 otherwise.
 
+        space:
+            The network whose nodes hold one member each, or `None` for one node.
+
     Examples:
         >>> from skcomplex.systems.mathematics.networks import RegulatedNodeElement
         >>> RegulatedNodeElement('nodes').active
@@ -40,7 +44,8 @@ class RegulatedNodeElement(Element):
         self,
         label: str,
         *,
-        active: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
+        active: Annotated[object, FiniteEnumeratedSet([0, 1])] = 1.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.active = active

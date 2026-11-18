@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression, solve
 
-from ...components.laws import BoundaryLaw, ConstraintLaw, RateLaw
+from ...components.laws import BoundaryLaw, ConstraintLaw, ObjectiveLaw, RateLaw
 from ...components.spaces import ContinuousTime
 from ...enums import OrderKind
 from ...errors import SolverError, ValidationError
@@ -27,7 +27,7 @@ MIN_NODES = 2
 CONTROL_SUPPORT = SupportSpec(
     time={ContinuousTime},
     space={None},
-    laws={RateLaw, ConstraintLaw, BoundaryLaw},
+    laws={RateLaw, ConstraintLaw, BoundaryLaw, ObjectiveLaw},
     orders=frozenset({OrderKind.INTEGER}),
 )
 

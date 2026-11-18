@@ -16,14 +16,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import brentq
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.networks import TriadicPercolationSystem
 
 SYSTEM = 'triadic_percolation'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(TriadicPercolationSystem(), observers=[observer], random_state=0)
+trajectory = TriadicPercolationSystem().prepare().simulate(observers=[observer], random_state=0)
 
 
 def giant_fraction(mean_degree):
@@ -35,7 +34,7 @@ def giant_fraction(mean_degree):
 
 def giant(p):
     """Return the fraction of nodes in the giant component after every time step of Millán et al."""
-    run = simulate(TriadicPercolationSystem(p=p), until=40, random_state=0)
+    run = TriadicPercolationSystem(p=p).prepare().simulate(until=40, random_state=0)
     return run.get_values('nodes.active').mean(axis=1)
 
 

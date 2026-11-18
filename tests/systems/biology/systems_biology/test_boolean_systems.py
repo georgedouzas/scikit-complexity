@@ -3,7 +3,6 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.biology.systems_biology import (
     BooleanRepressilatorSystem,
@@ -78,7 +77,7 @@ def test_boolean_repressilator_oscillates_with_delay(delay):
 
 def _order(eta: float) -> float:
     """Return the time average of the absolute mean state over the last half of a run."""
-    trajectory = simulate(NoisyBooleanNetworkSystem(eta=eta), random_state=0, until=200)
+    trajectory = NoisyBooleanNetworkSystem(eta=eta).prepare().simulate(random_state=0, until=200)
     return float(np.abs(trajectory.get_values('nodes.sigma').mean(axis=1)[100:]).mean())
 
 

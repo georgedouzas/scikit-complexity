@@ -12,7 +12,6 @@ tissue and the serum rises with them.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import ProstateAndrogenReceptorSystem
@@ -20,7 +19,9 @@ from skcomplex.systems.biology.oncology import ProstateAndrogenReceptorSystem
 SYSTEM = 'prostate_androgen_receptor'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = simulate(ProstateAndrogenReceptorSystem(), solver=ScipyODESolver(method='LSODA'), observers=[observer])
+simulation = (
+    ProstateAndrogenReceptorSystem(solver=ScipyODESolver(method='LSODA')).prepare().simulate(observers=[observer])
+)
 
 # %%
 # Androgen ablation
@@ -29,7 +30,7 @@ simulation = simulate(ProstateAndrogenReceptorSystem(), solver=ScipyODESolver(me
 # their growth rate, so the cancer should shrink and the serum PSA fall instead of rising.
 
 trajectory = simulation
-ablated = simulate(ProstateAndrogenReceptorSystem(UT=5.0, UD=5.0), solver=ScipyODESolver(method='LSODA'))
+ablated = ProstateAndrogenReceptorSystem(UT=5.0, UD=5.0, solver=ScipyODESolver(method='LSODA')).prepare().simulate()
 ablation = ablated
 years = trajectory.times / 8760
 fig, (cells, psa) = plt.subplots(1, 2, figsize=(10, 4))

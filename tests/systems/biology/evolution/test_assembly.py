@@ -4,7 +4,6 @@ import math
 
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.evolution import AssemblyGrowthSystem, PolymerAssemblyPoolSystem
 
 from ..conftest import _run_precise
@@ -22,7 +21,7 @@ def test_directed_joining_builds_longer_polymers():
     """Test that reusing the newest polymer builds far longer chains than joining random polymers."""
     lengths = {}
     for mode in ('undirected', 'directed'):
-        trajectory = simulate(PolymerAssemblyPoolSystem(mode), random_state=0, until=100)
+        trajectory = PolymerAssemblyPoolSystem(mode).prepare().simulate(random_state=0, until=100)
         pool = trajectory.get_agents('pool', 100).values['length']
         assert pool.size == 101
         lengths[mode] = np.log2(pool.max())

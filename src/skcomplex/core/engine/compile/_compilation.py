@@ -15,8 +15,9 @@ from sage.symbolic.operators import FDerivativeOperator
 from ...components.laws import BaseLaw, ConstraintLaw, EventLaw, ObjectiveLaw, RuleLaw, TopologyRequestSpec
 from ...components.spaces import StaticTime
 from ...components.systems import CompositeSystem
-from ...enums import FormKind
+from ...enums import FormKind, VariableKind
 from ...errors import PipelineError
+from .._utils import declarations_of
 from ..backends import BaseBackend
 from ..enums import ReadKind
 from ..problems import ProblemSpec
@@ -363,6 +364,20 @@ class Compilation:
         return value
 
     @staticmethod
+    def _has_motion(layout: DeclarationsSpec) -> bool:
+        """Return whether a state of the layout has a derivative, as a moving point does.
+
+        A point given a starting velocity has one. Such a state moves at its derivative without any law, so its system
+        is not static.
+        """
+        return any(
+            declaration.derivative_of is not None
+            for block in layout.blocks.values()
+            if not block.node.interaction
+            for declaration in declarations_of(block.node.component_type, VariableKind.STATE).values()
+        )
+
+    @staticmethod
     def _is_balance(law: BaseLaw) -> bool:
         """Return whether a law is a constraint free of the time and of derivatives.
 
@@ -392,25 +407,26 @@ class Compilation:
     def is_static(self) -> bool:
         """Return whether the system is static.
 
-        It is static by its time, by an objective law, by constraint laws alone, or by having no laws and no states at
-        all.
+        It is static by its time, by an objective law without controls, by constraint laws alone, or by having no laws
+        at all. An objective law with controls steers a run in time.
 
-        A system with no laws, no states, and no time of its own, such as
-        `System(elements=[Element('ball', values={'x': 1.0})])`, changes nothing, so it is static. A system whose laws
+        A system with no laws and no time of its own, such as `System(elements=[Element('ball', values={'x': 1.0})])`
+        or disks placed in a square, changes nothing, so it is static and records one frame. A point given a starting
+        velocity moves at it without a law, so its system is not static. A system whose laws
         are all constraints and that has no time of its own, such as the best responses of the firms of a Cournot game,
         is solved once, so it is static too.
 
         Returns:
             static:
-                Whether the system has static time, an objective law, constraint laws alone, or no laws, no states,
-                and no time.
+                Whether the system has static time, an objective law without controls, constraint laws alone, or no
+                laws and no time.
         """
         if isinstance(self.system.time, StaticTime):
             return True
         census = self.census
         if census is None:
             return False
-        unchanged = self.layout is not None and not self.layout.states and not self.layout.agents
+        unchanged = self.layout is not None and not self.layout.agents and not self._has_motion(self.layout)
         if not census.records and unchanged and self.system.time is None:
             return True
         if (
@@ -419,4 +435,4 @@ class Compilation:
             and all(self._is_balance(record.law) for record in census.records)
         ):
             return True
-        return any(isinstance(record.law, ObjectiveLaw) for record in census.records)
+        return any(isinstance(record.law, ObjectiveLaw) and record.law.controls is None for record in census.records)

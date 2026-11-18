@@ -7,7 +7,7 @@ import pytest
 
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems import RunStateSpec
-from skcomplex.core.engine.runtime import Trajectory, simulate
+from skcomplex.core.engine.runtime import Trajectory
 from skcomplex.core.engine.solvers import IMEXEulerSolver
 from skcomplex.systems.biology.ecology import CometsSystem
 
@@ -50,13 +50,13 @@ def _taken_up(trajectory: Trajectory) -> float:
 def _run_small(shape: tuple[int, int], until: float, **parameters: float) -> Trajectory:
     """Return a run of the published scheme and step on another lattice."""
     system = CometsSystem(shape=shape, **parameters).prepare().system_
-    return simulate(system, solver=IMEXEulerSolver(dt=STEP), dt=STEP, until=until)
+    return system.set_params(solver=IMEXEulerSolver(dt=STEP)).prepare().simulate(dt=STEP, until=until)
 
 
 @pytest.fixture(scope='module')
 def published() -> Trajectory:
     """Return the default run of the system."""
-    return simulate(CometsSystem())
+    return CometsSystem().prepare().simulate()
 
 
 def test_comets_defaults_are_the_published_values():
@@ -77,7 +77,7 @@ def test_comets_defaults_are_the_published_values():
     assert {name: parameters[name].default for name in published_values} == published_values
     assert 'threshold' not in parameters
     assert CometsSystem.dt == 0.1
-    assert CometsSystem.solver.dt == 0.1
+    assert CometsSystem().prepare().solver_.dt == 0.1
 
 
 def test_comets_steps_are_the_published_diffusion_numbers():

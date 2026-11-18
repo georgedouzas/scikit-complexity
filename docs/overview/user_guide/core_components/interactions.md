@@ -142,6 +142,24 @@ PredationInteraction('hunting', prey='rabbits', predator='foxes').get_params()
 
 Its parameters are the two roles, the label, and the rates `a` and `b`.
 
+**A rule without a class.** A rule used once needs no class. `roles` binds each role to an element, and `laws` is a
+function of the namespace that returns the laws. Here a ball falls under gravity.
+
+```python continuation
+from skcomplex.core.systems import System
+
+gravity = Interaction(
+    'gravity',
+    roles={'target': 'ball'},
+    laws=lambda s: [RateLaw(s.target.x.diff(s.t, 2), -9.81)],
+)
+fall = System(elements=[Element('ball', values={'x': 10.0})], interactions=[gravity]).prepare()
+round(float(fall.simulate(until=1.0, dt=1.0).get_values('ball.x')[-1]), 3)
+```
+
+The ball falls from 10 to 5.095 in one second, as `x = 10 - 9.81 t^2 / 2` says. The namespace `s` holds every state as
+a function of the time `s.t`, so `s.target.x.diff(s.t, 2)` is the acceleration of the ball.
+
 See its [fact sheet](../../../components/interactions.md#interaction)
 and its [API entry][skcomplex.core.components.interactions.Interaction].
 

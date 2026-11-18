@@ -14,19 +14,16 @@ and the outbreak in the whole network rises, peaks, and burns out.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.epidemiology import NetworkSIRSystem
 
 SYSTEM = 'network_sir'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(
-    NetworkSIRSystem(residents=20, random_state=0),
-    dt=1,
-    observers=[observer],
-    random_state=0,
-    until=25,
+trajectory = (
+    NetworkSIRSystem(residents=20, random_state=0)
+    .prepare()
+    .simulate(dt=1, observers=[observer], random_state=0, until=25)
 )
 
 # %%
@@ -35,7 +32,7 @@ trajectory = simulate(
 # Counting the health states of the travellers, the infected should rise, peak, and decline while the recovered
 # accumulate, as in a single well-mixed SIR epidemic but slowed by the travel between cities.
 
-trajectory = simulate(NetworkSIRSystem(residents=20, random_state=0), dt=1, random_state=0)
+trajectory = NetworkSIRSystem(residents=20, random_state=0).prepare().simulate(dt=1, random_state=0)
 health = np.array(
     [trajectory.get_agents('travellers', frame).values['health'] for frame in range(len(trajectory.times))],
 )

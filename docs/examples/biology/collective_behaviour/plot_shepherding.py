@@ -13,14 +13,13 @@ and apart, so the flock moves as one.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.collective_behaviour import ShepherdingSystem
 
 SYSTEM = 'shepherding'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(ShepherdingSystem(), observers=[observer], random_state=0, until=200)
+trajectory = ShepherdingSystem().prepare().simulate(observers=[observer], random_state=0, until=200)
 
 # %%
 # Path of the flock to the goal

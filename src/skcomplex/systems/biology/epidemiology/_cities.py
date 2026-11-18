@@ -6,6 +6,7 @@ The epidemics spread on the contacts of people who visit the same locations of a
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -13,13 +14,15 @@ import networkx as nx
 import numpy as np
 from sage.all__sagemath_symbolics import NN
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
+from ....core.components.spaces import NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver, SystemView
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 
 SUSCEPTIBLE, INFECTED, RECOVERED = 0.0, 1.0, 2.0
 
@@ -208,6 +211,12 @@ class EpisimsCitySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import EpisimsCitySystem
         >>> EpisimsCitySystem(100).prepare().system_.elements[0].size
@@ -231,8 +240,10 @@ class EpisimsCitySystem(BaseSystem):
         closed: bool = False,
         seed: int | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.people = people
         self.household = household
         self.workplace = workplace
@@ -242,8 +253,14 @@ class EpisimsCitySystem(BaseSystem):
         self.closed = closed
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of a synthetic city in the spirit of EpiSims."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a synthetic city in the spirit of EpiSims.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         rng = np.random.default_rng(self.seed)
         homes = rng.integers(0, max(1, round(self.people / self.household)), self.people)
         n_homes = int(homes.max()) + 1
@@ -261,10 +278,4 @@ class EpisimsCitySystem(BaseSystem):
             location=homes.tolist(),
         )
         contacts = ColocationInteraction('contacts', people='people', p=self.p, gamma=self.gamma, closed=self.closed)
-        return CompositeSystem(
-            self.label,
-            elements=[group],
-            interactions=[contacts],
-            space=NetworkSpace(graph),
-            time=DiscreteTime(),
-        )
+        self.system_ = System(self.label, elements=[group], interactions=[contacts], space=NetworkSpace(graph))

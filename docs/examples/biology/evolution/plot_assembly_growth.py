@@ -14,14 +14,13 @@ import math
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.evolution import AssemblyGrowthSystem
 
 SYSTEM = 'assembly_growth'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(AssemblyGrowthSystem(), observers=[observer])
+trajectory = AssemblyGrowthSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Selection slows discovery
@@ -31,7 +30,7 @@ trajectory = simulate(AssemblyGrowthSystem(), observers=[observer])
 
 fig, ax = plt.subplots(figsize=(8, 4.5))
 for alpha in (1.0, 0.7, 0.4):
-    run = simulate(AssemblyGrowthSystem(alpha=alpha))
+    run = AssemblyGrowthSystem(alpha=alpha).prepare().simulate()
     ax.semilogy(range(1, 11), run.get_values('levels.N')[-1], 'o-', label=f'alpha = {alpha}')
 ax.semilogy(range(1, 11), [10**a / math.factorial(a) for a in range(1, 11)], 'k--', label='(k t)^a / a!')
 ax.set_xlabel('assembly index a')

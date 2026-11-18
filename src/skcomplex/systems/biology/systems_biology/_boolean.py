@@ -10,11 +10,14 @@ from typing import Annotated
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 
+from ....core.components import Observable
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import where
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec
+from ....core.systems import BaseSystem, System
 from ..common.networks import BooleanFunctionInteraction, BooleanNodeElement
 
 YEAST_NODES = ('Cln3', 'MBF', 'SBF', 'Cln1_2', 'Cdh1', 'Swi5', 'Cdc20', 'Clb5_6', 'Sic1', 'Clb1_2', 'Mcm1')
@@ -114,6 +117,12 @@ class RandomBooleanNetworkSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             `k` is not between 1 and the number of nodes.
@@ -138,15 +147,23 @@ class RandomBooleanNetworkSystem(BaseSystem):
         bias: float = 0.5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_nodes = n_nodes
         self.k = k
         self.bias = bias
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of a Kauffman random Boolean network."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a Kauffman random Boolean network.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         if not 1 <= self.k <= self.n_nodes:
             error_msg = (
                 f'k = {self.k} inputs per node must be between 1 and the number of nodes, n_nodes = {self.n_nodes}.'
@@ -163,7 +180,7 @@ class RandomBooleanNetworkSystem(BaseSystem):
             )
             for index in range(self.n_nodes)
         ]
-        return CompositeSystem(self.label, elements=nodes, interactions=functions)
+        self.system_ = System(self.label, elements=nodes, interactions=functions)
 
 
 class YeastCellCycleSystem(BaseSystem):
@@ -184,6 +201,12 @@ class YeastCellCycleSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.systems_biology import YeastCellCycleSystem
         >>> [node.label for node in YeastCellCycleSystem().prepare().system_.elements if node.x]
@@ -201,15 +224,20 @@ class YeastCellCycleSystem(BaseSystem):
         active: Sequence[str] = YEAST_START,
         *,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.active = active
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the Boolean network of the yeast cell cycle of Li et al.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the Boolean network of the yeast cell cycle of Li et al.
 
-        The yeast is the budding yeast.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         nodes = [BooleanNodeElement(name, x=int(name in self.active)) for name in YEAST_NODES]
         functions = [
             ThresholdFunctionInteraction(
@@ -221,4 +249,4 @@ class YeastCellCycleSystem(BaseSystem):
             )
             for name in YEAST_NODES
         ]
-        return CompositeSystem(self.label, elements=nodes, interactions=functions)
+        self.system_ = System(self.label, elements=nodes, interactions=functions)

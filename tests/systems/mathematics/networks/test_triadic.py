@@ -6,7 +6,6 @@ from scipy.optimize import brentq
 
 from skcomplex.core.components.spaces import NetworkSpace
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.mathematics.networks import TriadicPercolationSystem
 
 BACKENDS = pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
@@ -21,7 +20,8 @@ def _giant_fraction(mean_degree):
 
 def _giant(system, backend, until):
     """Return the fraction of nodes in the giant component after every time step of Millán et al., one step each."""
-    return simulate(system, until=until, backend=backend, random_state=0).get_values('nodes.active').mean(axis=1)
+    trajectory = system.set_params(backend=backend).prepare().simulate(until=until, random_state=0)
+    return trajectory.get_values('nodes.active').mean(axis=1)
 
 
 def test_triadic_percolation_gives_every_link_one_regulator_among_the_other_nodes():
@@ -33,7 +33,7 @@ def test_triadic_percolation_gives_every_link_one_regulator_among_the_other_node
     edges = list(nodes.space.graph.edges)
     assert [hyperedge[:2] for hyperedge in space.hyperedges_] == edges
     assert all(regulator not in ends for *ends, regulator in space.hyperedges_)
-    assert np.mean(np.asarray(links.values['sign']) < 0) == pytest.approx(0.3, abs=0.05)
+    assert np.mean(np.asarray(links.sign) < 0) == pytest.approx(0.3, abs=0.05)
 
 
 @BACKENDS

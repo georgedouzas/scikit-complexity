@@ -23,6 +23,7 @@ from ...components.laws import (
     TransferLaw,
     UpdateLaw,
 )
+from ...components.laws._flow_term import FlowTermLaw
 from ...components.laws.utils import shift_member
 from ...components.laws.utils._delays import delay_parts
 from ...components.laws.utils._draws import draws_in
@@ -61,7 +62,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
 
     It checks that conserved quantities change only through flows. `prepare(compilation)` reads the quantity of every
     tagged state, and `run(laws)` takes the laws of every kernel spec and sets them in `lowered_` with their flows
-    expanded into laws of other kinds, and the labelled rate terms of a spec that share a label recorded as one flow. A
+    expanded into laws of other kinds, and the terms of each flow of a spec, which share a label, recorded as a flow. A
     later pass finishes the lowering on the laws of every spec after their complex states and Markov laws are lowered:
     it checks the conserved quantities and lowers the flows and the delays into the transfer network of the system.
     The flows of a system that declares discrete time, or that holds update laws, move their amounts once per step. A
@@ -336,14 +337,15 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
                 A flow connects holders of different quantities.
         """
         expanded: list[BaseLaw] = []
-        labelled: dict[str, list[RateLaw]] = defaultdict(list)
+        labelled: dict[str, list[FlowTermLaw]] = defaultdict(list)
         for index, law in enumerate(laws):
             if isinstance(law, TransferLaw):
                 label = law.label or f'flow_{index}'
                 self._claim_label(self._get_owner_of(law, spec), label, spec.set_index)
                 expanded.extend(self._expand_flow(spec, law, label))
                 continue
-            if self._is_flow_term(law, spec):
+            if isinstance(law, FlowTermLaw):
+                self._check_flow_term(law, spec)
                 labelled[law.label].append(law)
             elif (
                 isinstance(law, RateLaw)
@@ -358,59 +360,63 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         return expanded
 
     @staticmethod
-    def _is_flow_term(law: BaseLaw, spec: KernelSpec) -> bool:
-        """Return whether a law is a labelled rate term of a flow.
+    def _check_flow_term(law: FlowTermLaw, spec: KernelSpec) -> None:
+        """Raise an error for a flow whose stock is no real scalar state.
 
-        It is a rate law with a label whose target is a real scalar state, of one element or of every member of a group,
-        and whose value is a number or an expression.
-        """
-        if not isinstance(law, RateLaw) or not law.label or not isinstance(law.value, Expression | int | float):
-            return False
-        reference = spec.references.get(law._get_targets()[0])
-        if reference is None or not reference.is_state:
-            return False
-        return not reference.entry.member_shape and not reference.entry.is_complex
-
-    @staticmethod
-    def _is_negated(value: Expression) -> bool:
-        """Return whether Sage writes a value with a leading minus sign, such as `-k*x`."""
-        return str(value).startswith('-')
-
-    def _record_flow(self, spec: KernelSpec, label: str, terms: list[RateLaw]) -> None:
-        """Record the rate terms of a spec that share a label as one flow.
-
-        A flow takes from its source what it gives to its sink, so two terms add up to zero, and the first term is on
-        its source. A flow from outside the system has only its sink, and a flow out of it only its source, whose term
-        Sage writes with a leading minus sign. The flow is reported under the element of its stocks, or under the
-        component when its stocks belong to several elements.
+        A stock is a real scalar state of one element or of every member of a group, and the amount of its flow is a
+        number or an expression.
 
         Raises:
             ValidationError:
-                The terms are more than two, change one stock twice, or do not add up to zero.
+                The stock is no state, a vector, or complex, or the amount is a function.
+        """
+        reference = spec.references.get(law._get_targets()[0])
+        is_scalar = (
+            reference is not None
+            and reference.is_state
+            and not reference.entry.member_shape
+            and not reference.entry.is_complex
+        )
+        if not is_scalar or not isinstance(law.value, Expression | int | float):
+            error_msg = (
+                f'The flow {law.label!r} of {spec.owner} changes {law.target} by {law.value}. A flow moves an '
+                'expression between real scalar stocks.'
+            )
+            raise ValidationError(error_msg)
+
+    def _record_flow(self, spec: KernelSpec, label: str, terms: list[FlowTermLaw]) -> None:
+        """Record the terms of the flows of a spec that share a label as one flow.
+
+        The term with the sign `-1` is on the stock the flow leaves and the term with the sign `+1` on the stock it
+        enters. A flow from outside the system has only the term on the stock it enters, and a flow out of it only the
+        term on the stock it leaves. The flow is reported under the element of its stocks, or under the component when
+        its stocks belong to several elements.
+
+        Raises:
+            ValidationError:
+                Two flows of one label leave or enter stocks, or move different amounts.
 
             ConservationError:
                 The stocks hold different quantities.
         """
-        values = [SR(term.value) for term in terms]
         names = [spec.references[term._get_targets()[0]].entry.name for term in terms]
-        if len(terms) > FLOW_TERMS or len(set(names)) < len(names):
+        signs = [term.sign for term in terms]
+        if len(set(signs)) < len(signs):
             error_msg = (
-                f'{spec.owner} has {len(terms)} rate terms labelled {label!r} on {names}. A flow is one term on its '
-                'source and one on its sink, such as `RateLaw(a, -f, label=...)` and `RateLaw(b, f, label=...)`.'
+                f'{spec.owner} has {len(terms)} flows labelled {label!r} on {names}. A flow leaves one stock and '
+                "enters one, such as RateLaw({s.alive: -1, s.dead: +1}, f, label='deaths'). Rename one."
             )
             raise ValidationError(error_msg)
-        if len(terms) == FLOW_TERMS and not bool((values[0] + values[1]).is_trivial_zero()):
+        amounts = [term.sign * SR(term.value) for term in terms]
+        if len(amounts) == FLOW_TERMS and not bool((amounts[0] - amounts[1]).is_trivial_zero()):
             error_msg = (
-                f'The rate terms labelled {label!r} of {spec.owner} are {values[0]} and {values[1]}, which do not add '
-                'up to zero. Give the source `-f` and the sink `f`.'
+                f'The flows labelled {label!r} of {spec.owner} move {amounts[0]} out of {names[0]} and {amounts[1]} '
+                f'into {names[1]}. Write one flow, such as RateLaw({{s.alive: -1, s.dead: +1}}, f, label={label!r}).'
             )
             raise ValidationError(error_msg)
-        if len(terms) == FLOW_TERMS:
-            source, sink, amount = names[0], names[1], values[1]
-        elif self._is_negated(values[0]):
-            source, sink, amount = names[0], None, -values[0]
-        else:
-            source, sink, amount = None, names[0], values[0]
+        source = next((name for name, sign in zip(names, signs, strict=True) if sign < 0), None)
+        sink = next((name for name, sign in zip(names, signs, strict=True) if sign > 0), None)
+        amount = amounts[0]
         elements = {name.rpartition('.')[0] for name in names}
         owner = next(iter(elements)) if len(elements) == 1 else spec.owner
         path = f'{owner}.{label}'
@@ -455,8 +461,8 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
             if quantity is not None:
                 error_msg = (
                     f'A {type(law).__name__} of {spec.owner} changes {name}, which holds the quantity '
-                    f'{quantity!r}, by {value} outside any flow. Write the change as a flow, rate terms that share a '
-                    f"label, such as RateLaw({name}, -f, label='outflow') for a flow out of the system."
+                    f'{quantity!r}, by {value} outside any flow. Write the change as a flow, such as '
+                    f"RateLaw({{s.{name.rpartition('.')[2]}: -1}}, f, label='outflow') for a flow out of the system."
                 )
                 raise ConservationError(error_msg)
 

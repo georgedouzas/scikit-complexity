@@ -3,8 +3,13 @@
 They cover spiking and conductance-based neurons, populations, networks, excitable networks, and synapses.
 """
 
-from ..common.excitable import SpikeResetInteraction, ThetaNeuronElement
-from ._associative import AssociativeSiteElement, AssociativeThoughtProcessSystem, CliqueCompetitionInteraction
+from ..common.excitable import SpikeResetInteraction, ThetaNeuronElement, ThetaNeuronInteraction
+from ._associative import (
+    AssociativeSiteElement,
+    AssociativeThoughtProcessSystem,
+    CliqueCompetitionInteraction,
+    ReservoirInteraction,
+)
 from ._conductances import (
     FitzHughNagumoNeuronElement,
     FitzhughNagumoODESystem,
@@ -17,11 +22,13 @@ from ._networks import (
     DelayedLIFNetworkSystem,
     DelayedSynapseInteraction,
     GlobalInhibitionInteraction,
+    InhibitorDecayInteraction,
     InhibitorDriveInteraction,
     InhibitorElement,
     LegionSystem,
     SpikingNeuronElement,
     TermanWangElement,
+    TermanWangInteraction,
 )
 from ._neural_fields import AmariNeuralFieldSystem, NeuralFieldSiteElement
 from ._neural_masses import (
@@ -43,7 +50,9 @@ from ._plastic_networks import (
     AxonElement,
     DelayAdaptationInteraction,
     PhaseUnitElement,
+    RotationInteraction,
     SpikeTimingPlasticityInteraction,
+    SpikeTraceInteraction,
     STDPNetworkSystem,
     SynapseElement,
     TracedThetaNeuronElement,
@@ -78,6 +87,7 @@ __all__: list[str] = [
     'GlobalInhibitionInteraction',
     'HodgkinHuxleyElement',
     'HodgkinHuxleySystem',
+    'InhibitorDecayInteraction',
     'InhibitorDriveInteraction',
     'InhibitorElement',
     'IntegrateAndFireSystem',
@@ -98,15 +108,20 @@ __all__: list[str] = [
     'PolyhomeostaticNeuronSystem',
     'PulseCouplingInteraction',
     'RateUnitElement',
+    'ReservoirInteraction',
+    'RotationInteraction',
     'STDPNetworkSystem',
     'SpikeResetInteraction',
     'SpikeTimingPlasticityInteraction',
+    'SpikeTraceInteraction',
     'SpikingNeuronElement',
     'SynapseElement',
     'SynapticDriveInteraction',
     'TermanWangElement',
+    'TermanWangInteraction',
     'ThetaForcingInteraction',
     'ThetaNeuronElement',
+    'ThetaNeuronInteraction',
     'ThetaNeuronsSystem',
     'TracedThetaNeuronElement',
     'WilsonCowanElement',

@@ -153,10 +153,14 @@ class ProblemSpec(BaseProblemSpec):
             The positions in the state vector that the equations of a static problem solve for numerically.
 
         objective:
-            The sum of the objective laws of a static problem, the scalar its solver minimises, or `None` for none.
+            The sum of the objective laws, the scalar a static solver minimises or the running cost an optimal
+            control solver integrates over a run, or `None` for none.
 
         objective_targets:
-            The positions in the state vector that the objective is minimised over.
+            The positions in the state vector that the objective is minimised over, or of the controls it steers.
+
+        terminal:
+            The sum of the terminal costs of the objective laws with controls, the cost at the end of a run.
 
         jacobian:
             The Jacobian of the drift of an ODE problem, derived from its laws: its sparsity pattern and, for laws with
@@ -268,6 +272,7 @@ class ProblemSpec(BaseProblemSpec):
     unknowns: Indices = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)
     objective: Expression | None = field(default=None, repr=False)
     objective_targets: Indices = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)
+    terminal: Expression | None = field(default=None, repr=False)
     drift: VectorFunction | None = field(default=None, repr=False)
     sources: VectorFunction | None = field(default=None, repr=False)
     diffusion: VectorFunction | None = field(default=None, repr=False)

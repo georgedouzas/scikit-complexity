@@ -12,7 +12,6 @@ strain that takes up glucose faster grows faster, so its share rises for as long
 import matplotlib.pyplot as plt
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import CoSimulationSolver, RK4Solver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import DynamicMultispeciesFBASystem
@@ -23,7 +22,7 @@ FRAME = 0.05
 blueprint = rrb.Blueprint(rrb.TimeSeriesView(origin='culture', name='culture'), collapse_panels=True)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
 solver = CoSimulationSolver(sync_dt=FRAME, solvers={'culture': RK4Solver(dt=0.005)})
-trajectory = simulate(DynamicMultispeciesFBASystem(), solver=solver, dt=FRAME, observers=[observer])
+trajectory = DynamicMultispeciesFBASystem(solver=solver).prepare().simulate(dt=FRAME, observers=[observer])
 
 # %%
 # The share of the faster strain

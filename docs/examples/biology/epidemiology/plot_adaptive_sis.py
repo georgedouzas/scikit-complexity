@@ -14,14 +14,13 @@ stays far below its value on the same network without rewiring.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.epidemiology import AdaptiveSISSystem
 
 SYSTEM = 'adaptive_sis'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(AdaptiveSISSystem(w=1.0), observers=[observer], random_state=1)
+trajectory = AdaptiveSISSystem(w=1.0).prepare().simulate(observers=[observer], random_state=1)
 
 # %%
 # Prevalence with and without rewiring
@@ -32,7 +31,7 @@ trajectory = simulate(AdaptiveSISSystem(w=1.0), observers=[observer], random_sta
 
 fig, ax = plt.subplots(figsize=(8, 4))
 for w in (0.0, 1.0, 4.0):
-    trajectory = simulate(AdaptiveSISSystem(w=w), random_state=1)
+    trajectory = AdaptiveSISSystem(w=w).prepare().simulate(random_state=1)
     snapshot = trajectory.get_network(-1)
     infected = np.nan_to_num(trajectory.get_values('hosts.i')[-1])
     healthy = np.mean((infected[snapshot.sources] == 0) & (infected[snapshot.targets] == 0))

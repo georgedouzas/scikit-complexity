@@ -13,7 +13,6 @@ import matplotlib.pyplot as plt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import WolfSheepSystem
 
@@ -48,11 +47,10 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
-trajectory = simulate(
-    WolfSheepSystem(width=30, height=30, sheep=200, wolves=20, regrowth=20.0, random_state=0),
-    observers=[observer],
-    random_state=0,
-    until=300,
+trajectory = (
+    WolfSheepSystem(width=30, height=30, sheep=200, wolves=20, regrowth=20.0, random_state=0)
+    .prepare()
+    .simulate(observers=[observer], random_state=0, until=300)
 )
 
 # %%

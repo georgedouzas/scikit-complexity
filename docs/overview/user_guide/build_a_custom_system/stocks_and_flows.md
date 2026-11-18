@@ -3,8 +3,8 @@
 This page builds stocks that change only through flows, as in system dynamics, checks that what flows is conserved, and
 finds the feedback loops that drive them. A stock is an amount that accumulates, such as the people of a town or the
 water in a bath, and a flow is a rate at which an amount enters or leaves a stock. In the library a stock is a value
-tagged with a quantity, such as `Annotated[float, Quantity('people')]`, and a flow is two rate terms that share a label,
-`-f` on the stock it leaves and `f` on the stock it enters.
+tagged with a quantity, such as `Annotated[float, Quantity('people')]`, and a flow is one rate law whose target maps
+each stock to the sign of its change, such as `RateLaw({s.alive: -1, s.dead: +1}, f, label='deaths')`.
 
 ## Stocks and their flows
 
@@ -36,9 +36,9 @@ trajectory = crowd.simulate(until=10, dt=1.0, observables=observed)
 round(float(trajectory.get_values('crowd.births')[-1]), 3), round(float(trajectory.get_values('crowd.deaths')[-1]), 3)
 ```
 
-After ten years the births run at 0.366 people a year and the deaths at 0.122. A `FlowInteraction` sets the rate terms
-`RateLaw(leaves, -f, label=label)` and `RateLaw(enters, f, label=label)`, and an interaction of your own may set them
-directly. The trajectory records every flow `f` under its label, after the element of its stocks, such as
+After ten years the births run at 0.366 people a year and the deaths at 0.122. A `FlowInteraction` sets one rate law
+whose target maps each stock to the sign of its change, such as `RateLaw({s.alive: -1, s.dead: +1}, f, label='deaths')`,
+and an interaction of your own may set it directly. The trajectory records every flow `f` under its label, after the element of its stocks, such as
 `crowd.births`, or after the interaction when its stocks belong to several elements.
 
 An intermediate expression, such as the birth rate, is a function of the namespace that the laws call.
@@ -110,9 +110,9 @@ dominance.polarities[int(dominance.dominant[-1])]
 The reinforcing loop dominates at the last frame, since the births still outrun the deaths at ten years.
 
 An edge of the graph goes from one state to another when the rate of the second depends on the first, with the sign of
-the entry of the Jacobian. In systems that declare flows, the edges also go through the flows, the rate terms that
-share a label. They go from a state to every flow it drives, and from a flow to its sink with sign `+` and to its
-source with sign `-`.
+the entry of the Jacobian. In systems that declare flows, the edges also go through the flows, the rate laws whose
+targets map stocks to signs. They go from a state to every flow it drives, and from a flow to the stock it maps to `+1`
+with sign `+` and to the stock it maps to `-1` with sign `-`.
 
 The graph is that of any system with a vector field or a map, not only of stocks and flows. At one prey and one
 predator, prey growth closes a reinforcing self-loop, predator death a balancing one, and predation a balancing loop
@@ -271,7 +271,7 @@ are the stocks and whose parameters are the constants, and a system class on
 Time in the module runs from zero, and `Time` in the file becomes `t + START`. The variables of the file become these.
 
 - A flow variable that leaves one stock and enters another is a flow between them, a
-  [`FlowInteraction`](../core_components/general.md#flowinteraction) whose rate terms share the name of the flow. A
+  [`FlowInteraction`](../core_components/general.md#flowinteraction) labelled with the name of the flow. A
   flow variable of one stock is a flow with the environment, with only the stock it enters or leaves. The trajectory
   reports each flow as `<element>.<flow>`.
 - The rest of the net rate of a stock is a [`RateInteraction`](../core_components/interactions.md#rateinteraction).

@@ -11,7 +11,7 @@ from types import SimpleNamespace
 from sage.all__sagemath_symbolics import Expression
 
 from ....core.components import Observable
-from ....core.components.laws.utils import lag, normal, uniform, where
+from ....core.components.laws.utils import normal, uniform, where
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ...general.dynamics import DynamicalSystem
@@ -150,9 +150,9 @@ class KirmanExchangeRateSystem(DynamicalSystem):
         market = s.target
         n = _get_share(market)
         chartists = 1 - n
-        deviation = ((1 - market.v * n + market.g * chartists) * market.x - market.g * chartists * lag(market.x, 1)) / (
-            1 + market.r
-        )
+        deviation = (
+            (1 - market.v * n + market.g * chartists) * market.x - market.g * chartists * market.x(t=s.t - 1)
+        ) / (1 + market.r)
         return deviation + market.sigma * normal('supply', 0, 1)
 
     @staticmethod
