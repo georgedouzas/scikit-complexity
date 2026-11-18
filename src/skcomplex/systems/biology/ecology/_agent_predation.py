@@ -13,8 +13,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction, TransferInteraction
-from ....core.components.laws import Source
+from ....core.components.interactions import Interaction, MapInteraction, TransferInteraction
+from ....core.components.laws import Source, UpdateLaw
 from ....core.components.spaces import LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
@@ -278,13 +278,15 @@ class AgentBasedLotkaVolterraSystem(BaseSystem):
             ),
             BirthDeathInteraction(f'{group}_breeding', target=group, birth=self._get_conversion, schedule='member'),
             BirthDeathInteraction(f'{group}_death', target=group, death=self._get_death, schedule='member'),
-            MapInteraction(
+            Interaction(
                 f'{group}_digestion',
-                target=group,
-                state='meals',
-                function=self._get_digested,
-                form='agent',
-                schedule='member',
+                roles={'target': group},
+                laws=lambda s: [
+                    UpdateLaw(
+                        s.target,
+                        lambda agent, system: setattr(agent, 'meals', float(self._get_digested(agent, system))),
+                    ),
+                ],
             ),
         ]
 

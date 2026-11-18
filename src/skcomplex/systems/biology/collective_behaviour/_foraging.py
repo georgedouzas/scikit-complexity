@@ -14,8 +14,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element, FieldElement, GroupElement
-from ....core.components.interactions import Interaction, MapInteraction, TransferInteraction
-from ....core.components.laws import RateLaw, Source
+from ....core.components.interactions import Interaction, TransferInteraction
+from ....core.components.laws import RateLaw, Source, UpdateLaw
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import CompositeSystem
@@ -419,21 +419,25 @@ class PheromoneForagingSystem(BaseSystem):
                     condition=self._searches,
                     schedule='member',
                 ),
-                MapInteraction(
+                Interaction(
                     'carrying',
-                    target='colony/ants',
-                    state='carrying',
-                    function=self._get_carrying,
-                    form='agent',
-                    schedule='member',
+                    roles={'target': 'colony/ants'},
+                    laws=lambda s: [
+                        UpdateLaw(
+                            s.target,
+                            lambda agent, system: setattr(agent, 'carrying', float(self._get_carrying(agent, system))),
+                        ),
+                    ],
                 ),
-                MapInteraction(
+                Interaction(
                     'arrival',
-                    target='colony/ants',
-                    state='arrived',
-                    function=self._get_arrived,
-                    form='agent',
-                    schedule='member',
+                    roles={'target': 'colony/ants'},
+                    laws=lambda s: [
+                        UpdateLaw(
+                            s.target,
+                            lambda agent, system: setattr(agent, 'arrived', float(self._get_arrived(agent, system))),
+                        ),
+                    ],
                 ),
             ],
         )

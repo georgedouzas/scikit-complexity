@@ -14,8 +14,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element, FieldElement, GroupElement
-from ....core.components.interactions import Interaction, MapInteraction, TransferInteraction
-from ....core.components.laws import RateLaw, Source
+from ....core.components.interactions import Interaction, TransferInteraction
+from ....core.components.laws import RateLaw, Source, UpdateLaw
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import CompositeSystem
@@ -445,13 +445,15 @@ class ActiveWalkersSystem(BaseSystem):
                     values=self._get_goal,
                     schedule='member',
                 ),
-                MapInteraction(
+                Interaction(
                     'arrival',
-                    target='people/walkers',
-                    state='arrived',
-                    function=self._get_arrived,
-                    form='agent',
-                    schedule='member',
+                    roles={'target': 'people/walkers'},
+                    laws=lambda s: [
+                        UpdateLaw(
+                            s.target,
+                            lambda agent, system: setattr(agent, 'arrived', float(self._get_arrived(agent, system))),
+                        ),
+                    ],
                 ),
             ],
         )
