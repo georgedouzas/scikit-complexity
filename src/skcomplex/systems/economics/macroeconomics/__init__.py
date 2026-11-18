@@ -38,7 +38,7 @@ from ._monetary import (
     StockFlowConsistentEconomySystem,
 )
 from ._optimal_growth import OptimalConsumptionSystem
-from ._purchasing_power import CategorizedPurchasingPowerSystem, PurchasingPowerElement
+from ._purchasing_power import CategorizedPurchasingPowerSystem, PurchasingPowerInteraction
 from ._stochastic_growth import BrockMirmanGrowthSystem, StochasticGrowthElement
 from ._trade import ExchangeRatesSystem, TradingEconomyElement
 
@@ -82,7 +82,7 @@ __all__: list[str] = [
     'PlotElement',
     'PolicySwitchInteraction',
     'ProductionInteraction',
-    'PurchasingPowerElement',
+    'PurchasingPowerInteraction',
     'ReserveBankElement',
     'SettlerElement',
     'SolowGrowthInteraction',
