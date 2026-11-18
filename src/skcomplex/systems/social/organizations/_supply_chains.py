@@ -17,7 +17,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import MapInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import NetworkSpace
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.backends import BaseBackend
@@ -173,6 +174,14 @@ class SupplyChainDiffusionSystem(BaseSystem):
         return float(any(buyer.adopted and buyer.inflow > firm.outflow for buyer in buyers))
 
     @staticmethod
+    def _spread(system: SystemViewProtocol) -> None:
+        """Set every firm that has adopted or can be forced to adopt, from the adoptions at the start of the step."""
+        firms = [firm for firm in system.get_agents('target') if isinstance(firm, SupplierView)]
+        adopted = [SupplyChainDiffusionSystem._adopt(firm, system) for firm in firms]
+        for firm, value in zip(firms, adopted, strict=True):
+            firm.adopted = value
+
+    @staticmethod
     def _supply_network(buyers: int, factories: int, rng: np.random.Generator) -> nx.DiGraph:
         """Return a random supply network.
 
@@ -203,5 +212,5 @@ class SupplyChainDiffusionSystem(BaseSystem):
             outflow=[float(network.out_degree(node, weight='weight')) for node in nodes],
             size=len(nodes),
         )
-        adoption = MapInteraction('adoption', target='firms', state='adopted', function=self._adopt, form='agent')
+        adoption = Interaction('adoption', roles={'target': 'firms'}, laws=lambda s: [UpdateLaw(s, self._spread)])
         self.system_ = System(self.label, elements=[firms], interactions=[adoption], space=NetworkSpace(network))
