@@ -1280,6 +1280,35 @@ def test_a_rule_of_the_system_reads_the_typed_agents_of_a_group_it_binds():
     assert trajectory.get_agents('counters', 3).values['count'].tolist() == [3.0, 8.0]
 
 
+class WorkInteraction(Interaction):
+    """Agent rule of workers with no values that raises the count of every counter."""
+
+    def __init__(self, label: str, *, target: Role = 'workers', counters: Role = 'counters') -> None:
+        super().__init__(label)
+        self.target = target
+        self.counters = counters
+
+    def _prepare(self, context=None):
+        """Set the work of every worker as its rule."""
+        super()._prepare(context)
+        self.laws_ = [UpdateLaw(context.target, self.work)]
+
+    def work(self, worker, system):
+        """Raise the count of every counter by one."""
+        for counter in system.get_agents('counters', CountedView):
+            counter.count += 1
+
+
+def test_a_group_with_no_values_runs_its_agent_rules():
+    """Test that every member of a group with no values, such as workers who change other agents, runs its rules."""
+    workers = Element('workers', size=3)
+    counters = CounterElement('counters', size=2)
+    system = System(elements=[workers, counters], interactions=[WorkInteraction('work')]).prepare()
+    trajectory = system.simulate(until=2, random_state=0)
+    assert len(trajectory.get_agents('workers', 2).ids) == 3
+    assert trajectory.get_agents('counters', 2).values['count'].tolist() == [6.0, 6.0]
+
+
 class Combination(Interaction):
     """Interaction that adds one node at every step, made from two nodes with which it forms a hyperedge."""
 

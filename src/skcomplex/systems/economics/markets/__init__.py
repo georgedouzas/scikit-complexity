@@ -37,7 +37,14 @@ from ._oligopoly import (
 from ._perishables import CustomerElement, PerishableGoodsDuopolySystem, ProductElement
 from ._prices import RiccatiPricesSystem
 from ._produce import ProduceMarketSystem, ShopperElement, ShoppingInteraction, StallElement
-from ._queues import CarElement, CarWashOperationInteraction, CarWashSystem, TillElement, WasherElement
+from ._queues import (
+    CarElement,
+    CarWashOperationInteraction,
+    CarWashSystem,
+    TillElement,
+    WasherElement,
+    WashingInteraction,
+)
 from ._shops import PriceAdjustmentInteraction, ResidentElement, ShopsSystem, StoreElement
 from ._sugarscape import ForagerElement, SugarPatchElement, SugarscapeSystem
 from ._supply_chains import (
@@ -127,6 +134,7 @@ __all__: list[str] = [
     'ToyTraderElement',
     'ToyTraderSystem',
     'WasherElement',
+    'WashingInteraction',
     'WilhiteTradeNetworksSystem',
     'ZeroIntelligenceBuyerElement',
     'ZeroIntelligenceSellerElement',
