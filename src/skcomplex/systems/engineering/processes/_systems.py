@@ -18,7 +18,7 @@ from ....core.components import Observable
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, Quantity
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RateLaw, Sink, Source, TransferLaw
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import clip, distributed_delay, minimum, series, step
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
@@ -87,7 +87,7 @@ class ReliefPipelineInteraction(Interaction):
         'relief'
     """
 
-    law_classes = (TransferLaw,)
+    law_classes = (RateLaw,)
 
     def __init__(self, label: str, *, target: Role) -> None:
         super().__init__(label)
@@ -132,11 +132,14 @@ class ReliefPipelineInteraction(Interaction):
         """
         shipments = ReliefPipelineInteraction._get_shipments(s)
         return [
-            TransferLaw(Source('donors'), s.in_transit, shipments, label='shipping'),
-            TransferLaw(s.in_transit, s.warehouse, distributed_delay(shipments, s.shipping_delay, 3), label='arrivals'),
-            TransferLaw(
-                s.warehouse,
-                Sink('beneficiaries'),
+            RateLaw({s.in_transit: +1}, shipments, label='shipping'),
+            RateLaw(
+                {s.in_transit: -1, s.warehouse: +1},
+                distributed_delay(shipments, s.shipping_delay, 3),
+                label='arrivals',
+            ),
+            RateLaw(
+                {s.warehouse: -1},
                 minimum(ReliefPipelineInteraction._need(s), s.warehouse / s.distribution_time),
                 label='distribution',
             ),
@@ -207,7 +210,7 @@ class RiceMillInteraction(Interaction):
         'mill'
     """
 
-    law_classes = (TransferLaw, RateLaw)
+    law_classes = (RateLaw,)
 
     def __init__(self, label: str, *, target: Role) -> None:
         super().__init__(label)
@@ -262,14 +265,14 @@ class RiceMillInteraction(Interaction):
         losses = 1 - s.outturn - s.husk_share - s.bran_share
         perceived = distributed_delay(RiceMillInteraction._get_indicated_milling(s), s.perception_time, conserved=False)
         return [
-            TransferLaw(Source('farms'), s.paddy, RiceMillInteraction._get_procurement(s), label='paddy_purchases'),
-            TransferLaw(s.paddy, s.rice, s.outturn * milling, label='milled_rice'),
-            TransferLaw(s.paddy, s.husk, s.husk_share * milling, label='husk_output'),
-            TransferLaw(s.paddy, s.bran, s.bran_share * milling, label='bran_output'),
-            TransferLaw(s.paddy, Sink('losses'), losses * milling, label='milling_losses'),
-            TransferLaw(s.rice, Sink('market'), s.rice / s.dispatch_time, label='rice_sales'),
-            TransferLaw(s.husk, Sink('fuel'), s.husk / s.by_product_time, label='husk_sales'),
-            TransferLaw(s.bran, Sink('feed'), s.bran / s.by_product_time, label='bran_sales'),
+            RateLaw({s.paddy: +1}, RiceMillInteraction._get_procurement(s), label='paddy_purchases'),
+            RateLaw({s.paddy: -1, s.rice: +1}, s.outturn * milling, label='milled_rice'),
+            RateLaw({s.paddy: -1, s.husk: +1}, s.husk_share * milling, label='husk_output'),
+            RateLaw({s.paddy: -1, s.bran: +1}, s.bran_share * milling, label='bran_output'),
+            RateLaw({s.paddy: -1}, losses * milling, label='milling_losses'),
+            RateLaw({s.rice: -1}, s.rice / s.dispatch_time, label='rice_sales'),
+            RateLaw({s.husk: -1}, s.husk / s.by_product_time, label='husk_sales'),
+            RateLaw({s.bran: -1}, s.bran / s.by_product_time, label='bran_sales'),
             RateLaw(
                 s.capacity,
                 (perceived - s.capacity) / s.expansion_time,
@@ -345,7 +348,7 @@ class IrrigationSchemeInteraction(Interaction):
         'scheme'
     """
 
-    law_classes = (TransferLaw,)
+    law_classes = (RateLaw,)
 
     def __init__(self, label: str, *, target: Role) -> None:
         super().__init__(label)
@@ -400,25 +403,23 @@ class IrrigationSchemeInteraction(Interaction):
         crop_water = s.potential_et * series(s.soil / s.field_capacity, *WATER_STRESS)
         spill = clip(s.reservoir - s.reservoir_capacity, 0) / s.spill_time
         return [
-            TransferLaw(
-                Source('river'),
-                s.reservoir,
+            RateLaw(
+                {s.reservoir: +1},
                 RiceMillInteraction._get_season(s.river_inflow, s.seasonality, s.t, DAYS_PER_YEAR),
                 label='inflow',
             ),
-            TransferLaw(s.reservoir, Sink('atmosphere'), s.evaporation * s.reservoir, label='evaporation'),
-            TransferLaw(s.reservoir, Sink('downstream'), spill, label='spill'),
-            TransferLaw(s.reservoir, s.soil, (1 - s.canal_loss) * release, label='irrigation'),
-            TransferLaw(s.reservoir, s.groundwater, s.canal_loss * release, label='seepage'),
-            TransferLaw(
-                s.groundwater,
-                s.soil,
+            RateLaw({s.reservoir: -1}, s.evaporation * s.reservoir, label='reservoir_evaporation'),
+            RateLaw({s.reservoir: -1}, spill, label='spill'),
+            RateLaw({s.reservoir: -1, s.soil: +1}, (1 - s.canal_loss) * release, label='irrigation'),
+            RateLaw({s.reservoir: -1, s.groundwater: +1}, s.canal_loss * release, label='seepage'),
+            RateLaw(
+                {s.groundwater: -1, s.soil: +1},
                 IrrigationSchemeInteraction._get_pumping(s),
                 label='groundwater_pumping',
             ),
-            TransferLaw(s.soil, Sink('atmosphere'), crop_water, label='crop_water'),
-            TransferLaw(s.soil, s.groundwater, s.percolation * s.soil, label='percolation'),
-            TransferLaw(s.groundwater, Sink('downstream'), s.groundwater / s.baseflow_time, label='baseflow'),
+            RateLaw({s.soil: -1}, crop_water, label='crop_water'),
+            RateLaw({s.soil: -1, s.groundwater: +1}, s.percolation * s.soil, label='deep_percolation'),
+            RateLaw({s.groundwater: -1}, s.groundwater / s.baseflow_time, label='baseflow'),
         ]
 
 
@@ -486,7 +487,7 @@ class WasteSystemInteraction(Interaction):
         'city'
     """
 
-    law_classes = (TransferLaw, RateLaw)
+    law_classes = (RateLaw,)
 
     def __init__(self, label: str, *, target: Role) -> None:
         super().__init__(label)
@@ -532,14 +533,14 @@ class WasteSystemInteraction(Interaction):
         )
         residual = (1 - s.recycling_share - s.composting_share) * collection
         return [
-            TransferLaw(Source('births'), s.population, s.growth_rate * s.population, label='population_growth'),
-            TransferLaw(Source('households'), s.uncollected, generation, label='waste_generation'),
-            TransferLaw(s.uncollected, s.recycled, s.recycling_share * collection, label='recycling'),
-            TransferLaw(s.uncollected, s.composted, s.composting_share * collection, label='composting'),
-            TransferLaw(s.uncollected, s.landfill, acceptance * residual, label='landfilling'),
-            TransferLaw(s.uncollected, s.dumped, (1 - acceptance) * residual, label='dumping'),
-            TransferLaw(s.recycled, Sink('industry'), s.recycled / s.recycling_time, label='recycled_sales'),
-            TransferLaw(s.composted, Sink('farms'), s.composted / s.composting_time, label='compost_sales'),
+            RateLaw({s.population: +1}, s.growth_rate * s.population, label='population_growth'),
+            RateLaw({s.uncollected: +1}, generation, label='waste_generation'),
+            RateLaw({s.uncollected: -1, s.recycled: +1}, s.recycling_share * collection, label='recycling'),
+            RateLaw({s.uncollected: -1, s.composted: +1}, s.composting_share * collection, label='composting'),
+            RateLaw({s.uncollected: -1, s.landfill: +1}, acceptance * residual, label='landfilling'),
+            RateLaw({s.uncollected: -1, s.dumped: +1}, (1 - acceptance) * residual, label='dumping'),
+            RateLaw({s.recycled: -1}, s.recycled / s.recycling_time, label='recycled_sales'),
+            RateLaw({s.composted: -1}, s.composted / s.composting_time, label='compost_sales'),
             RateLaw(s.collection_capacity, (generation - s.collection_capacity) / s.capacity_time),
         ]
 
@@ -558,8 +559,8 @@ class RiceMillingSystem(BaseSystem):
     parameters in tonnes and months, since the case data are specific to their study.
 
     The system has the grain stocks `mill.paddy`, `mill.rice`, `mill.husk`, and `mill.bran` in tonnes, the capacity
-    `mill.capacity`, and the flows `flows.paddy_purchases`, `flows.milled_rice`, `flows.husk_output`,
-    `flows.bran_output`, `flows.milling_losses`, `flows.rice_sales`, `flows.husk_sales`, and `flows.bran_sales` in
+    `mill.capacity`, and the flows `mill.paddy_purchases`, `mill.milled_rice`, `mill.husk_output`,
+    `mill.bran_output`, `mill.milling_losses`, `mill.rice_sales`, `mill.husk_sales`, and `mill.bran_sales` in
     tonnes per month, over months.
     The observables of the system are `mill.procurement`, `mill.indicated_milling`, and `mill.milling`.
 
@@ -662,8 +663,8 @@ class SolidWasteSystem(BaseSystem):
 
     The system has the population `city.population`, the waste stocks `city.uncollected`, `city.recycled`,
     `city.composted`, `city.landfill`, and `city.dumped` in tonnes, the capacity `city.collection_capacity`, and the
-    flows `flows.population_growth`, `flows.waste_generation`, `flows.recycling`, `flows.composting`,
-    `flows.landfilling`, `flows.dumping`, `flows.recycled_sales`, and `flows.compost_sales` per year, over years. The
+    flows `city.population_growth`, `city.waste_generation`, `city.recycling`, `city.composting`,
+    `city.landfilling`, `city.dumping`, `city.recycled_sales`, and `city.compost_sales` per year, over years. The
     observables of the system are `city.generation`, `city.collection`, and `city.acceptance`.
 
     Args:
@@ -764,7 +765,7 @@ class FoodReliefSystem(BaseSystem):
     example of Bala, Arshad and Noh (2017, Section 4.11), with illustrative parameters in tonnes and days.
 
     The system has the food stocks `relief.in_transit` and `relief.warehouse` in tonnes, and the flows
-    `flows.shipping`, `flows.arrivals`, and `flows.distribution` in tonnes per day, over days. The observables of the
+    `relief.shipping`, `relief.arrivals`, and `relief.distribution` in tonnes per day, over days. The observables of the
     system are `relief.need` and `relief.shipments`.
 
     Args:
@@ -865,9 +866,9 @@ class IrrigationSystem(BaseSystem):
     Arshad and Noh (2017, Section 4.11), with illustrative parameters in millions of cubic metres and days.
 
     The system has the water stocks `scheme.reservoir`, `scheme.soil`, and `scheme.groundwater`, and the flows
-    `flows.inflow`, `flows.evaporation`, `flows.spill`, `flows.irrigation`, `flows.seepage`,
-    `flows.groundwater_pumping`, `flows.crop_water`, `flows.percolation`, and `flows.baseflow` per day, over days.
-    The observables of the system are `scheme.demand`, `scheme.release`, and `scheme.pumping`.
+    `scheme.inflow`, `scheme.reservoir_evaporation`, `scheme.spill`, `scheme.irrigation`, `scheme.seepage`,
+    `scheme.groundwater_pumping`, `scheme.crop_water`, `scheme.deep_percolation`, and `scheme.baseflow` per day,
+    over days. The observables of the system are `scheme.demand`, `scheme.release`, and `scheme.pumping`.
 
     Args:
         river_inflow:
