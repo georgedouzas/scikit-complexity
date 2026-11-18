@@ -9,19 +9,25 @@ A mass exchange brings a concentration towards a feed or a surface value over a 
 from collections.abc import Callable
 from types import SimpleNamespace
 
-from ....core.components.interactions import RateInteraction
+from sage.all__sagemath_symbolics import SR, vector
+from sage.modules.free_module_element import FreeModuleElement
+
+from ....core.components.interactions import Interaction
+from ....core.components.laws import NoiseLaw, RateLaw
+from ....core.components.spaces import BaseSpace
 from ....core.errors import ValidationError
+from ....core.specs import Role
 
 
-class MassExchangeInteraction(RateInteraction):
+class MassExchangeInteraction(Interaction):
     """Mass exchange of a concentration towards a feed over a residence or transfer time.
 
     Chemical engineering names it the exchange of a reactor with its feed, or a mass transfer to a surface. The rate is
     `(goal(ns) - x) / time(ns)` of a state `x` of a target, with optional noise. With a constant goal and time and an
     additive noise of amplitude `sigma`, the state follows the Ornstein-Uhlenbeck process `dx = (goal - x) / time dt +
-    sigma dW`, whose stationary variance is `sigma**2 time / 2`. A goal or a time function takes the namespace of the
-    interaction, as for `RateInteraction`, and a number stands for a constant. A goal that is a number applies to every
-    component of a vector state.
+    sigma dW`, whose stationary variance is `sigma**2 time / 2`. A goal, a time, or a noise function takes the namespace
+    of the interaction, with the target as `target` and the time as `t`, and a number stands for a constant. A goal
+    that is a number applies to every component of a vector state.
 
     Args:
         label:
@@ -47,14 +53,12 @@ class MassExchangeInteraction(RateInteraction):
             The state is not a name, or a function is neither callable nor a number.
 
     Examples:
-        >>> from skcomplex.systems.general.elements import NonnegativeElement
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.chemistry.kinetics import MassExchangeInteraction
         >>> relaxation = MassExchangeInteraction('relaxation', target='stock', goal=10.0, time=0.5)
-        >>> system = CompositeSystem(elements=[NonnegativeElement('stock')], interactions=[relaxation])
-        >>> trajectory = simulate(system, until=5.0, dt=0.01)
-        >>> round(float(trajectory.get_values('stock.x')[-1]), 3)
+        >>> system = System(elements=[Element('stock', values={'x': 0.0})], interactions=[relaxation]).prepare()
+        >>> round(float(system.simulate(until=5.0, dt=0.01).get_values('stock.x')[-1]), 3)
         10.0
     """
 
@@ -62,50 +66,52 @@ class MassExchangeInteraction(RateInteraction):
         self,
         label: str,
         *,
-        target: str,
+        target: Role,
         state: str = 'x',
         goal: Callable[[SimpleNamespace], object] | float = 0.0,
         time: Callable[[SimpleNamespace], object] | float = 1.0,
         noise: Callable[[SimpleNamespace], object] | float | None = None,
     ) -> None:
-        super().__init__(label, target=target, state=state, noise=noise)
+        super().__init__(label)
+        self.target = target
+        self.state = state
         self.goal = goal
         self.time = time
+        self.noise = noise
 
-    def _check_functions(self) -> None:
-        """Raise an error for a state that is not a name, or a bad function.
-
-        A bad function is neither callable nor a number.
-        """
-        super()._check_functions()
-        for name in ('goal', 'time'):
-            value = getattr(self, name)
-            if not (callable(value) or isinstance(value, int | float)):
-                error_msg = f'The {name} of {self.label!r} is {value!r}. Give a function of the namespace or a number.'
-                raise ValidationError(error_msg)
-
-    def _get_goal(self, namespace: SimpleNamespace) -> object:
-        """Return the goal, the hook a subclass overrides to derive it from its parameters."""
-        return self._evaluate(self.goal, namespace)
-
-    def _get_time(self, namespace: SimpleNamespace) -> object:
-        """Return the relaxation time.
-
-        This is the hook a subclass overrides to derive it from its parameters.
-        """
-        return self._evaluate(self.time, namespace)
-
-    def _get_rate(self, namespace: SimpleNamespace) -> object:
-        """Return the relaxation `(goal - x) / time` of the state.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the relaxation `(goal - x) / time` of the state and its noise.
 
         Args:
-            namespace:
-                The namespace of the symbols the rate can use.
+            context:
+                The space the interaction inherits from its system, or the namespace of the target, the time `t`,
+                and the parameters.
 
-        Returns:
-            rate:
-                The rate of the state.
+        Raises:
+            ValidationError:
+                The state is not a name, or a function is neither callable nor a number.
         """
-        state = getattr(self._get_member(namespace, 'target'), self.state)
-        goal = self._broadcast(self._get_goal(namespace), state)
-        return (goal - state) / self._get_time(namespace)
+        if not isinstance(self.state, str) or not self.state.isidentifier():
+            error_msg = f'{type(self).__name__} {self.label!r} relaxes the state {self.state!r}, which is no name.'
+            raise ValidationError(error_msg)
+        for name in ('goal', 'time', 'noise'):
+            value = getattr(self, name)
+            if not (callable(value) or isinstance(value, int | float) or (name == 'noise' and value is None)):
+                error_msg = f'The {name} of {self.label!r} is {value!r}. Give a function of the namespace or a number.'
+                raise ValidationError(error_msg)
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x = getattr(context.target, self.state)
+            goal = self._evaluate(self.goal, context)
+            if isinstance(goal, list | tuple):
+                goal = vector(SR, goal)
+            elif isinstance(x, FreeModuleElement) and not isinstance(goal, FreeModuleElement):
+                goal = vector(SR, [goal] * len(x))
+            self.laws_ = [RateLaw(x, (goal - x) / self._evaluate(self.time, context))]
+            if self.noise is not None:
+                self.laws_.append(NoiseLaw(x, self._evaluate(self.noise, context)))
+
+    @staticmethod
+    def _evaluate(value: Callable[[SimpleNamespace], object] | float, context: SimpleNamespace) -> object:
+        """Return a number, or the value of a function of the namespace."""
+        return value(context) if callable(value) else value
