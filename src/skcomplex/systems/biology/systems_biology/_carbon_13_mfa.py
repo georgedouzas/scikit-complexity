@@ -21,12 +21,17 @@ from scipy.stats import chi2
 
 from ....core.analysis import bind_analysis
 from ....core.analysis.types import Source
+from ....core.components import Observable
 from ....core.components.spaces import StaticTime
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.systems import BaseSystem as OldBaseSystem
+from ....core.components.systems import CompositeSystem
+from ....core.engine.backends import BaseBackend
 from ....core.engine.problems import ProblemSpec, RunStateSpec
 from ....core.engine.runtime import simulate
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import AnalysisError, ValidationError
 from ....core.specs import BaseSpec, DeclaredVariableSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ..common.metabolism import MetabolicNetworkElement, ReactionSpec
 
@@ -556,9 +561,9 @@ def labelling(
     _check_choice('kind', kind, KINDS)
     _check_choice('intervals', intervals, INTERVALS)
     atom_counts = _atom_counts(atoms)
-    if isinstance(source, BaseSystem) and not isinstance(source, CompositeSystem):
+    if isinstance(source, OldBaseSystem | BaseSystem) and not isinstance(source, CompositeSystem | System):
         source = source.prepare().system_
-    if not isinstance(source, CompositeSystem):
+    if not isinstance(source, CompositeSystem | System):
         error_msg = f'labelling reads a system, not a {type(source).__name__}.'
         raise AnalysisError(error_msg)
     units = _collect_units(
@@ -618,7 +623,7 @@ def _atom_counts(atoms: Sequence[AtomMapSpec]) -> dict[str, int]:
     return {metabolite: count for metabolite, (count, _) in counts.items()}
 
 
-def _network_of(system: CompositeSystem) -> MetabolicNetworkElement:
+def _network_of(system: CompositeSystem | System) -> MetabolicNetworkElement:
     """Return the metabolic network of a system."""
     for element in system.elements:
         if isinstance(element, MetabolicNetworkElement):
@@ -1170,6 +1175,12 @@ class Carbon13MFASystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.systems_biology import Carbon13MFASystem
         >>> Carbon13MFASystem().prepare().system_.elements[0].label
@@ -1186,14 +1197,18 @@ class Carbon13MFASystem(BaseSystem):
         network: MetabolicNetworkElement | None = None,
         *,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.network = network
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of a metabolic network that `labelling` fits to labelling data."""
-        return CompositeSystem(
-            self.label,
-            elements=[TcaNetworkElement('tca') if self.network is None else self.network],
-            time=StaticTime(),
-        )
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a metabolic network that `labelling` fits to labelling data.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        self.system_ = System(self.label, elements=[TcaNetworkElement('tca') if self.network is None else self.network])
