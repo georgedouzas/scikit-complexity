@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import numbers
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from types import SimpleNamespace
@@ -136,7 +137,7 @@ class Element(BaseElement):
         super()._prepare(context)
         size = self.size
         checks = {
-            'size': size is None or (isinstance(size, int) and not isinstance(size, bool) and size >= 1),
+            'size': size is None or (isinstance(size, numbers.Integral) and not isinstance(size, bool) and size >= 1),
             'space': self.space is None or isinstance(self.space, BaseSpace),
             'values': self.values is None or isinstance(self.values, Mapping),
         }
