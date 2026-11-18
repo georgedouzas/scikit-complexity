@@ -8,6 +8,8 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, UpdateLaw
 from skcomplex.core.components.laws._flow_term import FlowTermLaw
+from skcomplex.core.components.laws.utils import shift_member
+from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.systems import System
 
@@ -74,3 +76,18 @@ def test_increment_flow_steps_in_discrete_time_and_records_its_amount():
     assert system.form_ == 'discrete map'
     np.testing.assert_allclose(trajectory.get_values('tank.level'), [8.0, 4.0, 2.0, 1.0])
     np.testing.assert_allclose(trajectory.get_values('tank.drain'), [4.0, 2.0, 1.0, 0.5])
+
+
+@pytest.mark.parametrize(('boundary', 'expected'), [('periodic', [3.0, 2.0, 1.0]), ('fixed', [0.0, 2.0, 4.0])])
+def test_increment_flow_to_the_next_member_moves_every_amount_along_the_group(boundary, expected):
+    """Test that `{s.n: -1, shift_member(s.n, 1): +1}` moves each site's amount to the next, none past a fixed end."""
+
+    def laws(s):
+        n = s.target.n
+        return [UpdateLaw({n: -1, shift_member(n, 1, boundary=boundary): +1}, n, increment=True, label='hops')]
+
+    hops = Interaction('hops', roles={'target': 'sites'}, laws=laws)
+    sites = Element('sites', values={'n': np.array([2.0, 1.0, 3.0])}, space=LatticeSpace(3, boundary=boundary))
+    trajectory = System(elements=[sites], interactions=[hops]).prepare().simulate(until=1)
+    np.testing.assert_allclose(trajectory.get_values('sites.n')[-1], expected)
+    assert np.sum(trajectory.get_values('sites.hops')[0]) == pytest.approx(6.0 if boundary == 'periodic' else 3.0)

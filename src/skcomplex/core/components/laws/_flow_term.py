@@ -8,10 +8,13 @@ from collections.abc import Mapping
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ...errors import ValidationError
+from ..spaces._lattice import BOUNDARIES
 from ._rate import RateLaw
 from ._update import UpdateLaw
+from .utils._reductions import shift_member
 
 SIGNS = (-1, 1)
+SHIFT = 'shift_member'
 
 
 class FlowTermLaw(RateLaw):
@@ -47,6 +50,10 @@ class FlowTermLaw(RateLaw):
 
         increment:
             Whether the term is the increment `sign * f` of the stock in one step of discrete time, not a rate.
+
+        shifted:
+            Whether the stock is a member at an offset, such as the next site of `{s.n: -1, shift_member(s.n, 1): +1}`,
+            so every member takes the term of the member behind it.
     """
 
     def __init__(
@@ -58,10 +65,12 @@ class FlowTermLaw(RateLaw):
         label: str = '',
         sign: int = 1,
         increment: bool = False,
+        shifted: bool = False,
     ) -> None:
         super().__init__(target, value, order, label=label)
         self.sign = sign
         self.increment = increment
+        self.shifted = shifted
 
     @classmethod
     def _get_terms(cls, law: RateLaw | UpdateLaw, owner: str) -> list[RateLaw | UpdateLaw]:
@@ -105,7 +114,47 @@ class FlowTermLaw(RateLaw):
                 f'stock, with the sign -1, and enters at most one, with the sign +1, {example}.'
             )
             raise ValidationError(error_msg)
-        return [
-            cls(stock, int(sign) * SR(law.value), 1, label=law.label, sign=int(sign), increment=increment)
-            for stock, sign in law.target.items()
-        ]
+        presence = cls._get_presence(law.target)
+        terms = []
+        for stock, sign in law.target.items():
+            state, value = cls._get_unshifted(stock, int(sign) * SR(law.value), presence)
+            shifted = state is not stock
+            terms.append(cls(state, value, 1, label=law.label, sign=int(sign), increment=increment, shifted=shifted))
+        return terms
+
+    @staticmethod
+    def _get_offset(stock: object) -> tuple[Expression, int, str] | None:
+        """Return the state, the offset, and the boundary of a stock read at a member offset, or `None`."""
+        if not isinstance(stock, Expression) or getattr(stock.operator(), 'name', lambda: '')() != SHIFT:
+            return None
+        state, offset, boundary, _ = stock.operands()
+        return state, int(offset), BOUNDARIES[int(boundary)].value
+
+    @classmethod
+    def _get_presence(cls, stocks: Mapping[object, object]) -> Expression:
+        """Return 1 where the member every stock of a flow names exists, and 0 otherwise.
+
+        A member at an offset is missing past the ends of a fixed boundary, so nothing flows out of an open line.
+        """
+        presence = SR(1)
+        for stock in stocks:
+            found = cls._get_offset(stock)
+            if found is not None and found[2] == 'fixed':
+                state, offset, _ = found
+                ahead = shift_member(state, offset, boundary='fixed')
+                presence *= 1 + ahead - shift_member(state, offset, boundary='fixed', fill=1.0)
+        return presence
+
+    @classmethod
+    def _get_unshifted(cls, stock: object, value: Expression, presence: Expression) -> tuple[object, Expression]:
+        """Return the state of a stock and the term it takes.
+
+        A flow into the member at an offset, such as `{s.n: -1, shift_member(s.n, 1): +1}` from every site to the next,
+        gives every member the term of the member behind it. A member flows only where the member at the offset
+        exists, which the presence says, and a member at an offset always has a member behind it.
+        """
+        found = cls._get_offset(stock)
+        if found is None:
+            return stock, value * presence
+        state, offset, boundary = found
+        return state, shift_member(value, -offset, boundary=boundary)

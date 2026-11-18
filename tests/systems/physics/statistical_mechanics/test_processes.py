@@ -73,7 +73,7 @@ def test_tasep_hops_and_exits_carry_the_exact_current():
     occupied = line.get_lattice('lane.occupied')[300:]
     exits = ((occupied[:-1, -1] == 1) & (occupied[1:, -1] == 0)).mean()
     assert exits == pytest.approx(exact, rel=0.05)
-    for flow in ('lane.entry', 'lane.exit'):
+    for flow in ('lane.entry', 'lane.exit', 'lane.hops'):
         assert np.asarray(line.get_values(flow))[300:].mean() == pytest.approx(exact, rel=0.05)
 
 
