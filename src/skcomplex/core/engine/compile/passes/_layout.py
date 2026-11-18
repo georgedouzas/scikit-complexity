@@ -324,7 +324,7 @@ class LayoutPass(BasePass):
 
     @staticmethod
     def _get_member_shaped(node: _NodeSpec, groups: Mapping[str, int]) -> dict[str, VariableSpec]:
-        """Return the matrix arguments of an interaction whose shape follows the sizes of its groups, by name.
+        """Return the matrix arguments of an interaction shaped by the sizes of its groups.
 
         An argument given as an array of two or more axes, each as long as a group bound to a role of the interaction,
         is a parameter with one entry per combination of members, such as the interaction matrix `a_ij` of the species

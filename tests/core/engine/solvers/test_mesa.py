@@ -46,7 +46,6 @@ from skcomplex.systems.general.agents import MovementInteraction
 from ....conftest import QueueElement, _queue_run
 
 TOWNS = ['Bree', 'Dale', 'Esgaroth']
-
 SEEN: list[object] = []
 UNDECLARED: list[bool] = []
 LOG: list[tuple[str, int]] = []

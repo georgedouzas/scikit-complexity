@@ -11,7 +11,7 @@ from ...specs._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class Member(BaseSpec):
-    """A group whose members a value of an element names, such as the firms a worker works for.
+    """A group whose members a value names, such as the parent of a child.
 
     It is written in `Annotated` beside the allowed values, such as
     `employer: Annotated[int, Member('firms')] = -1`. The value is the index of a member of that group, and -1 names
@@ -29,12 +29,7 @@ class Member(BaseSpec):
             The label of the group whose members the value names, such as `'firms'`.
 
     Examples:
-        >>> from typing import Annotated
-        >>> from skcomplex.core.components.elements import Element, Member
-        >>> class Worker(Element):
-        ...     def __init__(self, label, employer: Annotated[int, Member('firms')] = -1, size=None):
-        ...         super().__init__(label, size=size)
-        ...         self.employer = employer
+        >>> from skcomplex.core.components.elements import Member
         >>> Member('firms').group
         'firms'
     """

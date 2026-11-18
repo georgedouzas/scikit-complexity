@@ -2106,7 +2106,7 @@ class MesaSolver(ExternalSolver):
 
     @staticmethod
     def _get_shared_default(element: type | BaseElement, name: str) -> object:
-        """Return the default of a state of an element type, or the value a group shares among its members."""
+        """Return the default of a state of an element type, or the value its group shares."""
         return default_of(element, name)
 
     @staticmethod

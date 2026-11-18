@@ -522,7 +522,7 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
 
     @staticmethod
     def _get_member_groups(relations: Sequence[_RelationSpec]) -> tuple[str | None, tuple[str, ...]]:
-        """Return the group and the aligned groups the solved laws are evaluated over, member by member.
+        """Return the group and the aligned groups that the solved laws run over.
 
         A constraint of an interaction on a group, such as `y == a x^2` for every point of a group, holds for every
         member, so its solution reads the values of each member in its own row.

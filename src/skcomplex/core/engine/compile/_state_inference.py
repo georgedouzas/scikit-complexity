@@ -188,7 +188,7 @@ class _StateInference:
 
     @staticmethod
     def _get_class_default(element: Element, name: str, member: object) -> object:
-        """Return the default of a value given per member, which a member added later takes.
+        """Return the default of a value given per member, for members added later.
 
         It is the default of the argument of the element class, such as `money: float = 0.0`, or the value of the
         first member when the class gives none.
@@ -564,7 +564,7 @@ class _StateInference:
 
     @staticmethod
     def _get_hyperedge_rank(compilation: Compilation) -> int | None:
-        """Return the size of the largest hyperedge the laws add, or `None` when they add none.
+        """Return the size of the largest hyperedge the laws add, or `None`.
 
         A new good made from three parents forms a hyperedge of four members, its parents and itself.
         """
@@ -585,7 +585,7 @@ class _StateInference:
         return max(sizes, default=None)
 
     def _get_edge_spaces(self, system: CompositeSystem) -> frozenset[int]:
-        """Return the networks of a system tree that a plain element holds the edges of, by their identity.
+        """Return the identities of the networks whose edges a plain element holds.
 
         A network whose edges an element such as `Element('catalysis', space=network, on='edges')` holds takes no
         other group on its edges.
@@ -664,7 +664,7 @@ class _StateInference:
 
     @staticmethod
     def _get_node_edges(element: Element, links: frozenset[int]) -> list[GroupElement]:
-        """Return the variable group on the edges of a network whose edges the laws change, named after its nodes.
+        """Return the variable group on the changing edges of a network, after its nodes.
 
         A network whose edges an element holds, such as `Element('catalysis', space=network, on='edges')`, takes no
         such group, since that element is the group on its edges.
@@ -703,11 +703,11 @@ class _StateInference:
         )
 
     @staticmethod
-    def _get_group_part(element: Element, count: int | None, agents: bool) -> str | None:
-        """Return the part of the space a group of members sits on, `'sites'` or none.
+    def _get_group_on(element: Element, count: int | None, agents: bool) -> str | None:
+        """Return where the members of a group sit, `'sites'` or `None`.
 
         The members of a group in a continuous space, or one per node of a network, sit on its sites. Agents of a
-        network and another number of members, such as the balls in the urns of its nodes, sit on no part and are
+        network and another number of members, such as the balls in the urns of its nodes, sit on no sites and are
         placed by their value `node`.
         """
         space = element.space
@@ -810,14 +810,14 @@ class _StateInference:
             return [self._get_link_group(element, on, count, values, changing=bool(kinds), rank=rank)]
         if isinstance(element.space, LatticeSpace | NetworkSpace) and element.size is None:
             return [self._get_field(element.label, element.space, values)]
-        part = self._get_group_part(element, count, agents)
-        off_nodes = part is None and isinstance(element.space, NetworkSpace) and not agents
+        place = self._get_group_on(element, count, agents)
+        off_nodes = place is None and isinstance(element.space, NetworkSpace) and not agents
         group = GroupElement(
             element.label,
             element=DeclaredElement,
             size=count,
             space=None if off_nodes else element.space,
-            on=part,
+            on=place,
             values=values,
             variable=agents,
         )
