@@ -1090,7 +1090,7 @@ class CensusPass(BasePass):
 
     @staticmethod
     def _is_linear_objective(law: ObjectiveLaw) -> bool:
-        """Return whether an objective is linear in its targets or sums their absolute values."""
+        """Return whether an objective is linear or sums absolute values of its targets."""
         targets = {str(item) for item in law._get_targets()}
         for value in law._get_values_in_order():
             expression = SR(value)
