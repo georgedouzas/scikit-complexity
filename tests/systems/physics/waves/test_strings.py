@@ -5,7 +5,6 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.waves import SpringChainSystem, StandingWavesSystem
 
 from ..conftest import _run, _series
@@ -14,7 +13,7 @@ from ..conftest import _run, _series
 def test_plucked_spring_chain_keeps_its_fundamental_mode():
     """Test that the fundamental transverse mode of the chain oscillates at `2 sqrt(k / m) sin(pi / (2 (N + 1)))`."""
     n_masses = 15
-    trajectory = simulate(SpringChainSystem(n_masses), until=4.0, dt=0.1)
+    trajectory = SpringChainSystem(n_masses).prepare().simulate(until=4.0, dt=0.1)
     heights = np.stack([_series(trajectory, f'mass_{index}.x')[0][:, 1] for index in range(n_masses)], axis=1)
     mode = np.sin(np.pi * np.arange(1, n_masses + 1) / (n_masses + 1))
     amplitude = heights @ mode / (mode @ mode)

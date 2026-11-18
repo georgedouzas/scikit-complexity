@@ -22,11 +22,9 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace
-from ....core.components.systems import BaseSystem as OldBaseSystem
-from ....core.components.systems import CompositeSystem
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, VelocityVerletSolver
-from ....core.specs import ParameterSpec, Role, RoleSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ..common.particles import HarmonicPotentialInteraction, MassPointElement, SpringInteraction
 
@@ -136,11 +134,11 @@ class DrivenAnchorInteraction(HarmonicPotentialInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        center: Annotated[npt.ArrayLike, ParameterSpec(vector=True)] = 0.0,
-        amplitude: Annotated[float, ParameterSpec()] = 0.0,
-        omega: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        target: Role,
+        k: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        center: npt.ArrayLike = 0.0,
+        amplitude: float = 0.0,
+        omega: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
     ) -> None:
         super().__init__(label, target=target, k=k, center=center)
         self.amplitude = amplitude
@@ -151,7 +149,7 @@ class DrivenAnchorInteraction(HarmonicPotentialInteraction):
         return s.center + vector(SR, [0, s.amplitude * sin(s.omega * s.t)])
 
 
-class SpringChainSystem(OldBaseSystem):
+class SpringChainSystem(BaseSystem):
     """Masses joined in a row by springs of zero rest length between two anchors.
 
     The chain is a discrete string.
@@ -191,6 +189,12 @@ class SpringChainSystem(OldBaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for velocity Verlet with the step 0.01.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.waves import SpringChainSystem
         >>> len(SpringChainSystem(4).prepare().system_.interactions)
@@ -202,7 +206,6 @@ class SpringChainSystem(OldBaseSystem):
     references = ('Argun et al. 2021',)
     until = 20.0
     dt = 0.05
-    solver = VelocityVerletSolver(dt=0.01)
 
     def __init__(
         self,
@@ -216,8 +219,10 @@ class SpringChainSystem(OldBaseSystem):
         amplitude: float = 0.0,
         omega: float = 2.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_masses = n_masses
         self.length = length
         self.k = k
@@ -236,11 +241,14 @@ class SpringChainSystem(OldBaseSystem):
         peak = at * length
         return np.where(positions <= peak, height * positions / peak, height * (length - positions) / (length - peak))
 
-    def _build_system(self) -> CompositeSystem:
-        """Return masses joined in a row by zero rest length springs between two anchors.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to masses joined in a row by springs of zero rest length between two anchors.
 
-        The chain is a discrete string.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         spacing = self.length / (self.n_masses + 1)
         positions = spacing * np.arange(1, self.n_masses + 1)
         heights = (
@@ -250,7 +258,6 @@ class SpringChainSystem(OldBaseSystem):
             MassPointElement(
                 f'mass_{index}',
                 x=[float(positions[index]), float(heights[index])],
-                x_d1=[0.0, 0.0],
                 m=self.mass,
             )
             for index in range(self.n_masses)
@@ -275,11 +282,12 @@ class SpringChainSystem(OldBaseSystem):
                 center=[self.length, 0.0],
             ),
         ]
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=masses,
             interactions=[*anchors, *springs],
             space=ContinuousSpace(n_dim=2),
+            solver=VelocityVerletSolver(dt=0.01),
         )
 
 
