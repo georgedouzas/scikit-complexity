@@ -25,9 +25,8 @@ from ....core.components.spaces import BaseSpace
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.enums import ElementKind
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec, RoleSpec
+from ....core.specs import BaseSpec, Role
 from ....core.systems import BaseSystem, System
 
 SENSES = ('at-least', 'at-most')
@@ -165,10 +164,7 @@ class SatisfiabilityInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[
-            str,
-            RoleSpec(elements=(ElementKind.GROUP, ElementKind.VARIABLE_GROUP), states=('state',), domains=('boolean',)),
-        ],
+        target: Annotated[Role, 'boolean'],
         state: str,
         constraints: Sequence[ClauseSpec | CardinalitySpec],
         reveal: int = 1,

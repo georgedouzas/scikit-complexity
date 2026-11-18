@@ -515,7 +515,7 @@ class NeighborhoodKernel(BaseKernel):
 
     @staticmethod
     def _get_axis_states(space: object, states: Mapping[str, VariableSpec]) -> tuple[str, ...] | None:
-        """Return the scalar positions of the members along every axis of a continuous space, or `None`.
+        """Return the scalar positions of the members on every axis, or `None`.
 
         A value named after an axis, such as `x` and `y` of walkers in a plane, is the position of a member along it.
 

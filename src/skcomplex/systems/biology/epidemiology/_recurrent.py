@@ -6,7 +6,7 @@ The immunity lasts a fixed period.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -15,11 +15,11 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import MapInteraction
-from ....core.components.laws.utils import lag, where
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.laws.utils import where
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, StateSpec
 from ....core.systems import BaseSystem, System
 
 MAX_RECOVERY = 12
@@ -48,6 +48,9 @@ class EpidemicCenterElement(Element):
         e:
             The fraction of the infected of the center who visit another center.
 
+        values:
+            Further values by name, such as the past fractions `'x[-1]'` that the immunity reads, or `None`.
+
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import EpidemicCenterElement
         >>> EpidemicCenterElement('city', x=0.01).recovery
@@ -58,15 +61,13 @@ class EpidemicCenterElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[
-            float,
-            StateSpec(domain=RealSet.closed_open(0, oo), lags=MAX_RECOVERY, initial=(0.0,) * MAX_RECOVERY),
-        ] = 0.0,
-        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.2,
-        recovery: Annotated[int, ParameterSpec(domain=NN)] = 6,
-        e: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005,
+        x: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        a: Annotated[float, RealSet.closed_open(0, oo)] = 2.2,
+        recovery: Annotated[int, NN] = 6,
+        e: Annotated[float, RealSet.closed_open(0, oo)] = 0.005,
+        values: Mapping[str, object] | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values)
         self.x = x
         self.a = a
         self.recovery = recovery
@@ -140,25 +141,25 @@ class DelayedSIRSSystem(BaseSystem):
         self.e = e
 
     @staticmethod
-    def _get_infected_or_immune(center: SimpleNamespace) -> Expression:
+    def _get_infected_or_immune(center: SimpleNamespace, t: Expression) -> Expression:
         """Return the fraction of a center that cannot be infected.
 
         The fraction is the one infected now or in the last `recovery` steps.
         """
-        past = sum(where(step <= center.recovery, lag(center.x, step), 0) for step in range(1, MAX_RECOVERY + 1))
+        past = sum(where(step <= center.recovery, center.x(t=t - step), 0) for step in range(1, MAX_RECOVERY + 1))
         return center.x + past
 
-    def _get_next_infected(self, s: SimpleNamespace) -> Expression:
-        """Return `a (x + e y) s`, the next infected fraction of a center.
+    def _get_next_infected(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the update `a (x + e y) s` of the infected fraction of a center.
 
         The center is visited by the infected of another one.
 
         The center is the target, `y` and `e` are the infected fraction of the other center and the fraction of them who
         visit, and `s = 1 - x - x(t - 1) - ... - x(t - recovery)` is the susceptible fraction of the center.
         """
-        home, away = s.target, s.sources[0]
-        infected: Expression = home.a * (home.x + away.e * away.x) * (1 - self._get_infected_or_immune(home))
-        return infected
+        home, away = s.target, s.other
+        infected = home.a * (home.x + away.e * away.x) * (1 - self._get_infected_or_immune(home, s.t))
+        return [UpdateLaw(home.x, infected)]
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of two cities.
@@ -168,26 +169,23 @@ class DelayedSIRSSystem(BaseSystem):
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
+        past = {f'x[-{step}]': 0.0 for step in range(1, MAX_RECOVERY + 1)}
         self.system_ = System(
             self.label,
             elements=[
-                EpidemicCenterElement('first', x=self.first, a=self.a, recovery=self.recovery, e=self.e),
-                EpidemicCenterElement('second', x=self.second, a=self.a, recovery=self.recovery, e=self.e),
+                EpidemicCenterElement('first', x=self.first, a=self.a, recovery=self.recovery, e=self.e, values=past),
+                EpidemicCenterElement('second', x=self.second, a=self.a, recovery=self.recovery, e=self.e, values=past),
             ],
             interactions=[
-                MapInteraction(
+                Interaction(
                     'visits_first',
-                    target='first',
-                    state='x',
-                    function=self._get_next_infected,
-                    sources=('second',),
+                    roles={'target': 'first', 'other': 'second'},
+                    laws=self._get_next_infected,
                 ),
-                MapInteraction(
+                Interaction(
                     'visits_second',
-                    target='second',
-                    state='x',
-                    function=self._get_next_infected,
-                    sources=('first',),
+                    roles={'target': 'second', 'other': 'first'},
+                    laws=self._get_next_infected,
                 ),
             ],
         )

@@ -10,7 +10,7 @@ from skcomplex.core.components import Observable
 from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.components.laws import ObjectiveLaw, UpdateLaw
 from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine.backends import BaseBackend, NumbaBackend, NumpyBackend
 from skcomplex.core.engine.runtime import Trajectory
@@ -166,3 +166,11 @@ def test_get_tags_reads_the_domains_of_values_from_the_laws() -> None:
     tags = System(elements=[counter], interactions=[CountInteraction('count')]).get_tags()
     assert tags.domains == {'real'}
     assert tags.laws == {'update'}
+
+
+def test_simulate_a_static_system_needs_no_end_time():
+    """Test that a system that only minimises an objective simulates with no `until` to its one frame."""
+    bowl = Interaction('bowl', roles={'target': 'p'}, laws=lambda s: [ObjectiveLaw((s.target.x - 2) ** 2, s.target.x)])
+    trajectory = System(elements=[Element('p', values={'x': 0.0})], interactions=[bowl]).prepare().simulate()
+    assert trajectory.times.tolist() == [0.0]
+    assert trajectory.get_values('p.x')[-1] == pytest.approx(2.0, abs=1e-6)

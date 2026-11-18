@@ -4,7 +4,7 @@
 # License: MIT
 
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
 from typing import Annotated, cast
 
@@ -13,15 +13,17 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import TransferInteraction
-from ....core.components.laws import BaseLaw, RuleLaw, Sink
-from ....core.components.spaces import LatticeSpace
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, PartnerSpec, UpdateLaw
+from ....core.components.laws.utils import pairs
+from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver, SystemView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
+from ....core.types import Array
 from ...general.agents import MovementInteraction
 
 
@@ -46,10 +48,18 @@ class CowElement(Element):
         bite:
             The grass a cow eats in a week.
 
+        values:
+            Further values by name, such as the cells `x` and `y` of the cows, or `None`.
+
+        size:
+            The number of cows, or `None` for one.
+
+        space:
+            The lattice of the meadow, whose axes `x` and `y` place the cows, or `None`.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.biology.ecology import CowElement
-        >>> GroupElement('cows', element=CowElement, size=10).size
+        >>> CowElement('cows', size=10).size
         10
     """
 
@@ -59,9 +69,12 @@ class CowElement(Element):
         self,
         label: str,
         *,
-        bite: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.75,
+        bite: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.75,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.bite = bite
 
     @classmethod
@@ -93,25 +106,34 @@ class PastureElement(Element):
         growth:
             The weekly growth rate `g` of the grass.
 
+        values:
+            Further values by name, such as the cells `x` and `y` of the patches, or `None`.
+
+        size:
+            The number of patches, or `None` for one.
+
+        space:
+            The lattice of the meadow, whose axes `x` and `y` place the patches, or `None`.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.biology.ecology import PastureElement
-        >>> GroupElement('pasture', element=PastureElement, size=4, values={'growth': 0.1}).size
+        >>> PastureElement('pasture', growth=0.1, size=4).size
         4
     """
 
     visual = VisualSpec('agents', {'color_by': 'grass', 'color_range': (0.0, 1.0)})
 
-    law_classes = (RuleLaw,)
-
     def __init__(
         self,
         label: str,
         *,
-        grass: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        growth: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        grass: Annotated[float | Array, RealSet.closed_open(0, oo)] = 1.0,
+        growth: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.2,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.grass = grass
         self.growth = growth
 
@@ -120,20 +142,42 @@ class PastureElement(Element):
         """Return the view of a patch of pasture, `PastureView`."""
         return PastureView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the regrowth rule.
+
+class PastureRegrowthInteraction(Interaction):
+    """Weekly logistic regrowth of the grass of every patch of a pasture, `G' = G + g G (1 - G)`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        pasture:
+            The path of the group of patches.
+
+    Examples:
+        >>> from skcomplex.systems.biology.ecology import PastureRegrowthInteraction
+        >>> PastureRegrowthInteraction('regrowth', pasture='pasture').pasture
+        'pasture'
+    """
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, pasture: Role) -> None:
+        super().__init__(label)
+        self.pasture = pasture
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the regrowth rule of every patch.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the group of patches.
         """
-        return [RuleLaw(self.regrow)]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseLaw] = [UpdateLaw(context.pasture, self.regrow)]
 
-    def regrow(self, agent: PastureView, system: SystemView) -> None:
+    @staticmethod
+    def regrow(agent: PastureView, system: SystemView) -> None:
         """Grow the grass by one week of logistic growth.
 
         Args:
@@ -147,11 +191,11 @@ class PastureElement(Element):
         agent.grass += agent.growth * agent.grass * (1 - agent.grass)
 
 
-class GrazingInteraction(TransferInteraction):
+class GrazingInteraction(Interaction):
     """Weekly meal of every cow, a bite of the grass of the patch in its cell.
 
-    It is a transfer of the grass of every patch, the bite of the cow in its cell or what grass is left, to the
-    environment.
+    Every patch loses the bite of the cow in its cell, or what grass is left. The pairs of patches and cows eat in
+    random order.
 
     Args:
         label:
@@ -169,38 +213,38 @@ class GrazingInteraction(TransferInteraction):
         'pasture'
     """
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        cows: Annotated[str, RoleSpec()],
-        pasture: Annotated[str, RoleSpec()],
-    ) -> None:
-        super().__init__(
-            label,
-            source=pasture,
-            target=cows,
-            state='grass',
-            into=Sink(),
-            amount=self._get_bite,
-            pairing='cell',
-            form='agent',
-        )
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, cows: Role, pasture: Role) -> None:
+        super().__init__(label)
         self.cows = cows
         self.pasture = pasture
 
-    def _get_role(self, role: str) -> str:
-        """Return the patches as the source of the grass and the cows as its target."""
-        return {'source': 'pasture', 'target': 'cows'}.get(role, role)
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the meal, a rule of the whole system.
 
-    @staticmethod
-    def _get_bite(patch: AgentViewProtocol, cow: AgentViewProtocol, system: SystemViewProtocol) -> float:
-        """Return the grass a cow eats from the patch of its cell.
-
-        It is its bite or what grass is left.
+        Args:
+            context:
+                The namespace of the system.
         """
-        del system
-        return min(cast(PastureView, patch).grass, cast(CowView, cow).bite)
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseLaw] = [UpdateLaw(context, self.feed)]
+
+    def feed(self, system: SystemViewProtocol) -> None:
+        """Let every cow eat its bite of the grass of the patch in its cell, or what grass is left.
+
+        Args:
+            system:
+                The system.
+        """
+        patches, cows = system.get_agents('pasture'), system.get_agents('cows')
+        found = list(pairs(patches, cows, system.rng, PartnerSpec('cell', 'all'), capacity=1))
+        for index in system.rng.permutation(len(found)):
+            patch, cow = found[int(index)]
+            if patch.alive and cow.alive:
+                pasture = cast(PastureView, patch)
+                pasture.grass -= min(pasture.grass, cast(CowView, cow).bite)
 
 
 class HerdingInteraction(MovementInteraction):
@@ -235,9 +279,9 @@ class HerdingInteraction(MovementInteraction):
         self,
         label: str,
         *,
-        cows: Annotated[str, RoleSpec()],
-        pasture: Annotated[str, RoleSpec()],
-        threshold: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.9,
+        cows: Role,
+        pasture: Role,
+        threshold: Annotated[float, RealSet.closed_open(0, oo)] = 0.9,
     ) -> None:
         super().__init__(label, target=cows, step=self._herd)
         self.cows = cows
@@ -367,29 +411,29 @@ class MeadowCapacitySystem(BaseSystem):
         rng = np.random.default_rng(self.random_state)
         cells = [(column, row) for column in range(self.width) for row in range(self.height)]
         picks = rng.choice(len(cells), size=self.cows, replace=False)
+        space = LatticeSpace((self.width, self.height), boundary='fixed')
         self.system_ = System(
             self.label,
             elements=[
-                GroupElement(
+                PastureElement(
                     'pasture',
-                    element=PastureElement,
+                    growth=self.growth,
+                    values={'x': [cell[0] for cell in cells], 'y': [cell[1] for cell in cells]},
                     size=len(cells),
-                    values={'growth': self.growth},
-                    variable=True,
-                    location=cells,
+                    space=space,
                 ),
-                GroupElement(
+                CowElement(
                     'cows',
-                    element=CowElement,
+                    bite=self.bite,
+                    values={'x': [cells[int(pick)][0] for pick in picks], 'y': [cells[int(pick)][1] for pick in picks]},
                     size=self.cows,
-                    values={'bite': self.bite},
-                    variable=True,
-                    location=[cells[int(pick)] for pick in picks],
+                    space=space,
                 ),
             ],
             interactions=[
+                PastureRegrowthInteraction('regrowth', pasture='pasture'),
                 GrazingInteraction('grazing', cows='cows', pasture='pasture'),
                 HerdingInteraction('herding', cows='cows', pasture='pasture', threshold=self.threshold),
             ],
-            space=LatticeSpace((self.width, self.height), boundary='fixed'),
+            space=space,
         )

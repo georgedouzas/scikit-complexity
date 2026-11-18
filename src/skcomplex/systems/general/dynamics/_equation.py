@@ -110,5 +110,5 @@ class EquationInteraction(Interaction):
             laws.append(RateLaw(state.diff(context.t, max(order, 1)), self.equation(context)))
         if self.time != 'discrete' and self.noise is not None:
             noise = self.noise(context) if callable(self.noise) else self.noise
-            laws.append(NoiseLaw(state, noise, convention=self.convention))
+            laws.append(NoiseLaw(state.diff(context.t, max(order, 1)), noise, convention=self.convention))
         self.laws_: list[BaseComponent] = laws

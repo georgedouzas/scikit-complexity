@@ -5,6 +5,7 @@ They cover evolutionary games, quasispecies, hypercycles, finite populations, la
 
 from ..common.populations import ReplicatorInteraction
 from ._assembly import (
+    AssemblyDiscoveryInteraction,
     AssemblyGrowthSystem,
     AssemblyLevelElement,
     PolymerAssemblyPoolSystem,
@@ -33,6 +34,7 @@ from ._games import (
     StrategyElement,
 )
 from ._networks import (
+    AutocatalyticGrowthInteraction,
     ChemicalElement,
     CompetingSpeciesElement,
     CompetitiveJainKrishnaSystem,
@@ -67,8 +69,10 @@ __all__: list[str] = [
     'AdaptiveClimbingInteraction',
     'AdaptiveClimbingSystem',
     'AlleleFrequencyElement',
+    'AssemblyDiscoveryInteraction',
     'AssemblyGrowthSystem',
     'AssemblyLevelElement',
+    'AutocatalyticGrowthInteraction',
     'BakSneppenSystem',
     'CatalysisInteraction',
     'ChemicalElement',

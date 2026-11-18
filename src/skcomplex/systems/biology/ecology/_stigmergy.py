@@ -676,6 +676,17 @@ class StigmergicPredatorPreySystem(BaseSystem):
             ),
         ]
 
+    @staticmethod
+    def _feel(
+        animal: AgentViewProtocol,
+        system: SystemViewProtocol,
+        *,
+        sense: Callable[[AgentViewProtocol, SystemViewProtocol], float],
+    ) -> None:
+        """Set the experience of an animal to what it senses in its cell."""
+        if isinstance(animal, ForagerView):
+            animal.experience = float(sense(animal, system))
+
     def _get_animals(
         self,
         system: str,
@@ -696,12 +707,7 @@ class StigmergicPredatorPreySystem(BaseSystem):
             Interaction(
                 f'{label}_experience',
                 roles={'target': group},
-                laws=lambda s: [
-                    UpdateLaw(
-                        s.target,
-                        lambda agent, system: setattr(agent, 'experience', float(sense(agent, system))),
-                    ),
-                ],
+                laws=lambda s: [UpdateLaw(s.target, partial(self._feel, sense=sense))],
             ),
             MovementInteraction(
                 f'{label}_foraging',

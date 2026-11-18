@@ -45,14 +45,14 @@ trajectory = RiceMillingSystem().prepare().simulate(observers=[observer])
 
 times = np.asarray(trajectory.times)
 fig, (rates, products) = plt.subplots(1, 2, figsize=(10, 4))
-rates.plot(times, trajectory.get_values('flows.paddy_purchases'), label='paddy purchases')
+rates.plot(times, trajectory.get_values('mill.paddy_purchases'), label='paddy purchases')
 rates.plot(times, trajectory.get_values('mill.milling'), label='milling')
 rates.plot(times, trajectory.get_values('mill.capacity'), '--', label='capacity')
 rates.set_xlabel('months')
 rates.set_ylabel('tonnes of paddy per month')
 rates.set_title('Seasonal procurement and milling')
 rates.legend()
-for path, label in [('flows.milled_rice', 'rice'), ('flows.husk_output', 'husk'), ('flows.bran_output', 'bran')]:
+for path, label in [('mill.milled_rice', 'rice'), ('mill.husk_output', 'husk'), ('mill.bran_output', 'bran')]:
     products.plot(times, trajectory.get_values(path), label=label)
 products.set_xlabel('months')
 products.set_ylabel('tonnes per month')

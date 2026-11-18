@@ -17,7 +17,7 @@ from ....core.components import Observable
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import RateLaw, TransferLaw
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import step, where
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
@@ -117,7 +117,7 @@ class StageSplitInteraction(Interaction):
         0.6
     """
 
-    law_classes = (TransferLaw,)
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -141,8 +141,8 @@ class StageSplitInteraction(Interaction):
             s = context
             m = s.target.m
             self.laws_: list[BaseComponent] = [
-                TransferLaw(m, s.above.m, s.k * m, label='up'),
-                TransferLaw(m, s.below.m, (1 - s.k) * m, label='down'),
+                RateLaw({m: -1, s.above.m: +1}, s.k * m, label='up'),
+                RateLaw({m: -1, s.below.m: +1}, (1 - s.k) * m, label='down'),
             ]
 
 

@@ -4,21 +4,22 @@
 # License: MIT
 
 
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import Expression, exp, oo
+from sage.all__sagemath_symbolics import SR, Expression, exp, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import CrossingInteraction, Interaction
-from ....core.components.laws import RateLaw
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, EventLaw, RateLaw
 from ....core.components.laws.utils import periodic_guard, pulse_train
+from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, RoleSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction
 
@@ -206,7 +207,7 @@ class RadiationCompetitionElement(Element):
         self.width = width
 
 
-class IrradiationInteraction(CrossingInteraction):
+class IrradiationInteraction(Interaction):
     """Radiation fractions of a dose `d`.
 
     They move the lethally irradiated part of the proliferating cells.
@@ -256,21 +257,24 @@ class IrradiationInteraction(CrossingInteraction):
         5
     """
 
+    law_classes = (EventLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.054,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0054,
-        ap: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.42,
-        au: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.15,
-        dose: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        target: Role,
+        alpha: Annotated[float, RealSet.closed_open(0, oo)] = 0.054,
+        beta: Annotated[float, RealSet.closed_open(0, oo)] = 0.0054,
+        ap: Annotated[float, RealSet.closed_open(0, oo)] = 0.42,
+        au: Annotated[float, RealSet.closed_open(0, oo)] = 0.15,
+        dose: Annotated[float, RealSet.closed_open(0, oo)] = 2.0,
         period: float = 1.0,
         start: float = 0.125,
         fractions: int = 10,
     ) -> None:
-        super().__init__(label, target=target, guard=self._get_guard, reset=self._get_resets())
+        super().__init__(label)
+        self.target = target
         self.alpha = alpha
         self.beta = beta
         self.ap = ap
@@ -291,16 +295,25 @@ class IrradiationInteraction(CrossingInteraction):
         """
         return (1 + s.ap * s.target.Us) * (s.alpha * s.dose + s.beta * s.dose**2)
 
-    def _get_resets(self) -> dict[str, Callable[[SimpleNamespace], object]]:
-        """Return the surviving and lethally irradiated cells, and the accumulated dose.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the fractions, which leave the surviving and lethally irradiated cells and add to the dose.
 
         The surviving cells are the proliferating ones.
+
+        Args:
+            context:
+                The namespace of the tumour, with `context.target`.
         """
-        return {
-            'A1': lambda s: s.target.A1 * exp(-self._get_damage(s)),
-            'A5': lambda s: s.target.A5 + (1 - exp(-self._get_damage(s))) * s.target.A1,
-            'u_tot': lambda s: s.target.u_tot + (1 + s.au * s.target.Us) * s.dose,
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        s = context
+        reset = {
+            s.target.A1: SR(s.target.A1 * exp(-self._get_damage(s))),
+            s.target.A5: SR(s.target.A5 + (1 - exp(-self._get_damage(s))) * s.target.A1),
+            s.target.u_tot: SR(s.target.u_tot + (1 + s.au * s.target.Us) * s.dose),
         }
+        self.laws_: list[BaseLaw] = [EventLaw(SR(self._get_guard(s)), reset, 0, False, label=self.label)]
 
 
 class RadiotherapyCompetitionSystem(BaseSystem):

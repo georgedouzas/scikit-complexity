@@ -42,7 +42,7 @@ from ...components.spaces import CellComplexSpace, ContinuousSpace, LatticeSpace
 from ...components.systems import CompositeSystem
 from ...enums import TopologyKind, VariableKind
 from ...errors import ValidationError
-from ...specs import DeclaredVariableSpec, MatrixGroupSpec, ParameterSpec, StateSpec, VisualSpec
+from ...specs import BaseSpec, DeclaredVariableSpec, MatrixGroupSpec, ParameterSpec, StateSpec, SubshiftSpec, VisualSpec
 from .._utils import binding_of, bound_labels, declarations_of
 from ..problems._bilinear_law import BilinearLaw
 from ._compilation import Compilation
@@ -87,7 +87,8 @@ class _StateInference:
 
         The values keep the order in which they are given, the arguments of the class first and then the entries of
         `values`, so the states and parameters come out in that order. The starting values of derivatives and past
-        values, such as `"x'"` or `'y[-1]'`, are left out.
+        values, such as `"x'"` or `'y[-1]'`, are left out, and so are the arguments that hold a spec, such as the
+        structure a chain of angles is drawn from, which are settings of the element.
         """
         given = {name: value for name, value in (element.values or {}).items() if not STARTING.fullmatch(name)}
         for name in given:
@@ -99,7 +100,11 @@ class _StateInference:
                 )
                 raise ValidationError(error_msg)
         params = element.get_params(deep=False)
-        arguments = {name: params[name] for name in element._get_hints() if name in params and name not in RESERVED}
+        arguments = {
+            name: params[name]
+            for name in element._get_hints()
+            if name in params and name not in RESERVED and not isinstance(params[name], BaseSpec)
+        }
         return arguments | given
 
     @staticmethod
@@ -206,6 +211,27 @@ class _StateInference:
         return array[0]
 
     @staticmethod
+    def _get_new_member_default(
+        element: Element,
+        name: str,
+        declared: DeclaredVariableSpec,
+        member: object,
+    ) -> DeclaredVariableSpec:
+        """Return the declaration of a value per member, defaulting to the class default.
+
+        A member that the laws add to a group, such as a new species or a new edge, takes the default of the argument
+        of the class, as a new instance of the class would, and not the value of the first member. A value without a
+        default of its class keeps the value of the first member.
+        """
+        parameter = inspect.signature(type(element)).parameters.get(name)
+        if parameter is None or parameter.default is inspect.Parameter.empty:
+            return declared
+        default = parameter.default
+        if np.ndim(np.asarray(default, dtype=object)) != np.ndim(np.asarray(member, dtype=object)):
+            return declared
+        return DeclaredVariableSpec(default, declared.spec)
+
+    @staticmethod
     def _is_plain(component: BaseComponent) -> bool:
         """Return whether an element has values or members but declares no states or laws.
 
@@ -232,13 +258,16 @@ class _StateInference:
         A value without an annotation, such as one given through `values`, takes the domain of its type, so `3` is an
         integer and `0.5 + 1j` is complex. The annotation `object` says nothing of the kind, so a value annotated so,
         such as a point that may be one number or an array of complex numbers, also takes the domain of its type, and
-        so does a value of one of several types, such as `float | Sequence[float]`.
+        so does a value of one of several types, such as `float | Sequence[float]`. A subshift, such as
+        `Annotated[int, SubshiftSpec(LatticeNeighborhood(((0,), (1,))), ((1, 1),))]`, is the domain of the cells of a
+        lattice whose configurations hold no forbidden word.
         """
         if get_origin(annotation) is Annotated:
             for item in get_args(annotation)[1:]:
                 if isinstance(item, set | frozenset):
                     return FiniteEnumeratedSet(sorted(item, key=str))
-                if hasattr(item, '__contains__') and not isinstance(item, str | MatrixGroupSpec):
+                allowed = hasattr(item, '__contains__') and not isinstance(item, str | MatrixGroupSpec)
+                if allowed or isinstance(item, SubshiftSpec):
                     return item
             annotation = get_args(annotation)[0]
         annotated = isinstance(annotation, type) and annotation not in {inspect.Parameter.empty, object}
@@ -399,7 +428,10 @@ class _StateInference:
         declare: Callable[[Element, str], list[BaseElement]],
         scope: str = '',
     ) -> CompositeSystem:
-        """Return a copy of a system tree whose plain elements are declared elements."""
+        """Return a copy of a system tree whose plain elements are declared elements.
+
+        The copy keeps the observables of every system.
+        """
         elements = [
             declared
             for element in system.elements
@@ -409,7 +441,7 @@ class _StateInference:
             self._replace(nested, declare, f'{scope}{nested.label}/') if isinstance(nested, CompositeSystem) else nested
             for nested in system.systems
         ]
-        return CompositeSystem(
+        replaced = CompositeSystem(
             system.label,
             elements=elements,
             interactions=list(system.interactions),
@@ -417,6 +449,9 @@ class _StateInference:
             space=system.space,
             time=system.time,
         )
+        if hasattr(system, 'observables'):
+            replaced.observables = list(system.observables)
+        return replaced
 
     def _has_plain(self, system: CompositeSystem) -> bool:
         """Return whether a system tree holds a plain element."""
@@ -551,7 +586,7 @@ class _StateInference:
         orders, lags = self._get_orders(compilation)
         orders = dict.fromkeys(self._get_rule_reads(compilation), 1) | orders
         kinds = self._get_topology_kinds(compilation)
-        rank = self._get_hyperedge_rank(compilation)
+        sizes = self._get_hyperedge_sizes(compilation)
         links = self._get_edge_spaces(system)
         agents = self._get_agent_groups(compilation)
         steps = self._get_steps(compilation)
@@ -563,7 +598,7 @@ class _StateInference:
                 lambda name: lags.get(f'{path}.{name}', 0),
                 kinds,
                 agents=path in agents,
-                rank=rank,
+                sizes=sizes,
                 links=links,
                 steps={
                     name.removeprefix(f'{path}.'): moved.removeprefix(f'{path}.')
@@ -621,8 +656,8 @@ class _StateInference:
         return reads
 
     @staticmethod
-    def _get_hyperedge_rank(compilation: Compilation) -> int | None:
-        """Return the size of the largest hyperedge the laws add, or `None`.
+    def _get_hyperedge_sizes(compilation: Compilation) -> frozenset[int]:
+        """Return the sizes of the hyperedges the laws add.
 
         A new good made from three parents forms a hyperedge of four members, its parents and itself.
         """
@@ -640,7 +675,7 @@ class _StateInference:
                 for item in requests
                 if isinstance(item, TopologyRequestSpec) and item.hyperedge is not None
             )
-        return max(sizes, default=None)
+        return frozenset(sizes)
 
     def _get_edge_spaces(self, system: CompositeSystem) -> frozenset[int]:
         """Return the identities of the networks whose edges a plain element holds.
@@ -739,16 +774,23 @@ class _StateInference:
         values: Mapping[str, object],
         *,
         changing: bool,
-        rank: int | None,
+        sizes: frozenset[int],
     ) -> GroupElement:
         """Return the group with one member on every edge or hyperedge of a network.
 
-        When the laws change the network, the group grows and shrinks with its edges or hyperedges, and a group on
-        hyperedges holds the largest hyperedge the laws add, its rank. A group on a network without hyperedges starts
-        empty, as the production functions of goods that are yet to be made.
+        When the laws change the network, the group grows and shrinks with its edges or hyperedges. A group on
+        hyperedges of several sizes holds the largest hyperedge, its rank, and a group whose hyperedges, those it starts
+        with and those the laws add, have one size has no rank, so laws can run along them. A group on a network
+        without hyperedges starts empty, as the production functions of goods that are yet to be made.
         """
         empty = on == 'hyperedges' and count == 0
-        variable = isinstance(element.space, NetworkSpace) and (changing or empty)
+        space = element.space
+        variable = isinstance(space, NetworkSpace) and (changing or empty)
+        rank = None
+        if isinstance(space, NetworkSpace) and variable and on == 'hyperedges':
+            starting = {len(item) for item in space.prepare().hyperedges_}
+            every = starting | sizes
+            rank = None if starting and len(every) == 1 else max(every, default=MIN_RANK)
         return GroupElement(
             element.label,
             element=DeclaredElement,
@@ -757,7 +799,7 @@ class _StateInference:
             on=on,
             values=values,
             variable=variable,
-            rank=(rank or MIN_RANK) if variable and on == 'hyperedges' else None,
+            rank=rank,
         )
 
     @staticmethod
@@ -789,7 +831,7 @@ class _StateInference:
         probing: bool = False,
         *,
         agents: bool = False,
-        rank: int | None = None,
+        sizes: frozenset[int] = frozenset(),
         links: frozenset[int] = frozenset(),
         steps: Mapping[str, str] | None = None,
     ) -> list[BaseElement]:
@@ -842,6 +884,7 @@ class _StateInference:
             annotation = element._get_hints().get(name, inspect.Parameter.empty)
             tensor = None if self._get_symmetry(annotation) else element._get_shape_of(member)[2]
             if np.ndim(np.asarray(value, dtype=object)) > 0:
+                variables[name] = self._get_new_member_default(element, name, variables[name], member)
                 arrays[name] = element._get_matrix_entries(value, tensor)
                 arrays |= self._get_past_arrays(name, arrays[name], 0 if count is None or probing else lags(name))
             for index, given in starting.get(name, {}).items():
@@ -868,7 +911,7 @@ class _StateInference:
             )
             return [nodes, *self._get_node_edges(element, links)]
         if on is not None:
-            return [self._get_link_group(element, on, count, values, changing=bool(kinds), rank=rank)]
+            return [self._get_link_group(element, on, count, values, changing=bool(kinds), sizes=sizes)]
         if isinstance(element.space, LatticeSpace | NetworkSpace) and element.size is None:
             return [self._get_field(element.label, element.space, values)]
         place = self._get_group_on(element, count, agents)

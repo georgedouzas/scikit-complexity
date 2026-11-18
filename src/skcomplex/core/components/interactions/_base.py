@@ -292,6 +292,7 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         shift = SR(time - value.operands()[0]).simplify_full()
         if shift.is_zero():
             return state
+        shift = SR(BaseInteraction._get_translated(shift, time, symbols, discrete))
         return (lag if discrete else delayed)(state, shift)
 
     @staticmethod
@@ -476,7 +477,8 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
                 laws.append(rule)
                 continue
             translated = self._get_law_in_states(law, time, functions)
-            terms = FlowTermLaw._get_terms(translated, self.label) if isinstance(translated, RateLaw) else [translated]
+            flow = isinstance(translated, RateLaw | UpdateLaw)
+            terms = FlowTermLaw._get_terms(translated, self.label) if flow else [translated]
             laws.extend(self._get_local_rule(self._get_normalized(term)) for term in terms)
         return laws
 
@@ -918,6 +920,10 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
     def _runs_on_hyperedges(self) -> bool:
         """Return whether the laws run once per hyperedge of a network, false by default."""
         return False
+
+    def _get_hyperedge_size(self) -> int | None:
+        """Return the size of the hyperedges the laws run on, or `None` for every size."""
+        return None
 
     def _get_layer(self) -> str | None:
         """Return the layer of the network the laws run along, or `None` for its graph."""

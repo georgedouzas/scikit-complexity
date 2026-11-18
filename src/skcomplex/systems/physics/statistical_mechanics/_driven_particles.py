@@ -16,10 +16,10 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import BaseInteraction, TransferInteraction
-from ....core.components.laws import Source
+from ....core.components.interactions import BaseInteraction, Interaction, TransferInteraction
+from ....core.components.laws import JumpLaw
 from ....core.components.laws.utils import where
-from ....core.components.spaces import ContinuousSpace, LatticeSpace
+from ....core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend, NumbaBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -155,7 +155,7 @@ class ExclusionHopsInteraction(TransferInteraction):
         return s.q * s.target.n * (1 - s.source.n)
 
 
-class ReservoirInteraction(TransferInteraction):
+class ReservoirInteraction(Interaction):
     """Reservoir that adds and removes particles at its sites.
 
     The reservoir adds one particle to each of its sites at rate `inflow` and removes one at rate `outflow`.
@@ -190,43 +190,37 @@ class ReservoirInteraction(TransferInteraction):
         label: str,
         *,
         sites: Annotated[list[str], RoleSpec(variadic=True)],
-        inflow: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        outflow: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        inflow: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        outflow: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
         exclusion: bool = False,
     ) -> None:
-        super().__init__(
-            label,
-            source='',
-            target='',
-            state=Source(),
-            into='n',
-            amount=1.0,
-            rate=self._get_entry_rate,
-            reverse_rate=self._get_exit_rate,
-        )
+        super().__init__(label)
         self.sites = sites
         self.inflow = inflow
         self.outflow = outflow
         self.exclusion = exclusion
 
-    def _get_holders(self, namespace: SimpleNamespace) -> list[tuple[SimpleNamespace, SimpleNamespace]]:
-        """Return every site as the target of its own entries."""
-        return [(site, site) for site in namespace.sites]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the entries and the exits of a particle at every site.
 
-    def _get_entry_rate(self, s: SimpleNamespace) -> Expression:
-        """Return the rate at which a particle enters a site.
+        Under exclusion a particle enters only an empty site, and a particle leaves only an occupied one.
 
-        Under exclusion a particle enters only an empty site.
+        Args:
+            context:
+                The namespace of the sites, the time `t`, and the parameters.
         """
-        return s.inflow * (1 - s.target.n if self.exclusion else 1)
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = []
+            for site in context.sites:
+                entry = context.inflow * (1 - site.n if self.exclusion else 1)
+                self.laws_ += [
+                    JumpLaw(entry, {site.n: 1}),
+                    JumpLaw(context.outflow * where(site.n > 0, 1, 0), {site.n: -1}),
+                ]
 
-    @staticmethod
-    def _get_exit_rate(s: SimpleNamespace) -> Expression:
-        """Return the rate at which a particle leaves an occupied site."""
-        return s.outflow * where(s.target.n > 0, 1, 0)
 
-
-class ZeroRangeHopInteraction(TransferInteraction):
+class ZeroRangeHopInteraction(Interaction):
     """Hop of one particle along a link.
 
     The particle hops forward at rate `p u(n)` and backward at rate `q u(n')`.
@@ -261,41 +255,30 @@ class ZeroRangeHopInteraction(TransferInteraction):
         label: str,
         *,
         link: Annotated[list[str], RoleSpec(variadic=True)],
-        p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        q: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
+        p: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        q: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        b: Annotated[float, RealSet.closed_open(0, oo)] = 4.0,
     ) -> None:
-        super().__init__(
-            label,
-            source='',
-            target='',
-            state='n',
-            amount=1.0,
-            rate=self._get_forward_rate,
-            reverse_rate=self._get_backward_rate,
-        )
+        super().__init__(label)
         self.link = link
         self.p = p
         self.q = q
         self.b = b
 
-    def _get_holders(self, namespace: SimpleNamespace) -> list[tuple[SimpleNamespace, SimpleNamespace]]:
-        """Return the two sites of the link.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the hops forward from the first site of the link and back from the second.
 
-        They are the departure and the arrival of a forward hop.
+        Args:
+            context:
+                The namespace of the two sites, the time `t`, and the parameters.
         """
-        first, second = namespace.link
-        return [(first, second)]
-
-    @staticmethod
-    def _get_forward_rate(s: SimpleNamespace) -> Expression:
-        """Return the rate `p u(n)` of a hop from the first site."""
-        return s.p * ZeroRangeHopInteraction._get_departure_rate(s.source.n, s.b)
-
-    @staticmethod
-    def _get_backward_rate(s: SimpleNamespace) -> Expression:
-        """Return the rate `q u(n')` of a hop from the second site."""
-        return s.q * ZeroRangeHopInteraction._get_departure_rate(s.target.n, s.b)
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            first, second = context.link
+            self.laws_ = [
+                JumpLaw(context.p * self._get_departure_rate(first.n, context.b), {first.n: -1, second.n: 1}),
+                JumpLaw(context.q * self._get_departure_rate(second.n, context.b), {second.n: -1, first.n: 1}),
+            ]
 
     @staticmethod
     def _get_departure_rate(n: Expression, b: Expression) -> Expression:

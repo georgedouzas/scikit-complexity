@@ -133,16 +133,33 @@ class BaseCompiler(BaseConfig[CompositeSystem, Mapping[str, object]]):
             error_msg = f'A compiler prepares on a system, not on a {type(context).__name__}.'
             raise ValidationError(error_msg)
         system = context.prepare().system_ if context._nests_classes() else context
-        system = self._get_declared_system(system)
         try:
-            self.system_ = self._copy_with_observables(system, self.observables)
+            system = self._copy_with_observables(system, self.observables)
         except ValidationError as error:
-            self.system_ = system
+            self.system_ = self._get_declared_system(system)
             self.report_ = ValidationReportSpec(
                 (IssueSpec('observable-path', system.label, str(error), 'Label observables by their path.'),),
             )
             return
-        self.report_ = ValidationReportSpec(tuple(self._get_issues(self.system_)))
+        self.system_ = self._get_declared_system(system)
+        roles = self._get_domain_issues(self.system_)
+        self.report_ = ValidationReportSpec(tuple(roles or self._get_issues(self.system_)))
+
+    def _get_domain_issues(self, system: CompositeSystem, scope: str = '') -> list[IssueSpec]:
+        """Return the issue of a role bound to a value of a domain it does not accept.
+
+        The values of plain elements have their domains only once the laws show which are states, so a role such as
+        `Annotated[Role, 'boolean']` is checked on the declared system, whatever kind of law the interaction sets.
+        """
+        try:
+            system._check_roles()
+        except RoleElementError as error:
+            return [self._get_issue_of(error, scope or system.label, 'role', 'Bind the role to values of its domains.')]
+        for item in system.systems:
+            found = self._get_domain_issues(item, f'{scope}{item.label}/') if isinstance(item, CompositeSystem) else []
+            if found:
+                return found
+        return []
 
     def _get_declared_system(self, system: CompositeSystem) -> CompositeSystem:
         """Return the system with declarations for its plain elements."""

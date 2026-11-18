@@ -327,7 +327,7 @@ class OrdersPass(BasePass):
         if law.order is not None and law.order != order:
             error_msg = (
                 f'A {type(law).__name__} of {spec.owner} on {names} gives the derivative of order {law.order}, but the '
-                f'state has order {order}. Match the law to the order declared with `state(order=...)`.'
+                f'state has order {order}. Write the law on the derivative of that order, such as `x.diff(t, {order})`.'
             )
             raise ValidationError(error_msg)
 

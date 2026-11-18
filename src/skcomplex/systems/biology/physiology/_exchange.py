@@ -12,19 +12,18 @@ from typing import Annotated
 
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, oo
+from sage.all__sagemath_symbolics import SR, Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import CouplingInteraction, Interaction
-from ....core.components.laws import RateLaw
-from ....core.components.laws.utils import hill
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, RateLaw, UpdateLaw
+from ....core.components.laws.utils import hill, shift_member
 from ....core.components.spaces import BaseSpace, NetworkSpace
-from ....core.components.types import Target
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import Role, RoleSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
@@ -136,7 +135,7 @@ class MetabolismInteraction(Interaction):
     The concentration of a cell that exchanges the substance with its neighbours follows `dx_i/dt = -alpha_i x_i /
     (beta_i + x_i) + Σ_j [g (x_j - x_i) + xi A_ij x_j]`, where the first term is the metabolism, `g` the exchange
     coefficient of the gap junctions, and `xi` the strength of the tunnelling nanotubes along the same links. The sum
-    over the neighbours is a `CouplingInteraction` of a network of cells.
+    over the neighbours is an interaction along the links of a network of cells.
 
     Args:
         label:
@@ -170,7 +169,7 @@ class MetabolismInteraction(Interaction):
             self.laws_ = [RateLaw(s.x, -s.alpha * hill(s.x, s.beta))]
 
 
-class ContourUptakeInteraction(CouplingInteraction):
+class ContourUptakeInteraction(Interaction):
     """Uptake of every cell of a contour from the next cell.
 
     It is `x_i <- (1 - c_i) r x_i (1 - x_i) + c_i x_{i+1}^p_i`.
@@ -196,28 +195,25 @@ class ContourUptakeInteraction(CouplingInteraction):
         [0.7344, 0.25]
     """
 
-    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
-        super().__init__(
-            label,
-            target=target,
-            read='x',
-            write='x',
-            function=self._get_power,
-            mode='next',
-            form='map',
-            combine=self._get_mix,
-        )
+    law_classes = (UpdateLaw,)
 
-    @staticmethod
-    def _get_power(namespace: SimpleNamespace) -> Target:
-        """Return the power uptake of the next cell, with the affinity of the cell."""
-        return namespace.other.x**namespace.member.p
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
 
-    @staticmethod
-    def _get_mix(namespace: SimpleNamespace, reduction: Target) -> Target:
-        """Return the logistic map of the cell mixed with the uptake from the next cell."""
-        member = namespace.member
-        return (1 - member.c) * member.r * member.x * (1 - member.x) + member.c * reduction
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the logistic map of every cell mixed with the power uptake from the next cell.
+
+        Args:
+            context:
+                The namespace of the group of cells.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            member = context.target
+            uptake = shift_member(member.x, 1) ** member.p * SR(1)
+            mixed = (1 - member.c) * member.r * member.x * (1 - member.x) + member.c * uptake
+            self.laws_: list[BaseLaw] = [UpdateLaw(member.x, mixed)]
 
 
 class ClosedContourCellExchangeSystem(BaseSystem):
@@ -368,13 +364,22 @@ class NanotubeGapJunctionExchangeSystem(BaseSystem):
     dt = 0.5
 
     @staticmethod
-    def _exchange(s: SimpleNamespace) -> Expression:
+    def _get_exchange(member: SimpleNamespace, other: SimpleNamespace) -> Expression:
         """Return the exchange of a cell with a neighbour.
 
         It runs through their gap junction and the nanotube between them.
         """
-        exchange: Expression = s.member.g * (s.other.x - s.member.x) + s.member.xi * s.other.x
+        exchange: Expression = member.g * (other.x - member.x) + member.xi * other.x
         return exchange
+
+    @staticmethod
+    def _exchange(s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the exchange of the two cells at the ends of a link, each with the other."""
+        get_exchange = NanotubeGapJunctionExchangeSystem._get_exchange
+        return [
+            RateLaw(s.target.x, get_exchange(s.target, s.source)),
+            RateLaw(s.source.x, get_exchange(s.source, s.target)),
+        ]
 
     def __init__(
         self,
@@ -426,12 +431,11 @@ class NanotubeGapJunctionExchangeSystem(BaseSystem):
             xi=self.xi,
             space=NetworkSpace(graph),
         )
-        exchange = CouplingInteraction(
+        exchange = Interaction(
             'exchange',
-            target='cells',
-            read='x',
-            write='x',
-            function=NanotubeGapJunctionExchangeSystem._exchange,
+            roles={'nodes': 'cells'},
+            laws=NanotubeGapJunctionExchangeSystem._exchange,
+            along=True,
         )
         metabolism = MetabolismInteraction('metabolism', target='cells')
         self.system_ = System(

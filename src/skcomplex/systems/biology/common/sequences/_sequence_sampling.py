@@ -79,27 +79,20 @@ class SequenceSamplingInteraction(SamplingInteraction):
     the objective. The arguments are those of `SamplingInteraction`.
 
     Examples:
-        >>> from typing import Annotated
         >>> import numpy as np
-        >>> from skcomplex.core.components.elements import Element, GroupElement
-        >>> from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.components.spaces import LatticeSpace
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.biology.common.sequences import RowScoreSpec, SequenceSamplingInteraction
-        >>> class SpinElement(Element):
-        ...     def __init__(self, label, s: Annotated[float, StateSpec()] = 1.0):
-        ...         super().__init__(label)
-        ...         self.s = s
         >>> def flip_one(row, random):
         ...     row[random.integers(row.size)] *= -1
         ...     return row
         >>> walk = SequenceSamplingInteraction(
         ...     'walk', target='spins', state='s', objective=RowScoreSpec(np.sum), move=flip_one, intensity=float('inf')
         ... )
-        >>> spins = GroupElement('spins', element=SpinElement, space=LatticeSpace((2, 8)), on='sites')
-        >>> system = CompositeSystem(elements=[spins], interactions=[walk], time=DiscreteTime())
-        >>> simulate(system, until=3, random_state=0).get_values('walk.score').shape
+        >>> spins = Element('spins', values={'s': 1.0}, space=LatticeSpace((2, 8)))
+        >>> system = System(elements=[spins], interactions=[walk]).prepare()
+        >>> system.simulate(3, random_state=0).get_values('walk.score').shape
         (4, 2)
     """
 

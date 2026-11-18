@@ -7,18 +7,19 @@ from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import Expression, log, oo
+from sage.all__sagemath_symbolics import SR, Expression, log, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import BaseInteraction, CrossingInteraction, Interaction
-from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components.interactions import BaseInteraction, Interaction
+from ....core.components.laws import BaseLaw, EventLaw, RateLaw
 from ....core.components.laws.utils import hill, pulse_train
+from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, ScipyODESolver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction
 from ..common.pharmacokinetics import DosingInteraction
@@ -744,29 +745,27 @@ class PiecewiseLinearProstateElement(Element):
         1.0
     """
 
-    law_classes = (RateLaw,)
-
     def __init__(
         self,
         label: str,
         *,
-        AD: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 17.84,
-        AIR: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.778,
-        AII: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.382,
-        u: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        w11_on: Annotated[float, ParameterSpec()] = -0.043844,
-        w21_on: Annotated[float, ParameterSpec()] = 0.00130716,
-        w22_on: Annotated[float, ParameterSpec()] = -0.004282,
-        w31_on: Annotated[float, ParameterSpec()] = 0.0,
-        w32_on: Annotated[float, ParameterSpec()] = 0.0,
-        w33_on: Annotated[float, ParameterSpec()] = 0.00181,
-        w11_off: Annotated[float, ParameterSpec()] = 0.00223,
-        w12_off: Annotated[float, ParameterSpec()] = 0.1,
-        w22_off: Annotated[float, ParameterSpec()] = 0.00392,
-        w33_off: Annotated[float, ParameterSpec()] = -0.2,
-        x1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        x2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        x3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        AD: Annotated[float, RealSet.closed_open(0, oo)] = 17.84,
+        AIR: Annotated[float, RealSet.closed_open(0, oo)] = 0.778,
+        AII: Annotated[float, RealSet.closed_open(0, oo)] = 0.382,
+        u: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        w11_on: float = -0.043844,
+        w21_on: float = 0.00130716,
+        w22_on: float = -0.004282,
+        w31_on: float = 0.0,
+        w32_on: float = 0.0,
+        w33_on: float = 0.00181,
+        w11_off: float = 0.00223,
+        w12_off: float = 0.1,
+        w22_off: float = 0.00392,
+        w33_off: float = -0.2,
+        x1: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        x2: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        x3: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
     ) -> None:
         super().__init__(label)
         self.AD = AD
@@ -787,21 +786,44 @@ class PiecewiseLinearProstateElement(Element):
         self.x2 = x2
         self.x3 = x3
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the linear growth and transitions of each mode.
 
-        The switching of the therapy comes with them.
+class PiecewiseLinearAndrogenInteraction(Interaction):
+    """The linear growth and transitions of each mode.
+
+    The laws read the values of the target, a `PiecewiseLinearProstateElement`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the element whose values the laws change.
+
+    Examples:
+        >>> from skcomplex.systems.biology.oncology import PiecewiseLinearAndrogenInteraction
+        >>> PiecewiseLinearAndrogenInteraction('piecewise_linear_androgen', target='target').target
+        'target'
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the linear growth and transitions of each mode.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target.
         """
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        s = context.target
         on, off = s.u, 1 - s.u
-        return [
+        self.laws_: list[BaseLaw] = [
             RateLaw(s.AD, on * s.w11_on * s.AD + off * (s.w11_off * s.AD + s.w12_off * s.AIR)),
             RateLaw(s.AIR, on * (s.w21_on * s.AD + s.w22_on * s.AIR) + off * s.w22_off * s.AIR),
             RateLaw(s.AII, on * (s.w31_on * s.AD + s.w32_on * s.AIR + s.w33_on * s.AII) + off * s.w33_off * s.AII),
@@ -966,7 +988,7 @@ class TamoxifenTumourElement(Element):
         self.u = u
 
 
-class TherapySwitchInteraction(CrossingInteraction):
+class TherapySwitchInteraction(Interaction):
     """Switch of the therapy state of a tumour when a signal crosses a threshold.
 
     The switch sets the state to a value when the signal crosses in a direction.
@@ -1008,36 +1030,49 @@ class TherapySwitchInteraction(CrossingInteraction):
         15.0
     """
 
+    law_classes = (EventLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         signal: Callable[[SimpleNamespace], object],
-        threshold: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        threshold: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
         value: float = 1.0,
         state: str = 'u',
         direction: int = 1,
     ) -> None:
-        super().__init__(
-            label,
-            target=target,
-            guard=self._get_guard,
-            reset={state: self._get_value},
-            direction=direction,
-        )
+        super().__init__(label)
+        self.target = target
         self.signal = signal
         self.threshold = threshold
         self.value = value
         self.state = state
+        self.direction = direction
 
-    def _get_guard(self, s: SimpleNamespace) -> Expression:
-        """Return the signal above the threshold."""
-        return self.signal(s) - s.threshold
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the switch, an event when the signal crosses the threshold in the direction.
 
-    def _get_value(self, s: SimpleNamespace) -> float:
-        """Return the value of the therapy state after the switch."""
-        return self.value
+        Args:
+            context:
+                The namespace of the tumour.
+
+        Raises:
+            ValidationError:
+                The direction is not -1, 0, or 1, or the signal is not a function.
+        """
+        if self.direction not in (-1, 0, 1):
+            error_msg = f'The direction of crossing {self.label!r} is {self.direction!r}. Use -1, 0, or 1.'
+            raise ValidationError(error_msg)
+        if not callable(self.signal):
+            error_msg = f'The signal of {self.label!r} is {self.signal!r}. Give a function of the namespace.'
+            raise ValidationError(error_msg)
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            guard = SR(self.signal(context) - context.threshold)
+            reset = {getattr(context.target, self.state): SR(self.value)}
+            self.laws_: list[BaseLaw] = [EventLaw(guard, reset, self.direction, False, label=self.label)]
 
 
 class ContinuousAndrogenSuppressionSystem(BaseSystem):
@@ -2067,7 +2102,8 @@ class PiecewiseLinearIASSystem(BaseSystem):
             self.h0,
             self.h1,
         )
-        self.system_ = System(self.label, elements=[tumour], interactions=switches)
+        dynamics = PiecewiseLinearAndrogenInteraction('dynamics', target='tumour')
+        self.system_ = System(self.label, elements=[tumour], interactions=[dynamics, *switches])
 
 
 class TamoxifenCellCycleSystem(BaseSystem):

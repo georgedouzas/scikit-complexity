@@ -5,18 +5,19 @@
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import SR, Expression
+from sage.all__sagemath_symbolics import SR
 
 from ....core.components import Observable
-from ....core.components.interactions import MapInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import where
+from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec
+from ....core.specs import Role, Roles
 from ....core.systems import BaseSystem, System
 from ..common.networks import BooleanFunctionInteraction, BooleanNodeElement
 
@@ -38,7 +39,7 @@ YEAST_DECAYING = ('Cln3', 'Cln1_2', 'Swi5', 'Cdc20', 'Mcm1')
 YEAST_START = ('Cln3', 'Cdh1', 'Sic1')
 
 
-class ThresholdFunctionInteraction(MapInteraction):
+class ThresholdFunctionInteraction(Interaction):
     """Synchronous update of a node by the sign of the weighted sum of its active inputs.
 
     The update follows Li et al.
@@ -68,28 +69,41 @@ class ThresholdFunctionInteraction(MapInteraction):
         [1.0, -1.0]
     """
 
+    law_classes = (UpdateLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        inputs: Annotated[list[str], RoleSpec(variadic=True)],
-        weights: Annotated[Sequence[float], ParameterSpec(per='inputs')] = (),
+        target: Role,
+        inputs: Roles,
+        weights: Sequence[float] = (),
         decays: bool = False,
     ) -> None:
-        super().__init__(label, target=target, state='x', function=self._get_next)
+        super().__init__(label)
+        self.target = target
         self.inputs = inputs
         self.weights = weights
         self.decays = decays
 
-    def _get_next(self, s: SimpleNamespace) -> Expression:
-        """Return the next value of a node from its weighted input.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the next value of a node from its weighted input.
 
         The value is 1 for a positive weighted input, 0 for a negative one, and the held or decayed value for none.
+
+        Args:
+            context:
+                The namespace of the node and its inputs.
         """
-        total = sum((weight * item.x for weight, item in zip(s.weights, s.inputs, strict=True)), start=SR(0))
-        unchanged = 0 if self.decays else s.target.x
-        return where(total > 0, 1, where(total < 0, 0, unchanged))
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        weights = context.weights if self.inputs else ()
+        total = sum((weight * item.x for weight, item in zip(weights, context.inputs, strict=True)), start=SR(0))
+        unchanged = 0 if self.decays else context.target.x
+        self.laws_: list[BaseLaw] = [
+            UpdateLaw(context.target.x, where(total > 0, 1, where(total < 0, 0, unchanged))),
+        ]
 
 
 class RandomBooleanNetworkSystem(BaseSystem):

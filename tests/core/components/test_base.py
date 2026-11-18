@@ -8,12 +8,12 @@ from sklearn.base import clone
 
 from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import BaseElement, Element
-from skcomplex.core.components.interactions import BaseInteraction
+from skcomplex.core.components.interactions import BaseInteraction, Interaction
 from skcomplex.core.components.laws import BaseLaw
 from skcomplex.core.components.spaces import BaseNeighborhood, BaseSpace, BaseTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, Role, RoleSpec, StateSpec
 
 
 class DoublingComponent(BaseComponent):
@@ -147,3 +147,19 @@ def test_components_derive_from_the_component_base():
     assert all(issubclass(component, BaseComponent) for component in components)
     with pytest.raises(TypeError, match='abstract'):
         BaseComponent('component')
+
+
+class VoteInteraction(Interaction):
+    """Vote of a group whose role accepts only Boolean values."""
+
+    def __init__(self, label: str, *, voters: Annotated[Role, 'boolean'], other: Role = 'others') -> None:
+        super().__init__(label)
+        self.voters = voters
+        self.other = other
+
+
+def test_get_specs_reads_the_domains_written_after_a_role():
+    """Test that `Annotated[Role, 'boolean']` is a role that accepts Boolean values, and a plain `Role` any value."""
+    specs = VoteInteraction._get_specs()
+    assert specs['voters'] == RoleSpec(domains=('boolean',))
+    assert specs['other'] == RoleSpec()

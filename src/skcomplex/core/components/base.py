@@ -11,7 +11,7 @@ from abc import abstractmethod
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from types import SimpleNamespace
-from typing import ClassVar, TypeAliasType, get_origin
+from typing import Annotated, ClassVar, TypeAliasType, get_args, get_origin
 
 import numpy as np
 from sklearn.base import BaseEstimator
@@ -135,8 +135,16 @@ class BaseComponent[ContextT, InputT](BaseConfig[ContextT, InputT]):
         """Return the `Annotated` form an annotation stands for.
 
         A short annotation such as `State[float]` or `Role` stands for the `Annotated` form it aliases, and any other
-        annotation stands for itself.
+        annotation stands for itself. A short annotation inside `Annotated`, such as `Annotated[Role, 'boolean']`,
+        stands for the form it aliases with the further metadata added.
         """
+        if get_origin(annotation) is Annotated:
+            inner, *extra = get_args(annotation)
+            aliased = BaseComponent._get_annotated(inner)
+            if aliased is not inner and get_origin(aliased) is Annotated:
+                base, *metadata = get_args(aliased)
+                return Annotated[base, *metadata, *extra]
+            return annotation
         alias = get_origin(annotation) or annotation
         return getattr(alias, '__value__', annotation) if isinstance(alias, TypeAliasType) else annotation
 
@@ -147,7 +155,8 @@ class BaseComponent[ContextT, InputT](BaseConfig[ContextT, InputT]):
 
         The specs come in the order of the constructor. The annotations of the constructors of the bases count too, and
         a subclass wins, so a subclass that takes an argument of its base again without annotating it keeps the spec of
-        the base. The specs of a class are read once, since compiling a system reads them for every component.
+        the base. The specs of a class are read once, since compiling a system reads them for every component. The
+        words after a role, such as `Annotated[Role, 'boolean']`, are the domains the role accepts.
 
         Returns:
             specs:
@@ -159,9 +168,14 @@ class BaseComponent[ContextT, InputT](BaseConfig[ContextT, InputT]):
             if init is None:
                 continue
             for name, argument in inspect.signature(init, eval_str=True).parameters.items():
-                for item in getattr(cls._get_annotated(argument.annotation), '__metadata__', ()):
+                metadata = getattr(cls._get_annotated(argument.annotation), '__metadata__', ())
+                for item in metadata:
                     if isinstance(item, StateSpec | ParameterSpec | RoleSpec):
                         specs[name] = item
+                domains = tuple(item for item in metadata if isinstance(item, str))
+                role = specs.get(name)
+                if domains and isinstance(role, RoleSpec) and role in metadata:
+                    specs[name] = replace(role, domains=(*role.domains, *domains))
         return {name: specs[name] for name in inspect.signature(cls).parameters if name in specs}
 
     @classmethod

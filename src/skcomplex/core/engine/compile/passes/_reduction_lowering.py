@@ -1398,7 +1398,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
 
     @staticmethod
     def _get_image(search: object, entry: EntrySpec) -> tuple[bool, int | None]:
-        """Return whether a periodic search reads an entry by its minimum image, and the axis of a scalar position.
+        """Return whether an entry is read by its minimum image, and its scalar axis.
 
         A vector position is read by its minimum image component by component, and a scalar position, such as `y` of
         walkers in a plane, along its axis.

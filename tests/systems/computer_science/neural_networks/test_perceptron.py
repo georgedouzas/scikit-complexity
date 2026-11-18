@@ -8,11 +8,12 @@ import pytest
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.errors import ValidationError
+from skcomplex.core.errors import RoleElementError, ValidationError
 from skcomplex.core.experiments import sweep
 from skcomplex.core.systems import System
 from skcomplex.systems.computer_science.neural_networks import (
     CardinalitySpec,
+    ClauseSpec,
     PerceptronSatisfiabilitySystem,
     SatisfiabilityInteraction,
 )
@@ -52,6 +53,15 @@ class WeightElement(Element):
     ) -> None:
         super().__init__(label, size=size)
         self.active = active
+
+
+def test_prepare_compiler_real_state() -> None:
+    """Test that a state that is not Boolean is reported by the role domain check with the role and the state."""
+    group = Element('weights', values={'active': np.zeros(3)}, size=3)
+    decide = SatisfiabilityInteraction('decide', target='weights', state='active', constraints=[ClauseSpec((1,))])
+    system = System(elements=[group], interactions=[decide])
+    with pytest.raises(RoleElementError, match='active'):
+        system.prepare().simulate(until=1)
 
 
 def _pattern_constraint(pattern: np.ndarray, output: int) -> CardinalitySpec:

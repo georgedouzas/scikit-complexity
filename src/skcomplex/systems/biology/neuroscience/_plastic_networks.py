@@ -19,13 +19,13 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element, Period
-from ....core.components.interactions import Interaction, NeighborInteraction
+from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import clip, delayed, where
 from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, Role, RoleSpec
+from ....core.specs import ParameterSpec, Role
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ..common.excitable import ThetaNeuronElement, ThetaNeuronInteraction
@@ -311,9 +311,9 @@ class DelayAdaptationInteraction(Interaction):
         self,
         label: str,
         *,
-        source: Annotated[str, RoleSpec()],
-        target: Annotated[str, RoleSpec()],
-        axon: Annotated[str, RoleSpec()],
+        source: Role,
+        target: Role,
+        axon: Role,
         kappa: Annotated[float, ParameterSpec()] = 0.1,
         epsilon: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
         rho: Annotated[float, ParameterSpec()] = 1.0,
@@ -349,7 +349,7 @@ class DelayAdaptationInteraction(Interaction):
         ]
 
 
-class SpikeTimingPlasticityInteraction(NeighborInteraction):
+class SpikeTimingPlasticityInteraction(Interaction):
     """Pulse coupling along plastic synapses.
 
     The efficacy of a synapse follows the timing of the spikes at both ends.
@@ -366,11 +366,9 @@ class SpikeTimingPlasticityInteraction(NeighborInteraction):
         label:
             The label of the interaction.
 
-        neurons:
-            The path of the group of traced theta neurons on the nodes.
-
-        synapses:
-            The path of the group of synapses on the edges.
+        among:
+            The path of the group of traced theta neurons on the nodes. The efficacies `kappa` are values of the group
+            of synapses on the edges.
 
         k:
             The mean in-degree that normalizes the coupling.
@@ -387,9 +385,12 @@ class SpikeTimingPlasticityInteraction(NeighborInteraction):
         kappa_max:
             The largest efficacy.
 
+        along:
+            The edges the laws run on, `True` for the edges of the network the neurons live on.
+
     Examples:
         >>> from skcomplex.systems.biology.neuroscience import SpikeTimingPlasticityInteraction
-        >>> SpikeTimingPlasticityInteraction('stdp', neurons='neurons', synapses='synapses').A_minus
+        >>> SpikeTimingPlasticityInteraction('stdp', among='neurons').A_minus
         1.05
     """
 
@@ -399,42 +400,39 @@ class SpikeTimingPlasticityInteraction(NeighborInteraction):
         self,
         label: str,
         *,
-        neurons: Annotated[str, RoleSpec()],
-        synapses: Annotated[str, RoleSpec()],
-        k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        epsilon: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        A_plus: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        A_minus: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.05,
-        kappa_max: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        among: Role,
+        k: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        epsilon: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        A_plus: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        A_minus: Annotated[float, RealSet.closed_open(0, oo)] = 1.05,
+        kappa_max: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        along: bool | str = True,
     ) -> None:
-        super().__init__(label)
-        self.neurons = neurons
-        self.synapses = synapses
+        super().__init__(label, among=among, along=along)
         self.k = k
         self.epsilon = epsilon
         self.A_plus = A_plus
         self.A_minus = A_minus
         self.kappa_max = kappa_max
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the pulse current and the plasticity of the efficacy.
-
-        The current flows into the postsynaptic neuron.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the pulse current into the postsynaptic neuron and the plasticity of the efficacy.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of a synapse, with its ends `context.source` and `context.target` and its member
+                `context.edge` of the group on the edges.
         """
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        s = context
         pre, post, kappa = s.source, s.target, s.edge.kappa
         pre_pulse = 2 * (1 - cos(pre.theta)) ** 2 / 3
         post_pulse = 2 * (1 - cos(post.theta)) ** 2 / 3
         change = s.epsilon * (s.A_plus * pre.a * post_pulse - s.A_minus * post.b * pre_pulse)
         bounded = where(change > 0, change * (s.kappa_max - kappa), change * kappa)
-        return [
+        self.laws_: list[BaseLaw] = [
             RateLaw(post.theta, (1 + cos(post.theta)) * kappa * pre_pulse / s.k),
             RateLaw(kappa, bounded / s.kappa_max),
         ]
@@ -555,8 +553,7 @@ class STDPNetworkSystem(BaseSystem):
         synapses = SynapseElement('synapses', kappa=self.kappa, space=space, on='edges')
         plasticity = SpikeTimingPlasticityInteraction(
             'stdp',
-            neurons='neurons',
-            synapses='synapses',
+            among='neurons',
             k=max(self.p * (self.n_neurons - 1), 1.0),
             epsilon=self.epsilon,
             A_plus=self.A_plus,

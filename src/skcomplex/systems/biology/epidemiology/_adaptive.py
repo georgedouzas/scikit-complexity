@@ -12,18 +12,20 @@ from typing import Annotated
 
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, oo
+from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import TopologyInteraction, TransitionInteraction
-from ....core.components.laws.utils import neighbors
-from ....core.components.spaces import NetworkSpace
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, JumpLaw, TopologyRequestSpec, UpdateLaw
+from ....core.components.laws.utils import neighbors, uniform, where
+from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
+from ....core.types import Array
 from ...general.dynamics import NetworkDynamicalSystem
 from ...general.dynamics.types import Equations
 from ..common.networks import HostElement, SpreadingInteraction
@@ -46,9 +48,9 @@ class ActiveHostElement(Element):
 
     The node is susceptible at `i = 0` and infected at `i = 1`.
 
-    A `TransitionInteraction` recovers an infected node with probability `mu` in a step, and another infects a
-    susceptible node with probability `lam` by every infected neighbour along the edges of the previous step. A
-    `TopologyInteraction` joins the node to other nodes with the probability `a`, its activity.
+    One interaction recovers an infected node with probability `mu` in a step, and another infects a susceptible node
+    with probability `lam` by every infected neighbour along the edges of the previous step. A third joins the node to
+    other nodes with the probability `a`, its activity.
 
     Args:
         label:
@@ -66,6 +68,9 @@ class ActiveHostElement(Element):
         mu:
             The probability of recovery at a step.
 
+        space:
+            The network whose nodes hold one member each, or `None` for one node.
+
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import ActiveHostElement
         >>> ActiveHostElement('node').mu
@@ -78,12 +83,13 @@ class ActiveHostElement(Element):
         self,
         label: str,
         *,
-        i: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        lam: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        mu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        i: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.0,
+        a: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.1,
+        lam: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.3,
+        mu: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.1,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.i = i
         self.a = a
         self.lam = lam
@@ -262,26 +268,20 @@ class AdaptiveSISSystem(BaseSystem):
         """
         return 1 - node.i
 
-    def _get_rewiring(self, keep: str) -> TopologyInteraction:
+    def _get_rewiring(self, keep: str) -> Interaction:
         """Return the rewiring of edges from a susceptible end `keep` to an infected end."""
         other = 'target' if keep == 'source' else 'source'
 
-        def rate(edge: SimpleNamespace) -> object:
-            """Return the rate at which the susceptible end rewires the edge.
+        def rewire(edge: SimpleNamespace) -> list[BaseLaw]:
+            """Return the rewiring of the edge at the rate of its susceptible end.
 
             The susceptible end rewires the edge away from the infected end.
             """
             kept, left = getattr(edge, keep), getattr(edge, other)
-            return kept.w * (1 - kept.i) * left.i
+            request = TopologyRequestSpec('rewire', toward=self._get_susceptible, keep=keep)
+            return [JumpLaw(kept.w * (1 - kept.i) * left.i, {request: 1})]
 
-        return TopologyInteraction(
-            f'rewiring_{keep}',
-            target='hosts',
-            action='rewire',
-            rate=rate,
-            toward=self._get_susceptible,
-            keep=keep,
-        )
+        return Interaction(f'rewiring_{keep}', roles={'nodes': 'hosts'}, laws=rewire, along=True)
 
     @staticmethod
     def _get_random_network(n: int, k: float, seed: int | None) -> NetworkSpace:
@@ -298,24 +298,8 @@ class AdaptiveSISSystem(BaseSystem):
         super()._prepare(context)
         space = self._get_random_network(self.n, self.k, self.seed)
         initial = (np.random.default_rng(self.seed).random(self.n) < self.infected).astype(float)
-        hosts = GroupElement(
-            'hosts',
-            element=AdaptiveHostElement,
-            space=space,
-            on='sites',
-            variable=True,
-            capacity=self.n,
-            values={'i': initial, 'w': self.w},
-        )
-        edges = space.graph.number_of_edges()
-        contacts = GroupElement(
-            'contacts',
-            element=ContactEdgeElement,
-            space=space,
-            on='edges',
-            variable=True,
-            capacity=edges,
-        )
+        hosts = AdaptiveHostElement('hosts', i=initial, w=self.w, space=space)
+        contacts = ContactEdgeElement('contacts', space=space, on='edges')
         spreading = SpreadingInteraction('spreading', target='hosts', state='i', beta=self.beta, gamma=self.gamma)
         self.system_ = System(
             self.label,
@@ -370,7 +354,7 @@ class ActivityDrivenEpidemicsSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import ActivityDrivenEpidemicsSystem
-        >>> float(ActivityDrivenEpidemicsSystem(n=10, seed=0).prepare().system_.elements[0].values['a'].min()) >= 0.01
+        >>> float(ActivityDrivenEpidemicsSystem(n=10, seed=0).prepare().system_.elements[0].a.min()) >= 0.01
         True
     """
 
@@ -405,25 +389,29 @@ class ActivityDrivenEpidemicsSystem(BaseSystem):
         self.infected = infected
         self.seed = seed
 
-    @staticmethod
-    def _get_activity(node: SimpleNamespace) -> object:
-        """Return the probability that a node fires at a step, its activity."""
-        return node.source.a
+    def _get_firing(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the new edges of a node that fires at a step with the probability of its activity."""
+        return [UpdateLaw(TopologyRequestSpec('add-edge', self.m), s.source.a)]
 
     @staticmethod
-    def _get_infection(s: SimpleNamespace) -> Expression:
-        """Return the probability that at least one infected neighbour infects a node.
-
-        The neighbours infect the node along its edges.
-        """
-        probability: Expression = 1 - (1 - s.target.lam) ** neighbors(s.target.other.i)
-        return probability
+    def _get_expiry(s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the removal of every edge at the next step."""
+        return [UpdateLaw(TopologyRequestSpec('remove-edge'), 1)]
 
     @staticmethod
-    def _get_recovery(s: SimpleNamespace) -> Expression:
-        """Return the probability that an infected node recovers in a step."""
-        probability: Expression = s.target.mu
-        return probability
+    def _get_infection(s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the infection of a node by at least one infected neighbour along its edges."""
+        i = s.target.i
+        probability = 1 - (1 - s.target.lam) ** neighbors(s.target.other.i)
+        moves = uniform('transition_infection') < probability
+        return [UpdateLaw(i, where(i == 0, where(moves, 1, 0), i), source=0)]
+
+    @staticmethod
+    def _get_recovery(s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the recovery of an infected node with probability `mu` in a step."""
+        i = s.target.i
+        moves = uniform('transition_recovery') < s.target.mu
+        return [UpdateLaw(i, where(i == 1, where(moves, 0, 1), i), source=1)]
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of SIS spreading on an activity-driven temporal network.
@@ -437,50 +425,15 @@ class ActivityDrivenEpidemicsSystem(BaseSystem):
         activities = np.minimum(self.least * (1 - rng.random(self.n)) ** (-1 / (self.exponent - 1)), 1.0)
         initial = (rng.random(self.n) < self.infected).astype(float)
         space = NetworkSpace(nx.empty_graph(self.n))
-        hosts = GroupElement(
-            'hosts',
-            element=ActiveHostElement,
-            space=space,
-            on='sites',
-            variable=True,
-            capacity=self.n,
-            values={'i': initial, 'a': activities, 'lam': self.lam, 'mu': self.mu},
-        )
-        contacts = GroupElement(
-            'contacts',
-            element=ContactEdgeElement,
-            space=space,
-            on='edges',
-            variable=True,
-            capacity=2 * self.m * self.n,
-        )
+        hosts = ActiveHostElement('hosts', i=initial, a=activities, lam=self.lam, mu=self.mu, space=space)
+        contacts = ContactEdgeElement('contacts', space=space, on='edges')
         self.system_ = System(
             self.label,
             elements=[hosts, contacts],
             interactions=[
-                TopologyInteraction(
-                    'firing',
-                    target='hosts',
-                    action='add-edge',
-                    probability=self._get_activity,
-                    edges=self.m,
-                ),
-                TopologyInteraction('expiry', target='hosts', action='remove-edge'),
-                TransitionInteraction(
-                    'infection',
-                    target='hosts',
-                    state='i',
-                    source=0,
-                    destination=1,
-                    probability=self._get_infection,
-                ),
-                TransitionInteraction(
-                    'recovery',
-                    target='hosts',
-                    state='i',
-                    source=1,
-                    destination=0,
-                    probability=self._get_recovery,
-                ),
+                Interaction('firing', roles={'nodes': 'hosts'}, laws=self._get_firing, along=True),
+                Interaction('expiry', roles={'nodes': 'hosts'}, laws=self._get_expiry, along=True),
+                Interaction('infection', roles={'target': 'hosts'}, laws=self._get_infection),
+                Interaction('recovery', roles={'target': 'hosts'}, laws=self._get_recovery),
             ],
         )

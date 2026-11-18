@@ -144,6 +144,19 @@ def test_dynamical_system_tags_an_ornstein_uhlenbeck_process():
     assert tags.randomness == 'stochastic'
 
 
+def test_dynamical_system_drives_an_acceleration_with_noise():
+    """Test that a noise on the acceleration `x''` shakes the velocity of a damped particle."""
+    system = DynamicalSystem(
+        states={'x': 0.0},
+        equations={"x''": lambda s: -s.target.x.diff(s.t)},
+        noises={"x''": 0.5},
+        element='bead',
+    )
+    trajectory = system.prepare().simulate(until=1.0, dt=0.1, random_state=0)
+    assert system.form_ == 'stochastic differential equations'
+    assert np.ptp(trajectory.get_values("bead.x'")) > 0
+
+
 def test_dynamical_system_rejects_noise_in_discrete_time():
     """Test that a noise amplitude in discrete time asks for continuous time."""
     system = DynamicalSystem(

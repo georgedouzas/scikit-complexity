@@ -17,14 +17,14 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from ....core.components import Observable
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
-from ....core.components.interactions import MapInteraction
+from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import categorical, where
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import RoleSpec
+from ....core.specs import Role, Roles
 from ....core.systems import BaseSystem, System
 from .types import Candidates
 
@@ -69,7 +69,7 @@ class ProbabilisticNodeElement(Element):
         self.function = function
 
 
-class ProbabilisticFunctionInteraction(MapInteraction):
+class ProbabilisticFunctionInteraction(Interaction):
     """Synchronous map of a node by one of several truth tables.
 
     The table is drawn with given probabilities at every step.
@@ -115,12 +115,13 @@ class ProbabilisticFunctionInteraction(MapInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        inputs: Annotated[list[str], RoleSpec(variadic=True)],
+        target: Role,
+        inputs: Roles,
         tables: Sequence[Sequence[int]] = ((0,),),
         probabilities: Sequence[float] = (1.0,),
     ) -> None:
-        super().__init__(label, target=target, state='x', function=self._get_drawn_value)
+        super().__init__(label)
+        self.target = target
         self.inputs = inputs
         self.tables = tables
         self.probabilities = probabilities
@@ -138,13 +139,13 @@ class ProbabilisticFunctionInteraction(MapInteraction):
         return sum((self._get_pattern(inputs, index) for index, entry in enumerate(table) if entry), start=SR(0))
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Raise an error for invalid tables and probabilities.
+        """Set the map of the target by the drawn table and the record of the drawn index.
 
-        They are invalid when they differ in number, or a table has the wrong size.
+        The tables and the probabilities are invalid when they differ in number, or a table has the wrong size.
 
         Args:
             context:
-                The space the interaction inherits from its system.
+                The namespace of the target and its inputs.
 
         Raises:
             ValidationError:
@@ -164,6 +165,11 @@ class ProbabilisticFunctionInteraction(MapInteraction):
                 'patterns, but one of its tables has another number of entries.'
             )
             raise ValidationError(error_msg)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [
+                UpdateLaw(context.target.x, self._get_drawn_value(context)),
+                UpdateLaw(context.target.function, self._get_draw()),
+            ]
 
     def _get_draw(self) -> Expression:
         """Return the index of the table drawn in a step.
@@ -181,21 +187,6 @@ class ProbabilisticFunctionInteraction(MapInteraction):
         for index in range(len(values) - 2, -1, -1):
             value = where(chosen == index, values[index], value)
         return value
-
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
-        """Return the map of the target by the drawn table.
-
-        It also returns the record of the drawn index.
-
-        Args:
-            namespace:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The update of the value and the update of the index of the drawn table.
-        """
-        return [*super()._get_laws(namespace), UpdateLaw(namespace.target.function, self._get_draw())]
 
 
 class ProbabilisticBooleanNetworkSystem(BaseSystem):

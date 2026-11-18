@@ -17,15 +17,16 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import Interaction, MapInteraction, TopologyInteraction
-from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, TopologyRequestSpec, UpdateLaw
 from ....core.components.laws.utils import neighbors, total, where
-from ....core.components.spaces import NetworkSpace
+from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
+from ....core.types import Array
 from ..common.networks import EdgeDrawInteraction, WeightedEdgeElement
 
 
@@ -47,6 +48,9 @@ class AbundanceElement(Element):
         threshold:
             The abundance below which the species goes extinct.
 
+        space:
+            The network whose nodes hold one species each, or `None` for one species.
+
     Examples:
         >>> from skcomplex.systems.biology.ecology import AbundanceElement
         >>> AbundanceElement('species').threshold
@@ -59,11 +63,12 @@ class AbundanceElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        age: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        threshold: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
+        x: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.01,
+        age: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.0,
+        threshold: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.001,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.x = x
         self.age = age
         self.threshold = threshold
@@ -108,30 +113,29 @@ class LinearGrowthInteraction(Interaction):
         self,
         label: str,
         *,
-        species: Annotated[str, RoleSpec()],
-        influences: Annotated[str, RoleSpec()],
-        rate: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.2,
+        species: Role,
+        influences: Role,
+        rate: Annotated[float, RealSet.open(0, oo)] = 0.2,
     ) -> None:
         super().__init__(label)
         self.species = species
         self.influences = influences
         self.rate = rate
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the linear growth and the normalisation of the abundances.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the linear growth and the normalisation of the abundances.
 
         Args:
-            namespace:
-                The namespace with `namespace.species` and `namespace.influences`.
-
-        Returns:
-            laws:
-                The update of the abundance.
+            context:
+                The namespace with `context.species` and `context.influences`.
         """
-        species = namespace.species
-        grown = species.x + namespace.rate * neighbors(species.other.x, weight=namespace.influences.w)
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        species = context.species
+        grown = species.x + context.rate * neighbors(species.other.x, weight=context.influences.w)
         kept = where(grown > 0, grown, 0)
-        return [UpdateLaw(species.x, kept / total(kept))]
+        self.laws_: list[BaseLaw] = [UpdateLaw(species.x, kept / total(kept))]
 
 
 class SequentiallyLinearEcosystemSystem(BaseSystem):
@@ -217,37 +221,30 @@ class SequentiallyLinearEcosystemSystem(BaseSystem):
             graph.add_edges_from((node, int(other)) for other in others)
         space = NetworkSpace(graph)
         edges = graph.number_of_edges()
-        species = GroupElement(
-            'species',
-            element=AbundanceElement,
-            space=space,
-            on='sites',
-            variable=True,
-            capacity=2 * self.n,
-            values={'x': np.full(self.n, 1 / self.n), 'threshold': self.threshold},
-        )
-        influences = GroupElement(
+        species = AbundanceElement('species', x=np.full(self.n, 1 / self.n), threshold=self.threshold, space=space)
+        influences = InfluenceEdgeElement(
             'influences',
-            element=InfluenceEdgeElement,
+            w=rng.uniform(-1, 1, edges),
+            fresh=np.zeros(edges),
             space=space,
             on='edges',
-            variable=True,
-            capacity=4 * edges,
-            values={'w': rng.uniform(-1, 1, edges), 'fresh': 0.0},
         )
         self.system_ = System(
             self.label,
             elements=[species, influences],
             interactions=[
                 LinearGrowthInteraction('growth', species='species', influences='influences', rate=self.rate),
-                EdgeDrawInteraction('draw', target='species', edges='influences'),
-                MapInteraction('ageing', target='species', state='age', function=lambda s: 1, mode='increment'),
-                TopologyInteraction(
-                    'extinction',
-                    target='species',
-                    action='replace-node',
-                    condition=lambda s: s.source.x < s.source.threshold,
-                    edges=self.k,
+                EdgeDrawInteraction('draw', among='species'),
+                Interaction(
+                    'ageing',
+                    roles={'target': 'species'},
+                    laws=lambda s: [UpdateLaw(s.target.age, s.target.age + 1, increment=True)],
                 ),
+                Interaction('extinction', roles={'nodes': 'species'}, laws=self._get_extinction, along=True),
             ],
         )
+
+    def _get_extinction(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the replacement of a species whose abundance falls below its threshold by a new species."""
+        extinct = where(s.source.x < s.source.threshold, 1, 0)
+        return [UpdateLaw(TopologyRequestSpec('replace-node', self.k), extinct)]

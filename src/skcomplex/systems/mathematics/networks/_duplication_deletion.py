@@ -16,7 +16,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import MapInteraction, TopologyInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import TopologyRequestSpec, UpdateLaw
 from ....core.components.laws.utils import neighbors
 from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
@@ -147,21 +148,28 @@ class DuplicationDeletionSystem(BaseSystem):
         """Set `system_` to the steady-state duplication-deletion network of Jensen."""
         super()._prepare(context)
         graph = nx.gnp_random_graph(self.n_nodes, self.density, seed=np.random.default_rng(self.random_state))
-        death = TopologyInteraction('death', target='nodes', action='remove-node', one=True, probability=self.kill)
-        birth = TopologyInteraction(
-            'birth',
-            target='nodes',
-            action='duplicate-node',
+        death = Interaction(
+            'death',
+            roles={'target': 'nodes'},
+            laws=lambda s: [UpdateLaw(TopologyRequestSpec('remove-node', one=True), self.kill)],
+        )
+        duplication = TopologyRequestSpec(
+            'duplicate-node',
             one=True,
             inherit=self.inherit,
             parent=self.parent,
             independent=True,
             toward=lambda node: self.new,
         )
+        birth = Interaction('birth', roles={'target': 'nodes'}, laws=lambda s: [UpdateLaw(duplication, 1)])
         space = NetworkSpace(graph)
         nodes = DuplicatingNodeElement('nodes', space=space)
         edges = Element('links', space=space, on='edges')
-        degree = MapInteraction('degree', target='nodes', state='degree', function=lambda s: neighbors(1))
+        degree = Interaction(
+            'degree',
+            roles={'target': 'nodes'},
+            laws=lambda s: [UpdateLaw(s.target.degree, neighbors(1))],
+        )
         self.system_ = System(
             self.label,
             elements=[nodes, edges],

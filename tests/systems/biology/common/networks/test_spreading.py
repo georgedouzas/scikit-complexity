@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import TransitionInteraction
+from skcomplex.core.components.laws import JumpLaw
 from skcomplex.core.components.spaces import LatticeSpace, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -91,6 +91,6 @@ def test_check_rejects_unknown_forms_and_equal_values(arguments, match):
         SpreadingInteraction('spreading', target='sites', **arguments).prepare()
 
 
-def test_spreading_is_a_transition():
-    """Test that spreading is a transition of a discrete state between its values."""
-    assert issubclass(SpreadingInteraction, TransitionInteraction)
+def test_spreading_moves_the_state_by_jumps():
+    """Test that spreading moves the discrete state between its values by jumps at a rate."""
+    assert SpreadingInteraction.law_classes == (JumpLaw,)

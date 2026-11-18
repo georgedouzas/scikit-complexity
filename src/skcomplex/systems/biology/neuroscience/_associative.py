@@ -23,7 +23,7 @@ from ....core.components.laws.utils import total, where
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, Role, RoleSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
@@ -172,14 +172,14 @@ class CliqueCompetitionInteraction(Interaction):
         self,
         label: str,
         *,
-        sites: Annotated[str, RoleSpec()],
+        sites: Role,
         w: Sequence[Sequence[float]] = ((0.0,),),
-        z: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        phi_w: Annotated[float, ParameterSpec(domain=RealSet.open(0, 1))] = 0.7,
-        phi_z: Annotated[float, ParameterSpec(domain=RealSet.open(0, 1))] = 0.15,
-        width: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.05,
-        f_w_min: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.1,
-        f_z_min: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.0,
+        z: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        phi_w: Annotated[float, RealSet.open(0, 1)] = 0.7,
+        phi_z: Annotated[float, RealSet.open(0, 1)] = 0.15,
+        width: Annotated[float, RealSet.open(0, oo)] = 0.05,
+        f_w_min: Annotated[float, RealSet.closed(0, 1)] = 0.1,
+        f_z_min: Annotated[float, RealSet.closed(0, 1)] = 0.0,
     ) -> None:
         super().__init__(label)
         self.sites = sites
@@ -191,17 +191,17 @@ class CliqueCompetitionInteraction(Interaction):
         self.f_w_min = f_w_min
         self.f_z_min = f_z_min
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the growth and decay of the activities.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the growth and decay of the activities.
 
         Args:
-            s:
+            context:
                 The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
         """
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        s = context
         site = s.sites
         excitatory = np.asarray(self.w, dtype=float)
         inhibitory = np.where(excitatory > 0, 0.0, -1.0)
@@ -212,7 +212,7 @@ class CliqueCompetitionInteraction(Interaction):
             weights=inhibitory,
         )
         r = excitation + inhibition
-        return [RateLaw(site.x, where(r > 0, (1 - site.x) * r, site.x * r))]
+        self.laws_: list[BaseLaw] = [RateLaw(site.x, where(r > 0, (1 - site.x) * r, site.x * r))]
 
     def _get_reservoir(self, phi: Expression, center: Expression, floor: Expression, width: Expression) -> Expression:
         """Return the sigmoidal reservoir function of a reservoir level."""

@@ -9,18 +9,17 @@ Agents couple to the other agents within priority zones around them, as fish and
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import Annotated, ClassVar, cast
+from typing import ClassVar, cast
 
 import numpy as np
 import numpy.typing as npt
 
-from ....core.components import Tags
-from ....core.components.interactions import CouplingInteraction
-from ....core.components.laws import BaseLaw, RuleLaw
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.enums import ElementKind
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec, RoleSpec
+from ....core.specs import BaseSpec, Role
 from ....core.types import Array
 
 REDUCTIONS = ('sum', 'mean')
@@ -133,7 +132,7 @@ class ClampSpec(BaseSpec):
                 raise ValidationError(error_msg)
 
 
-class ZoneCouplingInteraction(CouplingInteraction):
+class ZoneCouplingInteraction(Interaction):
     """Coupling of every agent of a group to the other agents within priority zones.
 
     Every agent runs the coupling in its own activation in the phase `phase`. Every `RadiusSpec` of `radii` gives the
@@ -182,32 +181,40 @@ class ZoneCouplingInteraction(CouplingInteraction):
         1.0
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw,)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec(elements=(ElementKind.GROUP, ElementKind.VARIABLE_GROUP), states=('write',))],
-        source: Annotated[str | None, RoleSpec(optional=True, elements=(ElementKind.ANY,))] = None,
+        target: Role,
+        source: str | None = None,
         write: str | Sequence[str] = 'x',
         combine: AgentCombination | None = None,
         radii: Sequence[RadiusSpec] = (),
         clamp: ClampSpec | None = None,
         phase: str | None = None,
     ) -> None:
-        super().__init__(label, target=target, source=source, write=write)
+        super().__init__(label)
+        self.target = target
+        self.source = source
+        self.write = write
         self.combine = combine
         self.radii = radii
         self.clamp = clamp
         self.phase = phase
 
-    def _get_tags(self) -> Tags:
-        """Return the tags of the agent rule."""
-        return self._get_variant_tags((RuleLaw,))
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rule that updates every agent.
 
-    def _check_form(self) -> None:
-        """Raise an error for a target that is not one group, no radii, or an invalid radius or clamp."""
+        Args:
+            context:
+                The namespace of the group of agents.
+
+        Raises:
+            ValidationError:
+                The target is not one group, there is no radius, or a radius or the clamp is invalid.
+        """
         if not self.radii or not isinstance(self.target, str):
             error_msg = f'The zone coupling {self.label!r} needs one group of agents and at least one radius.'
             raise ValidationError(error_msg)
@@ -215,6 +222,9 @@ class ZoneCouplingInteraction(CouplingInteraction):
             spec._check()
         if self.clamp is not None:
             self.clamp._check()
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [UpdateLaw(context.target, self._update_member, phase=self.phase)]
 
     @staticmethod
     def _get_bound(agent: AgentViewProtocol, bound: float | str) -> float:
@@ -230,7 +240,7 @@ class ZoneCouplingInteraction(CouplingInteraction):
 
         The radii are those of the highest priority that hold another agent.
         """
-        groups = set(system.get_groups(self._get_role('source' if self.source is not None else 'target')))
+        groups = set(system.get_groups(self.source if self.source is not None else 'target'))
         found: dict[float, list[AgentViewProtocol]] = {}
         levels: dict[int, list[Array]] = {}
         for spec in self.radii:
@@ -299,16 +309,3 @@ class ZoneCouplingInteraction(CouplingInteraction):
             value = current if reduction is None else current + reduction
         for name, item in zip(names, self._get_clamped(agent, current, value), strict=True):
             setattr(agent, name, float(item))
-
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule that updates every agent.
-
-        Args:
-            namespace:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rule of the agents.
-        """
-        return [RuleLaw(self._update_member, phase=self.phase, members=self._get_role('target'))]

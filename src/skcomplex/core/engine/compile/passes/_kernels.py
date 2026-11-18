@@ -358,7 +358,8 @@ class KernelsPass(BasePass):
     def _get_kind_of(law: BaseLaw) -> type:
         """Return the class of a law that decides its form.
 
-        Every noise law counts as a noise law, and the term of a flow as a rate law.
+        Every noise law counts as a noise law, the term of a flow as a rate law, and the increment of a flow in
+        discrete time as an update law.
 
         Args:
             law:
@@ -369,7 +370,7 @@ class KernelsPass(BasePass):
                 The class.
         """
         if isinstance(law, FlowTermLaw):
-            return RateLaw
+            return UpdateLaw if law.increment else RateLaw
         return NoiseLaw if isinstance(law, NoiseLaw) else type(law)
 
     @staticmethod

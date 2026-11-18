@@ -8,6 +8,7 @@ from scipy.integrate import solve_ivp
 
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.systems.biology.neuroscience import (
+    MutualInhibitionInteraction,
     PolyhomeostaticNeuronSystem,
     ThetaNeuronsSystem,
     WilsonCowanSystem,
@@ -68,7 +69,8 @@ def test_theta_neurons_follow_the_ott_antonsen_reduction():
 def test_winners_take_all_with_one_inhibition():
     """Test that the default network has one inhibition reading the total, and only the unit with input 1.1 wins."""
     for inputs in ((1.0, 1.1, 0.9), (1.0, 1.1, 0.9, 1.05, 0.95)):
-        assert len(WinnersTakeAllSystem(inputs).prepare().system_.interactions) == 1
+        interactions = WinnersTakeAllSystem(inputs).prepare().system_.interactions
+        assert [type(interaction) for interaction in interactions].count(MutualInhibitionInteraction) == 1
     state = WinnersTakeAllSystem(beta=2.0).prepare().system_.simulate(until=200, dt=1.0).states[-1]
     assert np.argmax(state) == 1
     assert abs(state[1] - 1.1) < 1e-3

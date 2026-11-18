@@ -9,6 +9,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 
 from ...errors import ValidationError
 from ._rate import RateLaw
+from ._update import UpdateLaw
 
 SIGNS = (-1, 1)
 
@@ -18,7 +19,8 @@ class FlowTermLaw(RateLaw):
 
     It keeps the sign the stock has in the flow. A flow `RateLaw({s.alive: -1, s.dead: +1}, f, label='deaths')`
     becomes the term `-f` on `alive` with the sign `-1` and the term `f` on `dead` with the sign `+1`, so the compiler
-    knows which stock the flow leaves and which it enters without reading the sign of `f`.
+    knows which stock the flow leaves and which it enters without reading the sign of `f`. In discrete time a flow is
+    an increment, `UpdateLaw({s.lane: +1}, f, increment=True, label='entry')`, and its terms are increments too.
 
     Unlike a `RateLaw` on one state, it is one side of a flow, so the loops analysis and the flow matrix draw the flow
     from the stock it leaves to the stock it enters. Choose it when a pass of the compiler needs one side of a flow,
@@ -42,6 +44,9 @@ class FlowTermLaw(RateLaw):
 
         sign:
             The sign of the change of the stock, `-1` for the stock the flow leaves and `+1` for the one it enters.
+
+        increment:
+            Whether the term is the increment `sign * f` of the stock in one step of discrete time, not a rate.
     """
 
     def __init__(
@@ -52,17 +57,21 @@ class FlowTermLaw(RateLaw):
         *,
         label: str = '',
         sign: int = 1,
+        increment: bool = False,
     ) -> None:
         super().__init__(target, value, order, label=label)
         self.sign = sign
+        self.increment = increment
 
     @classmethod
-    def _get_terms(cls, law: RateLaw, owner: str) -> list[RateLaw]:
+    def _get_terms(cls, law: RateLaw | UpdateLaw, owner: str) -> list[RateLaw | UpdateLaw]:
         """Return the terms of a flow, one per stock, or a law of one state as it is.
+
+        A flow is a rate law, or in discrete time an increment update law, whose target maps stocks to signs.
 
         Args:
             law:
-                The rate law.
+                The rate or update law.
 
             owner:
                 The label of the interaction that returns the law, for messages.
@@ -74,13 +83,20 @@ class FlowTermLaw(RateLaw):
         Raises:
             ValidationError:
                 The flow has no label, maps a stock to a sign other than `-1` or `+1`, or names no stock, two stocks it
-                leaves, or two stocks it enters.
+                leaves, or two stocks it enters. An update law that maps stocks is no increment.
         """
         if not isinstance(law.target, Mapping):
             return [law]
         example = "such as RateLaw({s.alive: -1, s.dead: +1}, f, label='deaths')"
         if not law.label:
             error_msg = f'A flow of {owner!r} has no label. Name it, {example}.'
+            raise ValidationError(error_msg)
+        increment = isinstance(law, UpdateLaw)
+        if increment and not law.increment:
+            error_msg = (
+                f'The flow {law.label!r} of {owner!r} is an update law that maps stocks, but not an increment. Write '
+                f"it as one, such as UpdateLaw({{s.lane: +1}}, f, increment=True, label={law.label!r})."
+            )
             raise ValidationError(error_msg)
         signs = list(law.target.values())
         if not signs or any(sign not in SIGNS for sign in signs) or len(set(signs)) < len(signs):
@@ -90,6 +106,6 @@ class FlowTermLaw(RateLaw):
             )
             raise ValidationError(error_msg)
         return [
-            cls(stock, int(sign) * SR(law.value), 1, label=law.label, sign=int(sign))
+            cls(stock, int(sign) * SR(law.value), 1, label=law.label, sign=int(sign), increment=increment)
             for stock, sign in law.target.items()
         ]
