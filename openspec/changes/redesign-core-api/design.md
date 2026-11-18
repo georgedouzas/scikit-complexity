@@ -249,6 +249,11 @@ Two kinds of model need forms that the table above does not name yet.
   the target of a `RateLaw`, such as `RateLaw(fractional(s.target.x, 0.5), -s.k * s.target.x)` for anomalous
   relaxation. Sage has no such derivative, so the operator carries the order and the Caputo solver reads it.
 
+- Flows between stocks. A flow is two rate terms with the same label, `RateLaw(source.n, -f, label='births')` and
+  `RateLaw(sink.n, f, label='births')`, set by one interaction. The loops analysis and the flow matrix read a flow as
+  the rate terms that share a label across stocks, and the trajectory records each labelled flow by name. A flow from
+  outside the system or out of it has only its sink or its source. No law kind is added.
+
 A field law first becomes a recipe of the seven kinds and the core reductions where it can, such as Bak-Sneppen as an
 `UpdateLaw` on the site where `argmin` falls, so it needs no engine code. A law that truly needs numerics of its own,
 such as the Lindblad equation, finite volumes, Cayley graphs, or rewriting, moves with that support: the field package
