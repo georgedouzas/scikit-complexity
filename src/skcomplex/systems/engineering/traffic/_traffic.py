@@ -54,7 +54,7 @@ class RoadElement(Element):
         self,
         label: str,
         *,
-        velocity: Annotated[float, ZZ] = -1,
+        velocity: Annotated[object, ZZ] = -1,
         slowdown: Annotated[float, RealSet.closed_open(0, oo)] = 0.3,
         space: BaseSpace | None = None,
     ) -> None:
