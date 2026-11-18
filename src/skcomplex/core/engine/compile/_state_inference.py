@@ -13,6 +13,7 @@ from typing import Annotated, get_args, get_origin
 import numpy as np
 from sage.all__sagemath_symbolics import CC, RR, SR, ZZ, Expression
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from shapely import Polygon
 
 from ...components.base import BaseComponent
 from ...components.elements import (
@@ -49,6 +50,7 @@ from ..problems._bilinear_law import BilinearLaw
 from ._compilation import Compilation
 
 RESERVED = ('label', 'visual', 'size', 'space', 'values', 'on')
+REGION = 'region'
 LINKS = ('edges', 'hyperedges')
 MIN_RANK = 2
 OTHER = '__other'
@@ -899,6 +901,79 @@ class _StateInference:
         )
 
     @staticmethod
+    def _get_probed(value: object) -> object:
+        """Return a value for the probe of the laws, with zeros in place of `nan`.
+
+        The probe reads only the shapes of the values, and an agent may hold `nan` until a rule sets it.
+        """
+        if isinstance(value, np.ndarray | list | tuple | float):
+            array = np.asarray(value)
+            if array.dtype.kind == 'f' and np.isnan(array).any():
+                return np.nan_to_num(array, nan=0.0)
+        return value
+
+    @staticmethod
+    def _get_start_regions(
+        element: Element,
+        region: object,
+        count: int | None,
+        agents: bool,
+        space: BaseSpace | None = None,
+    ) -> list[Polygon]:
+        """Return the region of its continuous space that every member starts in.
+
+        The value `region` names one region of the space for every member, or one region for all of them, such as
+        `Element('residents', values={'region': 'tract_1'}, size=100, space=space)`. The run draws the starting point
+        of every member inside its region.
+
+        Args:
+            element:
+                The element.
+
+            region:
+                The name of a region, or one name per member.
+
+            count:
+                The number of members, or `None` for a single element.
+
+            agents:
+                Whether the members run agent rules.
+
+            space:
+                The space of the system, which an element without a space of its own lives in.
+
+        Returns:
+            regions:
+                The polygon every member starts in.
+
+        Raises:
+            ValidationError:
+                The element is not on a continuous space, its members run no agent rules, or a name is not one of the
+                regions of the space.
+        """
+        space = element.space if element.space is not None else space
+        if not isinstance(space, ContinuousSpace) or not agents:
+            error_msg = (
+                f'Element {element.label!r} starts in a region, which members that run agent rules on a continuous '
+                "space do, such as Element('residents', values={'region': 'tract_1'}, size=100, space=space)."
+            )
+            raise ValidationError(error_msg)
+        named = dict(space.regions or {})
+        names = np.broadcast_to(np.asarray(region, dtype=object), (count or 1,)).tolist()
+        regions = []
+        for name in names:
+            polygon = named.get(name) if isinstance(name, str) else None
+            if not isinstance(polygon, Polygon):
+                found = [key for key, value in named.items() if isinstance(value, Polygon)]
+                error_msg = (
+                    f'Element {element.label!r} starts in the region {name!r}, which the space does not name. Its '
+                    f'regions are: {", ".join(found) or "none"}.'
+                )
+                raise ValidationError(error_msg)
+            regions.append(polygon)
+        return regions
+
+    @staticmethod
     def _get_group_on(element: Element, count: int | None, agents: bool) -> str | None:
         """Return where the members of a group sit, `'sites'` or `None`.
 
@@ -966,12 +1041,15 @@ class _StateInference:
         drawing of agents for members that run no agent rules, and the view of its agents.
         """
         values = self._get_values(element)
+        region = values.pop(REGION, None)
+        values = {name: self._get_probed(value) for name, value in values.items()} if probing else values
         histories = self._get_histories(element, delays)
         derivatives = self._get_rule_derivatives(element) if agents else {}
         skipped = [name for name, _ in histories.values()] + [name for name, _, _ in derivatives.values()]
         starting = {} if probing else self._get_starting(element, values, skipped)
         count = self._get_count(element)
         count = 1 if count is None and agents else count
+        regions = None if region is None or probing else self._get_start_regions(element, region, count, agents, space)
         link = self._get_link(element)
         network = bool(kinds) and isinstance(element.space, NetworkSpace) and link is None
         growing = network and bool(kinds & MEMBERSHIP)
@@ -1048,6 +1126,7 @@ class _StateInference:
             space=None if off_nodes else element.space,
             on=place,
             values=values,
+            location=regions,
             variable=agents,
         )
         return [group]

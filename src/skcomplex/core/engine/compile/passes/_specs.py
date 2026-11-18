@@ -15,7 +15,6 @@ from sage.modules.free_module_element import FreeModuleElement
 from ....components.elements import FieldElement, GroupElement
 from ....components.interactions import (
     BaseInteraction,
-    GroupingInteraction,
     HyperedgeInteraction,
     PairInteraction,
     TopologyInteraction,
@@ -1152,14 +1151,14 @@ class SpecsPass(BasePass):
 
     @staticmethod
     def _get_grouping_specs(block: BlockSpec, elements: dict[str, BlockSpec], time: Expression) -> list[KernelSpec]:
-        """Return the specs of a symbolic grouping, one per size of its groups.
+        """Return the specs of an interaction along groups, one per size of its groups.
 
-        Their rows are the members of a group. Pairs and partitions read the members at positions of an order drawn at
-        every step, and neighbourhoods read the members of the groups of the space.
+        Their rows are the members of a group. Random groups read the members at positions of an order drawn at every
+        step, and neighbourhoods read the members of the groups of the space.
 
         Args:
             block:
-                The block of the grouping.
+                The block of the interaction.
 
             elements:
                 The blocks of the elements and groups by path.
@@ -1173,23 +1172,28 @@ class SpecsPass(BasePass):
 
         Raises:
             RoleError:
-                The target is not a group, or its groups do not fit its space.
+                The bound element is not a group, or its groups do not fit its space.
         """
         node = block.node
-        component = node.component
-        assert isinstance(component, GroupingInteraction)
-        nodes = SpecsPass._resolve_role(node, component._get_role('target'), elements)
+        component = node.as_interaction
+        groups = component._get_grouping()
+        assert groups is not None
+        kind, size, reduce = groups
+        role = next(
+            role for role in declarations_of(component, VariableKind.ROLE) if binding_of(component, role) is not None
+        )
+        nodes = SpecsPass._resolve_role(node, role, elements)
         SpecsPass._check_slot_names(block)
-        groups = HyperedgeTables._get_groups_of(node, nodes)
-        order = None if component.groups == 'neighborhood' else np.arange(nodes.rows, dtype=np.intp)
-        counts = np.bincount(np.concatenate([members.ravel() for members in groups]), minlength=nodes.rows)
+        members_of = HyperedgeTables._get_groups_of(node, nodes, kind, size)
+        order = None if kind == 'neighborhood' else np.arange(nodes.rows, dtype=np.intp)
+        counts = np.bincount(np.concatenate([members.ravel() for members in members_of]), minlength=nodes.rows)
         specs = []
-        for members in groups:
+        for members in members_of:
             ids = np.arange(members.shape[0], dtype=np.intp)
             focal, others, hyperedges, _ = HyperedgeTables._get_tables(members, ids, MEMBER_LAWS)
             tables = (MEMBER_LAWS, (focal, others, hyperedges, None))
             spec = SpecsPass._get_hyperedge_spec(block, (nodes, None), tables, time, order=order)
-            specs.append(replace(spec, reduce=component.reduce, counts=counts[focal]))
+            specs.append(replace(spec, reduce=reduce, counts=counts[focal]))
         return specs
 
     @staticmethod
@@ -1474,13 +1478,11 @@ class SpecsPass(BasePass):
             return SpecsPass._separate_specs(block, bound, elements, time, observer), declarations
         if edges and bound:
             return SpecsPass._get_edge_specs(block, elements, declarations)
-        grouped = isinstance(component, GroupingInteraction) and component.form == 'symbolic'
+        grouped = isinstance(component, BaseInteraction) and component._get_grouping() is not None
         hyperedges = isinstance(component, HyperedgeInteraction) or (
             isinstance(component, BaseInteraction) and component._runs_on_hyperedges()
         )
-        if (hyperedges and bound) or (
-            isinstance(component, GroupingInteraction) and grouped and component.groups != 'state'
-        ):
+        if (hyperedges and bound) or grouped:
             gathered = SpecsPass._get_grouping_specs if grouped else SpecsPass._get_hyperedge_specs
             return gathered(block, elements, time), declarations
         if isinstance(block.node.component, PairInteraction):

@@ -15,8 +15,8 @@ from sklearn.base import clone
 from skcomplex.core.components.elements import BaseElement, Element, GroupElement
 from skcomplex.core.components.interactions import Interaction, WienerProcessSpec
 from skcomplex.core.components.laws import NoiseLaw, RateLaw, TopologyRequestSpec, UpdateLaw
-from skcomplex.core.components.laws.utils import neighbors
-from skcomplex.core.components.spaces import BaseSpace, NetworkSpace
+from skcomplex.core.components.laws.utils import neighbors, total
+from skcomplex.core.components.spaces import BaseSpace, LatticeSpace, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
@@ -387,6 +387,28 @@ def test_interaction_along_hyperedges_of_a_wrong_size_is_refused(along):
     """Test that hyperedges of fewer than two members, or a size that is not a whole number, are refused."""
     with pytest.raises(ValidationError, match=r"along=\('hyperedges', 3\)"):
         Interaction('push', among='nodes', along=along).prepare()
+
+
+def test_interaction_along_neighborhoods_adds_up_the_groups_of_a_member():
+    """Test that a site adds up a function of every group of a site and its neighbours that holds it."""
+    values = np.arange(16.0)
+    space = LatticeSpace((4, 4), metric='manhattan', boundary='fixed')
+    voters = Element('voters', values={'s': values}, space=space)
+    weighted = Interaction(
+        'weighted',
+        among='voters',
+        along='neighborhoods',
+        laws=lambda s: [UpdateLaw(s.member.s, s.member.s * total(s.members.s, over=s.members))],
+    )
+    result = System(elements=[voters], interactions=[weighted]).prepare().simulate(until=1).get_values('voters.s')[1]
+    rows, columns = np.divmod(np.arange(16), 4)
+    groups = [
+        [site, *np.flatnonzero(np.abs(rows - rows[site]) + np.abs(columns - columns[site]) == 1).tolist()]
+        for site in range(16)
+    ]
+    expected = [sum(values[site] * values[group].sum() for group in groups if site in group) for site in range(16)]
+    assert np.allclose(result, expected, atol=1e-12)
+    assert (weighted._runs_on_edges(), weighted._get_layer()) == (False, None)
 
 
 class _TriangleGrowthInteraction(Interaction):
