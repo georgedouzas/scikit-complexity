@@ -3,7 +3,6 @@
 import networkx as nx
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.collective_behaviour import AntColonyOptimizationSystem
 
 
@@ -21,7 +20,7 @@ def test_colony_finds_a_short_path_and_heals_a_disruption():
     for seed in (0, 2):
         system = AntColonyOptimizationSystem(cut=50, seed=seed).prepare().system_
         search = system.interactions[0]
-        trajectory = simulate(system, random_state=seed, until=100)
+        trajectory = system.prepare().simulate(random_state=seed, until=100)
         lengths = trajectory.get_values('search.shortest')
         assert lengths[49] < 1.1 * _shortest(search)
         is_open = trajectory.get_agents('roads', 100).values['passable']
