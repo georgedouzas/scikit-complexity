@@ -516,7 +516,7 @@ class _StateInference:
         groups: set[str] = set()
         for record in census.records:
             node = nodes.get(record.path)
-            if not isinstance(record.law, RuleLaw) or node is None:
+            if not isinstance(record.law, RuleLaw) or node is None or not isinstance(node.component, BaseComponent):
                 continue
             roles = (
                 [record.law.members]

@@ -157,9 +157,11 @@ class GradientInteraction(Interaction):
             error_msg = f'The order of {self.label!r} is {self.order!r}. Give 1 for a gradient flow or 2 for Newton.'
             raise ValidationError(error_msg)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = self._get_gradient_laws(
-                self._get_symbolic(context, getattr(context, 't', SR.var('t'))),
+            time = getattr(context, 't', SR.var('t'))
+            namespace = SimpleNamespace(
+                **{name: self._get_symbolic(item, time) for name, item in vars(context).items()},
             )
+            self.laws_: list[BaseComponent] = self._get_gradient_laws(namespace)
 
     def _get_symbolic(self, value: object, time: Expression) -> object:
         """Return a value with every state `x(t)` read as its symbol `x`.
