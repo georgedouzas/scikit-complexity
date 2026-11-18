@@ -3,21 +3,23 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, log, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import BaseInteraction, CrossingInteraction, RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import hill, pulse_train
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import ScipyODESolver
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, ScipyODESolver
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction
 from ..common.pharmacokinetics import DosingInteraction
 
@@ -187,44 +189,44 @@ class AndrogenReceptorProstateElement(Element):
         self,
         label: str,
         *,
-        N: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.5,
-        AD: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        AI: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        UIP: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        UP: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        UT: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 40.0,
-        UD: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 40.0,
-        m1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0001,
-        b2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 22.4,
-        b3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 22.4,
-        c1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        psi1_n: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0001202,
-        psi1_d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001048,
-        psi1_i: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 9.8e-05,
-        phi1_n: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0001281,
-        phi1_d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.00111,
-        phi1_i: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.000279,
-        psi2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 12.355,
-        phi2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 49.587,
-        psi3_n: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.008,
-        psi3_d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.15,
-        psi3_i: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        psi4: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 62.162,
-        Vc: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.56,
-        v1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 18.397,
-        v2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 63.753,
-        v3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 28.4,
-        phi: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 12.0,
-        age: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 60.0,
-        du1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001515,
-        du2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05635,
-        du3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.776,
-        gamma_p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3125,
-        KP: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 800.0,
-        beta_n: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0022622,
-        beta_d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.002,
-        beta_i: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.003,
-        sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
+        N: Annotated[float, RealSet.closed_open(0, oo)] = 1.5,
+        AD: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        AI: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        UIP: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        UP: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        UT: Annotated[float, RealSet.closed_open(0, oo)] = 40.0,
+        UD: Annotated[float, RealSet.closed_open(0, oo)] = 40.0,
+        m1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0001,
+        b2: Annotated[float, RealSet.open(0, oo)] = 22.4,
+        b3: Annotated[float, RealSet.open(0, oo)] = 22.4,
+        c1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        psi1_n: Annotated[float, RealSet.closed_open(0, oo)] = 0.0001202,
+        psi1_d: Annotated[float, RealSet.closed_open(0, oo)] = 0.001048,
+        psi1_i: Annotated[float, RealSet.closed_open(0, oo)] = 9.8e-05,
+        phi1_n: Annotated[float, RealSet.closed_open(0, oo)] = 0.0001281,
+        phi1_d: Annotated[float, RealSet.closed_open(0, oo)] = 0.00111,
+        phi1_i: Annotated[float, RealSet.closed_open(0, oo)] = 0.000279,
+        psi2: Annotated[float, RealSet.open(0, oo)] = 12.355,
+        phi2: Annotated[float, RealSet.open(0, oo)] = 49.587,
+        psi3_n: Annotated[float, RealSet.closed_open(0, oo)] = 0.008,
+        psi3_d: Annotated[float, RealSet.closed_open(0, oo)] = 0.15,
+        psi3_i: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        psi4: Annotated[float, RealSet.open(0, oo)] = 62.162,
+        Vc: Annotated[float, RealSet.open(0, oo)] = 5.56,
+        v1: Annotated[float, RealSet.closed_open(0, oo)] = 18.397,
+        v2: Annotated[float, RealSet.open(0, oo)] = 63.753,
+        v3: Annotated[float, RealSet.open(0, oo)] = 28.4,
+        phi: Annotated[float, RealSet.open(0, oo)] = 12.0,
+        age: Annotated[float, RealSet.open(0, oo)] = 60.0,
+        du1: Annotated[float, RealSet.closed_open(0, oo)] = 0.001515,
+        du2: Annotated[float, RealSet.closed_open(0, oo)] = 0.05635,
+        du3: Annotated[float, RealSet.closed_open(0, oo)] = 5.776,
+        gamma_p: Annotated[float, RealSet.closed_open(0, oo)] = 0.3125,
+        KP: Annotated[float, RealSet.open(0, oo)] = 800.0,
+        beta_n: Annotated[float, RealSet.closed_open(0, oo)] = 0.0022622,
+        beta_d: Annotated[float, RealSet.closed_open(0, oo)] = 0.002,
+        beta_i: Annotated[float, RealSet.closed_open(0, oo)] = 0.003,
+        sigma: Annotated[float, RealSet.closed_open(0, oo)] = 10.0,
     ) -> None:
         super().__init__(label)
         self.N = N
@@ -332,19 +334,19 @@ class AndrogenSuppressionElement(Element):
         self,
         label: str,
         *,
-        AD: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        AI: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.14,
-        U: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
-        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.025,
-        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.006,
-        b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 9.1e-11,
-        c1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.9,
-        c2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
-        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.064,
-        m1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5e-05,
-        U0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 20.0,
-        du: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.08,
-        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.9,
+        AD: Annotated[float, RealSet.closed_open(0, oo)] = 10.0,
+        AI: Annotated[float, RealSet.closed_open(0, oo)] = 0.14,
+        U: Annotated[float, RealSet.closed_open(0, oo)] = 20.0,
+        r1: Annotated[float, RealSet.closed_open(0, oo)] = 0.025,
+        r2: Annotated[float, RealSet.closed_open(0, oo)] = 0.006,
+        b: Annotated[float, RealSet.closed_open(0, oo)] = 9.1e-11,
+        c1: Annotated[float, RealSet.closed_open(0, oo)] = 0.9,
+        c2: Annotated[float, RealSet.closed_open(0, oo)] = 0.8,
+        d1: Annotated[float, RealSet.closed_open(0, oo)] = 0.064,
+        m1: Annotated[float, RealSet.closed_open(0, oo)] = 5e-05,
+        U0: Annotated[float, RealSet.open(0, oo)] = 20.0,
+        du: Annotated[float, RealSet.closed_open(0, oo)] = 0.08,
+        a: Annotated[float, RealSet.closed_open(0, oo)] = 0.9,
     ) -> None:
         super().__init__(label)
         self.AD = AD
@@ -487,36 +489,36 @@ class CellQuotaProstateElement(Element):
         self,
         label: str,
         *,
-        AD: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 15.0,
-        AI: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        Q1: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        Q2: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        P: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 3.4,
-        U: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 15.0,
-        rm: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.025,
-        q1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
-        q2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.15,
-        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.015,
-        d2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.015,
-        d3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.09,
-        qm: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
-        vm: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.275,
-        v50: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 4.0,
-        mx1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.00015,
-        mx2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0001,
-        m501: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.08,
-        m502: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.7,
-        n: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
-        r0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.15,
-        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.15,
-        rho1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.3,
-        rho2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.1,
-        theta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
-        du: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.08,
-        U0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 15.0,
-        Umin: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        du1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.08,
+        AD: Annotated[float, RealSet.closed_open(0, oo)] = 15.0,
+        AI: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        Q1: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        Q2: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        P: Annotated[float, RealSet.closed_open(0, oo)] = 3.4,
+        U: Annotated[float, RealSet.closed_open(0, oo)] = 15.0,
+        rm: Annotated[float, RealSet.closed_open(0, oo)] = 0.025,
+        q1: Annotated[float, RealSet.open(0, oo)] = 0.3,
+        q2: Annotated[float, RealSet.open(0, oo)] = 0.15,
+        d1: Annotated[float, RealSet.closed_open(0, oo)] = 0.015,
+        d2: Annotated[float, RealSet.closed_open(0, oo)] = 0.015,
+        d3: Annotated[float, RealSet.closed_open(0, oo)] = 0.09,
+        qm: Annotated[float, RealSet.open(0, oo)] = 5.0,
+        vm: Annotated[float, RealSet.closed_open(0, oo)] = 0.275,
+        v50: Annotated[float, RealSet.open(0, oo)] = 4.0,
+        mx1: Annotated[float, RealSet.closed_open(0, oo)] = 0.00015,
+        mx2: Annotated[float, RealSet.closed_open(0, oo)] = 0.0001,
+        m501: Annotated[float, RealSet.open(0, oo)] = 0.08,
+        m502: Annotated[float, RealSet.open(0, oo)] = 1.7,
+        n: Annotated[float, RealSet.open(0, oo)] = 3.0,
+        r0: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        r1: Annotated[float, RealSet.closed_open(0, oo)] = 0.15,
+        r2: Annotated[float, RealSet.closed_open(0, oo)] = 0.15,
+        rho1: Annotated[float, RealSet.open(0, oo)] = 1.3,
+        rho2: Annotated[float, RealSet.open(0, oo)] = 1.1,
+        theta: Annotated[float, RealSet.open(0, oo)] = 3.0,
+        du: Annotated[float, RealSet.closed_open(0, oo)] = 0.08,
+        U0: Annotated[float, RealSet.closed_open(0, oo)] = 15.0,
+        Umin: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        du1: Annotated[float, RealSet.closed_open(0, oo)] = 0.08,
         period: float = 500.0,
         width: float = 250.0,
     ) -> None:
@@ -633,23 +635,23 @@ class IntermittentSuppressionElement(Element):
         self,
         label: str,
         *,
-        AD: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-        AI: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        U: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 30.0,
-        u: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0204,
-        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0242,
-        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0076,
-        d2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0168,
-        m1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5e-05,
-        k1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        k2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        k3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 8.0,
-        k4: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        U0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 30.0,
-        du: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.08,
-        x1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        x2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        AD: Annotated[float, RealSet.closed_open(0, oo)] = 5.0,
+        AI: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        U: Annotated[float, RealSet.closed_open(0, oo)] = 30.0,
+        u: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        r1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0204,
+        r2: Annotated[float, RealSet.closed_open(0, oo)] = 0.0242,
+        d1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0076,
+        d2: Annotated[float, RealSet.closed_open(0, oo)] = 0.0168,
+        m1: Annotated[float, RealSet.closed_open(0, oo)] = 5e-05,
+        k1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        k2: Annotated[float, RealSet.open(0, oo)] = 2.0,
+        k3: Annotated[float, RealSet.closed_open(0, oo)] = 8.0,
+        k4: Annotated[float, RealSet.open(0, oo)] = 0.5,
+        U0: Annotated[float, RealSet.open(0, oo)] = 30.0,
+        du: Annotated[float, RealSet.closed_open(0, oo)] = 0.08,
+        x1: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        x2: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
     ) -> None:
         super().__init__(label)
         self.AD = AD
@@ -910,31 +912,31 @@ class TamoxifenTumourElement(Element):
         self,
         label: str,
         *,
-        Ag: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 900.0,
-        As: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 50.0,
-        Am: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 50.0,
-        X0: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        X1: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        X2: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        X3: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        E: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        mg: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0013,
-        ms: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.039,
-        mm: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0169,
-        Asat: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10000.0,
-        a1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0062,
-        a2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        delta1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 25.0,
-        delta2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 25.0,
-        k01: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.048,
-        k12: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.993,
-        k23: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 35.932,
-        du1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.145,
-        du2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 39.525,
-        V: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 8.592,
-        s: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.121,
-        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.012,
-        u: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 12.5,
+        Ag: Annotated[float, RealSet.closed_open(0, oo)] = 900.0,
+        As: Annotated[float, RealSet.closed_open(0, oo)] = 50.0,
+        Am: Annotated[float, RealSet.closed_open(0, oo)] = 50.0,
+        X0: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        X1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        X2: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        X3: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        E: Annotated[float, RealSet.closed_open(0, oo)] = 10.0,
+        mg: Annotated[float, RealSet.closed_open(0, oo)] = 0.0013,
+        ms: Annotated[float, RealSet.closed_open(0, oo)] = 0.039,
+        mm: Annotated[float, RealSet.closed_open(0, oo)] = 0.0169,
+        Asat: Annotated[float, RealSet.open(0, oo)] = 10000.0,
+        a1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0062,
+        a2: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        delta1: Annotated[float, RealSet.closed_open(0, oo)] = 25.0,
+        delta2: Annotated[float, RealSet.closed_open(0, oo)] = 25.0,
+        k01: Annotated[float, RealSet.closed_open(0, oo)] = 0.048,
+        k12: Annotated[float, RealSet.closed_open(0, oo)] = 0.993,
+        k23: Annotated[float, RealSet.closed_open(0, oo)] = 35.932,
+        du1: Annotated[float, RealSet.closed_open(0, oo)] = 1.145,
+        du2: Annotated[float, RealSet.closed_open(0, oo)] = 39.525,
+        V: Annotated[float, RealSet.open(0, oo)] = 8.592,
+        s: Annotated[float, RealSet.closed_open(0, oo)] = 0.121,
+        d1: Annotated[float, RealSet.closed_open(0, oo)] = 0.012,
+        u: Annotated[float, RealSet.closed_open(0, oo)] = 12.5,
     ) -> None:
         super().__init__(label)
         self.Ag = Ag
@@ -1093,6 +1095,12 @@ class ContinuousAndrogenSuppressionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import ContinuousAndrogenSuppressionSystem
         >>> ContinuousAndrogenSuppressionSystem(a=0.6).prepare().system_.elements[0].a
@@ -1122,8 +1130,10 @@ class ContinuousAndrogenSuppressionSystem(BaseSystem):
         du: float = 0.08,
         a: float = 0.9,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.AD = AD
         self.AI = AI
         self.U = U
@@ -1138,8 +1148,14 @@ class ContinuousAndrogenSuppressionSystem(BaseSystem):
         self.du = du
         self.a = a
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of prostate cancer under continuous androgen suppression."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of prostate cancer under continuous androgen suppression.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         tumour = AndrogenSuppressionElement(
             'tumour',
             AD=self.AD,
@@ -1198,7 +1214,7 @@ class ContinuousAndrogenSuppressionSystem(BaseSystem):
                 rate=lambda s: -s.target.U0 * s.target.du * s.target.a,
             ),
         ]
-        return CompositeSystem(self.label, elements=[tumour], interactions=interactions)
+        self.system_ = System(self.label, elements=[tumour], interactions=interactions)
 
 
 class IdetaIntermittentAndrogenSystem(BaseSystem):
@@ -1262,6 +1278,12 @@ class IdetaIntermittentAndrogenSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import IdetaIntermittentAndrogenSystem
         >>> IdetaIntermittentAndrogenSystem(h1=20.0).prepare().system_.interactions[-2].threshold
@@ -1304,8 +1326,10 @@ class IdetaIntermittentAndrogenSystem(BaseSystem):
         h0: float = 10.0,
         h1: float = 15.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.AD = AD
         self.AI = AI
         self.r1 = r1
@@ -1322,8 +1346,14 @@ class IdetaIntermittentAndrogenSystem(BaseSystem):
         self.h0 = h0
         self.h1 = h1
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the Ideta system of intermittent androgen suppression."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the Ideta system of intermittent androgen suppression.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         tumour = IntermittentSuppressionElement(
             'tumour',
             AD=self.AD,
@@ -1396,7 +1426,7 @@ class IdetaIntermittentAndrogenSystem(BaseSystem):
             ),
             *switches,
         ]
-        return CompositeSystem(self.label, elements=[tumour], interactions=interactions)
+        self.system_ = System(self.label, elements=[tumour], interactions=interactions)
 
 
 class ProstateCellQuotaSystem(BaseSystem):
@@ -1469,6 +1499,12 @@ class ProstateCellQuotaSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import ProstateCellQuotaSystem
         >>> ProstateCellQuotaSystem(q1=0.45).prepare().system_.elements[0].q1
@@ -1502,8 +1538,10 @@ class ProstateCellQuotaSystem(BaseSystem):
         period: float = 500.0,
         width: float = 250.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.AD = AD
         self.AI = AI
         self.rm = rm
@@ -1531,8 +1569,14 @@ class ProstateCellQuotaSystem(BaseSystem):
         uptake: Expression = target.vm * (target.qm - Q) / (target.qm - q) * target.U / (target.U + target.v50)
         return uptake
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the Portz cell-quota system of prostate cancer."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the Portz cell-quota system of prostate cancer.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         tumour = CellQuotaProstateElement(
             'tumour',
             AD=self.AD,
@@ -1660,7 +1704,7 @@ class ProstateCellQuotaSystem(BaseSystem):
                 ),
             ),
         ]
-        return CompositeSystem(self.label, elements=[tumour], interactions=interactions)
+        self.system_ = System(self.label, elements=[tumour], interactions=interactions)
 
 
 class ProstateAndrogenReceptorSystem(BaseSystem):
@@ -1705,6 +1749,12 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import ProstateAndrogenReceptorSystem
         >>> ProstateAndrogenReceptorSystem(UT=5.0).prepare().system_.elements[0].UT
@@ -1716,7 +1766,6 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
     references = (BOOK, 'Jain et al. 2011')
     until = 26280.0
     dt = 168.0
-    solver = ScipyODESolver(method='LSODA')
 
     def __init__(
         self,
@@ -1729,8 +1778,10 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
         m1: float = 1e-4,
         age: float = 60.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.N = N
         self.AD = AD
         self.AI = AI
@@ -1776,8 +1827,14 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
         )
         return division
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the system.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         prostate = AndrogenReceptorProstateElement(
             'prostate',
             N=self.N,
@@ -1880,7 +1937,12 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
                 propensity=lambda s: s.target.du3 * s.target.UP,
             ),
         ]
-        return CompositeSystem(self.label, elements=[prostate], interactions=interactions)
+        self.system_ = System(
+            self.label,
+            elements=[prostate],
+            interactions=interactions,
+            solver=ScipyODESolver(method='LSODA'),
+        )
 
 
 class PiecewiseLinearIASSystem(BaseSystem):
@@ -1910,6 +1972,12 @@ class PiecewiseLinearIASSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The patient type is not 1, 2, or 3.
@@ -1933,14 +2001,22 @@ class PiecewiseLinearIASSystem(BaseSystem):
         h0: float = 4.0,
         h1: float = 10.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.patient = patient
         self.h0 = h0
         self.h1 = h1
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the system.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         if self.patient not in PATIENT_FACTORS:
             error_msg = f'The patient type must be 1, 2, or 3, got {self.patient!r}.'
             raise ValidationError(error_msg)
@@ -1970,7 +2046,7 @@ class PiecewiseLinearIASSystem(BaseSystem):
             self.h0,
             self.h1,
         )
-        return CompositeSystem(self.label, elements=[tumour], interactions=switches)
+        self.system_ = System(self.label, elements=[tumour], interactions=switches)
 
 
 class TamoxifenCellCycleSystem(BaseSystem):
@@ -2008,6 +2084,12 @@ class TamoxifenCellCycleSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import TamoxifenCellCycleSystem
         >>> TamoxifenCellCycleSystem(u=0.0).prepare().system_.elements[0].u
@@ -2019,7 +2101,6 @@ class TamoxifenCellCycleSystem(BaseSystem):
     references = (BOOK, 'Chen, Kirkby, and Jena 2012')
     until = 2400.0
     dt = 8.0
-    solver = ScipyODESolver(method='LSODA')
 
     def __init__(
         self,
@@ -2031,8 +2112,10 @@ class TamoxifenCellCycleSystem(BaseSystem):
         a1: float = 0.0062,
         a2: float = 0.010,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.Ag = Ag
         self.As = As
         self.Am = Am
@@ -2049,8 +2132,14 @@ class TamoxifenCellCycleSystem(BaseSystem):
         room: Expression = log(target.Asat / (target.Ag + target.As + target.Am))
         return room
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the system.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         tumour = TamoxifenTumourElement('tumour', Ag=self.Ag, As=self.As, Am=self.Am, u=self.u, a1=self.a1, a2=self.a2)
         interactions = [
             ReactionInteraction(
@@ -2132,4 +2221,9 @@ class TamoxifenCellCycleSystem(BaseSystem):
                 * (s.target.X2 / s.target.V + s.target.delta2 * s.target.X3 / s.target.V),
             ),
         ]
-        return CompositeSystem(self.label, elements=[tumour], interactions=interactions)
+        self.system_ = System(
+            self.label,
+            elements=[tumour],
+            interactions=interactions,
+            solver=ScipyODESolver(method='LSODA'),
+        )

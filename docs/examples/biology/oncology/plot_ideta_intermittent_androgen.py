@@ -12,14 +12,13 @@ between the two thresholds.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import IdetaIntermittentAndrogenSystem
 
 SYSTEM = 'ideta_intermittent_androgen'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=3)
-trajectory = simulate(IdetaIntermittentAndrogenSystem(), dt=1.0, observers=[observer])
+trajectory = IdetaIntermittentAndrogenSystem().prepare().simulate(dt=1.0, observers=[observer])
 
 # %%
 # Switching at the thresholds
