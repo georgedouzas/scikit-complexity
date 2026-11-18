@@ -13,14 +13,13 @@ recover close to their carrying capacity.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import DePillisRadunskayaSystem
 
 SYSTEM = 'de_pillis_radunskaya'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(DePillisRadunskayaSystem(u=1.0), observers=[observer])
+trajectory = DePillisRadunskayaSystem(u=1.0).prepare().simulate(observers=[observer])
 
 # %%
 # Untreated and treated tumours
@@ -29,7 +28,7 @@ trajectory = simulate(DePillisRadunskayaSystem(u=1.0), observers=[observer])
 # normal cells. With the infusion, the tumour should fall below 1% of its initial size and the normal cells should stay
 # above 0.7 of their capacity.
 
-untreated = simulate(DePillisRadunskayaSystem())
+untreated = DePillisRadunskayaSystem().prepare().simulate()
 treated = trajectory
 fig, (tumour, normal) = plt.subplots(1, 2, figsize=(10, 4))
 tumour.semilogy(untreated.times, untreated.get_values('patient.A'), label='untreated')

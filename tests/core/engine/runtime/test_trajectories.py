@@ -16,7 +16,7 @@ from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 def test_trajectory_reads_values_by_name():
     """Test that a trajectory returns the values of a state by name and is not indexed."""
-    trajectory = simulate(LotkaVolterraSystem().prepare().system_, until=1.0, dt=0.1)
+    trajectory = LotkaVolterraSystem().prepare().system_.prepare().simulate(until=1.0, dt=0.1)
     values = trajectory.get_values('prey.x')
     assert values.shape[0] == trajectory.times.size
     with pytest.raises(TypeError):

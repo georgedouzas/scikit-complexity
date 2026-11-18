@@ -13,14 +13,13 @@ tumour of more than 20 million cells.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import ClonalChemoimmunotherapySystem
 
 SYSTEM = 'clonal_chemoimmunotherapy'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(ClonalChemoimmunotherapySystem(u_vaccine=0.0), observers=[observer])
+trajectory = ClonalChemoimmunotherapySystem(u_vaccine=0.0).prepare().simulate(observers=[observer])
 
 # %%
 # Selection of the resistant clone
@@ -29,7 +28,7 @@ trajectory = simulate(ClonalChemoimmunotherapySystem(u_vaccine=0.0), observers=[
 # relapses resistant and grows by two orders of magnitude. With the vaccine, both clones should fall below one cell.
 
 alone = trajectory
-combined = simulate(ClonalChemoimmunotherapySystem())
+combined = ClonalChemoimmunotherapySystem().prepare().simulate()
 fig, (chemo, both) = plt.subplots(1, 2, figsize=(10, 4), sharey=True)
 for axes, trajectory, title in (
     (chemo, alone, 'Chemotherapy alone selects the resistant clone'),

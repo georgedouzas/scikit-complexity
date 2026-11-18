@@ -13,14 +13,13 @@ slowly as the body eliminates it, while the tissue concentration rises and follo
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.physiology import TwoCompartmentPharmacokineticsSystem
 
 SYSTEM = 'two_compartment_pharmacokinetics'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(TwoCompartmentPharmacokineticsSystem(c0=1.0), observers=[observer])
+trajectory = TwoCompartmentPharmacokineticsSystem(c0=1.0).prepare().simulate(observers=[observer])
 
 # %%
 # Bi-exponential decay

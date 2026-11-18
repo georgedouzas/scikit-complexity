@@ -15,7 +15,6 @@ import numpy as np
 from scipy.integrate import solve_ivp
 
 from skcomplex.core.engine.backends import NumbaBackend
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import NeutralClusteringSystem
 
@@ -23,13 +22,11 @@ SYSTEM = 'neutral_clustering'
 SITES, N, ALPHA, BETA = 128, 10.0, 1.0, 0.5
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(
-    NeutralClusteringSystem(shape=SITES, n=N, alpha=ALPHA, beta=BETA),
-    until=60,
-    dt=0.25,
-    backend=NumbaBackend(),
-    observers=[observer],
-    random_state=0,
+trajectory = (
+    NeutralClusteringSystem(shape=SITES, n=N, alpha=ALPHA, beta=BETA)
+    .set_params(backend=NumbaBackend())
+    .prepare()
+    .simulate(until=60, dt=0.25, observers=[observer], random_state=0)
 )
 
 # %%
@@ -56,13 +53,13 @@ def expected_variance(times):
 
 
 times = trajectory.times
-isolated = simulate(
-    NeutralClusteringSystem(shape=SITES, n=N, alpha=ALPHA, beta=0.0),
-    until=60,
-    dt=0.25,
-    backend=NumbaBackend(),
-    random_state=0,
-).get_values('variance')
+isolated = (
+    NeutralClusteringSystem(shape=SITES, n=N, alpha=ALPHA, beta=0.0)
+    .set_params(backend=NumbaBackend())
+    .prepare()
+    .simulate(until=60, dt=0.25, random_state=0)
+    .get_values('variance')
+)
 
 fig, (growth, profile) = plt.subplots(1, 2, figsize=(10, 4))
 growth.plot(times, trajectory.get_values('variance'), label='simulated, beta = 0.5')

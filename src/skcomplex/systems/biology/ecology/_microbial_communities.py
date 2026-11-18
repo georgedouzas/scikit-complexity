@@ -7,14 +7,21 @@ from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
+import numpy.typing as npt
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import CouplingInteraction, RateInteraction
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
+from ....core.components.laws.utils import total
+from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.specs import ParameterSpec, Role
+from ....core.systems import BaseSystem, System
 
 COMMUNITY_GROWTH = (1.0, 0.8, 0.6)
 COMMUNITY_INTERACTIONS = ((-1.0, -0.3, 0.2), (-0.2, -1.0, -0.3), (0.1, -0.2, -1.0))
@@ -35,6 +42,9 @@ class MicrobeElement(Element):
         b:
             The intrinsic growth rate.
 
+        size:
+            The number of species, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.biology.ecology import MicrobeElement
         >>> MicrobeElement('species', x=0.1, b=0.8).b
@@ -45,15 +55,50 @@ class MicrobeElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        b: Annotated[float, ParameterSpec()] = 1.0,
+        x: Annotated[float | npt.ArrayLike, RealSet.closed_open(0, oo)] = 0.1,
+        b: float | npt.ArrayLike = 1.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.x = x
         self.b = b
 
 
-class GeneralizedLotkaVolterraInteraction(CouplingInteraction):
+class MicrobialGrowthInteraction(Interaction):
+    """Growth of every species of a group at its own intrinsic rate, `dx_i/dt += b_i x_i`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of species, whose members hold the abundance `x` and the growth rate `b`.
+
+    Examples:
+        >>> from skcomplex.systems.biology.ecology import MicrobialGrowthInteraction
+        >>> MicrobialGrowthInteraction('growth', target='species').target
+        'species'
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the growth of the abundance of every species.
+
+        Args:
+            context:
+                The namespace of the species, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [RateLaw(context.target.x, context.target.b * context.target.x)]
+
+
+class GeneralizedLotkaVolterraInteraction(Interaction):
     """Interactions of the species of a group, `dx_i/dt += x_i sum_j a_ij x_j`.
 
     They act through an interaction matrix `a`.
@@ -89,29 +134,26 @@ class GeneralizedLotkaVolterraInteraction(CouplingInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         a: Annotated[object, ParameterSpec(shape=('target', 'target'))] = -1.0,
         state: str = 'x',
     ) -> None:
-        super().__init__(
-            label,
-            target=target,
-            read=state,
-            write=state,
-            function=self._get_product,
-            mode='group',
-            weights='a',
-            include_self=True,
-        )
+        super().__init__(label)
+        self.target = target
         self.a = a
         self.state = state
 
-    def _get_product(self, namespace: SimpleNamespace) -> object:
-        """Return the product `x_i x_j` of the abundances of two species.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the coupling of the abundance of every species to the abundances of the group.
 
-        The species are the member `i` and the other species `j`.
+        Args:
+            context:
+                The namespace of the species, the time `t`, and the matrix.
         """
-        return getattr(namespace.member, self.state) * getattr(namespace.other, self.state)
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            abundance = getattr(context.target, self.state)
+            self.laws_ = [RateLaw(abundance, abundance * total(abundance, weights=context.a))]
 
 
 class GeneralizedLotkaVolterraSystem(BaseSystem):
@@ -139,13 +181,19 @@ class GeneralizedLotkaVolterraSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The growth rates, the matrix, and the abundances do not have one entry per species.
 
     Examples:
         >>> from skcomplex.systems.biology.ecology import GeneralizedLotkaVolterraSystem
-        >>> GeneralizedLotkaVolterraSystem().prepare().system_.elements[0].prepare().size_
+        >>> GeneralizedLotkaVolterraSystem().prepare().system_.elements[0].size
         3
     """
 
@@ -162,19 +210,22 @@ class GeneralizedLotkaVolterraSystem(BaseSystem):
         b: Sequence[float] = COMMUNITY_GROWTH,
         a: Sequence[Sequence[float]] = COMMUNITY_INTERACTIONS,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.b = b
         self.a = a
 
-    @staticmethod
-    def _get_growth(namespace: SimpleNamespace) -> object:
-        """Return the intrinsic growth `b x` of a species."""
-        return namespace.target.b * namespace.target.x
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the generalized Lotka-Volterra microbial community.
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the generalized Lotka-Volterra microbial community."""
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         size = len(self.b)
         abundances = [0.1] * size if self.x is None else [float(value) for value in self.x]
         if len(abundances) != size or len(self.a) != size or any(len(row) != size for row in self.a):
@@ -182,18 +233,13 @@ class GeneralizedLotkaVolterraSystem(BaseSystem):
                 f'The abundances and the interaction matrix must have one entry per species, {size} growth rates.'
             )
             raise ValidationError(error_msg)
-        species = GroupElement(
-            'species',
-            element=MicrobeElement,
-            size=size,
-            values={'x': abundances, 'b': [float(value) for value in self.b]},
-        )
+        species = MicrobeElement('species', x=abundances, b=[float(value) for value in self.b], size=size)
         matrix = tuple(tuple(float(value) for value in row) for row in self.a)
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[species],
             interactions=[
-                RateInteraction('growth', target='species', rate=self._get_growth),
+                MicrobialGrowthInteraction('growth', target='species'),
                 GeneralizedLotkaVolterraInteraction('glv', target='species', a=matrix),
             ],
         )

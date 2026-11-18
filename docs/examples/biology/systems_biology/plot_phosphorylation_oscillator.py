@@ -14,14 +14,13 @@ loop keeps oscillating with a period of about 4.2.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.systems_biology import PhosphorylationOscillatorSystem
 
 SYSTEM = 'phosphorylation_oscillator'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-trajectory = simulate(PhosphorylationOscillatorSystem(), observers=[observer])
+trajectory = PhosphorylationOscillatorSystem().prepare().simulate(observers=[observer])
 
 # %%
 # A negative feedback loop of switches

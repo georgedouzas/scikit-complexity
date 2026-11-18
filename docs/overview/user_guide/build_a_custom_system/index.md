@@ -200,7 +200,7 @@ round(float(faster.max()), 1)
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 catalog = LotkaVolterraSystem(prey=30.0, predators=4.0, r=0.55, a=0.028, b=0.024, d=0.80)
-simulate(catalog, until=20, dt=1.0).get_values('prey.x').round(1)[:6].tolist()
+catalog.prepare().simulate(until=20, dt=1.0).get_values('prey.x').round(1)[:6].tolist()
 ```
 
 ## Recipes by kind of system

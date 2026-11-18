@@ -13,14 +13,13 @@ which then collapse until the prey recover, and the cycle repeats with the same 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 SYSTEM = 'lotka_volterra'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(LotkaVolterraSystem(prey=10.0, predators=5.0), observers=[observer])
+trajectory = LotkaVolterraSystem(prey=10.0, predators=5.0).prepare().simulate(observers=[observer])
 
 # %%
 # Phase portrait and the conserved quantity

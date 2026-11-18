@@ -12,14 +12,13 @@ day seed a secondary tumour that does the same at the second site.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import DelayedMetastasisSystem
 
 SYSTEM = 'delayed_metastasis'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(DelayedMetastasisSystem(), observers=[observer], until=6)
+trajectory = DelayedMetastasisSystem().prepare().simulate(observers=[observer], until=6)
 
 # %%
 # Takeover at both sites

@@ -30,7 +30,7 @@ def test_replicate_runs_systems_with_interactions():
     replicated = _replicate(LotkaVolterraSystem().prepare().system_, 3, {'prey.x': starts})
     values = np.asarray(simulate(replicated, until=5, dt=0.1).get_values('predators.x'))
     for index, start in enumerate(starts):
-        single = simulate(LotkaVolterraSystem(prey=float(start)), until=5, dt=0.1)
+        single = LotkaVolterraSystem(prey=float(start)).prepare().simulate(until=5, dt=0.1)
         np.testing.assert_allclose(values[:, index], np.ravel(single.get_values('predators.x')), rtol=1e-5)
 
 

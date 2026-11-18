@@ -25,7 +25,7 @@ predation rates `a=0.4` and `b=0.1`, the predator death rate `d=0.4`, the capaci
 values by name to the class, as for any scikit-learn estimator.
 
 ```python continuation
-simulate(LotkaVolterraSystem(r=1.5, predators=5.0)).get_values('prey.x').max().round()
+LotkaVolterraSystem(r=1.5, predators=5.0).prepare().simulate().get_values('prey.x').max().round()
 ```
 
 With a faster growth and fewer predators at the start, the prey peak at 41. `set_params` changes the parameters of an
@@ -67,15 +67,14 @@ uses for every argument a call leaves out. An argument of the call overrides one
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
-settings = LotkaVolterraSystem().get_run_settings()
-settings['until'], settings['dt']
+LotkaVolterraSystem.until, LotkaVolterraSystem.dt
 ```
 
 The tuned run ends at time 50 with a frame every 0.1. The call below ends it at 20, records a frame every 0.5, and
 starts from 20 prey.
 
 ```python continuation
-trajectory = simulate(LotkaVolterraSystem(), until=20.0, dt=0.5, initial_state={'prey.x': 20.0})
+trajectory = LotkaVolterraSystem().prepare().simulate(until=20.0, dt=0.5, initial_state={'prey.x': 20.0})
 trajectory.times[-1], trajectory.get_values('prey.x')[0]
 ```
 
@@ -92,7 +91,7 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
-trajectory = simulate(LotkaVolterraSystem(), until=30.0, dt=0.5, solver=RK4Solver(dt=0.01))
+trajectory = LotkaVolterraSystem().set_params(solver=RK4Solver(dt=0.01)).prepare().simulate(until=30.0, dt=0.5)
 trajectory.get_values('predators.x')[-1].round(3)
 ```
 

@@ -13,14 +13,13 @@ its surface keep raising.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import DynamicCarryingCapacitySystem
 
 SYSTEM = 'dynamic_carrying_capacity'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(DynamicCarryingCapacitySystem(), dt=0.1, observers=[observer])
+trajectory = DynamicCarryingCapacitySystem().prepare().simulate(dt=0.1, observers=[observer])
 
 # %%
 # Tumour and capacity

@@ -4,14 +4,18 @@
 # License: MIT
 
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import Role, StateSpec
+from ....core.components import Observable
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction
 from ...general.reactions.types import Stoichiometry
 from ..common.kinetics import CompartmentElement
@@ -41,7 +45,7 @@ class BranchElement(CompartmentElement):
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        x: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
     ) -> None:
         super().__init__(label, x=x)
 
@@ -66,7 +70,7 @@ class RatsElement(CompartmentElement):
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        x: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
     ) -> None:
         super().__init__(label, x=x)
 
@@ -296,6 +300,12 @@ class BinaryAntDecisionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.collective_behaviour import BinaryAntDecisionSystem
         >>> [branch.label for branch in BinaryAntDecisionSystem().prepare().system_.elements]
@@ -317,19 +327,26 @@ class BinaryAntDecisionSystem(BaseSystem):
         evaporation: float = 0.0,
         stochastic: bool = True,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.flux = flux
         self.k = k
         self.h = h
         self.evaporation = evaporation
         self.stochastic = stochastic
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of ants that choose between two equal branches to food.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of ants that choose between two equal branches to food.
 
         The branches lead to a food source.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         branches = [BranchElement(label) for label in ('left', 'right')]
         evaporations = [
             ReactionInteraction(
@@ -352,7 +369,7 @@ class BinaryAntDecisionSystem(BaseSystem):
             )
             for chosen, other in (('left', 'right'), ('right', 'left'))
         ]
-        return CompositeSystem(self.label, elements=branches, interactions=[*evaporations, *choices])
+        self.system_ = System(self.label, elements=branches, interactions=[*evaporations, *choices])
 
 
 class RatsSystem(BaseSystem):
@@ -386,6 +403,12 @@ class RatsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.collective_behaviour import RatsSystem
         >>> [group.x for group in RatsSystem().prepare().system_.elements]
@@ -408,8 +431,10 @@ class RatsSystem(BaseSystem):
         calming: float = 1.0,
         stochastic: bool = True,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_rats = n_rats
         self.nervous = nervous
         self.spontaneous = spontaneous
@@ -417,8 +442,14 @@ class RatsSystem(BaseSystem):
         self.calming = calming
         self.stochastic = stochastic
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of a colony of calm and nervous rats."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a colony of calm and nervous rats.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         groups = [
             RatsElement('calm', x=float(self.n_rats - self.nervous)),
             RatsElement('nervous', x=float(self.nervous)),
@@ -438,4 +469,4 @@ class RatsSystem(BaseSystem):
             k=self.calming,
             mode=MODES[self.stochastic],
         )
-        return CompositeSystem(self.label, elements=groups, interactions=[alarm, calming_reaction])
+        self.system_ = System(self.label, elements=groups, interactions=[alarm, calming_reaction])

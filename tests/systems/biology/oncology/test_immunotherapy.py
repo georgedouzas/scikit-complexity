@@ -2,7 +2,6 @@
 
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.systems.biology.oncology import (
     AntiPD1CheckpointSystem,
@@ -18,7 +17,7 @@ STIFF = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
 
 def _run(system, until, dt):
     """Return the trajectory of a system integrated with a stiff method."""
-    return simulate(system, dt=dt, solver=STIFF, until=until)
+    return system.set_params(solver=STIFF).prepare().simulate(dt=dt, until=until)
 
 
 def _count_peaks(values):

@@ -112,7 +112,7 @@ class PhasedElement(Element):
 
 def test_analysis_reads_a_trajectory():
     """Test that the series of a trajectory are read by name."""
-    trajectory = simulate(LotkaVolterraSystem(), until=1.0, random_state=0)
+    trajectory = LotkaVolterraSystem().prepare().simulate(until=1.0, random_state=0)
     series = _read_series(trajectory, ['prey.x'])
     assert series.labels == ['prey.x']
     assert series.values.mean(axis=0).tolist() == pytest.approx([trajectory.get_values('prey.x').mean()])
@@ -132,14 +132,14 @@ def test_analysis_reads_a_graph():
 
 def test_missing_data_kind_names_the_kinds():
     """Test that reading agents from an ODE trajectory names the data kinds it has."""
-    trajectory = simulate(LotkaVolterraSystem(), until=1.0, random_state=0)
+    trajectory = LotkaVolterraSystem().prepare().simulate(until=1.0, random_state=0)
     with pytest.raises(AnalysisError, match=r'no agent group.*Its data kinds are: series'):
         _read_snapshots(trajectory)
 
 
 def test_series_of_an_ode():
     """Test that the series of the prey and predators equal the trajectory's columns."""
-    trajectory = simulate(LotkaVolterraSystem(), until=5.0, random_state=0)
+    trajectory = LotkaVolterraSystem().prepare().simulate(until=5.0, random_state=0)
     series = _read_series(trajectory, ['prey.x', 'predators.x'])
     assert series.values.shape == (len(trajectory.times), 2)
     np.testing.assert_array_equal(series.values[:, 0], trajectory.get_values('prey.x'))
@@ -149,7 +149,7 @@ def test_series_of_an_ode():
 
 def test_series_labels_of_every_scalar_series():
     """Test that the series of a trajectory default to its scalar series, labelled by name."""
-    trajectory = simulate(LotkaVolterraSystem(), until=1.0, random_state=0)
+    trajectory = LotkaVolterraSystem().prepare().simulate(until=1.0, random_state=0)
     assert _read_series(trajectory).labels == ['prey.x', 'predators.x']
 
 
@@ -363,7 +363,7 @@ def test_lyapunov_of_a_stochastic_system_names_the_randomness():
 
 def test_network_analyses_of_a_system_without_a_network_name_the_space():
     """Test that network analyses of a trajectory of a system without a network space raise an error naming it."""
-    trajectory = simulate(LogisticGrowthSystem(), until=1.0)
+    trajectory = LogisticGrowthSystem().prepare().simulate(until=1.0)
     for analysis in (network_measures, motifs, renormalization):
         with pytest.raises(TagError, match=r'needs the space network, but the system has the space none'):
             analysis(trajectory)

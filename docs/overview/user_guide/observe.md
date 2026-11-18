@@ -14,7 +14,7 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 system = LotkaVolterraSystem(prey=30.0, predators=4.0, r=0.55, a=0.028, b=0.024, d=0.80)
-simulate(system, until=20, dt=1.0).get_values('prey.x').round(1)[:6].tolist()
+system.prepare().simulate(until=20, dt=1.0).get_values('prey.x').round(1)[:6].tolist()
 ```
 
 The hares rise from 30.0 to 81.2 thousand in 1903 and fall to 18.6 thousand in 1905, as in the build tutorial.
@@ -45,7 +45,7 @@ def conserved(s):
 
 
 observables = [Observable('total', total), Observable('V', conserved)]
-observed = simulate(system, until=20, dt=1.0, observables=observables)
+observed = system.prepare().simulate(until=20, dt=1.0, observables=observables)
 observed.get_values('total').round(1)[:4].tolist(), np.ptp(observed.get_values('V')) < 1e-4
 ```
 
@@ -59,7 +59,7 @@ An observable must pickle with its system, so its functions are module-level fun
 from skcomplex.core.errors import ValidationError
 
 try:
-    simulate(system, until=1, observables=[Observable('total', lambda s: s.prey.x + s.predators.x)])
+    system.prepare().simulate(until=1, observables=[Observable('total', lambda s: s.prey.x + s.predators.x)])
 except ValidationError as error:
     message = str(error)
 message.splitlines()[1][:80]
@@ -224,7 +224,7 @@ from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 system = LotkaVolterraSystem(prey=30.0, predators=4.0, r=0.55, a=0.028, b=0.024, d=0.80)
 folder = Path(tempfile.mkdtemp())
 observer = RerunObserver('pelts', save_path=folder / 'pelts.rrd', interval=5)
-simulate(system, until=20, dt=0.1, observers=[observer])
+system.prepare().simulate(until=20, dt=0.1, observers=[observer])
 (folder / 'pelts.rrd').exists(), observer.logged_frames_
 ```
 
@@ -343,7 +343,7 @@ A Rerun blueprint arranges the views of the viewer. Every visual declares the vi
 an observer on a compiled problem builds the blueprint without sending it anywhere, so it can be inspected first.
 
 ```python continuation
-problem = simulate(system, until=0).problem
+problem = system.prepare().simulate(until=0).problem
 layout = RerunObserver(blueprint='default').prepare(problem)
 [type(view).__name__ for view in layout.views_], [str(view.origin) for view in layout.views_]
 ```
@@ -373,7 +373,7 @@ import rerun.blueprint as rrb
 
 hares_only = rrb.Blueprint(rrb.TimeSeriesView(origin='/prey', name='hares'), collapse_panels=True)
 custom = RerunObserver('pelts', save_path=folder / 'hares.rrd', blueprint=hares_only)
-simulate(system, until=20, observers=[custom])
+system.prepare().simulate(until=20, observers=[custom])
 sorted(file.name for file in folder.glob('hares.*'))
 ```
 
@@ -411,7 +411,7 @@ lynx = np.array(
     + [8.0, 12.3, 19.5, 45.7, 51.1, 29.7, 15.8, 9.7, 10.1, 8.6]
 )
 system = LotkaVolterraSystem(prey=30.0, predators=4.0, r=0.55, a=0.028, b=0.024, d=0.80)
-trajectory = simulate(system, until=20, dt=0.1)
+trajectory = system.prepare().simulate(until=20, dt=0.1)
 times = 1900 + np.asarray(trajectory.times)
 
 figure, (left, right) = plt.subplots(1, 2, figsize=(10, 4))

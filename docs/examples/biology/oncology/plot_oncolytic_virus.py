@@ -13,7 +13,6 @@ two thirds of the carrying capacity: the virus reduces the tumour but does not e
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import OncolyticVirusSystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'oncolytic_virus'
 
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(OncolyticVirusSystem(), observers=[observer])
+trajectory = OncolyticVirusSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Coexistence point

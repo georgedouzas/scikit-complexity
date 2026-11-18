@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import IntrinsicInstabilitySystem
 
@@ -31,7 +30,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(IntrinsicInstabilitySystem(), observers=[observer], random_state=0)
+trajectory = IntrinsicInstabilitySystem().prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Leaving the fixed point along its unstable direction

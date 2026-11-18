@@ -13,14 +13,13 @@ principle.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import LotkaVolterraWithHarvestingSystem
 
 SYSTEM = 'lotka_volterra_with_harvesting'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(LotkaVolterraWithHarvestingSystem(prey=16.0, predators=8.0), observers=[observer])
+trajectory = LotkaVolterraWithHarvestingSystem(prey=16.0, predators=8.0).prepare().simulate(observers=[observer])
 
 # %%
 # Volterra's principle
@@ -30,10 +29,10 @@ trajectory = simulate(LotkaVolterraWithHarvestingSystem(prey=16.0, predators=8.0
 # shifted centre.
 
 harvested = trajectory
-unharvested = simulate(
-    LotkaVolterraWithHarvestingSystem(prey=16.0, predators=8.0, prey_harvest=0.0, predator_harvest=0.0),
-    until=50,
-    dt=0.1,
+unharvested = (
+    LotkaVolterraWithHarvestingSystem(prey=16.0, predators=8.0, prey_harvest=0.0, predator_harvest=0.0)
+    .prepare()
+    .simulate(until=50, dt=0.1)
 )
 fig, ax = plt.subplots(figsize=(6, 5))
 ax.plot(

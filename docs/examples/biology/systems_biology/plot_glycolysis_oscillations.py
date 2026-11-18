@@ -11,14 +11,13 @@ and fall with a period of minutes, driven by the feedback of ATP and AMP on phos
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.systems_biology import GlycolysisOscillationsSystem
 
 SYSTEM = 'glycolysis_oscillations'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=3)
-trajectory = simulate(GlycolysisOscillationsSystem(), observers=[observer])
+trajectory = GlycolysisOscillationsSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Effect of the dehydrogenase
@@ -28,7 +27,7 @@ trajectory = simulate(GlycolysisOscillationsSystem(), observers=[observer])
 
 fig, (nadh, pool) = plt.subplots(1, 2, figsize=(11, 4.5))
 for v4 in (5.0, 10.0, 15.0):
-    run = simulate(GlycolysisOscillationsSystem(V4=v4))
+    run = GlycolysisOscillationsSystem(V4=v4).prepare().simulate()
     nadh.plot(run.times, run.get_values('extract.NADH'), label=f'V4 = {v4}')
     pool.plot(run.times, run.get_values('extract.NAD') + run.get_values('extract.NADH'), label=f'V4 = {v4}')
 nadh.set_xlabel('time (min)')

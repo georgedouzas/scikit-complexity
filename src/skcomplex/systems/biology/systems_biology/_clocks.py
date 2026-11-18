@@ -3,15 +3,18 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.laws.utils import hill
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction
 from ..common.kinetics import MichaelisMentenInteraction
 
@@ -102,26 +105,26 @@ class PerClockElement(Element):
         self,
         label: str,
         *,
-        M: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        P0: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        P1: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        P2: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        PN: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        v_s: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.76,
-        v_m: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.65,
-        K_m: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        k_s: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.38,
-        v_d: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.95,
-        K_d: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.2,
-        k1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.9,
-        k2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.3,
-        K_I: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        n: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 4.0,
-        V1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.2,
-        V2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.58,
-        V3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
-        V4: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.5,
-        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        M: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        P0: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        P1: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        P2: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        PN: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        v_s: Annotated[float, RealSet.open(0, oo)] = 0.76,
+        v_m: Annotated[float, RealSet.open(0, oo)] = 0.65,
+        K_m: Annotated[float, RealSet.open(0, oo)] = 0.5,
+        k_s: Annotated[float, RealSet.open(0, oo)] = 0.38,
+        v_d: Annotated[float, RealSet.open(0, oo)] = 0.95,
+        K_d: Annotated[float, RealSet.open(0, oo)] = 0.2,
+        k1: Annotated[float, RealSet.open(0, oo)] = 1.9,
+        k2: Annotated[float, RealSet.open(0, oo)] = 1.3,
+        K_I: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        n: Annotated[float, RealSet.open(0, oo)] = 4.0,
+        V1: Annotated[float, RealSet.open(0, oo)] = 3.2,
+        V2: Annotated[float, RealSet.open(0, oo)] = 1.58,
+        V3: Annotated[float, RealSet.open(0, oo)] = 5.0,
+        V4: Annotated[float, RealSet.open(0, oo)] = 2.5,
+        K: Annotated[float, RealSet.open(0, oo)] = 2.0,
     ) -> None:
         super().__init__(label)
         self.M = M
@@ -172,6 +175,12 @@ class CircadianClockSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.systems_biology import CircadianClockSystem
         >>> CircadianClockSystem(v_d=1.2).prepare().system_.elements[0].v_d
@@ -192,15 +201,23 @@ class CircadianClockSystem(BaseSystem):
         k_s: float = 0.38,
         n: float = 4.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.v_s = v_s
         self.v_d = v_d
         self.k_s = k_s
         self.n = n
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of Goldbeter's system of the Drosophila circadian clock."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set Goldbeter's system of the Drosophila circadian clock.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         clock = PerClockElement('clock', v_s=self.v_s, v_d=self.v_d, k_s=self.k_s, n=self.n)
         reactions = [
             ReactionInteraction(
@@ -282,4 +299,4 @@ class CircadianClockSystem(BaseSystem):
                 km=lambda s: s.target.K_d,
             ),
         ]
-        return CompositeSystem(self.label, elements=[clock], interactions=reactions)
+        self.system_ = System(self.label, elements=[clock], interactions=reactions)

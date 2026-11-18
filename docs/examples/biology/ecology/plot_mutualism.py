@@ -12,14 +12,13 @@ with the handling time of the partner's resource, so the populations settle inst
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import MutualismSystem
 
 SYSTEM = 'mutualism'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(MutualismSystem(first=5.0, second=2.0), observers=[observer], until=30)
+trajectory = MutualismSystem(first=5.0, second=2.0).prepare().simulate(observers=[observer], until=30)
 
 # %%
 # With and without the partner
@@ -27,7 +26,7 @@ trajectory = simulate(MutualismSystem(first=5.0, second=2.0), observers=[observe
 # Running each species alone, with the other set to zero, gives logistic growth to its carrying capacity of 50. With
 # the partner, both should settle clearly above that line.
 
-alone = simulate(MutualismSystem(first=5.0, second=0.0), until=30)
+alone = MutualismSystem(first=5.0, second=0.0).prepare().simulate(until=30)
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(trajectory.times, trajectory.get_values('first.x'), label='first, with partner')
 ax.plot(trajectory.times, trajectory.get_values('second.x'), label='second, with partner')
