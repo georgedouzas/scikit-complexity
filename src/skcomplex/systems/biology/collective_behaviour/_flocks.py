@@ -4,24 +4,23 @@
 # License: MIT
 
 import math
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
 from typing import Annotated, cast
 
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import Interaction, MapInteraction, PairInteraction
-from ....core.components.laws import RateLaw
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction, PairInteraction
+from ....core.components.laws import RateLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace, ContinuousSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver, SystemView
-from ....core.specs import ParameterSpec, Role, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, Role, VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ...general.agents import MovementInteraction
@@ -35,8 +34,8 @@ class BoidView(AgentView):
     `BoidElement` names this class with `_get_view`, so its rules read them with checked types.
     """
 
-    vx: float
-    vy: float
+    x_d1: float
+    y_d1: float
     radius: float
     separation_radius: float
     cohesion: float
@@ -56,17 +55,18 @@ class BoidElement(Element):
     Every step a boid sees the boids within `radius`. `FlockingInteraction` steers it by cohesion toward their center,
     by separation away from those closer than `separation_radius`, and by alignment toward their mean velocity, with
     its speed between `min_speed` and `max_speed`, and `FlightInteraction` moves it on a torus of side `width` by
-    `height`.
+    `height`. Its position is `x` and `y`, and its velocity `"x'"` and `"y'"`, which its rules change as `agent.x_d1`
+    and `agent.y_d1`.
 
     Args:
         label:
             The label of the agent or group.
 
-        vx:
-            The initial horizontal velocity.
+        x:
+            The initial horizontal position.
 
-        vy:
-            The initial vertical velocity.
+        y:
+            The initial vertical position.
 
         radius:
             The distance within which a boid sees others.
@@ -95,34 +95,45 @@ class BoidElement(Element):
         height:
             The height of the torus.
 
+        values:
+            Further values by name, such as the velocity `{"x'": 1.0, "y'": 0.0}`.
+
+        size:
+            The number of boids, or `None` for one.
+
+        space:
+            The space of the boids, or `None` for none.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.biology.collective_behaviour import BoidElement
-        >>> GroupElement('flock', element=BoidElement, size=10, location=(5.0, 5.0)).size
+        >>> BoidElement('flock', x=5.0, y=5.0, values={"x'": 1.0, "y'": 0.0}, size=10).size
         10
     """
 
-    visual = VisualSpec('agents', {'color_by': 'vx'})
+    visual = VisualSpec('agents', {'color_by': 'x_d1'})
 
     def __init__(
         self,
         label: str,
         *,
-        vx: Annotated[float, StateSpec(role='velocity')] = 1.0,
-        vy: Annotated[float, StateSpec(role='velocity')] = 0.0,
-        radius: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
-        separation_radius: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        cohesion: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        separation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        alignment: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        min_speed: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        max_speed: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        width: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 30.0,
-        height: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 30.0,
+        x: float | Array = 0.0,
+        y: float | Array = 0.0,
+        radius: Annotated[float, RealSet.open(0, oo)] = 5.0,
+        separation_radius: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        cohesion: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        separation: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        alignment: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        min_speed: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        max_speed: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        width: Annotated[float, RealSet.open(0, oo)] = 30.0,
+        height: Annotated[float, RealSet.open(0, oo)] = 30.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
-        self.vx = vx
-        self.vy = vy
+        super().__init__(label, values=values, size=size, space=space)
+        self.x = x
+        self.y = y
         self.radius = radius
         self.separation_radius = separation_radius
         self.cohesion = cohesion
@@ -147,7 +158,9 @@ class SpatialBoidView(AgentView):
     `SpatialBoidElement` names this class with `_get_view`, so its rules read them with checked types.
     """
 
-    velocity: Array
+    x_d1: float
+    y_d1: float
+    z_d1: float
     radius: float
     separation_radius: float
     cohesion: float
@@ -163,14 +176,22 @@ class SpatialBoidElement(Element):
     It steers by the velocity and the position of those boids.
 
     Every step `HeadingInteraction` steers a boid by cohesion, separation, and alignment with the boids within `radius`,
-    with its speed between `min_speed` and `max_speed`, and `SpatialFlightInteraction` moves it along its velocity.
+    with its speed between `min_speed` and `max_speed`, and `SpatialFlightInteraction` moves it along its velocity. Its
+    position is `x`, `y`, and `z`, and its velocity `"x'"`, `"y'"`, and `"z'"`, which its rules change as `agent.x_d1`,
+    `agent.y_d1`, and `agent.z_d1`.
 
     Args:
         label:
             The label of the agent or group.
 
-        velocity:
-            The initial velocity, one component per dimension of the space.
+        x:
+            The initial position along the first axis.
+
+        y:
+            The initial position along the second axis.
+
+        z:
+            The initial position along the third axis.
 
         radius:
             The distance within which a boid sees others.
@@ -193,10 +214,18 @@ class SpatialBoidElement(Element):
         max_speed:
             The largest speed.
 
+        values:
+            Further values by name, such as the velocity `{"x'": 1.0, "y'": 0.0, "z'": 0.0}`.
+
+        size:
+            The number of boids, or `None` for one.
+
+        space:
+            The space of the boids, or `None` for none.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.biology.collective_behaviour import SpatialBoidElement
-        >>> GroupElement('flock', element=SpatialBoidElement, size=10).size
+        >>> SpatialBoidElement('flock', size=10).size
         10
     """
 
@@ -206,17 +235,24 @@ class SpatialBoidElement(Element):
         self,
         label: str,
         *,
-        velocity: Annotated[npt.ArrayLike, StateSpec(vector=True, role='velocity')] = 0.0,
-        radius: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
-        separation_radius: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        cohesion: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        separation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        alignment: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        min_speed: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        max_speed: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        x: float | Array = 0.0,
+        y: float | Array = 0.0,
+        z: float | Array = 0.0,
+        radius: Annotated[float, RealSet.open(0, oo)] = 5.0,
+        separation_radius: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        cohesion: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        separation: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        alignment: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        min_speed: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        max_speed: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
-        self.velocity = velocity
+        super().__init__(label, values=values, size=size, space=space)
+        self.x = x
+        self.y = y
+        self.z = z
         self.radius = radius
         self.separation_radius = separation_radius
         self.cohesion = cohesion
@@ -232,7 +268,7 @@ class SpatialBoidElement(Element):
 
 
 class FlightInteraction(MovementInteraction):
-    """Flight of every boid by its velocity `(vx, vy)` in one step.
+    """Flight of every boid by its velocity `("x'", "y'")` in one step.
 
     The boids fly on the torus of side `width` by `height`.
 
@@ -258,8 +294,8 @@ class FlightInteraction(MovementInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        probability: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 1.0,
+        target: Role,
+        probability: Annotated[float, RealSet.closed(0, 1)] = 1.0,
     ) -> None:
         super().__init__(label, target=target, step=self._fly, probability=probability, schedule='member')
 
@@ -267,7 +303,7 @@ class FlightInteraction(MovementInteraction):
     def _fly(agent: AgentViewProtocol, system: SystemViewProtocol) -> tuple[float, ...]:
         """Return the position of a boid after one step along its velocity."""
         boid = cast(BoidView, agent)
-        position = np.asarray(boid.location, dtype=float) + np.array([boid.vx, boid.vy])
+        position = np.asarray(boid.location, dtype=float) + np.array([boid.x_d1, boid.y_d1])
         return tuple(float(item) for item in np.mod(position, np.array([boid.width, boid.height])))
 
 
@@ -298,11 +334,11 @@ class FlockingInteraction(ZoneCouplingInteraction):
         ['mean', 'sum', 'mean']
     """
 
-    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()], phase: str | None = None) -> None:
+    def __init__(self, label: str, *, target: Role, phase: str | None = None) -> None:
         super().__init__(
             label,
             target=target,
-            write=('vx', 'vy'),
+            write=('x_d1', 'y_d1'),
             radii=(
                 RadiusSpec('radius', self._get_cohesion, reduce='mean'),
                 RadiusSpec('separation_radius', self._get_separation),
@@ -330,10 +366,10 @@ class FlockingInteraction(ZoneCouplingInteraction):
     @staticmethod
     def _get_alignment(agent: BoidView, other: BoidView, system: SystemView) -> Array:
         """Return the turn of a boid toward the velocity of another."""
-        return agent.alignment * np.array([other.vx - agent.vx, other.vy - agent.vy])
+        return agent.alignment * np.array([other.x_d1 - agent.x_d1, other.y_d1 - agent.y_d1])
 
 
-class HeadingInteraction(MapInteraction):
+class HeadingInteraction(Interaction):
     """Steering of the velocity of every boid by cohesion, separation, and alignment.
 
     The speed stays bounded.
@@ -341,8 +377,7 @@ class HeadingInteraction(MapInteraction):
     The velocity of a boid gains the mean offset to the boids within `radius` weighted by `cohesion`, loses the summed
     offset to the boids within `separation_radius` weighted by `separation`, and gains the mean difference of their
     velocities from its own weighted by `alignment`. Its speed is then clipped between `min_speed` and `max_speed`.
-    Offsets are the shortest ones of the space. It is the agent form of a map of the velocity under the `'member'`
-    schedule.
+    Offsets are the shortest ones of the space. Every boid steers in its own activation.
 
     Args:
         label:
@@ -356,46 +391,65 @@ class HeadingInteraction(MapInteraction):
 
     Examples:
         >>> from skcomplex.systems.biology.collective_behaviour import HeadingInteraction
-        >>> HeadingInteraction('heading', target='flock').schedule
-        'member'
+        >>> HeadingInteraction('heading', target='flock').target
+        'flock'
     """
 
-    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()], phase: str | None = None) -> None:
-        super().__init__(
-            label,
-            target=target,
-            state='velocity',
-            function=self._steer,
-            schedule='member',
-            form='agent',
-            phase=phase,
-        )
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role, phase: str | None = None) -> None:
+        super().__init__(label)
+        self.target = target
+        self.phase = phase
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the steering rule of every boid.
+
+        Args:
+            context:
+                The namespace of the boids.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [UpdateLaw(context.target, self.steer, phase=self.phase)]
+
+    @staticmethod
+    def _get_velocity(boid: SpatialBoidView) -> Array:
+        """Return the velocity of a boid as a vector."""
+        return np.array([boid.x_d1, boid.y_d1, boid.z_d1], dtype=float)
 
     @staticmethod
     def _get_steering(boid: SpatialBoidView, others: list[SpatialBoidView]) -> Array:
         """Return the change of the velocity of a boid from the boids it sees."""
         offsets = np.array([boid.get_displacement_to(other) for other in others])
-        velocities = np.array([other.velocity for other in others])
+        velocities = np.array([HeadingInteraction._get_velocity(other) for other in others])
         close = np.linalg.norm(offsets, axis=1) < boid.separation_radius
         return (
             boid.cohesion * offsets.mean(axis=0)
             - boid.separation * offsets[close].sum(axis=0)
-            + boid.alignment * (velocities.mean(axis=0) - boid.velocity)
+            + boid.alignment * (velocities.mean(axis=0) - HeadingInteraction._get_velocity(boid))
         )
 
-    @staticmethod
-    def _steer(agent: AgentViewProtocol, system: SystemViewProtocol) -> Array:
-        """Return the velocity of a boid after one step of steering.
+    def steer(self, agent: SpatialBoidView, system: SystemView) -> None:
+        """Steer a boid by the boids it sees, with its speed clipped.
 
-        Its speed is clipped.
+        Args:
+            agent:
+                The boid.
+
+            system:
+                The system.
         """
-        boid = cast(SpatialBoidView, agent)
-        others = [cast(SpatialBoidView, other) for other in boid.get_neighbors(boid.radius)]
-        velocity = np.asarray(boid.velocity, dtype=float)
+        del system
+        if not agent.alive:
+            return
+        others = [cast(SpatialBoidView, other) for other in agent.get_neighbors(agent.radius)]
+        velocity = self._get_velocity(agent)
         if others:
-            velocity = velocity + HeadingInteraction._get_steering(boid, others)
+            velocity = velocity + self._get_steering(agent, others)
         speed = float(np.linalg.norm(velocity))
-        return velocity * np.clip(speed, boid.min_speed, boid.max_speed) / speed if speed else velocity
+        velocity = velocity * np.clip(speed, agent.min_speed, agent.max_speed) / speed if speed else velocity
+        agent.x_d1, agent.y_d1, agent.z_d1 = (float(item) for item in velocity)
 
 
 class MorsePotentialInteraction(PairInteraction):
@@ -554,8 +608,8 @@ class SpatialFlightInteraction(MovementInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        probability: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 1.0,
+        target: Role,
+        probability: Annotated[float, RealSet.closed(0, 1)] = 1.0,
     ) -> None:
         super().__init__(label, target=target, step=self._fly, probability=probability, schedule='member')
 
@@ -563,7 +617,7 @@ class SpatialFlightInteraction(MovementInteraction):
     def _fly(agent: AgentViewProtocol, system: SystemViewProtocol) -> Array:
         """Return the position of a boid after one step along its velocity."""
         boid = cast(SpatialBoidView, agent)
-        return np.asarray(boid.location, dtype=float) + np.asarray(boid.velocity, dtype=float)
+        return np.asarray(boid.location, dtype=float) + HeadingInteraction._get_velocity(boid)
 
 
 class BoidsSystem(BaseSystem):
@@ -573,7 +627,7 @@ class BoidsSystem(BaseSystem):
 
     The boids start at random positions with random headings on a torus. Alignment makes neighbours fly in the same
     direction and cohesion pulls them together, so the flock becomes polarized while separation keeps the birds apart.
-    The system has the group `flock` and the velocities `vx` and `vy` of its boids.
+    The system has the group `flock` and the velocities `"x'"` and `"y'"` of its boids.
 
     Args:
         n_boids:
@@ -651,28 +705,28 @@ class BoidsSystem(BaseSystem):
         super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         headings = rng.uniform(0.0, 2 * math.pi, self.n_boids)
-        flock = GroupElement(
+        positions = rng.uniform(0.0, self.size, (self.n_boids, 2))
+        space = ContinuousSpace(extent=(self.size, self.size), boundary='periodic')
+        flock = BoidElement(
             'flock',
-            element=BoidElement,
+            x=positions[:, 0],
+            y=positions[:, 1],
+            radius=self.radius,
+            cohesion=self.cohesion,
+            separation=self.separation,
+            alignment=self.alignment,
+            width=self.size,
+            height=self.size,
+            values={"x'": np.cos(headings), "y'": np.sin(headings)},
             size=self.n_boids,
-            values={
-                'vx': np.cos(headings),
-                'vy': np.sin(headings),
-                'radius': self.radius,
-                'cohesion': self.cohesion,
-                'separation': self.separation,
-                'alignment': self.alignment,
-                'width': self.size,
-                'height': self.size,
-            },
-            location=[tuple(point) for point in rng.uniform(0.0, self.size, (self.n_boids, 2))],
+            space=space,
         )
         interactions = [FlockingInteraction('flocking', target='flock'), FlightInteraction('flight', target='flock')]
         self.system_ = System(
             self.label,
             elements=[flock],
             interactions=interactions,
-            space=ContinuousSpace(extent=(self.size, self.size), boundary='periodic'),
+            space=space,
         )
 
 
@@ -681,7 +735,7 @@ class Boids3dSystem(BaseSystem):
 
     The boids start at random positions with random headings. Every step a boid steers by the boids within `radius` and
     then flies along its velocity, so with alignment alone the flock turns to one heading and keeps its spread in depth.
-    The system has the group `flock` and the vector state `velocity` of its boids.
+    The system has the group `flock` and the velocities `"x'"`, `"y'"`, and `"z'"` of its boids.
 
     Args:
         n_boids:
@@ -759,18 +813,21 @@ class Boids3dSystem(BaseSystem):
         super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         headings = rng.normal(size=(self.n_boids, 3))
-        flock = GroupElement(
+        velocities = headings / np.linalg.norm(headings, axis=1, keepdims=True)
+        positions = rng.uniform(0.0, self.size, (self.n_boids, 3))
+        space = ContinuousSpace(extent=(self.size, self.size, self.size), boundary='periodic')
+        flock = SpatialBoidElement(
             'flock',
-            element=SpatialBoidElement,
+            x=positions[:, 0],
+            y=positions[:, 1],
+            z=positions[:, 2],
+            radius=self.radius,
+            cohesion=self.cohesion,
+            separation=self.separation,
+            alignment=self.alignment,
+            values={"x'": velocities[:, 0], "y'": velocities[:, 1], "z'": velocities[:, 2]},
             size=self.n_boids,
-            values={
-                'velocity': headings / np.linalg.norm(headings, axis=1, keepdims=True),
-                'radius': self.radius,
-                'cohesion': self.cohesion,
-                'separation': self.separation,
-                'alignment': self.alignment,
-            },
-            location=[tuple(point) for point in rng.uniform(0.0, self.size, (self.n_boids, 3))],
+            space=space,
         )
         interactions = [
             HeadingInteraction('heading', target='flock'),
@@ -780,7 +837,7 @@ class Boids3dSystem(BaseSystem):
             self.label,
             elements=[flock],
             interactions=interactions,
-            space=ContinuousSpace(extent=(self.size, self.size, self.size), boundary='periodic'),
+            space=space,
         )
 
 

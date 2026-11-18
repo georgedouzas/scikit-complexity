@@ -1278,8 +1278,8 @@ def test_two_dimensional_space_keeps_recorded_trajectories():
             snapshot = trajectory.get_agents('flock', int(frame))
             assert snapshot.ids.tolist() == values['ids']
             np.testing.assert_allclose(snapshot.locations, values['locations'], rtol=1e-9, atol=1e-9)
-            np.testing.assert_allclose(snapshot.values['vx'], values['vx'], rtol=1e-9, atol=1e-9)
-            np.testing.assert_allclose(snapshot.values['vy'], values['vy'], rtol=1e-9, atol=1e-9)
+            np.testing.assert_allclose(snapshot.values['x_d1'], values['vx'], rtol=1e-9, atol=1e-9)
+            np.testing.assert_allclose(snapshot.values['y_d1'], values['vy'], rtol=1e-9, atol=1e-9)
 
 
 def test_three_dimensional_box_places_agents_inside():
