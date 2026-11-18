@@ -5,10 +5,7 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.systems import System
 from skcomplex.systems.biology.collective_behaviour import (
     BirdSwarmSystem,
@@ -29,7 +26,7 @@ def test_boids_align():
 
     def polarization(frame):
         snapshot = trajectory.get_agents('flock', frame)
-        velocity = np.stack([snapshot.values['vx'], snapshot.values['vy']], axis=1)
+        velocity = np.stack([snapshot.values['x_d1'], snapshot.values['y_d1']], axis=1)
         return np.hypot(*(velocity / np.hypot(velocity[:, :1], velocity[:, 1:])).mean(axis=0))
 
     assert polarization(0) < 0.3
@@ -42,7 +39,7 @@ def test_boids_3d_align_in_three_dimensions():
     trajectory = system.prepare().simulate(dt=1, random_state=0, until=200)
 
     def polarization(frame):
-        velocity = trajectory.get_agents('flock', frame).values['velocity']
+        velocity = _get_velocity(trajectory.get_agents('flock', frame).values)
         return np.linalg.norm((velocity / np.linalg.norm(velocity, axis=1, keepdims=True)).mean(axis=0))
 
     assert polarization(0) < 0.3
@@ -61,10 +58,27 @@ def test_bird_swarm_flies_together():
     assert np.hypot(*(positions - positions.mean(axis=0)).T).max() < 10.0
 
 
+def _get_velocity(values):
+    """Return the velocities of boids in three dimensions, one row per boid."""
+    return np.stack([values[name] for name in ('x_d1', 'y_d1', 'z_d1')], axis=1)
+
+
 def _velocities(values, locations, interactions, until=1):
     """Return the group of boids at the last frame of a run in a periodic cube of side 10."""
-    flock = GroupElement('flock', element=SpatialBoidElement, size=len(locations), values=values, location=locations)
+    values = dict(values)
+    velocity = np.asarray(values.pop('velocity'))
+    points = np.asarray(locations)
     space = ContinuousSpace(extent=(10.0, 10.0, 10.0), boundary='periodic')
+    flock = SpatialBoidElement(
+        'flock',
+        x=points[:, 0],
+        y=points[:, 1],
+        z=points[:, 2],
+        **values,
+        values={"x'": velocity[:, 0], "y'": velocity[:, 1], "z'": velocity[:, 2]},
+        size=len(locations),
+        space=space,
+    )
     trajectory = (
         System(elements=[flock], interactions=interactions, space=space).prepare().simulate(until=until, random_state=0)
     )
@@ -88,7 +102,7 @@ def test_heading_aligns_with_the_velocity_of_the_boids_in_sight():
         'alignment': 0.5,
     }
     locations = [(5.0, 5.0, 4.0), (5.0, 5.0, 6.0)]
-    velocities = _velocities(values, locations, [HeadingInteraction('heading', target='flock')]).values['velocity']
+    velocities = _get_velocity(_velocities(values, locations, [HeadingInteraction('heading', target='flock')]).values)
     assert velocities[0][2] > 0.0
     assert velocities[1][0] > 0.0
     assert np.linalg.norm(velocities, axis=1).max() <= 1.0 + 1e-12
@@ -99,12 +113,12 @@ def test_heading_steers_towards_far_boids_and_away_from_close_ones():
     """Test that cohesion pulls a boid along the depth towards a far boid and separation pushes it from a close one."""
     far = {'velocity': np.array([[0.5, 0.0, 0.0]] * 2), 'cohesion': 0.1, 'separation': 0.0, 'alignment': 0.0}
     locations = [(5.0, 5.0, 3.0), (5.0, 5.0, 6.0)]
-    velocities = _velocities(far, locations, [HeadingInteraction('heading', target='flock')]).values['velocity']
+    velocities = _get_velocity(_velocities(far, locations, [HeadingInteraction('heading', target='flock')]).values)
     assert velocities[0][2] == pytest.approx(-velocities[1][2], rel=0.5)
     assert min(velocities[0][2], -velocities[1][2]) > 0.0
     close = {'velocity': np.array([[0.5, 0.0, 0.0]] * 2), 'cohesion': 0.0, 'separation': 0.5, 'alignment': 0.0}
     locations = [(5.0, 5.0, 4.8), (5.0, 5.0, 5.2)]
-    velocities = _velocities(close, locations, [HeadingInteraction('heading', target='flock')]).values['velocity']
+    velocities = _get_velocity(_velocities(close, locations, [HeadingInteraction('heading', target='flock')]).values)
     assert velocities[0][2] < 0.0
     assert velocities[1][2] > 0.0
 
@@ -113,20 +127,26 @@ def test_heading_keeps_a_lone_boid_on_course():
     """Test that a boid with no other in sight keeps its velocity."""
     values = {'velocity': np.array([[0.6, 0.0, 0.0]])}
     velocities = _velocities(values, [(5.0, 5.0, 5.0)], [HeadingInteraction('heading', target='flock')]).values
-    np.testing.assert_allclose(velocities['velocity'], [[0.6, 0.0, 0.0]])
+    np.testing.assert_allclose(_get_velocity(velocities), [[0.6, 0.0, 0.0]])
 
 
 def test_flocking_interaction_steers_by_cohesion_and_separation_with_bounded_speed():
     """Test that two boids steer toward and away from each other across the edge of the torus, at least `min_speed`."""
-    values = {'vx': [0.5, 0.0], 'vy': [0.0, 0.5], 'cohesion': 0.1, 'separation': 0.5, 'alignment': 0.0}
-    flock = GroupElement('flock', element=BoidElement, size=2, values=values, location=[(29.6, 1.0), (0.4, 1.0)])
-    system = CompositeSystem(
-        elements=[flock],
-        interactions=[FlockingInteraction('flocking', target='flock')],
-        space=ContinuousSpace(extent=(30.0, 30.0), boundary='periodic'),
+    space = ContinuousSpace(extent=(30.0, 30.0), boundary='periodic')
+    flock = BoidElement(
+        'flock',
+        x=[29.6, 0.4],
+        y=[1.0, 1.0],
+        cohesion=0.1,
+        separation=0.5,
+        alignment=0.0,
+        values={"x'": [0.5, 0.0], "y'": [0.0, 0.5]},
+        size=2,
+        space=space,
     )
-    snapshot = simulate(system, random_state=0, until=1).get_agents('flock', 1)
-    found = np.stack([snapshot.values['vx'], snapshot.values['vy']], axis=1)
+    system = System(elements=[flock], interactions=[FlockingInteraction('flocking', target='flock')], space=space)
+    snapshot = system.prepare().simulate(random_state=0, until=1).get_agents('flock', 1)
+    found = np.stack([snapshot.values['x_d1'], snapshot.values['y_d1']], axis=1)
     pull = (0.1 - 0.5) * np.array([0.8, 0.0])
     steered = [np.array([0.5, 0.0]) + pull, np.array([0.0, 0.5]) - pull]
     expected = [vector * max(np.hypot(*vector), 0.5) / np.hypot(*vector) for vector in steered]
@@ -135,12 +155,9 @@ def test_flocking_interaction_steers_by_cohesion_and_separation_with_bounded_spe
 
 def test_flight_interaction_moves_boids_by_velocity_on_torus():
     """Test that every boid moves by its velocity in one step, wrapping around the torus."""
-    values = {'vx': [1.0, -2.0], 'vy': [0.5, 0.0]}
-    flock = GroupElement('flock', element=BoidElement, size=2, values=values, location=[(29.5, 1.0), (1.0, 2.0)])
-    system = CompositeSystem(
-        elements=[flock],
-        interactions=[FlightInteraction('flight', target='flock')],
-        space=ContinuousSpace(extent=(30.0, 30.0), boundary='periodic'),
-    )
-    snapshot = simulate(system, random_state=0, until=1).get_agents('flock', 1)
+    space = ContinuousSpace(extent=(30.0, 30.0), boundary='periodic')
+    velocity = {"x'": [1.0, -2.0], "y'": [0.5, 0.0]}
+    flock = BoidElement('flock', x=[29.5, 1.0], y=[1.0, 2.0], values=velocity, size=2, space=space)
+    system = System(elements=[flock], interactions=[FlightInteraction('flight', target='flock')], space=space)
+    snapshot = system.prepare().simulate(random_state=0, until=1).get_agents('flock', 1)
     np.testing.assert_allclose(snapshot.locations, [[0.5, 1.5], [29.0, 2.0]])

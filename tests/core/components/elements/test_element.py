@@ -13,7 +13,14 @@ from sklearn.base import clone
 from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element, GroupElement, Quantity
 from skcomplex.core.components.laws import JumpLaw, RateLaw, RuleLaw
-from skcomplex.core.components.spaces import AxisSpec, ContinuousSpace, LatticeSpace, NetworkSpace, PhaseSpace
+from skcomplex.core.components.spaces import (
+    AxisSpec,
+    ContinuousSpace,
+    LatticeSpace,
+    LayerSpec,
+    NetworkSpace,
+    PhaseSpace,
+)
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
@@ -317,9 +324,15 @@ def test_prepare_accepts_a_size_counted_by_numpy():
     [('links', NetworkSpace(nx.path_graph(3))), ('edges', ContinuousSpace(n_dim=2)), ('edges', None)],
 )
 def test_prepare_rejects_an_on_that_names_no_links_of_a_network(on, space):
-    """Test that `on` other than the edges or hyperedges of a network space raises an error with an example."""
-    with pytest.raises(ValidationError, match=r"has on = .*'edges' or 'hyperedges'"):
+    """Test that `on` other than the edges, hyperedges, or a layer of a network raises an error with an example."""
+    with pytest.raises(ValidationError, match=r"has on = .*'edges', 'hyperedges', or the name of a layer"):
         Element('links', values={'sign': 1}, space=space, on=on).prepare()
+
+
+def test_prepare_accepts_an_on_that_names_a_layer_of_a_network():
+    """Test that `on` may name a layer of a network space, whose edges hold one member each."""
+    space = NetworkSpace(nx.path_graph(3), layers=[LayerSpec('roads', nx.complete_graph(3))])
+    assert Element('links', values={'sign': 1}, space=space, on='roads').prepare().on == 'roads'
 
 
 def test_prepare_keeps_a_state_of_its_own_named_on():

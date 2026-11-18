@@ -6,7 +6,7 @@ The tumour recruits the vessels by secreting growth factor.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
+from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
 from typing import Annotated, cast
 
@@ -16,16 +16,15 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, FieldElement, GroupElement
-from ....core.components.interactions import Interaction, MapInteraction, TransferInteraction
-from ....core.components.laws import RateLaw, Source, UpdateLaw
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw, UpdateLaw
 from ....core.components.laws.utils import laplacian
-from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import CompositeSystem
+from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ...general.agents import BirthDeathInteraction, MovementInteraction
 
@@ -68,6 +67,9 @@ class TissueElement(Element):
         decay_vegf:
             The decay rate of VEGF.
 
+        space:
+            The lattice with one site of tissue per cell, or `None` for one site.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import TissueElement
         >>> TissueElement('tissue').D_vegf
@@ -78,14 +80,15 @@ class TissueElement(Element):
         self,
         label: str,
         *,
-        oxygen: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        vegf: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        D_oxygen: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        decay_oxygen: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        D_vegf: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        decay_vegf: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005,
+        oxygen: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        vegf: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        D_oxygen: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        decay_oxygen: Annotated[float, RealSet.closed_open(0, oo)] = 0.05,
+        D_vegf: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        decay_vegf: Annotated[float, RealSet.closed_open(0, oo)] = 0.005,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.oxygen = oxygen
         self.vegf = vegf
         self.D_oxygen = D_oxygen
@@ -129,10 +132,18 @@ class SproutElement(Element):
         activation:
             The VEGF above which the tip moves.
 
+        values:
+            Further values by name, such as the cells `x` and `y` of the members.
+
+        size:
+            The number of members, or `None` for one.
+
+        space:
+            The grid the members live on, or `None`.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.biology.oncology import SproutElement
-        >>> GroupElement('sprouts', element=SproutElement, size=2, location=(0, 5)).size
+        >>> SproutElement('sprouts', size=2).size
         2
     """
 
@@ -140,11 +151,14 @@ class SproutElement(Element):
         self,
         label: str,
         *,
-        chemotaxis: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 30.0,
-        branching: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
-        activation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        chemotaxis: Annotated[float, RealSet.closed_open(0, oo)] = 30.0,
+        branching: Annotated[float, RealSet.closed_open(0, oo)] = 0.02,
+        activation: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.chemotaxis = chemotaxis
         self.branching = branching
         self.activation = activation
@@ -205,10 +219,18 @@ class TumourCellElement(Element):
         necrosis:
             The oxygen below which a cell dies.
 
+        values:
+            Further values by name, such as the cells `x` and `y` of the members.
+
+        size:
+            The number of members, or `None` for one.
+
+        space:
+            The grid the members live on, or `None`.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.biology.oncology import TumourCellElement
-        >>> GroupElement('tumour', element=TumourCellElement, size=3, location=(5, 5)).size
+        >>> TumourCellElement('tumour', size=3).size
         3
     """
 
@@ -218,15 +240,18 @@ class TumourCellElement(Element):
         self,
         label: str,
         *,
-        hypoxic: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        consumption: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        proliferation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        division: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        hypoxia: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        secretion: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        necrosis: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        hypoxic: Annotated[float, FiniteEnumeratedSet([0, 1])] = 0.0,
+        consumption: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        proliferation: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        division: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
+        hypoxia: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        secretion: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        necrosis: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.hypoxic = hypoxic
         self.consumption = consumption
         self.proliferation = proliferation
@@ -262,10 +287,18 @@ class VesselElement(Element):
         supply:
             The oxygen supplied per step.
 
+        values:
+            Further values by name, such as the cells `x` and `y` of the members.
+
+        size:
+            The number of members, or `None` for one.
+
+        space:
+            The grid the members live on, or `None`.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.biology.oncology import VesselElement
-        >>> GroupElement('vessels', element=VesselElement, size=2, location=[(0, 0), (0, 1)]).size
+        >>> VesselElement('vessels', size=2).size
         2
     """
 
@@ -273,9 +306,12 @@ class VesselElement(Element):
         self,
         label: str,
         *,
-        supply: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        supply: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.supply = supply
 
     @classmethod
@@ -388,7 +424,7 @@ class TumourAngiogenesisSystem(BaseSystem):
         """
         if not isinstance(cell, TumourCellView):
             return 0.0
-        return -min(cell.consumption, system.get_field('target.oxygen', site))
+        return -min(cell.consumption, system.get_field(OXYGEN, site))
 
     @staticmethod
     def _get_hypoxic(cell: AgentViewProtocol, system: SystemViewProtocol) -> float:
@@ -501,37 +537,35 @@ class TumourAngiogenesisSystem(BaseSystem):
             ),
         ]
 
-    def _get_cells(self) -> list[TransferInteraction | MapInteraction | BirthDeathInteraction | MovementInteraction]:
+    def _take_up(self, cell: AgentViewProtocol, system: SystemViewProtocol) -> None:
+        """Let a tumour cell take up the oxygen of its site."""
+        if cell.alive:
+            site = cell.location_key
+            system.deposit(OXYGEN, site, self._get_uptake(cell, site, system))
+
+    def _secrete(self, cell: AgentViewProtocol, system: SystemViewProtocol) -> None:
+        """Let a hypoxic tumour cell secrete VEGF into its site."""
+        site = cell.location_key
+        if cell.alive and self._secretes(cell, site, system):
+            system.deposit(VEGF, site, self._get_secretion(cell, site, system))
+
+    def _supply(self, vessel: AgentViewProtocol, system: SystemViewProtocol) -> None:
+        """Let a vessel segment supply oxygen to its site."""
+        if vessel.alive:
+            site = vessel.location_key
+            system.deposit(OXYGEN, site, self._get_supply(vessel, site, system))
+
+    @staticmethod
+    def _get_rule(label: str, group: str, rule: Callable[[AgentViewProtocol, SystemViewProtocol], None]) -> Interaction:
+        """Return the interaction that runs a rule on every member of a group, in its activation."""
+        return Interaction(label, roles={'target': group}, laws=lambda s: [UpdateLaw(s.target, rule)])
+
+    def _get_cells(self) -> list[Interaction]:
         """Return the member interactions of the tumour cells, vessel segments, and tips."""
         return [
-            TransferInteraction(
-                'uptake',
-                source=TUMOUR,
-                target=TISSUE,
-                state=Source(),
-                into='oxygen',
-                amount=self._get_uptake,
-                pairing='site',
-                form='agent',
-                schedule='member',
-            ),
-            Interaction(
-                'hypoxia',
-                roles={'target': TUMOUR},
-                laws=lambda s: [UpdateLaw(s.target, self._check_hypoxia)],
-            ),
-            TransferInteraction(
-                'secretion',
-                source=TUMOUR,
-                target=TISSUE,
-                into='vegf',
-                state=Source(),
-                amount=self._get_secretion,
-                pairing='site',
-                guard=self._secretes,
-                form='agent',
-                schedule='member',
-            ),
+            self._get_rule('uptake', TUMOUR, self._take_up),
+            self._get_rule('hypoxia', TUMOUR, self._check_hypoxia),
+            self._get_rule('secretion', TUMOUR, self._secrete),
             BirthDeathInteraction(
                 'tumour_life',
                 target=TUMOUR,
@@ -540,17 +574,7 @@ class TumourAngiogenesisSystem(BaseSystem):
                 placement='neighbor',
                 schedule='member',
             ),
-            TransferInteraction(
-                'supply',
-                source=VESSELS,
-                target=TISSUE,
-                state=Source(),
-                into='oxygen',
-                amount=self._get_supply,
-                pairing='site',
-                form='agent',
-                schedule='member',
-            ),
+            self._get_rule('supply', VESSELS, self._supply),
             BirthDeathInteraction(
                 'laying',
                 target=SPROUTS,
@@ -567,6 +591,11 @@ class TumourAngiogenesisSystem(BaseSystem):
                 schedule='member',
             ),
         ]
+
+    @staticmethod
+    def _get_places(cells: Sequence[tuple[int, int]]) -> dict[str, object]:
+        """Return the cells of the members of a group as their values `x` and `y`."""
+        return {'x': np.array([cell[0] for cell in cells]), 'y': np.array([cell[1] for cell in cells])}
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of a tumour.
@@ -585,38 +614,29 @@ class TumourAngiogenesisSystem(BaseSystem):
             if (x - center[0]) ** 2 + (y - center[1]) ** 2 <= self.radius**2
         ]
         tips = sorted(int(row) for row in rng.choice(self.height, size=self.n_sprouts, replace=False))
+        grid = LatticeSpace((self.width, self.height), boundary='fixed')
         groups = [
-            GroupElement('tumour', element=TumourCellElement, size=len(tumour), variable=True, location=tumour),
-            GroupElement(
+            TumourCellElement('tumour', values=self._get_places(tumour), size=len(tumour), space=grid),
+            VesselElement(
                 'vessels',
-                element=VesselElement,
+                values=self._get_places([(0, row) for row in range(self.height)]),
                 size=self.height,
-                variable=True,
-                location=[(0, row) for row in range(self.height)],
+                space=grid,
             ),
-            GroupElement(
+            SproutElement(
                 'sprouts',
-                element=SproutElement,
+                chemotaxis=self.chemotaxis,
+                values=self._get_places([(0, row) for row in tips]),
                 size=self.n_sprouts,
-                values={'chemotaxis': self.chemotaxis},
-                variable=True,
-                location=[(0, row) for row in tips],
+                space=grid,
             ),
         ]
-        tissue = FieldElement(
-            'tissue',
-            element=TissueElement,
-            space=LatticeSpace((self.width, self.height), boundary='reflecting'),
-        )
+        tissue = TissueElement('tissue', space=LatticeSpace((self.width, self.height), boundary='reflecting'))
         self.system_ = System(
             self.label,
             systems=[
-                CompositeSystem(
-                    'cells',
-                    elements=groups,
-                    space=LatticeSpace((self.width, self.height), boundary='fixed'),
-                ),
-                CompositeSystem('tissue', elements=[tissue], interactions=self._get_tissue()),
+                System('cells', elements=groups, space=grid),
+                System('tissue', elements=[tissue], interactions=self._get_tissue()),
             ],
             interactions=self._get_cells(),
         )

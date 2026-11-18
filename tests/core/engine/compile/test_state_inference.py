@@ -37,6 +37,7 @@ from skcomplex.core.components.spaces import (
     DiscreteTime,
     FiniteVolumeSpec,
     LatticeSpace,
+    LayerSpec,
     NetworkSpace,
     RadiusNeighborhood,
 )
@@ -1433,3 +1434,86 @@ def test_law_reading_an_observable_changes_a_plain_value():
     assert 'peak.high' in system.states_
     trajectory = system.simulate(until=4)
     assert trajectory.get_values('peak.high').tolist() == [0.0, 0.0, 3.0, 3.0, 3.0]
+
+
+@pytest.mark.parametrize(
+    ('history', 'expected'),
+    [(None, 0.01), (0.0, 0.01 * np.exp(-1.0))],
+)
+def test_the_past_value_of_a_delayed_value_is_its_history_before_the_start(history, expected):
+    """Test that `'I[-1]'` gives a delayed value before the start, which is its initial value without one.
+
+    With `I' = -I + I(t - 1)`, a history of zero gives `I = I_0 exp(-t)` up to `t = 1`, and the initial value as
+    history keeps `I = I_0`.
+    """
+    values = {'I': 0.01} if history is None else {'I': 0.01, 'I[-1]': history}
+    spread = Interaction(
+        'spread',
+        roles={'target': 'flu'},
+        laws=lambda s: [RateLaw(s.target.I.diff(s.t), -s.target.I + s.target.I(t=s.t - 1.0))],
+    )
+    system = System(elements=[Element('flu', values=values)], interactions=[spread], solver=RK4Solver(dt=0.01))
+    assert system.prepare().simulate(until=1.0).get_values('flu.I')[-1] == pytest.approx(expected, rel=1e-6)
+
+
+def test_the_history_of_a_delayed_value_may_be_a_function_of_time():
+    """Test that a history given as a function of time is read before the start."""
+    values = {'I': 0.01, 'I[-1]': lambda t: 0.01 * (1 + t)}
+    spread = Interaction(
+        'spread',
+        roles={'target': 'flu'},
+        laws=lambda s: [RateLaw(s.target.I.diff(s.t), s.target.I(t=s.t - 1.0))],
+    )
+    system = System(elements=[Element('flu', values=values)], interactions=[spread], solver=RK4Solver(dt=0.01))
+    assert system.prepare().simulate(until=1.0).get_values('flu.I')[-1] == pytest.approx(0.015, rel=1e-6)
+
+
+def test_a_past_value_of_a_value_read_without_delay_is_refused():
+    """Test that `'I[-1]'` of a value the laws read with no delay or lag is refused."""
+    decay = Interaction('decay', roles={'target': 'flu'}, laws=lambda s: [RateLaw(s.target.I.diff(s.t), -s.target.I)])
+    system = System(elements=[Element('flu', values={'I': 0.01, 'I[-1]': 0.0})], interactions=[decay])
+    with pytest.raises(ValidationError, match='at index 1'):
+        system.prepare()
+
+
+def _fly(agent, system):
+    """Slow a bird down and move it by its velocity."""
+    agent.x_d1 = 0.5 * agent.x_d1
+    agent.x += agent.x_d1
+    agent.y += agent.y_d1
+
+
+def test_agents_change_their_velocity_named_with_a_prime():
+    """Test that agents given `"x'"` and `"y'"` hold them as velocities, which their rules change and analyses read."""
+    birds = Element(
+        'birds',
+        values={'x': [1.0, 2.0], 'y': [1.0, 2.0], "x'": [1.0, 1.0], "y'": [0.0, 0.0]},
+        size=2,
+        space=ContinuousSpace((10.0, 10.0), boundary='periodic'),
+    )
+    flight = Interaction('flight', roles={'target': 'birds'}, laws=lambda s: [UpdateLaw(s.target, _fly)])
+    system = System(elements=[birds], interactions=[flight]).prepare()
+    assert system.states_ == ('birds.x', 'birds.y', "birds.x'", "birds.y'")
+    trajectory = system.simulate(until=3)
+    np.testing.assert_allclose(trajectory.agents_by_frame[-1]['birds'].locations[:, 0], [1.875, 2.875])
+    np.testing.assert_allclose(alignment(trajectory).vectors[-1], [[0.125, 0.0], [0.125, 0.0]])
+
+
+def test_an_element_on_the_edges_of_a_layer_holds_one_member_per_edge_of_that_layer():
+    """Test that `on=` with the name of a layer puts one member on every edge of that layer, read along it."""
+    immune = nx.DiGraph([(0, 2), (2, 0)])
+    immune.add_nodes_from(range(3))
+    space = NetworkSpace(nx.path_graph(3, create_using=nx.DiGraph), layers=[LayerSpec('immune', immune)])
+    cells = Element('cells', values={'x': np.array([1.0, 0.0, 0.0])}, space=space)
+    links = Element('links', values={'w': np.array([2.0, 3.0])}, space=space, on='immune')
+    flow = Interaction(
+        'flow',
+        among='cells',
+        along='immune',
+        laws=lambda s: [RateLaw(s.target.x.diff(s.t), s.edge.w * s.source.x)],
+    )
+    system = System(elements=[cells, links], interactions=[flow], solver=RK4Solver(dt=0.001)).prepare()
+    assert 'links.w[i]' in system.parameters_
+    last = system.simulate(until=0.1).get_values('cells.x')[-1]
+    exact = expm(np.array([[0.0, 0.0, 3.0], [0.0, 0.0, 0.0], [2.0, 0.0, 0.0]]) * 0.1) @ [1.0, 0.0, 0.0]
+    np.testing.assert_allclose(last, exact, rtol=1e-6)
