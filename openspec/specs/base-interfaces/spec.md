@@ -177,7 +177,7 @@ SHALL forward to the base method and return the object.
 - **THEN** `run()` returns the law, and `value_` is its rate at those values
 
 #### Scenario: A simulation keeps its named input
-- **WHEN** a user runs `simulate(system, until=20)`
+- **WHEN** a user runs `system.prepare().simulate(until=20)`
 - **THEN** the call returns the trajectory, which covers the times up to 20
 
 ### Requirement: Running needs preparing

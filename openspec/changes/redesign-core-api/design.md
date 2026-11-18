@@ -358,11 +358,11 @@ The core holds only the components that general systems of several fields are bu
 
 `SimplexSpace` moves to `skcomplex.systems.social.common`, and `CayleySpace`, `MemoryNeighborhood`, and
 `StateTranslationNeighborhood` move to `skcomplex.systems.computer_science.common.automata` with their engine support.
-`BaseTime`, `ContinuousTime`, `DiscreteTime`, and `StaticTime` leave the public API. The laws of single fields move as the
-table of section 4 says: `DissipatorLaw` to the quantum package, `CascadeLaw` to criticality, `ExtremalLaw` to the
-evolution package of biology, `BilinearLaw` to `skcomplex.systems.general.kinetics`, `MatchLaw` to
-`skcomplex.systems.general.matching`, and `ProductionLaw` and `SubstitutionLaw` to `skcomplex.systems.general.rewriting`.
-The core keeps 25 public classes in these families, down from 79.
+`BaseTime`, `ContinuousTime`, `DiscreteTime`, and `StaticTime` leave the public API. The laws of single fields go as the
+table of section 4 says: the quantum generator and dissipator with `HilbertSpec` and their compiler to the quantum
+package, `ProductionLaw` and `SubstitutionLaw` with their compiler to `skcomplex.systems.general.rewriting`, `CascadeLaw`
+to the core operator `relax`, `BilinearLaw` to the core operator `bilinear`, `ExtremalLaw` to an `UpdateLaw` recipe,
+`MatchLaw` to `pairs`, and `FluxLaw` to a `RateLaw` of a divergence on a finite-volume space.
 
 Everything else that is field-specific moves to `skcomplex.systems.<field>.common.<family>` when one field uses it, or
 to `skcomplex.systems.general.<concept>` when several fields share it as a recipe. Moving code never deletes meaningful

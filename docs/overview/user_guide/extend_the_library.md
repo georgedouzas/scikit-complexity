@@ -326,16 +326,19 @@ This section decides where a component of your own belongs. One ordered test, th
 component goes, and `openspec/scripts/check_conventions.py` checks it mechanically. The page [General
 realizations](core_components/general.md#where-a-component-goes) quotes the rule word for word.
 
-1. A structural base, such as a `Base` class, the composite system, or a base where laws run per member, edge,
-   hyperedge, or pair, goes to the core.
-2. A component that the engine handles by type, through a compile pass, a kernel, a solver, a backend lowering, or an
-   analysis that checks the class or its spec, goes to the core, and so does an operator generated from one function.
-   It is named by its mathematics and must be cross-domain in principle.
-3. Every other component is a recipe, expressible with core components. Its users place it. Several fields:
+1. A structural base, such as a `Base` class, `Element`, `Interaction`, `System`, a space, or a neighbourhood, goes to
+   the core.
+2. A law kind, an operator generated from one function, such as `laplacian` or `relax`, and numerics the engine handles
+   by type, through a compile pass, a kernel, a solver, a backend lowering, or an analysis, go to the core. They are
+   named by their mathematics and must be cross-domain in principle. The engine keys only on the seven law kinds and
+   never names a class of `skcomplex.systems`.
+3. Every other component is a recipe, written with core components, and a law of one field is first written as a
+   recipe of the seven law kinds and the core operators. Its users place it. Several fields:
    `skcomplex.systems.general.<concept>`. One field with several systems: `systems/<field>/common/<family>`. One
    system: that system's module. A field with its own term names it, and `general` uses neutral names.
 4. A recipe that needs something the core cannot express reveals a missing core primitive, which enters by step 2.
-   Engine support never lives inside a recipe.
+   Numerics that serve one field alone, such as the Lindblad equation or rewriting, come as a solver or a compiler
+   built on the public engine bases, in the package of that field, and its elements name it.
 5. The core never imports `skcomplex.systems`.
 
 Analyses follow the rule by their users too. An analysis that measures what systems of several fields share goes to
