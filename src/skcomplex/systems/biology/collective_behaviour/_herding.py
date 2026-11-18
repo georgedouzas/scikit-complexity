@@ -10,13 +10,15 @@ from typing import Annotated
 import numpy as np
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.spaces import ContinuousSpace, DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
+from ....core.components.spaces import ContinuousSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver, SystemView
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
 
@@ -316,6 +318,12 @@ class ShepherdingSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.collective_behaviour import ShepherdingSystem
         >>> [group.label for group in ShepherdingSystem(10).prepare().system_.elements]
@@ -335,18 +343,23 @@ class ShepherdingSystem(BaseSystem):
         goal: tuple[float, float] = (5.0, 5.0),
         seed: int | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_sheep = n_sheep
         self.size = size
         self.goal = goal
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of a shepherd that drives a scattered flock to a goal.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a shepherd that drives a scattered flock to a goal.
 
-        The shepherd collects the flock first.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         rng = np.random.default_rng(self.seed)
         positions = rng.uniform(0.4 * self.size, 0.7 * self.size, (self.n_sheep, 2))
         sheep = GroupElement(
@@ -368,10 +381,9 @@ class ShepherdingSystem(BaseSystem):
             goal=self.goal,
             n=max(1, round(0.9 * self.n_sheep)),
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[sheep, dogs],
             interactions=[herding],
             space=ContinuousSpace(extent=(self.size, self.size)),
-            time=DiscreteTime(),
         )
