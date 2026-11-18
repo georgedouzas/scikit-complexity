@@ -8,8 +8,8 @@ import inspect
 from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import fields as dataclass_fields
 from dataclasses import is_dataclass, replace
-from types import SimpleNamespace
-from typing import ClassVar, cast
+from types import SimpleNamespace, UnionType
+from typing import ClassVar, Union, cast, get_args, get_origin
 
 import numpy as np
 import numpy.typing as npt
@@ -475,7 +475,7 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
             for name, item in vars(inputs).items()
         }
         functional = SimpleNamespace(**roles)
-        prepared = clone(self)
+        prepared = copy.copy(self)
         prepared.prepare(functional)
         laws: list[BaseComponent] = []
         for law in prepared.laws_:
@@ -906,6 +906,33 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
             return ()
         return tuple(dict.fromkeys(kind for classes in kinds for kind in classes))
 
+    @classmethod
+    def _get_state_arguments(cls, role: RoleSpec) -> tuple[str, ...]:
+        """Return the arguments that name the states a role of one element reads, from their type hints.
+
+        Such an argument holds names of states, such as `states: tuple[str, ...]` or the keys of a mapping
+        `Mapping[str, float]`. A role of several elements or of Wiener processes reads none.
+        """
+        if role.variadic or role.noise:
+            return ()
+        hints = inspect.signature(cls.__init__, eval_str=True).parameters.items()
+        return tuple(name for name, argument in hints if cls._names_states(argument.annotation))
+
+    @classmethod
+    def _names_states(cls, annotation: object) -> bool:
+        """Return whether a type hint holds names of states, as a tuple of `str` or a mapping keyed by `str`."""
+        hint = cls._get_annotated(annotation)
+        origin, args = get_origin(hint), get_args(hint)
+        if origin is Union or origin is UnionType:
+            return any(cls._names_states(arg) for arg in args)
+        if origin is tuple and args[1:] != (Ellipsis,):
+            return False
+        if origin in (tuple, list, Sequence, Mapping, dict) and args:
+            first = args[0]
+            keys = get_args(first) if get_origin(first) in (Union, UnionType) else (first,)
+            return str in keys
+        return False
+
     def _get_state_names(self, names: Sequence[str]) -> tuple[str, ...]:
         """Return the states that declared names mean.
 
@@ -992,7 +1019,7 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
             space=self._get_accepted([need.space for need in needs]),
             sites=any(need.sites for need in needs),
             roles={
-                name: replace(spec, states=self._get_state_names(spec.states))
+                name: replace(spec, states=self._get_state_names(spec.states or self._get_state_arguments(spec)))
                 for name, spec in self._get_component_specs().items()
                 if isinstance(spec, RoleSpec)
             },

@@ -97,7 +97,7 @@ class GradientInteraction(Interaction):
         label: str,
         *,
         target: Role,
-        states: str | Sequence[str] = 'x',
+        states: str | tuple[str, ...] = 'x',
         potential: Callable[[SimpleNamespace], object] | None = None,
         sources: tuple[Role, ...] = (),
         divisor: (
