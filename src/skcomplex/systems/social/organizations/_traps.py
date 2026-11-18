@@ -15,8 +15,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element, Quantity
-from ....core.components.interactions import TransferInteraction
-from ....core.components.laws import Sink, Source
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import distributed_delay, series, where
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -233,12 +233,12 @@ class SuccessToTheSuccessfulSystem(BaseSystem):
     @staticmethod
     def _get_allocation_a(s: SimpleNamespace) -> Expression:
         """Return the share of the budget that flows to the first competitor."""
-        return s.source.budget * _get_allocation(s.source)
+        return s.target.budget * _get_allocation(s.target)
 
     @staticmethod
     def _get_allocation_b(s: SimpleNamespace) -> Expression:
         """Return the share of the budget that flows to the second competitor."""
-        return s.source.budget * (1 - _get_allocation(s.source))
+        return s.target.budget * (1 - _get_allocation(s.target))
 
     @staticmethod
     def _get_depreciation_a(s: SimpleNamespace) -> Expression:
@@ -246,7 +246,7 @@ class SuccessToTheSuccessfulSystem(BaseSystem):
 
         The resources depreciate over their lifetime.
         """
-        return s.source.a / s.source.lifetime
+        return s.target.a / s.target.lifetime
 
     @staticmethod
     def _get_depreciation_b(s: SimpleNamespace) -> Expression:
@@ -254,23 +254,19 @@ class SuccessToTheSuccessfulSystem(BaseSystem):
 
         The resources depreciate over their lifetime.
         """
-        return s.source.b / s.source.lifetime
+        return s.target.b / s.target.lifetime
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set `system_` to the components built from the model parameters."""
         super()._prepare(context)
-        allocation = TransferInteraction(
+        allocation = Interaction(
             'allocation',
-            source='contest',
-            target='contest',
-            state=Source('budget'),
-            into='a',
-            amount=self._get_allocation_a,
-            flow='allocation_a',
-            legs=[
-                (Source('budget'), 'b', self._get_allocation_b, 'allocation_b'),
-                ('a', Sink('depreciation'), self._get_depreciation_a, 'depreciation_a'),
-                ('b', Sink('depreciation'), self._get_depreciation_b, 'depreciation_b'),
+            roles={'target': 'contest'},
+            laws=lambda s: [
+                RateLaw({s.target.a: +1}, self._get_allocation_a(s), label='allocation_a'),
+                RateLaw({s.target.b: +1}, self._get_allocation_b(s), label='allocation_b'),
+                RateLaw({s.target.a: -1}, self._get_depreciation_a(s), label='depreciation_a'),
+                RateLaw({s.target.b: -1}, self._get_depreciation_b(s), label='depreciation_b'),
             ],
         )
         self.system_ = System(
@@ -371,18 +367,18 @@ class ShiftingTheBurdenSystem(BaseSystem):
     @staticmethod
     def _get_fixing(s: SimpleNamespace) -> Expression:
         """Return the quick fix, in proportion to the symptom."""
-        return s.source.fix_rate * _get_symptom(s.source)
+        return s.target.fix_rate * _get_symptom(s.target)
 
     @staticmethod
     def _get_building(s: SimpleNamespace) -> Expression:
         """Return the building of capability, the delayed symptom over the build time."""
-        burden = s.source
+        burden = s.target
         return distributed_delay(_get_symptom(burden), conserved=False, time=burden.solution_delay) / burden.build_time
 
     @staticmethod
     def _get_erosion(s: SimpleNamespace) -> Expression:
         """Return the erosion of capability by the intervention."""
-        return s.source.erosion * s.source.intervention * s.source.capability
+        return s.target.erosion * s.target.intervention * s.target.capability
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set `system_` to the components built from the model parameters."""
@@ -397,17 +393,13 @@ class ShiftingTheBurdenSystem(BaseSystem):
             solution_delay=self.solution_delay,
             erosion=self.erosion,
         )
-        flows = TransferInteraction(
+        flows = Interaction(
             'flows',
-            source='burden',
-            target='burden',
-            state=Source('intervener'),
-            into='intervention',
-            amount=self._get_fixing,
-            flow='fixing',
-            legs=[
-                (Source('learning'), 'capability', self._get_building, 'building'),
-                ('capability', Sink('atrophy'), self._get_erosion, 'erosion'),
+            roles={'target': 'burden'},
+            laws=lambda s: [
+                RateLaw({s.target.intervention: +1}, self._get_fixing(s), label='fixing'),
+                RateLaw({s.target.capability: +1}, self._get_building(s), label='building'),
+                RateLaw({s.target.capability: -1}, self._get_erosion(s), label='erosion'),
             ],
         )
         self.system_ = System(self.label, elements=[burden], interactions=[flows])
@@ -504,14 +496,14 @@ class EscalationSystem(BaseSystem):
     @staticmethod
     def _build_a(s: SimpleNamespace) -> Expression:
         """Return the build-up of the first party toward its desired stock."""
-        race = s.source
+        race = s.target
         desired = _get_desired_a(race)
         return where(desired > race.a, desired - race.a, 0) / race.adjustment_time
 
     @staticmethod
     def _build_b(s: SimpleNamespace) -> Expression:
         """Return the build-up of the second party toward its desired stock."""
-        race = s.source
+        race = s.target
         desired = _get_desired_b(race)
         return where(desired > race.b, desired - race.b, 0) / race.adjustment_time
 
@@ -526,15 +518,13 @@ class EscalationSystem(BaseSystem):
             adjustment_time=self.adjustment_time,
             perception_delay=self.perception_delay,
         )
-        build = TransferInteraction(
+        build = Interaction(
             'build',
-            source='race',
-            target='race',
-            state=Source('production'),
-            into='a',
-            amount=self._build_a,
-            flow='build_a',
-            legs=[(Source('production'), 'b', self._build_b, 'build_b')],
+            roles={'target': 'race'},
+            laws=lambda s: [
+                RateLaw({s.target.a: +1}, self._build_a(s), label='build_a'),
+                RateLaw({s.target.b: +1}, self._build_b(s), label='build_b'),
+            ],
         )
         self.system_ = System(self.label, elements=[race], interactions=[build])
 
@@ -631,7 +621,7 @@ class PolicyResistanceSystem(BaseSystem):
 
         It is the corrective pulls and the efforts of all three actors.
         """
-        standoff = s.source
+        standoff = s.target
         return sum(
             PolicyResistanceSystem._pull(standoff, actor) + getattr(standoff, f'effort_{actor}') for actor in ACTORS
         )
@@ -642,7 +632,7 @@ class PolicyResistanceSystem(BaseSystem):
 
         The effort intensifies while the stock misses its goal.
         """
-        return PolicyResistanceSystem._pull(s.source, 'a') / s.source.intensification_time
+        return PolicyResistanceSystem._pull(s.target, 'a') / s.target.intensification_time
 
     @staticmethod
     def _intensify_b(s: SimpleNamespace) -> Expression:
@@ -650,7 +640,7 @@ class PolicyResistanceSystem(BaseSystem):
 
         The effort intensifies while the stock misses its goal.
         """
-        return PolicyResistanceSystem._pull(s.source, 'b') / s.source.intensification_time
+        return PolicyResistanceSystem._pull(s.target, 'b') / s.target.intensification_time
 
     @staticmethod
     def _intensify_c(s: SimpleNamespace) -> Expression:
@@ -658,7 +648,7 @@ class PolicyResistanceSystem(BaseSystem):
 
         The effort intensifies while the stock misses its goal.
         """
-        return PolicyResistanceSystem._pull(s.source, 'c') / s.source.intensification_time
+        return PolicyResistanceSystem._pull(s.target, 'c') / s.target.intensification_time
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set `system_` to the components built from the model parameters."""
@@ -674,18 +664,14 @@ class PolicyResistanceSystem(BaseSystem):
             strength_c=self.strengths[2],
             intensification_time=self.intensification_time,
         )
-        actions = TransferInteraction(
+        actions = Interaction(
             'actions',
-            source='standoff',
-            target='standoff',
-            state=Source('actors'),
-            into='stock',
-            amount=self._push,
-            flow='push',
-            legs=[
-                (Source('actors'), 'effort_a', self._intensify_a, 'intensify_a'),
-                (Source('actors'), 'effort_b', self._intensify_b, 'intensify_b'),
-                (Source('actors'), 'effort_c', self._intensify_c, 'intensify_c'),
+            roles={'target': 'standoff'},
+            laws=lambda s: [
+                RateLaw({s.target.stock: +1}, self._push(s), label='push'),
+                RateLaw({s.target.effort_a: +1}, self._intensify_a(s), label='intensify_a'),
+                RateLaw({s.target.effort_b: +1}, self._intensify_b(s), label='intensify_b'),
+                RateLaw({s.target.effort_c: +1}, self._intensify_c(s), label='intensify_c'),
             ],
         )
         self.system_ = System(self.label, elements=[standoff], interactions=[actions])
@@ -780,7 +766,7 @@ class DriftToLowPerformanceSystem(BaseSystem):
 
         It is the gap from the performance to the desired state over the correction time.
         """
-        return (s.source.desired - s.source.performance) / s.source.correction_time
+        return (s.target.desired - s.target.performance) / s.target.correction_time
 
     @staticmethod
     def _get_perception(s: SimpleNamespace) -> Expression:
@@ -788,7 +774,7 @@ class DriftToLowPerformanceSystem(BaseSystem):
 
         The performance is lowered by the negative bias.
         """
-        performance = s.source
+        performance = s.target
         return ((1 - performance.bias) * performance.performance - performance.perceived) / performance.perception_time
 
     @staticmethod
@@ -797,7 +783,7 @@ class DriftToLowPerformanceSystem(BaseSystem):
 
         It is zero for absolute standards.
         """
-        performance = s.source
+        performance = s.target
         return performance.erosion * (performance.perceived - performance.desired) / performance.goal_time
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
@@ -814,17 +800,13 @@ class DriftToLowPerformanceSystem(BaseSystem):
             goal_time=self.goal_time,
             erosion=0.0 if self.absolute else 1.0,
         )
-        flows = TransferInteraction(
+        flows = Interaction(
             'flows',
-            source='performance',
-            target='performance',
-            state=Source('effort'),
-            into='performance',
-            amount=self._get_correction,
-            flow='correction',
-            legs=[
-                (Source('information'), 'perceived', self._get_perception, 'perception'),
-                (Source('standards'), 'desired', self._get_goal_erosion, 'goal_erosion'),
+            roles={'target': 'performance'},
+            laws=lambda s: [
+                RateLaw({s.target.performance: +1}, self._get_correction(s), label='correction'),
+                RateLaw({s.target.perceived: +1}, self._get_perception(s), label='perception'),
+                RateLaw({s.target.desired: +1}, self._get_goal_erosion(s), label='goal_erosion'),
             ],
         )
         self.system_ = System(self.label, elements=[element], interactions=[flows])
