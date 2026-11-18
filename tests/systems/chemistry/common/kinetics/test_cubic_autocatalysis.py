@@ -2,7 +2,6 @@
 
 import numpy as np
 
-from skcomplex.core.components.elements import FieldElement
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -22,7 +21,7 @@ def test_cubic_autocatalysis_follows_its_mass_action():
 def test_cubic_autocatalysis_reacts_at_every_site_of_a_field():
     """Test that the reaction on a field reacts at every site with the states of that site."""
     values = {'u': np.array([0.0, 1.0, 2.0]), 'v': 1.0}
-    cells = FieldElement('cells', element=BrusselatorReactionElement, space=LatticeSpace((3,)), values=values)
+    cells = BrusselatorReactionElement('cells', **values, space=LatticeSpace((3,)))
     reaction = CubicAutocatalysisInteraction('autocatalysis', target='cells', substrate='v', autocatalyst='u')
     simulation = simulate(CompositeSystem(elements=[cells], interactions=[reaction]), until=1e-4, dt=1e-4)
     trajectory = simulation

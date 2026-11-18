@@ -5,20 +5,17 @@
 
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
 from ....core.components import Observable
-from ....core.components.elements import FieldElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import laplacian
-from ....core.components.spaces import LatticeSpace
+from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver
-from ....core.specs import ParameterSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ...general.dynamics import ReactionDiffusionSystem
@@ -55,6 +52,9 @@ class BrusselatorElement(BrusselatorReactionElement):
         Dv:
             The diffusion of `v`.
 
+        space:
+            The lattice of the sites, or `None` for one site.
+
     Examples:
         >>> from skcomplex.systems.chemistry.pattern_formation import BrusselatorElement
         >>> BrusselatorElement('cell').Dv
@@ -69,10 +69,11 @@ class BrusselatorElement(BrusselatorReactionElement):
         v: float = 3.0,
         a: float = 1.0,
         b: float = 3.0,
-        Du: Annotated[object, ParameterSpec()] = 1.0,
-        Dv: Annotated[object, ParameterSpec()] = 8.0,
+        Du: object = 1.0,
+        Dv: object = 8.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, u=u, v=v, a=a, b=b)
+        super().__init__(label, u=u, v=v, a=a, b=b, space=space)
         self.Du = Du
         self.Dv = Dv
 
@@ -239,7 +240,7 @@ class BrusselatorSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.chemistry.pattern_formation import BrusselatorSystem
-        >>> BrusselatorSystem((8, 8), b=2.5).prepare().system_.elements[0].values['b']
+        >>> BrusselatorSystem((8, 8), b=2.5).prepare().system_.elements[0].b
         2.5
     """
 
@@ -323,7 +324,7 @@ class BrusselatorSystem(BaseSystem):
         }
         self.system_ = System(
             self.label,
-            elements=[FieldElement('cells', element=BrusselatorElement, space=LatticeSpace(shape), values=values)],
+            elements=[BrusselatorElement('cells', **values, space=LatticeSpace(shape))],
             interactions=[*self._get_reactions(), *BrusselatorSystem._get_diffusions()],
             solver=RK4Solver(dt=0.01),
         )

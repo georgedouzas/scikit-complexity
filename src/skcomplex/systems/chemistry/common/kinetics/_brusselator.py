@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from .....core.components.elements import Element
-from .....core.specs import ParameterSpec, StateSpec
+from .....core.components.spaces import BaseSpace
 
 
 class BrusselatorReactionElement(Element):
@@ -39,6 +39,9 @@ class BrusselatorReactionElement(Element):
         b:
             The constant supply of the second reactant.
 
+        space:
+            The lattice of the sites of a field, or `None` for one reactor.
+
     Examples:
         >>> from skcomplex.systems.chemistry.common.kinetics import BrusselatorReactionElement
         >>> BrusselatorReactionElement('reactor').b
@@ -49,12 +52,13 @@ class BrusselatorReactionElement(Element):
         self,
         label: str,
         *,
-        u: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        v: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
+        u: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        v: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        a: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        b: Annotated[float, RealSet.closed_open(0, oo)] = 3.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.u = u
         self.v = v
         self.a = a

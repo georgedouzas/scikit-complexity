@@ -13,13 +13,13 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.base import BaseComponent
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace, LatticeSpace, RadiusNeighborhood
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, Role, StateSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
@@ -53,6 +53,9 @@ class HodgepodgeCellElement(Element):
         g:
             The speed of the infection.
 
+        space:
+            The lattice of the cells, or `None` for one cell.
+
     Examples:
         >>> from skcomplex.systems.chemistry.kinetics import HodgepodgeCellElement
         >>> HodgepodgeCellElement('cell').n
@@ -63,13 +66,14 @@ class HodgepodgeCellElement(Element):
         self,
         label: str,
         *,
-        level: Annotated[float, StateSpec(domain=NN)] = 0,
-        n: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
-        k1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        k2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
-        g: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 34.0,
+        level: Annotated[float, NN] = 0,
+        n: Annotated[float, RealSet.open(0, oo)] = 100.0,
+        k1: Annotated[float, RealSet.open(0, oo)] = 2.0,
+        k2: Annotated[float, RealSet.open(0, oo)] = 3.0,
+        g: Annotated[float, RealSet.closed_open(0, oo)] = 34.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.level = level
         self.n = n
         self.k1 = k1
@@ -167,7 +171,7 @@ class HodgepodgeSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.chemistry.kinetics import HodgepodgeSystem
-        >>> HodgepodgeSystem((10, 10)).prepare().system_.elements[0].values['g']
+        >>> HodgepodgeSystem((10, 10)).prepare().system_.elements[0].g
         34.0
     """
 
@@ -207,13 +211,7 @@ class HodgepodgeSystem(BaseSystem):
         self.system_ = System(
             self.label,
             elements=[
-                GroupElement(
-                    'cells',
-                    element=HodgepodgeCellElement,
-                    space=LatticeSpace(shape),
-                    values=values,
-                    on='sites',
-                ),
+                HodgepodgeCellElement('cells', **values, space=LatticeSpace(shape)),
             ],
             interactions=[
                 HodgepodgeInteraction('infection', target='cells'),
