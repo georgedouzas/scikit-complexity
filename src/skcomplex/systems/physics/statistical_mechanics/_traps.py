@@ -67,7 +67,7 @@ class TrapWalkerElement(Element):
         label: str,
         *,
         x: npt.ArrayLike = 0.5,
-        E: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        E: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
         T: Annotated[float, RealSet.open(0, oo)] = 0.5,
         tau0: Annotated[float, RealSet.open(0, oo)] = 1.0,
         size: int | None = None,
