@@ -3,12 +3,15 @@
 import numpy as np
 import numpy.typing as npt
 
-from skcomplex.core.components.systems import BaseSystem
+from skcomplex.core.components.systems import BaseSystem as OldBaseSystem
 from skcomplex.core.engine.runtime import Trajectory, simulate
+from skcomplex.core.systems import BaseSystem
 
 
-def _run(system: BaseSystem, until: float, *, dt: float | None = None) -> Trajectory:
+def _run(system: BaseSystem | OldBaseSystem, until: float, *, dt: float | None = None) -> Trajectory:
     """Return the trajectory of a system run with a fixed random state, with its tuned settings for the others."""
+    if isinstance(system, BaseSystem):
+        return system.prepare().simulate(until, dt=dt, random_state=0)
     return simulate(system, until=until, dt=dt, random_state=0)
 
 

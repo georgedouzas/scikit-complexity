@@ -3,7 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Annotated
+from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated, cast
 
 import networkx as nx
 import numpy as np
@@ -11,13 +13,16 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction
-from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.components.types import SystemViewProtocol
-from ....core.engine.solvers import AgentView
-from ....core.specs import RoleSpec, StateSpec, VisualSpec
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
+from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.specs import Role, VisualSpec
+from ....core.systems import BaseSystem, System
 
 
 class ThresholdNodeView(AgentView):
@@ -30,7 +35,7 @@ class ThresholdNodeView(AgentView):
     threshold: float
 
 
-class ThresholdActivationInteraction(MapInteraction):
+class ThresholdActivationInteraction(Interaction):
     """Activation of the Watts cascade system.
 
     A node becomes active for good once the share of active nodes among its neighbouring nodes reaches its threshold.
@@ -46,27 +51,38 @@ class ThresholdActivationInteraction(MapInteraction):
 
     Examples:
         >>> from skcomplex.systems.social.spreading import ThresholdActivationInteraction
-        >>> ThresholdActivationInteraction('activation', target='nodes').state
-        'active'
+        >>> ThresholdActivationInteraction('activation', target='nodes').target
+        'nodes'
     """
 
-    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
-        super().__init__(
-            label,
-            target=target,
-            state='active',
-            function=self._get_active,
-            schedule='random-sequential',
-            form='agent',
-        )
+    law_classes = (UpdateLaw,)
+    draws = True
 
-    def _get_active(self, agent: ThresholdNodeView, system: SystemViewProtocol) -> float:
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the activation of the nodes, one after the other in a random order, as the rule of the system."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context, self._activate)]
+
+    def _activate(self, system: SystemView) -> None:
+        """Activate the nodes one after the other in a new random order."""
+        nodes = cast(list[ThresholdNodeView], system.get_agents('target'))
+        for index in system.rng.permutation(len(nodes)):
+            node = nodes[int(index)]
+            if node.alive:
+                node.active = self._get_active(node)
+
+    @staticmethod
+    def _get_active(agent: ThresholdNodeView) -> float:
         """Return 1 for a node that is or becomes active.
 
         It returns 0 for one that stays inactive.
         """
-        del system
-        neighbors = [item for item in agent.get_neighbors() if isinstance(item, ThresholdNodeView)]
+        neighbors = cast(list[ThresholdNodeView], [item for item in agent.get_neighbors() if item.group == agent.group])
         if agent.active or not neighbors:
             return float(agent.active)
         return float(sum(neighbor.active for neighbor in neighbors) / len(neighbors) >= agent.threshold)
@@ -82,16 +98,19 @@ class ThresholdNodeElement(Element):
             The label of the agent or group.
 
         active:
-            Whether the node starts active.
+            Whether the node starts active, one per node or shared.
 
         threshold:
-            The share of active neighbours at which the node becomes active.
+            The share of active neighbours at which the node becomes active, one per node or shared.
+
+        size:
+            The number of nodes, or `None` for one.
 
     Examples:
         >>> from skcomplex.systems.social.spreading import ThresholdNodeElement
-        >>> group = GroupElement('nodes', element=ThresholdNodeElement, size=10, values={'threshold': 0.18})
-        >>> group.label, group.element.__name__, group.size
-        ('nodes', 'ThresholdNodeElement', 10)
+        >>> group = ThresholdNodeElement('nodes', threshold=0.18, size=10)
+        >>> group.label, group.threshold, group.size
+        ('nodes', 0.18, 10)
     """
 
     visual = VisualSpec('agents', {'color_by': 'active', 'color_range': (0.0, 1.0)})
@@ -100,10 +119,11 @@ class ThresholdNodeElement(Element):
         self,
         label: str,
         *,
-        active: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        threshold: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.18,
+        active: Annotated[object, FiniteEnumeratedSet([0, 1])] = 0.0,
+        threshold: Annotated[object, RealSet.closed_open(0, oo)] = 0.18,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.active = active
         self.threshold = threshold
 
@@ -137,10 +157,16 @@ class WattsCascadesSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.systems.social.spreading import WattsCascadesSystem
-        >>> WattsCascadesSystem(nx.cycle_graph(10), random_state=0).prepare().system_.elements[0].prepare().size_
+        >>> WattsCascadesSystem(nx.cycle_graph(10), random_state=0).prepare().system_.elements[0].size
         10
     """
 
@@ -157,28 +183,26 @@ class WattsCascadesSystem(BaseSystem):
         seeds: int = 1,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.graph = graph
         self.threshold = threshold
         self.seeds = seeds
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         graph = self.graph
         rng = np.random.default_rng(self.random_state)
         graph = nx.gnp_random_graph(200, 4 / 199, seed=int(rng.integers(2**31))) if graph is None else graph
         size = nx.number_of_nodes(graph)
         active = np.zeros(size)
         active[rng.choice(size, self.seeds, replace=False)] = 1.0
-        nodes = GroupElement(
-            'nodes',
-            element=ThresholdNodeElement,
-            size=size,
-            values={'active': active, 'threshold': self.threshold},
-        )
-        return CompositeSystem(
+        nodes = ThresholdNodeElement('nodes', active=active, threshold=self.threshold, size=size)
+        self.system_ = System(
             self.label,
             elements=[nodes],
             interactions=[ThresholdActivationInteraction('activation', target='nodes')],

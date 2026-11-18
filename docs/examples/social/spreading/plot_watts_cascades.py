@@ -12,7 +12,6 @@ at once or sets off a global cascade that sweeps almost the whole network, and w
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.spreading import WattsCascadesSystem
 
@@ -20,7 +19,7 @@ SYSTEM = 'watts_cascades'
 
 system = WattsCascadesSystem(random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(system, dt=1, observers=[observer])
+trajectory = system.prepare().simulate(dt=1, observers=[observer])
 
 # %%
 # The cascade window
@@ -34,7 +33,7 @@ probabilities, shares = [], []
 for threshold in thresholds:
     finals = []
     for seed in range(30):
-        run = simulate(WattsCascadesSystem(threshold=float(threshold), random_state=seed), dt=1)
+        run = WattsCascadesSystem(threshold=float(threshold), random_state=seed).prepare().simulate(dt=1)
         finals.append(run.get_agents('nodes', len(run.times) - 1).values['active'].mean())
     shares.extend(finals)
     probabilities.append(np.mean(np.array(finals) > 0.5))
