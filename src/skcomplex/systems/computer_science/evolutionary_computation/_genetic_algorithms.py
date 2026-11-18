@@ -14,13 +14,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
+from ....core.components.laws import UpdateLaw
+from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver, SystemView
 from ....core.errors import ParameterError
-from ....core.specs import RoleSpec, StateSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, IntArray
 from ...general.agents import EvolutionInteraction
@@ -57,10 +59,12 @@ class StrategyElement(Element):
         score:
             The initial score.
 
+        size:
+            The number of strategies, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.computer_science.evolutionary_computation import StrategyElement
-        >>> GroupElement('strategies', element=StrategyElement, size=3).get_params()['size']
+        >>> StrategyElement('strategies', size=3).get_params()['size']
         3
     """
 
@@ -70,10 +74,11 @@ class StrategyElement(Element):
         self,
         label: str,
         *,
-        actions: Annotated[object, StateSpec()] = 0.0,
-        score: Annotated[float, StateSpec()] = 0.0,
+        actions: object = 0.0,
+        score: object = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.actions = actions
         self.score = score
 
@@ -121,13 +126,13 @@ class RoomCleaningInteraction(Interaction):
         10
     """
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         sessions: int = 10,
         n_actions: int = 100,
         side: int = 10,
@@ -149,18 +154,11 @@ class RoomCleaningInteraction(Interaction):
         for agent, score in zip(agents, self.score(strategies, system.rng), strict=True):
             agent.score = float(score)
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule that scores the strategies.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The scoring rule.
-        """
-        return [RuleLaw(self._score_agents, phase=self.phase)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rule that scores the strategies, once per step for the whole population."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context, self._score_agents, phase=self.phase)]
 
     def score(self, strategies: IntArray, rng: np.random.Generator) -> Array:
         """Return the mean score of strategies in random rooms.
@@ -261,6 +259,9 @@ class AgedStrategyElement(StrategyElement):
         age:
             The initial age in generations.
 
+        size:
+            The number of strategies, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.computer_science.evolutionary_computation import AgedStrategyElement
         >>> AgedStrategyElement('strategy', age=3).age
@@ -273,11 +274,12 @@ class AgedStrategyElement(StrategyElement):
         self,
         label: str,
         *,
-        actions: Annotated[object, StateSpec()] = 0.0,
-        score: Annotated[float, StateSpec()] = 0.0,
-        age: Annotated[float, StateSpec(domain=NN)] = 0,
+        actions: object = 0.0,
+        score: object = 0.0,
+        age: Annotated[object, NN] = 0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, actions=actions, score=score)
+        super().__init__(label, actions=actions, score=score, size=size)
         self.age = age
 
     @classmethod
@@ -325,13 +327,13 @@ class CircumstanceInteraction(Interaction):
         7
     """
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         lifespan: int = 7,
         starvation: float = 0.3,
         mutation: float = 0.005,
@@ -344,18 +346,11 @@ class CircumstanceInteraction(Interaction):
         self.mutation = mutation
         self.switch = switch
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule of the deaths and births of a generation.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rule of the generation.
-        """
-        return [RuleLaw(self._advance_generation)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rule of the deaths and births of a generation, once per step for the whole population."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context, self._advance_generation)]
 
     def _advance_generation(self, system: SystemView) -> None:
         """Age the strategies and replace the old and starving ones.
@@ -458,7 +453,7 @@ class RobbyGASystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.computer_science.evolutionary_computation import RobbyGASystem
-        >>> RobbyGASystem(5).prepare().system_.elements[0].values['actions'].shape
+        >>> RobbyGASystem(5).prepare().system_.elements[0].actions.shape
         (5, 243)
     """
 
@@ -529,23 +524,17 @@ class RobbyGASystem(BaseSystem):
                 switch=self.switch,
             )
             ages = rng.integers(0, self.lifespan, size=self.n_strategies).astype(float)
-            strategies = GroupElement(
+            strategies = AgedStrategyElement(
                 'strategies',
-                element=AgedStrategyElement,
+                actions=actions,
+                score=scores,
+                age=ages,
                 size=self.n_strategies,
-                values={'actions': actions, 'score': scores, 'age': ages},
             )
             self.system_ = System(self.label, elements=[strategies], interactions=[circumstance, scoring])
             return
         self.system_ = System(
             self.label,
-            elements=[
-                GroupElement(
-                    'strategies',
-                    element=StrategyElement,
-                    size=self.n_strategies,
-                    values={'actions': actions, 'score': scores},
-                ),
-            ],
+            elements=[StrategyElement('strategies', actions=actions, score=scores, size=self.n_strategies)],
             interactions=[evolution, scoring],
         )

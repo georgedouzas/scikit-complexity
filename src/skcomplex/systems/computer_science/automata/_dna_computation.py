@@ -11,18 +11,19 @@ Random ligation of edge oligos into paths solves the problem.
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
+from ....core.components.laws import UpdateLaw
+from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver, SystemView
 from ....core.errors import ParameterError
-from ....core.specs import RoleSpec, StateSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ....core.types import AnyArray, IntArray
 
@@ -61,7 +62,10 @@ class StrandElement(Element):
             The label of the strand or the group.
 
         path:
-            The initial nodes of the path, padded with -1 to the longest path the tube holds.
+            The initial nodes of the path, padded with -1 to the longest path the tube holds, one row per strand.
+
+        size:
+            The number of strands, or `None` for one.
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import StrandElement
@@ -73,9 +77,10 @@ class StrandElement(Element):
         self,
         label: str,
         *,
-        path: Annotated[object, StateSpec()] = EMPTY,
+        path: object = EMPTY,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.path = path
 
     @classmethod
@@ -114,31 +119,24 @@ class LigationInteraction(Interaction):
 
     draws = True
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         edges: Sequence[tuple[int, int]] = ADLEMAN_EDGES,
     ) -> None:
         super().__init__(label)
         self.target = target
         self.edges = edges
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule of the ligations of a step.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rule of the ligations.
-        """
-        return [RuleLaw(self._ligate)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rule of the ligations of a step, once for the whole tube."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context, self._ligate)]
 
     def _ligate(self, system: SystemView) -> None:
         """Join the strands of random pairs whose ends meet.
@@ -235,7 +233,7 @@ class DNAComputationSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import DNAComputationSystem
-        >>> DNAComputationSystem(10).prepare().system_.elements[0].values['path'].shape
+        >>> DNAComputationSystem(10).prepare().system_.elements[0].path.shape
         (10, 7)
     """
 
@@ -274,7 +272,7 @@ class DNAComputationSystem(BaseSystem):
         rng = np.random.default_rng(self.random_state)
         paths = np.full((self.n_strands, len(nodes)), EMPTY)
         paths[:, :2] = np.asarray(self.edges)[rng.integers(len(self.edges), size=self.n_strands)]
-        strands = GroupElement('strands', element=StrandElement, size=self.n_strands, values={'path': paths})
+        strands = StrandElement('strands', path=paths, size=self.n_strands)
         self.system_ = System(
             self.label,
             elements=[strands],
