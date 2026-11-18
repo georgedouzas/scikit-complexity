@@ -26,7 +26,7 @@ from ...general.dynamics.types import Equations
 from ...general.reactions import ReactionInteraction
 from ..common.kinetics import MichaelisMentenInteraction
 from ..common.pharmacokinetics import DosingInteraction
-from ._tumour_immune_chemotherapy import TumourImmuneChemotherapyElement
+from ._tumour_immune_chemotherapy import TumourImmuneChemotherapyElement, TumourImmuneChemotherapyInteraction
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 DRUGS = (1, 2, 3)
@@ -650,6 +650,7 @@ class DePillisRadunskayaSystem(BaseSystem):
                     a2=self.a2,
                 ),
             ],
+            interactions=[TumourImmuneChemotherapyInteraction('dynamics', target='patient')],
         )
 
 
