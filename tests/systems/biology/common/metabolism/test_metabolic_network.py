@@ -2,10 +2,9 @@
 
 import pytest
 
-from skcomplex.core.components.spaces import StaticTime
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.errors import ValidationError
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.common.metabolism import (
     ReactionSpec,
     load_network,
@@ -16,7 +15,7 @@ from skcomplex.systems.biology.systems_biology import FluxBalanceSystem, Metabol
 
 def _core_system(**values):
     """Return the system of the E. coli core system."""
-    return CompositeSystem(elements=[load_network('textbook', 'cell').set_params(**values)], time=StaticTime())
+    return System(elements=[load_network('textbook', 'cell').set_params(**values)])
 
 
 def _objective(system):
@@ -35,14 +34,14 @@ def test_network_rule_gates_the_bounds_of_a_reaction():
     values = [(1.0, 0.0, 1.0, 5.0), (1.0, 0.0, 0.0, 0.0), (0.0, 1.0, 1.0, 0.0)]
     for first, second, third, expected in values:
         element = element_type('cell', g_g1=first, g_g2=second, g_g3=third)
-        assert _objective(CompositeSystem(elements=[element], time=StaticTime())) == pytest.approx(expected)
+        assert _objective(System(elements=[element])) == pytest.approx(expected)
 
 
 def test_network_rejects_a_rule_with_another_operator():
     """Test that a rule with an operator other than `and` and `or` raises an error that names the element."""
     element_type = metabolic_network_type('BadRuleElement', {'r': ReactionSpec({'A': 1.0}, rule='a and not b')})
     with pytest.raises(ValidationError, match='gene rule of cell'):
-        PassCompiler().prepare(CompositeSystem(elements=[element_type('cell')], time=StaticTime())).run()
+        PassCompiler().prepare(System(elements=[element_type('cell')])).run()
 
 
 def test_network_keeps_its_reference_values():
