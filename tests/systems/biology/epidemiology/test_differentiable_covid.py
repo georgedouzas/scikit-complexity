@@ -6,7 +6,6 @@ import numpy as np
 
 from skcomplex.core.engine.backends import JaxBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.experiments import calibrate
 from skcomplex.systems.biology.epidemiology import DifferentiableCovidAbmSystem
 
@@ -50,7 +49,7 @@ def test_gradient_of_the_infections_agrees_with_finite_differences():
 def test_no_transmission_gives_no_infections():
     """Test that with every beta 0 the daily infections are 0, and NumPy agents stay 0 or 1."""
     system = DifferentiableCovidAbmSystem(beta_household=0.0, beta_school=0.0, beta_company=0.0)
-    trajectory = simulate(system, until=30, random_state=0)
+    trajectory = system.prepare().simulate(until=30, random_state=0)
     assert np.all(trajectory.get_values('daily_infections') == 0)
     assert set(np.unique(trajectory.get_values('people.i'))) <= {0.0, 1.0}
     assert trajectory.get_values('people.i')[-1].sum() < trajectory.get_values('people.i')[0].sum()
@@ -64,7 +63,7 @@ def test_system_holds_the_tag_differentiable():
 def test_variational_calibration_recovers_the_three_betas():
     """Test that variational calibration of the mean daily infections recovers the three betas within 0.15."""
     times = np.arange(31.0)
-    runs = [simulate(DifferentiableCovidAbmSystem(), until=30, random_state=seed) for seed in range(20)]
+    runs = [DifferentiableCovidAbmSystem().prepare().simulate(until=30, random_state=seed) for seed in range(20)]
     paths = ('cases.children', 'cases.adults')
     data = {path: (times, np.mean([run.get_values(path) for run in runs], axis=0)) for path in paths}
     result = calibrate(
