@@ -16,12 +16,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import total
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.specs import ParameterSpec, Role
+from ....core.systems import BaseSystem, System
 from ..common.populations import ReplicatorInteraction
 
 
@@ -45,7 +48,7 @@ class GenotypeClassElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        x: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
     ) -> None:
         super().__init__(label)
         self.x = x
@@ -84,8 +87,8 @@ class MasterSequenceElement(GenotypeClassElement):
         label: str,
         *,
         x: float = 0.0,
-        u: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        u: Annotated[float, RealSet.closed_open(0, oo)] = 0.3,
+        sigma: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
     ) -> None:
         super().__init__(label, x=x)
         self.u = u
@@ -107,6 +110,9 @@ class MoleculeElement(Element):
         growth:
             The rate of replication without catalysis.
 
+        size:
+            The number of molecules, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.biology.evolution import MoleculeElement
         >>> MoleculeElement('molecule', growth=0.1).growth
@@ -117,10 +123,11 @@ class MoleculeElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        growth: Annotated[object, ParameterSpec()] = 0.0,
+        x: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
+        growth: object = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.x = x
         self.growth = growth
 
@@ -157,7 +164,7 @@ class CatalysisInteraction(ReplicatorInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         omega: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         topology: Sequence[Sequence[float]] = ((0.0, 1.0), (1.0, 0.0)),
     ) -> None:
@@ -210,6 +217,12 @@ class EigenQuasispeciesSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.evolution import EigenQuasispeciesSystem
         >>> [element.label for element in EigenQuasispeciesSystem(2).prepare().system_.elements]
@@ -229,8 +242,10 @@ class EigenQuasispeciesSystem(BaseSystem):
         u: float = 0.3,
         sigma: float = 0.5,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.classes = classes
         self.u = u
         self.sigma = sigma
@@ -266,11 +281,14 @@ class EigenQuasispeciesSystem(BaseSystem):
         gained = u * source_fitness * source.x + kept * (1 - sigma) * s.target.x
         return gained / self._get_mean_fitness(master)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the shares of a population around a master sequence.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of shares of a population around a master sequence.
 
-        The shares are at every number of mutations from the master sequence.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         labels = ['master', *(f'k{k}' for k in range(1, self.classes + 1))]
         elements = [
             MasterSequenceElement('master', x=1.0, u=self.u, sigma=self.sigma),
@@ -288,7 +306,7 @@ class EigenQuasispeciesSystem(BaseSystem):
             for source, target in itertools.pairwise(labels)
         ]
         interactions = [selection, *mutations]
-        return CompositeSystem(self.label, elements=elements, interactions=interactions)
+        self.system_ = System(self.label, elements=elements, interactions=interactions)
 
 
 class HypercyclesSystem(BaseSystem):
@@ -318,6 +336,12 @@ class HypercyclesSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The topology is unknown.
@@ -342,18 +366,23 @@ class HypercyclesSystem(BaseSystem):
         omega: float = 1.0,
         topology: str = 'cycle',
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.molecules = molecules
         self.alpha = alpha
         self.omega = omega
         self.topology = topology
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of a hypercycle of self-replicating molecules.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a hypercycle of self-replicating molecules.
 
-        The catalysis of the network keeps a set of them alive.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         if self.topology == 'cycle':
             links = np.roll(np.eye(self.molecules), 1, axis=0)
         elif self.topology == 'complete':
@@ -361,14 +390,11 @@ class HypercyclesSystem(BaseSystem):
         else:
             error_msg = f'Unknown topology {self.topology!r}. Use cycle or complete.'
             raise ValidationError(error_msg)
-        soup = GroupElement(
+        soup = MoleculeElement(
             'soup',
-            element=MoleculeElement,
+            x=[1 / self.molecules] * self.molecules,
+            growth=[float(self.alpha * index) for index in range(1, self.molecules + 1)],
             size=self.molecules,
-            values={
-                'x': [1 / self.molecules] * self.molecules,
-                'growth': [float(self.alpha * index) for index in range(1, self.molecules + 1)],
-            },
         )
         catalysis = CatalysisInteraction(
             'catalysis',
@@ -376,4 +402,4 @@ class HypercyclesSystem(BaseSystem):
             omega=self.omega,
             topology=tuple(tuple(float(value) for value in row) for row in links),
         )
-        return CompositeSystem(self.label, elements=[soup], interactions=[catalysis])
+        self.system_ = System(self.label, elements=[soup], interactions=[catalysis])
