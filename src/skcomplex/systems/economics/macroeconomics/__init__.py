@@ -12,7 +12,7 @@ from ._banking import (
 )
 from ._capital import CapitalStockSystem
 from ._credit import CreditMarketInteraction, CreditNetworksSystem, FirmElement, LenderElement
-from ._firms import InvestingFirmElement, ToyFirmInvestmentSystem
+from ._firms import InvestingFirmElement, InvestmentInteraction, ToyFirmInvestmentSystem
 from ._growth import EconomyElement, MultiplierAcceleratorSystem, SolowGrowthInteraction, SolowSystem
 from ._herding import HerdingAgentElement, NetworkHerdingSystem
 from ._mark0 import Mark0EconomyInteraction, Mark0FirmElement, Mark0System
@@ -62,6 +62,7 @@ __all__: list[str] = [
     'HerdingAgentElement',
     'HouseholdsElement',
     'InvestingFirmElement',
+    'InvestmentInteraction',
     'LabourMarketInteraction',
     'LenderElement',
     'LendingInteraction',

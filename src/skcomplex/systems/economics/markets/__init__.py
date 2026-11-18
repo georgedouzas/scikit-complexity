@@ -13,6 +13,7 @@ from ._commodities import CommodityCycleSystem, CommodityMarketElement
 from ._double_auction import (
     AuctionLedgerInteraction,
     DoubleAuctionSystem,
+    QuotingInteraction,
     ZeroIntelligenceBuyerElement,
     ZeroIntelligenceSellerElement,
     maximum_surplus,
@@ -106,6 +107,7 @@ __all__: list[str] = [
     'ProduceMarketSystem',
     'ProductElement',
     'ProgramMemberElement',
+    'QuotingInteraction',
     'ResidentElement',
     'RetailDemandInteraction',
     'RetailerElement',
