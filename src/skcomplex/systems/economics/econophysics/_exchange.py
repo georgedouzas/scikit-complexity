@@ -4,16 +4,25 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Annotated
+from typing import Annotated, cast
 
 from sage.all__sagemath_symbolics import NN
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import TransferInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import PartnerSpec, UpdateLaw
+from ....core.components.laws.utils import pairs, transfer
+from ....core.components.types import SystemViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import BaseSolver
+from ....core.engine.solvers import AgentView, BaseSolver
 from ....core.systems import BaseSystem, System
+
+
+class TraderView(AgentView):
+    """Trader of the Boltzmann wealth system as its rule sees it, with its `wealth`."""
+
+    wealth: float
 
 
 class TraderElement(Element):
@@ -47,6 +56,11 @@ class TraderElement(Element):
     ) -> None:
         super().__init__(label, size=size)
         self.wealth = wealth
+
+    @classmethod
+    def _get_view(cls) -> type[TraderView]:
+        """Return the view of a trader, with its wealth."""
+        return TraderView
 
 
 class BoltzmannWealthSystem(BaseSystem):
@@ -93,18 +107,22 @@ class BoltzmannWealthSystem(BaseSystem):
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of the components built from the model parameters."""
         super()._prepare(context)
-        gifts = TransferInteraction(
-            'gifts',
-            source='traders',
-            target='traders',
-            state='wealth',
-            amount=1.0,
-            pairing='random',
-            guard=lambda giver, receiver, system: giver.wealth > 0,
-            form='agent',
-        )
+        gifts = Interaction('gifts', roles={'target': 'traders'}, laws=lambda s: [UpdateLaw(s, self._give)])
         self.system_ = System(
             self.label,
             elements=[TraderElement('traders', size=self.n_agents)],
             interactions=[gifts],
         )
+
+    @staticmethod
+    def _give(system: SystemViewProtocol) -> None:
+        """Let every trader with wealth give one unit to a random trader, in random order."""
+        traders = system.get_agents('target')
+        found = cast(
+            list[tuple[TraderView, TraderView]],
+            list(pairs(traders, traders, system.rng, PartnerSpec('all', 'uniform'))),
+        )
+        for index in system.rng.permutation(len(found)):
+            giver, receiver = found[int(index)]
+            if giver.alive and receiver.alive and giver.wealth > 0:
+                transfer(giver, receiver, 1.0, 'wealth')

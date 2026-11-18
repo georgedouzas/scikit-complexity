@@ -7,18 +7,23 @@ The exchange has a saving propensity or a debt limit.
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Annotated
+from types import SimpleNamespace
+from typing import Annotated, cast
 
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import TransferInteraction
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import PartnerSpec, UpdateLaw
+from ....core.components.laws.utils import pairs, transfer
+from ....core.components.spaces import BaseSpace
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 
 
@@ -29,6 +34,9 @@ class SavingTraderView(AgentView):
     """
 
     wealth: float
+
+
+type Pairs = list[tuple[SavingTraderView, SavingTraderView]]
 
 
 class SavingTraderElement(Element):
@@ -43,21 +51,18 @@ class SavingTraderElement(Element):
         wealth:
             The initial wealth, negative down to the debt limit.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.econophysics import SavingTraderElement
-        >>> group = GroupElement('traders', element=SavingTraderElement, size=10, values={'wealth': 2.0})
-        >>> group.label, group.element.__name__, group.size
-        ('traders', 'SavingTraderElement', 10)
+        >>> group = SavingTraderElement('traders', wealth=2.0, size=10)
+        >>> group.label, group.size
+        ('traders', 10)
     """
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        wealth: Annotated[float, StateSpec()] = 1.0,
-    ) -> None:
-        super().__init__(label)
+    def __init__(self, label: str, *, wealth: float = 1.0, size: int | None = None) -> None:
+        super().__init__(label, size=size)
         self.wealth = wealth
 
     @classmethod
@@ -66,7 +71,7 @@ class SavingTraderElement(Element):
         return SavingTraderView
 
 
-class DebtExchangeInteraction(TransferInteraction):
+class DebtExchangeInteraction(Interaction):
     """Random pairwise trades of Dragulescu and Yakovenko of a fixed amount.
 
     Debt is allowed down to a limit. In every trade an agent pays a fixed amount to another agent drawn at random,
@@ -78,11 +83,8 @@ class DebtExchangeInteraction(TransferInteraction):
         label:
             The label of the interaction.
 
-        source:
-            The path of the group of traders.
-
         target:
-            The path of the group of traders, the source again.
+            The path of the group of traders.
 
         debt:
             The debt limit `d`, the largest debt an agent can have.
@@ -95,39 +97,49 @@ class DebtExchangeInteraction(TransferInteraction):
 
     Examples:
         >>> from skcomplex.systems.economics.econophysics import DebtExchangeInteraction
-        >>> DebtExchangeInteraction('trades', source='traders', target='traders', debt=5.0).debt
+        >>> DebtExchangeInteraction('trades', target='traders', debt=5.0).debt
         5.0
     """
+
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        source: str,
-        target: str,
-        debt: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        amount: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        target: Role,
+        debt: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        amount: Annotated[float, RealSet.open(0, oo)] = 1.0,
         phase: str | None = None,
     ) -> None:
-        super().__init__(
-            label,
-            source=source,
-            target=target,
-            state='wealth',
-            amount=amount,
-            pairing='random',
-            guard=self._is_solvent,
-            form='agent',
-            phase=phase,
-        )
+        super().__init__(label)
+        self.target = target
         self.debt = debt
+        self.amount = amount
+        self.phase = phase
 
-    def _is_solvent(self, payer: SavingTraderView, payee: SavingTraderView, system: SystemViewProtocol) -> bool:
-        """Return whether the payer stays above minus the debt limit after paying."""
-        return bool(payer.wealth - system.get_parameter('amount') >= -system.get_parameter('debt'))
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the trades of every step as the rule of the system."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context, self.trade, phase=self.phase)]
+
+    def trade(self, system: SystemViewProtocol) -> None:
+        """Let every trader pay the amount to a random trader, in random order, while it stays above the limit.
+
+        Args:
+            system:
+                The system view of the trades.
+        """
+        traders = system.get_agents('target')
+        found = cast(Pairs, list(pairs(traders, traders, system.rng, PartnerSpec('all', 'uniform'))))
+        for index in system.rng.permutation(len(found)):
+            payer, payee = found[int(index)]
+            if payer.alive and payee.alive and payer.wealth - self.amount >= -self.debt:
+                transfer(payer, payee, self.amount, 'wealth')
 
 
-class SavingExchangeInteraction(TransferInteraction):
+class SavingExchangeInteraction(Interaction):
     """Random pairwise trades of Chakraborti and Chakrabarti.
 
     Every agent saves a fraction of its wealth. A trade between agents `i` and `j` keeps total wealth and gives
@@ -141,11 +153,8 @@ class SavingExchangeInteraction(TransferInteraction):
         label:
             The label of the interaction.
 
-        source:
-            The path of the group of traders.
-
         target:
-            The path of the group of traders, the source again.
+            The path of the group of traders.
 
         saving:
             The saving propensity `lambda`, the fraction of its wealth that an agent keeps out of a trade.
@@ -155,36 +164,49 @@ class SavingExchangeInteraction(TransferInteraction):
 
     Examples:
         >>> from skcomplex.systems.economics.econophysics import SavingExchangeInteraction
-        >>> SavingExchangeInteraction('trades', source='traders', target='traders').saving
+        >>> SavingExchangeInteraction('trades', target='traders').saving
         0.0
     """
+
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        source: str,
-        target: str,
-        saving: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        target: Role,
+        saving: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
         phase: str | None = None,
     ) -> None:
-        super().__init__(
-            label,
-            source=source,
-            target=target,
-            state='wealth',
-            amount=self._get_amount,
-            pairing='random',
-            form='agent',
-            phase=phase,
-        )
+        super().__init__(label)
+        self.target = target
         self.saving = saving
+        self.phase = phase
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the trades of every step as the rule of the system."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context, self.trade, phase=self.phase)]
+
+    def trade(self, system: SystemViewProtocol) -> None:
+        """Let every trader trade a random share of the pooled wealth with a random trader, in random order.
+
+        Args:
+            system:
+                The system view of the trades.
+        """
+        traders = system.get_agents('target')
+        found = cast(Pairs, list(pairs(traders, traders, system.rng, PartnerSpec('all', 'uniform'))))
+        for index in system.rng.permutation(len(found)):
+            first, second = found[int(index)]
+            if first.alive and second.alive:
+                transfer(first, second, self._get_amount(first, second, system), 'wealth')
 
     def _get_amount(self, first: SavingTraderView, second: SavingTraderView, system: SystemViewProtocol) -> float:
         """Return the wealth the first trader transfers to the second, of either sign."""
-        saving = system.get_parameter('saving')
         share = float(system.rng.random())
-        return (1 - saving) * (first.wealth - share * (first.wealth + second.wealth))
+        return (1 - self.saving) * (first.wealth - share * (first.wealth + second.wealth))
 
 
 class KineticWealthExchangeSystem(BaseSystem):
@@ -265,25 +287,12 @@ class KineticWealthExchangeSystem(BaseSystem):
             error_msg = f'The saving propensity must lie in [0, 1), got {self.saving}.'
             raise ValueError(error_msg)
         trades = (
-            SavingExchangeInteraction('trades', source='traders', target='traders', saving=self.saving)
+            SavingExchangeInteraction('trades', target='traders', saving=self.saving)
             if self.debt is None
-            else DebtExchangeInteraction(
-                'trades',
-                source='traders',
-                target='traders',
-                debt=self.debt,
-                amount=self.amount,
-            )
+            else DebtExchangeInteraction('trades', target='traders', debt=self.debt, amount=self.amount)
         )
         self.system_ = System(
             self.label,
-            elements=[
-                GroupElement(
-                    'traders',
-                    element=SavingTraderElement,
-                    size=self.n_agents,
-                    values={'wealth': self.wealth},
-                ),
-            ],
+            elements=[SavingTraderElement('traders', wealth=self.wealth, size=self.n_agents)],
             interactions=[trades],
         )
