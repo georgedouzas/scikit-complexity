@@ -15,7 +15,6 @@ sites over the last frames, one row per step with the earliest at the top.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.statistical_mechanics import TASEPSystem
 
@@ -23,7 +22,7 @@ SYSTEM = 'tasep'
 
 system = TASEPSystem(n_sites=200, p=0.5, ring=True, density=0.5, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, until=250, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=250, observers=[observer], random_state=0)
 
 # %%
 # Fundamental diagram of the ring
@@ -48,7 +47,7 @@ for p, color in ((0.5, 'tab:blue'), (0.9, 'tab:orange')):
     measured = []
     for density in densities:
         system_p = TASEPSystem(n_sites=400, p=p, ring=True, density=density, random_state=1)
-        run = simulate(system_p, until=1000, random_state=1)
+        run = system_p.prepare().simulate(until=1000, random_state=1)
         measured.append(current(run.get_values('lane.occupied')[200:]))
     ax.plot(densities, measured, 'o', color=color, label=f'simulation, p = {p}')
     ax.plot(grid, (1 - np.sqrt(1 - 4 * p * grid * (1 - grid))) / 2, color=color, label=f'exact, p = {p}')

@@ -11,21 +11,19 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, oo
+from sage.all__sagemath_symbolics import oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import Interaction, TransferInteraction
-from ....core.components.laws import Sink, Source, UpdateLaw
-from ....core.components.laws.utils import bernoulli
-from ....core.components.spaces import BaseSpace, DiscreteTime, LatticeSpace, RadiusNeighborhood
-from ....core.components.systems import BaseSystem as OldBaseSystem
-from ....core.components.systems import CompositeSystem
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
+from ....core.components.laws.utils import bernoulli, shift_member
+from ....core.components.spaces import BaseSpace, LatticeSpace, RadiusNeighborhood
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver, SystemView
-from ....core.specs import ParameterSpec, Role, StateSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
@@ -125,49 +123,175 @@ class ContactInfectionInteraction(Interaction):
 
 
 class ExclusionSiteElement(Element):
-    """Site of the totally asymmetric simple exclusion process.
+    """Sites of the totally asymmetric simple exclusion process.
 
-    The site is empty at 0 or holds one particle at 1.
-
-    It holds the probabilities of a hop, of an entry at the left end of an open line, and of an exit at its right end,
-    which the transfers of the process read.
+    Every site is empty at 0 or holds one particle at 1.
 
     Args:
         label:
-            The label of the site or the lattice group.
+            The label of the site or the lane of sites.
 
         occupied:
-            The initial occupation.
+            The initial occupation, or one occupation per site.
 
-        p:
-            The probability of a hop.
-
-        alpha:
-            The probability of an entry at the left end of an open line.
-
-        beta:
-            The probability of an exit at the right end of an open line.
+        space:
+            The lattice of the sites, or `None` for one site.
 
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import ExclusionSiteElement
-        >>> ExclusionSiteElement('site').p
-        0.5
+        >>> ExclusionSiteElement('site').occupied
+        0.0
     """
 
     def __init__(
         self,
         label: str,
         *,
-        occupied: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.7,
+        occupied: Annotated[object, FiniteEnumeratedSet([0, 1])] = 0.0,
+        space: BaseSpace | None = None,
+    ) -> None:
+        super().__init__(label, space=space)
+        self.occupied = occupied
+
+
+class ParallelHopInteraction(Interaction):
+    """Hops of particles to the next site of a lane, all at once.
+
+    In one step every particle whose next site is empty hops to it with probability `p`. One draw decides the hop
+    between two sites, and both sites read it, so particles are never lost or doubled. On a fixed boundary the last
+    site has no next site. It is the parallel update of cars on a road, ribosomes on a messenger RNA, or molecular
+    motors on a filament.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the sites, whose value is `occupied`.
+
+        p:
+            The probability of a hop.
+
+        boundary:
+            `'periodic'` for a ring, or `'fixed'` for an open line.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics import ParallelHopInteraction
+        >>> ParallelHopInteraction('hops', target='lane', p=0.75).p
+        0.75
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Role,
+        p: Annotated[float, RealSet.closed(0, 1)] = 0.5,
+        boundary: str = 'periodic',
     ) -> None:
         super().__init__(label)
-        self.occupied = occupied
+        self.target = target
         self.p = p
+        self.boundary = boundary
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the occupations after the hops of one step.
+
+        A particle leaves a site when it hops, and enters the next site with the draw of the site it left.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            occupied = context.target.occupied
+            ahead = shift_member(occupied, 1, boundary=self.boundary, fill=1.0)
+            behind = shift_member(occupied, -1, boundary=self.boundary)
+            hop = bernoulli('hop', context.p)
+            leaves = occupied * (1 - ahead) * hop
+            arrives = behind * (1 - occupied) * shift_member(hop, -1, boundary=self.boundary)
+            self.laws_ = [UpdateLaw(occupied, occupied - leaves + arrives, increment=True)]
+
+
+class LaneEntryInteraction(Interaction):
+    """Entry of particles at the first site of an open lane.
+
+    In one step a particle enters the empty first site with probability `alpha`, as cars join a road from a ramp.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the first site, whose value is `occupied`.
+
+        alpha:
+            The probability of an entry.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics import LaneEntryInteraction
+        >>> LaneEntryInteraction('entry', target='lane[0]', alpha=0.4).alpha
+        0.4
+    """
+
+    def __init__(self, label: str, *, target: Role, alpha: Annotated[float, RealSet.closed(0, 1)] = 0.3) -> None:
+        super().__init__(label)
+        self.target = target
         self.alpha = alpha
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the occupation of the first site after an entry.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            occupied = context.target.occupied
+            enters = (1 - occupied) * bernoulli('entry', context.alpha)
+            self.laws_ = [UpdateLaw(occupied, occupied + enters, increment=True)]
+
+
+class LaneExitInteraction(Interaction):
+    """Exit of particles at the last site of an open lane.
+
+    In one step the particle on the last site leaves with probability `beta`, as cars leave a road by an exit.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the last site, whose value is `occupied`.
+
+        beta:
+            The probability of an exit.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics import LaneExitInteraction
+        >>> LaneExitInteraction('exit', target='lane[9]', beta=0.6).beta
+        0.6
+    """
+
+    def __init__(self, label: str, *, target: Role, beta: Annotated[float, RealSet.closed(0, 1)] = 0.7) -> None:
+        super().__init__(label)
+        self.target = target
         self.beta = beta
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the occupation of the last site after an exit.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            occupied = context.target.occupied
+            leaves = occupied * bernoulli('exit', context.beta)
+            self.laws_ = [UpdateLaw(occupied, occupied - leaves, increment=True)]
 
 
 class PercolationSiteElement(Element):
@@ -690,17 +814,16 @@ class ContactProcessSystem(BaseSystem):
         self.system_ = System(self.label, elements=[lattice], interactions=[infection])
 
 
-class TASEPSystem(OldBaseSystem):
+class TASEPSystem(BaseSystem):
     """The totally asymmetric simple exclusion process with parallel update.
 
     The process runs on an open line or a ring.
 
-    Every step all particles whose right neighbour is empty hop to it with probability `p` at once, a transfer along
-    every edge of the lane with one draw per edge. On an open line particles enter the first site with probability
-    `alpha` and leave the last site with probability `beta`. On a ring at density `rho` the current is `(1 - sqrt(1 - 4
-    p rho (1 - rho))) / 2`. On an open line the entry and exit probabilities select the low-density, high-density, or
-    maximal-current phase. The system has the occupations `lane.occupied` and the hops `lane.hops`, and on an open line
-    the entries `entry.flow_0` and the exits `exit.flow_0`.
+    Every step all particles whose right neighbour is empty hop to it with probability `p` at once, with one draw for
+    every pair of neighbouring sites. On an open line particles enter the first site with probability `alpha` and
+    leave the last site with probability `beta`. On a ring at density `rho` the current is `(1 - sqrt(1 - 4 p rho (1 -
+    rho))) / 2`. On an open line the entry and exit probabilities select the low-density, high-density, or
+    maximal-current phase. The system has the occupations `lane.occupied`.
 
     Args:
         n_sites:
@@ -727,13 +850,17 @@ class TASEPSystem(OldBaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import TASEPSystem
         >>> [interaction.label for interaction in TASEPSystem(20).prepare().system_.interactions]
         ['hops', 'entry', 'exit']
     """
-
-    draws = True
 
     field = 'physics/statistical_mechanics'
     topics = ('lattice', 'stochastic', 'exclusion', 'traffic', 'nonequilibrium')
@@ -752,8 +879,10 @@ class TASEPSystem(OldBaseSystem):
         density: float = 0.5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_sites = n_sites
         self.p = p
         self.alpha = alpha
@@ -762,76 +891,26 @@ class TASEPSystem(OldBaseSystem):
         self.density = density
         self.random_state = random_state
 
-    @staticmethod
-    def _hop(s: SimpleNamespace) -> Expression:
-        """Return 1 where a particle hops to the empty next site, and 0 otherwise.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the lane with random occupied sites, its hops, and on an open line its entry and exit.
 
-        The hop has probability `p`, with one draw per edge.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        return s.source.occupied * (1 - s.target.occupied) * bernoulli('hop', s.source.p)
-
-    @staticmethod
-    def _enter(s: SimpleNamespace) -> Expression:
-        """Return 1 where a particle enters the empty first site, and 0 otherwise.
-
-        The entry has probability `alpha`.
-        """
-        return (1 - s.target.occupied) * bernoulli('entry', s.target.alpha)
-
-    @staticmethod
-    def _leave(s: SimpleNamespace) -> Expression:
-        """Return 1 where the particle on the last site leaves, and 0 otherwise.
-
-        The exit has probability `beta`.
-        """
-        return s.source.occupied * bernoulli('exit', s.source.beta)
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the totally asymmetric simple exclusion process with parallel update.
-
-        The process runs on an open line or a ring.
-        """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         occupied = np.zeros(self.n_sites)
         occupied[rng.choice(self.n_sites, round(self.density * self.n_sites), replace=False)] = 1.0
         boundary = 'periodic' if self.ring else 'fixed'
-        lane = GroupElement(
-            'lane',
-            element=ExclusionSiteElement,
-            space=LatticeSpace(self.n_sites, boundary=boundary),
-            values={'occupied': occupied, 'p': self.p, 'alpha': self.alpha, 'beta': self.beta},
-            on='sites',
-        )
-        hops = TransferInteraction(
-            'hops',
-            source='lane',
-            target='lane',
-            state='occupied',
-            amount=self._hop,
-            flow='hops',
-            offset=1,
-            boundary=boundary,
-        )
-        if self.ring:
-            return CompositeSystem(self.label, elements=[lane], interactions=[hops], time=DiscreteTime())
-        first, last = 'lane[0]', f'lane[{self.n_sites - 1}]'
-        entry = TransferInteraction(
-            'entry',
-            source=first,
-            target=first,
-            state=Source(),
-            into='occupied',
-            amount=self._enter,
-        )
-        leaving = TransferInteraction(
-            'exit',
-            source=last,
-            target=last,
-            state='occupied',
-            into=Sink(),
-            amount=self._leave,
-        )
-        return CompositeSystem(self.label, elements=[lane], interactions=[hops, entry, leaving], time=DiscreteTime())
+        lane = ExclusionSiteElement('lane', occupied=occupied, space=LatticeSpace(self.n_sites, boundary=boundary))
+        interactions: list[Interaction] = [ParallelHopInteraction('hops', target='lane', p=self.p, boundary=boundary)]
+        if not self.ring:
+            interactions += [
+                LaneEntryInteraction('entry', target='lane[0]', alpha=self.alpha),
+                LaneExitInteraction('exit', target=f'lane[{self.n_sites - 1}]', beta=self.beta),
+            ]
+        self.system_ = System(self.label, elements=[lane], interactions=interactions)
 
 
 class DiffusionLimitedAggregationSystem(BaseSystem):

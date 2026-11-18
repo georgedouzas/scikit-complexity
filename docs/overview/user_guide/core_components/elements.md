@@ -417,6 +417,55 @@ its two workers have the employer -1, and the worker of the second firm keeps it
 
 See its [API entry][skcomplex.core.components.elements.Member].
 
+## Tensor
+
+A `Tensor` says that a value holds the entries of a square matrix of one symmetry, such as the order tensor of a liquid
+crystal. It is written in `Annotated`, as `Q: Annotated[object, Tensor('traceless')] = 0.0`. The value holds only the
+independent entries, `Q_xx` and `Q_xy` for a traceless matrix in two dimensions, and the matrix has one row per
+dimension of the space of the element. Laws read the value as a Sage matrix. Here the order of every site of a small
+lattice relaxes until `tr(Q^2)` is one half.
+
+```python
+from typing import Annotated
+
+import numpy as np
+
+from skcomplex.core.components.elements import Element, Tensor
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.spaces import LatticeSpace
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
+
+
+class Crystal(Element):
+    def __init__(self, label, Q: Annotated[object, Tensor('traceless')] = 0.0, space=None):
+        super().__init__(label, space=space)
+        self.Q = Q
+
+
+class Ordering(Interaction):
+    def __init__(self, label, *, target: Role = 'crystal'):
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, s):
+        super()._prepare(s)
+        Q = s.target.Q
+        self.laws_ = [RateLaw(Q, -((Q * Q).trace() - 0.5) * Q)]
+
+
+crystal = Crystal('crystal', Q=np.tile([0.2, 0.1], (4, 1)), space=LatticeSpace((2, 2)))
+trajectory = System(elements=[crystal], interactions=[Ordering('ordering')]).prepare().simulate(until=20.0, dt=10.0)
+trajectory.get_values('crystal.Q')[-1].round(3).tolist()
+```
+
+Every site keeps its axis, the ratio of its two entries, and reaches the order where `2 (Q_xx^2 + Q_xy^2)` is one
+half. A symmetry other than `'full'`, `'symmetric'`, `'antisymmetric'`, or `'traceless'` is rejected when the system
+is prepared.
+
+See its [API entry][skcomplex.core.components.elements.Tensor].
+
 ## GroupElement
 
 A `GroupElement` holds many members of one element class, with one row per member in every state. Here three herds

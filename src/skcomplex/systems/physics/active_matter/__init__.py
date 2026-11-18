@@ -48,11 +48,15 @@ from ._flocks import (
 from ._gels import ActiveViscoelasticGelSystem, ContractileGelSiteElement
 from ._kinetic_flocks import AngularAlignmentInteraction, AngularDiffusionInteraction, BertinDrozGregoireSystem
 from ._nematics import (
+    ActiveCurrentInteraction,
     ActiveGelsSystem,
+    CurvatureAlignmentInteraction,
     DryActiveNematicsSystem,
     LandauDeGennesEnergyInteraction,
     NematicDensitySiteElement,
+    NematicGelFlowInteraction,
     NematicGelSiteElement,
+    PolarGelFlowInteraction,
     PolarGelSiteElement,
 )
 from ._nonreciprocal import (
@@ -85,6 +89,7 @@ __all__: list[str] = [
     'ActiveBeadElement',
     'ActiveBrownianParticlesSystem',
     'ActiveCahnHilliardInteraction',
+    'ActiveCurrentInteraction',
     'ActiveDiffusionInteraction',
     'ActiveGelsSystem',
     'ActiveOrnsteinUhlenbeckParticlesSystem',
@@ -111,6 +116,7 @@ __all__: list[str] = [
     'ContractileGelSiteElement',
     'CuckerSmaleAlignmentInteraction',
     'CuckerSmaleFlockingSystem',
+    'CurvatureAlignmentInteraction',
     'DeformableActiveParticlesSystem',
     'DeformableParticleElement',
     'DepotBrownianParticlesSystem',
@@ -132,6 +138,7 @@ __all__: list[str] = [
     'MotileCellElement',
     'MotilityInducedPhaseSeparationSystem',
     'NematicDensitySiteElement',
+    'NematicGelFlowInteraction',
     'NematicGelSiteElement',
     'NematicParticleElement',
     'NonreciprocalAlignmentInteraction',
@@ -142,6 +149,7 @@ __all__: list[str] = [
     'PhoreticAttractionInteraction',
     'PolarAlignmentInteraction',
     'PolarFluidElement',
+    'PolarGelFlowInteraction',
     'PolarGelSiteElement',
     'PropulsionStepInteraction',
     'RunAndTumbleInteraction',
