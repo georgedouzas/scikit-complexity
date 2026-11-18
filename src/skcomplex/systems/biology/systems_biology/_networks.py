@@ -4,7 +4,7 @@
 # License: MIT
 
 import itertools
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from math import prod
 from types import MappingProxyType, SimpleNamespace
 from typing import Annotated
@@ -13,14 +13,14 @@ from sage.all__sagemath_symbolics import SR, Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import DeclaredElement, Element
+from ....core.components.elements import Element
 from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec
+from ....core.specs import Role, Roles
 from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction
 from ..common.kinetics import MichaelisMentenInteraction, RepressionInteraction, SpeciesElement
@@ -85,60 +85,52 @@ PATHWAY_ORDERS = ((0.0, 0.0, -0.5), (0.5, 0.0, 0.0), (0.0, 0.5, 0.0), (0.0, 0.0,
 MIN_GOODWIN_STAGES = 2
 
 
-class GlycolysisElement(DeclaredElement):
-    """Yeast glycolysis in a flow reactor.
-
-    It has the fifteen metabolites of the model of Nielsen and coworkers.
+class GlycolysisInteraction(Interaction):
+    """Yeast glycolysis in a flow reactor, the fifteen metabolites of the model of Nielsen and coworkers.
 
     The model of Nielsen, Sørensen, Hynne, and Busse (1998), BioModels BIOMD0000000042, follows glucose `GLC` through
     hexokinase, phosphofructokinase with its inhibition by the ratio of `ATP` to `AMP`, aldolase, glyceraldehyde
     phosphate dehydrogenase, phosphoglycerate kinase, pyruvate kinase, pyruvate decarboxylase, alcohol dehydrogenase,
     adenylate kinase, and a glycerol branch to `P`. The reactor is fed with `ATP`, `ADP`, `NADH`, `NAD`, and glucose
     at fixed concentrations and washed out at the rate `flow`. The concentrations, in mM, and the rate constants, in mM
-    and per minute, are declared variables named as in the source, and `variables` replaces any of them.
+    and per minute, are values of the target named as in the source, such as
+    `Element('extract', values={**CONCENTRATIONS, **CONSTANTS})`.
 
     Args:
         label:
-            The label of the cell extract.
+            The label of the interaction.
 
-        variables:
-            The declared states and parameters that replace those of the source, by name, or `None` for none.
+        target:
+            The path of the cell extract.
 
     Examples:
-        >>> from skcomplex.systems.biology.systems_biology import GlycolysisElement
-        >>> GlycolysisElement('extract').get_value('V4')
-        10.0
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.systems import System
+        >>> from skcomplex.systems.biology.systems_biology import GlycolysisInteraction
+        >>> from skcomplex.systems.biology.systems_biology._networks import CONCENTRATIONS, CONSTANTS
+        >>> extract = Element('extract', values={**CONCENTRATIONS, **CONSTANTS})
+        >>> system = System(elements=[extract], interactions=[GlycolysisInteraction('glycolysis', target='extract')])
+        >>> len(system.prepare().states_)
+        15
     """
 
     law_classes = (RateLaw,)
 
-    def _declare_variables(self) -> Mapping[str, DeclaredVariableSpec]:
-        """Return the concentrations and the rate constants of the source.
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
 
-        They are updated by `variables`.
-        """
-        nonnegative = RealSet.closed_open(0, oo)
-        declared = {
-            name: DeclaredVariableSpec(value, StateSpec(domain=nonnegative)) for name, value in CONCENTRATIONS.items()
-        }
-        declared |= {
-            name: DeclaredVariableSpec(value, ParameterSpec(domain=nonnegative)) for name, value in CONSTANTS.items()
-        }
-        return {**declared, **(self.variables or {})}
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rates of the metabolites.
-
-        They are the reactions of glycolysis and the exchange with the feed.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rates of the metabolites, the reactions of glycolysis and the exchange with the feed.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the cell extract.
         """
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        s = context.target
         v1 = s.V1 * s.ATP * s.GLC / ((s.K1GLC + s.GLC) * (s.K1ATP + s.ATP))
         inhibition = s.K2 * (1 + s.k2 * (s.ATP / s.AMP) ** 2)
         v2 = s.V2 * s.ATP * s.F6P**2 / ((inhibition + s.F6P**2) * (s.K2ATP + s.ATP))
@@ -172,7 +164,7 @@ class GlycolysisElement(DeclaredElement):
             state = getattr(s, name)
             exchange = s.flow * (FEEDS.get(name, 0.0) - state)
             laws.append(RateLaw(state, rate + exchange))
-        return laws
+        self.laws_ = laws
 
 
 class PhosphorylationLoopElement(Element):
@@ -325,7 +317,7 @@ class GeneralizedMassActionInteraction(Interaction):
         self,
         label: str,
         *,
-        species: Annotated[list[str], RoleSpec(variadic=True)],
+        species: Roles,
         stoichiometry: Sequence[Sequence[float]] = ((0.0,),),
         gamma: Sequence[float] = (0.0,),
         orders: Sequence[Sequence[float]] = ((0.0,),),
@@ -441,9 +433,9 @@ class SSystemInteraction(GeneralizedMassActionInteraction):
         self,
         label: str,
         *,
-        species: Annotated[list[str], RoleSpec(variadic=True)],
-        alpha: Annotated[Sequence[float], ParameterSpec(per='species', domain=RealSet.closed_open(0, oo))] = (),
-        beta: Annotated[Sequence[float], ParameterSpec(per='species', domain=RealSet.closed_open(0, oo))] = (),
+        species: Roles,
+        alpha: Sequence[float] = (),
+        beta: Sequence[float] = (),
         g: Sequence[Sequence[float]] = ((0.0,),),
         h: Sequence[Sequence[float]] = ((0.0,),),
     ) -> None:
@@ -929,7 +921,7 @@ class GlycolysisOscillationsSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.biology.systems_biology import GlycolysisOscillationsSystem
-        >>> GlycolysisOscillationsSystem(flow=0.02).prepare().system_.elements[0].get_value('flow')
+        >>> GlycolysisOscillationsSystem(flow=0.02).prepare().system_.elements[0].values['flow']
         0.02
     """
 
@@ -960,8 +952,6 @@ class GlycolysisOscillationsSystem(BaseSystem):
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
-        variables = {
-            'flow': DeclaredVariableSpec(self.flow, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'V4': DeclaredVariableSpec(self.V4, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-        }
-        self.system_ = System(self.label, elements=[GlycolysisElement('extract', variables=variables)])
+        extract = Element('extract', values={**CONCENTRATIONS, **CONSTANTS, 'flow': self.flow, 'V4': self.V4})
+        glycolysis = GlycolysisInteraction('glycolysis', target='extract')
+        self.system_ = System(self.label, elements=[extract], interactions=[glycolysis])
