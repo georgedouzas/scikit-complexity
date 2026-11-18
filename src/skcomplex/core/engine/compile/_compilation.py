@@ -45,11 +45,10 @@ from ._census_spec import _CensusSpec
 from ._matrix_law_spec import _MatrixLawSpec
 from ._plan_spec import _PlanSpec
 
+TIME_FUNCTIONS = ('derivative', 'lag', 'delayed')
+
 type Laws = list[tuple[KernelSpec, list[BaseLaw]]]
 type BlockLaws = list[tuple[KernelSpec, list[BaseLaw], BlockSpec]]
-
-
-TIME_FUNCTIONS = ('derivative', 'lag', 'delayed')
 
 
 class Compilation:
@@ -365,7 +364,7 @@ class Compilation:
 
     @staticmethod
     def _is_balance(law: BaseLaw) -> bool:
-        """Return whether a law is a constraint that reads neither the time nor a derivative.
+        """Return whether a law is a constraint free of the time and of derivatives.
 
         Such a constraint, such as the best response `q1 == (a - q2) / 2` of a firm, holds at one moment only, while
         a source `v == E * sin(t)` or a circuit `L * q.diff(t, 2) + q / C == V` changes with time.
@@ -377,7 +376,7 @@ class Compilation:
 
     @staticmethod
     def _reads_time(expression: Expression) -> bool:
-        """Return whether an expression holds a derivative or the time outside the states it reads."""
+        """Return whether an expression reads a derivative or the time itself."""
         operator = expression.operator()
         if isinstance(operator, FDerivativeOperator):
             return True
