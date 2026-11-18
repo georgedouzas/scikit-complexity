@@ -13,8 +13,8 @@ the tumour shrinks to well below its untreated size.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.oncology import OptimalChemotherapySystem, TumourImmuneChemotherapyElement
 
 SYSTEM = 'optimal_chemotherapy'
@@ -29,7 +29,7 @@ trajectory = OptimalChemotherapySystem().prepare().simulate(observers=[observer]
 # first days, the tumour should end at less than half its untreated size, while the normal cells recover once the
 # infusion tapers off.
 
-untreated = CompositeSystem(elements=[TumourImmuneChemotherapyElement('patient')]).prepare().simulate(dt=0.25, until=30)
+untreated = System(elements=[TumourImmuneChemotherapyElement('patient')]).prepare().simulate(dt=0.25, until=30)
 fig, (tumour, dose) = plt.subplots(1, 2, figsize=(10, 4))
 tumour.plot(untreated.times, untreated.get_values('patient.A'), label='untreated')
 tumour.plot(trajectory.times, trajectory.get_values('patient.A'), label='optimal infusion')
