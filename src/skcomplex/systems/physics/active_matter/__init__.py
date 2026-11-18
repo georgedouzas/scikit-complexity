@@ -9,7 +9,12 @@ from ..common.particles import (
     PropulsionStepInteraction,
     SelfPropulsionInteraction,
 )
-from ._active_passive import ActivePassiveFlockingSystem, FlockingAgentElement
+from ._active_passive import (
+    ActivePassiveFlockingSystem,
+    FlockingAgentElement,
+    TargetSpeedInteraction,
+    VelocityFlockingInteraction,
+)
 from ._alignment import AligningActiveBrownianParticlesSystem, PolarAlignmentInteraction
 from ._cells import CellMotilityInteraction, MotileCellElement, SzaboCellsSystem
 from ._chemotaxis import ChemotaxisElement, ChemotaxisInteraction, KellerSegelSystem
@@ -147,10 +152,12 @@ __all__: list[str] = [
     'SquirmerSlipInteraction',
     'SquirmersSystem',
     'SzaboCellsSystem',
+    'TargetSpeedInteraction',
     'TonerTuInteraction',
     'TonerTuSystem',
     'TumblerElement',
     'TumblerView',
+    'VelocityFlockingInteraction',
     'VicsekParticleElement',
     'VicsekSystem',
 ]
