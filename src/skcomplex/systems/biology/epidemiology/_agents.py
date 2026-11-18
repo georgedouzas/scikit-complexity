@@ -8,7 +8,7 @@ The individuals walk on grids and travel on networks.
 
 import math
 from collections.abc import Callable, Mapping, Sequence
-from typing import Annotated
+from typing import Annotated, cast
 
 import networkx as nx
 import numpy as np
@@ -25,6 +25,7 @@ from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
+from ....core.types import Array
 from ...general.agents import MovementInteraction
 
 SUSCEPTIBLE, EXPOSED, INFECTED, RECOVERED, DEAD = 0.0, 1.0, 2.0, 3.0, 4.0
@@ -117,7 +118,7 @@ class PersonElement(Element):
         self,
         label: str,
         *,
-        health: Annotated[float, NN] = SUSCEPTIBLE,
+        health: Annotated[float | Array, NN] = SUSCEPTIBLE,
         d: Annotated[float, RealSet.closed_open(0, oo)] = 0.8,
         beta: Annotated[float, RealSet.closed_open(0, oo)] = 0.6,
         gamma: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
@@ -202,7 +203,7 @@ class TravellerElement(Element):
         self,
         label: str,
         *,
-        health: Annotated[float, NN] = SUSCEPTIBLE,
+        health: Annotated[float | Array, NN] = SUSCEPTIBLE,
         tau: Annotated[float, RealSet.closed_open(0, oo)] = 0.05,
         m: Annotated[float, RealSet.closed_open(0, oo)] = 0.05,
         values: Mapping[str, object] | None = None,
@@ -273,7 +274,7 @@ class WalkerElement(Element):
         self,
         label: str,
         *,
-        health: Annotated[float, NN] = HEALTHY,
+        health: Annotated[float | Array, NN] = HEALTHY,
         infection: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
         travel: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
         values: Mapping[str, object] | None = None,
@@ -289,6 +290,9 @@ class WalkerElement(Element):
     def _get_view(cls) -> type[WalkerView]:
         """Return the view of a walker, `WalkerView`."""
         return WalkerView
+
+
+type HealthView = PersonView | TravellerView | WalkerView
 
 
 class AgentBasedSIRSystem(BaseSystem):
@@ -485,12 +489,12 @@ class AgentBasedSIRSystem(BaseSystem):
         """
         return True
 
-    def _infect(self, person: AgentViewProtocol, system: SystemViewProtocol) -> None:
+    def _infect(self, person: HealthView, system: SystemViewProtocol) -> None:
         """Expose a susceptible person whom an infectious cellmate infects, or infect it without incubation."""
         if person.alive and float(person.health) == SUSCEPTIBLE and self._is_person_infected(person, system):
             person.health = EXPOSED if self.incubation > 0 else INFECTED
 
-    def _wane(self, person: AgentViewProtocol, system: SystemViewProtocol) -> None:
+    def _wane(self, person: HealthView, system: SystemViewProtocol) -> None:
         """Make a recovered person susceptible again with the probability `alpha`."""
         if (
             person.alive
@@ -499,7 +503,7 @@ class AgentBasedSIRSystem(BaseSystem):
         ):
             person.health = SUSCEPTIBLE
 
-    def _recover(self, person: AgentViewProtocol, system: SystemViewProtocol) -> None:
+    def _recover(self, person: HealthView, system: SystemViewProtocol) -> None:
         """Make an infectious person recover with the probability `gamma`."""
         if (
             person.alive
@@ -508,7 +512,7 @@ class AgentBasedSIRSystem(BaseSystem):
         ):
             person.health = RECOVERED
 
-    def _die(self, person: AgentViewProtocol, system: SystemViewProtocol) -> None:
+    def _die(self, person: HealthView, system: SystemViewProtocol) -> None:
         """Make an infectious person who has not recovered die with the probability `mu / (1 - gamma)`."""
         if (
             person.alive
@@ -517,7 +521,7 @@ class AgentBasedSIRSystem(BaseSystem):
         ):
             person.health = DEAD
 
-    def _incubate(self, person: AgentViewProtocol, system: SystemViewProtocol) -> None:
+    def _incubate(self, person: HealthView, system: SystemViewProtocol) -> None:
         """Make an exposed person infectious once it has been exposed for `incubation` steps."""
         if not person.alive:
             return
@@ -636,12 +640,12 @@ class RandomWalkerEpidemicsSystem(BaseSystem):
     until = 300
 
     @staticmethod
-    def _get_rule(label: str, group: str, rule: Callable[[AgentViewProtocol, SystemViewProtocol], None]) -> Interaction:
+    def _get_rule(label: str, group: str, rule: Callable[..., None]) -> Interaction:
         """Return the interaction that runs a rule on every member of a group, in its activation."""
         return Interaction(label, roles={'target': group}, laws=lambda s: [UpdateLaw(s.target, rule)])
 
     @staticmethod
-    def _count_held(agent: AgentViewProtocol, system: SystemViewProtocol, key: str) -> int:
+    def _count_held(agent: HealthView, system: SystemViewProtocol, key: str) -> int:
         """Return the number of whole steps an agent has held its health, counted in the storage under a key."""
         value = float(agent.health)
         record = system.storage.get(f'{key}.{agent.id}')
@@ -651,7 +655,7 @@ class RandomWalkerEpidemicsSystem(BaseSystem):
 
     @staticmethod
     def _infect_cellmates(
-        agent: AgentViewProtocol,
+        agent: HealthView,
         system: SystemViewProtocol,
         *,
         source: float,
@@ -663,7 +667,7 @@ class RandomWalkerEpidemicsSystem(BaseSystem):
             return
         infected = [
             other
-            for other in agent.get_agents_here(agent.group)
+            for other in cast(list[HealthView], agent.get_agents_here(agent.group))
             if other is not agent
             and float(other.health) == source
             and bool(system.rng.random() < float(probability(other, agent, system)))
@@ -671,7 +675,7 @@ class RandomWalkerEpidemicsSystem(BaseSystem):
         for other in infected:
             other.health = destination
 
-    def _infect(self, walker: AgentViewProtocol, system: SystemViewProtocol) -> None:
+    def _infect(self, walker: HealthView, system: SystemViewProtocol) -> None:
         """Let a walker infect the healthy walkers of its cell, with the probability `infection` when it is sick."""
         self._infect_cellmates(
             walker,
@@ -681,7 +685,7 @@ class RandomWalkerEpidemicsSystem(BaseSystem):
             probability=self._get_walker_infection,
         )
 
-    def _die(self, walker: AgentViewProtocol, system: SystemViewProtocol) -> None:
+    def _die(self, walker: HealthView, system: SystemViewProtocol) -> None:
         """Kill a sick walker once it has been sick for `lifetime` steps, rounded up."""
         if not walker.alive:
             return
@@ -866,7 +870,7 @@ class NetworkSIRSystem(BaseSystem):
         """
         return float(other.tau) if isinstance(other, TravellerView) and other.health == INFECTED else 0.0
 
-    def _infect(self, traveller: AgentViewProtocol, system: SystemViewProtocol) -> None:
+    def _infect(self, traveller: HealthView, system: SystemViewProtocol) -> None:
         """Let a traveller infect the susceptible travellers of its node, with the probability `tau` when infected."""
         RandomWalkerEpidemicsSystem._infect_cellmates(
             traveller,
@@ -876,7 +880,7 @@ class NetworkSIRSystem(BaseSystem):
             probability=self._get_traveller_infection,
         )
 
-    def _recover(self, traveller: AgentViewProtocol, system: SystemViewProtocol) -> None:
+    def _recover(self, traveller: HealthView, system: SystemViewProtocol) -> None:
         """Make an infected traveller recover after `days` whole steps of infection."""
         if not traveller.alive:
             return

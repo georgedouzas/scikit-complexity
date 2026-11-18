@@ -23,6 +23,7 @@ from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
+from ....core.types import Array
 from ...general.agents import BirthDeathInteraction, MovementInteraction
 from ..common.stigmergy import EvaporationInteraction
 
@@ -384,7 +385,7 @@ class PlantElement(Element):
         self,
         label: str,
         *,
-        age: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        age: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.0,
         maturity: Annotated[float, RealSet.open(0, oo)] = 4.0,
         values: Mapping[str, object] | None = None,
         size: int | None = None,
