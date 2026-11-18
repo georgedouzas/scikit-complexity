@@ -23,7 +23,7 @@ from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver, SystemView
 from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
-from ....core.types import Array
+from ....core.types import Array, IntArray
 
 SUSCEPTIBLE, INFECTED, RECOVERED = 0.0, 1.0, 2.0
 
@@ -85,7 +85,7 @@ class CommuterElement(Element):
         home: Annotated[float | Array, NN] = 0.0,
         work: Annotated[float | Array, NN] = 0.0,
         health: Annotated[float | Array, NN] = 0.0,
-        node: int | Array = 0,
+        node: int | IntArray = 0,
         size: int | None = None,
         space: BaseSpace | None = None,
     ) -> None:
