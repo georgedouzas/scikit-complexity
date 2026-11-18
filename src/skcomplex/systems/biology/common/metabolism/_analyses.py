@@ -15,10 +15,12 @@ from sklearn.base import clone
 
 from .....core.analysis.types import Source
 from .....core.components.spaces import StaticTime
-from .....core.components.systems import BaseSystem, CompositeSystem
+from .....core.components.systems import BaseSystem as OldBaseSystem
+from .....core.components.systems import CompositeSystem
 from .....core.engine.problems import ProblemSpec, RunStateSpec
 from .....core.engine.runtime import simulate
 from .....core.errors import AnalysisError
+from .....core.systems import BaseSystem, System
 from .....core.types import Array
 from ...._extras import import_extra
 from ._cobra_io import load_extra, to_cobra
@@ -51,7 +53,7 @@ class FluxVariabilityResult:
     """
 
     network: MetabolicNetworkElement
-    system: CompositeSystem
+    system: CompositeSystem | System
     optimum: float
     ranges: pd.DataFrame
 
@@ -138,7 +140,7 @@ class ProductionScanResult:
     """
 
     network: MetabolicNetworkElement
-    system: CompositeSystem
+    system: CompositeSystem | System
     levels: Array
     objectives: Array
     fluxes: pd.DataFrame
@@ -473,11 +475,12 @@ def _check_choice(analysis: str, name: str, value: object, choices: tuple[object
         raise AnalysisError(error_msg)
 
 
-def _networks_of(system: CompositeSystem) -> list[MetabolicNetworkElement]:
+def _networks_of(system: CompositeSystem | System) -> list[MetabolicNetworkElement]:
     """Return the metabolic networks of a system and its nested systems."""
     found = [item for item in system.elements if isinstance(item, MetabolicNetworkElement)]
     for nested in system.systems:
-        found += _networks_of(nested)
+        if isinstance(nested, CompositeSystem | System):
+            found += _networks_of(nested)
     return found
 
 
@@ -485,7 +488,7 @@ def _read_network(
     source: Source,
     network: str | None,
     analysis: str,
-) -> tuple[CompositeSystem, MetabolicNetworkElement]:
+) -> tuple[CompositeSystem | System, MetabolicNetworkElement]:
     """Return a system and its metabolic network with a label, or its first one.
 
     Args:
@@ -509,9 +512,9 @@ def _read_network(
         AnalysisError:
             The source is not a system with the network.
     """
-    if isinstance(source, BaseSystem) and not isinstance(source, CompositeSystem):
+    if isinstance(source, OldBaseSystem | BaseSystem) and not isinstance(source, CompositeSystem | System):
         source = source.prepare().system_
-    if not isinstance(source, CompositeSystem):
+    if not isinstance(source, CompositeSystem | System):
         error_msg = f'{analysis} reads a system that holds a metabolic network element, not {type(source).__name__}.'
         raise AnalysisError(error_msg)
     chosen = [item for item in _networks_of(source) if network is None or item.label == network]

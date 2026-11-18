@@ -6,7 +6,6 @@ import pytest
 
 from skcomplex.core.components.spaces import StaticTime
 from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.biology.common.metabolism import (
     from_cobra,
@@ -36,7 +35,7 @@ def _core_system(**values):
 
 def _objective(system):
     """Return the objective of the only program of a static system."""
-    trajectory = simulate(system, until=0.0)
+    trajectory = system.prepare().simulate(until=0.0)
     return float(trajectory.get_values('cell.objective_0')[0])
 
 
