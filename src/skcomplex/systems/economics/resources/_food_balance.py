@@ -6,6 +6,7 @@ It is set against the food a growing population needs.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -13,12 +14,13 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element
+from ....core.components.elements import Element, Quantity
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.laws.utils import where
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 
 
 class RiceBalanceElement(Element):
@@ -69,15 +71,15 @@ class RiceBalanceElement(Element):
         self,
         label: str,
         *,
-        area_cultivated: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='land')] = 68000.0,
-        population: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='people')] = 2800000.0,
-        total_land_available: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 120000.0,
-        planning_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 15.0,
-        land_fraction_lost: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.00085,
-        crop_yield: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.2,
-        birth_fraction: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.025,
-        life_expectancy: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 65.0,
-        food_per_capita: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.18,
+        area_cultivated: Annotated[float, RealSet.closed_open(0, oo), Quantity('land')] = 68000.0,
+        population: Annotated[float, RealSet.closed_open(0, oo), Quantity('people')] = 2800000.0,
+        total_land_available: Annotated[float, RealSet.open(0, oo)] = 120000.0,
+        planning_time: Annotated[float, RealSet.open(0, oo)] = 15.0,
+        land_fraction_lost: Annotated[float, RealSet.closed_open(0, oo)] = 0.00085,
+        crop_yield: Annotated[float, RealSet.closed_open(0, oo)] = 3.2,
+        birth_fraction: Annotated[float, RealSet.closed_open(0, oo)] = 0.025,
+        life_expectancy: Annotated[float, RealSet.open(0, oo)] = 65.0,
+        food_per_capita: Annotated[float, RealSet.open(0, oo)] = 0.18,
     ) -> None:
         super().__init__(label)
         self.area_cultivated = area_cultivated
@@ -153,6 +155,12 @@ class RiceFoodBalanceSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.resources import RiceFoodBalanceSystem
         >>> RiceFoodBalanceSystem(planning_time=10.0).prepare().system_.elements[0].planning_time
@@ -188,8 +196,10 @@ class RiceFoodBalanceSystem(BaseSystem):
         life_expectancy: float = 65.0,
         food_per_capita: float = 0.18,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.area_cultivated = area_cultivated
         self.population = population
         self.total_land_available = total_land_available
@@ -209,8 +219,9 @@ class RiceFoodBalanceSystem(BaseSystem):
         gap = (s.source.total_land_available - s.source.area_cultivated) / s.source.planning_time
         return where(gap > 0, gap, 0)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         region = RiceBalanceElement(
             'region',
             area_cultivated=self.area_cultivated,
@@ -252,4 +263,4 @@ class RiceFoodBalanceSystem(BaseSystem):
                 ('population', Sink('deaths'), lambda s: s.source.population / s.source.life_expectancy, 'death_rate'),
             ],
         )
-        return CompositeSystem(self.label, elements=[region], interactions=[land, people])
+        self.system_ = System(self.label, elements=[region], interactions=[land, people])

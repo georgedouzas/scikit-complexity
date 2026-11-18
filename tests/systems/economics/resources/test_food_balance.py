@@ -11,7 +11,7 @@ from ..conftest import _run
 def test_rice_food_balance_rises_then_falls_as_the_land_fills():
     """Test that the area approaches its balance with the land lost and that the food security peaks and then falls."""
     system = RiceFoodBalanceSystem().prepare().system_
-    trajectory = _run(system, 100.0, 0.25, observables=RiceFoodBalanceSystem().get_run_settings()['observables'])
+    trajectory = _run(system, 100.0, 0.25, observables=RiceFoodBalanceSystem().prepare().observables_)
     area, security, times = (
         trajectory.get_values('region.area_cultivated'),
         trajectory.get_values('region.food_security'),

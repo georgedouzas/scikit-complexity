@@ -13,14 +13,14 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element
+from ....core.components import Observable
+from ....core.components.elements import Element, Quantity
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.laws.utils import clip, series
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ...general.dynamics import StockFlowSystem
 from ...general.dynamics.types import FlowTable
 
@@ -78,11 +78,11 @@ class FisheryElement(Element):
         self,
         label: str,
         *,
-        resource: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='fish')] = 1000.0,
-        capital: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='capital')] = 5.0,
-        cost: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        growth_goal: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        lifetime: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 20.0,
+        resource: Annotated[float, RealSet.closed_open(0, oo), Quantity('fish')] = 1000.0,
+        capital: Annotated[float, RealSet.closed_open(0, oo), Quantity('capital')] = 5.0,
+        cost: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        growth_goal: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        lifetime: Annotated[float, RealSet.open(0, oo)] = 20.0,
         yield_table: Sequence[float] = FISH_YIELD,
         regeneration_table: Sequence[float] = REGENERATION,
         price_table: Sequence[float] = PRICE_BY_YIELD,
@@ -262,6 +262,12 @@ class FisheryCapitalSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.resources import FisheryCapitalSystem
         >>> FisheryCapitalSystem(lifetime=10.0).prepare().system_.elements[0].lifetime
@@ -300,8 +306,10 @@ class FisheryCapitalSystem(BaseSystem):
         lifetime: float = 20.0,
         yield_table: Sequence[float] = FISH_YIELD,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.resource = resource
         self.capital = capital
         self.cost = cost
@@ -318,8 +326,9 @@ class FisheryCapitalSystem(BaseSystem):
             prices,
         ) * OilEconomySystem._harvest(holder, yields)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         fishery = FisheryElement(
             'fishery',
             resource=self.resource,
@@ -352,7 +361,7 @@ class FisheryCapitalSystem(BaseSystem):
             ),
             flow='investment',
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[fishery],
             interactions=[fish, investment, FisheryCapitalSystem._get_capital('depreciation', 'fishery')],

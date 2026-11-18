@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.resources import FoodSecuritySystem
 
@@ -35,7 +34,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(FoodSecuritySystem(), observers=[observer])
+trajectory = FoodSecuritySystem().prepare().simulate(observers=[observer])
 
 # %%
 # Policies against a growing requirement
@@ -59,7 +58,7 @@ policies = {
     },
 }
 for name, changes in policies.items():
-    scenario = trajectory if not changes else simulate(FoodSecuritySystem(**changes))
+    scenario = trajectory if not changes else FoodSecuritySystem(**changes).prepare().simulate()
     ax.plot(np.asarray(scenario.times), scenario.get_values('rice.self_sufficiency'), label=name)
 times = np.asarray(trajectory.times)
 start = trajectory.get_values('rice.self_sufficiency')[0]

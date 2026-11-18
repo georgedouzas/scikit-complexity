@@ -6,7 +6,7 @@ Herders' cows graze a shared meadow.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -19,13 +19,14 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.laws.utils import transfer
-from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.spaces import LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
-from ....core.engine.solvers import AgentView, SystemView
+from ....core.engine.backends import BaseBackend
+from ....core.engine.compile import PhaseSpec
+from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
 from ....core.errors import SimulationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ...general.agents import BirthDeathInteraction
 from ...general.matching import MatchingInteraction, MatchSpec, PartnerMatchingSpec, RandomSearchSpec
 from ...general.matching.types import MatchingRule
@@ -495,6 +496,12 @@ class TragedyOfTheCommonsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.resources import TragedyOfTheCommonsSystem
         >>> [group.size for group in TragedyOfTheCommonsSystem(4, width=5, height=5).prepare().system_.elements]
@@ -573,8 +580,10 @@ class TragedyOfTheCommonsSystem(BaseSystem):
         upkeep: float = 0.3,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_herders = n_herders
         self.width = width
         self.height = height
@@ -618,8 +627,9 @@ class TragedyOfTheCommonsSystem(BaseSystem):
             ),
         ]
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         cells = [(x, y) for x in range(self.width) for y in range(self.height)]
         meadow = GroupElement(
@@ -656,12 +666,10 @@ class TragedyOfTheCommonsSystem(BaseSystem):
             rule=PartnerMatchingSpec('local', 'score', score=GrazingInteraction.score, value='provider'),
             herders='herders',
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[meadow, herd, herders],
             interactions=[grazing, *self._get_investment(), regulator],
             space=LatticeSpace((self.width, self.height), boundary='periodic', metric='chebyshev'),
-            time=DiscreteTime(
-                schedule=PhasesScheduleSpec([PhaseSpec('grazing'), PhaseSpec('growth'), PhaseSpec('herding')]),
-            ),
+            solver=MesaSolver(phases=[PhaseSpec('grazing'), PhaseSpec('growth'), PhaseSpec('herding')]),
         )

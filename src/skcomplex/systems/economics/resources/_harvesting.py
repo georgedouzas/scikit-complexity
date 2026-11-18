@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -10,14 +11,16 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw, RuleLaw
 from ....core.components.laws.utils import count
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver, SystemView
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.systems import BaseSystem, System
 
 
 class StockElement(Element):
@@ -232,6 +235,12 @@ class HarvestingSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.resources import HarvestingSystem
         >>> [subsystem.label for subsystem in HarvestingSystem().prepare().system_.systems]
@@ -251,19 +260,22 @@ class HarvestingSystem(BaseSystem):
         r: float = 1.0,
         K: float = 1000.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.farmers = farmers
         self.effort = effort
         self.r = r
         self.K = K
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
-        land = CompositeSystem('land', elements=[StockElement('stock', n=self.K, r=self.r, K=self.K)])
-        village = CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
+        land = System('land', elements=[StockElement('stock', n=self.K, r=self.r, K=self.K)])
+        village = System(
             'village',
             elements=[GroupElement('farmers', element=FarmerElement, size=self.farmers)],
         )
         harvest = HarvestInteraction('harvest', target='land/stock', harvesters='village/farmers', effort=self.effort)
-        return CompositeSystem(self.label, interactions=[harvest], systems=[land, village])
+        self.system_ = System(self.label, interactions=[harvest], systems=[land, village])
