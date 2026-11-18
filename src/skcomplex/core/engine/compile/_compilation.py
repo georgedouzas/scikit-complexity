@@ -365,9 +365,10 @@ class Compilation:
 
     @staticmethod
     def _has_motion(layout: DeclarationsSpec) -> bool:
-        """Return whether a state of the layout has a derivative, as a point given a starting velocity has.
+        """Return whether a state of the layout has a derivative, as a moving point does.
 
-        Such a state moves at its derivative without any law, so its system is not static.
+        A point given a starting velocity has one. Such a state moves at its derivative without any law, so its system
+        is not static.
         """
         return any(
             declaration.derivative_of is not None
@@ -406,7 +407,8 @@ class Compilation:
     def is_static(self) -> bool:
         """Return whether the system is static.
 
-        It is static by its time, by an objective law, by constraint laws alone, or by having no laws at all.
+        It is static by its time, by an objective law without controls, by constraint laws alone, or by having no laws
+        at all. An objective law with controls steers a run in time.
 
         A system with no laws and no time of its own, such as `System(elements=[Element('ball', values={'x': 1.0})])`
         or disks placed in a square, changes nothing, so it is static and records one frame. A point given a starting
@@ -416,7 +418,8 @@ class Compilation:
 
         Returns:
             static:
-                Whether the system has static time, an objective law, constraint laws alone, or no laws and no time.
+                Whether the system has static time, an objective law without controls, constraint laws alone, or no
+                laws and no time.
         """
         if isinstance(self.system.time, StaticTime):
             return True
@@ -432,4 +435,4 @@ class Compilation:
             and all(self._is_balance(record.law) for record in census.records)
         ):
             return True
-        return any(isinstance(record.law, ObjectiveLaw) for record in census.records)
+        return any(isinstance(record.law, ObjectiveLaw) and record.law.controls is None for record in census.records)

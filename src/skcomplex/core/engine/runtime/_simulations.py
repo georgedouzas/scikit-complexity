@@ -33,6 +33,7 @@ from ..problems import BaseProblemSpec, FrameSpec, LayoutSpec, ProblemSpec, RunS
 from ..problems._draw_recorder import DrawRecorder
 from ..solvers import (
     BaseSolver,
+    CollocationSolver,
     CoSimulationSolver,
     FractionalEulerMaruyamaSolver,
     MinimizeSolver,
@@ -53,7 +54,7 @@ PROBLEMS = (
     (UpdateLaw, 'a discrete map'),
     (JumpLaw, 'a jump process'),
     (NoiseLaw, 'stochastic differential equations'),
-    (ObjectiveLaw, 'a static problem'),
+    (ObjectiveLaw, 'a static or optimal control problem'),
     (RateLaw, 'ordinary differential equations'),
 )
 SOLVERS = tuple(
@@ -671,9 +672,9 @@ class Simulation(BaseConfig[None, float]):
     def _get_default_solver(self, problem: BaseProblemSpec) -> BaseSolver:
         """Return the default solver of the form of a problem.
 
-        A problem that runs as partitions takes `CoSimulationSolver`, and a stochastic problem driven by fractional
+        A problem that runs as partitions takes `CoSimulationSolver`, a stochastic problem driven by fractional
         noise takes `FractionalEulerMaruyamaSolver`, which draws the correlated increments that the default
-        `EulerMaruyamaSolver` does not.
+        `EulerMaruyamaSolver` does not, and a problem whose objective law steers controls takes `CollocationSolver`.
 
         Args:
             problem:
@@ -697,6 +698,8 @@ class Simulation(BaseConfig[None, float]):
             return FractionalEulerMaruyamaSolver()
         if form == FormKind.STATIC and isinstance(problem, ProblemSpec) and problem.objective is not None:
             return MinimizeSolver()
+        if form == FormKind.ODE and isinstance(problem, ProblemSpec) and problem.terminal is not None:
+            return CollocationSolver()
         return DEFAULT_SOLVERS[form]()
 
     def prepare(self, context: None = None) -> Self:

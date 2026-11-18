@@ -178,6 +178,20 @@ class ProblemPass(BasePass):
         return sum(values[1:], values[0]) if values else None
 
     @staticmethod
+    def _get_terminal_of(compilation: Compilation) -> Expression | None:
+        """Return the sum of the terminal costs of the objective laws with controls.
+
+        It is `None` without such laws.
+        """
+        records = Compilation._get_required(compilation.census, 'census').records
+        values = [
+            SR(record.law.terminal)
+            for record in records
+            if isinstance(record.law, ObjectiveLaw) and record.law.controls is not None
+        ]
+        return sum(values[1:], values[0]) if values else None
+
+    @staticmethod
     def _get_objective_targets_of(compilation: Compilation) -> Indices:
         """Return the positions of the states the objectives are minimised over."""
         records = Compilation._get_required(compilation.census, 'census').records
@@ -233,6 +247,7 @@ class ProblemPass(BasePass):
             unknowns=ProblemPass._get_unknowns_of(compilation, form),
             objective=ProblemPass._get_objective_of(compilation),
             objective_targets=ProblemPass._get_objective_targets_of(compilation),
+            terminal=ProblemPass._get_terminal_of(compilation),
             stream=ProblemPass._get_stream_of(compilation),
             breakpoints=ProblemPass._get_breakpoints_in(reduced, events, time),
             history=ProblemPass._get_history(blocks),

@@ -12,10 +12,10 @@ from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import BaseElement, DeclaredElement
+from ....core.components.interactions import BaseInteraction, Interaction
+from ....core.components.laws import ObjectiveLaw
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, CollocationSolver
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -32,10 +32,11 @@ def _catch(s: SimpleNamespace) -> Expression:
 class OptimalHarvestingSystem(DynamicalSystem):
     """A logistic resource harvested with the effort that maximises its profit.
 
-    The profit is discounted. Run with an optimal control solver, the effort starts at a bound, drives the stock to the
-    level `x*` where `r (1 - 2 x* / K) + c r (1 - x* / K) / (p q x* - c) = delta`, holds it there with the effort
-    `r (1 - x* / K) / q`, and rises to its largest value at the end of the horizon, when the stock left has no value.
-    The system has the stock `resource.x`, the effort `resource.effort`, and the observable `catch`.
+    The profit is discounted, and the objective law `ObjectiveLaw(-profit, controls=[s.target.effort])` maximises it
+    over the effort, which lies between 0 and 1. Run with an optimal control solver, the effort starts at a bound,
+    drives the stock to the level `x*` where `r (1 - 2 x* / K) + c r (1 - x* / K) / (p q x* - c) = delta`, holds it
+    there with the effort `r (1 - x* / K) / q`, and rises to its largest value at the end of the horizon, when the stock
+    left has no value. The system has the stock `resource.x`, the effort `resource.effort`, and the observable `catch`.
 
     Args:
         x:
@@ -100,15 +101,24 @@ class OptimalHarvestingSystem(DynamicalSystem):
 
     def _get_solver(self) -> BaseSolver:
         """Return the solver the system is tuned to."""
-        return CollocationSolver(objective=self._get_profit, sense='max', nodes=101, scheme='trapezoidal')
+        return CollocationSolver(nodes=101, scheme='trapezoidal')
 
     @staticmethod
     def _get_profit(s: SimpleNamespace) -> Expression:
         """Return the discounted profit per unit time, `exp(-delta t) (p q x - c) E`."""
-        resource = s.resource
+        resource = s.target
         margin = resource.p * resource.q * resource.x - resource.c
         profit: Expression = exp(-resource.delta * s.t) * margin * resource.effort
         return profit
+
+    def _get_interactions(self) -> list[BaseInteraction]:
+        """Return the regrowth less the catch, and the profit that the effort maximises."""
+        profit = Interaction(
+            'profit',
+            roles={'target': self._get_element_label()},
+            laws=lambda s: [ObjectiveLaw(-self._get_profit(s), controls=[s.target.effort])],
+        )
+        return [*super()._get_interactions(), profit]
 
     def _get_element_label(self) -> str:
         """Return the label of the element that holds the states."""
@@ -120,24 +130,23 @@ class OptimalHarvestingSystem(DynamicalSystem):
             'x': self.x,
         }
 
-    def _get_element(self) -> BaseElement:
-        """Return the element of the states, with the control declared as a bounded adaptive parameter.
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the effort, which the profit steers, and the parameters of the model."""
+        return {'effort': 0.0, 'r': self.r, 'K': self.K, 'q': self.q, 'p': self.p, 'c': self.c, 'delta': self.delta}
 
-        A plain element cannot declare a control, so the element declares its values.
-        """
-        return DeclaredElement(
-            self._get_element_label(),
-            variables={
-                'x': DeclaredVariableSpec(self.x, StateSpec(domain=RealSet.closed_open(0, oo))),
-                'effort': DeclaredVariableSpec(0.0, ParameterSpec(adaptive=True, bounds=(0.0, MAX_EFFORT))),
-                'r': DeclaredVariableSpec(self.r, ParameterSpec(domain=RealSet.open(0, oo))),
-                'K': DeclaredVariableSpec(self.K, ParameterSpec(domain=RealSet.open(0, oo))),
-                'q': DeclaredVariableSpec(self.q, ParameterSpec(domain=RealSet.open(0, oo))),
-                'p': DeclaredVariableSpec(self.p, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-                'c': DeclaredVariableSpec(self.c, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-                'delta': DeclaredVariableSpec(self.delta, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            },
-        )
+    def _get_allowed(self) -> dict[str, object]:
+        """Return the allowed values of the stock, the effort, and the parameters."""
+        positive, nonnegative = RealSet.open(0, oo), RealSet.closed_open(0, oo)
+        return {
+            'x': nonnegative,
+            'effort': RealSet.closed(0, MAX_EFFORT),
+            'r': positive,
+            'K': positive,
+            'q': positive,
+            'p': nonnegative,
+            'c': nonnegative,
+            'delta': nonnegative,
+        }
 
     def _get_equations(self) -> Equations:
         """Return the regrowth less the catch."""

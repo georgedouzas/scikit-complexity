@@ -12,10 +12,10 @@ from sage.all__sagemath_symbolics import Expression, exp, log, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import BaseElement, DeclaredElement
+from ....core.components.interactions import BaseInteraction, Interaction
+from ....core.components.laws import ObjectiveLaw
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, CollocationSolver
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -33,9 +33,11 @@ def _get_saving_rate(s: SimpleNamespace) -> Expression:
 class OptimalConsumptionSystem(DynamicalSystem):
     """The Ramsey economy that chooses its consumption path.
 
-    The path maximises its discounted utility. Run with an optimal control solver from little capital, consumption rises
-    with capital along the saddle path towards the modified golden rule, and the economy saves a falling share of its
-    output. The system has the capital `economy.k`, the consumption `economy.c`, and the observable `saving_rate`.
+    The path maximises its discounted utility and the value of the capital left at the horizon, the objective law
+    `ObjectiveLaw(-utility, controls=[s.target.c], terminal=-value)`. Run with an optimal control solver from little
+    capital, consumption rises with capital along the saddle path towards the modified golden rule, and the economy
+    saves a falling share of its output. The system has the capital `economy.k`, the consumption `economy.c`, and the
+    observable `saving_rate`.
 
     Args:
         k:
@@ -95,12 +97,7 @@ class OptimalConsumptionSystem(DynamicalSystem):
 
     def _get_solver(self) -> BaseSolver:
         """Return the solver the system is tuned to."""
-        return CollocationSolver(
-            objective=self._get_utility,
-            terminal=self._get_capital_value,
-            sense='max',
-            nodes=81,
-        )
+        return CollocationSolver(nodes=81)
 
     @staticmethod
     def _get_utility(s: SimpleNamespace) -> Expression:
@@ -108,7 +105,7 @@ class OptimalConsumptionSystem(DynamicalSystem):
 
         It is `exp(-rho t) log(c)`.
         """
-        economy = s.economy
+        economy = s.target
         utility: Expression = exp(-economy.rho * s.t) * log(economy.c)
         return utility
 
@@ -118,9 +115,20 @@ class OptimalConsumptionSystem(DynamicalSystem):
 
         It is `exp(-rho T) v k(T)`.
         """
-        economy = s.economy
+        economy = s.target
         value: Expression = exp(-economy.rho * s.t) * economy.v * economy.k
         return value
+
+    def _get_interactions(self) -> list[BaseInteraction]:
+        """Return the net saving, and the utility and capital value that the consumption maximises."""
+        welfare = Interaction(
+            'welfare',
+            roles={'target': self._get_element_label()},
+            laws=lambda s: [
+                ObjectiveLaw(-self._get_utility(s), controls=[s.target.c], terminal=-self._get_capital_value(s)),
+            ],
+        )
+        return [*super()._get_interactions(), welfare]
 
     @staticmethod
     def _get_net_saving(s: SimpleNamespace) -> Expression:
@@ -139,23 +147,22 @@ class OptimalConsumptionSystem(DynamicalSystem):
             'k': self.k,
         }
 
-    def _get_element(self) -> BaseElement:
-        """Return the element of the states, with the control declared as a bounded adaptive parameter.
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the consumption, which the welfare steers, and the parameters of the model."""
+        return {'c': 0.5, 'A': self.A, 'alpha': self.alpha, 'delta': self.delta, 'rho': self.rho, 'v': self.v}
 
-        A plain element cannot declare a control, so the element declares its values.
-        """
-        return DeclaredElement(
-            self._get_element_label(),
-            variables={
-                'k': DeclaredVariableSpec(self.k, StateSpec(domain=RealSet.open(0, oo))),
-                'c': DeclaredVariableSpec(0.5, ParameterSpec(adaptive=True, bounds=(MIN_CONSUMPTION, MAX_CONSUMPTION))),
-                'A': DeclaredVariableSpec(self.A, ParameterSpec(domain=RealSet.open(0, oo))),
-                'alpha': DeclaredVariableSpec(self.alpha, ParameterSpec(domain=RealSet.open(0, oo))),
-                'delta': DeclaredVariableSpec(self.delta, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-                'rho': DeclaredVariableSpec(self.rho, ParameterSpec(domain=RealSet.open(0, oo))),
-                'v': DeclaredVariableSpec(self.v, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            },
-        )
+    def _get_allowed(self) -> dict[str, object]:
+        """Return the allowed values of the capital, the consumption, and the parameters."""
+        positive, nonnegative = RealSet.open(0, oo), RealSet.closed_open(0, oo)
+        return {
+            'k': positive,
+            'c': RealSet.closed(MIN_CONSUMPTION, MAX_CONSUMPTION),
+            'A': positive,
+            'alpha': positive,
+            'delta': nonnegative,
+            'rho': positive,
+            'v': nonnegative,
+        }
 
     def _get_equations(self) -> Equations:
         """Return the components of the system built from its model parameters."""
