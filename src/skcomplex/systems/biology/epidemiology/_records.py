@@ -6,6 +6,7 @@ An outbreak strikes only when a strain beats every earlier one.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -13,13 +14,16 @@ import numpy as np
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import uniform, where
-from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import RoleSpec, StateSpec
+from ....core.systems import BaseSystem, System
+from ....core.types import Array
 
 
 class PathogenElement(Element):
@@ -82,6 +86,9 @@ class ResidentElement(Element):
         infected:
             Whether the resident was infected in the last outbreak.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import ResidentElement
         >>> ResidentElement('resident', R=0.3).R
@@ -92,10 +99,11 @@ class ResidentElement(Element):
         self,
         label: str,
         *,
-        R: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.5,
-        infected: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+        R: Annotated[float | Array, RealSet.closed(0, 1)] = 0.5,
+        infected: Annotated[float | Array, FiniteEnumeratedSet([0, 1])] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.R = R
         self.infected = infected
 
@@ -179,9 +187,15 @@ class RecordDynamicsEpidemicSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import RecordDynamicsEpidemicSystem
-        >>> RecordDynamicsEpidemicSystem(100).prepare().system_.elements[0].prepare().size_
+        >>> RecordDynamicsEpidemicSystem(100).prepare().system_.elements[0].size
         100
     """
 
@@ -197,21 +211,25 @@ class RecordDynamicsEpidemicSystem(BaseSystem):
         *,
         seed: int | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of yearly strains that infect less resistant residents.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of yearly strains that infect less resistant residents.
 
-        A strain infects every resident less resistant than its strength.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         resistance = np.random.default_rng(self.seed).random(self.n)
-        residents = GroupElement('residents', element=ResidentElement, size=self.n, values={'R': resistance})
-        return CompositeSystem(
+        residents = ResidentElement('residents', R=resistance, size=self.n)
+        self.system_ = System(
             self.label,
             elements=[residents, PathogenElement('pathogen')],
             interactions=[ResistanceInfectionInteraction('infection', residents='residents', pathogen='pathogen')],
-            time=DiscreteTime(),
         )

@@ -7,6 +7,7 @@ It is linear between extinctions that rewrite its network.
 # License: MIT
 
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -15,13 +16,16 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction, MapInteraction, TopologyInteraction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import neighbors, total, where
-from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.spaces import NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ..common.networks import EdgeDrawInteraction, WeightedEdgeElement
 
 
@@ -160,6 +164,12 @@ class SequentiallyLinearEcosystemSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.ecology import SequentiallyLinearEcosystemSystem
         >>> [component.label for component in SequentiallyLinearEcosystemSystem(n=10).prepare().system_.elements]
@@ -181,16 +191,24 @@ class SequentiallyLinearEcosystemSystem(BaseSystem):
         threshold: float = 1e-3,
         seed: int | None = 1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.k = k
         self.rate = rate
         self.threshold = threshold
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of an ecosystem."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of an ecosystem.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         rng = np.random.default_rng(self.seed)
         graph = nx.DiGraph()
         graph.add_nodes_from(range(self.n))
@@ -217,7 +235,7 @@ class SequentiallyLinearEcosystemSystem(BaseSystem):
             capacity=4 * edges,
             values={'w': rng.uniform(-1, 1, edges), 'fresh': 0.0},
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[species, influences],
             interactions=[
@@ -232,5 +250,4 @@ class SequentiallyLinearEcosystemSystem(BaseSystem):
                     edges=self.k,
                 ),
             ],
-            time=DiscreteTime(),
         )

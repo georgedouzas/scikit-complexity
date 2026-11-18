@@ -14,14 +14,13 @@ the stimulus take turns, each one a synchronized block.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.neuroscience import LegionSystem
 
 SYSTEM = 'legion'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(LegionSystem(epsilon=0.1, random_state=0), dt=1.0, observers=[observer], until=290)
+trajectory = LegionSystem(epsilon=0.1, random_state=0).prepare().simulate(dt=1.0, observers=[observer], until=290)
 
 # %%
 # Synchrony within, alternation between

@@ -13,14 +13,13 @@ coordination through marks left in the environment.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.collective_behaviour import PheromoneForagingSystem
 
 SYSTEM = 'pheromone_foraging'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=3)
-trajectory = simulate(PheromoneForagingSystem(n_ants=40), observers=[observer], random_state=0)
+trajectory = PheromoneForagingSystem(n_ants=40).prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # The trail and the traffic

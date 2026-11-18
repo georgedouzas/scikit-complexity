@@ -1604,7 +1604,7 @@ class GliomaChemovirotherapySystem(BaseSystem):
         return rate
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
-        """Set the system of the system.
+        """Set glia, neurons, and a glioma under temozolomide and an oncolytic virus.
 
         Args:
             context:

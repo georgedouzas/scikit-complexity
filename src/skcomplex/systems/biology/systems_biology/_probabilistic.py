@@ -14,15 +14,18 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import NN, SR, Expression
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
+from ....core.components import Observable
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import categorical, where
 from ....core.components.spaces import BaseSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import RoleSpec, StateSpec
+from ....core.specs import RoleSpec
+from ....core.systems import BaseSystem, System
 from .types import Candidates
 
 SHMULEVICH_INPUTS = ('x1', 'x2', 'x3')
@@ -58,8 +61,8 @@ class ProbabilisticNodeElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
-        function: Annotated[float, StateSpec(domain=NN)] = 0,
+        x: Annotated[float, FiniteEnumeratedSet([0, 1])] = 0,
+        function: Annotated[float, NN] = 0,
     ) -> None:
         super().__init__(label)
         self.x = x
@@ -220,6 +223,12 @@ class ProbabilisticBooleanNetworkSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.systems_biology import ProbabilisticBooleanNetworkSystem
         >>> ProbabilisticBooleanNetworkSystem().prepare().system_.interactions[0].probabilities
@@ -239,14 +248,22 @@ class ProbabilisticBooleanNetworkSystem(BaseSystem):
         inputs: Sequence[str] = SHMULEVICH_INPUTS,
         active: Sequence[str] = ('x1',),
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.network = network
         self.inputs = inputs
         self.active = active
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of a probabilistic Boolean network."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a probabilistic Boolean network.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         chosen = SHMULEVICH_NETWORK if self.network is None else self.network
         nodes = [ProbabilisticNodeElement(name, x=int(name in self.active)) for name in chosen]
         functions = [
@@ -259,4 +276,4 @@ class ProbabilisticBooleanNetworkSystem(BaseSystem):
             )
             for name, candidates in chosen.items()
         ]
-        return CompositeSystem(self.label, elements=nodes, interactions=functions)
+        self.system_ = System(self.label, elements=nodes, interactions=functions)

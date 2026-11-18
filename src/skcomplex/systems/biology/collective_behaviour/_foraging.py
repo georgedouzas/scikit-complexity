@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated, cast
 
@@ -11,15 +12,18 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, FieldElement, GroupElement
 from ....core.components.interactions import MapInteraction, RateInteraction, TransferInteraction
 from ....core.components.laws import Source
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.systems import CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.engine.solvers import AgentView
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ...general.agents import MovementInteraction
 from ..common.stigmergy import EvaporationInteraction
 
@@ -203,6 +207,12 @@ class PheromoneForagingSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.collective_behaviour import PheromoneForagingSystem
         >>> [child.label for child in PheromoneForagingSystem().prepare().system_.systems]
@@ -225,8 +235,10 @@ class PheromoneForagingSystem(BaseSystem):
         evaporation: float = 0.05,
         attraction: float = 5.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.width = width
         self.height = height
         self.n_ants = n_ants
@@ -328,8 +340,14 @@ class PheromoneForagingSystem(BaseSystem):
             return 0.0
         return float(not self._is_homing(ant, system) and not self._searches(ant, system))
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of ants that find food and lay a pheromone trail home."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of ants that find food and lay a pheromone trail home.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         nest, food = (5, self.height // 2), (self.width - 6, self.height // 2)
         ants = GroupElement(
             'ants',
@@ -351,7 +369,7 @@ class PheromoneForagingSystem(BaseSystem):
             boundary={'level': 'zero-flux'},
             values={'D': self.D, 'evaporation': self.evaporation},
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             systems=[
                 CompositeSystem(

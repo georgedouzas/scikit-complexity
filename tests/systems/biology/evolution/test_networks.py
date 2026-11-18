@@ -2,7 +2,6 @@
 
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.evolution import CompetitiveJainKrishnaSystem, JainKrishnaSystem, SoleManrubiaSystem
 
 from ..conftest import _run
@@ -36,7 +35,7 @@ def test_competition_selects_cooperating_species():
         np.fill_diagonal(matrix, 0.0)
         return float((matrix[matrix != 0] > 0).mean())
 
-    trajectory = simulate(CompetitiveJainKrishnaSystem(), random_state=0, until=300)
+    trajectory = CompetitiveJainKrishnaSystem().prepare().simulate(random_state=0, until=300)
     assert positive_share(trajectory.get_agents('species', 0).values['links']) < 0.55
     assert (
         np.mean([positive_share(trajectory.get_agents('species', frame).values['links']) for frame in (200, 250, 300)])

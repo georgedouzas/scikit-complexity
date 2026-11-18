@@ -273,7 +273,7 @@ class MackeyGlassSystem(BaseSystem):
         self.tau = tau
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
-        """Set the system of the system.
+        """Set the Mackey-Glass equation of blood cell production.
 
         Args:
             context:

@@ -14,14 +14,17 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.base import BaseComponent
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import total
 from ....core.components.spaces import BaseSpace, LatticeSpace, RadiusNeighborhood
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import Role, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ..common.populations import ReplicatorInteraction
 
@@ -42,7 +45,10 @@ class CyclicSpeciesElement(Element):
             The label of the site or the lattice group.
 
         strategy:
-            The initial strategy, 0, 1, or 2.
+            The initial strategy, 0, 1, or 2, one per site or shared.
+
+        space:
+            The lattice whose sites hold one strategy each, or `None` for one site.
 
     Examples:
         >>> from skcomplex.systems.biology.evolution import CyclicSpeciesElement
@@ -54,9 +60,10 @@ class CyclicSpeciesElement(Element):
         self,
         label: str,
         *,
-        strategy: Annotated[float, StateSpec(domain=NN)] = 0,
+        strategy: Annotated[float | Array, NN] = 0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.strategy = strategy
 
 
@@ -70,7 +77,10 @@ class StrategyElement(Element):
             The label of the strategy or of the group of strategies.
 
         x:
-            The initial share.
+            The initial share, one per strategy or shared.
+
+        size:
+            The number of strategies, or `None` for one.
 
     Examples:
         >>> from skcomplex.systems.biology.evolution import StrategyElement
@@ -82,9 +92,10 @@ class StrategyElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        x: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.x = x
 
 
@@ -115,10 +126,16 @@ class ReplicatorDynamicsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.evolution import ReplicatorDynamicsSystem
         >>> system = ReplicatorDynamicsSystem(payoff=((0, -1, 1), (1, 0, -1), (-1, 1, 0))).prepare().system_
-        >>> system.elements[0].prepare().size_
+        >>> system.elements[0].size
         3
     """
 
@@ -136,15 +153,23 @@ class ReplicatorDynamicsSystem(BaseSystem):
         V: float = 2.0,
         C: float = 3.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.payoff = payoff
         self.V = V
         self.C = C
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the replicator dynamics of a game."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of replicator dynamics of a game.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         matrix = (
             (((self.V - self.C) / 2, self.V), (0.0, self.V / 2))
             if self.payoff is None
@@ -152,14 +177,14 @@ class ReplicatorDynamicsSystem(BaseSystem):
         )
         strategies = len(matrix)
         shares = [1 / strategies] * strategies if self.x is None else list(self.x)
-        population = GroupElement('population', element=StrategyElement, size=strategies, values={'x': shares})
+        population = StrategyElement('population', x=shares, size=strategies)
         weights = np.asarray(matrix, dtype=float)
         replication = ReplicatorInteraction(
             'replication',
             target='population',
             fitness=lambda s: total(s.target.x, weights=weights),
         )
-        return CompositeSystem(self.label, elements=[population], interactions=[replication])
+        self.system_ = System(self.label, elements=[population], interactions=[replication])
 
 
 class CyclicInvasionInteraction(Interaction):
@@ -224,10 +249,16 @@ class RockPaperScissorsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.evolution import RockPaperScissorsSystem
-        >>> RockPaperScissorsSystem((10, 10)).prepare().system_.elements[0].prepare().size_
-        100
+        >>> RockPaperScissorsSystem((10, 10)).prepare().system_.elements[0].strategy.shape
+        (10, 10)
     """
 
     field = 'biology/evolution'
@@ -242,26 +273,28 @@ class RockPaperScissorsSystem(BaseSystem):
         *,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of rock, paper, and scissors on a lattice."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of rock, paper, and scissors on a lattice.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         strategies = (
             np.random.default_rng(self.random_state).integers(0, STRATEGIES, size=tuple(self.shape)).astype(float)
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[
-                GroupElement(
-                    'lattice',
-                    element=CyclicSpeciesElement,
-                    space=LatticeSpace(tuple(self.shape)),
-                    values={'strategy': strategies},
-                    on='sites',
-                ),
+                CyclicSpeciesElement('lattice', strategy=strategies, space=LatticeSpace(tuple(self.shape))),
             ],
             interactions=[
                 CyclicInvasionInteraction('invasion', target='lattice'),

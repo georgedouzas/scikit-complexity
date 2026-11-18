@@ -15,14 +15,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.signal import welch
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.neuroscience import NextGenerationNeuralMassSystem
 
 SYSTEM = 'next_generation_neural_mass'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(NextGenerationNeuralMassSystem(), dt=1.0, observers=[observer], until=600)
+trajectory = NextGenerationNeuralMassSystem().prepare().simulate(dt=1.0, observers=[observer], until=600)
 
 # %%
 # Theta-nested gamma
@@ -30,7 +29,7 @@ trajectory = simulate(NextGenerationNeuralMassSystem(), dt=1.0, observers=[obser
 # The spectrum of the mean potential should peak at the theta frequency and again in the gamma band near 40 Hz, while
 # the rate shows gamma bursts in every theta cycle.
 
-fine = simulate(NextGenerationNeuralMassSystem(), until=2000)
+fine = NextGenerationNeuralMassSystem().prepare().simulate(until=2000)
 potential = fine.get_values('excitatory.v')[400:]
 frequencies, power = welch(potential - potential.mean(), fs=2000.0, nperseg=2048)
 fig, (series, spectrum) = plt.subplots(1, 2, figsize=(11, 4.5))

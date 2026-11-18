@@ -13,14 +13,13 @@ density of every degree class settles at an endemic level that rises with the de
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.epidemiology import HeterogeneousMeanFieldSISSystem
 
 SYSTEM = 'heterogeneous_mean_field_sis'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(HeterogeneousMeanFieldSISSystem(lam=0.2), observers=[observer])
+trajectory = HeterogeneousMeanFieldSISSystem(lam=0.2).prepare().simulate(observers=[observer])
 
 # %%
 # Endemic density by degree

@@ -12,7 +12,6 @@ unit with the largest input wins and settles at an activity equal to its input, 
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.neuroscience import WinnersTakeAllSystem
 
@@ -20,7 +19,7 @@ SYSTEM = 'winners_take_all'
 
 inputs = (1.0, 1.1, 0.9, 1.05, 0.95)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(WinnersTakeAllSystem(inputs=inputs, beta=2.0), observers=[observer])
+trajectory = WinnersTakeAllSystem(inputs=inputs, beta=2.0).prepare().simulate(observers=[observer])
 
 # %%
 # One winner or several
@@ -30,7 +29,7 @@ trajectory = simulate(WinnersTakeAllSystem(inputs=inputs, beta=2.0), observers=[
 
 fig, axes = plt.subplots(1, 2, figsize=(10, 4), sharey=True)
 for ax, beta in zip(axes, [2.0, 0.5], strict=True):
-    trajectory = simulate(WinnersTakeAllSystem(inputs=inputs, beta=beta))
+    trajectory = WinnersTakeAllSystem(inputs=inputs, beta=beta).prepare().simulate()
     for unit, value in enumerate(inputs):
         ax.plot(trajectory.times, trajectory.get_values(f'unit_{unit}.x'), label=f'input {value}')
     ax.set_xlabel('time')

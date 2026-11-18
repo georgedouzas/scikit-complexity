@@ -13,14 +13,13 @@ and threshold settle.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.neuroscience import PolyhomeostaticNeuronSystem
 
 SYSTEM = 'polyhomeostatic_neuron'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(PolyhomeostaticNeuronSystem(mu=0.2), observers=[observer])
+trajectory = PolyhomeostaticNeuronSystem(mu=0.2).prepare().simulate(observers=[observer])
 
 # %%
 # The firing rate approaches its target

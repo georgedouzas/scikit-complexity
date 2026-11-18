@@ -17,18 +17,16 @@ import numpy as np
 
 from skcomplex.core.analysis import alignment
 from skcomplex.core.engine.backends import NumbaBackend
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.collective_behaviour import ManyBodyAlignmentSwarmSystem
 
 SYSTEM = 'many_body_alignment_swarm'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(
-    ManyBodyAlignmentSwarmSystem(40, random_state=0),
-    observers=[observer],
-    until=100,
-    backend=NumbaBackend(),
+trajectory = (
+    ManyBodyAlignmentSwarmSystem(40, random_state=0, backend=NumbaBackend())
+    .prepare()
+    .simulate(observers=[observer], until=100)
 )
 
 # %%
@@ -42,8 +40,8 @@ trajectory = simulate(
 pairwise = ManyBodyAlignmentSwarmSystem(40, kappa_v=0.0, kappa_4=0.0, random_state=0)
 flanking = ManyBodyAlignmentSwarmSystem(40, kappa_4=0.0, random_state=0)
 collectives = {
-    'pairwise': simulate(pairwise, until=100, backend=NumbaBackend()),
-    '3-body': simulate(flanking, until=100, backend=NumbaBackend()),
+    'pairwise': pairwise.set_params(backend=NumbaBackend()).prepare().simulate(until=100),
+    '3-body': flanking.set_params(backend=NumbaBackend()).prepare().simulate(until=100),
     '2+3+4-body': trajectory,
 }
 fig, (order, path) = plt.subplots(1, 2, figsize=(11, 4))

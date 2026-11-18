@@ -13,14 +13,13 @@ type.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.systems_biology import RandomBooleanNetworkSystem
 
 SYSTEM = 'random_boolean_network'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(RandomBooleanNetworkSystem(n_nodes=20, k=2, random_state=4), observers=[observer])
+trajectory = RandomBooleanNetworkSystem(n_nodes=20, k=2, random_state=4).prepare().simulate(observers=[observer])
 
 # %%
 # Transient and attractor

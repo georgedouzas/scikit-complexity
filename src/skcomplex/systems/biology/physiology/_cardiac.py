@@ -11,28 +11,23 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, FieldElement
-from ....core.components.interactions import RateInteraction
-from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction, RateInteraction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import laplacian
-from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
+from ....core.types import Array
 from ...general.dynamics import ReactionDiffusionSystem
 from ...general.dynamics.types import Equations
 
 
 class AlievPanfilovElement(Element):
-    """Cardiac tissue of Aliev and Panfilov, an excitable medium.
-
-    It has the restitution of heart muscle.
-
-    The potential follows `u' = -k u (u - a) (u - 1) - u v` and the recovery `v' = (epsilon0 + mu1 v / (u + mu2))
-    (-v - k u (u - a - 1))`, and a diffusion of the potential couples the cells of the tissue. The recovery rate
-    depends on the state, so the action potential lasts longer than in the FitzHugh-Nagumo medium and its duration
-    adapts to the pacing rate.
+    """Cardiac tissue of Aliev and Panfilov, with its potential and recovery.
 
     Args:
         label:
@@ -59,27 +54,29 @@ class AlievPanfilovElement(Element):
         mu2:
             The offset of the recovery rate.
 
+        space:
+            The space whose sites hold one member each, or `None` for one member.
+
     Examples:
         >>> from skcomplex.systems.biology.physiology import AlievPanfilovElement
         >>> AlievPanfilovElement('tissue').k
         8.0
     """
 
-    law_classes = (RateLaw,)
-
     def __init__(
         self,
         label: str,
         *,
-        u: Annotated[float, StateSpec()] = 0.0,
-        v: Annotated[float, StateSpec()] = 0.0,
-        k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 8.0,
-        a: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.15,
-        epsilon0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.002,
-        mu1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        mu2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
+        u: float | Array = 0.0,
+        v: float | Array = 0.0,
+        k: Annotated[float | Array, RealSet.open(0, oo)] = 8.0,
+        a: Annotated[float | Array, RealSet.open(0, oo)] = 0.15,
+        epsilon0: Annotated[float | Array, RealSet.open(0, oo)] = 0.002,
+        mu1: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.2,
+        mu2: Annotated[float | Array, RealSet.open(0, oo)] = 0.3,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.u = u
         self.v = v
         self.k = k
@@ -88,22 +85,49 @@ class AlievPanfilovElement(Element):
         self.mu1 = mu1
         self.mu2 = mu2
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the diffusing potential and its state-dependent recovery.
+
+class AlievPanfilovInteraction(Interaction):
+    """Excitation and recovery of cardiac tissue of Aliev and Panfilov, an excitable medium.
+
+    The potential follows `u' = -k u (u - a) (u - 1) - u v` and the recovery `v' = (epsilon0 + mu1 v / (u + mu2))
+    (-v - k u (u - a - 1))`, and a diffusion of the potential couples the cells of the tissue. The recovery rate
+    depends on the state, so the action potential lasts longer than in the FitzHugh-Nagumo medium and its duration
+    adapts to the pacing rate.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the tissue, whose values are `u`, `v`, `k`, `a`, `epsilon0`, `mu1`, and `mu2`.
+
+    Examples:
+        >>> from skcomplex.systems.biology.physiology import AlievPanfilovInteraction
+        >>> AlievPanfilovInteraction('kinetics', target='tissue').target
+        'tissue'
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the excited potential and its state-dependent recovery.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        recovery_rate = s.epsilon0 + s.mu1 * s.v / (s.u + s.mu2)
-        return [
-            RateLaw(s.u, -s.k * s.u * (s.u - s.a) * (s.u - 1) - s.u * s.v),
-            RateLaw(s.v, recovery_rate * (-s.v - s.k * s.u * (s.u - s.a - 1))),
-        ]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context.target
+            recovery_rate = s.epsilon0 + s.mu1 * s.v / (s.u + s.mu2)
+            self.laws_ = [
+                RateLaw(s.u, -s.k * s.u * (s.u - s.a) * (s.u - 1) - s.u * s.v),
+                RateLaw(s.v, recovery_rate * (-s.v - s.k * s.u * (s.u - s.a - 1))),
+            ]
 
 
 class AlievPanfilovSystem(BaseSystem):
@@ -140,9 +164,15 @@ class AlievPanfilovSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.physiology import AlievPanfilovSystem
-        >>> AlievPanfilovSystem((20, 20)).prepare().system_.elements[0].values['k']
+        >>> AlievPanfilovSystem((20, 20)).prepare().system_.elements[0].k
         8.0
     """
 
@@ -151,7 +181,6 @@ class AlievPanfilovSystem(BaseSystem):
     references = ('Aliev and Panfilov 1996', 'Datseris and Parlitz 2022')
     until = 200.0
     dt = 2.0
-    solver = RK4Solver(dt=0.05)
 
     def __init__(
         self,
@@ -164,8 +193,10 @@ class AlievPanfilovSystem(BaseSystem):
         mu1: float = 0.2,
         mu2: float = 0.3,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.D = D
         self.k = k
@@ -174,22 +205,43 @@ class AlievPanfilovSystem(BaseSystem):
         self.mu1 = mu1
         self.mu2 = mu2
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the Aliev-Panfilov system of cardiac tissue."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the Aliev-Panfilov system of cardiac tissue.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         rows, columns = self.shape
         u, v = np.zeros(self.shape), np.zeros(self.shape)
         u[: rows // 2, :] = 1.0
         v[:, : columns // 2] = 2.0
-        values = {'u': u, 'v': v, 'k': self.k, 'a': self.a, 'epsilon0': self.epsilon0, 'mu1': self.mu1, 'mu2': self.mu2}
         space = LatticeSpace((rows, columns), boundary='reflecting')
-        tissue = FieldElement('tissue', element=AlievPanfilovElement, space=space, values=values)
+        tissue = AlievPanfilovElement(
+            'tissue',
+            u=u,
+            v=v,
+            k=self.k,
+            a=self.a,
+            epsilon0=self.epsilon0,
+            mu1=self.mu1,
+            mu2=self.mu2,
+            space=space,
+        )
         diffusion = RateInteraction(
             'diffusion',
             target='tissue',
             state='u',
             rate=lambda s: self.D * laplacian(s.target.u),
         )
-        return CompositeSystem(self.label, elements=[tissue], interactions=[diffusion])
+        kinetics = AlievPanfilovInteraction('kinetics', target='tissue')
+        self.system_ = System(
+            self.label,
+            elements=[tissue],
+            interactions=[kinetics, diffusion],
+            solver=RK4Solver(dt=0.05),
+        )
 
 
 class BarkleySystem(ReactionDiffusionSystem):

@@ -6,21 +6,24 @@ Assembly theory is the discovery of new objects by recursive joining of existing
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw, RuleLaw
 from ....core.components.laws.utils import shift_member
-from ....core.components.spaces import BaseSpace, DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
+from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver, SystemView
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.systems import BaseSystem, System
 
 MODES = ('undirected', 'directed')
 
@@ -242,9 +245,15 @@ class AssemblyGrowthSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.evolution import AssemblyGrowthSystem
-        >>> AssemblyGrowthSystem(5).prepare().system_.elements[0].prepare().size_
+        >>> AssemblyGrowthSystem(5).prepare().system_.elements[0].size
         5
     """
 
@@ -261,21 +270,29 @@ class AssemblyGrowthSystem(BaseSystem):
         k: float = 1.0,
         alpha: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.levels = levels
         self.k = k
         self.alpha = alpha
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the numbers of objects at successive assembly indices."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the numbers of objects at successive assembly indices.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         group = GroupElement(
             'levels',
             element=AssemblyLevelElement,
             size=self.levels,
             values={'k': self.k, 'alpha': self.alpha},
         )
-        return CompositeSystem(self.label, elements=[group])
+        self.system_ = System(self.label, elements=[group])
 
 
 class PolymerAssemblyPoolSystem(BaseSystem):
@@ -298,6 +315,12 @@ class PolymerAssemblyPoolSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.evolution import PolymerAssemblyPoolSystem
         >>> PolymerAssemblyPoolSystem('directed').prepare().system_.interactions[0].mode
@@ -315,17 +338,24 @@ class PolymerAssemblyPoolSystem(BaseSystem):
         *,
         capacity: int = 2000,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.mode = mode
         self.capacity = capacity
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set an assembly pool of linear polymers grown from one monomer.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         pool = GroupElement('pool', element=PolymerElement, size=1, variable=True, capacity=self.capacity)
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[pool],
             interactions=[PolymerJoiningInteraction('joining', polymers='pool', mode=self.mode)],
-            time=DiscreteTime(),
         )

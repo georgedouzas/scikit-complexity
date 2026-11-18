@@ -11,22 +11,21 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import total
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import Role, RoleSpec
+from ....core.systems import BaseSystem, System
+from ....core.types import Array
 
 
 class FateLandscapeElement(Element):
-    """Cell state in the compactified elliptic umbilic.
-
-    It is the minimal landscape of a decision among three fates.
-
-    The state `(x, y)` descends the potential `f = x^4 + y^4 + x^3 - 2 x y^2 + a (x^2 + y^2) + theta1 x + theta2 y` of
-    Rand et al. (2021, figure 5D), `dx/dt = -df/dx` and `dy/dt = -df/dy`. The signals `theta1` and `theta2` change
-    in time at the rates `v1` and `v2`, and the sign of `a` makes the central rest point an attractor or a repellor.
+    """Cells with a state `(x, y)` on a landscape of three fates, and the signals that tilt it.
 
     Args:
         label:
@@ -53,27 +52,29 @@ class FateLandscapeElement(Element):
         v2:
             The rate of change of the second signal.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.biology.systems_biology import FateLandscapeElement
         >>> FateLandscapeElement('cell', a=-0.2).a
         -0.2
     """
 
-    law_classes = (RateLaw,)
-
     def __init__(
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec()] = 0.0,
-        y: Annotated[float, StateSpec()] = 0.0,
-        a: Annotated[float, ParameterSpec()] = -0.2,
-        theta1: Annotated[float, ParameterSpec()] = 0.0,
-        theta2: Annotated[float, ParameterSpec()] = 0.0,
-        v1: Annotated[float, ParameterSpec()] = 0.0,
-        v2: Annotated[float, ParameterSpec()] = 0.0,
+        x: float | Array = 0.0,
+        y: float | Array = 0.0,
+        a: float | Array = -0.2,
+        theta1: float | Array = 0.0,
+        theta2: float | Array = 0.0,
+        v1: float | Array = 0.0,
+        v2: float | Array = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.x = x
         self.y = y
         self.a = a
@@ -82,22 +83,49 @@ class FateLandscapeElement(Element):
         self.v1 = v1
         self.v2 = v2
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the gradient descent of the potential under the drifting signals.
+
+class EllipticUmbilicInteraction(Interaction):
+    """Gradient descent of cells on the compactified elliptic umbilic, a landscape of three fates.
+
+    It is the minimal landscape of a decision among three fates.
+    The state `(x, y)` descends the potential `f = x^4 + y^4 + x^3 - 2 x y^2 + a (x^2 + y^2) + theta1 x + theta2 y` of
+    Rand et al. (2021, figure 5D), `dx/dt = -df/dx` and `dy/dt = -df/dy`. The signals `theta1` and `theta2` change
+    in time at the rates `v1` and `v2`, and the sign of `a` makes the central rest point an attractor or a repellor.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the cells, whose values are `x`, `y`, `a`, `theta1`, `theta2`, `v1`, and `v2`.
+
+    Examples:
+        >>> from skcomplex.systems.biology.systems_biology import EllipticUmbilicInteraction
+        >>> EllipticUmbilicInteraction('descent', target='cells').target
+        'cells'
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the gradient descent of the potential under the drifting signals.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        theta1, theta2 = s.theta1 + s.v1 * s.t, s.theta2 + s.v2 * s.t
-        return [
-            RateLaw(s.x, -(4 * s.x**3 + 3 * s.x**2 - 2 * s.y**2 + 2 * s.a * s.x + theta1)),
-            RateLaw(s.y, -(4 * s.y**3 - 4 * s.x * s.y + 2 * s.a * s.y + theta2)),
-        ]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context.target
+            theta1, theta2 = s.theta1 + s.v1 * context.t, s.theta2 + s.v2 * context.t
+            self.laws_ = [
+                RateLaw(s.x, -(4 * s.x**3 + 3 * s.x**2 - 2 * s.y**2 + 2 * s.a * s.x + theta1)),
+                RateLaw(s.y, -(4 * s.y**3 - 4 * s.x * s.y + 2 * s.a * s.y + theta2)),
+            ]
 
 
 class ProneuralCellElement(Element):
@@ -118,6 +146,9 @@ class ProneuralCellElement(Element):
         width:
             The width of the sigmoids.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.biology.systems_biology import ProneuralCellElement
         >>> ProneuralCellElement('cell', a=0.1).a
@@ -128,10 +159,11 @@ class ProneuralCellElement(Element):
         self,
         label: str,
         *,
-        a: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.0,
-        width: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.127,
+        a: Annotated[float | Array, RealSet.closed(0, 1)] = 0.0,
+        width: Annotated[float | Array, RealSet.open(0, oo)] = 0.127,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.a = a
         self.width = width
 
@@ -233,9 +265,15 @@ class ThreeWayFateDecisionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.systems_biology import ThreeWayFateDecisionSystem
-        >>> ThreeWayFateDecisionSystem(5).prepare().system_.elements[0].prepare().size_
+        >>> ThreeWayFateDecisionSystem(5).prepare().system_.elements[0].size
         5
     """
 
@@ -257,8 +295,10 @@ class ThreeWayFateDecisionSystem(BaseSystem):
         spread: float = 0.6,
         seed: int | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.cells = cells
         self.a = a
         self.theta1 = theta1
@@ -268,22 +308,32 @@ class ThreeWayFateDecisionSystem(BaseSystem):
         self.spread = spread
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set cells that choose among three fates on a compactified elliptic umbilic.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         rng = np.random.default_rng(self.seed)
         start = rng.uniform(-self.spread, self.spread, (2, self.cells))
-        values = {
-            'x': start[0],
-            'y': start[1],
-            'a': self.a,
-            'theta1': self.theta1,
-            'theta2': self.theta2,
-            'v1': self.v1,
-            'v2': self.v2,
-        }
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
-            elements=[GroupElement('cells', element=FateLandscapeElement, size=self.cells, values=values)],
+            elements=[
+                FateLandscapeElement(
+                    'cells',
+                    x=start[0],
+                    y=start[1],
+                    a=self.a,
+                    theta1=self.theta1,
+                    theta2=self.theta2,
+                    v1=self.v1,
+                    v2=self.v2,
+                    size=self.cells,
+                ),
+            ],
+            interactions=[EllipticUmbilicInteraction('descent', target='cells')],
         )
 
 
@@ -320,9 +370,15 @@ class BristleLateralInhibitionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.systems_biology import BristleLateralInhibitionSystem
-        >>> BristleLateralInhibitionSystem(10).prepare().system_.elements[0].prepare().size_
+        >>> BristleLateralInhibitionSystem(10).prepare().system_.elements[0].size
         10
     """
 
@@ -342,8 +398,10 @@ class BristleLateralInhibitionSystem(BaseSystem):
         noise: float = 0.05,
         seed: int | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.cells = cells
         self.strength = strength
         self.length = length
@@ -351,23 +409,24 @@ class BristleLateralInhibitionSystem(BaseSystem):
         self.noise = noise
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of a ring of cells that inhibit the neural fate of neighbours."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a ring of cells that inhibit the neural fate of neighbours.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         index = np.arange(self.cells)
         distance = np.abs(index[:, None] - index[None, :])
         distance = np.minimum(distance, self.cells - distance)
         kernel = self.strength * np.exp(-(distance**2) / (2 * self.length**2))
         np.fill_diagonal(kernel, 0.0)
         states = np.random.default_rng(self.seed).uniform(0, self.noise, self.cells)
-        group = GroupElement(
-            'cells',
-            element=ProneuralCellElement,
-            size=self.cells,
-            values={'a': states, 'width': self.width},
-        )
+        group = ProneuralCellElement('cells', a=states, width=self.width, size=self.cells)
         inhibition = LateralInhibitionInteraction(
             'inhibition',
             cells='cells',
             kernel=tuple(map(tuple, kernel.tolist())),
         )
-        return CompositeSystem(self.label, elements=[group], interactions=[inhibition])
+        self.system_ = System(self.label, elements=[group], interactions=[inhibition])

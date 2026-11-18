@@ -13,7 +13,6 @@ lost or fixed. The share of replicates in which the allele fixes is Kimura's fix
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.evolution import KimuraDiffusionSystem
@@ -22,7 +21,9 @@ SYSTEM = 'kimura_diffusion'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.001)
-trajectory = simulate(KimuraDiffusionSystem(replicates=200), solver=solver, observers=[observer], random_state=0)
+trajectory = (
+    KimuraDiffusionSystem(replicates=200, solver=solver).prepare().simulate(observers=[observer], random_state=0)
+)
 
 # %%
 # Fixation probability
@@ -33,7 +34,8 @@ trajectory = simulate(KimuraDiffusionSystem(replicates=200), solver=solver, obse
 starts = np.linspace(0.1, 0.9, 5)
 fixed = []
 for start in starts:
-    run = simulate(KimuraDiffusionSystem(x=start, replicates=500), until=10, dt=1.0, solver=solver, random_state=1)
+    system = KimuraDiffusionSystem(x=start, replicates=500, solver=solver).prepare()
+    run = system.simulate(until=10, dt=1.0, random_state=1)
     fixed.append((run.get_values('alleles.x')[-1] > 0.999).mean())
 grid = np.linspace(0, 1, 100)
 fig, (paths, probability) = plt.subplots(1, 2, figsize=(11, 4.5))

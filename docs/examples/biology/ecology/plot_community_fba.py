@@ -13,7 +13,6 @@ other secretes, 2-oxoglutarate one way and glutamate the other, and both grow.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.common.metabolism import community_growth
 from skcomplex.systems.biology.ecology import CommunityFBASystem
@@ -23,7 +22,7 @@ GROWTH = 'v_Biomass_Ecoli_core'
 
 system = CommunityFBASystem().prepare().system_
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(system, observers=[observer], until=0.0)
+trajectory = system.prepare().simulate(observers=[observer], until=0.0)
 
 # %%
 # Alone and together
@@ -34,13 +33,16 @@ trajectory = simulate(system, observers=[observer], until=0.0)
 
 alone = [
     float(
-        simulate(CommunityFBASystem(knockouts=(name,), abundances=(1.0,))).get_values('medium.objective_0')[0],
+        CommunityFBASystem(knockouts=(name,), abundances=(1.0,))
+        .prepare()
+        .simulate()
+        .get_values('medium.objective_0')[0],
     )
     for name in ('ICDHyr', 'NH4t')
 ]
 together = [float(trajectory.get_values(f'member_{index}.{GROWTH}')[0]) for index in range(2)]
 community = float(trajectory.get_values('medium.objective_0')[0])
-balanced = simulate(CommunityFBASystem(common_rate=True))
+balanced = CommunityFBASystem(common_rate=True).prepare().simulate()
 balanced_rate = float(balanced.get_values('medium.objective_0')[0])
 steadycom = community_growth(system, medium={'EX_akg_e': 0.0, 'EX_glu__L_e': 0.0})
 tradeoff = community_growth(CommunityFBASystem(knockouts=('', '')).prepare().system_, kind='tradeoff', fraction=1.0)

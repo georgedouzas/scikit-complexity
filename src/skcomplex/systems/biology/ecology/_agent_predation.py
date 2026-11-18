@@ -4,20 +4,23 @@
 # License: MIT
 
 
+from collections.abc import Sequence
 from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, TransferInteraction
 from ....core.components.laws import Source
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.engine.solvers import AgentView
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ...general.agents import BirthDeathInteraction, MovementInteraction
 
 
@@ -163,6 +166,12 @@ class AgentBasedLotkaVolterraSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.ecology import AgentBasedLotkaVolterraSystem
         >>> system = AgentBasedLotkaVolterraSystem(10, 10, prey=50, predators=5).prepare().system_
@@ -187,8 +196,10 @@ class AgentBasedLotkaVolterraSystem(BaseSystem):
         death: float = 0.1,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.width = width
         self.height = height
         self.prey = prey
@@ -277,12 +288,18 @@ class AgentBasedLotkaVolterraSystem(BaseSystem):
             ),
         ]
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of prey and predators that walk on a grid."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of prey and predators that walk on a grid.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         cells = rng.integers(0, [self.width, self.height], size=(self.prey + self.predators, 2))
         locations = [tuple(int(item) for item in cell) for cell in cells]
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[
                 GroupElement(

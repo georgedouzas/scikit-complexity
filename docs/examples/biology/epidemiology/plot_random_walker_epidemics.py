@@ -12,19 +12,16 @@ die some steps later, so the disease spreads outwards as a front, like a forest 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.epidemiology import RandomWalkerEpidemicsSystem
 
 SYSTEM = 'random_walker_epidemics'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(
-    RandomWalkerEpidemicsSystem(walkers=1000, random_state=0),
-    dt=1,
-    observers=[observer],
-    random_state=0,
-    until=299,
+trajectory = (
+    RandomWalkerEpidemicsSystem(walkers=1000, random_state=0)
+    .prepare()
+    .simulate(dt=1, observers=[observer], random_state=0, until=299)
 )
 
 # %%
@@ -36,7 +33,11 @@ trajectory = simulate(
 
 def dead_share(walkers, seed):
     """Return the share of walkers dead at the end of a run."""
-    run = simulate(RandomWalkerEpidemicsSystem(walkers=walkers, random_state=seed), until=300, dt=1, random_state=seed)
+    run = (
+        RandomWalkerEpidemicsSystem(walkers=walkers, random_state=seed)
+        .prepare()
+        .simulate(until=300, dt=1, random_state=seed)
+    )
     final = run.get_agents('walkers', len(run.times) - 1)
     return np.mean(final.values['health'] == 2)
 

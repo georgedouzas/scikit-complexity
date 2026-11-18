@@ -15,7 +15,6 @@ import numpy as np
 from scipy.optimize import nnls
 
 from skcomplex.core.analysis import elementary_modes
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.systems_biology import ElementaryFluxModesSystem
 
@@ -23,7 +22,7 @@ SYSTEM = 'elementary_flux_modes'
 
 system = ElementaryFluxModesSystem().prepare().system_
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(system, observers=[observer], until=0.0)
+trajectory = system.prepare().simulate(observers=[observer], until=0.0)
 
 # %%
 # The modes and the optimum

@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.signal import find_peaks
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.physiology import AlievPanfilovSystem
@@ -23,7 +22,9 @@ from skcomplex.systems.biology.physiology import AlievPanfilovSystem
 SYSTEM = 'aliev_panfilov'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(AlievPanfilovSystem(shape=(100, 100)), solver=RK4Solver(dt=0.05), observers=[observer], until=300)
+trajectory = (
+    AlievPanfilovSystem(shape=(100, 100), solver=RK4Solver(dt=0.05)).prepare().simulate(observers=[observer], until=300)
+)
 
 # %%
 # A periodic rotation

@@ -17,7 +17,6 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.physiology import ClosedContourCellExchangeSystem
 
@@ -36,7 +35,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(ClosedContourCellExchangeSystem(r=2.5), observers=[observer], until=40)
+trajectory = ClosedContourCellExchangeSystem(r=2.5).prepare().simulate(observers=[observer], until=40)
 
 # %%
 # Stability domain and desynchronization
@@ -49,7 +48,7 @@ rates = np.linspace(2.0, 4.0, 41)
 fig, (diagram, spread) = plt.subplots(1, 2, figsize=(10, 4))
 spreads = []
 for rate in rates:
-    late = simulate(ClosedContourCellExchangeSystem(r=rate)).get_values('cells.x')[-30:]
+    late = ClosedContourCellExchangeSystem(r=rate).prepare().simulate().get_values('cells.x')[-30:]
     diagram.plot(np.full(late.size, rate), late.ravel(), '.', markersize=2, color='tab:blue')
     spreads.append(np.ptp(late, axis=1).max())
 diagram.fill_between(rates, (rates - 1) / (2 * rates), (rates + 1) / (2 * rates), color='tab:green', alpha=0.2)

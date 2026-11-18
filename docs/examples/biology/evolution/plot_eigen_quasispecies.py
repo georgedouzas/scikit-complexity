@@ -16,7 +16,6 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.evolution import EigenQuasispeciesSystem
 
@@ -37,7 +36,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(EigenQuasispeciesSystem(u=0.3, sigma=0.5), observers=[observer], until=40)
+trajectory = EigenQuasispeciesSystem(u=0.3, sigma=0.5).prepare().simulate(observers=[observer], until=40)
 
 # %%
 # The error threshold
@@ -46,7 +45,10 @@ trajectory = simulate(EigenQuasispeciesSystem(u=0.3, sigma=0.5), observers=[obse
 # error threshold `u = sigma`.
 
 rates = np.linspace(0.0, 0.7, 15)
-shares = [simulate(EigenQuasispeciesSystem(u=rate, sigma=0.5), until=200).get_values('master.x')[-1] for rate in rates]
+shares = [
+    EigenQuasispeciesSystem(u=rate, sigma=0.5).prepare().simulate(until=200).get_values('master.x')[-1]
+    for rate in rates
+]
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(rates, shares, 'o', label='simulated')
 ax.plot(rates, np.clip(1 - rates / 0.5, 0, None), '--', color='black', label='1 - u / sigma')

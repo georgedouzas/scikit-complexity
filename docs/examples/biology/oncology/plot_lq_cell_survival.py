@@ -13,7 +13,6 @@ term, and 30 fractions of 2 Gy at `alpha / beta = 10` give the biologically effe
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.experiments import sweep
 from skcomplex.systems.biology.oncology import LQCellSurvivalSystem
@@ -21,7 +20,7 @@ from skcomplex.systems.biology.oncology import LQCellSurvivalSystem
 SYSTEM = 'lq_cell_survival'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(LQCellSurvivalSystem(dose=60.0, fractions=30.0), observers=[observer], until=1.0)
+trajectory = LQCellSurvivalSystem(dose=60.0, fractions=30.0).prepare().simulate(observers=[observer], until=1.0)
 
 # %%
 # Survival against the dose

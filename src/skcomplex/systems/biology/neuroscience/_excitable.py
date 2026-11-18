@@ -6,6 +6,7 @@ The elements excite their neighbours with a transmission probability.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -15,12 +16,13 @@ from sage.all__sagemath_symbolics import NN, Expression, exp, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.interactions import TransitionInteraction
 from ....core.components.laws.utils import neighbors, where
-from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 from ....core.types import AnyArray
 
 EXCITED = 1
@@ -49,6 +51,9 @@ class ExcitableElement(Element):
         stimulus:
             The rate `r` of the external stimulus per step.
 
+        space:
+            The space whose sites hold one member each, or `None` for one member.
+
     Examples:
         >>> from skcomplex.systems.biology.neuroscience import ExcitableElement
         >>> ExcitableElement('neuron').p
@@ -59,11 +64,12 @@ class ExcitableElement(Element):
         self,
         label: str,
         *,
-        phase: Annotated[float, StateSpec(domain=NN)] = 0,
-        p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        stimulus: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        phase: Annotated[float, NN] = 0,
+        p: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        stimulus: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.phase = phase
         self.p = p
         self.stimulus = stimulus
@@ -110,11 +116,17 @@ class KinouchiCopelliSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.systems.biology.neuroscience import KinouchiCopelliSystem
         >>> system = KinouchiCopelliSystem(nx.random_regular_graph(4, 20, seed=0), sigma=1.0).prepare().system_
-        >>> system.elements[0].values['p']
+        >>> system.elements[0].p
         0.25
     """
 
@@ -135,8 +147,10 @@ class KinouchiCopelliSystem(BaseSystem):
         excited: float | None = None,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.graph = graph
         self.sigma = sigma
         self.stimulus = stimulus
@@ -172,8 +186,14 @@ class KinouchiCopelliSystem(BaseSystem):
             for phase in range(EXCITED, n_states)
         ]
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the Kinouchi-Copelli network of excitable elements."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the Kinouchi-Copelli network of excitable elements.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         graph = self.graph
         rng = np.random.default_rng(self.random_state)
         graph = nx.gnp_random_graph(1000, 10 / 999, seed=int(rng.integers(2**31))) if graph is None else graph
@@ -184,12 +204,12 @@ class KinouchiCopelliSystem(BaseSystem):
             if self.excited is None
             else (rng.random(size) < self.excited).astype(float)
         )
-        neurons = GroupElement(
+        neurons = ExcitableElement(
             'neurons',
-            element=ExcitableElement,
+            phase=phase,
+            p=self.sigma / degree,
+            stimulus=self.stimulus,
             space=NetworkSpace(graph),
-            values={'phase': phase, 'p': self.sigma / degree, 'stimulus': self.stimulus},
-            on='sites',
         )
         excitation = TransitionInteraction(
             'excitation',
@@ -199,9 +219,8 @@ class KinouchiCopelliSystem(BaseSystem):
             destination=EXCITED,
             probability=self._get_excitation,
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[neurons],
             interactions=[excitation, *self._get_cycle(self.n_states)],
-            time=DiscreteTime(),
         )

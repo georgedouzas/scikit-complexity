@@ -13,14 +13,13 @@ ecosystem turn from half positive to mostly positive, the emergence of cooperati
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.evolution import CompetitiveJainKrishnaSystem
 
 SYSTEM = 'competitive_jain_krishna'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(CompetitiveJainKrishnaSystem(), observers=[observer], random_state=0)
+trajectory = CompetitiveJainKrishnaSystem().prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Emergence of cooperation
