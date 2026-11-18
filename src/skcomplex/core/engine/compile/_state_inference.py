@@ -129,6 +129,23 @@ class _StateInference:
         return starting
 
     @staticmethod
+    def _get_free_order(element: Element, name: str) -> int | None:
+        """Return the order of a value that moves freely, or `None`.
+
+        A value that no law changes but that starts with a derivative, such as a point given `values={"x'": 1.0}`, moves
+        at that derivative, as Newton's first law says, so it has the order one above its highest starting derivative,
+        whose own derivative is zero.
+        """
+        primes = [
+            len(found.group('primes'))
+            for given in (element.values or {})
+            if (found := STARTING.fullmatch(given)) is not None
+            and found.group('name') == name
+            and found.group('primes')
+        ]
+        return max(primes) + 1 if primes else None
+
+    @staticmethod
     def _get_count(element: Element) -> int | None:
         """Return the number of members of an element, or `None` for one element.
 
@@ -783,11 +800,16 @@ class _StateInference:
         for name, value in values.items():
             member = self._get_member_value(element, name, value, count)
             kept = growing or name in axes
+            free = None if probing else self._get_free_order(element, name)
             variables[name] = self._get_spec(
                 element,
                 name,
                 member,
-                1 if order(name) is None and kept else order(name),
+                (
+                    free
+                    if order(name) is None and free is not None
+                    else 1 if order(name) is None and kept else order(name)
+                ),
                 lags=lags(name),
                 starting={
                     index: self._get_member_value(element, name, given, count)
