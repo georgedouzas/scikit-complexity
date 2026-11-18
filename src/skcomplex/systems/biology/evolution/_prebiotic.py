@@ -23,7 +23,7 @@ from ....core.components.laws.utils import total
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, Role
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ..common.populations import ReplicatorInteraction
 
@@ -165,7 +165,7 @@ class CatalysisInteraction(ReplicatorInteraction):
         label: str,
         *,
         target: Role,
-        omega: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        omega: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
         topology: Sequence[Sequence[float]] = ((0.0, 1.0), (1.0, 0.0)),
     ) -> None:
         super().__init__(label, target=target)
