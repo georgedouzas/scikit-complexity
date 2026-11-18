@@ -249,10 +249,13 @@ Two kinds of model need forms that the table above does not name yet.
   the target of a `RateLaw`, such as `RateLaw(fractional(s.target.x, 0.5), -s.k * s.target.x)` for anomalous
   relaxation. Sage has no such derivative, so the operator carries the order and the Caputo solver reads it.
 
-- Flows between stocks. A flow is two rate terms with the same label, `RateLaw(source.n, -f, label='births')` and
-  `RateLaw(sink.n, f, label='births')`, set by one interaction. The loops analysis and the flow matrix read a flow as
-  the rate terms that share a label across stocks, and the trajectory records each labelled flow by name. A flow from
-  outside the system or out of it has only its sink or its source. No law kind is added.
+- Flows between stocks. A flow is one labelled `RateLaw` whose target maps each stock to the sign of its change, as a
+  `JumpLaw` change map does: `RateLaw({s.alive: -1, s.dead: +1}, f, label='deaths')`. The amount `f` stays as written,
+  a flow from outside the system has only its sink, `RateLaw({s.water: +1}, f, label='tap')`, and a flow out of it only
+  its source. The loops analysis and the flow matrix read these maps, and the trajectory records each flow by its label.
+  No law kind is added and no sign is guessed.
+- Controls. An `ObjectiveLaw` names the values it chooses over time, `ObjectiveLaw(cost, controls=[s.plant.u])`, and
+  their bounds come from the allowed values in `Annotated` on the element, as optimal control needs.
 
 A field law first becomes a recipe of the seven kinds and the core reductions where it can, such as Bak-Sneppen as an
 `UpdateLaw` on the site where `argmin` falls, so it needs no engine code. A law that truly needs numerics of its own,
