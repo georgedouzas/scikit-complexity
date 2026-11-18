@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -12,19 +12,22 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import RateInteraction
-from ....core.components.laws import BaseLaw, RateLaw, RuleLaw
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, RateLaw, UpdateLaw
 from ....core.components.laws.utils import count
+from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver, SystemView
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 
 
 class StockElement(Element):
-    """Renewable stock that grows logistically, `n' = r n (1 - n / K)`.
+    """Renewable stock `n` with the growth rate `r` and the carrying capacity `K`.
+
+    `StockGrowthInteraction` grows it logistically.
 
     Args:
         label:
@@ -45,33 +48,55 @@ class StockElement(Element):
         500.0
     """
 
-    law_classes = (RateLaw,)
-
     def __init__(
         self,
         label: str,
         *,
-        n: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 1000.0,
-        r: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        K: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1000.0,
+        n: Annotated[object, RealSet.closed_open(0, oo)] = 1000.0,
+        r: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        K: Annotated[object, RealSet.open(0, oo)] = 1000.0,
     ) -> None:
         super().__init__(label)
         self.n = n
         self.r = r
         self.K = K
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the logistic growth of the stock.
+
+class StockGrowthInteraction(Interaction):
+    """Logistic growth of a renewable stock, `n' = r n (1 - n / K)`.
+
+    The rate `r` and the capacity `K` are the values of the stock.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the stock.
+
+    Examples:
+        >>> from skcomplex.systems.economics.resources import StockGrowthInteraction
+        >>> StockGrowthInteraction('growth', target='stock').target
+        'stock'
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the logistic growth of the stock.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the stock.
         """
-        return [RateLaw(s.n, s.r * s.n * (1 - s.n / s.K))]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            stock = context.target
+            self.laws_: list[BaseLaw] = [RateLaw(stock.n, stock.r * stock.n * (1 - stock.n / stock.K))]
 
 
 class FarmerView(AgentView):
@@ -81,9 +106,7 @@ class FarmerView(AgentView):
 
 
 class FarmerElement(Element):
-    """Farmer who adds the catch of every step to its wealth.
-
-    It reads the resource from the other partition.
+    """Farmer who adds the catch of every step to its wealth, by `CatchInteraction`.
 
     Args:
         label:
@@ -92,6 +115,51 @@ class FarmerElement(Element):
         wealth:
             The initial wealth.
 
+        values:
+            Further values by name, or `None` for none.
+
+        size:
+            The number of farmers, or `None` for one.
+
+        space:
+            The space of the farmers, or `None` for none.
+
+    Examples:
+        >>> from skcomplex.systems.economics.resources import FarmerElement
+        >>> FarmerElement('farmers', size=10).size
+        10
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        wealth: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
+    ) -> None:
+        super().__init__(label, values=values, size=size, space=space)
+        self.wealth = wealth
+
+    @classmethod
+    def _get_view(cls) -> type[FarmerView]:
+        """Return the view of the agents of the element."""
+        return FarmerView
+
+
+class CatchInteraction(Interaction):
+    """Catch of every farmer, who adds the effort times the resource stock to its wealth.
+
+    The farmers read the stock from another subsystem at its last synchronisation point.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of farmers.
+
         resource:
             The dotted name of the resource stock.
 
@@ -99,44 +167,36 @@ class FarmerElement(Element):
             The dotted name of the harvest effort per farmer.
 
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
-        >>> from skcomplex.systems.economics.resources import FarmerElement
-        >>> GroupElement('farmers', element=FarmerElement, size=10).size
-        10
+        >>> from skcomplex.systems.economics.resources import CatchInteraction
+        >>> CatchInteraction('catch', target='farmers').resource
+        'land/stock.n'
     """
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        wealth: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        target: Role,
         resource: str = 'land/stock.n',
         effort: str = 'harvest.effort',
     ) -> None:
         super().__init__(label)
-        self.wealth = wealth
+        self.target = target
         self.resource = resource
         self.effort = effort
 
-    @classmethod
-    def _get_view(cls) -> type[FarmerView]:
-        """Return the view of the agents of the element."""
-        return FarmerView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the catch rule.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the catch rule of every farmer.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the farmers.
         """
-        return [RuleLaw(self.catch)]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.catch)]
 
     def catch(self, agent: FarmerView, system: SystemView) -> None:
         """Add the effort times the resource stock to the wealth.
@@ -157,10 +217,10 @@ class FarmerElement(Element):
         agent.wealth += system.parameters[self.effort] * float(stock)
 
 
-class HarvestInteraction(RateInteraction):
+class HarvestInteraction(Interaction):
     """Harvest of a stock proportional to the stock and to the number of harvesters.
 
-    The rate is `-effort * N * n`. A rate on the state `n` of the target whose coefficient counts the members of the
+    The rate is `-effort * N * n`, a rate on the state `n` of the target whose coefficient counts the members of the
     group of harvesters, which may live in another subsystem.
 
     Args:
@@ -185,31 +245,34 @@ class HarvestInteraction(RateInteraction):
         0.05
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        harvesters: Annotated[str, RoleSpec()],
-        effort: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        target: Role,
+        harvesters: Role,
+        effort: Annotated[float, RealSet.closed_open(0, oo)] = 0.05,
         state: str = 'n',
     ) -> None:
-        super().__init__(label, target=target, state=state)
+        super().__init__(label)
+        self.target = target
         self.harvesters = harvesters
         self.effort = effort
+        self.state = state
 
-    def _get_rate(self, namespace: SimpleNamespace) -> object:
-        """Return the harvest `-effort * N * n`.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the harvest `-effort * N * n` of the stock.
 
         Args:
-            namespace:
-                The namespace of the symbols the rate can use, with the target and the harvesters.
-
-        Returns:
-            rate:
-                The harvest rate of the stock.
+            context:
+                The namespace of the stock, the harvesters, and the effort.
         """
-        return -namespace.effort * count(namespace.harvesters) * getattr(namespace.target, self.state)
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            stock = getattr(context.target, self.state)
+            self.laws_: list[BaseLaw] = [RateLaw(stock, -context.effort * count(context.harvesters) * stock)]
 
 
 class HarvestingSystem(BaseSystem):
@@ -272,10 +335,15 @@ class HarvestingSystem(BaseSystem):
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of the components built from the model parameters."""
         super()._prepare(context)
-        land = System('land', elements=[StockElement('stock', n=self.K, r=self.r, K=self.K)])
+        land = System(
+            'land',
+            elements=[StockElement('stock', n=self.K, r=self.r, K=self.K)],
+            interactions=[StockGrowthInteraction('growth', target='stock')],
+        )
         village = System(
             'village',
-            elements=[GroupElement('farmers', element=FarmerElement, size=self.farmers)],
+            elements=[FarmerElement('farmers', size=self.farmers)],
+            interactions=[CatchInteraction('catch', target='farmers')],
         )
         harvest = HarvestInteraction('harvest', target='land/stock', harvesters='village/farmers', effort=self.effort)
         self.system_ = System(self.label, interactions=[harvest], systems=[land, village])
