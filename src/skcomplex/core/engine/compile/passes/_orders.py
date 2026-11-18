@@ -225,15 +225,18 @@ class OrdersPass(BasePass):
     def _get_companion_symbol(spec: KernelSpec, item: Expression, suffix: str) -> Expression:
         """Return the symbol of a companion state of the state a symbol reads.
 
-        It is in the same namespace and column.
+        It is in the same namespace and column, and read under the same alias, such as the neighbour `other` or the
+        second other member `others[1]` of a hyperedge.
         """
         reference = spec.references[item]
         name = f'{reference.entry.name}{suffix}'
+        alias = str(item).rpartition('__')[2] if '__' in str(item) else ''
         for other, candidate in spec.references.items():
             if (
                 candidate.entry.name == name
                 and candidate.column == reference.column
                 and candidate.source == reference.source
+                and (str(other).rpartition('__')[2] if '__' in str(other) else '') == alias
             ):
                 return other
         error_msg = f'A law of {spec.owner} reads {name}, which the namespace does not hold.'
