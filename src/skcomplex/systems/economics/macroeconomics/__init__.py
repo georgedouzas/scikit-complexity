@@ -7,6 +7,7 @@ from ._banking import (
     DepositorElement,
     FractionalReserveBankingSystem,
     LendingInteraction,
+    PaymentsInteraction,
     PolicySwitchInteraction,
     ReserveBankElement,
 )
@@ -77,6 +78,7 @@ __all__: list[str] = [
     'MultiplierAcceleratorSystem',
     'NetworkHerdingSystem',
     'OptimalConsumptionSystem',
+    'PaymentsInteraction',
     'PlotElement',
     'PolicySwitchInteraction',
     'ProductionInteraction',

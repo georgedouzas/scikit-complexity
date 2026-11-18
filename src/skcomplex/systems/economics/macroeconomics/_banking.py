@@ -8,7 +8,7 @@ Loans redeposited at banks multiply the base money.
 
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
@@ -17,12 +17,14 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, Member
-from ....core.components.interactions import Interaction, TransferInteraction
-from ....core.components.laws import Sink, UpdateLaw
+from ....core.components.interactions import Interaction
+from ....core.components.laws import PartnerSpec, UpdateLaw
+from ....core.components.laws.utils import pairs
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
 from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
+from ....core.errors import SimulationError
 from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ..common.policy import PolicyRuleInteraction
@@ -42,6 +44,9 @@ class DepositorView(AgentView):
     loan: float
     spending: float
     repayment: float
+
+
+type Pairs = list[tuple[DepositorView, DepositorView]]
 
 
 class DepositorElement(Element):
@@ -101,48 +106,6 @@ class DepositorElement(Element):
     def _get_view(cls) -> type[DepositorView]:
         """Return the view of a customer, with its bank, deposit, and loan."""
         return DepositorView
-
-    @staticmethod
-    def get_payment(payer: DepositorView, payee: DepositorView, system: SystemView) -> float:
-        """Return the payment of a customer to another, a share `spending` of its deposit.
-
-        Args:
-            payer:
-                The customer who pays.
-
-            payee:
-                The customer who is paid.
-
-            system:
-                The system view of the payments.
-
-        Returns:
-            amount:
-                The payment.
-        """
-        return payer.spending * payer.deposit
-
-    @staticmethod
-    def get_repayment(customer: DepositorView, same: DepositorView, system: SystemView) -> float:
-        """Return the repayment of a customer.
-
-        It is a share `repayment` of its loan, at most its deposit.
-
-        Args:
-            customer:
-                The customer who repays.
-
-            same:
-                The customer again, the target of a transfer within members.
-
-            system:
-                The system view of the repayments.
-
-        Returns:
-            amount:
-                The repayment.
-        """
-        return min(customer.repayment * customer.loan, customer.deposit)
 
 
 class ReserveBankView(AgentView):
@@ -205,6 +168,98 @@ class ReserveBankElement(Element):
     def _get_view(cls) -> type[ReserveBankView]:
         """Return the view of a bank, with its reserves, deposits, and loans."""
         return ReserveBankView
+
+
+class PaymentsInteraction(Interaction):
+    """Payments and repayments of the customers of the banks.
+
+    Every customer pays a share `spending` of its deposit to a random customer, in random order, which moves the
+    deposit and as many deposits and reserves from the payer's bank to the payee's bank. Every customer then repays a
+    share `repayment` of its loan, at most its deposit, in random order, which cancels as much deposit and loan at the
+    customer's bank and destroys broad money.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        customers:
+            The path of the group of customers.
+
+        phase:
+            The phase the customers pay in.
+
+    Examples:
+        >>> from skcomplex.systems.economics.macroeconomics import PaymentsInteraction
+        >>> PaymentsInteraction('payments', customers='customers').phase
+        'pay'
+    """
+
+    law_classes = (UpdateLaw,)
+    draws = True
+
+    def __init__(self, label: str, *, customers: Role, phase: str | None = 'pay') -> None:
+        super().__init__(label)
+        self.customers = customers
+        self.phase = phase
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the payments and then the repayments of every step as rules of the system."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [
+                UpdateLaw(context, self.pay, phase=self.phase),
+                UpdateLaw(context, self.repay, phase=self.phase),
+            ]
+
+    @staticmethod
+    def _get_bank(customer: DepositorView) -> ReserveBankView:
+        """Return the bank a customer names."""
+        bank = customer.get_referenced('bank')
+        if not isinstance(bank, ReserveBankView):
+            error_msg = f'The customer {customer.id} names no bank.'
+            raise SimulationError(error_msg)
+        return bank
+
+    def pay(self, system: SystemView) -> None:
+        """Let every customer pay a share of its deposit to a random customer, in random order.
+
+        Args:
+            system:
+                The system view of the payments.
+        """
+        customers = system.get_agents('customers', DepositorView)
+        found = cast(Pairs, list(pairs(customers, customers, system.rng, PartnerSpec('all', 'uniform'))))
+        for index in system.rng.permutation(len(found)):
+            payer, payee = found[int(index)]
+            if not (payer.alive and payee.alive):
+                continue
+            amount = payer.spending * payer.deposit
+            paying, paid = self._get_bank(payer), self._get_bank(payee)
+            payer.deposit -= amount
+            payee.deposit += amount
+            paying.deposits -= amount
+            paid.deposits += amount
+            paying.reserves -= amount
+            paid.reserves += amount
+
+    def repay(self, system: SystemView) -> None:
+        """Let every customer repay a share of its loan from its deposit, in random order.
+
+        Args:
+            system:
+                The system view of the repayments.
+        """
+        customers = system.get_agents('customers', DepositorView)
+        for index in system.rng.permutation(len(customers)):
+            customer = customers[int(index)]
+            amount = min(customer.repayment * customer.loan, customer.deposit)
+            if not customer.alive or amount <= 0:
+                continue
+            bank = self._get_bank(customer)
+            customer.deposit -= amount
+            customer.loan -= amount
+            bank.deposits -= amount
+            bank.loans -= amount
 
 
 class LendingInteraction(Interaction):
@@ -456,34 +511,6 @@ class FractionalReserveBankingSystem(BaseSystem):
             repayment=self.repayment,
             size=self.customers,
         )
-        payments = TransferInteraction(
-            'payments',
-            source='customers',
-            target='customers',
-            state='deposit',
-            amount=DepositorElement.get_payment,
-            pairing='random',
-            legs=(
-                ('bank.deposits', None, DepositorElement.get_payment),
-                ('bank.reserves', None, DepositorElement.get_payment),
-            ),
-            form='agent',
-            phase='pay',
-        )
-        repayments = TransferInteraction(
-            'repayments',
-            source='customers',
-            target='customers',
-            state='deposit',
-            into=Sink(),
-            amount=DepositorElement.get_repayment,
-            legs=tuple(
-                (state, Sink(), DepositorElement.get_repayment) for state in ('loan', 'bank.deposits', 'bank.loans')
-            ),
-            guard=lambda customer, same, system: DepositorElement.get_repayment(customer, same, system) > 0,
-            form='agent',
-            phase='pay',
-        )
         lenders = ReserveBankElement(
             'banks',
             reserves=holdings,
@@ -501,6 +528,10 @@ class FractionalReserveBankingSystem(BaseSystem):
         self.system_ = System(
             self.label,
             elements=[depositors, lenders],
-            interactions=[regulator, payments, repayments, LendingInteraction('lending', phase='lend')],
+            interactions=[
+                regulator,
+                PaymentsInteraction('payments', customers='customers'),
+                LendingInteraction('lending', phase='lend'),
+            ],
             solver=MesaSolver(phases=[PhaseSpec('regulate'), PhaseSpec('pay'), PhaseSpec('lend', repeat=10)]),
         )
