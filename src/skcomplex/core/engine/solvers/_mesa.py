@@ -2155,7 +2155,7 @@ class MesaSolver(ExternalSolver):
 
     @staticmethod
     def _get_declared_view(spec: _CompiledAgentsSpec) -> type | None:
-        """Return the view class a declared element keeps from the plain element it is declared from, or `None`."""
+        """Return the view class a declared element keeps from its plain element, or `None`."""
         element = spec.element
         if isinstance(element, GroupElement):
             view = (element.values or {}).get('view')

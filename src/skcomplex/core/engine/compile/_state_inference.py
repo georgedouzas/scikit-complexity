@@ -506,10 +506,10 @@ class _StateInference:
 
     @staticmethod
     def _get_agent_groups(compilation: Compilation) -> set[str]:
-        """Return the paths of the groups whose members run agent rules or that a rule of the system reads.
+        """Return the paths of the groups whose members are agents.
 
-        A rule of the whole system, such as `UpdateLaw(s, clear)`, reads the agents of the groups the roles of its
-        interaction bind, such as the traders a market clears, so their members are agents too.
+        Their members run agent rules, or a rule of the whole system, such as `UpdateLaw(s, clear)`, reads them
+        through the roles of its interaction, such as the traders a market clears.
         """
         census = Compilation._get_required(compilation.census, 'census')
         nodes = {node.path: node for node in Compilation._get_required(compilation.nodes, 'nodes')}
