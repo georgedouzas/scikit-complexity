@@ -467,7 +467,7 @@ class CriminalitySystem(BaseSystem):
     @staticmethod
     def _get_sizes_of(system: CompositeSystem) -> tuple[int, int]:
         """Return the number of criminality classes and of efficacy classes of a system."""
-        sizes = {item.label: int(item.size or 0) for item in system.elements}
+        sizes = {item.label: int(item.size or np.size(getattr(item, 'x', ()))) for item in system.elements}
         return sizes['citizens'], sizes['security']
 
     def __init__(
@@ -502,13 +502,7 @@ class CriminalitySystem(BaseSystem):
         return CompositeSystem(
             self.label,
             elements=[
-                GroupElement(
-                    'citizens',
-                    element=ActivityDensityElement,
-                    size=self.classes,
-                    on='sites',
-                    values={'x': citizens},
-                ),
+                ActivityDensityElement('citizens', x=citizens, space=LatticeSpace(self.classes, boundary='fixed')),
                 GroupElement(
                     'security',
                     element=SecurityAgentsElement,

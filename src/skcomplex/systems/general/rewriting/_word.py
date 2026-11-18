@@ -4,13 +4,12 @@
 # License: MIT
 
 from collections.abc import Mapping, Sequence
-from typing import Annotated
 
 from ....core.components.elements import Element
 from ....core.components.spaces import BaseSpace
 from ....core.engine.compile import BaseCompiler
 from ....core.errors import RewritingError
-from ....core.specs import StateSpec, VisualSpec
+from ....core.specs import VisualSpec
 from . import _rewriting_compiler
 from ._geometry_spec import GeometrySpec
 from ._geometry_visual import GeometryVisual
@@ -22,8 +21,9 @@ class WordElement(Element):
 
     A word is a string of modules, symbols that may carry parameters. At each step every symbol is replaced at once by
     the word its `ProductionLaw` gives, as in an L-system, the grammar that Lindenmayer introduced to describe the
-    growth of plants. A subclass returns these laws from `_get_laws`. The states of the word are the count of each
-    symbol whose name is made of letters, digits, and underscores, and the length `size` of the word.
+    growth of plants. An interaction that binds the word sets these laws, such as a `RewritingInteraction`. The states
+    of the word are the count of each symbol whose name is made of letters, digits, and underscores, and the length
+    `size` of the word.
 
     Unlike `PatchElement`, which rewrites shapes, it rewrites a string, which `geometry` can draw as line segments.
     Choose it when a model grows by rewriting symbols, such as a branching plant or a fractal curve.
@@ -58,17 +58,12 @@ class WordElement(Element):
         In Lindenmayer's algae `A` becomes `AB` and `B` becomes `A`, so the length of the word runs through the
         Fibonacci numbers.
 
-        >>> from skcomplex.systems.general.rewriting import WordElement
-        >>> from skcomplex.systems.general.rewriting import ProductionLaw
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> class AlgaeElement(WordElement):
-        ...     law_classes = (ProductionLaw,)
-        ...
-        ...     def _get_laws(self, namespace):
-        ...         return [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
-        >>> trajectory = simulate(CompositeSystem(elements=[AlgaeElement('algae', axiom='A')]), until=5)
-        >>> trajectory.get_values('algae.size').tolist()
+        >>> from skcomplex.core.systems import System
+        >>> from skcomplex.systems.general.rewriting import ProductionLaw, RewritingInteraction, WordElement
+        >>> laws = [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
+        >>> growth = RewritingInteraction('growth', target='algae', laws=laws)
+        >>> system = System(elements=[WordElement('algae', axiom='A')], interactions=[growth])
+        >>> system.prepare().simulate(until=5).get_values('algae.size').tolist()
         [1.0, 2.0, 3.0, 5.0, 8.0, 13.0]
     """
 
@@ -77,7 +72,7 @@ class WordElement(Element):
     def __init__(
         self,
         label: str,
-        axiom: Annotated[Letters, StateSpec(domain=None)] = '',
+        axiom: Letters = '',
         *,
         alphabet: str | Mapping[str, int] | None = None,
         ignore: str | Sequence[str] = '',

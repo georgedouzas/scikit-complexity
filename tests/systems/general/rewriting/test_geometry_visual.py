@@ -2,19 +2,16 @@
 
 import rerun.blueprint as rrb
 
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems.general.rewriting import GeometrySpec, GeometryVisual, ProductionLaw, WordElement
+from skcomplex.core.systems import System
+from skcomplex.systems.general.rewriting import (
+    GeometrySpec,
+    GeometryVisual,
+    ProductionLaw,
+    RewritingInteraction,
+    WordElement,
+)
 from skcomplex.systems.general.rewriting._rewriting_compiler import RewritingCompiler
-
-
-class TreeElement(WordElement):
-    """Word of a branching tree."""
-
-    def _get_laws(self, s):
-        """Return the branching of a segment."""
-        return [ProductionLaw('F', 'F[&F][/^F]')]
 
 
 def _views(system):
@@ -25,11 +22,15 @@ def _views(system):
 
 def test_views_and_logs_of_word_geometries(tmp_path):
     """Test the views of a 3D word geometry and an unbounded word, and that each is logged."""
-    tree = CompositeSystem(elements=[TreeElement('tree', axiom='F', geometry=GeometrySpec(angle=30.0, dimension=3))])
-    plain = CompositeSystem(elements=[WordElement('word', axiom='F', geometry=GeometrySpec())])
+    branching = RewritingInteraction('branching', target='tree', laws=[ProductionLaw('F', 'F[&F][/^F]')])
+    tree = System(
+        elements=[WordElement('tree', axiom='F', geometry=GeometrySpec(angle=30.0, dimension=3))],
+        interactions=[branching],
+    )
+    plain = System(elements=[WordElement('word', axiom='F', geometry=GeometrySpec())])
     assert _views(tree) == [rrb.Spatial3DView, rrb.TimeSeriesView]
     assert _views(plain) == [rrb.Spatial2DView, rrb.TimeSeriesView]
     for name, system in [('tree', tree), ('plain', plain)]:
         observer = RerunObserver(name, save_path=tmp_path / f'{name}.rrd', blueprint='default')
-        simulate(system, until=2, observers=[observer])
+        system.prepare().simulate(until=2, observers=[observer])
         assert observer.logged_frames_ == 3

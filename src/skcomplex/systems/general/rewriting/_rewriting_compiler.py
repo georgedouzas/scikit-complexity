@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from types import SimpleNamespace
 
 import numpy as np
@@ -11,6 +11,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, Expression
 
 from ....core.components.elements import Element, GroupElement
+from ....core.components.interactions import BaseInteraction
 from ....core.components.spaces import BaseSpace
 from ....core.components.systems import CompositeSystem
 from ....core.engine._utils import declarations_of, default_of, symbol
@@ -18,7 +19,7 @@ from ....core.engine.compile import BaseCompiler, FlattenPass, IssueSpec
 from ....core.engine.problems import BaseProblemSpec, CompiledElementSpec, LayoutSpec
 from ....core.enums import FormKind, VariableKind
 from ....core.errors import IncompatibleLawsError, RewritingError, SkcomplexError, ValidationError
-from ....core.specs import EntrySpec, VisualSpec
+from ....core.specs import EntrySpec, RoleSpec, VisualSpec
 from . import _patch, _word
 from ._parameters_spec import _ParametersSpec
 from ._patch_kernel import PatchKernel
@@ -129,43 +130,82 @@ class RewritingCompiler(BaseCompiler):
         return component.element if isinstance(component, GroupElement) else type(component)
 
     @staticmethod
-    def _get_productions(path: str, element: Element, namespace: SimpleNamespace) -> list[Production]:
-        """Return the checked productions or substitutions of a word or a patch."""
-        laws = element._get_laws(namespace)
-        productions = [law for law in laws if isinstance(law, PRODUCTION_LAWS)]
+    def _get_bound(path: str, scope: str, interaction: BaseInteraction, rewritten: Collection[str]) -> dict[str, str]:
+        """Return the path of the word or patch each role of an interaction binds.
+
+        Raises:
+            IncompatibleLawsError:
+                A role binds no word or patch.
+        """
+        bound = {}
+        for name, spec in interaction._get_specs().items():
+            value = getattr(interaction, name, None)
+            if not isinstance(spec, RoleSpec) or not isinstance(value, str):
+                continue
+            target = f'{scope}{value}'
+            if target not in rewritten:
+                error_msg = (
+                    f'{path} binds {target} through its role {name!r}, but a rewriting system holds only words and '
+                    'patches, which the productions and substitutions of interactions rewrite.'
+                )
+                raise IncompatibleLawsError(error_msg)
+            bound[name] = target
+        return bound
+
+    @staticmethod
+    def _get_productions(
+        path: str,
+        interaction: BaseInteraction,
+        bound: Mapping[str, str],
+        namespaces: Mapping[str, SimpleNamespace],
+    ) -> list[Production]:
+        """Return the checked productions or substitutions an interaction sets."""
+        roles = {name: namespaces[target] for name, target in bound.items()}
+        namespace = SimpleNamespace(**roles, **vars(namespaces[path]))
+        laws = list(interaction._get_prepared_laws(namespace))
         wrong = [law for law in laws if not isinstance(law, PRODUCTION_LAWS)]
         if wrong:
             error_msg = (
-                f'{path} returns {type(wrong[0]).__name__} from `_get_laws`, but a word or a patch '
-                'changes by its productions only. Return ProductionLaw or SubstitutionLaw laws.'
+                f'{path} sets {type(wrong[0]).__name__} in `laws_`, but a word or a patch changes by its '
+                'productions only. Set ProductionLaw or SubstitutionLaw laws.'
             )
             raise RewritingError(error_msg)
-        return [law.prepare(path) for law in productions]
+        return [law.prepare(path) for law in laws]
 
     @staticmethod
     def _get_parameters(
-        elements: Mapping[str, Element],
+        components: Mapping[str, object],
     ) -> tuple[list[EntrySpec], list[float], dict[str, SimpleNamespace], dict[str, Expression]]:
-        """Return the parameter entries and values of the rewritten elements.
+        """Return the parameter entries and values of the words, patches, and interactions.
 
-        Their namespaces and symbols are also returned.
+        Their namespaces and symbols are also returned. The parameters of an element are those it declares, and those
+        of an interaction its numeric arguments.
         """
         entries: list[EntrySpec] = []
         values: list[float] = []
         namespaces: dict[str, SimpleNamespace] = {}
         symbols: dict[str, Expression] = {}
-        for path, element in elements.items():
+        for path, component in components.items():
+            if isinstance(component, BaseInteraction):
+                declared = {name: (item.spec.domain, item.value) for name, item in component._get_declared().items()}
+            else:
+                declared = {
+                    name: (
+                        declaration.domain,
+                        getattr(component, name) if hasattr(component, name) else default_of(component, name),
+                    )
+                    for name, declaration in declarations_of(type(component), VariableKind.PARAMETER).items()
+                }
             names = {}
-            for name, declaration in declarations_of(type(element), VariableKind.PARAMETER).items():
-                value = getattr(element, name) if hasattr(element, name) else default_of(element, name)
+            for name, (domain, value) in declared.items():
                 number = np.asarray(value)
-                if number.ndim or not EntrySpec._contains(declaration.domain, value):
-                    error_msg = f'{path}.{name} = {value!r} is not a number in the {declaration.domain} domain.'
+                if number.ndim or not EntrySpec._contains(domain, value):
+                    error_msg = f'{path}.{name} = {value!r} is not a number in the {domain} domain.'
                     raise ValidationError(error_msg)
                 dotted = f'{path}.{name}'
                 names[name] = symbol(f'{name}_{path}'.replace('/', '_').replace('-', '_'))
                 symbols[dotted] = names[name]
-                entries.append(EntrySpec(dotted, len(entries), (), declaration.domain))
+                entries.append(EntrySpec(dotted, len(entries), (), domain))
                 values.append(float(number))
             namespaces[path] = SimpleNamespace(**names, t=symbol('t'))
         return entries, values, namespaces, symbols
@@ -235,7 +275,7 @@ class RewritingCompiler(BaseCompiler):
     def _compile_rewriting(system: CompositeSystem) -> 'RewritingProblemSpec':
         """Compile a system of words or patches.
 
-        Each is rewritten by the rewriting laws it returns.
+        Each is rewritten by the productions or substitutions of the interactions that bind it.
 
         Args:
             system:
@@ -250,19 +290,15 @@ class RewritingCompiler(BaseCompiler):
                 The system has elements or interactions that do not take part in rewriting.
 
             RewritingError:
-                A rewritten element returns a law that is not a rewriting law, or a production or a substitution is
-                malformed.
+                An interaction sets a law that is not a rewriting law, or a production or a substitution is malformed.
 
         Examples:
-            >>> from skcomplex.core.components.spaces import DiscreteTime
             >>> from skcomplex.core.components.systems import CompositeSystem
             >>> from skcomplex.systems.general.rewriting._rewriting_compiler import RewritingCompiler
-            >>> from skcomplex.systems.general.rewriting import ProductionLaw
-            >>> from skcomplex.systems.general.rewriting import WordElement
-            >>> class AlgaeElement(WordElement):
-            ...     def _get_laws(self, namespace):
-            ...         return [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
-            >>> system = CompositeSystem(elements=[AlgaeElement('algae', axiom='A')], time=DiscreteTime())
+            >>> from skcomplex.systems.general.rewriting import ProductionLaw, RewritingInteraction, WordElement
+            >>> laws = [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
+            >>> growth = RewritingInteraction('growth', target='algae', laws=laws)
+            >>> system = CompositeSystem(elements=[WordElement('algae', axiom='A')], interactions=[growth])
             >>> problem = RewritingCompiler().prepare(system).run().problem_
             >>> str(problem.form), problem.states.names
             ('rewriting system', ['algae.A', 'algae.B', 'algae.size'])
@@ -273,28 +309,38 @@ class RewritingCompiler(BaseCompiler):
             for node in nodes
             if RewritingCompiler._get_structure_of(RewritingCompiler._get_type_of(node.component))
         }
+        interactions = {
+            node.path: (node.scope, node.component) for node in nodes if isinstance(node.component, BaseInteraction)
+        }
         for node in nodes:
             if isinstance(node.component, GroupElement) and RewritingCompiler._get_structure_of(node.component.element):
                 error_msg = f'{node.path} is a group of rewritten elements. Declare one element per structure.'
                 raise RewritingError(error_msg)
-            if node.path not in rewritten:
+            if node.path not in rewritten and node.path not in interactions:
                 error_msg = (
                     f'{node.path} takes no part in rewriting, but its system holds words or patches. A '
-                    'rewriting system holds only rewritten elements, which rewrite themselves by their laws.'
+                    'rewriting system holds only words and patches, and the interactions that rewrite them.'
                 )
                 raise IncompatibleLawsError(error_msg)
+        bound = {
+            path: RewritingCompiler._get_bound(path, scope, interaction, rewritten)
+            for path, (scope, interaction) in interactions.items()
+        }
         elements = {path: node.component for path, node in rewritten.items() if isinstance(node.component, Element)}
-        entries, values, namespaces, symbols = RewritingCompiler._get_parameters(elements)
+        components = {
+            **{path: node.component for path, node in rewritten.items()},
+            **{path: interaction for path, (_, interaction) in interactions.items()},
+        }
+        entries, values, namespaces, symbols = RewritingCompiler._get_parameters(components)
         parameters = _ParametersSpec(tuple(symbols.values()), symbol('t'))
         initial_parameters = np.asarray(values, dtype=float)
+        productions: dict[str, list[Production]] = {path: [] for path in elements}
+        for path, (_, interaction) in interactions.items():
+            laws = RewritingCompiler._get_productions(path, interaction, bound[path], namespaces)
+            for target in dict.fromkeys(bound[path].values()):
+                productions[target] += laws
         compiled = tuple(
-            RewritingCompiler._get_compiled(
-                path,
-                element,
-                RewritingCompiler._get_productions(path, element, namespaces[path]),
-                parameters,
-                initial_parameters,
-            )
+            RewritingCompiler._get_compiled(path, element, productions[path], parameters, initial_parameters)
             for path, element in elements.items()
         )
         states: list[EntrySpec] = []

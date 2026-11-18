@@ -17,7 +17,6 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import GroupElement
 from ....core.components.laws.utils import moment
 from ....core.components.spaces import ContinuousTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
@@ -520,14 +519,8 @@ class EvacuationSystem(BaseSystem):
         return CompositeSystem(
             self.label,
             elements=[
-                GroupElement(
-                    'crowd',
-                    element=ActivityDensityElement,
-                    on='sites',
-                    space=crowd_space,
-                    values={'x': initial.ravel()},
-                ),
-                GroupElement('signs', element=ActivityDensityElement, size=1, values={'x': 1.0}),
+                ActivityDensityElement('crowd', x=initial.ravel(), space=crowd_space),
+                ActivityDensityElement('signs', x=[1.0], size=1),
             ],
             interactions=[
                 WalkingInteraction(

@@ -46,7 +46,7 @@ def test_kinetic_systems_run_with_the_particle_solver(system):
 
 
 def test_wealth_distribution_holds_wealth_densities():
-    """Test that the wealth distribution is a group of wealth densities, a realization of the core atom."""
+    """Test that the wealth distribution is a wealth density with one value per class."""
     wealth = KineticWealthWelfareSystem().prepare().system_.elements[0]
-    assert wealth.element is WealthDensityElement
+    assert isinstance(wealth, WealthDensityElement)
     assert issubclass(WealthDensityElement, NonnegativeElement)
