@@ -271,6 +271,10 @@ Two kinds of model need forms that the table above does not name yet.
   and an element value naming a region, `Element('residents', values={'region': 'tract_1'}, size=100)`, starts each
   member at a point the run draws inside that region from its own generator.
 
+- Trained parameters. A training interaction names the parameters it trains by path,
+  `TrainingInteraction(..., trained=['net__recurrent__W'])`, and the learning compiler makes exactly those paths
+  adaptive when it compiles the inner system. No marker goes on the value.
+
 A field law first becomes a recipe of the seven kinds and the core reductions where it can, such as Bak-Sneppen as an
 `UpdateLaw` on the site where `argmin` falls, so it needs no engine code. A law that truly needs numerics of its own,
 such as the Lindblad equation, finite volumes, Cayley graphs, or rewriting, moves with that support: the field package
