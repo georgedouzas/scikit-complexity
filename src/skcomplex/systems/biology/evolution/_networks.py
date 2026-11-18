@@ -7,6 +7,7 @@ They cover autocatalytic sets and the extinctions of Solé and Manrubia.
 # License: MIT
 
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -16,14 +17,16 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction, MapInteraction, TopologyInteraction
 from ....core.components.laws import BaseLaw, RuleLaw, TopologyRequestSpec, UpdateLaw
 from ....core.components.laws.utils import both, minimum, mod, neighbors, total, uniform, where
-from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
+from ....core.components.spaces import NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ..common.networks import EdgeDrawInteraction, WeightedEdgeElement
 
@@ -411,6 +414,12 @@ class SoleManrubiaSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.evolution import SoleManrubiaSystem
         >>> [component.label for component in SoleManrubiaSystem(n=20).prepare().system_.elements]
@@ -431,15 +440,23 @@ class SoleManrubiaSystem(BaseSystem):
         noise: float = 0.05,
         seed: int | None = 1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.k = k
         self.noise = noise
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the ecosystem of Solé and Manrubia."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the ecosystem of Solé and Manrubia.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         rng = np.random.default_rng(self.seed)
         graph = nx.DiGraph()
         graph.add_nodes_from(range(self.n))
@@ -469,7 +486,7 @@ class SoleManrubiaSystem(BaseSystem):
             capacity=4 * edges,
             values={'w': couplings, 'fresh': 0.0},
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[species, edge_group],
             interactions=[
@@ -484,7 +501,6 @@ class SoleManrubiaSystem(BaseSystem):
                     edges=self.k,
                 ),
             ],
-            time=DiscreteTime(),
         )
 
 
@@ -519,6 +535,12 @@ class JainKrishnaSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.evolution import JainKrishnaSystem
         >>> round(float(JainKrishnaSystem(n=10).prepare().system_.elements[0].values['x'].sum()), 6)
@@ -540,16 +562,24 @@ class JainKrishnaSystem(BaseSystem):
         period: int = 10,
         seed: int | None = 1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.p = p
         self.h = h
         self.period = period
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system of Jain and Krishna."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of Jain and Krishna.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         rng = np.random.default_rng(self.seed)
         graph = nx.gnp_random_graph(self.n, self.p, seed=int(rng.integers(2**31)), directed=True)
         space = NetworkSpace(graph)
@@ -578,7 +608,7 @@ class JainKrishnaSystem(BaseSystem):
             variable=True,
             capacity=self.n * self.n,
         )
-        return CompositeSystem(self.label, elements=[species, links], time=DiscreteTime())
+        self.system_ = System(self.label, elements=[species, links])
 
 
 class CompetitiveJainKrishnaSystem(BaseSystem):
@@ -609,9 +639,15 @@ class CompetitiveJainKrishnaSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.evolution import CompetitiveJainKrishnaSystem
-        >>> CompetitiveJainKrishnaSystem(10).prepare().system_.elements[0].prepare().size_
+        >>> CompetitiveJainKrishnaSystem(10).prepare().system_.elements[0].size
         10
     """
 
@@ -628,15 +664,23 @@ class CompetitiveJainKrishnaSystem(BaseSystem):
         duration: float = 20.0,
         seed: int | None = 1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.p = p
         self.duration = duration
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the Jain-Krishna model with signed interactions."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the Jain-Krishna model with signed interactions.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         rng = np.random.default_rng(self.seed)
         matrix = rng.uniform(-1, 1, (self.n, self.n)) * (rng.random((self.n, self.n)) < self.p)
         np.fill_diagonal(matrix, -rng.random(self.n))
@@ -647,4 +691,4 @@ class CompetitiveJainKrishnaSystem(BaseSystem):
             values={'x': np.full(self.n, 1 / self.n), 'links': matrix},
         )
         selection = CompetitiveSelectionInteraction('selection', species='species', p=self.p, duration=self.duration)
-        return CompositeSystem(self.label, elements=[species], interactions=[selection], time=DiscreteTime())
+        self.system_ = System(self.label, elements=[species], interactions=[selection])
