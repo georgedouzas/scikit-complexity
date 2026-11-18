@@ -292,7 +292,7 @@ class _ModuleWriter:
         )
 
     def _write_flows(self, flows: dict[str, tuple[str | None, str | None]]) -> tuple[list[str], list[str]]:
-        """Return the functions of the amounts of the flows, and the source of their interactions."""
+        """Return the functions of the flow amounts and the source of their interactions."""
         imports = self.expressions.imports
         functions, interactions = [], []
         for name, (leaving, entering) in flows.items():

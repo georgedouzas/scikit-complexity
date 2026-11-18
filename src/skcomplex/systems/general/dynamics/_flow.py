@@ -18,13 +18,16 @@ from ....core.specs import Role
 
 
 class FlowInteraction(Interaction):
-    """An interaction that moves an amount per unit of time from one stock of an element to another.
+    """An interaction that moves an amount from one stock of an element to another.
 
     The flow `f` takes `f` from the stock it leaves and gives `f` to the stock it enters, as the two rate terms
     `RateLaw(leaves, -f, label=label)` and `RateLaw(enters, f, label=label)`, so the total of the stocks is kept and the
     trajectory records `f` as `<element>.<label>`. A flow from outside the system enters a stock and leaves none, and a
     flow out of the system leaves a stock and enters none. The amount is a function of the namespace whose `target`
     holds the values of the element and whose `t` holds the time.
+
+    Unlike `EquationInteraction`, which gives one state its rate, it changes two stocks by one amount, so what leaves
+    one enters the other. Choose it when an amount moves between stocks, as in system dynamics.
 
     It appears in many fields. Water drains from a bathtub, people adopt a product in a diffusion of innovations, and
     capital depreciates in an economy.
