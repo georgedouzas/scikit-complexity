@@ -23,6 +23,8 @@ from skcomplex.systems.physics.synchronization import (
 from ..conftest import ACCURATE, _run, _series
 from .conftest import _random_drift
 
+THETA = np.array([0.1, 1.3, 2.9, -2.1, -0.8])
+
 
 def test_delayed_kuramoto_synchronizes():
     """Test that strongly coupled delayed oscillators lock their phases."""
@@ -98,9 +100,6 @@ def test_ott_antonsen_order_parameter_reaches_its_fixed_point(K, expected):
     trajectory = _run(OttAntonsenSystem(K=K), 80.0, 1.0)
     x, y = _series(trajectory, 'field.x', 'field.y')
     assert math.hypot(x[-1], y[-1]) == pytest.approx(expected, abs=1e-4)
-
-
-THETA = np.array([0.1, 1.3, 2.9, -2.1, -0.8])
 
 
 def _rate(element, coupling):
