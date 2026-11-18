@@ -16,6 +16,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ...components.base import BaseComponent
 from ...components.elements import BaseElement, DeclaredElement, Element, FieldElement, GroupElement, Quantity
+from ...components.interactions import BaseInteraction
 from ...components.laws import (
     BaseLaw,
     ConstraintLaw,
@@ -32,7 +33,7 @@ from ...components.spaces import CellComplexSpace, ContinuousSpace, LatticeSpace
 from ...components.systems import CompositeSystem
 from ...enums import TopologyKind
 from ...errors import ValidationError
-from ...specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ...specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from .._utils import bound_labels
 from ._compilation import Compilation
 
@@ -506,15 +507,27 @@ class _StateInference:
 
     @staticmethod
     def _get_agent_groups(compilation: Compilation) -> set[str]:
-        """Return the paths of the groups whose members run agent rules."""
+        """Return the paths of the groups of agents.
+
+        They are the groups whose members run rules, and the groups bound to the roles of an interaction with a rule of
+        the whole system, such as `UpdateLaw(s, activate)`, which reads their agents even when no rule of their own
+        runs, as the nodes of a cascade that one rule activates in a random order.
+        """
         census = Compilation._get_required(compilation.census, 'census')
         nodes = {node.path: node for node in Compilation._get_required(compilation.nodes, 'nodes')}
         groups: set[str] = set()
         for record in census.records:
             node = nodes.get(record.path)
-            if not isinstance(record.law, RuleLaw) or record.law.members is None or node is None:
+            if not isinstance(record.law, RuleLaw) or node is None:
                 continue
-            groups.update(f'{node.scope}{label}' for label in bound_labels(getattr(node.component, record.law.members)))
+            if record.law.members is not None:
+                roles = [record.law.members]
+            elif isinstance(node.component, BaseInteraction) and node.component._is_preparing_laws():
+                roles = [name for name, spec in node.component._get_specs().items() if isinstance(spec, RoleSpec)]
+            else:
+                continue
+            for role in roles:
+                groups.update(f'{node.scope}{label}' for label in bound_labels(getattr(node.component, role)))
         return groups
 
     @staticmethod

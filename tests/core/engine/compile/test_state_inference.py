@@ -1092,3 +1092,28 @@ def test_get_declared_accepts_an_array_for_a_hint_of_several_types():
     system = System(elements=[Charges('charges', q=np.array([1.0, -2.0, 0.5]), size=3)]).prepare()
     assert system.parameters_ == ('charges.q[i]',)
     assert system.simulate(until=0).get_values('charges.q')[0] == pytest.approx([1.0, -2.0, 0.5])
+
+
+class Tally(Interaction):
+    """A rule of the whole system that counts the steps in every agent of its group."""
+
+    def __init__(self, label: str, *, target: Role = 'people') -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [UpdateLaw(context, self.count)]
+
+    def count(self, system: SimpleNamespace) -> None:
+        """Add one to the steps seen by every agent."""
+        for person in system.get_agents('target'):
+            person.seen += 1
+
+
+def test_get_agent_groups_makes_agents_of_a_group_a_rule_of_the_system_reads():
+    """Test that a group that only a rule of the whole system reads is a group of agents."""
+    people = Element('people', values={'seen': np.zeros(3)}, size=3)
+    trajectory = System(elements=[people], interactions=[Tally('tally')]).prepare().simulate(until=2)
+    assert trajectory.get_agents('people', 2).values['seen'].tolist() == [2.0, 2.0, 2.0]
