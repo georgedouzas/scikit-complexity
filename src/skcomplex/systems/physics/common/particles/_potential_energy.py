@@ -45,7 +45,7 @@ class PotentialEnergyInteraction(GradientInteraction):
         >>> from skcomplex.systems.physics.common.particles import PotentialEnergyInteraction
         >>> ball = SimpleNamespace(x=vector([var('x')]), m=2)
         >>> trap = PotentialEnergyInteraction('trap', target='ball', potential=lambda s: s.target.x[0] ** 2)
-        >>> [law.value for law in trap.prepare().run(SimpleNamespace(target=ball)).laws_]
+        >>> [law.value for law in trap.prepare(SimpleNamespace(target=ball)).laws_]
         [(-x)]
     """
 
@@ -58,4 +58,4 @@ class PotentialEnergyInteraction(GradientInteraction):
         states: str | Sequence[str] = 'x',
         divisor: str = 'm',
     ) -> None:
-        super().__init__(label, target=target, states=states, potential=potential, divisor=divisor)
+        super().__init__(label, target=target, states=states, potential=potential, divisor=divisor, order=2)
