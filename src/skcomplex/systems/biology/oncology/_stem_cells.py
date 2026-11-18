@@ -18,7 +18,7 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
-from ....core.components.laws.utils import delayed, pulse
+from ....core.components.laws.utils import pulse
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, ScipyODESolver
 from ....core.systems import BaseSystem, System
@@ -993,9 +993,9 @@ class BoneMarrowBloodLeukaemiaSystem(BaseSystem):
                     RateLaw(
                         s.target.NPB,
                         s.target.m2
-                        * delayed(s.target.NBM, s.target.tau1)
-                        * exp(-s.target.alpha1 * s.target.tau1 - s.target.r2 * delayed(s.target.APB, s.target.tau1))
-                        / (s.target.theta2 + delayed(s.target.NPB, s.target.tau1)),
+                        * s.target.NBM(t=s.t - s.target.tau1)
+                        * exp(-s.target.alpha1 * s.target.tau1 - s.target.r2 * s.target.APB(t=s.t - s.target.tau1))
+                        / (s.target.theta2 + s.target.NPB(t=s.t - s.target.tau1)),
                     ),
                 ],
             ),
@@ -1043,8 +1043,8 @@ class BoneMarrowBloodLeukaemiaSystem(BaseSystem):
                     RateLaw(
                         s.target.ABM,
                         s.target.m5
-                        * exp(-s.target.alpha2 * s.target.tau2 - s.target.r4 * delayed(s.target.APB, s.target.tau2))
-                        * delayed(s.target.AS, s.target.tau2),
+                        * exp(-s.target.alpha2 * s.target.tau2 - s.target.r4 * s.target.APB(t=s.t - s.target.tau2))
+                        * s.target.AS(t=s.t - s.target.tau2),
                     ),
                 ],
             ),
