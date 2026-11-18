@@ -69,14 +69,14 @@ Each task rewrites the systems of its fields on the new API: elements as data wi
   - [x] 5.2.2 Companion states `x_d1` replaced by `x'`, and ports rewritten as interactions between node elements.
   - [x] 5.2.3 The shared bases of `general` with their subclasses, and the reactions, agents, matching, kinetics, gradients, mechanics, and rewriting recipes.
   - [x] 5.2.4 Stock-flow flows as one labelled `RateLaw` whose target maps stocks to signs, with the loops analysis and the flow matrix.
-  - [ ] 5.2.5 The remaining old parts of engineering: process, control, robot, and driver elements with laws of their own.
+  - [x] 5.2.5 The remaining old parts of engineering: process, control, robot, and driver elements with laws of their own.
 - [ ] 5.3 Wave 1: `mathematics`.
   - [x] 5.3.1 Maps, flows, normal forms, ensembles, stochastic processes, fractals, walks, fractional dynamics, and the agent systems.
   - [x] 5.3.2 The logistic map family with the experiments, and the static and cascading networks.
-  - [ ] 5.3.3 The growing networks, now that groups grow with no capacity, and the hypergraph systems.
+  - [x] 5.3.3 The growing networks, now that groups grow with no capacity, and the hypergraph systems.
 - [ ] 5.4 Wave 1: `computer_science`.
   - [x] 5.4.1 Automata, evolutionary computation, and neural networks on the new base, with local rules as `UpdateLaw`.
-  - [ ] 5.4.2 The remaining agent rules of DNA computation, genetic algorithms, Hopfield, and the perceptron as `UpdateLaw` rules.
+  - [x] 5.4.2 The remaining agent rules of DNA computation, genetic algorithms, Hopfield, and the perceptron as `UpdateLaw` rules.
 - [ ] 5.5 Wave 2: `biology`.
   - [x] 5.5.1 Ecology, neuroscience, physiology, systems biology, oncology, and collective decisions on the new base.
   - [x] 5.5.2 The modules the first pass left and the agent modules on the new base, with identical runs.

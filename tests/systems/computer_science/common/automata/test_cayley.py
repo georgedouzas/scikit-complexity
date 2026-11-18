@@ -32,6 +32,8 @@ GRIGORCHUK = 'a = (1, 1)(1, 2), b = (a, c), c = (a, d), d = (1, b)'
 MAJORITY = TotalisticSpec({3: 1, 4: 1, 5: 1})
 FREE_MEMORY = MemoryNeighborhood(('1', 'a', 'a^-1', 'b', 'b^-1'))
 SYMMETRIC = PermutationGroup([[(1, 2)], [(1, 2, 3)]])
+COPY = {'rule': TableSpec({(1,): 1}), 'neighborhood': MemoryNeighborhood(('a',))}
+PARITY = {'rule': TotalisticSpec({1: 1, 3: 1}), 'neighborhood': MemoryNeighborhood(('1', 'a', 'b'))}
 
 
 def _grigorchuk():
@@ -75,10 +77,6 @@ class LocalRuleInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             self.laws_ = [UpdateLaw(context.target.alive, self.rule, neighborhood=self.neighborhood)]
-
-
-COPY = {'rule': TableSpec({(1,): 1}), 'neighborhood': MemoryNeighborhood(('a',))}
-PARITY = {'rule': TotalisticSpec({1: 1, 3: 1}), 'neighborhood': MemoryNeighborhood(('1', 'a', 'b'))}
 
 
 def _cells(space, cells, **rule):
