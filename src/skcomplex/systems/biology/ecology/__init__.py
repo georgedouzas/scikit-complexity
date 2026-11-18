@@ -7,7 +7,7 @@ from ..common.populations import PredationInteraction
 from ._agent_predation import AgentBasedLotkaVolterraSystem, PredatorElement, PreyElement
 from ._cell_quota import DroopCellQuotaSystem
 from ._clustering import HabitatPatchElement, HoppingInteraction, NeutralClusteringSystem
-from ._comets import CometsSystem
+from ._comets import ColonyCellElement, CometsSystem
 from ._communities import (
     CompetitionInteraction,
     CompetitionSystem,
@@ -86,6 +86,7 @@ from ._wolf_sheep import GrassElement, GrassRegrowthInteraction, SheepElement, W
 __all__: list[str] = [
     'AbundanceElement',
     'AgentBasedLotkaVolterraSystem',
+    'ColonyCellElement',
     'CometsSystem',
     'CommunityFBASystem',
     'CompetitionInteraction',

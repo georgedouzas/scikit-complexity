@@ -18,43 +18,39 @@ from ._community import CommunityGrowthResult, community_growth
 from ._culture import (
     BiomassElement,
     CommunityInteraction,
-    CommunityMediumElement,
     ExchangeInteraction,
     GrowthInteraction,
     ObjectiveFloorInteraction,
     SubstrateElement,
     SwitchInteraction,
-    community_medium_type,
 )
-from ._metabolic_network import MetabolicNetworkElement, metabolic_network_type
+from ._flux_balance import FluxBalanceInteraction, MetabolicCellElement
 from ._reaction_spec import ReactionSpec
-from ._toy_network import ToyNetworkElement
+from ._toy_network import ToyFluxBalanceInteraction
 
 __all__: list[str] = [
     'BiomassElement',
     'CobraMeasuresResult',
     'CommunityGrowthResult',
     'CommunityInteraction',
-    'CommunityMediumElement',
     'ExchangeInteraction',
+    'FluxBalanceInteraction',
     'FluxVariabilityResult',
     'GrowthInteraction',
-    'MetabolicNetworkElement',
+    'MetabolicCellElement',
     'ObjectiveFloorInteraction',
     'ProductionScanResult',
     'ReactionSpec',
     'StrainDesignResult',
     'SubstrateElement',
     'SwitchInteraction',
-    'ToyNetworkElement',
+    'ToyFluxBalanceInteraction',
     'cobra_measures',
     'community_growth',
-    'community_medium_type',
     'flux_variability',
     'from_cobra',
     'load_extra',
     'load_network',
-    'metabolic_network_type',
     'production_scan',
     'save_network',
     'strain_design',

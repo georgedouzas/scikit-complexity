@@ -61,7 +61,7 @@ result = sweep(
     outputs=['cell.objective_0'],
 )
 rows = result.rows
-growth_rates = [float(np.ravel(row['cell.objective_0'])[-1]) for row in rows]
+growth_rates = [-float(np.ravel(row['cell.objective_0'])[-1]) for row in rows]
 fig, ax = plt.subplots(figsize=(9, 4))
 ax.plot(oxygen, growth_rates, 'o-')
 ax.set_xlabel('largest oxygen uptake (mmol/gDW/h)')

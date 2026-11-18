@@ -12,7 +12,7 @@ from dataclasses import replace
 import numpy as np
 
 from ....core.components import Observable
-from ....core.components.elements import FieldElement, GroupElement
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import laplacian
@@ -24,8 +24,8 @@ from ....core.systems import BaseSystem, System
 from ..common.metabolism import (
     BiomassElement,
     ExchangeInteraction,
+    FluxBalanceInteraction,
     GrowthInteraction,
-    MetabolicNetworkElement,
     SubstrateElement,
     load_network,
 )
@@ -38,10 +38,16 @@ MMOL_PER_MOL = 1000.0
 GLUCOSE_MOLAR_MASS = 180.16
 
 
-class ColonyCellElement(MetabolicNetworkElement):
-    """Cell of a colony, drawn as an image of its growth flux."""
+class ColonyCellElement(Element):
+    """Cell of a colony, whose values hold the fluxes of its network, drawn as an image of its growth flux.
 
-    visual = VisualSpec('image', {'states': [MetabolicNetworkElement.get_flux_name(GROWTH)]})
+    Examples:
+        >>> from skcomplex.systems.biology.ecology import ColonyCellElement
+        >>> ColonyCellElement('cells', values={'v_grow': 0.0}).values
+        {'v_grow': 0.0}
+    """
+
+    visual = VisualSpec('image', {'states': [FluxBalanceInteraction.get_flux_name(GROWTH)]})
 
 
 class CometsSystem(BaseSystem):
@@ -167,38 +173,23 @@ class CometsSystem(BaseSystem):
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
-        source = load_network('textbook', 'cell', needed_by='comets')
+        source = load_network('textbook', 'cells', needed_by='comets')
         plain = {name: replace(spec, rule='') for name, spec in source.reactions.items()}
+        network = source.set_params(reactions=plain, name='ColonyCell', infeasible='zero')
         concentration = self.glucose / GLUCOSE_MOLAR_MASS * MMOL_PER_MOL
         volume = self.plate_glucose * self.box**2 / concentration
         initial = np.zeros(self.shape)
         initial[self.shape[0] // 2, self.shape[1] // 2] = self.inoculum / volume
         space = LatticeSpace(self.shape, spacing=self.box)
-        cells = {
-            'name': 'ColonyCell',
-            'reactions': plain,
-            'default_objective': source.default_objective,
-            'infeasible': 'zero',
-        }
         self.system_ = System(
             self.label,
             elements=[
-                GroupElement(
-                    'cells',
-                    element=ColonyCellElement,
-                    values=cells,
-                    on='sites',
-                    space=space,
-                ),
-                FieldElement('biomass', element=BiomassElement, space=space, values={'x': initial}),
-                FieldElement(
-                    'glucose',
-                    element=SubstrateElement,
-                    space=space,
-                    values={'c': np.full(self.shape, concentration)},
-                ),
+                ColonyCellElement('cells', values=network.get_values(), space=space),
+                BiomassElement('biomass', x=initial, space=space),
+                SubstrateElement('glucose', c=np.full(self.shape, concentration), space=space),
             ],
             interactions=[
+                network,
                 ExchangeInteraction(
                     'uptake',
                     cell='cells',

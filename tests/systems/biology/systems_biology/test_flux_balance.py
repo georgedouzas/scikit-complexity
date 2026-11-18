@@ -36,7 +36,7 @@ def test_flux_balance_variability_gives_the_ranges_of_raman():
 def test_flux_balance_parsimonious_uses_the_smallest_total():
     """Test that the parsimonious solution reaches the same growth with the smallest total flux."""
     trajectory = FluxBalanceSystem(parsimonious=True).prepare().simulate()
-    assert float(trajectory.get_values('cell.objective_0')[0]) == pytest.approx(50)
+    assert -float(trajectory.get_values('cell.objective_0')[0]) == pytest.approx(50)
     assert float(trajectory.get_values('cell.objective_1')[0]) == pytest.approx(3950)
 
 
@@ -45,7 +45,7 @@ def test_flux_balance_oxygen_sweep_by_an_experiment():
     levels = [0.0, 5.0, 10.0, 20.0, 25.0]
     result = sweep(FluxBalanceSystem, {'oxygen': levels, 'network': ['ecoli']}, until=0.0, outputs=['cell.objective_0'])
     rows = result.rows
-    growth = [float(np.ravel(row['cell.objective_0'])[-1]) for row in rows]
+    growth = [-float(np.ravel(row['cell.objective_0'])[-1]) for row in rows]
     assert growth[0] == pytest.approx(0.2117, abs=1e-4)
     assert np.all(np.diff(growth) > 0)
     assert growth[-1] == pytest.approx(0.8739, abs=1e-4)

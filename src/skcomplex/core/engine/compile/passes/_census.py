@@ -970,7 +970,7 @@ class CensusPass(BasePass):
 
     @staticmethod
     def _get_programs(laws: Sequence[BaseLaw], owner: str) -> list[BaseLaw]:
-        """Return the laws of a component with its linear objectives and inequalities as linear programs.
+        """Return the laws of a component with its linear programs gathered.
 
         An objective without controls that is linear in its targets, or a sum of their absolute values, is minimised
         as a linear program, under the constraints of the component that read its targets, such as the balances and the
@@ -993,13 +993,12 @@ class CensusPass(BasePass):
         for law in laws:
             if id(law) in programs:
                 continue
-            if isinstance(law, ObjectiveLaw) and law.controls is None:
-                if not isinstance(law.value, Expression) and isinstance(law.value, Sequence):
-                    error_msg = (
-                        f'The objective of {owner} is a sequence of values, which is minimised in order as a linear '
-                        'program, so every value is linear in the targets or a sum of their absolute values.'
-                    )
-                    raise ValidationError(error_msg)
+            if isinstance(law, ObjectiveLaw) and law.controls is None and len(law._get_values_in_order()) != 1:
+                error_msg = (
+                    f'The objective of {owner} is a sequence of values, which is minimised in order as a linear '
+                    'program, so every value is linear in the targets or a sum of their absolute values.'
+                )
+                raise ValidationError(error_msg)
             if not isinstance(law, ConstraintLaw):
                 kept.append(law)
                 continue
@@ -1032,7 +1031,10 @@ class CensusPass(BasePass):
 
     @staticmethod
     def _is_linear_objective(law: ObjectiveLaw) -> bool:
-        """Return whether every value of an objective is linear in its targets or sums their absolute values."""
+        """Return whether every value of an objective is linear in its targets.
+
+        A sum of absolute values of the targets counts as linear.
+        """
         targets = {str(item) for item in law._get_targets()}
         for value in law._get_values_in_order():
             expression = SR(value)

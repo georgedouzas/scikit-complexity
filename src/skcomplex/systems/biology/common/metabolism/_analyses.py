@@ -14,18 +14,15 @@ import pandas as pd
 from sklearn.base import clone
 
 from .....core.analysis.types import Source
-from .....core.components.spaces import StaticTime
-from .....core.components.systems import BaseSystem as OldBaseSystem
-from .....core.components.systems import CompositeSystem
+from .....core.components.elements import BaseElement, Element
 from .....core.engine.problems import ProblemSpec, RunStateSpec
-from .....core.engine.runtime import simulate
 from .....core.errors import AnalysisError
 from .....core.systems import BaseSystem, System
 from .....core.types import Array
 from ...._extras import import_extra
 from ._cobra_io import load_extra, to_cobra
 from ._culture import ObjectiveFloorInteraction
-from ._metabolic_network import MetabolicNetworkElement
+from ._flux_balance import FluxBalanceInteraction
 
 COBRA_KINDS = ('variability', 'parsimonious', 'deletions', 'moma', 'room', 'synthetic-lethals')
 DESIGN_KINDS = ('optknock', 'robustknock', 'optcouple', 'mcs')
@@ -40,7 +37,7 @@ class FluxVariabilityResult:
 
     Args:
         network:
-            The metabolic network.
+            The flux balance of the metabolic network.
 
         system:
             The system that holds the network.
@@ -52,8 +49,8 @@ class FluxVariabilityResult:
             The columns `minimum` and `maximum` of every reaction.
     """
 
-    network: MetabolicNetworkElement
-    system: CompositeSystem | System
+    network: FluxBalanceInteraction
+    system: System
     optimum: float
     ranges: pd.DataFrame
 
@@ -85,34 +82,34 @@ def flux_variability(source: Source, *, fraction: float = 1.0, network: str | No
             The source is not a system with the network.
 
     Examples:
-        >>> from skcomplex.core.components.spaces import StaticTime
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.biology.common.metabolism import (
+        ...     FluxBalanceInteraction,
         ...     ReactionSpec,
         ...     flux_variability,
-        ...     metabolic_network_type,
         ... )
         >>> reactions = {
         ...     'in': ReactionSpec({'A': 1.0}, upper=4.0),
         ...     'one': ReactionSpec({'A': -1.0}),
         ...     'two': ReactionSpec({'A': -1.0}),
         ... }
-        >>> network = metabolic_network_type('TwoWaysElement', reactions, {'in': 1.0})('net')
-        >>> system = CompositeSystem(elements=[network], time=StaticTime())
+        >>> network = FluxBalanceInteraction('fba', cell='net', reactions=reactions, objective={'in': 1.0})
+        >>> system = System(elements=[Element('net', values=network.get_values())], interactions=[network])
         >>> flux_variability(system).ranges.loc['one'].tolist()
         [0.0, 4.0]
     """
-    system, element = _read_network(source, network, 'flux_variability')
-    problem = _compiled_network(element)
-    optimum, _ = _solved(problem, element)
-    problem = _compiled_network(element, floor=fraction * optimum)
+    system, interaction, cell = _read_network(source, network, 'flux_variability')
+    problem = _compiled_network(interaction, cell)
+    optimum, _ = _solved(problem, interaction, cell)
+    problem = _compiled_network(interaction, cell, floor=fraction * optimum)
     rows = {}
-    for reaction in element.reactions:
-        low = _solved(problem, element, {reaction: 1.0}, sense=1.0)[0]
-        high = _solved(problem, element, {reaction: 1.0}, sense=-1.0)[0]
+    for reaction in interaction.reactions:
+        low = _solved(problem, interaction, cell, {reaction: 1.0}, sense=1.0)[0]
+        high = _solved(problem, interaction, cell, {reaction: 1.0}, sense=-1.0)[0]
         rows[reaction] = (low, high)
     ranges = pd.DataFrame.from_dict(rows, orient='index', columns=['minimum', 'maximum'])
-    return FluxVariabilityResult(element, system, optimum, ranges)
+    return FluxVariabilityResult(interaction, system, optimum, ranges)
 
 
 @dataclass(frozen=True)
@@ -121,7 +118,7 @@ class ProductionScanResult:
 
     Args:
         network:
-            The metabolic network.
+            The flux balance of the metabolic network.
 
         system:
             The system that holds the network.
@@ -139,8 +136,8 @@ class ProductionScanResult:
             The reactions whose absolute flux rises with every level.
     """
 
-    network: MetabolicNetworkElement
-    system: CompositeSystem | System
+    network: FluxBalanceInteraction
+    system: System
     levels: Array
     objectives: Array
     fluxes: pd.DataFrame
@@ -184,11 +181,11 @@ def production_scan(
             The source is not a system with the network, or the network holds no target reaction.
 
     Examples:
-        >>> from skcomplex.core.components.spaces import StaticTime
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.biology.common.metabolism import (
+        ...     FluxBalanceInteraction,
         ...     ReactionSpec,
-        ...     metabolic_network_type,
         ...     production_scan,
         ... )
         >>> reactions = {
@@ -197,27 +194,29 @@ def production_scan(
         ...     'make': ReactionSpec({'A': -1.0, 'P': 1.0}),
         ...     'out': ReactionSpec({'P': -1.0}),
         ... }
-        >>> network = metabolic_network_type('ScanElement', reactions, {'grow': 1.0})('net')
-        >>> system = CompositeSystem(elements=[network], time=StaticTime())
+        >>> network = FluxBalanceInteraction('fba', cell='net', reactions=reactions, objective={'grow': 1.0})
+        >>> system = System(elements=[Element('net', values=network.get_values())], interactions=[network])
         >>> production_scan(system, target='out', steps=2).reactions
         ['make', 'out']
     """
-    system, element = _read_network(source, network, 'production_scan')
-    reactions = list(element.reactions)
+    system, interaction, cell = _read_network(source, network, 'production_scan')
+    reactions = list(interaction.reactions)
     if target not in reactions:
         error_msg = f'The network holds no reaction {target!r}, the target of the scan.'
         raise AnalysisError(error_msg)
-    problem = _compiled_network(element, parsimonious=True)
-    start = _solved(problem, element)[1][reactions.index(target)]
-    maximum = _solved(problem, element, {target: 1.0})[0]
+    problem = _compiled_network(interaction, cell, parsimonious=True)
+    start = _solved(problem, interaction, cell)[1][reactions.index(target)]
+    maximum = _solved(problem, interaction, cell, {target: 1.0})[0]
     levels = start + (maximum - start) * np.arange(int(steps) + 1) / int(steps)
-    solved = [_solved(problem, element, None, {target: (float(level), float(level))}) for level in levels[:-1]]
+    solved = [
+        _solved(problem, interaction, cell, None, {target: (float(level), float(level))}) for level in levels[:-1]
+    ]
     objectives = np.asarray([item[0] for item in solved], dtype=float)
     amounts = np.stack([item[1] for item in solved], axis=1)
     fluxes = pd.DataFrame(amounts, index=reactions)
     rising = np.all(np.diff(np.abs(amounts), axis=1) > LETHAL_GROWTH, axis=1)
     found = [name for name, rises in zip(reactions, rising, strict=True) if rises]
-    return ProductionScanResult(element, system, levels, objectives, fluxes, found)
+    return ProductionScanResult(interaction, system, levels, objectives, fluxes, found)
 
 
 @dataclass(frozen=True)
@@ -226,7 +225,7 @@ class CobraMeasuresResult:
 
     Args:
         network:
-            The metabolic network.
+            The flux balance of the metabolic network.
 
         system:
             The `cobra.Model` of the network.
@@ -248,7 +247,7 @@ class CobraMeasuresResult:
             The lethal pairs, for `'synthetic-lethals'`, or `None`.
     """
 
-    network: MetabolicNetworkElement
+    network: FluxBalanceInteraction
     system: object
     ranges: pd.DataFrame | None = None
     fluxes: pd.Series | None = None
@@ -316,18 +315,19 @@ def cobra_measures(
             The extra is not installed.
 
     Examples:
-        >>> from skcomplex.core.components.spaces import StaticTime
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.biology.common.metabolism import cobra_measures, load_network
-        >>> system = CompositeSystem(elements=[load_network('textbook', 'cell')], time=StaticTime())
+        >>> network = load_network('textbook', 'cell')
+        >>> system = System(elements=[Element('cell', values=network.get_values())], interactions=[network])
         >>> round(float(cobra_measures(system, kind='parsimonious').total), 3)
         518.422
     """
     _check_choice('cobra_measures', 'kind', kind, COBRA_KINDS)
     _check_choice('cobra_measures', 'target', target, ('gene', 'reaction'))
     load_extra(f'cobra_measures(kind={kind!r})')
-    _, element = _read_network(source, network, 'cobra_measures')
-    model = to_cobra(element, needed_by='cobra_measures')
+    _, element, cell = _read_network(source, network, 'cobra_measures')
+    model = to_cobra(element, cell, needed_by='cobra_measures')
     cobra = load_extra('cobra_measures')
     if kind == 'variability':
         table = cobra.flux_analysis.flux_variability_analysis(model, fraction_of_optimum=fraction, processes=1)
@@ -366,7 +366,7 @@ class StrainDesignResult:
 
     Args:
         network:
-            The metabolic network.
+            The flux balance of the metabolic network.
 
         system:
             The `cobra.Model` of the network.
@@ -375,7 +375,7 @@ class StrainDesignResult:
             Every design as a set of reaction names.
     """
 
-    network: MetabolicNetworkElement
+    network: FluxBalanceInteraction
     system: object
     designs: list[set[str]]
 
@@ -445,11 +445,10 @@ def strain_design(
     """
     _check_choice('strain_design', 'kind', kind, DESIGN_KINDS)
     load_extra(f'strain_design(kind={kind!r})')
-    _, element = _read_network(source, network, 'strain_design')
-    model = to_cobra(element, needed_by='strain_design')
+    _, element, cell = _read_network(source, network, 'strain_design')
+    model = to_cobra(element, cell, needed_by='strain_design')
     straindesign = import_extra('straindesign', 'strain_design', 'metabolism')
-    weights = element.default_objective if element.objective is None else element.objective
-    inner = growth or next(iter(weights))
+    inner = growth or next(iter(element.objective))
     module_kind = getattr(straindesign.names, DESIGN_NAMES[kind])
     options: dict[str, object] = {'constraints': constraints}
     if kind == 'optcouple':
@@ -475,11 +474,16 @@ def _check_choice(analysis: str, name: str, value: object, choices: tuple[object
         raise AnalysisError(error_msg)
 
 
-def _networks_of(system: CompositeSystem | System) -> list[MetabolicNetworkElement]:
-    """Return the metabolic networks of a system and its nested systems."""
-    found = [item for item in system.elements if isinstance(item, MetabolicNetworkElement)]
+def _networks_of(system: System) -> list[tuple[FluxBalanceInteraction, Element]]:
+    """Return the flux balances of a system and its nested systems, each with its cell."""
+    cells = {item.label: item for item in system.elements if isinstance(item, BaseElement)}
+    found = [
+        (item, cells[item.cell])
+        for item in system.interactions
+        if isinstance(item, FluxBalanceInteraction) and isinstance(cells.get(item.cell), Element)
+    ]
     for nested in system.systems:
-        if isinstance(nested, CompositeSystem | System):
+        if isinstance(nested, System):
             found += _networks_of(nested)
     return found
 
@@ -488,15 +492,15 @@ def _read_network(
     source: Source,
     network: str | None,
     analysis: str,
-) -> tuple[CompositeSystem | System, MetabolicNetworkElement]:
-    """Return a system and its metabolic network with a label, or its first one.
+) -> tuple[System, FluxBalanceInteraction, Element]:
+    """Return a system and the flux balance of its metabolic network of a label, or its first one, with its cell.
 
     Args:
         source:
             The system.
 
         network:
-            The label of the network, or `None` for the first network of the system.
+            The label of the cell of the network, or `None` for the first network of the system.
 
         analysis:
             The name of the analysis, for the error message.
@@ -506,40 +510,45 @@ def _read_network(
             The system.
 
         network:
-            The metabolic network.
+            The flux balance of the metabolic network.
+
+        cell:
+            The cell whose values hold the fluxes, the bounds, and the switches.
 
     Raises:
         AnalysisError:
             The source is not a system with the network.
     """
-    if isinstance(source, OldBaseSystem | BaseSystem) and not isinstance(source, CompositeSystem | System):
+    if isinstance(source, BaseSystem) and not isinstance(source, System):
         source = source.prepare().system_
-    if not isinstance(source, CompositeSystem | System):
-        error_msg = f'{analysis} reads a system that holds a metabolic network element, not {type(source).__name__}.'
+    if not isinstance(source, System):
+        error_msg = f'{analysis} reads a system that holds the flux balance of a network, not {type(source).__name__}.'
         raise AnalysisError(error_msg)
-    chosen = [item for item in _networks_of(source) if network is None or item.label == network]
+    chosen = [item for item in _networks_of(source) if network is None or item[1].label == network]
     if not chosen:
-        error_msg = f'{analysis} reads a system that holds a metabolic network element.'
+        error_msg = f'{analysis} reads a system that holds the flux balance of a network.'
         raise AnalysisError(error_msg)
-    return source, chosen[0]
+    return source, *chosen[0]
 
 
 def _compiled_network(
-    network: MetabolicNetworkElement,
+    network: FluxBalanceInteraction,
+    cell: Element,
     *,
     parsimonious: bool = False,
     floor: float | None = None,
 ) -> ProblemSpec:
-    """Return the network compiled under static time.
+    """Return the network compiled alone.
 
     Its objective is kept above a floor if one is given.
     """
-    element = type(network)(**{**network.get_params(deep=False), 'parsimonious': parsimonious, 'infeasible': 'raise'})
-    weights = network.default_objective if network.objective is None else network.objective
+    interaction = clone(network).set_params(parsimonious=parsimonious, infeasible='raise')
     kept = (
-        [] if floor is None else [ObjectiveFloorInteraction('kept', cell=element.label, weights=weights, floor=floor)]
+        []
+        if floor is None
+        else [ObjectiveFloorInteraction('kept', cell=cell.label, weights=network.objective, floor=floor)]
     )
-    problem = simulate(CompositeSystem(elements=[element], interactions=kept, time=StaticTime()), until=0).problem
+    problem = System(elements=[cell], interactions=[interaction, *kept]).prepare().simulate(until=0.0).problem
     if not isinstance(problem, ProblemSpec):
         error_msg = f'The network compiles to a {type(problem).__name__}, not a linear program.'
         raise AnalysisError(error_msg)
@@ -548,23 +557,24 @@ def _compiled_network(
 
 def _parameter_values(
     problem: ProblemSpec,
-    network: MetabolicNetworkElement,
+    network: FluxBalanceInteraction,
+    cell: Element,
     bounds: Mapping[str, tuple[float, float]],
 ) -> Array:
     """Return the parameters with the bounds of some reactions replaced."""
     values = problem.initial_parameters.copy()
     names = problem.parameters.names
-    label = network.label
     for reaction, (lower, upper) in bounds.items():
         identifier = network._get_identifier(reaction)
-        values[names.index(f'{label}.lower_{identifier}')] = lower
-        values[names.index(f'{label}.upper_{identifier}')] = upper
+        values[names.index(f'{cell.label}.lower_{identifier}')] = lower
+        values[names.index(f'{cell.label}.upper_{identifier}')] = upper
     return values
 
 
 def _solved(
     problem: ProblemSpec,
-    network: MetabolicNetworkElement,
+    network: FluxBalanceInteraction,
+    cell: Element,
     weights: Mapping[str, float] | None = None,
     bounds: Mapping[str, tuple[float, float]] | None = None,
     *,
@@ -579,7 +589,10 @@ def _solved(
             The compiled problem of the network.
 
         network:
-            The metabolic network.
+            The flux balance of the metabolic network.
+
+        cell:
+            The cell whose values hold the fluxes, the bounds, and the switches.
 
         weights:
             The coefficient of every reaction in the objective, or `None` for the objective of the network.
@@ -599,15 +612,14 @@ def _solved(
     """
     kernel = problem.programs[0]
     program = kernel.program
-    if weights is not None:
-        costs = program.costs.copy()
-        costs[0] = 0.0
-        for reaction, weight in weights.items():
-            column = list(network.reactions).index(reaction)
-            costs[0, column] = sense * float(weight)
-        kernel = clone(kernel).set_params(program=replace(program, costs=costs, signs=(sense, *program.signs[1:])))
-        kernel.prepare()
-    state = RunStateSpec(0.0, problem.initial_state, _parameter_values(problem, network, bounds or {}))
+    costs = program.costs.copy()
+    costs[0] = 0.0
+    for reaction, weight in (network.objective if weights is None else weights).items():
+        column = list(network.reactions).index(reaction)
+        costs[0, column] = sense * float(weight)
+    kernel = clone(kernel).set_params(program=replace(program, costs=costs, signs=(sense, *program.signs[1:])))
+    kernel.prepare()
+    state = RunStateSpec(0.0, problem.initial_state, _parameter_values(problem, network, cell, bounds or {}))
     solved = kernel.run(state).values_
     fluxes = np.asarray([solved[item[0]] for item in program.variables], dtype=float)
     return float(solved[program.objectives[0][0]]), fluxes

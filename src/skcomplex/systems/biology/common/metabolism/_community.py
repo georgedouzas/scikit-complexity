@@ -7,7 +7,7 @@ The analyses are SteadyCom on the solve of the core, and the trade-off of MICOM.
 # License: MIT
 
 import tempfile
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
@@ -16,50 +16,27 @@ from types import SimpleNamespace
 import numpy as np
 import pandas as pd
 from sage.all__sagemath_symbolics import Expression
+from sklearn.base import clone
 
 from .....core.analysis.types import Source
-from .....core.components.elements import DeclaredElement
-from .....core.components.laws import LinearObjectiveSpec, LinearProgramLaw
-from .....core.components.spaces import StaticTime
-from .....core.components.systems import BaseSystem as OldBaseSystem
-from .....core.components.systems import CompositeSystem
+from .....core.components.elements import Element
+from .....core.components.interactions import Interaction
+from .....core.components.laws import BaseLaw, ConstraintLaw, ObjectiveLaw
 from .....core.engine.problems import ProblemSpec, RunStateSpec
-from .....core.engine.runtime import simulate
 from .....core.errors import AnalysisError
-from .....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from .....core.systems import BaseSystem, System
 from ...._extras import import_extra
 from ._analyses import _check_choice, _networks_of
 from ._cobra_io import load_extra, to_cobra
-from ._metabolic_network import MetabolicNetworkElement
+from ._culture import CommunityInteraction
+from ._flux_balance import FluxBalanceInteraction
 
 COMMUNITY_KINDS = ('steadycom', 'tradeoff')
 RATE_TOLERANCE = 1e-7
 FULL_ABUNDANCE = 1.0 - 1e-7
 ELEMENT_LABEL = 'community'
 
-
-class _SteadyComElement(DeclaredElement):
-    """Element whose program sets the abundances and the scaled fluxes of a community."""
-
-    law_classes = (LinearProgramLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        variables: Mapping[str, DeclaredVariableSpec] | None = None,
-        law: Callable[[SimpleNamespace], LinearProgramLaw] | None = None,
-    ) -> None:
-        super().__init__(label, variables=variables)
-        self.law = law
-
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[LinearProgramLaw]:
-        """Return the program of the community for a namespace of symbols.
-
-        It returns none without a function.
-        """
-        return [] if self.law is None else [self.law(namespace)]
+type Member = tuple[FluxBalanceInteraction, Element]
 
 
 @dataclass(frozen=True)
@@ -126,31 +103,34 @@ def community_growth(
             The kind `'tradeoff'` needs the extra.
 
     Examples:
-        >>> from skcomplex.core.components.spaces import StaticTime
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.biology.common.metabolism import (
+        ...     FluxBalanceInteraction,
         ...     ReactionSpec,
         ...     community_growth,
-        ...     metabolic_network_type,
         ... )
         >>> reactions = {
         ...     'EX_a': ReactionSpec({'a': 1.0}, upper=2.0),
         ...     'grow': ReactionSpec({'a': -1.0}),
         ... }
-        >>> element_type = metabolic_network_type('MemberElement', reactions, {'grow': 1.0})
-        >>> system = CompositeSystem(elements=[element_type('one'), element_type('two')], time=StaticTime())
-        >>> result = community_growth(system)
+        >>> networks = [
+        ...     FluxBalanceInteraction(f'fba_{name}', cell=name, reactions=reactions, objective={'grow': 1.0})
+        ...     for name in ('one', 'two')
+        ... ]
+        >>> cells = [Element(network.cell, values=network.get_values()) for network in networks]
+        >>> result = community_growth(System(elements=cells, interactions=networks))
         >>> round(result.growth, 6), round(sum(result.abundances.values()), 6)
         (2.0, 1.0)
     """
     _check_choice('community_growth', 'kind', kind, COMMUNITY_KINDS)
     if kind == 'tradeoff':
         load_extra(f'community_growth(kind={kind!r})')
-    if isinstance(source, OldBaseSystem | BaseSystem) and not isinstance(source, CompositeSystem | System):
+    if isinstance(source, BaseSystem) and not isinstance(source, System):
         source = source.prepare().system_
-    members = _networks_of(source) if isinstance(source, CompositeSystem | System) else []
+    members = _get_members(source) if isinstance(source, System) else []
     if not members:
-        error_msg = 'community_growth reads a system that holds a metabolic network element.'
+        error_msg = 'community_growth reads a system that holds the flux balance of a metabolic network.'
         raise AnalysisError(error_msg)
     if kind == 'steadycom':
         growth, found = _steadycom(members, medium)
@@ -159,79 +139,113 @@ def community_growth(
     return CommunityGrowthResult(growth, members=rates)
 
 
-def _member_relations(s: SimpleNamespace, position: int, member: MetabolicNetworkElement) -> list[Expression]:
+def _get_members(system: System) -> list[Member]:
+    """Return the flux balances of a system with their cells, each with the objective of its growth.
+
+    A member without an objective of its own, whose growth a joint program of the community holds, grows by the
+    reaction of growth of that program.
+    """
+    growth = {
+        member: interaction.growth
+        for interaction in system.interactions
+        if isinstance(interaction, CommunityInteraction)
+        for member in interaction.members
+    }
+    return [
+        (
+            (
+                network
+                if network.objective or cell.label not in growth
+                else clone(network).set_params(objective={growth[cell.label]: 1.0})
+            ),
+            cell,
+        )
+        for network, cell in _networks_of(system)
+    ]
+
+
+def _get_value(member: Member, name: str) -> float:
+    """Return a value of the cell of a member, or the value its network starts with."""
+    network, cell = member
+    return float((network.get_values() | dict(cell.get_params()['values'] or {}))[name])
+
+
+def _member_laws(s: SimpleNamespace, position: int, member: Member) -> list[ConstraintLaw]:
     """Return the balances of a member and its growth at the common rate.
 
     The bounds of the member are scaled by its abundance.
     """
+    network = member[0]
     terms: dict[str, list[Expression]] = {}
     relations = []
     abundance = getattr(s, f'x_{position}')
-    for column, (name, spec) in enumerate(member.reactions.items()):
-        identifier = member._get_identifier(name)
+    for column, (name, spec) in enumerate(network.reactions.items()):
+        identifier = network._get_identifier(name)
         flux = getattr(s, f'v_{position}_{column}')
-        relations.append(flux >= member.get_number(f'lower_{identifier}') * abundance)
-        relations.append(flux <= member.get_number(f'upper_{identifier}') * abundance)
+        relations.append(flux >= _get_value(member, f'lower_{identifier}') * abundance)
+        relations.append(flux <= _get_value(member, f'upper_{identifier}') * abundance)
         for metabolite, coefficient in spec.coefficients.items():
             terms.setdefault(metabolite, []).append(float(coefficient) * flux)
     relations += [sum(items[1:], items[0]) == 0 for items in terms.values()]
-    weights = member.objective or member.default_objective
     growth = [
-        float(weight) * getattr(s, f'v_{position}_{list(member.reactions).index(name)}')
-        for name, weight in weights.items()
+        float(weight) * getattr(s, f'v_{position}_{list(network.reactions).index(name)}')
+        for name, weight in network.objective.items()
     ]
     relations.append(sum(growth[1:], growth[0]) - s.rate * abundance == 0)
-    return relations
+    return [ConstraintLaw(relation) for relation in relations]
 
 
-def _community_law(
-    members: list[MetabolicNetworkElement],
+def _community_laws(
+    members: list[Member],
     medium: Mapping[str, float] | None,
     s: SimpleNamespace,
-) -> LinearProgramLaw:
+) -> list[BaseLaw]:
     """Return the program of the abundances of the members.
 
     The program holds at the common rate of a namespace.
     """
-    relations = [
-        relation for position, member in enumerate(members) for relation in _member_relations(s, position, member)
-    ]
+    s = s.target
+    laws: list[BaseLaw] = [law for position, member in enumerate(members) for law in _member_laws(s, position, member)]
     abundances = [getattr(s, f'x_{position}') for position in range(len(members))]
     total = sum(abundances[1:], abundances[0])
-    relations += [item >= 0 for item in abundances]
-    relations.append(total <= 1)
+    laws += [ConstraintLaw(item >= 0) for item in abundances]
+    laws.append(ConstraintLaw(total <= 1))
     for name, lower in (medium or {}).items():
         shared = [
-            getattr(s, f'v_{position}_{list(member.reactions).index(name)}')
+            getattr(s, f'v_{position}_{list(member[0].reactions).index(name)}')
             for position, member in enumerate(members)
-            if name in member.reactions
+            if name in member[0].reactions
         ]
-        relations.append(sum(shared[1:], shared[0]) >= float(lower))
+        laws.append(ConstraintLaw(sum(shared[1:], shared[0]) >= float(lower)))
     variables = [
         *abundances,
         *(
             getattr(s, f'v_{position}_{column}')
             for position, member in enumerate(members)
-            for column in range(len(member.reactions))
+            for column in range(len(member[0].reactions))
         ),
     ]
-    return LinearProgramLaw(variables, relations, [LinearObjectiveSpec(total)])
+    return [*laws, ObjectiveLaw([-total], variables)]
 
 
-def _community_problem(members: list[MetabolicNetworkElement], medium: Mapping[str, float] | None) -> ProblemSpec:
-    """Return the compiled problem of an element.
+def _community_problem(members: list[Member], medium: Mapping[str, float] | None) -> ProblemSpec:
+    """Return the compiled problem of the community.
 
-    The program of the element sets the abundances and the scaled fluxes.
+    Its program sets the abundances and the scaled fluxes at the common rate `rate`.
     """
     names = [f'x_{position}' for position in range(len(members))]
     names += [
-        f'v_{position}_{column}' for position, member in enumerate(members) for column in range(len(member.reactions))
+        f'v_{position}_{column}'
+        for position, member in enumerate(members)
+        for column in range(len(member[0].reactions))
     ]
-    variables = {name: DeclaredVariableSpec(0.0, StateSpec(algebraic=True)) for name in names}
-    variables['rate'] = DeclaredVariableSpec(0.0, ParameterSpec())
-    law = partial(_community_law, members, medium)
-    element = _SteadyComElement(ELEMENT_LABEL, variables=variables, law=law)
-    problem = simulate(CompositeSystem(elements=[element], time=StaticTime()), until=0).problem
+    community = Element(ELEMENT_LABEL, values={**dict.fromkeys(names, 0.0), 'rate': 0.0})
+    program = Interaction(
+        'steadycom',
+        roles={'target': ELEMENT_LABEL},
+        laws=partial(_community_laws, members, medium),
+    )
+    problem = System(elements=[community], interactions=[program]).prepare().simulate(until=0.0).problem
     if not isinstance(problem, ProblemSpec):
         error_msg = f'The community compiles to a {type(problem).__name__}, not a linear program.'
         raise AnalysisError(error_msg)
@@ -239,7 +253,7 @@ def _community_problem(members: list[MetabolicNetworkElement], medium: Mapping[s
 
 
 def _abundances_at(
-    members: list[MetabolicNetworkElement],
+    members: list[Member],
     problem: ProblemSpec,
     rate: float,
 ) -> dict[str, float] | None:
@@ -251,31 +265,31 @@ def _abundances_at(
     parameters[problem.parameters.names.index(f'{ELEMENT_LABEL}.rate')] = rate
     solved = problem.programs[0].run(RunStateSpec(rate, problem.initial_state, parameters)).values_
     found = {
-        member.label: float(np.real(np.ravel(problem.states.read(solved, f'{ELEMENT_LABEL}.x_{position}'))[0]))
+        member[1].label: float(np.real(np.ravel(problem.states.read(solved, f'{ELEMENT_LABEL}.x_{position}'))[0]))
         for position, member in enumerate(members)
     }
     return found if sum(found.values()) >= FULL_ABUNDANCE else None
 
 
-def _largest_rate(members: list[MetabolicNetworkElement]) -> float:
+def _largest_rate(members: list[Member]) -> float:
     """Return a rate no member can reach.
 
     The rate comes from the upper bounds of the reactions of the growth of every member.
     """
     rates = []
     for member in members:
-        weights = member.objective or member.default_objective
+        network = member[0]
         rates.append(
             sum(
-                abs(float(weight)) * member.get_number(f'upper_{member._get_identifier(name)}')
-                for name, weight in weights.items()
+                abs(float(weight)) * _get_value(member, f'upper_{network._get_identifier(name)}')
+                for name, weight in network.objective.items()
             ),
         )
     return max(rates)
 
 
 def _steadycom(
-    members: list[MetabolicNetworkElement],
+    members: list[Member],
     medium: Mapping[str, float] | None,
 ) -> tuple[float, dict[str, float]]:
     """Return the largest common growth rate and the abundances.
@@ -284,7 +298,7 @@ def _steadycom(
     """
     problem = _community_problem(members, medium)
     low, high = 0.0, _largest_rate(members)
-    best = _abundances_at(members, problem, low) or {member.label: 0.0 for member in members}
+    best = _abundances_at(members, problem, low) or {member[1].label: 0.0 for member in members}
     while high - low > RATE_TOLERANCE * max(1.0, high):
         middle = 0.5 * (low + high)
         found = _abundances_at(members, problem, middle)
@@ -296,7 +310,7 @@ def _steadycom(
 
 
 def _tradeoff(
-    members: list[MetabolicNetworkElement],
+    members: list[Member],
     fraction: float,
     abundances: Sequence[float] | None,
 ) -> tuple[float, dict[str, float]]:
@@ -307,16 +321,15 @@ def _tradeoff(
     cobra = load_extra('community_growth')
     micom = import_extra('micom', 'community_growth', 'metabolism')
     shares = abundances or [1.0 / len(members)] * len(members)
+    labels = [cell.label for _, cell in members]
     with tempfile.TemporaryDirectory() as folder:
         files = []
-        for member in members:
-            path = Path(folder) / f'{member.label}.json'
-            cobra.io.save_json_model(to_cobra(member), str(path))
+        for network, cell in members:
+            path = Path(folder) / f'{cell.label}.json'
+            cobra.io.save_json_model(to_cobra(network, cell), str(path))
             files.append(str(path))
-        taxonomy = pd.DataFrame(
-            {'id': [member.label for member in members], 'file': files, 'abundance': list(shares)},
-        )
+        taxonomy = pd.DataFrame({'id': labels, 'file': files, 'abundance': list(shares)})
         community = micom.Community(taxonomy, solver='hybrid', progress=False)
     solution = community.cooperative_tradeoff(fraction=fraction, fluxes=False, pfba=False)
     rates = solution.members.growth_rate
-    return float(solution.growth_rate), {member.label: float(rates[member.label]) for member in members}
+    return float(solution.growth_rate), {label: float(rates[label]) for label in labels}

@@ -7,13 +7,18 @@
 from collections.abc import Sequence
 
 from ....core.components import Observable
-from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import CompositeSystem
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, CoSimulationSolver, RK4Solver
 from ....core.errors import ValidationError
 from ....core.systems import BaseSystem, System
-from ..common.metabolism import BiomassElement, ExchangeInteraction, GrowthInteraction, SubstrateElement, load_network
+from ..common.metabolism import (
+    BiomassElement,
+    ExchangeInteraction,
+    GrowthInteraction,
+    MetabolicCellElement,
+    SubstrateElement,
+    load_network,
+)
 
 APPROACHES = ('static', 'direct')
 GROWTH = 'Biomass_Ecoli_core'
@@ -112,8 +117,11 @@ class DynamicFBASystem(BaseSystem):
         if self.approach not in APPROACHES:
             error_msg = f'Unknown approach {self.approach!r}. Use one of {", ".join(APPROACHES)}.'
             raise ValidationError(error_msg)
-        cell = load_network('textbook', 'cell', needed_by='dynamic_fba')
-        cell.parsimonious, cell.infeasible = True, 'zero'
+        network = load_network('textbook', 'cell', needed_by='dynamic_fba').set_params(
+            parsimonious=True,
+            infeasible='zero',
+        )
+        cell = MetabolicCellElement('cell', values=network.get_values())
         amounts = [BiomassElement('biomass', x=self.biomass), SubstrateElement('glucose', c=self.glucose)]
         static = self.approach == 'static'
         cell_path = 'fba/cell' if static else 'cell'
@@ -135,8 +143,8 @@ class DynamicFBASystem(BaseSystem):
             self.system_ = System(
                 self.label,
                 systems=[
-                    CompositeSystem('fba', elements=[cell], time=DiscreteTime()),
-                    CompositeSystem('culture', elements=amounts),
+                    System('fba', elements=[cell], interactions=[network]),
+                    System('culture', elements=amounts),
                 ],
                 interactions=interactions,
                 solver=CoSimulationSolver(sync_dt=self.interval, solvers={'culture': RK4Solver(dt=ODE_STEP)}),
@@ -145,6 +153,6 @@ class DynamicFBASystem(BaseSystem):
         self.system_ = System(
             self.label,
             elements=[cell, *amounts],
-            interactions=interactions,
+            interactions=[network, *interactions],
             solver=RK4Solver(dt=ODE_STEP),
         )

@@ -9,7 +9,7 @@ The example is the one of Antoniewicz et al. (2007).
 # License: MIT
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from functools import partial
 
 import numpy as np
@@ -18,22 +18,20 @@ from scipy import linalg, sparse
 from scipy.optimize import least_squares
 from scipy.sparse.linalg import splu
 from scipy.stats import chi2
+from sklearn.base import clone
 
 from ....core.analysis import bind_analysis
 from ....core.analysis.types import Source
 from ....core.components import Observable
-from ....core.components.spaces import StaticTime
-from ....core.components.systems import BaseSystem as OldBaseSystem
-from ....core.components.systems import CompositeSystem
+from ....core.components.elements import Element
 from ....core.engine.backends import BaseBackend
 from ....core.engine.problems import ProblemSpec, RunStateSpec
-from ....core.engine.runtime import simulate
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import AnalysisError, ValidationError
-from ....core.specs import BaseSpec, DeclaredVariableSpec
+from ....core.specs import BaseSpec, Role
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
-from ..common.metabolism import MetabolicNetworkElement, ReactionSpec
+from ..common.metabolism import FluxBalanceInteraction, MetabolicCellElement, ReactionSpec
 
 SUM_TOLERANCE = 1e-9
 KINDS = ('simulation', 'estimation')
@@ -79,61 +77,56 @@ TCA_OBJECTIVE: Mapping[str, float] = {}
 type _Unit = tuple[str, tuple[int, ...]]
 
 
-class TcaNetworkElement(MetabolicNetworkElement):
-    """The TCA example of Antoniewicz et al. (2007).
+class TcaFluxBalanceInteraction(FluxBalanceInteraction):
+    """Flux balance of the TCA example of Antoniewicz et al. (2007).
 
     Args:
         label:
-            The label of the element.
+            The label of the interaction.
+
+        cell:
+            The path of the cell whose values hold the fluxes and the bounds.
+
+        reactions:
+            The reactions by name.
 
         objective:
-            The coefficient of every reaction in the objective, or `None` for `default_objective`.
+            The coefficient of every reaction in the objective, or nothing for any fluxes the balances allow.
 
         parsimonious:
             Whether to minimise the total absolute flux after the objective.
 
         infeasible:
-            The infeasibility policy of the program.
+            What a run does when the balances and bounds cannot all hold.
 
         name:
             The name of the network.
 
-        reactions:
-            The reactions by name.
-
-        default_objective:
-            The objective of the network when `objective` is `None`.
-
-        variables:
-            The declared states and parameters that replace the ones of the reactions, by name, or `None` for none.
-
     Examples:
-        >>> from skcomplex.systems.biology.systems_biology import Carbon13MFASystem
-        >>> Carbon13MFASystem().prepare().system_.elements[0].get_value('upper_v1')
+        >>> from skcomplex.systems.biology.systems_biology import TcaFluxBalanceInteraction
+        >>> TcaFluxBalanceInteraction('fba').get_values()['upper_v1']
         300.0
     """
 
     def __init__(
         self,
-        label: str,
+        label: str = 'fba',
         *,
-        objective: Mapping[str, float] | None = None,
+        cell: Role = 'tca',
+        reactions: Mapping[str, ReactionSpec] = TCA_REACTIONS,
+        objective: Mapping[str, float] = TCA_OBJECTIVE,
         parsimonious: bool = False,
         infeasible: str = 'raise',
         name: str | None = 'TcaNetwork',
-        reactions: Mapping[str, ReactionSpec] = TCA_REACTIONS,
-        default_objective: Mapping[str, float] = TCA_OBJECTIVE,
-        variables: Mapping[str, DeclaredVariableSpec] | None = None,
     ) -> None:
         super().__init__(
             label,
+            cell=cell,
+            reactions=reactions,
             objective=objective,
             parsimonious=parsimonious,
             infeasible=infeasible,
             name=name,
-            reactions=reactions,
-            default_objective=default_objective,
-            variables=variables,
         )
 
 
@@ -382,7 +375,7 @@ class _LabellingSpec(BaseSpec):
     They are the network, the settings that read it, and the units of its fragments.
     """
 
-    network: MetabolicNetworkElement
+    network: FluxBalanceInteraction
     reactions: list[str]
     tracers: Mapping[str, Sequence[TracerSpec]]
     fragments: Sequence[FragmentSpec]
@@ -419,7 +412,7 @@ class LabellingResult:
 
     Args:
         network:
-            The metabolic network.
+            The flux balance of the metabolic network, whose reactions hold the bounds of its cell.
 
         distributions:
             The distribution of every fragment of every experiment.
@@ -445,7 +438,7 @@ class LabellingResult:
             Whether the residual lies in that range, for `'estimation'`, or `None`.
     """
 
-    network: MetabolicNetworkElement
+    network: FluxBalanceInteraction
     distributions: dict[str, dict[str, Array]]
     fluxes: dict[str, float] | None = None
     intervals: dict[str, tuple[float, float]] | None = None
@@ -536,9 +529,9 @@ def labelling(
             An atom map is not valid, or two maps give one metabolite different numbers of atoms.
 
     Examples:
-        >>> from skcomplex.core.components.spaces import StaticTime
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.systems.biology.common.metabolism import ReactionSpec, metabolic_network_type
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.systems import System
+        >>> from skcomplex.systems.biology.common.metabolism import FluxBalanceInteraction, ReactionSpec
         >>> from skcomplex.systems.biology.systems_biology import (
         ...     AtomMapSpec,
         ...     FragmentSpec,
@@ -546,8 +539,8 @@ def labelling(
         ...     labelling,
         ... )
         >>> reactions = {'in': ReactionSpec({'B': 1.0}), 'out': ReactionSpec({'B': -1.0})}
-        >>> network = metabolic_network_type('ChainElement', reactions)('net')
-        >>> system = CompositeSystem(elements=[network], time=StaticTime())
+        >>> network = FluxBalanceInteraction('fba', cell='net', reactions=reactions)
+        >>> system = System(elements=[Element('net', values=network.get_values())], interactions=[network])
         >>> result = labelling(
         ...     system,
         ...     atoms=[AtomMapSpec('in', [('A', 'ab')], [('B', 'ba')])],
@@ -561,9 +554,9 @@ def labelling(
     _check_choice('kind', kind, KINDS)
     _check_choice('intervals', intervals, INTERVALS)
     atom_counts = _atom_counts(atoms)
-    if isinstance(source, OldBaseSystem | BaseSystem) and not isinstance(source, CompositeSystem | System):
+    if isinstance(source, BaseSystem) and not isinstance(source, System):
         source = source.prepare().system_
-    if not isinstance(source, CompositeSystem | System):
+    if not isinstance(source, System):
         error_msg = f'labelling reads a system, not a {type(source).__name__}.'
         raise AnalysisError(error_msg)
     units = _collect_units(
@@ -623,27 +616,38 @@ def _atom_counts(atoms: Sequence[AtomMapSpec]) -> dict[str, int]:
     return {metabolite: count for metabolite, (count, _) in counts.items()}
 
 
-def _network_of(system: CompositeSystem | System) -> MetabolicNetworkElement:
-    """Return the metabolic network of a system."""
-    for element in system.elements:
-        if isinstance(element, MetabolicNetworkElement):
-            return element
-    error_msg = 'labelling reads a system that holds a metabolic network element.'
+def _network_of(system: System) -> FluxBalanceInteraction:
+    """Return the flux balance of the metabolic network of a system, with the bounds of its cell in its reactions."""
+    cells = {element.label: element for element in system.elements if isinstance(element, Element)}
+    for interaction in system.interactions:
+        if isinstance(interaction, FluxBalanceInteraction) and interaction.cell in cells:
+            given = dict(cells[interaction.cell].get_params()['values'] or {})
+            values = interaction.get_values() | {name: float(np.asarray(value)) for name, value in given.items()}
+            reactions = {
+                name: replace(
+                    spec,
+                    lower=values[f'lower_{interaction._get_identifier(name)}'],
+                    upper=values[f'upper_{interaction._get_identifier(name)}'],
+                )
+                for name, spec in interaction.reactions.items()
+            }
+            return clone(interaction).set_params(reactions=reactions)
+    error_msg = 'labelling reads a system that holds the flux balance of a metabolic network and its cell.'
     raise AnalysisError(error_msg)
 
 
-def _bounds_of(network: MetabolicNetworkElement, reaction: str) -> tuple[float, float]:
-    """Return the bounds of a reaction, from the parameters of the network."""
-    identifier = network._get_identifier(reaction)
-    return network.get_number(f'lower_{identifier}'), network.get_number(f'upper_{identifier}')
+def _bounds_of(network: FluxBalanceInteraction, reaction: str) -> tuple[float, float]:
+    """Return the bounds of a reaction of the network."""
+    spec = network.reactions[reaction]
+    return float(spec.lower), float(spec.upper)
 
 
-def _reversible(network: MetabolicNetworkElement, reaction: str) -> bool:
+def _reversible(network: FluxBalanceInteraction, reaction: str) -> bool:
     """Check whether a reaction may run backward."""
     return _bounds_of(network, reaction)[0] < 0
 
 
-def _directed_maps(network: MetabolicNetworkElement, atoms: Sequence[AtomMapSpec]) -> list[tuple[int, AtomMapSpec]]:
+def _directed_maps(network: FluxBalanceInteraction, atoms: Sequence[AtomMapSpec]) -> list[tuple[int, AtomMapSpec]]:
     """Return the maps in both directions, each with the position of its directed flux."""
     reactions = list(network.reactions)
     count = len(reactions)
@@ -690,7 +694,7 @@ def _terms_of(
 
 
 def _collect_units(
-    network: MetabolicNetworkElement,
+    network: FluxBalanceInteraction,
     atoms: Sequence[AtomMapSpec],
     *,
     tracers: Mapping[str, Sequence[TracerSpec]],
@@ -895,16 +899,12 @@ def _drawn_vertices(fit: _FitSpec, rng: np.random.Generator) -> Array:
         **{f'lower_{network._get_identifier(name)}': value for name, value in fixed.items()},
         **{f'upper_{network._get_identifier(name)}': value for name, value in fixed.items()},
     }
+    cell = MetabolicCellElement(network.cell, values=network.get_values() | identifiers)
     vertices = []
     for _ in range(VERTEX_DRAWS):
         weights = {name: float(value) for name, value in zip(reactions, rng.normal(size=len(reactions)), strict=True)}
-        element = type(network)(
-            network.label,
-            objective=weights,
-            reactions=network.reactions,
-            default_objective=network.default_objective,
-        ).set_params(**identifiers)
-        problem = simulate(CompositeSystem(elements=[element], time=StaticTime()), until=0).problem
+        drawn = clone(network).set_params(objective=weights)
+        problem = System(elements=[cell], interactions=[drawn]).prepare().simulate(until=0.0).problem
         if not isinstance(problem, ProblemSpec):
             error_msg = f'The network compiles to a {type(problem).__name__}, not a linear program.'
             raise AnalysisError(error_msg)
@@ -912,9 +912,7 @@ def _drawn_vertices(fit: _FitSpec, rng: np.random.Generator) -> Array:
         solved = problem.programs[0].run(state).values_
         vertices.append(
             [
-                float(
-                    np.real(np.ravel(problem.states.read(solved, f'{element.label}.{element.get_flux_name(name)}'))[0]),
-                )
+                float(np.real(np.ravel(problem.states.read(solved, f'{cell.label}.{drawn.get_flux_name(name)}'))[0]))
                 for name in reactions
             ],
         )
@@ -1170,7 +1168,7 @@ class Carbon13MFASystem(BaseSystem):
 
     Args:
         network:
-            The metabolic network, or `None` for the TCA example.
+            The flux balance of the metabolic network, or `None` for the TCA example.
 
         label:
             The label of the system, which names it when it is nested in another one.
@@ -1194,7 +1192,7 @@ class Carbon13MFASystem(BaseSystem):
 
     def __init__(
         self,
-        network: MetabolicNetworkElement | None = None,
+        network: FluxBalanceInteraction | None = None,
         *,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
@@ -1211,4 +1209,6 @@ class Carbon13MFASystem(BaseSystem):
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
-        self.system_ = System(self.label, elements=[TcaNetworkElement('tca') if self.network is None else self.network])
+        network = TcaFluxBalanceInteraction('fba') if self.network is None else self.network
+        cell = MetabolicCellElement(network.cell, values=network.get_values())
+        self.system_ = System(self.label, elements=[cell], interactions=[network])

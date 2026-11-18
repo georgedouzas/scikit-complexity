@@ -9,10 +9,11 @@ The members are joined through a shared medium.
 from collections.abc import Mapping, Sequence
 
 from ....core.components import Observable
+from ....core.components.elements import Element
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
-from ..common.metabolism import CommunityInteraction, community_medium_type, load_network
+from ..common.metabolism import CommunityInteraction, MetabolicCellElement, load_network
 
 GROWTH = 'Biomass_Ecoli_core'
 CROSS_FED = ('EX_akg_e', 'EX_glu__L_e')
@@ -24,12 +25,13 @@ class CommunityFBASystem(BaseSystem):
 
     It needs the extra `metabolism`.
 
-    The programs of the members merge through a medium whose law holds the growth weighted by the abundances (Raman
-    2021, Section 11.1.3). By default one member lacks isocitrate dehydrogenase and takes up 2-oxoglutarate, and the
-    other lacks ammonium transport and takes up glutamate, each from what the other secretes, so neither grows alone,
-    and together both grow. `community_growth` gives SteadyCom and the cooperative trade-off of the same members. The
-    pair is an illustration found on the E. coli core system: the consortium of Raman (Section 11.1.3.6) has four
-    mutants that need amino acids, whose synthesis the core system does not hold.
+    The programs of the members merge through a medium, and the joint program minimises the growth weighted by the
+    abundances with its sign changed, recorded as `medium.objective_0` (Raman 2021, Section 11.1.3). By default one
+    member lacks isocitrate dehydrogenase and takes up 2-oxoglutarate, and the other lacks ammonium transport and takes
+    up glutamate, each from what the other secretes, so neither grows alone, and together both grow.
+    `community_growth` gives SteadyCom and the cooperative trade-off of the same members. The pair is an illustration
+    found on the E. coli core system: the consortium of Raman (Section 11.1.3.6) has four mutants that need amino
+    acids, whose synthesis the core system does not hold.
 
     Args:
         knockouts:
@@ -62,7 +64,7 @@ class CommunityFBASystem(BaseSystem):
     Examples:
         >>> from skcomplex.systems.biology.ecology import CommunityFBASystem
         >>> trajectory = CommunityFBASystem().prepare().simulate(until=0.0)
-        >>> round(float(trajectory.get_values('medium.objective_0')[0]), 3)
+        >>> round(-float(trajectory.get_values('medium.objective_0')[0]), 3)
         0.862
     """
 
@@ -97,29 +99,34 @@ class CommunityFBASystem(BaseSystem):
         """
         super()._prepare(context)
         shared = dict(self.exchanges) if self.exchanges is not None else dict.fromkeys(CROSS_FED, 0.0)
-        members = []
+        members, networks = [], []
         for position, knockout in enumerate(self.knockouts):
-            member = load_network('textbook', f'member_{position}', needed_by='community_fba')
-            member.objective = {}
+            network = load_network(
+                'textbook',
+                f'member_{position}',
+                label=f'fba_{position}',
+                needed_by='community_fba',
+            ).set_params(objective={})
+            values = network.get_values()
             for reaction in shared:
                 if shared[reaction] >= 0:
-                    member.set_params(**{f'lower_{member._get_identifier(reaction)}': OPEN_UPTAKE})
+                    values[f'lower_{network._get_identifier(reaction)}'] = OPEN_UPTAKE
             if knockout:
-                identifier = member._get_identifier(knockout)
-                member.set_params(**{f'lower_{identifier}': 0.0, f'upper_{identifier}': 0.0})
-            members.append(member)
+                identifier = network._get_identifier(knockout)
+                values |= {f'lower_{identifier}': 0.0, f'upper_{identifier}': 0.0}
+            members.append(MetabolicCellElement(network.cell, values=values))
+            networks.append(network)
+        joint = CommunityInteraction(
+            'joint',
+            members=[member.label for member in members],
+            medium='medium',
+            abundances=tuple(self.abundances),
+            exchanges=shared,
+            growth=GROWTH,
+            common_rate=self.common_rate,
+        )
         self.system_ = System(
             self.label,
-            elements=[*members, community_medium_type(list(shared))('medium')],
-            interactions=[
-                CommunityInteraction(
-                    'joint',
-                    members=[member.label for member in members],
-                    medium='medium',
-                    abundances=tuple(self.abundances),
-                    exchanges=shared,
-                    growth=GROWTH,
-                    common_rate=self.common_rate,
-                ),
-            ],
+            elements=[*members, Element('medium', values=joint.get_values())],
+            interactions=[*networks, joint],
         )

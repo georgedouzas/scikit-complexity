@@ -4,7 +4,7 @@ The package covers gene circuits, Boolean networks, circadian clocks, signalling
 """
 
 from ..common.kinetics import RepressionInteraction, SpeciesElement
-from ..common.metabolism import ToyNetworkElement
+from ..common.metabolism import ToyFluxBalanceInteraction
 from ..common.networks import BooleanFunctionInteraction, BooleanNodeElement
 from ._adaptation import (
     EnzymeAdaptationCircuitSystem,
@@ -28,6 +28,7 @@ from ._carbon_13_mfa import (
     FragmentSpec,
     LabellingResult,
     LabelMeasurementSpec,
+    TcaFluxBalanceInteraction,
     TracerSpec,
     labelling,
     tca_labelling_analysis,
@@ -157,11 +158,12 @@ __all__: list[str] = [
     'SSystemInteraction',
     'SpeciesElement',
     'StructureSpec',
+    'TcaFluxBalanceInteraction',
     'ThreeGeneBooleanNetworkSystem',
     'ThreeWayFateDecisionSystem',
     'ThresholdFunctionInteraction',
     'ToggleSwitchSystem',
-    'ToyNetworkElement',
+    'ToyFluxBalanceInteraction',
     'TracerSpec',
     'YeastCellCycleSystem',
     'fuzzy_oil_drop_measures',

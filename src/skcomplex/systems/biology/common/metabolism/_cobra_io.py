@@ -1,4 +1,4 @@
-"""Convert metabolic network elements to and from COBRApy models.
+"""Convert flux balances of metabolic networks to and from COBRApy models.
 
 The module also reads and writes their standard formats.
 """
@@ -11,9 +11,12 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
+import numpy as np
+
+from .....core.components.elements import Element
 from .....core.errors import ValidationError
 from ...._extras import import_extra
-from ._metabolic_network import MetabolicNetworkElement, metabolic_network_type
+from ._flux_balance import FluxBalanceInteraction
 from ._reaction_spec import ReactionSpec
 
 SOLVER = 'hybrid'
@@ -52,24 +55,34 @@ def load_extra(owner: str) -> ModuleType:
     return import_extra('cobra', owner, 'metabolism')
 
 
-def from_cobra(system: object, label: str = 'network', *, needed_by: str = 'from_cobra') -> MetabolicNetworkElement:
-    """Return a metabolic network element of a COBRApy model.
+def from_cobra(
+    system: object,
+    cell: str = 'network',
+    *,
+    label: str = 'fba',
+    needed_by: str = 'from_cobra',
+) -> FluxBalanceInteraction:
+    """Return the flux balance of a COBRApy model.
 
-    The element keeps the bounds, rules, and objective of the model.
+    The interaction keeps the reactions, bounds, rules, and objective of the model, and `get_values` gives the values
+    of its cell.
 
     Args:
         system:
             The `cobra.Model`.
 
+        cell:
+            The path of the cell whose values hold the fluxes, the bounds, and the switches.
+
         label:
-            The label of the element.
+            The label of the interaction.
 
         needed_by:
             The name of what needs the extra, for the error.
 
     Returns:
-        element:
-            The element, of a type built for the system.
+        network:
+            The flux balance of the model.
 
     Raises:
         MissingExtraError:
@@ -85,7 +98,7 @@ def from_cobra(system: object, label: str = 'network', *, needed_by: str = 'from
         >>> reaction = cobra.Reaction('r', upper_bound=5.0)
         >>> reaction.add_metabolites({cobra.Metabolite('a', compartment='c'): -1.0})
         >>> system.add_reactions([reaction])
-        >>> from_cobra(system, 'cell').get_value('upper_r')
+        >>> from_cobra(system, 'cell').get_values()['upper_r']
         5.0
     """
     cobra = load_extra(needed_by)
@@ -107,19 +120,29 @@ def from_cobra(system: object, label: str = 'network', *, needed_by: str = 'from
         if reaction.objective_coefficient != 0
     }
     name = ''.join(part.capitalize() for part in str(system.id or 'network').split('_'))
-    return metabolic_network_type(MetabolicNetworkElement._get_identifier(name), reactions, objective)(label)
+    return FluxBalanceInteraction(
+        label,
+        cell=cell,
+        reactions=reactions,
+        objective=objective,
+        name=FluxBalanceInteraction._get_identifier(name),
+    )
 
 
-def to_cobra(element: MetabolicNetworkElement, *, needed_by: str = 'to_cobra') -> object:
-    """Return the COBRApy model of a metabolic network element.
+def to_cobra(network: FluxBalanceInteraction, cell: Element | None = None, *, needed_by: str = 'to_cobra') -> object:
+    """Return the COBRApy model of a flux balance.
 
-    The model keeps the current bounds, rules, and objective of the element.
+    The model keeps the reactions, rules, and objective of the network and the bounds of its cell.
 
-    A switch that is off knocks its gene out, and the system solves with the `hybrid` interface, which reaches HiGHS.
+    A switch of the cell that is off knocks its gene out, and the system solves with the `hybrid` interface, which
+    reaches HiGHS.
 
     Args:
-        element:
-            The element.
+        network:
+            The flux balance.
+
+        cell:
+            The cell whose values hold the bounds and the switches, or `None` for the values the network starts with.
 
         needed_by:
             The name of what needs the extra, for the error.
@@ -133,44 +156,46 @@ def to_cobra(element: MetabolicNetworkElement, *, needed_by: str = 'to_cobra') -
             The extra is not installed.
 
     Examples:
-        >>> from skcomplex.systems.biology.common.metabolism import ReactionSpec, metabolic_network_type, to_cobra
+        >>> from skcomplex.systems.biology.common.metabolism import FluxBalanceInteraction, ReactionSpec, to_cobra
         >>> reactions = {'r': ReactionSpec({'a': -1.0}, upper=3.0, rule='g')}
-        >>> system = to_cobra(metabolic_network_type('OneElement', reactions, {'r': 1.0})('cell'))
+        >>> system = to_cobra(FluxBalanceInteraction('fba', reactions=reactions, objective={'r': 1.0}))
         >>> system.reactions.r.upper_bound, system.reactions.r.gene_reaction_rule
         (3.0, 'g')
     """
     cobra = load_extra(needed_by)
-    system = cobra.Model(element.label)
+    given = dict(cell.get_params()['values'] or {}) if cell is not None else {}
+    values = network.get_values() | {name: float(np.asarray(value)) for name, value in given.items()}
+    system = cobra.Model(network.cell if cell is None else cell.label)
     metabolites: dict[str, object] = {}
-    for spec in element.reactions.values():
+    for spec in network.reactions.values():
         for name in spec.coefficients:
             compartment = name.rpartition('_')[2] if '_' in name else DEFAULT_COMPARTMENT
             metabolites.setdefault(name, cobra.Metabolite(name, compartment=compartment))
     reactions = []
-    for name, spec in element.reactions.items():
-        identifier = element._get_identifier(name)
+    for name, spec in network.reactions.items():
+        identifier = network._get_identifier(name)
         reaction = cobra.Reaction(name)
-        reaction.bounds = (element.get_number(f'lower_{identifier}'), element.get_number(f'upper_{identifier}'))
+        reaction.bounds = (values[f'lower_{identifier}'], values[f'upper_{identifier}'])
         reaction.add_metabolites({metabolites[item]: float(value) for item, value in spec.coefficients.items()})
         reaction.gene_reaction_rule = spec.rule
         reactions.append(reaction)
     system.add_reactions(reactions)
     system.solver = SOLVER
-    weights = element.default_objective if element.objective is None else element.objective
-    system.objective = {system.reactions.get_by_id(name): float(value) for name, value in weights.items()}
-    for gene in element.get_genes_of():
-        if element.get_number(element.get_gene_name(gene)) < 1:
+    system.objective = {system.reactions.get_by_id(name): float(value) for name, value in network.objective.items()}
+    for gene in network.get_genes_of():
+        if values[network.get_gene_name(gene)] < 1:
             system.genes.get_by_id(gene).knock_out()
     return system
 
 
 def load_network(
     source: str | Path = BUNDLED_SYSTEM,
-    label: str = 'network',
+    cell: str = 'network',
     *,
+    label: str = 'fba',
     needed_by: str = 'load_network',
-) -> MetabolicNetworkElement:
-    """Return the metabolic network element of a file or of a BiGG identifier.
+) -> FluxBalanceInteraction:
+    """Return the flux balance of a network in a file or of a BiGG identifier.
 
     The file is an SBML or BiGG JSON file.
 
@@ -179,15 +204,18 @@ def load_network(
             The path of a `.xml`, `.sbml`, or `.json` file, a BiGG identifier, which COBRApy downloads, or `'textbook'`
             for the E. coli core system it bundles.
 
+        cell:
+            The path of the cell whose values hold the fluxes, the bounds, and the switches.
+
         label:
-            The label of the element.
+            The label of the interaction.
 
         needed_by:
             The name of what needs the extra, for the error.
 
     Returns:
-        element:
-            The element.
+        network:
+            The flux balance of the network.
 
     Raises:
         MissingExtraError:
@@ -201,27 +229,30 @@ def load_network(
     cobra = load_extra(needed_by)
     path = Path(source)
     if path.suffix == '.json':
-        return from_cobra(cobra.io.load_json_model(str(path)), label)
+        return from_cobra(cobra.io.load_json_model(str(path)), cell, label=label)
     if path.suffix in {'.xml', '.sbml'}:
-        return from_cobra(cobra.io.read_sbml_model(str(path)), label)
+        return from_cobra(cobra.io.read_sbml_model(str(path)), cell, label=label)
     if str(source) == BUNDLED_SYSTEM:
-        return from_cobra(cobra.io.load_model(BUNDLED_SYSTEM), label)
+        return from_cobra(cobra.io.load_model(BUNDLED_SYSTEM), cell, label=label)
     repository = cobra.io.web.load.BiGGModels()
     repository._url = repository.url.copy_with(scheme='https')
-    return from_cobra(cobra.io.load_model(str(source), repositories=[repository]), label)
+    return from_cobra(cobra.io.load_model(str(source), repositories=[repository]), cell, label=label)
 
 
-def save_network(element: MetabolicNetworkElement, path: str | Path) -> None:
-    """Write a metabolic network element to an SBML or BiGG JSON file.
+def save_network(network: FluxBalanceInteraction, path: str | Path, cell: Element | None = None) -> None:
+    """Write a flux balance to an SBML or BiGG JSON file.
 
     The format follows the suffix of the path.
 
     Args:
-        element:
-            The element.
+        network:
+            The flux balance.
 
         path:
             The path of a `.xml`, `.sbml`, or `.json` file.
+
+        cell:
+            The cell whose values hold the bounds and the switches, or `None` for the values the network starts with.
 
     Raises:
         MissingExtraError:
@@ -233,8 +264,8 @@ def save_network(element: MetabolicNetworkElement, path: str | Path) -> None:
     Examples:
         >>> import tempfile
         >>> from pathlib import Path
-        >>> from skcomplex.systems.biology.common.metabolism import ReactionSpec, metabolic_network_type, save_network
-        >>> network = metabolic_network_type('SavedElement', {'r': ReactionSpec({'a': -1.0})}, {'r': 1.0})('cell')
+        >>> from skcomplex.systems.biology.common.metabolism import FluxBalanceInteraction, ReactionSpec, save_network
+        >>> network = FluxBalanceInteraction('fba', reactions={'r': ReactionSpec({'a': -1.0})}, objective={'r': 1.0})
         >>> with tempfile.TemporaryDirectory() as folder:
         ...     save_network(network, Path(folder) / 'network.json')
         ...     (Path(folder) / 'network.json').exists()
@@ -243,9 +274,9 @@ def save_network(element: MetabolicNetworkElement, path: str | Path) -> None:
     cobra = load_extra('save_network')
     target = Path(path)
     if target.suffix == '.json':
-        cobra.io.save_json_model(to_cobra(element), str(target))
+        cobra.io.save_json_model(to_cobra(network, cell), str(target))
     elif target.suffix in {'.xml', '.sbml'}:
-        cobra.io.write_sbml_model(to_cobra(element), str(target))
+        cobra.io.write_sbml_model(to_cobra(network, cell), str(target))
     else:
         error_msg = f'The path {target} has the suffix {target.suffix!r}. Use `.xml`, `.sbml`, or `.json`.'
         raise ValidationError(error_msg)
