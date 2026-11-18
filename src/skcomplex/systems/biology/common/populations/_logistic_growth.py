@@ -9,7 +9,7 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from .....core.specs import ParameterSpec, RoleSpec
+from .....core.specs import Role
 from ._growth import GrowthInteraction
 
 
@@ -42,14 +42,13 @@ class LogisticGrowthInteraction(GrowthInteraction):
 
     Examples:
         >>> from skcomplex.systems.biology.common.kinetics import CompartmentElement
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.biology.common.populations import LogisticGrowthInteraction
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> system = CompositeSystem(
+        >>> system = System(
         ...     elements=[CompartmentElement('rabbits', x=1.0)],
         ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=50.0)],
         ... )
-        >>> trajectory = simulate(system, until=30.0, dt=0.1)
+        >>> trajectory = system.prepare().simulate(until=30.0, dt=0.1)
         >>> round(float(trajectory.get_values('rabbits.x')[-1]), 3)
         50.0
     """
@@ -58,10 +57,10 @@ class LogisticGrowthInteraction(GrowthInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        target: Role,
+        r: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        K: Annotated[float, RealSet.open(0, oo)] = 100.0,
+        tau: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
         state: str = 'x',
     ) -> None:
         super().__init__(label, target=target, r=r, K=K, tau=tau, form='logistic', state=state)

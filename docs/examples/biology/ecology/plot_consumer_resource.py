@@ -13,14 +13,13 @@ the resource that limits it most.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import ConsumerResourceSystem
 
 SYSTEM = 'consumer_resource'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(ConsumerResourceSystem(), observers=[observer])
+trajectory = ConsumerResourceSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Isoclines in resource space

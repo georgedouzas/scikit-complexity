@@ -5,7 +5,6 @@ import pytest
 from scipy.integrate import solve_ivp
 
 from skcomplex.core.engine.backends import NumbaBackend
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.ecology import NeutralClusteringSystem
 
 
@@ -28,13 +27,7 @@ def test_neutral_clustering_variance_grows_linearly_without_hops():
     """Test that without hops the variance over 400 patches, averaged over six runs, grows as 2 alpha n t."""
     system = NeutralClusteringSystem(400, n=10.0, alpha=1.0, beta=0.0)
     runs = [
-        simulate(
-            system,
-            dt=2.0,
-            random_state=seed,
-            backend=NumbaBackend(),
-            until=10,
-        )
+        system.set_params(backend=NumbaBackend()).prepare().simulate(dt=2.0, random_state=seed, until=10)
         for seed in range(6)
     ]
     times = runs[0].times
@@ -50,13 +43,10 @@ def test_neutral_clustering_hops_slow_but_keep_the_clustering():
     sites, until = 64, 20.0
     system = NeutralClusteringSystem(sites, n=10.0, alpha=1.0, beta=1.0)
     variances = [
-        simulate(
-            system,
-            dt=5.0,
-            random_state=seed,
-            backend=NumbaBackend(),
-            until=until,
-        ).get_values('variance')
+        system.set_params(backend=NumbaBackend())
+        .prepare()
+        .simulate(dt=5.0, random_state=seed, until=until)
+        .get_values('variance')
         for seed in range(32)
     ]
     times = np.arange(0.0, until + 1, 5.0)

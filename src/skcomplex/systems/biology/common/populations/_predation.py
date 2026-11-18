@@ -10,8 +10,9 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from .....core.components.interactions import Interaction
-from .....core.components.laws import BaseLaw, RateLaw
-from .....core.specs import ParameterSpec, RoleSpec
+from .....core.components.laws import RateLaw
+from .....core.components.spaces import BaseSpace
+from .....core.specs import Role
 
 
 class PredationInteraction(Interaction):
@@ -47,10 +48,10 @@ class PredationInteraction(Interaction):
         self,
         label: str,
         *,
-        predator: Annotated[str, RoleSpec()],
-        prey: Annotated[str, RoleSpec()],
-        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        predator: Role,
+        prey: Role,
+        a: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        b: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
     ) -> None:
         super().__init__(label)
         self.predator = predator
@@ -58,16 +59,15 @@ class PredationInteraction(Interaction):
         self.a = a
         self.b = b
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rates `-a * predator * prey` and `b * predator * prey`.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rates `-a * predator * prey` and `b * predator * prey`.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the bound elements, the time `t`, and the parameters.
         """
-        encounters = s.predator.x * s.prey.x
-        return [RateLaw(s.prey.x, -s.a * encounters), RateLaw(s.predator.x, s.b * encounters)]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context
+            encounters = s.predator.x * s.prey.x
+            self.laws_ = [RateLaw(s.prey.x, -s.a * encounters), RateLaw(s.predator.x, s.b * encounters)]

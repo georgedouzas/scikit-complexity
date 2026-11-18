@@ -12,14 +12,13 @@ on it: demographic noise excites the damped oscillations of the deterministic sy
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import StochasticPredatorPreySystem
 
 SYSTEM = 'stochastic_predator_prey'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(StochasticPredatorPreySystem(stochastic=True), observers=[observer], random_state=0)
+trajectory = StochasticPredatorPreySystem(stochastic=True).prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Noise against the deterministic limit
@@ -28,7 +27,7 @@ trajectory = simulate(StochasticPredatorPreySystem(stochastic=True), observers=[
 # process should circle the same point without settling, its excursions as large as the first turns of the spiral.
 
 noisy = trajectory
-deterministic = simulate(StochasticPredatorPreySystem(stochastic=False))
+deterministic = StochasticPredatorPreySystem(stochastic=False).prepare().simulate()
 a, e, h, m = 0.005, 0.5, 0.5, 0.3
 fig, ax = plt.subplots(figsize=(6, 5))
 ax.plot(noisy.get_values('prey.x'), noisy.get_values('predators.x'), linewidth=0.8, label='jump process')

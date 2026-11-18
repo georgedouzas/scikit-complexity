@@ -14,14 +14,13 @@ rival, both settle below their capacities and coexist.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import CompetitionSystem
 
 SYSTEM = 'competition'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(CompetitionSystem(first=5.0, second=60.0), observers=[observer], until=30)
+trajectory = CompetitionSystem(first=5.0, second=60.0).prepare().simulate(observers=[observer], until=30)
 
 # %%
 # Phase plane and nullclines

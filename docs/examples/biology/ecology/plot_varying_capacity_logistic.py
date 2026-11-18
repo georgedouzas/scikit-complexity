@@ -13,14 +13,13 @@ it started and settles on a cycle of one season. The cycle lags behind the capac
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import VaryingCapacityLogisticSystem
 
 SYSTEM = 'varying_capacity_logistic'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(VaryingCapacityLogisticSystem(n=5.0), observers=[observer], until=8)
+trajectory = VaryingCapacityLogisticSystem(n=5.0).prepare().simulate(observers=[observer], until=8)
 
 # %%
 # A unique periodic solution
@@ -29,7 +28,7 @@ trajectory = simulate(VaryingCapacityLogisticSystem(n=5.0), observers=[observer]
 # to the same cycle, which peaks after the capacity and stays inside its range.
 
 low = trajectory
-high = simulate(VaryingCapacityLogisticSystem(n=180.0), until=8)
+high = VaryingCapacityLogisticSystem(n=180.0).prepare().simulate(until=8)
 capacity = 100.0 * (1 + 0.5 * np.sin(2 * np.pi * low.times))
 fig, ax = plt.subplots(figsize=(8, 4))
 ax.plot(low.times, capacity, color='grey', linestyle=':', label='carrying capacity')
