@@ -17,7 +17,7 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
-from ....core.components.laws.utils import delayed, hill, where
+from ....core.components.laws.utils import hill, where
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, ScipyODESolver
 from ....core.systems import BaseSystem, System
@@ -1790,9 +1790,9 @@ class DelayedDCVaccineSystem(BaseSystem):
                     RateLaw(
                         s.target.ENK,
                         s.target.rho1
-                        * delayed(s.target.ENK, s.target.tau1)
-                        * delayed(s.target.C, s.target.tau1)
-                        / (s.target.g2 + delayed(s.target.C, s.target.tau1)),
+                        * s.target.ENK(t=s.t - s.target.tau1)
+                        * s.target.C(t=s.t - s.target.tau1)
+                        / (s.target.g2 + s.target.C(t=s.t - s.target.tau1)),
                     ),
                 ],
             ),
@@ -1832,9 +1832,9 @@ class DelayedDCVaccineSystem(BaseSystem):
                     RateLaw(
                         s.target.E,
                         s.target.rho3
-                        * delayed(s.target.ENC, 7 * s.target.tau2, 7 * self.tau2)
-                        * delayed(s.target.ED, 7 * s.target.tau2, 7 * self.tau2)
-                        / (s.target.g3 + delayed(s.target.ED, 7 * s.target.tau2, 7 * self.tau2)),
+                        * s.target.ENC(t=s.t - 7 * s.target.tau2)
+                        * s.target.ED(t=s.t - 7 * s.target.tau2)
+                        / (s.target.g3 + s.target.ED(t=s.t - 7 * s.target.tau2)),
                     ),
                 ],
             ),
@@ -1845,9 +1845,9 @@ class DelayedDCVaccineSystem(BaseSystem):
                     RateLaw(
                         s.target.E,
                         s.target.m1
-                        * delayed(s.target.ED, s.target.tau2)
-                        * delayed(s.target.E, s.target.tau2)
-                        / (s.target.g3 + delayed(s.target.ED, s.target.tau2)),
+                        * s.target.ED(t=s.t - s.target.tau2)
+                        * s.target.E(t=s.t - s.target.tau2)
+                        / (s.target.g3 + s.target.ED(t=s.t - s.target.tau2)),
                     ),
                 ],
             ),
@@ -1858,9 +1858,9 @@ class DelayedDCVaccineSystem(BaseSystem):
                     RateLaw(
                         s.target.E,
                         s.target.rho4
-                        * delayed(s.target.E, s.target.tau2)
-                        * delayed(s.target.C, s.target.tau2) ** 2
-                        / (s.target.g4 + delayed(s.target.C, s.target.tau2) ** 2),
+                        * s.target.E(t=s.t - s.target.tau2)
+                        * s.target.C(t=s.t - s.target.tau2) ** 2
+                        / (s.target.g4 + s.target.C(t=s.t - s.target.tau2) ** 2),
                     ),
                 ],
             ),
@@ -1932,9 +1932,9 @@ class DelayedDCVaccineSystem(BaseSystem):
                     RateLaw(
                         s.target.ER,
                         s.target.rho7
-                        * delayed(s.target.ER, s.target.tau3)
-                        * delayed(s.target.A, s.target.tau3) ** 2
-                        / (s.target.g8 + delayed(s.target.A, s.target.tau3) ** 2),
+                        * s.target.ER(t=s.t - s.target.tau3)
+                        * s.target.A(t=s.t - s.target.tau3) ** 2
+                        / (s.target.g8 + s.target.A(t=s.t - s.target.tau3) ** 2),
                     ),
                 ],
             ),
@@ -1945,9 +1945,9 @@ class DelayedDCVaccineSystem(BaseSystem):
                     RateLaw(
                         s.target.ER,
                         s.target.rho8
-                        * delayed(s.target.ER, s.target.tau3)
-                        * delayed(s.target.C, s.target.tau3)
-                        / (s.target.g9 + delayed(s.target.C, s.target.tau3)),
+                        * s.target.ER(t=s.t - s.target.tau3)
+                        * s.target.C(t=s.t - s.target.tau3)
+                        / (s.target.g9 + s.target.C(t=s.t - s.target.tau3)),
                     ),
                 ],
             ),
@@ -1980,9 +1980,9 @@ class DelayedDCVaccineSystem(BaseSystem):
                     RateLaw(
                         s.target.E1H,
                         s.target.m2
-                        * delayed(s.target.ED, 2 * s.target.tau3, 2 * self.tau3)
-                        * delayed(s.target.ENH, 2 * s.target.tau3, 2 * self.tau3)
-                        / (s.target.g3 + delayed(s.target.ED, 2 * s.target.tau3, 2 * self.tau3)),
+                        * s.target.ED(t=s.t - 2 * s.target.tau3)
+                        * s.target.ENH(t=s.t - 2 * s.target.tau3)
+                        / (s.target.g3 + s.target.ED(t=s.t - 2 * s.target.tau3)),
                     ),
                 ],
             ),
@@ -2000,9 +2000,9 @@ class DelayedDCVaccineSystem(BaseSystem):
                     RateLaw(
                         s.target.E1H,
                         s.target.rho10
-                        * delayed(s.target.ED, s.target.tau3)
-                        * delayed(s.target.E, s.target.tau3)
-                        / (s.target.g3 + delayed(s.target.ED, s.target.tau3)),
+                        * s.target.ED(t=s.t - s.target.tau3)
+                        * s.target.E(t=s.t - s.target.tau3)
+                        / (s.target.g3 + s.target.ED(t=s.t - s.target.tau3)),
                     ),
                 ],
             ),
