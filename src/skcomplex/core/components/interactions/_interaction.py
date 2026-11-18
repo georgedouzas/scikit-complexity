@@ -5,6 +5,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping, Sequence
+from types import SimpleNamespace
+
+from ...errors import ValidationError
+from ...specs import DeclaredVariableSpec, RoleSpec
+from ..base import BaseComponent
+from ..spaces import BaseSpace
 from ._base import BaseInteraction
 
 HYPEREDGES = 'hyperedges'
@@ -35,9 +42,22 @@ class Interaction(BaseInteraction):
     read the element on the hyperedges as `s.hyperedge`, or else the element on the edges as `s.edge`, the link that
     joins the first two members, as the regulated links of triadic percolation do.
 
+    A rule used once needs no class. `roles` binds each role to an element and `laws` is a function of the namespace
+    that returns the laws, such as gravity on a ball,
+    `Interaction('gravity', roles={'target': 'ball'}, laws=lambda s: [RateLaw(s.target.x.diff(s.t, 2), -9.81)])`.
+
     Args:
         label:
             The name of the interaction, unique among the components of its system, such as `'predation'`.
+
+        roles:
+            The element each role binds, by the name of the role, such as `{'target': 'ball'}`, for a rule written
+            without a class, or `None`.
+
+        laws:
+            The function of the namespace that returns the laws of a rule written without a class, such as
+            `lambda s: [RateLaw(s.target.n.diff(s.t), s.target.n)]`, the laws themselves when they read no element,
+            or `None`.
 
         among:
             The group whose members sit at the ends of the edges, such as `'people'`, or `None` to bind elements by
@@ -67,12 +87,83 @@ class Interaction(BaseInteraction):
         ...         self.a = a
         >>> PredationInteraction('predation', predator='foxes', prey='rabbits')
         PredationInteraction(label='predation', predator='foxes', prey='rabbits')
+
+        Growth of a population, written without a class:
+
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.components.laws import RateLaw
+        >>> from skcomplex.core.systems import System
+        >>> growth = Interaction(
+        ...     'growth',
+        ...     roles={'target': 'rabbits'},
+        ...     laws=lambda s: [RateLaw(s.target.n.diff(s.t), 0.5 * s.target.n)],
+        ... )
+        >>> system = System(elements=[Element('rabbits', values={'n': 10.0})], interactions=[growth]).prepare()
+        >>> system.equations_
+        {'rabbits.n': '0.5*rabbits.n'}
     """
 
-    def __init__(self, label: str, *, among: str | None = None, along: bool | str | None = None) -> None:
+    def __init__(
+        self,
+        label: str,
+        *,
+        roles: Mapping[str, object] | None = None,
+        laws: Callable[[SimpleNamespace], Sequence[BaseComponent]] | Sequence[BaseComponent] | None = None,
+        among: str | None = None,
+        along: bool | str | None = None,
+    ) -> None:
         super().__init__(label)
+        self.roles = roles
+        self.laws = laws
         self.among = among
         self.along = along
+
+    def _get_declared(self) -> Mapping[str, DeclaredVariableSpec]:
+        """Return the numeric arguments as parameters and the entries of `roles` as roles."""
+        declared = dict(super()._get_declared())
+        for name, binding in (self.roles or {}).items():
+            declared[name] = DeclaredVariableSpec(binding, RoleSpec())
+        return declared
+
+    def _get_binding(self, role: str) -> object:
+        """Return what a role binds, from `roles` or from the argument of its name.
+
+        Args:
+            role:
+                The name of the role.
+
+        Returns:
+            binding:
+                The label, labels, or entries the role binds, or `None` when it binds nothing.
+        """
+        if self.roles is not None and role in self.roles:
+            return self.roles[role]
+        return super()._get_binding(role)
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Check the interaction, or set the laws of `laws` for a binding.
+
+        Args:
+            context:
+                The space the interaction inherits from its system, or the namespace of the elements it binds.
+
+        Raises:
+            ValidationError:
+                A role of `roles` takes the name of an argument, or `laws` is neither a function nor a list of laws.
+        """
+        clashes = sorted(set(self.roles or {}) & {'label', 'roles', 'laws', 'among', 'along'})
+        if clashes:
+            error_msg = f'The role {clashes[0]!r} of {self.label!r} takes the name of an argument. Rename the role.'
+            raise ValidationError(error_msg)
+        if self.laws is not None and not callable(self.laws) and not isinstance(self.laws, list | tuple):
+            error_msg = (
+                f'The laws of {self.label!r} are {self.laws!r}. Give a function of the namespace that returns them, '
+                'such as `laws=lambda s: [RateLaw(s.target.n.diff(s.t), s.target.n)]`.'
+            )
+            raise ValidationError(error_msg)
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace) and self.laws is not None:
+            self.laws_ = list(self.laws(context) if callable(self.laws) else self.laws)
 
     def _runs_on_edges(self) -> bool:
         """Return whether the interaction runs along edges."""

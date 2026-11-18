@@ -563,6 +563,21 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         """
         self.laws_ = self._get_laws_of(inputs)
 
+    def _get_binding(self, role: str) -> object:
+        """Return what a role binds, such as the label of an element.
+
+        It is the argument of the same name, such as `target='ball'`.
+
+        Args:
+            role:
+                The name of the role.
+
+        Returns:
+            binding:
+                The label, labels, or entries the role binds, or `None` when it binds nothing.
+        """
+        return getattr(self, role, None)
+
     def _get_role(self, role: str) -> str:
         """Return the role a subclass binds in place of a role of its general interaction.
 
@@ -955,7 +970,7 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
             sites=any(need.sites for need in needs),
             roles={
                 name: replace(spec, states=self._get_state_names(spec.states))
-                for name, spec in self._get_specs().items()
+                for name, spec in self._get_component_specs().items()
                 if isinstance(spec, RoleSpec)
             },
             laws=laws,

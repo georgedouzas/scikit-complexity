@@ -14,11 +14,18 @@ SIGNS = (-1, 1)
 
 
 class FlowTermLaw(RateLaw):
-    """The rate a flow adds to one of its stocks, `sign * f`, with the sign it has in the flow.
+    """A law of the rate `sign * f` that a flow adds to one of its stocks.
 
-    A flow `RateLaw({s.alive: -1, s.dead: +1}, f, label='deaths')` becomes the term `-f` on `alive` with the sign `-1`
-    and the term `f` on `dead` with the sign `+1`, so the compiler knows which stock the flow leaves and which it
-    enters without reading the sign of `f`.
+    It keeps the sign the stock has in the flow. A flow `RateLaw({s.alive: -1, s.dead: +1}, f, label='deaths')`
+    becomes the term `-f` on `alive` with the sign `-1` and the term `f` on `dead` with the sign `+1`, so the compiler
+    knows which stock the flow leaves and which it enters without reading the sign of `f`.
+
+    Unlike a `RateLaw` on one state, it is one side of a flow, so the loops analysis and the flow matrix draw the flow
+    from the stock it leaves to the stock it enters. Choose it when a pass of the compiler needs one side of a flow,
+    and write the flow itself in a model.
+
+    It appears in many fields. People die from the living into the dead, water drains from a tank, and capital
+    depreciates out of an economy.
 
     Args:
         target:
@@ -51,7 +58,7 @@ class FlowTermLaw(RateLaw):
 
     @classmethod
     def _get_terms(cls, law: RateLaw, owner: str) -> list[RateLaw]:
-        """Return the terms of a flow, one per stock, or the law itself when its target is no mapping.
+        """Return the terms of a flow, one per stock, or a law of one state as it is.
 
         Args:
             law:

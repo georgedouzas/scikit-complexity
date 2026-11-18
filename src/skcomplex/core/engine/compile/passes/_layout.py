@@ -6,8 +6,9 @@
 import itertools
 import re
 from collections import Counter
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping, Sequence, Sized
 from dataclasses import replace
+from typing import cast
 
 import numpy as np
 import numpy.typing as npt
@@ -25,7 +26,7 @@ from ....enums import VariableKind
 from ....errors import LabelError, SpaceError, ValidationError
 from ....specs import EntrySpec, PowerSeriesSpec, TensorSpec, VariableSpec
 from ....types import Array
-from ..._utils import components_of, declarations_of, default_of, symbol, vector
+from ..._utils import binding_of, components_of, declarations_of, default_of, symbol, vector
 from ...enums import ReadKind
 from ...problems._block_spec import BlockSpec
 from ...problems._declarations_spec import ACTIVE, ENDS, MEMBERS, DeclarationsSpec
@@ -311,7 +312,7 @@ class LayoutPass(BasePass):
         roles = declarations_of(node.component_type, VariableKind.ROLE)
         shape = []
         for role in declaration.shape or ():
-            label = getattr(node.component, role, None) if role in roles else None
+            label = binding_of(node.component, role) if role in roles else None
             size = groups.get(f'{node.scope}{label}') if isinstance(label, str) else None
             if size is None:
                 error_msg = (
@@ -335,7 +336,7 @@ class LayoutPass(BasePass):
         if not isinstance(component, BaseInteraction) or not component._is_preparing_laws():
             return {}
         roles = declarations_of(node.component_type, VariableKind.ROLE)
-        bound = {role: getattr(component, role, None) for role in roles}
+        bound = {role: binding_of(component, role) for role in roles}
         sizes = {
             role: groups[f'{node.scope}{label}']
             for role, label in bound.items()
@@ -618,7 +619,7 @@ class LayoutPass(BasePass):
                 f'{type(node.component).__name__}. Declare the role with `role(variadic=True)`.'
             )
             raise ValidationError(error_msg)
-        entries = len(getattr(node.component, role))
+        entries = len(cast(Sized, binding_of(node.component, role)))
         value = LayoutPass._get_value_of(node, variable)
         given = len(value) if isinstance(value, list | tuple | np.ndarray) and np.ndim(value) else None
         if given is not None and given != entries:
@@ -823,8 +824,8 @@ class LayoutPass(BasePass):
         for node in nodes:
             if not isinstance(node.component, BaseInteraction):
                 continue
-            for name, declaration in declarations_of(type(node.component), VariableKind.ROLE).items():
-                value = getattr(node.component, name)
+            for name, declaration in declarations_of(node.component, VariableKind.ROLE).items():
+                value = binding_of(node.component, name)
                 if declaration.noise and isinstance(value, WienerProcessSpec):
                     processes.setdefault(f'{node.scope}{value.label}', value)
         return processes

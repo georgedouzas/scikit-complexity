@@ -77,7 +77,7 @@ class FlowInteraction(Interaction):
         self.amount = amount
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rate law of the flow, which maps the stock it leaves to -1 and the stock it enters to +1.
+        """Set the rate law of the flow, which maps its stocks to signs.
 
         Args:
             context:

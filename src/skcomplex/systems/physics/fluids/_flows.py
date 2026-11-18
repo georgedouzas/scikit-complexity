@@ -17,7 +17,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import ConservationInteraction, Interaction, RateInteraction
+from ....core.components.interactions import ConservationInteraction, Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import gradient, inverse_helmholtz, laplacian
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
@@ -298,11 +299,12 @@ class KuramotoSivashinskySystem(BaseSystem):
             state='u',
             flux=lambda s: s.target.u**2 / 2,
         )
-        linear = RateInteraction(
+        linear = Interaction(
             'linear',
-            target='line',
-            state='u',
-            rate=lambda s: -laplacian(s.target.u) - laplacian(laplacian(s.target.u)),
+            roles={'target': 'line'},
+            laws=lambda s: [
+                RateLaw(s.target.u.diff(s.t), -laplacian(s.target.u) - laplacian(laplacian(s.target.u))),
+            ],
         )
         self.system_ = System(
             self.label,
@@ -334,16 +336,21 @@ def _get_flow_interactions(buoyant: bool) -> list[Interaction]:
     )
     if not buoyant:
         viscosity = DiffusivityInteraction('viscosity', target='flow', state='omega', coefficient=lambda s: s.target.nu)
-        forcing = RateInteraction('forcing', target='flow', state='omega', rate=lambda s: s.target.f)
+        forcing = Interaction(
+            'forcing',
+            roles={'target': 'flow'},
+            laws=lambda s: [RateLaw(s.target.omega.diff(s.t), s.target.f)],
+        )
         return [advection, viscosity, forcing]
     return [
         advection,
         DiffusivityInteraction('viscosity', target='flow', state='omega', coefficient=lambda s: s.target.Pr),
-        RateInteraction(
+        Interaction(
             'buoyancy',
-            target='flow',
-            state='omega',
-            rate=lambda s: s.target.Ra * s.target.Pr * gradient(s.target.theta, 2)[0],
+            roles={'target': 'flow'},
+            laws=lambda s: [
+                RateLaw(s.target.omega.diff(s.t), s.target.Ra * s.target.Pr * gradient(s.target.theta, 2)[0]),
+            ],
         ),
         AdvectionInteraction(
             'convection',

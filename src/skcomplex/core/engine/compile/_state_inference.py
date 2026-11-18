@@ -42,7 +42,7 @@ from ...components.systems import CompositeSystem
 from ...enums import TopologyKind, VariableKind
 from ...errors import ValidationError
 from ...specs import DeclaredVariableSpec, MatrixGroupSpec, ParameterSpec, StateSpec, VisualSpec
-from .._utils import bound_labels, declarations_of
+from .._utils import binding_of, bound_labels, declarations_of
 from ..problems._bilinear_law import BilinearLaw
 from ._compilation import Compilation
 
@@ -665,7 +665,7 @@ class _StateInference:
             if not isinstance(record.law, RuleLaw) or node is None:
                 continue
             for role in declarations_of(node.component, VariableKind.ROLE):
-                groups.update(f'{node.scope}{label}' for label in bound_labels(getattr(node.component, role, None)))
+                groups.update(f'{node.scope}{label}' for label in bound_labels(binding_of(node.component, role)))
         return groups
 
     @staticmethod

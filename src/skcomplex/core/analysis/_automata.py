@@ -620,7 +620,7 @@ def _get_local_rule(interaction: BaseInteraction, system: CompositeSystem) -> Lo
         return None
     roles = {}
     for role in interaction.get_requirements().roles:
-        path = getattr(interaction, role, None)
+        path = interaction._get_binding(role)
         element = next((item for item in system.elements if item.label == path), None)
         if element is None or not isinstance(path, str):
             return None

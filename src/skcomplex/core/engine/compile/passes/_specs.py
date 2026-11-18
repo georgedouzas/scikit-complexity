@@ -34,7 +34,7 @@ from ....enums import VariableKind
 from ....errors import LabelError, RoleError, ValidationError
 from ....specs import EntrySpec
 from ....types import Indices
-from ..._utils import bound_labels, declarations_of, domain_of, symbol, vector
+from ..._utils import binding_of, bound_labels, declarations_of, domain_of, symbol, vector
 from ...enums import ReadKind
 from ...problems import ProblemSpec
 from ...problems._block_spec import BlockSpec
@@ -243,7 +243,7 @@ class SpecsPass(BasePass):
     @staticmethod
     def _resolve_role(node: _NodeSpec, role: str, elements: dict[str, BlockSpec]) -> BlockSpec:
         """Return the block of the element or group bound to a role of an interaction."""
-        return SpecsPass._resolve_path(node, role, getattr(node.component, role), elements)
+        return SpecsPass._resolve_path(node, role, binding_of(node.component, role), elements)
 
     @staticmethod
     def _get_end_names(node: _NodeSpec, ends: Sequence[str]) -> tuple[str, ...]:
@@ -568,7 +568,7 @@ class SpecsPass(BasePass):
         blocks = [
             SpecsPass._resolve_role(node, role, elements)
             for role in declarations_of(node.component, VariableKind.ROLE)
-            if getattr(node.component, role) is not None
+            if binding_of(node.component, role) is not None
         ]
         edges = [block for block in blocks if getattr(block.node.component, 'on', None) == 'edges']
         nodes = [block for block in blocks if block not in edges]
@@ -989,7 +989,7 @@ class SpecsPass(BasePass):
         blocks = [
             SpecsPass._resolve_role(node, role, elements)
             for role in declarations_of(node.component, VariableKind.ROLE)
-            if getattr(node.component, role) is not None
+            if binding_of(node.component, role) is not None
         ]
         along = SpecsPass._get_along(node, blocks, SECOND_PARTS[::-1], elements) if len(blocks) == 1 else None
         blocks += [along] if along is not None else []
@@ -1271,9 +1271,9 @@ class SpecsPass(BasePass):
         node = block.node
         declared = declarations_of(node.component, VariableKind.ROLE)
         labels = {
-            role: getattr(node.component, role)
+            role: binding_of(node.component, role)
             for role, declaration in declared.items()
-            if declaration.variadic or getattr(node.component, role) is not None
+            if declaration.variadic or binding_of(node.component, role) is not None
         }
         variadic = {
             role: SpecsPass._resolve_entries(node, role, labels[role], elements)
@@ -1368,10 +1368,10 @@ class SpecsPass(BasePass):
         """
         node = block.node
         for role in bound:
-            label = getattr(node.component, role)
+            label = binding_of(node.component, role)
             if isinstance(label, list | tuple):
                 return True
-            if SpecsPass._resolve_member(node, role, label, elements) is not None:
+            if isinstance(label, str) and SpecsPass._resolve_member(node, role, label, elements) is not None:
                 continue
             if SpecsPass._resolve_role(node, role, elements).node.members is None:
                 return True
@@ -1466,7 +1466,9 @@ class SpecsPass(BasePass):
         if not block.node.interaction:
             return [SpecsPass._get_member_spec(block, time)], declarations
         component = block.node.component
-        bound = [role for role in declarations_of(component, VariableKind.ROLE) if getattr(component, role) is not None]
+        bound = [
+            role for role in declarations_of(component, VariableKind.ROLE) if binding_of(component, role) is not None
+        ]
         edges = isinstance(component, BaseInteraction) and component._runs_on_edges()
         if edges and SpecsPass._binds_separate(block, bound, elements):
             return SpecsPass._separate_specs(block, bound, elements, time, observer), declarations
