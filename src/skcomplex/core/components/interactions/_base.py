@@ -8,6 +8,7 @@ import inspect
 from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import fields as dataclass_fields
 from dataclasses import is_dataclass, replace
+from operator import lt as operator_lt
 from types import SimpleNamespace
 from typing import ClassVar, cast
 
@@ -289,11 +290,29 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
             state = symbols[name]
         if len(value.operands()) != 1:
             return None
-        shift = SR(time - value.operands()[0]).simplify_full()
-        if shift.is_zero():
+        shift = SR(time - value.operands()[0]).expand()
+        if shift.is_trivial_zero():
             return state
         shift = SR(BaseInteraction._get_translated(shift, time, symbols, discrete))
-        return (lag if discrete else delayed)(state, shift)
+        if discrete:
+            return lag(state, shift)
+        shortest = BaseInteraction._get_shortest(shift)
+        return delayed(state, shift) if shortest is None else delayed(state, shift, shortest)
+
+    @staticmethod
+    def _get_shortest(shift: Expression) -> Expression | None:
+        """Return the lower bound of a delay that reads states, or `None` for none.
+
+        A delay clipped from below, such as `x(t=t - clip(tau, low=0.1))` for a delay `tau` that changes with the
+        state, is never shorter than its bound, which bounds the steps of the solver. The shift is expanded and never
+        simplified, since a clipped delay holds conditions that simplifying cannot read.
+        """
+        operator = shift.operator()
+        if getattr(operator, 'name', lambda: '')() != 'where':
+            return None
+        condition, then, _ = shift.operands()
+        bounded = condition.operator() is operator_lt and bool(SR(condition.rhs() - then).is_trivial_zero())
+        return then if bounded else None
 
     @staticmethod
     def _get_translated(value: object, time: Expression, symbols: Mapping[str, Expression], discrete: bool) -> object:

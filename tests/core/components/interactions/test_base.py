@@ -40,7 +40,7 @@ from skcomplex.core.components.laws import (
     TotalisticSpec,
     UpdateLaw,
 )
-from skcomplex.core.components.laws.utils import neighbors
+from skcomplex.core.components.laws.utils import clip, neighbors
 from skcomplex.core.components.spaces import (
     BaseSpace,
     ContinuousSpace,
@@ -51,6 +51,7 @@ from skcomplex.core.components.spaces import (
 )
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.enums import ElementKind
 from skcomplex.core.errors import SpaceError, ValidationError
 from skcomplex.core.specs import BaseSpec, ParameterSpec, Role, RoleSpec, StateSpec
@@ -946,3 +947,26 @@ def test_an_argument_holding_wiener_processes_binds_them():
     trajectory = system.prepare().simulate(until=1.0, dt=0.1, random_state=0)
     assert np.ptp(trajectory.get_values('a.x')) > 0
     np.testing.assert_allclose(trajectory.get_values('a.x'), trajectory.get_values('b.x'))
+
+
+def _get_delayed_decay(shift):
+    """Return the run of a decay that reads its value a shift of time before."""
+    decay = Interaction(
+        'decay',
+        roles={'target': 'n'},
+        laws=lambda s: [
+            RateLaw(s.target.x.diff(s.t), -s.target.x(t=s.t - shift(s.target))),
+            RateLaw(s.target.tau.diff(s.t), -0.1 * s.target.tau),
+        ],
+    )
+    neuron = Element('n', values={'x': 1.0, 'tau': 0.5})
+    system = System(elements=[neuron], interactions=[decay], solver=RK4Solver(dt=0.01)).prepare()
+    return system, system.simulate(until=2.0).get_values('n.x')
+
+
+def test_a_delay_that_reads_the_state_is_bounded_by_its_clip():
+    """Test that a delay of the state clipped from below compiles, and runs as the fixed delay of its bound."""
+    system, clipped = _get_delayed_decay(lambda target: clip(target.tau * target.x, low=0.6))
+    assert 'where(n.tau*n.x < 0.6, 0.6, n.tau*n.x)' in system.equations_['n.x']
+    _, fixed = _get_delayed_decay(lambda target: 0.6)
+    np.testing.assert_allclose(clipped, fixed, rtol=1e-12)
