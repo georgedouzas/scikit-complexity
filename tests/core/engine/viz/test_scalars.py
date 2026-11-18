@@ -55,3 +55,13 @@ def test_scalars_visual_logs_chosen_components():
     (ScalarsVisual(components=[0, 1, 2], path=problem.elements[0].path, recording=logs).prepare(problem).run(frame))
     scalars = [item for item in logs.of('ring/x') if type(item).__name__ == 'Scalars']
     assert len(scalars[0].scalars.as_arrow_array().to_pylist()) == 3
+
+
+def test_scalars_visual_names_derivatives_with_primes():
+    """Test that the angular velocity of a pendulum is logged under `left/theta\\'`, not `left/theta_d1`."""
+    problem, frame = _first_frame(CoupledPendulumsSystem().prepare()._get_composite())
+    logs = Logs()
+    ScalarsVisual(path='left', recording=logs).prepare(problem).run(frame)
+    paths = {path for path, _ in logs.logs}
+    assert "left/theta\\'" in paths
+    assert not any('_d1' in path for path in paths)

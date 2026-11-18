@@ -149,7 +149,7 @@ class SiteVisual(BaseVisual):
             if self.states is not None and state not in self.states:
                 continue
             values = np.ravel(np.asarray(frame.get_value(name), dtype=float))
-            path = f'{element.path}/{state}'
+            path = BaseVisual._get_state_path(element.path, state)
             topology = frame.problem.topology
             if topology is not None and self._changes_topology(element, frame.problem):
                 snapshot = topology.read_network(frame.parameters, element.path)
@@ -217,7 +217,7 @@ class SiteVisual(BaseVisual):
             bounds = rrb.VisualBounds2D(x_range=(-reach, reach), y_range=(-reach, reach))
             return [
                 rrb.GraphView(
-                    origin=f'{element.path}/{state}',
+                    origin=BaseVisual._get_state_path(element.path, state),
                     name=state,
                     visual_bounds=bounds,
                     force_link=rrb.archetypes.ForceLink(distance=CHANGING_LINK),
@@ -227,11 +227,11 @@ class SiteVisual(BaseVisual):
                 for state in states
             ]
         if not isinstance(space, NetworkSpace):
-            return [rrb.Spatial2DView(origin=f'{element.path}/{state}', name=state) for state in states]
+            return [rrb.Spatial2DView(origin=BaseVisual._get_state_path(element.path, state), name=state) for state in states]
         positions = np.array(list(self._get_layout(space).values()))
         low, high = positions.min(axis=0) - NODE_SPACING, positions.max(axis=0) + NODE_SPACING
         bounds = rrb.VisualBounds2D(x_range=(low[0], high[0]), y_range=(low[1], high[1]))
-        return [rrb.GraphView(origin=f'{element.path}/{state}', name=state, visual_bounds=bounds) for state in states]
+        return [rrb.GraphView(origin=BaseVisual._get_state_path(element.path, state), name=state, visual_bounds=bounds) for state in states]
 
     @staticmethod
     def _changes_topology(element: CompiledElementSpec, problem: BaseProblemSpec) -> bool:
