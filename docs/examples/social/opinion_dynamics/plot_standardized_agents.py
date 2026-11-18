@@ -17,7 +17,6 @@ ordering.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.opinion_dynamics import StandardizedAgentsSystem
 
@@ -35,7 +34,7 @@ def temperature_at(time):
 system = StandardizedAgentsSystem(agents=100, K=K, J=J, H=H, T=LOW, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=12)
 schedule = {'standardization.intensity': lambda time: 1 / temperature_at(time)}
-trajectory = simulate(system, until=END, observers=[observer], schedule=schedule, random_state=0)
+trajectory = system.prepare().simulate(until=END, observers=[observer], schedule=schedule, random_state=0)
 
 # %%
 # Order parameters against the temperature

@@ -17,7 +17,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.opinion_dynamics import ThresholdAdoptionSystem
 
@@ -31,11 +30,10 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(
-    ThresholdAdoptionSystem(reach=9.0, random_state=0),
-    until=STEPS,
-    observers=[observer],
-    random_state=0,
+trajectory = (
+    ThresholdAdoptionSystem(reach=9.0, random_state=0)
+    .prepare()
+    .simulate(until=STEPS, observers=[observer], random_state=0)
 )
 
 # %%
@@ -62,11 +60,9 @@ for mode, color in (('infection', 'C0'), ('influence', 'C1')):
         finals.append(
             np.mean(
                 [
-                    simulate(
-                        ThresholdAdoptionSystem(reach=reach, mode=mode, random_state=seed),
-                        until=STEPS,
-                        random_state=seed,
-                    )
+                    ThresholdAdoptionSystem(reach=reach, mode=mode, random_state=seed)
+                    .prepare()
+                    .simulate(until=STEPS, random_state=seed)
                     .get_agents('people', STEPS)
                     .values['adopted']
                     .mean()

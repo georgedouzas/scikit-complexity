@@ -44,7 +44,6 @@ class NamerElement(Element):
             The number of members, or `None` for one.
 
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> import numpy as np
         >>> from skcomplex.systems.social.opinion_dynamics import NamerElement
         >>> group = NamerElement('namers', words=np.zeros((5, 5)), size=5)

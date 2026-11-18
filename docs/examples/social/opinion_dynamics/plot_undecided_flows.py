@@ -13,14 +13,13 @@ and above it the surplus never makes up its mind.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.opinion_dynamics import UndecidedFlowsSystem
 
 SYSTEM = 'undecided_flows'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(UndecidedFlowsSystem(), observers=[observer])
+trajectory = UndecidedFlowsSystem().prepare().simulate(observers=[observer])
 
 # %%
 # The critical population
@@ -31,7 +30,7 @@ trajectory = simulate(UndecidedFlowsSystem(), observers=[observer])
 sizes = np.linspace(20, 150, 14)
 finals = []
 for size in sizes:
-    run = simulate(UndecidedFlowsSystem(n_agents=float(size)), until=200, dt=1.0)
+    run = UndecidedFlowsSystem(n_agents=float(size)).prepare().simulate(until=200, dt=1.0)
     finals.append(run.get_values('population.undecided')[-1])
 fig, (flows, critical) = plt.subplots(1, 2, figsize=(10, 4))
 for name, label in (('against', 'against A'), ('support', 'for B'), ('undecided', 'undecided C')):

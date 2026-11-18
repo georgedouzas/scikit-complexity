@@ -65,7 +65,6 @@ class ThinkerElement(Element):
             The number of members, or `None` for one.
 
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.opinion_dynamics import ThinkerElement
         >>> group = ThinkerElement('thinkers', valences=[1.0, 1.0, -1.0], size=5)
         >>> group.label, type(group).__name__, group.size

@@ -104,7 +104,6 @@ class DiscussantElement(Element):
             The number of members, or `None` for one.
 
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.opinion_dynamics import DiscussantElement
         >>> group = DiscussantElement('people', opinion=0.5, size=10)
         >>> group.label, type(group).__name__, group.size
