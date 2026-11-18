@@ -13,16 +13,70 @@ from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.interactions import CouplingInteraction
-from ....core.components.spaces import ContinuousSpace, RadiusNeighborhood
+from ....core.components.interactions import CouplingInteraction, Interaction
+from ....core.components.laws import RateLaw
+from ....core.components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, RoleSpec
+from ....core.specs import ParameterSpec, Role, RoleSpec
 from ....core.systems import BaseSystem, System
 from ...general.elements import PointElement
-from ._flocks import SelfPropulsionInteraction
 
 NEIGHBOURS = 10
+
+
+class RayleighPropulsionInteraction(Interaction):
+    """Rayleigh self-propulsion `x'' = (alpha - beta |x'|^2) x'` of the agents of a swarm.
+
+    It drives every agent to the speed `sqrt(alpha / beta)`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of agents, whose position is `x`.
+
+        alpha:
+            The propulsion.
+
+        beta:
+            The friction at high speed.
+
+    Examples:
+        >>> from skcomplex.systems.biology.collective_behaviour import RayleighPropulsionInteraction
+        >>> RayleighPropulsionInteraction('propulsion', target='agents', alpha=2.0).alpha
+        2.0
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Role,
+        alpha: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        beta: Annotated[float, RealSet.open(0, oo)] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.alpha = alpha
+        self.beta = beta
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the propulsion of the velocity of every agent.
+
+        Args:
+            context:
+                The namespace of the agents, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s, t = context, context.t
+            x = s.target.x
+            velocity = x.diff(t)
+            self.laws_ = [RateLaw(x.diff(t, 2), (s.alpha - s.beta * velocity.dot_product(velocity)) * velocity)]
 
 
 class MorseAlignmentInteraction(CouplingInteraction):
@@ -373,7 +427,7 @@ class ManyBodyAlignmentSwarmSystem(BaseSystem):
         velocities = speed * headings / np.linalg.norm(headings, axis=1, keepdims=True)
         space = ContinuousSpace(extent=(spacing * sides,) * self.dimension, boundary='periodic')
         agents = PointElement('agents', x=positions, values={"x'": velocities}, size=self.size, space=space)
-        propulsion = SelfPropulsionInteraction('propulsion', target='agents', alpha=self.alpha, beta=self.beta)
+        propulsion = RayleighPropulsionInteraction('propulsion', target='agents', alpha=self.alpha, beta=self.beta)
         pairs = MorseAlignmentInteraction(
             'pairs',
             target='agents',
