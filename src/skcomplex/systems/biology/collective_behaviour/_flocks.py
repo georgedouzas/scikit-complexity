@@ -9,18 +9,19 @@ from types import SimpleNamespace
 from typing import Annotated, cast
 
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, exp, oo
+from sage.all__sagemath_symbolics import SR, exp, oo, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import Interaction, PairInteraction
+from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw, UpdateLaw
-from ....core.components.spaces import BaseSpace, ContinuousSpace
+from ....core.components.laws.utils import neighbors
+from ....core.components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver, SystemView
-from ....core.specs import ParameterSpec, Role, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ...general.agents import MovementInteraction
@@ -452,29 +453,22 @@ class HeadingInteraction(Interaction):
         agent.x_d1, agent.y_d1, agent.z_d1 = (float(item) for item in velocity)
 
 
-class MorsePotentialInteraction(PairInteraction):
+class MorsePotentialInteraction(Interaction):
     """Attraction at long range and repulsion at short range.
 
-    The potential is `C_r exp(-r / l_r) - C_a exp(-r / l_a)`.
+    The potential is `U(r) = C_r exp(-r / l_r) - C_a exp(-r / l_a)`, and every member feels the force `-U'(r)` along
+    the line of centres from each member within the cutoff, `x_i'' += sum_j -U'(r_ij) (x_i - x_j) / r_ij`. It holds a
+    flock of birds, a school of fish, or a swarm of robots together at a spacing.
 
     Args:
         label:
             The label of the interaction.
 
-        first:
-            The path of the group or particle of the first members.
-
-        second:
-            The path of the group or particle of the second members.
+        target:
+            The path of the group of members.
 
         cutoff:
             The distance beyond which pairs do not interact.
-
-        position:
-            The name of the position state of the members.
-
-        period:
-            The side of a periodic box, for minimum image distances, or `None` for an open space.
 
         C_a:
             The strength of the attraction.
@@ -490,43 +484,46 @@ class MorsePotentialInteraction(PairInteraction):
 
     Examples:
         >>> from skcomplex.systems.biology.collective_behaviour import MorsePotentialInteraction
-        >>> MorsePotentialInteraction('flocking', first='birds', second='birds', cutoff=10.0).l_a
+        >>> MorsePotentialInteraction('flocking', target='birds', cutoff=10.0).l_a
         2.0
     """
 
     def __init__(
         self,
         label: str,
-        first: str,
-        second: str,
-        cutoff: float = 1.0,
-        position: str = 'x',
         *,
-        period: float | None = None,
-        C_a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        l_a: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        C_r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        l_r: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        target: Role,
+        cutoff: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        C_a: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        l_a: Annotated[float, RealSet.open(0, oo)] = 2.0,
+        C_r: Annotated[float, RealSet.closed_open(0, oo)] = 2.0,
+        l_r: Annotated[float, RealSet.open(0, oo)] = 0.5,
     ) -> None:
-        super().__init__(
-            label,
-            first,
-            second,
-            cutoff=cutoff,
-            position=position,
-            potential=self._get_pair_energy,
-            period=period,
-            order=2,
-        )
+        super().__init__(label)
+        self.target = target
+        self.cutoff = cutoff
         self.C_a = C_a
         self.l_a = l_a
         self.C_r = C_r
         self.l_r = l_r
 
-    @staticmethod
-    def _get_pair_energy(s: SimpleNamespace, r: Expression) -> Expression:
-        """Return `C_r exp(-r / l_r) - C_a exp(-r / l_a)`."""
-        return s.C_r * exp(-r / s.l_r) - s.C_a * exp(-r / s.l_a)
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the force of the members within the cutoff on every member.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s, x = context, context.target.x
+            separation = x - s.target.other.x
+            r = sqrt(separation.dot_product(separation))
+            distance = SR.var('r', domain='positive')
+            energy = s.C_r * exp(-distance / s.l_r) - s.C_a * exp(-distance / s.l_a)
+            slope = energy.diff(distance).subs({distance: r})
+            force = neighbors(-slope * separation / r, RadiusNeighborhood(self.cutoff))
+            self.laws_ = [RateLaw(x.diff(s.t, 2), force)]
 
 
 class SelfPropulsionInteraction(Interaction):
@@ -935,8 +932,7 @@ class BirdSwarmSystem(BaseSystem):
         birds = PointElement('birds', x=positions, values={"x'": velocities}, size=self.n_birds, space=plane)
         potential = MorsePotentialInteraction(
             'flocking',
-            first='birds',
-            second='birds',
+            target='birds',
             cutoff=10 * self.l_a,
             C_a=self.C_a,
             l_a=self.l_a,
