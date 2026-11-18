@@ -4,7 +4,12 @@ They cover spiking and conductance-based neurons, populations, networks, excitab
 """
 
 from ..common.excitable import SpikeResetInteraction, ThetaNeuronElement
-from ._associative import AssociativeSiteElement, AssociativeThoughtProcessSystem, CliqueCompetitionInteraction
+from ._associative import (
+    AssociativeSiteElement,
+    AssociativeThoughtProcessSystem,
+    CliqueCompetitionInteraction,
+    ReservoirInteraction,
+)
 from ._conductances import (
     FitzHughNagumoNeuronElement,
     FitzhughNagumoODESystem,
@@ -98,6 +103,7 @@ __all__: list[str] = [
     'PolyhomeostaticNeuronSystem',
     'PulseCouplingInteraction',
     'RateUnitElement',
+    'ReservoirInteraction',
     'STDPNetworkSystem',
     'SpikeResetInteraction',
     'SpikeTimingPlasticityInteraction',

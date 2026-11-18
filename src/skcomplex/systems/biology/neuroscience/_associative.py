@@ -15,24 +15,24 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, atan, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import total, where
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import ParameterSpec, Role, RoleSpec
+from ....core.systems import BaseSystem, System
+from ....core.types import Array
 
 UNIT = RealSet.closed(0, 1)
 CLIQUES = ((0, 1), (0, 6), (3, 6), (1, 2, 3), (4, 5, 6), (1, 2, 4, 5))
 
 
 class AssociativeSiteElement(Element):
-    """Site of a dense homogeneous associative network.
-
-    The site holds an activity coupled to a slow reservoir.
-
-    The reservoir `phi` of an active site, `x > x_c`, depletes as `dphi/dt = -gamma_minus phi`, and the reservoir of an
-    inactive site recovers as `dphi/dt = gamma_plus (1 - phi) (1 - x / x_c)`. The network couples the activities.
+    """Sites of a dense homogeneous associative network, with an activity and a slow reservoir.
 
     Args:
         label:
@@ -53,44 +53,71 @@ class AssociativeSiteElement(Element):
         gamma_minus:
             The depletion rate of the reservoir.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.biology.neuroscience import AssociativeSiteElement
         >>> AssociativeSiteElement('sites').x_c
         0.85
     """
 
-    law_classes = (RateLaw,)
-
     def __init__(
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec(domain=UNIT)] = 0.0,
-        phi: Annotated[float, StateSpec(domain=UNIT)] = 1.0,
-        x_c: Annotated[float, ParameterSpec(domain=RealSet.open(0, 1))] = 0.85,
-        gamma_plus: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005,
-        gamma_minus: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005,
+        x: Annotated[float | Array, UNIT] = 0.0,
+        phi: Annotated[float | Array, UNIT] = 1.0,
+        x_c: Annotated[float | Array, RealSet.open(0, 1)] = 0.85,
+        gamma_plus: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.005,
+        gamma_minus: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.005,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.x = x
         self.phi = phi
         self.x_c = x_c
         self.gamma_plus = gamma_plus
         self.gamma_minus = gamma_minus
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the depletion and the recovery of the reservoir.
+
+class ReservoirInteraction(Interaction):
+    """Depletion and recovery of the reservoirs of the sites of an associative network.
+
+    The reservoir `phi` of an active site, `x > x_c`, depletes as `dphi/dt = -gamma_minus phi`, and the reservoir of an
+    inactive site recovers as `dphi/dt = gamma_plus (1 - phi) (1 - x / x_c)`. The network couples the activities.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the sites, whose values are `x`, `phi`, `x_c`, `gamma_plus`, and `gamma_minus`.
+
+    Examples:
+        >>> from skcomplex.systems.biology.neuroscience import ReservoirInteraction
+        >>> ReservoirInteraction('reservoirs', target='sites').target
+        'sites'
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the laws of the target.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        recovery = s.gamma_plus * (1 - s.phi) * (1 - s.x / s.x_c)
-        return [RateLaw(s.phi, where(s.x > s.x_c, -s.gamma_minus * s.phi, recovery))]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            target = context.target
+            recovery = target.gamma_plus * (1 - target.phi) * (1 - target.x / target.x_c)
+            self.laws_ = [RateLaw(target.phi, where(target.x > target.x_c, -target.gamma_minus * target.phi, recovery))]
 
 
 class CliqueCompetitionInteraction(Interaction):
@@ -231,9 +258,15 @@ class AssociativeThoughtProcessSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.neuroscience import AssociativeThoughtProcessSystem
-        >>> AssociativeThoughtProcessSystem().prepare().system_.elements[0].prepare().size_
+        >>> AssociativeThoughtProcessSystem().prepare().system_.elements[0].size
         7
     """
 
@@ -254,8 +287,10 @@ class AssociativeThoughtProcessSystem(BaseSystem):
         gamma_minus: float = 0.005,
         start: Sequence[int] = (0, 1),
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.cliques = cliques
         self.w = w
         self.z = z
@@ -264,8 +299,14 @@ class AssociativeThoughtProcessSystem(BaseSystem):
         self.gamma_minus = gamma_minus
         self.start = start
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the dense homogeneous associative network of Gros."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of dense homogeneous associative network of Gros.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         size = 1 + max(max(clique) for clique in self.cliques)
         links = np.zeros((size, size))
         for clique in self.cliques:
@@ -273,17 +314,14 @@ class AssociativeThoughtProcessSystem(BaseSystem):
                 links[first, second] = links[second, first] = self.w
         activities = np.zeros(size)
         activities[list(self.start)] = 1.0
-        sites = GroupElement(
+        sites = AssociativeSiteElement(
             'sites',
-            element=AssociativeSiteElement,
+            x=activities,
+            phi=1.0,
+            x_c=self.x_c,
+            gamma_plus=self.gamma_plus,
+            gamma_minus=self.gamma_minus,
             size=size,
-            values={
-                'x': activities,
-                'phi': 1.0,
-                'x_c': self.x_c,
-                'gamma_plus': self.gamma_plus,
-                'gamma_minus': self.gamma_minus,
-            },
         )
         competition = CliqueCompetitionInteraction(
             'competition',
@@ -291,4 +329,5 @@ class AssociativeThoughtProcessSystem(BaseSystem):
             w=tuple(map(tuple, links.tolist())),
             z=self.z,
         )
-        return CompositeSystem(self.label, elements=[sites], interactions=[competition])
+        reservoirs = ReservoirInteraction('reservoirs', target='sites')
+        self.system_ = System(self.label, elements=[sites], interactions=[reservoirs, competition])
