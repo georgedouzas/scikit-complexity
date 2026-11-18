@@ -28,7 +28,7 @@ trajectory = system.prepare().simulate(until=40, dt=0.5, observers=[observer])
 # `e` of node `i`.
 
 probabilities = np.asarray(trajectory.get_values('nodes.p'))[-1]
-weights = np.asarray(system.prepare().system_.elements[0].values['D'])
+weights = np.asarray(system.prepare().system_.elements[0].D)
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(weights / weights.sum(), probabilities, 'o')
 ax.plot([0, probabilities.max()], [0, probabilities.max()], '--', color='black')

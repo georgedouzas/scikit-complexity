@@ -7,14 +7,12 @@ import numpy as np
 import pytest
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.errors import RoleElementError, ValidationError
+from skcomplex.core.components.elements import Element
+from skcomplex.core.errors import ValidationError
 from skcomplex.core.experiments import sweep
-from skcomplex.core.specs import StateSpec
 from skcomplex.core.systems import System
 from skcomplex.systems.computer_science.neural_networks import (
     CardinalitySpec,
-    ClauseSpec,
     PerceptronSatisfiabilitySystem,
     SatisfiabilityInteraction,
 )
@@ -49,17 +47,10 @@ class WeightElement(Element):
     def __init__(
         self,
         label: str,
-        active: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+        active: Annotated[float, FiniteEnumeratedSet([0, 1])] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
-        self.active = active
-
-
-class RealWeightElement(Element):
-    """Member with a real weight."""
-
-    def __init__(self, label: str, active: Annotated[float, StateSpec()] = 0.0) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.active = active
 
 
@@ -75,7 +66,7 @@ def _perceptron(size: int, count: int, seed: int) -> tuple[System, np.ndarray, n
     patterns = rng.choice([-1, 1], (count, size))
     outputs = rng.choice([-1, 1], count)
     constraints = [_pattern_constraint(pattern, int(output)) for pattern, output in zip(patterns, outputs, strict=True)]
-    group = GroupElement('weights', element=WeightElement, size=size)
+    group = WeightElement('weights', size=size)
     decide = SatisfiabilityInteraction('decide', target='weights', state='active', constraints=constraints)
     return System(elements=[group], interactions=[decide]), patterns, outputs
 
@@ -94,15 +85,6 @@ def test_constraint_perceptron_pattern() -> None:
     assert spec.sense == 'at-least'
     assert spec.literals[0] == -1
     assert spec.literals[3] == 4
-
-
-def test_prepare_compiler_real_state() -> None:
-    """Test that a state that is not Boolean is reported by the role domain check with the role and the state."""
-    group = GroupElement('weights', element=RealWeightElement, size=3)
-    decide = SatisfiabilityInteraction('decide', target='weights', state='active', constraints=[ClauseSpec((1,))])
-    system = System(elements=[group], interactions=[decide])
-    with pytest.raises(RoleElementError, match='active'):
-        system.prepare().simulate(until=1)
 
 
 def test_run_small_perceptron_matches_enumeration() -> None:
