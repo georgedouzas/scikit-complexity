@@ -374,7 +374,7 @@ class ActiveWalkersSystem(BaseSystem):
             return 0.0
         return walker.intensity * (1 - system.get_field('ground.G', cell) / walker.G_max)
 
-    def _tread(self, walker: AgentViewProtocol, system: SystemViewProtocol) -> None:
+    def _deposit_footprint(self, walker: AgentViewProtocol, system: SystemViewProtocol) -> None:
         """Leave the footprint of a walker that stepped on the ground of its cell."""
         cell = walker.location_key
         if not walker.alive or not self._has_stepped(walker, cell, system):
@@ -445,7 +445,7 @@ class ActiveWalkersSystem(BaseSystem):
                 Interaction(
                     'footprints',
                     roles={'target': 'people/walkers', 'ground': 'land/ground'},
-                    laws=lambda s: [UpdateLaw(s.target, self._tread)],
+                    laws=lambda s: [UpdateLaw(s.target, self._deposit_footprint)],
                 ),
                 BirthDeathInteraction(
                     'renewal',
