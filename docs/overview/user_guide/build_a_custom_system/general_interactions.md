@@ -190,50 +190,32 @@ neuroscience `LeakyIntegrationInteraction`.
 Here a state moves down a potential through a `GradientInteraction`. On a state of order 1 it is a gradient flow.
 
 ```python
-from typing import Annotated
-
 from skcomplex.core.components.elements import Element
+from skcomplex.core.systems import System
 from skcomplex.systems.general.gradients import GradientInteraction
-from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
-
-
-class AmountElement(Element):
-    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.x = x
-
-
-class BallElement(Element):
-    def __init__(self, label, *, x: Annotated[object, StateSpec(vector=True, order=2)] = 0.0, x_d1: object = 0.0):
-        super().__init__(label)
-        self.x = x
-        self.x_d1 = x_d1
-
 
 well = GradientInteraction('well', target='walker', states='x', potential=lambda s: s.target.x**2 / 2)
-flow = CompositeSystem(elements=[AmountElement('walker', x=1.0)], interactions=[well])
-round(float(simulate(flow, until=1.0, dt=0.01).get_values('walker.x')[-1]), 4)
+flow = System(elements=[Element('walker', values={'x': 1.0})], interactions=[well]).prepare()
+round(float(flow.simulate(until=1.0, dt=0.01).get_values('walker.x')[-1]), 4)
 ```
 
 The walker slides from 1.0 to 0.3679 in the well `x^2 / 2`, the decay `exp(-t)` of the flow `x' = -x`.
 
-On a state of order 2, such as the position of a point in a
-[`ContinuousSpace`](../core_components/spaces.md#continuousspace), the same class gives Newton's equations.
+With `order=2` the same class gives Newton's equations, the rate going to the second derivative of the position,
+whose first derivative the trajectory reports as `"point.x'"`.
 
 ```python continuation
-spring = GradientInteraction('spring', target='point', states='x', potential=lambda s: s.target.x * s.target.x / 2)
-ball = BallElement('point', x=[1.0])
-newton = CompositeSystem(elements=[ball], interactions=[spring], space=ContinuousSpace(n_dim=1))
-round(float(simulate(newton, until=3.1416, dt=0.01).get_values('point.x')[-1][0]), 3)
+spring = GradientInteraction(
+    'spring', target='point', states='x', potential=lambda s: s.target.x * s.target.x / 2, order=2
+)
+newton = System(elements=[Element('point', values={'x': [1.0]})], interactions=[spring]).prepare()
+round(float(newton.simulate(until=3.1416, dt=0.01).get_values('point.x')[-1][0]), 3)
 ```
 
 The point starts at 1.0 and reaches -1.0 after half a period `pi` of the harmonic spring.
 
-`GradientInteraction(target, states, potential, sources=(), divisor=None, variational=False, conserved=False)` also
-gives the variational or conserved dynamics of a field. The divisor is a name, a function of the member, or a mapping
+`GradientInteraction(target, states, potential, sources=(), divisor=None, variational=False, conserved=False,
+order=1)` also gives the variational or conserved dynamics of a field. The divisor is a name, a function of the member, or a mapping
 of one divisor per state.
 
 An interaction states Newton's or Hamilton's equations directly as rate laws written in Sage. Here a pendulum swings
@@ -306,8 +288,24 @@ The planet returns to `x = 1.0` after one period `2 pi` of its circular orbit.
 
 The [solver](../glossary.md#solver) `Yoshida4Solver` integrates a separable Hamiltonian at fourth order by three
 velocity Verlet steps. It first splits the states into two blocks whose rates read only the other block. It keeps the
-energy bounded over long runs. The shared mechanics `skcomplex.systems.general.mechanics` writes these laws
-from a Lagrangian with its `EulerLagrangeInteraction`.
+energy bounded over long runs.
+
+The shared mechanics `skcomplex.systems.general.mechanics` writes the equations of motion from a Lagrangian with its
+`EulerLagrangeInteraction`, whose Lagrangian writes the velocity of a coordinate `q` as `q.diff(t)`. Here the pendulum
+above swings again from the Lagrangian `q'^2 / 2 + cos q`.
+
+```python continuation
+from sage.all__sagemath_symbolics import cos
+
+from skcomplex.systems.general.mechanics import EulerLagrangeInteraction
+
+lagrangian = lambda s: s.target.q.diff(s.t) ** 2 / 2 + cos(s.target.q)
+swing = EulerLagrangeInteraction('swing', target='bob', states='q', lagrangian=lagrangian)
+pendulum = System(elements=[Element('bob', values={'q': 0.1})], interactions=[swing]).prepare()
+round(float(pendulum.simulate(until=3.2, dt=0.01).get_values('bob.q')[-1]), 2)
+```
+
+The angle is -0.1 at the time 3.2, as with the rate law written by hand.
 
 `invariants` decides whether expressions given as `Observable`s are conserved by the equations of any system.
 
