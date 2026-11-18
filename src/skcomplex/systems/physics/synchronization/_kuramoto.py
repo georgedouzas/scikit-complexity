@@ -16,13 +16,11 @@ from sage.all__sagemath_symbolics import cos, oo, sin
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import count, total
 from ....core.components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
-from ....core.components.systems import BaseSystem as OldBaseSystem
-from ....core.components.systems import CompositeSystem
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.specs import Role, VisualSpec
@@ -201,7 +199,7 @@ class DelayedKuramotoSystem(BaseSystem):
         self.system_ = System(self.label, elements=elements, interactions=interactions)
 
 
-class KuramotoSystem(OldBaseSystem):
+class KuramotoSystem(BaseSystem):
     """Kuramoto oscillators coupled all to all.
 
     The oscillators follow `theta_i' = omega_i + (K / N) sum_j sin(theta_j - theta_i)`.
@@ -227,6 +225,12 @@ class KuramotoSystem(OldBaseSystem):
 
         label:
             The label of the system, which names it when it is nested in another one.
+
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
 
     Examples:
         >>> from skcomplex.systems.physics.synchronization import KuramotoSystem
@@ -255,38 +259,35 @@ class KuramotoSystem(OldBaseSystem):
         sigma: float = 1.0,
         seed: int = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_oscillators = n_oscillators
         self.K = K
         self.sigma = sigma
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of Kuramoto oscillators coupled all to all.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         rng = np.random.default_rng(self.seed)
-        oscillators = GroupElement(
+        oscillators = PhaseOscillatorElement(
             'oscillators',
-            element=PhaseOscillatorElement,
+            theta=KuramotoSystem._spread_phases(self.n_oscillators, self.seed),
+            omega=rng.normal(0.0, self.sigma, self.n_oscillators),
             size=self.n_oscillators,
-            values={
-                'theta': KuramotoSystem._spread_phases(self.n_oscillators, self.seed),
-                'omega': rng.normal(0.0, self.sigma, self.n_oscillators),
-            },
         )
-        coupling = KuramotoCouplingInteraction(
-            'coupling',
-            target='oscillators',
-            K=self.K,
-            mode='group',
-            reduce='mean',
-            include_self=True,
-        )
-        return CompositeSystem(
-            self.label,
-            elements=[oscillators],
-            interactions=[coupling],
-        )
+        interactions = [
+            PhaseRotationInteraction('rotation', target='oscillators'),
+            KuramotoCouplingInteraction('coupling', target='oscillators', K=self.K, reduce='mean', include_self=True),
+        ]
+        self.system_ = System(self.label, elements=[oscillators], interactions=interactions)
 
 
 class PopulationCouplingInteraction(Interaction):
@@ -453,7 +454,7 @@ class RingSitedOscillatorElement(SitedOscillatorElement):
     visual = VisualSpec('phase_ring', {'phase': 'theta', 'position': 'x'})
 
 
-class NonlocalRingChimeraSystem(OldBaseSystem):
+class NonlocalRingChimeraSystem(BaseSystem):
     """Identical phase oscillators on a ring.
 
     Each oscillator is coupled to its `R` nearest neighbours on both sides.
@@ -482,9 +483,15 @@ class NonlocalRingChimeraSystem(OldBaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.synchronization import NonlocalRingChimeraSystem
-        >>> NonlocalRingChimeraSystem(20, R=3).prepare().system_.interactions[0].neighborhood.radius
+        >>> NonlocalRingChimeraSystem(20, R=3).prepare().system_.interactions[1].neighborhood.radius
         3.5
     """
 
@@ -504,45 +511,44 @@ class NonlocalRingChimeraSystem(OldBaseSystem):
         omega: float = 0.0,
         seed: int = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_oscillators = n_oscillators
         self.R = R
         self.alpha = alpha
         self.omega = omega
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return identical phase oscillators on a ring.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of identical phase oscillators on a ring, each coupled to its `R` nearest neighbours.
 
-        Each oscillator is coupled to its `R` nearest neighbours on both sides.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        weight = 1 / (2 * self.R)
-        ring = GroupElement(
+        super()._prepare(context)
+        ring = RingSitedOscillatorElement(
             'ring',
-            element=RingSitedOscillatorElement,
+            theta=KuramotoSystem._spread_phases(self.n_oscillators, self.seed),
+            omega=self.omega,
+            x=np.arange(self.n_oscillators, dtype=float).reshape(-1, 1),
             size=self.n_oscillators,
-            values={
-                'theta': KuramotoSystem._spread_phases(self.n_oscillators, self.seed),
-                'omega': self.omega,
-                'x': np.arange(self.n_oscillators, dtype=float).reshape(-1, 1),
-            },
-        )
-        return CompositeSystem(
-            self.label,
-            elements=[ring],
-            interactions=[
-                KuramotoCouplingInteraction(
-                    'coupling',
-                    target='ring',
-                    K=weight,
-                    alpha=self.alpha,
-                    include_self=True,
-                    neighborhood=RadiusNeighborhood(self.R + 0.5),
-                ),
-            ],
             space=ContinuousSpace((float(self.n_oscillators),), boundary='periodic'),
         )
+        interactions = [
+            PhaseRotationInteraction('rotation', target='ring'),
+            KuramotoCouplingInteraction(
+                'coupling',
+                target='ring',
+                K=1 / (2 * self.R),
+                alpha=self.alpha,
+                include_self=True,
+                neighborhood=RadiusNeighborhood(self.R + 0.5),
+            ),
+        ]
+        self.system_ = System(self.label, elements=[ring], interactions=interactions)
 
 
 class OttAntonsenSystem(BaseSystem):
