@@ -32,7 +32,6 @@ from ._deformable import (
 from ._flocks import (
     CohesiveAlignmentInteraction,
     CohesiveParticleElement,
-    DelayedVicsekParticleElement,
     GinelliNematicsSystem,
     GregoireChateSystem,
     HeadingAlignmentInteraction,
@@ -107,7 +106,6 @@ __all__: list[str] = [
     'CuckerSmaleFlockingSystem',
     'DeformableActiveParticlesSystem',
     'DeformableParticleElement',
-    'DelayedVicsekParticleElement',
     'DepotBrownianParticlesSystem',
     'DepotParticleElement',
     'DepotPumpingInteraction',

@@ -39,6 +39,7 @@ from ._compilation import Compilation
 
 RESERVED = ('label', 'visual', 'size', 'space', 'values', 'on')
 LINKS = ('edges', 'hyperedges')
+OTHER = '__other'
 BOOLEAN = FiniteEnumeratedSet([0, 1])
 MEMBERSHIP = frozenset(
     {
@@ -336,7 +337,11 @@ class _StateInference:
 
     @staticmethod
     def _get_lags(law: BaseComponent, named: Mapping[str, str]) -> dict[str, int]:
-        """Return the number of past values a law reads of every value, by its dotted name."""
+        """Return the number of past values a law reads of every value, by its dotted name.
+
+        A reduction over neighbours that reads past values of the other member, such as the delayed headings of a flock,
+        counts too.
+        """
         lags: dict[str, int] = {}
         values = law._get_values() if isinstance(law, BaseLaw) else []
         for value in values:
@@ -344,8 +349,9 @@ class _StateInference:
                 continue
             for found in value.find(lag(SR.wild(0), SR.wild(1))):
                 state, steps = found.operands()
-                if str(state) in named and SR(steps).is_integer():
-                    name = named[str(state)]
+                read = str(state).removesuffix(OTHER)
+                if read in named and SR(steps).is_integer():
+                    name = named[read]
                     lags[name] = max(int(steps), lags.get(name, 0))
         return lags
 
@@ -630,6 +636,9 @@ class _StateInference:
             tensor = element._get_shape_of(member)[2]
             if np.ndim(np.asarray(value, dtype=object)) > 0:
                 arrays[name] = element._get_matrix_entries(value, tensor)
+                if count is not None and not probing:
+                    for index in range(1, lags(name) + 1):
+                        arrays[f'{name}_lag{index}'] = arrays[name]
             for index, given in starting.get(name, {}).items():
                 if count is not None and np.ndim(np.asarray(given, dtype=object)) > 0:
                     arrays[f'{name}_lag{index}' if lags(name) else f'{name}_d{index}'] = element._get_matrix_entries(
