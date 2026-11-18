@@ -243,8 +243,8 @@ def automaton(
     such as `Element('cells', values={'alive': 0}, space=LatticeSpace(20))`, with one synchronous and deterministic
     local rule, a `LocalRuleInteraction` or an interaction that sets an `UpdateLaw` with a neighbourhood, and it is
     linear when the rule is a `LinearRuleSpec`. The number of values of a cell comes
-    from the finite domain of the state, or else from the rule. A subshift is a group with a state whose domain is a
-    `SubshiftSpec`.
+    from the finite domain of the state, or else from the rule. A subshift is a group whose value has a
+    `SubshiftSpec` as its allowed values, such as `alive: Annotated[int, SubshiftSpec(...)]`.
 
     - `'injective'`, `'surjective'`, and `'pre-injective'`: whether two different configurations never share their
       image, whether every configuration has a preimage, which on a finite universe holds exactly when it is
@@ -363,19 +363,13 @@ def automaton(
         >>> majority = build(5, TotalisticSpec(lambda total: total >= 2), LatticeNeighborhood(((-1,), (0,), (1,))))
         >>> automaton(majority, kind='garden-of-eden').pattern.tolist()
         [0, 0, 1, 0, 1]
+        >>> from skcomplex.core.systems import System
+        >>> golden_mean = SubshiftSpec(LatticeNeighborhood(((0,), (1,))), ((1, 1),))
         >>> class GoldenCellElement(Element):
-        ...     def __init__(
-        ...         self,
-        ...         label,
-        ...         alive: Annotated[
-        ...             float, StateSpec(domain=SubshiftSpec(LatticeNeighborhood(((0,), (1,))), ((1, 1),)))
-        ...         ] = 0,
-        ...     ):
-        ...         super().__init__(label)
+        ...     def __init__(self, label, alive: Annotated[int, golden_mean] = 0, space=None):
+        ...         super().__init__(label, space=space)
         ...         self.alive = alive
-        >>> window = LatticeSpace(6, boundary='fixed')
-        >>> cells = GroupElement('cells', element=GoldenCellElement, space=window, on='sites')
-        >>> golden = CompositeSystem(elements=[cells])
+        >>> golden = System(elements=[GoldenCellElement('cells', space=LatticeSpace(6, boundary='fixed'))])
         >>> automaton(golden, kind='count').count
         21
         >>> windows = [LatticeSpace(20, boundary='fixed')]
@@ -661,17 +655,19 @@ def _find_rule(system: CompositeSystem) -> LocalRuleInteraction | None:
 
 
 def _find_subshift(system: CompositeSystem) -> tuple[GroupElement, SubshiftSpec] | None:
-    """Return the first group of a system with a state whose domain is a subshift.
+    """Return the first group of a system with a value whose domain is a subshift.
 
-    It comes with its spec, or is `None`.
+    It comes with its spec, or is `None`. The value is a state, or a parameter when no law changes it, as the cells
+    of a window whose words are counted.
     """
     for element in system.elements:
         if not isinstance(element, GroupElement):
             continue
-        for spec in element.get_states().values():
-            if isinstance(spec.domain, SubshiftSpec):
-                spec.domain._check()
-                return element, spec.domain
+        for spec in element._get_member_specs().values():
+            domain = getattr(spec, 'domain', None)
+            if isinstance(domain, SubshiftSpec):
+                domain._check()
+                return element, domain
     return None
 
 

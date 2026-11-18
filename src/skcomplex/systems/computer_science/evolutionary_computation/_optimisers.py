@@ -20,19 +20,17 @@ from pymoo.core.termination import NoTermination
 from sage.all__sagemath_symbolics import Expression, cos, pi
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction, SamplingInteraction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import where
-from ....core.components.spaces import BaseSpace, DiscreteTime, LatticeSpace, RadiusNeighborhood
-from ....core.components.systems import CompositeSystem
+from ....core.components.spaces import BaseSpace, LatticeSpace, RadiusNeighborhood
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.enums import ElementKind
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec, Role, RoleSpec, StateSpec
+from ....core.specs import BaseSpec, Role, RoleSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
@@ -369,7 +367,7 @@ class RunningBestElement(Element):
         5.0
     """
 
-    def __init__(self, label: str, best: Annotated[float, StateSpec()] = 1e300) -> None:
+    def __init__(self, label: str, best: float = 1e300) -> None:
         super().__init__(label)
         self.best = best
 
@@ -432,13 +430,17 @@ class RunningBestInteraction(Interaction):
         self.target = target
         self.source = source
 
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
-        """Return the update of the lowest value.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the update of the lowest value.
 
-        It stays on the old hook, since a law of an interaction that reads an observable cannot yet target a value of
-        a plain element.
+        Args:
+            context:
+                The namespace of the target and of the observable.
         """
-        return [UpdateLaw(s.target.best, where(s.source.value < s.target.best, s.source.value, s.target.best))]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            best, value = context.target.best, context.source.value
+            self.laws_ = [UpdateLaw(best, where(value < best, value, best))]
 
 
 def _rastrigin(x: Expression, y: Expression) -> Expression:
@@ -600,8 +602,8 @@ class EvolutionaryOptimisersSystem(BaseSystem):
         return System(
             self.label,
             systems=[
-                CompositeSystem('search', elements=[candidates], interactions=samplers, time=DiscreteTime()),
-                CompositeSystem('tracker', elements=[RunningBestElement('record')], time=DiscreteTime()),
+                System('search', elements=[candidates], interactions=samplers),
+                System('tracker', elements=[RunningBestElement('record')]),
             ],
             interactions=[RunningBestInteraction('update', target='tracker/record', source='search/lowest')],
         )

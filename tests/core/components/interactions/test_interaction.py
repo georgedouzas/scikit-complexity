@@ -351,6 +351,58 @@ def test_interaction_along_hyperedges_runs_on_no_edge():
     )
 
 
+def test_interaction_along_hyperedges_of_one_size_skips_the_others():
+    """Test that `along=('hyperedges', 3)` runs on the triangle of a network and not on its pair."""
+    space = NetworkSpace(nx.empty_graph(4), hyperedges=[[0, 1], [0, 1, 2]])
+    nodes = Element('nodes', values={'x': np.zeros(4)}, space=space)
+    push = Interaction(
+        'push',
+        among='nodes',
+        along=('hyperedges', 3),
+        laws=lambda s: [RateLaw(s.member.x.diff(s.t), 1.0)],
+    )
+    trajectory = System(elements=[nodes], interactions=[push]).prepare().simulate(until=1.0, dt=0.5)
+    assert trajectory.get_values('nodes.x')[-1] == pytest.approx([1.0, 1.0, 1.0, 0.0])
+    assert push._get_hyperedge_size() == 3
+
+
+@pytest.mark.parametrize('along', [('hyperedges', 1), ('edges', 3), ('hyperedges', 3.0)])
+def test_interaction_along_hyperedges_of_a_wrong_size_is_refused(along):
+    """Test that hyperedges of fewer than two members, or a size that is not a whole number, are refused."""
+    with pytest.raises(ValidationError, match=r"along=\('hyperedges', 3\)"):
+        Interaction('push', among='nodes', along=along).prepare()
+
+
+class _TriangleGrowthInteraction(Interaction):
+    """Growth of one node per step that forms a triangle with two others, and the ageing of every triangle."""
+
+    def __init__(self, label: str, *, among: Role = 'nodes', along: object = ('hyperedges', 3)) -> None:
+        super().__init__(label, among=among, along=along)
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the ageing of the triangle."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [UpdateLaw(context.hyperedge.age, context.hyperedge.age + 1)]
+
+
+def test_interaction_along_hyperedges_of_one_size_runs_on_a_growing_group():
+    """Test that triangles added by growth age once per step along the hyperedges of three members."""
+    space = NetworkSpace(nx.complete_graph(3), hyperedges=[[0, 1, 2]])
+    request = TopologyRequestSpec('add-node', hyperedge=3, independent=True, one=True)
+    growth = Interaction('growth', roles={'nodes': 'nodes'}, laws=[UpdateLaw(request, 1.0)])
+    system = System(
+        elements=[
+            Element('nodes', space=space),
+            Element('triangles', values={'age': 0.0}, space=space, on='hyperedges'),
+        ],
+        interactions=[growth, _TriangleGrowthInteraction('ageing')],
+    )
+    trajectory = system.prepare().simulate(until=3, random_state=0)
+    active = trajectory.get_values('triangles._active')[-1] > 0
+    assert sorted(trajectory.get_values('triangles.age')[-1][active].tolist()) == [0.0, 1.0, 2.0, 3.0]
+
+
 def test_interaction_rewires_the_edges_of_a_network():
     """Test that updates on the edges move them away from disagreeing voters at every step until few remain."""
     graph = nx.random_regular_graph(4, 30, seed=1)

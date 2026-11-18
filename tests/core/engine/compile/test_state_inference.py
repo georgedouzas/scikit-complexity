@@ -14,6 +14,7 @@ from scipy.linalg import expm
 from scipy.special import ive
 
 from skcomplex.core.analysis import alignment, displacement
+from skcomplex.core.components import Observable
 from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element, FieldElement, Member, Period, Quantity
 from skcomplex.core.components.interactions import Interaction
@@ -1312,3 +1313,31 @@ def test_get_declared_grows_a_group_on_the_hyperedges_the_laws_add():
     assert trajectory.get_values('functions._active').sum(axis=1).tolist() == [0, 1, 2, 3, 4]
     members = trajectory.get_values('functions._members')[-1][trajectory.get_values('functions._active')[-1] > 0]
     assert sorted(members[:, -1].tolist()) == [3.0, 4.0, 5.0, 6.0]
+
+
+def tally_count(s):
+    """Return the count of the tally."""
+    return s.tally.n
+
+
+def test_law_reading_an_observable_changes_a_plain_value():
+    """Test that the running peak of an observable of a nested system is a state of a plain element."""
+    counter = System(
+        'counter',
+        elements=[Element('tally', values={'n': 0.0})],
+        interactions=[
+            Interaction('tick', roles={'target': 'tally'}, laws=lambda s: [UpdateLaw(s.target.n, 3 - s.target.n)]),
+        ],
+    )
+
+    def keep(s):
+        return [UpdateLaw(s.target.high, where(s.source.value > s.target.high, s.source.value, s.target.high))]
+
+    system = System(
+        elements=[Element('peak', values={'high': 0.0})],
+        interactions=[Interaction('keep', roles={'target': 'peak', 'source': 'counter/level'}, laws=keep)],
+        systems=[counter],
+    ).prepare([Observable('counter/level', tally_count)])
+    assert 'peak.high' in system.states_
+    trajectory = system.simulate(until=4)
+    assert trajectory.get_values('peak.high').tolist() == [0.0, 0.0, 3.0, 3.0, 3.0]

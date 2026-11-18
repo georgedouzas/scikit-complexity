@@ -133,15 +133,15 @@ class BaseCompiler(BaseConfig[CompositeSystem, Mapping[str, object]]):
             error_msg = f'A compiler prepares on a system, not on a {type(context).__name__}.'
             raise ValidationError(error_msg)
         system = context.prepare().system_ if context._nests_classes() else context
-        system = self._get_declared_system(system)
         try:
-            self.system_ = self._copy_with_observables(system, self.observables)
+            system = self._copy_with_observables(system, self.observables)
         except ValidationError as error:
-            self.system_ = system
+            self.system_ = self._get_declared_system(system)
             self.report_ = ValidationReportSpec(
                 (IssueSpec('observable-path', system.label, str(error), 'Label observables by their path.'),),
             )
             return
+        self.system_ = self._get_declared_system(system)
         self.report_ = ValidationReportSpec(tuple(self._get_issues(self.system_)))
 
     def _get_declared_system(self, system: CompositeSystem) -> CompositeSystem:

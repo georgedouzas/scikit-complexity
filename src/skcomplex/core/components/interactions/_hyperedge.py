@@ -85,6 +85,10 @@ class HyperedgeInteraction(BaseInteraction):
         """
         return []
 
+    def _get_hyperedge_size(self) -> int | None:
+        """Return the size of the hyperedges the laws run on, or `None` for every size."""
+        return self.size
+
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for declared states or a size below two.
 

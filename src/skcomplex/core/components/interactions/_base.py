@@ -914,6 +914,10 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         """Return whether the laws run once per hyperedge of a network, false by default."""
         return False
 
+    def _get_hyperedge_size(self) -> int | None:
+        """Return the number of members of the hyperedges the laws run on, or `None` for every size."""
+        return None
+
     def _get_layer(self) -> str | None:
         """Return the layer of the network the laws run along, or `None` for its graph."""
         return None
