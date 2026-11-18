@@ -26,6 +26,7 @@ from ._circulation import CardiovascularSystem, ChamberElement, ResistiveFlowInt
 from ._disease import (
     AdaptivePhaseCouplingInteraction,
     CellOscillatorElement,
+    CellRotationInteraction,
     CytokineLinkElement,
     LayerCouplingInteraction,
     TwoLayerSepsisSystem,
@@ -68,6 +69,7 @@ __all__: list[str] = [
     'CardiovascularSystem',
     'CellAdhesionInteraction',
     'CellOscillatorElement',
+    'CellRotationInteraction',
     'CellularPottsSystem',
     'ChamberElement',
     'ChemotacticTissueElement',

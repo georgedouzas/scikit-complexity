@@ -7,29 +7,29 @@ The cells form adaptive networks of oscillators.
 # License: MIT
 
 import math
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import oo, pi, sin
+from sage.all__sagemath_symbolics import oo, sin
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import NeighborInteraction
+from ....core.components import Observable
+from ....core.components.elements import Element, GroupElement, Period
+from ....core.components.interactions import Interaction, NeighborInteraction
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.spaces import LayerSpec, NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.components.spaces import BaseSpace, LayerSpec, NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import ParameterSpec, Role, RoleSpec, StateSpec
+from ....core.systems import BaseSystem, System
+from ....core.types import Array
 
 
 class CellOscillatorElement(Element):
-    """Functional unit of a tissue layer, a cell oscillator `phi' = omega`.
-
-    The unit is reduced to a phase.
-
-    Healthy and pathological cells differ by their metabolism, which the natural frequency `omega` stands for.
-    Couplings to other cells add to the rate of the phase.
+    """Cell oscillators, functional units of a tissue layer reduced to a phase `phi` and a natural frequency `omega`.
 
     Args:
         label:
@@ -41,37 +41,64 @@ class CellOscillatorElement(Element):
         omega:
             The natural frequency.
 
+        space:
+            The network whose nodes hold one cell each, or `None` for one cell.
+
     Examples:
         >>> from skcomplex.systems.biology.physiology import CellOscillatorElement
         >>> CellOscillatorElement('cell', omega=0.2).omega
         0.2
     """
 
-    law_classes = (RateLaw,)
-
     def __init__(
         self,
         label: str,
         *,
-        phi: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
-        omega: Annotated[float, ParameterSpec()] = 0.0,
+        phi: Annotated[float | Array, Period(2 * math.pi)] = 0.0,
+        omega: float | Array = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.phi = phi
         self.omega = omega
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rotation of the phase.
+
+class CellRotationInteraction(Interaction):
+    """Rotation of the phase of cell oscillators at their natural frequency, `phi' = omega`.
+
+    Healthy and pathological cells differ by their metabolism, which the natural frequency `omega` stands for.
+    Couplings to other cells add to the rate of the phase.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the cells, whose values are `phi` and `omega`.
+
+    Examples:
+        >>> from skcomplex.systems.biology.physiology import CellRotationInteraction
+        >>> CellRotationInteraction('rotation', target='cells').target
+        'cells'
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rotation of the phase.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        return [RateLaw(s.phi, s.omega)]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context.target
+            self.laws_ = [RateLaw(s.phi, s.omega)]
 
 
 class CytokineLinkElement(Element):
@@ -296,9 +323,15 @@ class TwoLayerSepsisSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.physiology import TwoLayerSepsisSystem
-        >>> TwoLayerSepsisSystem(5).prepare().system_.elements[0].prepare().size_
+        >>> TwoLayerSepsisSystem(5).prepare().system_.elements[0].phi.size
         10
     """
 
@@ -325,8 +358,10 @@ class TwoLayerSepsisSystem(BaseSystem):
         connectivity: float = 0.5,
         seed: int | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_cells = n_cells
         self.beta = beta
         self.sigma = sigma
@@ -341,8 +376,14 @@ class TwoLayerSepsisSystem(BaseSystem):
         self.connectivity = connectivity
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the two-layer model of tumour disease and sepsis."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the two-layer model of tumour disease and sepsis.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         rng = np.random.default_rng(self.seed)
         n = self.n_cells
         parenchyma = nx.complete_graph(range(n), create_using=nx.DiGraph)
@@ -357,13 +398,7 @@ class TwoLayerSepsisSystem(BaseSystem):
         frequencies = np.full(2 * n, self.omega_immune)
         sick = rng.random(n) < self.pathological
         frequencies[:n] = np.where(sick, self.omega_pathological, self.omega_healthy)
-        cells = GroupElement(
-            'cells',
-            element=CellOscillatorElement,
-            space=space,
-            values={'phi': rng.uniform(0, 2 * math.pi, 2 * n), 'omega': frequencies},
-            on='sites',
-        )
+        cells = CellOscillatorElement('cells', phi=rng.uniform(0, 2 * math.pi, 2 * n), omega=frequencies, space=space)
         edges = n * (n - 1)
         parenchymal_links = GroupElement(
             'parenchymal_links',
@@ -380,10 +415,11 @@ class TwoLayerSepsisSystem(BaseSystem):
             layer='immune',
             values={'kappa': rng.uniform(-1, 1, edges)},
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[cells, parenchymal_links, immune_links],
             interactions=[
+                CellRotationInteraction('rotation', target='cells'),
                 AdaptivePhaseCouplingInteraction(
                     'parenchymal_coupling',
                     cells='cells',
