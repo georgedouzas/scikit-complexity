@@ -21,7 +21,7 @@ from ....core.components.laws.utils import logistic, mean
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import Role, Roles
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ..common.excitable import ThetaNeuronElement, ThetaNeuronInteraction
 from ._leaky_integration import LeakyIntegrationInteraction
@@ -318,7 +318,7 @@ class MutualInhibitionInteraction(Interaction):
         self,
         label: str,
         *,
-        units: Roles,
+        units: tuple[Role, ...],
         beta: Annotated[float, RealSet.closed_open(0, oo)] = 2.0,
     ) -> None:
         super().__init__(label)
@@ -734,7 +734,11 @@ class WinnersTakeAllSystem(BaseSystem):
             RateUnitElement(f'unit_{index}', x=self.x, I=value, tau=self.tau) for index, value in enumerate(self.inputs)
         ]
         growth = [SaturatingGrowthInteraction(f'growth_{unit.label}', target=unit.label) for unit in units]
-        inhibition = MutualInhibitionInteraction('inhibition', units=[unit.label for unit in units], beta=self.beta)
+        inhibition = MutualInhibitionInteraction(
+            'inhibition',
+            units=tuple(unit.label for unit in units),
+            beta=self.beta,
+        )
         self.system_ = System(self.label, elements=units, interactions=[*growth, inhibition])
 
 

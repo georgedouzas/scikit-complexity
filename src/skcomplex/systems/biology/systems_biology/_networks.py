@@ -20,7 +20,7 @@ from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import Role, Roles
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction
 from ..common.kinetics import MichaelisMentenInteraction, RepressionInteraction, SpeciesElement
@@ -317,7 +317,7 @@ class GeneralizedMassActionInteraction(Interaction):
         self,
         label: str,
         *,
-        species: Roles,
+        species: tuple[Role, ...],
         stoichiometry: Sequence[Sequence[float]] = ((0.0,),),
         gamma: Sequence[float] = (0.0,),
         orders: Sequence[Sequence[float]] = ((0.0,),),
@@ -433,7 +433,7 @@ class SSystemInteraction(GeneralizedMassActionInteraction):
         self,
         label: str,
         *,
-        species: Roles,
+        species: tuple[Role, ...],
         alpha: Sequence[float] = (),
         beta: Sequence[float] = (),
         g: Sequence[Sequence[float]] = ((0.0,),),
@@ -749,7 +749,7 @@ class BiochemicalSystemsTheorySystem(BaseSystem):
         if self.form == 's-system':
             rates: BaseInteraction = SSystemInteraction(
                 'rates',
-                species=paths,
+                species=tuple(paths),
                 alpha=[float(value) for value in self.alpha],
                 beta=[float(value) for value in self.beta],
                 g=tuple(tuple(row) for row in self.g),
@@ -758,7 +758,7 @@ class BiochemicalSystemsTheorySystem(BaseSystem):
         elif self.form == 'gma':
             rates = GeneralizedMassActionInteraction(
                 'rates',
-                species=paths,
+                species=tuple(paths),
                 stoichiometry=tuple(tuple(row) for row in self.stoichiometry),
                 gamma=tuple(self.gamma),
                 orders=tuple(tuple(row) for row in self.orders),

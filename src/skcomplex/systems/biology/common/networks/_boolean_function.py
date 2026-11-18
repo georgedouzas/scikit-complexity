@@ -13,7 +13,7 @@ from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, UpdateLaw
 from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
-from .....core.specs import Role, Roles
+from .....core.specs import Role
 
 
 class BooleanFunctionInteraction(Interaction):
@@ -53,7 +53,7 @@ class BooleanFunctionInteraction(Interaction):
         label: str,
         *,
         target: Role,
-        inputs: Roles,
+        inputs: tuple[Role, ...],
         table: tuple[int, ...] = (0,),
     ) -> None:
         super().__init__(label)

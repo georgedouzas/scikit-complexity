@@ -24,7 +24,7 @@ from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import Role, Roles
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from .types import Candidates
 
@@ -116,7 +116,7 @@ class ProbabilisticFunctionInteraction(Interaction):
         label: str,
         *,
         target: Role,
-        inputs: Roles,
+        inputs: tuple[Role, ...],
         tables: Sequence[Sequence[int]] = ((0,),),
         probabilities: Sequence[float] = (1.0,),
     ) -> None:
@@ -261,7 +261,7 @@ class ProbabilisticBooleanNetworkSystem(BaseSystem):
             ProbabilisticFunctionInteraction(
                 f'functions_{name}',
                 target=name,
-                inputs=list(self.inputs),
+                inputs=tuple(self.inputs),
                 tables=tuple(tuple(table) for table, _ in candidates),
                 probabilities=tuple(probability for _, probability in candidates),
             )

@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.specs import Role, Roles, RoleSpec
+from skcomplex.core.specs import Role, RoleSpec
 
 
 class PullInteraction(Interaction):
@@ -25,13 +25,13 @@ def test_role_declares_a_role():
 
 
 class SumInteraction(Interaction):
-    """Interaction that reads any number of inputs, declared by the short annotation."""
+    """Interaction that reads any number of inputs, declared as a tuple of roles."""
 
-    def __init__(self, label: str, *, inputs: Roles = ()) -> None:
+    def __init__(self, label: str, *, inputs: tuple[Role, ...] = ()) -> None:
         super().__init__(label)
         self.inputs = inputs
 
 
-def test_roles_declares_a_role_that_binds_several_elements():
-    """`Roles` declares an argument that names several elements."""
-    assert SumInteraction('sum', inputs=['a', 'b'])._get_specs()['inputs'] == RoleSpec(variadic=True)
+def test_tuple_of_roles_declares_a_role_that_binds_several_elements():
+    """`tuple[Role, ...]` declares an argument that names several elements."""
+    assert SumInteraction('sum', inputs=('a', 'b'))._get_specs()['inputs'] == RoleSpec(variadic=True)

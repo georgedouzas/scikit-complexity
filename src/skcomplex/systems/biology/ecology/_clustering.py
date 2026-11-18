@@ -19,7 +19,7 @@ from ....core.components.laws import JumpLaw
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend, NumbaBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import Roles, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 from ..common.populations import NeutralBirthInteraction, NeutralDeathInteraction
 
@@ -96,7 +96,7 @@ class HoppingInteraction(Interaction):
         self,
         label: str,
         *,
-        patches: Roles,
+        patches: tuple[Role, ...],
         beta: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
         links: Sequence[tuple[int, int]] = (),
     ) -> None:
@@ -216,7 +216,12 @@ class NeutralClusteringSystem(BaseSystem):
         ]
         if self.beta:
             interactions.append(
-                HoppingInteraction('hopping', patches=members, links=self._get_neighbor_pairs(lattice), beta=self.beta),
+                HoppingInteraction(
+                    'hopping',
+                    patches=tuple(members),
+                    links=self._get_neighbor_pairs(lattice),
+                    beta=self.beta,
+                ),
             )
         self.system_ = System(
             self.label,
