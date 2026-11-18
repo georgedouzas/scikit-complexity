@@ -12,14 +12,13 @@ population activity.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.neuroscience import WilsonCowanSystem
 
 SYSTEM = 'wilson_cowan'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(WilsonCowanSystem(P=1.25), observers=[observer], until=50)
+trajectory = WilsonCowanSystem(P=1.25).prepare().simulate(observers=[observer], until=50)
 
 # %%
 # Limit cycle against rest
@@ -28,8 +27,8 @@ trajectory = simulate(WilsonCowanSystem(P=1.25), observers=[observer], until=50)
 # without input the activity should decay to rest.
 
 oscillating = trajectory
-second = simulate(WilsonCowanSystem(E=0.4, I=0.3, P=1.25))
-resting = simulate(WilsonCowanSystem(E=0.4, I=0.3, P=0.0))
+second = WilsonCowanSystem(E=0.4, I=0.3, P=1.25).prepare().simulate()
+resting = WilsonCowanSystem(E=0.4, I=0.3, P=0.0).prepare().simulate()
 fig, ax = plt.subplots(figsize=(6, 5))
 ax.plot(oscillating.get_values('cortex.E'), oscillating.get_values('cortex.I'), label='P = 1.25, from (0.1, 0.05)')
 ax.plot(second.get_values('cortex.E'), second.get_values('cortex.I'), '--', label='P = 1.25, from (0.4, 0.3)')

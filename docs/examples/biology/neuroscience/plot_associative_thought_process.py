@@ -14,14 +14,13 @@ sites with it, and the network runs through its memories one after the other.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.neuroscience import AssociativeThoughtProcessSystem
 
 SYSTEM = 'associative_thought_process'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=3)
-trajectory = simulate(AssociativeThoughtProcessSystem(), observers=[observer])
+trajectory = AssociativeThoughtProcessSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Transient attractors
