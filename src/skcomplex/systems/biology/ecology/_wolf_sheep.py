@@ -4,7 +4,7 @@
 # License: MIT
 
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -13,14 +13,14 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import TransferInteraction
-from ....core.components.laws import BaseLaw, RuleLaw, Sink, Source
-from ....core.components.spaces import LatticeSpace
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction, TransferInteraction
+from ....core.components.laws import BaseLaw, Sink, Source, UpdateLaw
+from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver, SystemView
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 from ...general.agents import BirthDeathInteraction, MovementInteraction
 
@@ -39,7 +39,7 @@ class GrassView(AgentView):
 
 
 class GrassElement(Element):
-    """Grass patch that regrows a fixed number of steps after it is eaten.
+    """Grass patch that regrows a fixed number of steps after it is eaten, by `GrassRegrowthInteraction`.
 
     Args:
         label:
@@ -54,10 +54,18 @@ class GrassElement(Element):
         regrowth:
             The number of steps the grass takes to regrow.
 
+        values:
+            Further values by name, such as the cells `x` and `y` of the members on the grid.
+
+        size:
+            The number of members, or `None` for one.
+
+        space:
+            The grid the members live on, or `None`.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.biology.ecology import GrassElement
-        >>> GroupElement('grass', element=GrassElement, size=4, values={'grown': 1.0}).size
+        >>> GrassElement('grass', grown=1.0, size=4).size
         4
     """
 
@@ -66,17 +74,18 @@ class GrassElement(Element):
         {'color_by': 'grown', 'color_range': (0.0, 1.0), 'radius': 0.5},
     )
 
-    law_classes = (RuleLaw,)
-
     def __init__(
         self,
         label: str,
         *,
-        grown: Annotated[float, StateSpec(domain=NN)] = 1.0,
-        countdown: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        regrowth: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 30.0,
+        grown: Annotated[object, NN] = 1.0,
+        countdown: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        regrowth: Annotated[object, RealSet.open(0, oo)] = 30.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.grown = grown
         self.countdown = countdown
         self.regrowth = regrowth
@@ -86,18 +95,39 @@ class GrassElement(Element):
         """Return the view of a patch of grass, `GrassView`."""
         return GrassView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the regrowth rule.
+
+class GrassRegrowthInteraction(Interaction):
+    """Regrowth of eaten grass, which counts down its steps and grows back when the countdown ends.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the grass patches.
+
+    Examples:
+        >>> from skcomplex.systems.biology.ecology import GrassRegrowthInteraction
+        >>> GrassRegrowthInteraction('regrowth', target='grass').target
+        'grass'
+    """
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the regrowth rule of every patch.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the patches.
         """
-        return [RuleLaw(self.regrow)]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.regrow)]
 
     def regrow(self, agent: GrassView, system: SystemView) -> None:
         """Count down eaten grass and grow it back when the countdown ends.
@@ -149,10 +179,18 @@ class SheepElement(Element):
         reproduction:
             The probability of reproducing at every step.
 
+        values:
+            Further values by name, such as the cells `x` and `y` of the members on the grid.
+
+        size:
+            The number of members, or `None` for one.
+
+        space:
+            The grid the members live on, or `None`.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.biology.ecology import SheepElement
-        >>> GroupElement('sheep', element=SheepElement, size=100).size
+        >>> SheepElement('sheep', size=100).size
         100
     """
 
@@ -162,11 +200,14 @@ class SheepElement(Element):
         self,
         label: str,
         *,
-        energy: Annotated[float, StateSpec()] = 8.0,
-        gain: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
-        reproduction: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.04,
+        energy: object = 8.0,
+        gain: Annotated[object, RealSet.closed_open(0, oo)] = 4.0,
+        reproduction: Annotated[object, RealSet.closed_open(0, oo)] = 0.04,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.energy = energy
         self.gain = gain
         self.reproduction = reproduction
@@ -208,10 +249,18 @@ class WolfElement(Element):
         reproduction:
             The probability of reproducing at every step.
 
+        values:
+            Further values by name, such as the cells `x` and `y` of the members on the grid.
+
+        size:
+            The number of members, or `None` for one.
+
+        space:
+            The grid the members live on, or `None`.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.biology.ecology import WolfElement
-        >>> GroupElement('wolves', element=WolfElement, size=25).size
+        >>> WolfElement('wolves', size=25).size
         25
     """
 
@@ -221,11 +270,14 @@ class WolfElement(Element):
         self,
         label: str,
         *,
-        energy: Annotated[float, StateSpec()] = 20.0,
-        gain: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
-        reproduction: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        energy: object = 20.0,
+        gain: Annotated[object, RealSet.closed_open(0, oo)] = 20.0,
+        reproduction: Annotated[object, RealSet.closed_open(0, oo)] = 0.05,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.energy = energy
         self.gain = gain
         self.reproduction = reproduction
@@ -387,24 +439,26 @@ class WolfSheepSystem(BaseSystem):
         cells = [(column, row) for column in range(self.width) for row in range(self.height)]
         grown = (rng.random(len(cells)) < GROWN_SHARE).astype(float)
         countdown = np.where(grown > 0, self.regrowth, rng.uniform(0, self.regrowth, len(cells)))
-        grass = GroupElement(
+        space = LatticeSpace((self.width, self.height), boundary='periodic')
+        grass = GrassElement(
             'grass',
-            element=GrassElement,
+            grown=grown,
+            countdown=countdown,
+            regrowth=self.regrowth,
+            values={'x': [cell[0] for cell in cells], 'y': [cell[1] for cell in cells]},
             size=len(cells),
-            values={'grown': grown, 'countdown': countdown, 'regrowth': self.regrowth},
-            variable=True,
-            location=cells,
+            space=space,
         )
         self.system_ = System(
             self.label,
             elements=[
                 grass,
-                GroupElement('sheep', element=SheepElement, size=self.sheep, variable=True),
-                GroupElement('wolves', element=WolfElement, size=self.wolves, variable=True),
+                SheepElement('sheep', size=self.sheep, space=space),
+                WolfElement('wolves', size=self.wolves, space=space),
             ],
             interactions=[
+                GrassRegrowthInteraction('regrowth', target='grass'),
                 *self._get_animal('sheep', 'grass', removed=False),
                 *self._get_animal('wolves', 'sheep', removed=True),
             ],
-            space=LatticeSpace((self.width, self.height), boundary='periodic'),
         )

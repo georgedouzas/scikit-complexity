@@ -15,7 +15,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import MapInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import where
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -292,19 +293,33 @@ class ExchangeRatesSystem(BaseSystem):
         self.world_price = world_price
 
     @staticmethod
-    def _get_adjustments() -> list[MapInteraction]:
+    def _get_adjustments() -> list[Interaction]:
         """Return the maps of the home price, the exchange rate, and the trade volumes.
 
         There is one at every stage.
         """
+        system = ExchangeRatesSystem
         return [
-            MapInteraction(f'{state}_adjustment', target='home', state=state, function=function)
-            for state, function in (
-                ('PH', ExchangeRatesSystem._get_home_price),
-                ('E', ExchangeRatesSystem._exchange_rate),
-                ('X', ExchangeRatesSystem._get_exports),
-                ('M', ExchangeRatesSystem._get_imports),
-            )
+            Interaction(
+                'PH_adjustment',
+                roles={'target': 'home'},
+                laws=lambda s: [UpdateLaw(s.target.PH, system._get_home_price(s))],
+            ),
+            Interaction(
+                'E_adjustment',
+                roles={'target': 'home'},
+                laws=lambda s: [UpdateLaw(s.target.E, system._exchange_rate(s))],
+            ),
+            Interaction(
+                'X_adjustment',
+                roles={'target': 'home'},
+                laws=lambda s: [UpdateLaw(s.target.X, system._get_exports(s))],
+            ),
+            Interaction(
+                'M_adjustment',
+                roles={'target': 'home'},
+                laws=lambda s: [UpdateLaw(s.target.M, system._get_imports(s))],
+            ),
         ]
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:

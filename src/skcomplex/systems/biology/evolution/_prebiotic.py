@@ -18,12 +18,13 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import MapInteraction
+from ....core.components.interactions import Interaction, MapInteraction
+from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import total
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, Role
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ..common.populations import ReplicatorInteraction
 
@@ -165,7 +166,7 @@ class CatalysisInteraction(ReplicatorInteraction):
         label: str,
         *,
         target: Role,
-        omega: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        omega: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
         topology: Sequence[Sequence[float]] = ((0.0, 1.0), (1.0, 0.0)),
     ) -> None:
         super().__init__(label, target=target)
@@ -294,7 +295,11 @@ class EigenQuasispeciesSystem(BaseSystem):
             MasterSequenceElement('master', x=1.0, u=self.u, sigma=self.sigma),
             *(GenotypeClassElement(label) for label in labels[1:]),
         ]
-        selection = MapInteraction('selection', target='master', state='x', function=self._replicate_master)
+        selection = Interaction(
+            'selection',
+            roles={'target': 'master'},
+            laws=lambda s: [UpdateLaw(s.target.x, self._replicate_master(s))],
+        )
         mutations = [
             MapInteraction(
                 f'mutation_{target}',

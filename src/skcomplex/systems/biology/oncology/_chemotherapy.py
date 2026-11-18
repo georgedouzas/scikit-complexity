@@ -15,7 +15,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import BaseInteraction, RateInteraction
+from ....core.components.interactions import BaseInteraction, Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import clip, delayed
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -734,13 +735,12 @@ class MultidrugResistanceSystem(BaseSystem):
         super()._prepare(context)
         tumour = MultidrugResistanceElement('tumour', S=self.S, r=self.r, u1=self.u1, u2=self.u2, u3=self.u3)
 
-        def growth(name: str) -> RateInteraction:
+        def growth(name: str) -> Interaction:
             """Return the division of the cells of a resistance class."""
-            return RateInteraction(
+            return Interaction(
                 f'growth_{name}',
-                target='tumour',
-                state=name,
-                rate=lambda s: s.target.r * getattr(s.target, name),
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(getattr(s.target, name), s.target.r * getattr(s.target, name))],
             )
 
         def mutation(name: str, drug: int, mutant: str) -> ReactionInteraction:
@@ -791,11 +791,10 @@ class MultidrugResistanceSystem(BaseSystem):
                     reactants={f'U{drug}': 1},
                     propensity=lambda s: getattr(s.target, f'k{drug}') * getattr(s.target, f'U{drug}'),
                 ),
-                RateInteraction(
+                Interaction(
                     f'toxicity_{drug}',
-                    target='tumour',
-                    state=f'TX{drug}',
-                    rate=lambda s: getattr(s.target, f'U{drug}'),
+                    roles={'target': 'tumour'},
+                    laws=lambda s: [RateLaw(getattr(s.target, f'TX{drug}'), getattr(s.target, f'U{drug}'))],
                 ),
                 ReactionInteraction(
                     f'recovery_{drug}',
@@ -1118,17 +1117,15 @@ class DelayedRestingHuntingChemotherapySystem(BaseSystem):
                 modifiers={'A': 1},
                 propensity=lambda s: s.target.c1 * s.target.A * s.target.E,
             ),
-            RateInteraction(
+            Interaction(
                 'resting_growth',
-                target='patient',
-                state='Q',
-                rate=lambda s: s.target.r1 * s.target.Q * (1 - s.target.b1 * s.target.Q),
+                roles={'target': 'patient'},
+                laws=lambda s: [RateLaw(s.target.Q, s.target.r1 * s.target.Q * (1 - s.target.b1 * s.target.Q))],
             ),
-            RateInteraction(
+            Interaction(
                 'tumour_growth',
-                target='patient',
-                state='A',
-                rate=lambda s: s.target.r2 * s.target.A * (1 - s.target.b2 * s.target.A),
+                roles={'target': 'patient'},
+                laws=lambda s: [RateLaw(s.target.A, s.target.r2 * s.target.A * (1 - s.target.b2 * s.target.A))],
             ),
             ReactionInteraction(
                 'tumour_kill',
@@ -1250,15 +1247,17 @@ class DelayedMetastasisSystem(BaseSystem):
         def population(cells: str, other: str, drug: str, index: int, uptake: str) -> list[BaseInteraction]:
             """Return the growth, competition, and drug kill and uptake of the cells of a site."""
             return [
-                RateInteraction(
+                Interaction(
                     f'growth_{cells}',
-                    target='patient',
-                    state=cells,
-                    rate=lambda s: (
-                        getattr(s.target, f'r{index}')
-                        * getattr(s.target, cells)
-                        * (1 - getattr(s.target, f'b{index}') * getattr(s.target, cells))
-                    ),
+                    roles={'target': 'patient'},
+                    laws=lambda s: [
+                        RateLaw(
+                            getattr(s.target, cells),
+                            getattr(s.target, f'r{index}')
+                            * getattr(s.target, cells)
+                            * (1 - getattr(s.target, f'b{index}') * getattr(s.target, cells)),
+                        ),
+                    ],
                 ),
                 ReactionInteraction(
                     f'competition_{cells}',
@@ -1321,11 +1320,12 @@ class DelayedMetastasisSystem(BaseSystem):
                 reactants={'Ap': 1},
                 propensity=lambda s: s.target.delta * s.target.Ap,
             ),
-            RateInteraction(
+            Interaction(
                 'arrival',
-                target='patient',
-                state='As',
-                rate=lambda s: s.target.epsilon * s.target.delta * delayed(s.target.Ap, s.target.tau),
+                roles={'target': 'patient'},
+                laws=lambda s: [
+                    RateLaw(s.target.As, s.target.epsilon * s.target.delta * delayed(s.target.Ap, s.target.tau)),
+                ],
             ),
         ]
         self.system_ = System(self.label, elements=[patient], interactions=interactions)

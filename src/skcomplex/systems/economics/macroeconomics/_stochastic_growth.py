@@ -15,7 +15,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import MapInteraction, TransitionInteraction
+from ....core.components.interactions import Interaction, TransitionInteraction
+from ....core.components.laws import UpdateLaw
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -227,11 +228,15 @@ class BrockMirmanGrowthSystem(BaseSystem):
                 ),
             ],
             interactions=[
-                MapInteraction(
+                Interaction(
                     'saving',
-                    target='economy',
-                    state='K',
-                    function=lambda s: s.target.alpha * s.target.beta * StochasticGrowthElement.get_output(s.target),
+                    roles={'target': 'economy'},
+                    laws=lambda s: [
+                        UpdateLaw(
+                            s.target.K,
+                            s.target.alpha * s.target.beta * StochasticGrowthElement.get_output(s.target),
+                        ),
+                    ],
                 ),
                 TransitionInteraction('productivity', target='economy', state='regime', matrix=lambda s: chain),
             ],

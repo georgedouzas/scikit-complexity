@@ -15,7 +15,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import RateInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import delayed, hill, where
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, ScipyODESolver
@@ -1225,7 +1226,11 @@ class KirschnerPanettaSystem(BaseSystem):
             u2=self.u2,
         )
         interactions = [
-            RateInteraction('stimulation', target='site', state='E', rate=lambda s: s.target.alpha_a * s.target.A),
+            Interaction(
+                'stimulation',
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.E, s.target.alpha_a * s.target.A)],
+            ),
             ReactionInteraction(
                 'effector_death',
                 target='site',
@@ -1242,11 +1247,10 @@ class KirschnerPanettaSystem(BaseSystem):
                 km=lambda s: s.target.alpha1,
                 modifiers={'E': 1},
             ),
-            RateInteraction(
+            Interaction(
                 'tumour_growth',
-                target='site',
-                state='A',
-                rate=lambda s: s.target.r1 * s.target.A * (1 - s.target.b * s.target.A),
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.A, s.target.r1 * s.target.A * (1 - s.target.b * s.target.A))],
             ),
             MichaelisMentenInteraction(
                 'kill',
@@ -1382,15 +1386,15 @@ class DendriticCellVaccineSystem(BaseSystem):
         )
         interactions = [
             DosingInteraction('helper_influx', target='site', state='EH', dose=lambda s: s.target.s1),
-            RateInteraction(
+            Interaction(
                 'helper_proliferation',
-                target='site',
-                state='EH',
-                rate=lambda s: s.target.rho1
-                * s.target.ED
-                * s.target.r1
-                * s.target.EH
-                * (1 - s.target.b1 * s.target.EH),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.EH,
+                        s.target.rho1 * s.target.ED * s.target.r1 * s.target.EH * (1 - s.target.b1 * s.target.EH),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'helper_death',
@@ -1399,16 +1403,20 @@ class DendriticCellVaccineSystem(BaseSystem):
                 propensity=lambda s: s.target.d1 * s.target.EH,
             ),
             DosingInteraction('cytotoxic_influx', target='site', state='E', dose=lambda s: s.target.s2),
-            RateInteraction(
+            Interaction(
                 'cytotoxic_proliferation',
-                target='site',
-                state='E',
-                rate=lambda s: s.target.rho2
-                * s.target.C
-                * (s.target.A + s.target.ED)
-                * s.target.r2
-                * s.target.E
-                * (1 - s.target.b2 * s.target.E),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.E,
+                        s.target.rho2
+                        * s.target.C
+                        * (s.target.A + s.target.ED)
+                        * s.target.r2
+                        * s.target.E
+                        * (1 - s.target.b2 * s.target.E),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'cytotoxic_death',
@@ -1416,11 +1424,10 @@ class DendriticCellVaccineSystem(BaseSystem):
                 reactants={'E': 1},
                 propensity=lambda s: s.target.d2 * s.target.E,
             ),
-            RateInteraction(
+            Interaction(
                 'tumour_growth',
-                target='site',
-                state='A',
-                rate=lambda s: s.target.r3 * s.target.A * (1 - s.target.b3 * s.target.A),
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.A, s.target.r3 * s.target.A * (1 - s.target.b3 * s.target.A))],
             ),
             ReactionInteraction(
                 'kill',
@@ -1446,11 +1453,10 @@ class DendriticCellVaccineSystem(BaseSystem):
                 modifiers={'E': 1},
                 propensity=lambda s: s.target.c2 * s.target.E * s.target.ED,
             ),
-            RateInteraction(
+            Interaction(
                 'il2_production',
-                target='site',
-                state='C',
-                rate=lambda s: s.target.r4 * s.target.EH * s.target.ED,
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.C, s.target.r4 * s.target.EH * s.target.ED)],
             ),
             ReactionInteraction(
                 'il2_consumption',
@@ -1584,22 +1590,26 @@ class AntiPD1CheckpointSystem(BaseSystem):
             return receptor
 
         interactions = [
-            RateInteraction(
+            Interaction(
                 'activation',
-                target='site',
-                state='E',
-                rate=lambda s: (
-                    s.target.r1 * s.target.ENC * hill(s.target.C1_ss, s.target.C1_50)
-                    + s.target.r2 * s.target.E * hill(s.target.C2_ss, s.target.C2_50)
-                )
-                / (
-                    1
-                    + s.target.sigma
-                    * free_receptor(s)
-                    * s.target.sigma_l
-                    * (s.target.E + s.target.c_l * s.target.A)
-                    / s.target.psi_pp
-                ),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.E,
+                        (
+                            s.target.r1 * s.target.ENC * hill(s.target.C1_ss, s.target.C1_50)
+                            + s.target.r2 * s.target.E * hill(s.target.C2_ss, s.target.C2_50)
+                        )
+                        / (
+                            1
+                            + s.target.sigma
+                            * free_receptor(s)
+                            * s.target.sigma_l
+                            * (s.target.E + s.target.c_l * s.target.A)
+                            / s.target.psi_pp
+                        ),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'effector_death',
@@ -1607,11 +1617,10 @@ class AntiPD1CheckpointSystem(BaseSystem):
                 reactants={'E': 1},
                 propensity=lambda s: s.target.d1 * s.target.E,
             ),
-            RateInteraction(
+            Interaction(
                 'tumour_growth',
-                target='site',
-                state='A',
-                rate=lambda s: s.target.r3 * s.target.A * (1 - s.target.b * s.target.A),
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.A, s.target.r3 * s.target.A * (1 - s.target.b * s.target.A))],
             ),
             ReactionInteraction(
                 'kill',
@@ -1745,11 +1754,10 @@ class DelayedDCVaccineSystem(BaseSystem):
             tau3=self.tau3,
         )
         interactions = [
-            RateInteraction(
+            Interaction(
                 'tumour_growth',
-                target='site',
-                state='A',
-                rate=lambda s: s.target.r1 * s.target.A * log(s.target.b / s.target.A),
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.A, s.target.r1 * s.target.A * log(s.target.b / s.target.A))],
             ),
             ReactionInteraction(
                 'cytotoxic_kill',
@@ -1775,14 +1783,18 @@ class DelayedDCVaccineSystem(BaseSystem):
                 reactants={'ENK': 1},
                 propensity=lambda s: s.target.d1 * s.target.ENK,
             ),
-            RateInteraction(
+            Interaction(
                 'nk_proliferation',
-                target='site',
-                state='ENK',
-                rate=lambda s: s.target.rho1
-                * delayed(s.target.ENK, s.target.tau1)
-                * delayed(s.target.C, s.target.tau1)
-                / (s.target.g2 + delayed(s.target.C, s.target.tau1)),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.ENK,
+                        s.target.rho1
+                        * delayed(s.target.ENK, s.target.tau1)
+                        * delayed(s.target.C, s.target.tau1)
+                        / (s.target.g2 + delayed(s.target.C, s.target.tau1)),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'nk_suppression',
@@ -1813,32 +1825,44 @@ class DelayedDCVaccineSystem(BaseSystem):
                 reactants={'E': 1},
                 propensity=lambda s: s.target.d3 * s.target.E,
             ),
-            RateInteraction(
+            Interaction(
                 'primed_expansion',
-                target='site',
-                state='E',
-                rate=lambda s: s.target.rho3
-                * delayed(s.target.ENC, 7 * s.target.tau2, 7 * self.tau2)
-                * delayed(s.target.ED, 7 * s.target.tau2, 7 * self.tau2)
-                / (s.target.g3 + delayed(s.target.ED, 7 * s.target.tau2, 7 * self.tau2)),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.E,
+                        s.target.rho3
+                        * delayed(s.target.ENC, 7 * s.target.tau2, 7 * self.tau2)
+                        * delayed(s.target.ED, 7 * s.target.tau2, 7 * self.tau2)
+                        / (s.target.g3 + delayed(s.target.ED, 7 * s.target.tau2, 7 * self.tau2)),
+                    ),
+                ],
             ),
-            RateInteraction(
+            Interaction(
                 'dendritic_expansion',
-                target='site',
-                state='E',
-                rate=lambda s: s.target.m1
-                * delayed(s.target.ED, s.target.tau2)
-                * delayed(s.target.E, s.target.tau2)
-                / (s.target.g3 + delayed(s.target.ED, s.target.tau2)),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.E,
+                        s.target.m1
+                        * delayed(s.target.ED, s.target.tau2)
+                        * delayed(s.target.E, s.target.tau2)
+                        / (s.target.g3 + delayed(s.target.ED, s.target.tau2)),
+                    ),
+                ],
             ),
-            RateInteraction(
+            Interaction(
                 'il2_expansion',
-                target='site',
-                state='E',
-                rate=lambda s: s.target.rho4
-                * delayed(s.target.E, s.target.tau2)
-                * delayed(s.target.C, s.target.tau2) ** 2
-                / (s.target.g4 + delayed(s.target.C, s.target.tau2) ** 2),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.E,
+                        s.target.rho4
+                        * delayed(s.target.E, s.target.tau2)
+                        * delayed(s.target.C, s.target.tau2) ** 2
+                        / (s.target.g4 + delayed(s.target.C, s.target.tau2) ** 2),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'cytotoxic_suppression',
@@ -1878,11 +1902,12 @@ class DelayedDCVaccineSystem(BaseSystem):
                 reactants={'C': 1},
                 propensity=lambda s: s.target.d5 * s.target.C,
             ),
-            RateInteraction(
+            Interaction(
                 'cytotoxic_secretion',
-                target='site',
-                state='C',
-                rate=lambda s: s.target.rho5 * s.target.E**2 * s.target.C / (s.target.g6 + s.target.E**2),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(s.target.C, s.target.rho5 * s.target.E**2 * s.target.C / (s.target.g6 + s.target.E**2)),
+                ],
             ),
             MichaelisMentenInteraction(
                 'helper_secretion',
@@ -1900,23 +1925,31 @@ class DelayedDCVaccineSystem(BaseSystem):
                 reactants={'ER': 1},
                 propensity=lambda s: s.target.d6 * s.target.ER,
             ),
-            RateInteraction(
+            Interaction(
                 'antigen_expansion',
-                target='site',
-                state='ER',
-                rate=lambda s: s.target.rho7
-                * delayed(s.target.ER, s.target.tau3)
-                * delayed(s.target.A, s.target.tau3) ** 2
-                / (s.target.g8 + delayed(s.target.A, s.target.tau3) ** 2),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.ER,
+                        s.target.rho7
+                        * delayed(s.target.ER, s.target.tau3)
+                        * delayed(s.target.A, s.target.tau3) ** 2
+                        / (s.target.g8 + delayed(s.target.A, s.target.tau3) ** 2),
+                    ),
+                ],
             ),
-            RateInteraction(
+            Interaction(
                 'il2_regulatory_expansion',
-                target='site',
-                state='ER',
-                rate=lambda s: s.target.rho8
-                * delayed(s.target.ER, s.target.tau3)
-                * delayed(s.target.C, s.target.tau3)
-                / (s.target.g9 + delayed(s.target.C, s.target.tau3)),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.ER,
+                        s.target.rho8
+                        * delayed(s.target.ER, s.target.tau3)
+                        * delayed(s.target.C, s.target.tau3)
+                        / (s.target.g9 + delayed(s.target.C, s.target.tau3)),
+                    ),
+                ],
             ),
             DosingInteraction('naive_helper_influx', target='site', state='ENH', dose=lambda s: s.target.s5),
             ReactionInteraction(
@@ -1940,14 +1973,18 @@ class DelayedDCVaccineSystem(BaseSystem):
                 reactants={'E1H': 1},
                 propensity=lambda s: s.target.d8 * s.target.E1H,
             ),
-            RateInteraction(
+            Interaction(
                 'primed_helper_expansion',
-                target='site',
-                state='E1H',
-                rate=lambda s: s.target.m2
-                * delayed(s.target.ED, 2 * s.target.tau3, 2 * self.tau3)
-                * delayed(s.target.ENH, 2 * s.target.tau3, 2 * self.tau3)
-                / (s.target.g3 + delayed(s.target.ED, 2 * s.target.tau3, 2 * self.tau3)),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.E1H,
+                        s.target.m2
+                        * delayed(s.target.ED, 2 * s.target.tau3, 2 * self.tau3)
+                        * delayed(s.target.ENH, 2 * s.target.tau3, 2 * self.tau3)
+                        / (s.target.g3 + delayed(s.target.ED, 2 * s.target.tau3, 2 * self.tau3)),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'helper_suppression',
@@ -1956,14 +1993,18 @@ class DelayedDCVaccineSystem(BaseSystem):
                 modifiers={'ER': 1},
                 propensity=lambda s: s.target.psi3 * s.target.ER * s.target.E1H,
             ),
-            RateInteraction(
+            Interaction(
                 'helper_expansion',
-                target='site',
-                state='E1H',
-                rate=lambda s: s.target.rho10
-                * delayed(s.target.ED, s.target.tau3)
-                * delayed(s.target.E, s.target.tau3)
-                / (s.target.g3 + delayed(s.target.ED, s.target.tau3)),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.E1H,
+                        s.target.rho10
+                        * delayed(s.target.ED, s.target.tau3)
+                        * delayed(s.target.E, s.target.tau3)
+                        / (s.target.g3 + delayed(s.target.ED, s.target.tau3)),
+                    ),
+                ],
             ),
         ]
         self.system_ = System(self.label, elements=[site], interactions=interactions, solver=STIFF_SOLVER)
@@ -2080,13 +2121,20 @@ class TumourImmuneSuppressionSystem(BaseSystem):
             return factor
 
         interactions = [
-            RateInteraction(
+            Interaction(
                 'tumour_growth',
-                target='site',
-                state='A',
-                rate=lambda s: s.target.A
-                / ((1 / s.target.r1) ** s.target.p + (s.target.A ** (1 - s.target.n) / s.target.r2) ** s.target.p)
-                ** (1 / s.target.p),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.A,
+                        s.target.A
+                        / (
+                            (1 / s.target.r1) ** s.target.p
+                            + (s.target.A ** (1 - s.target.n) / s.target.r2) ** s.target.p
+                        )
+                        ** (1 / s.target.p),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'kill',
@@ -2099,13 +2147,17 @@ class TumourImmuneSuppressionSystem(BaseSystem):
                 / (s.target.E + accessible(s) / s.target.g1 + s.target.ER / s.target.g2)
                 / (1 + s.target.C3 / s.target.C3_50),
             ),
-            RateInteraction(
+            Interaction(
                 'antigen_uptake',
-                target='site',
-                state='EUD',
-                rate=lambda s: s.target.alpha_a
-                * accessible(s)
-                / ((1 + s.target.C2 / s.target.C2_50) * (1 + s.target.ER / s.target.ER_50)),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.EUD,
+                        s.target.alpha_a
+                        * accessible(s)
+                        / ((1 + s.target.C2 / s.target.C2_50) * (1 + s.target.ER / s.target.ER_50)),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'licensing',
@@ -2126,14 +2178,18 @@ class TumourImmuneSuppressionSystem(BaseSystem):
                 reactants={'ED': 1},
                 propensity=lambda s: s.target.d2 * s.target.ED,
             ),
-            RateInteraction(
+            Interaction(
                 'cytotoxic_priming',
-                target='site',
-                state='EPC',
-                rate=lambda s: s.target.a2
-                * s.target.EMC
-                * s.target.ED
-                / (s.target.ED + s.target.g4 * (s.target.EMC + s.target.EMH + s.target.EMR)),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.EPC,
+                        s.target.a2
+                        * s.target.EMC
+                        * s.target.ED
+                        / (s.target.ED + s.target.g4 * (s.target.EMC + s.target.EMH + s.target.EMR)),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'cytotoxic_precursor_death',
@@ -2141,11 +2197,10 @@ class TumourImmuneSuppressionSystem(BaseSystem):
                 reactants={'EPC': 1},
                 propensity=lambda s: s.target.d3 * s.target.EPC,
             ),
-            RateInteraction(
+            Interaction(
                 'cytotoxic_maturation',
-                target='site',
-                state='E',
-                rate=lambda s: s.target.a3 * s.target.EPC * maturation(s),
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.E, s.target.a3 * s.target.EPC * maturation(s))],
             ),
             ReactionInteraction(
                 'cytotoxic_death',
@@ -2153,14 +2208,18 @@ class TumourImmuneSuppressionSystem(BaseSystem):
                 reactants={'E': 1},
                 propensity=lambda s: s.target.d4 * s.target.E,
             ),
-            RateInteraction(
+            Interaction(
                 'helper_priming',
-                target='site',
-                state='EPH',
-                rate=lambda s: s.target.a4
-                * s.target.EMH
-                * (s.target.ED + s.target.EUD)
-                / (s.target.ED + s.target.EUD + s.target.g4 * (s.target.EMC + s.target.EMH + s.target.EMR)),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.EPH,
+                        s.target.a4
+                        * s.target.EMH
+                        * (s.target.ED + s.target.EUD)
+                        / (s.target.ED + s.target.EUD + s.target.g4 * (s.target.EMC + s.target.EMH + s.target.EMR)),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'helper_precursor_death',
@@ -2168,11 +2227,10 @@ class TumourImmuneSuppressionSystem(BaseSystem):
                 reactants={'EPH': 1},
                 propensity=lambda s: s.target.d5 * s.target.EPH,
             ),
-            RateInteraction(
+            Interaction(
                 'helper_maturation',
-                target='site',
-                state='EH',
-                rate=lambda s: s.target.a5 * s.target.EPH * maturation(s),
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.EH, s.target.a5 * s.target.EPH * maturation(s))],
             ),
             ReactionInteraction(
                 'conversion',
@@ -2188,14 +2246,18 @@ class TumourImmuneSuppressionSystem(BaseSystem):
                 reactants={'EH': 1},
                 propensity=lambda s: s.target.d6 * s.target.EH,
             ),
-            RateInteraction(
+            Interaction(
                 'regulatory_priming',
-                target='site',
-                state='EPR',
-                rate=lambda s: s.target.a7
-                * s.target.EMR
-                * s.target.ED
-                / (s.target.ED + s.target.g4 * (s.target.EMC + s.target.EMH + s.target.EMR)),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.EPR,
+                        s.target.a7
+                        * s.target.EMR
+                        * s.target.ED
+                        / (s.target.ED + s.target.g4 * (s.target.EMC + s.target.EMH + s.target.EMR)),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'regulatory_precursor_death',
@@ -2203,11 +2265,10 @@ class TumourImmuneSuppressionSystem(BaseSystem):
                 reactants={'EPR': 1},
                 propensity=lambda s: s.target.d7 * s.target.EPR,
             ),
-            RateInteraction(
+            Interaction(
                 'regulatory_maturation',
-                target='site',
-                state='ER',
-                rate=lambda s: s.target.a8 * s.target.EPR * hill(s.target.C1, s.target.EC1_50),
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.ER, s.target.a8 * s.target.EPR * hill(s.target.C1, s.target.EC1_50))],
             ),
             ReactionInteraction(
                 'regulatory_death',
@@ -2215,13 +2276,17 @@ class TumourImmuneSuppressionSystem(BaseSystem):
                 reactants={'ER': 1},
                 propensity=lambda s: s.target.d8 * s.target.ER,
             ),
-            RateInteraction(
+            Interaction(
                 'il2_secretion',
-                target='site',
-                state='C1',
-                rate=lambda s: s.target.a9
-                * s.target.EPH
-                / ((1 + s.target.C3 / s.target.CC3_50) * (1 + s.target.C2 / s.target.CC2_50)),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.C1,
+                        s.target.a9
+                        * s.target.EPH
+                        / ((1 + s.target.C3 / s.target.CC3_50) * (1 + s.target.C2 / s.target.CC2_50)),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'il2_loss',
@@ -2229,17 +2294,15 @@ class TumourImmuneSuppressionSystem(BaseSystem):
                 reactants={'C1': 1},
                 propensity=lambda s: s.target.C1 / s.target.tau1,
             ),
-            RateInteraction(
+            Interaction(
                 'regulatory_il10',
-                target='site',
-                state='C2',
-                rate=lambda s: s.target.r3 * s.target.ER,
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.C2, s.target.r3 * s.target.ER)],
             ),
-            RateInteraction(
+            Interaction(
                 'tumour_il10',
-                target='site',
-                state='C2',
-                rate=lambda s: s.target.r4 * s.target.A,
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.C2, s.target.r4 * s.target.A)],
             ),
             ReactionInteraction(
                 'il10_loss',
@@ -2247,17 +2310,15 @@ class TumourImmuneSuppressionSystem(BaseSystem):
                 reactants={'C2': 1},
                 propensity=lambda s: s.target.C2 / s.target.tau2,
             ),
-            RateInteraction(
+            Interaction(
                 'regulatory_tgf_beta',
-                target='site',
-                state='C3',
-                rate=lambda s: s.target.r5 * s.target.ER,
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.C3, s.target.r5 * s.target.ER)],
             ),
-            RateInteraction(
+            Interaction(
                 'tumour_tgf_beta',
-                target='site',
-                state='C3',
-                rate=lambda s: s.target.r6 * s.target.A,
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.C3, s.target.r6 * s.target.A)],
             ),
             ReactionInteraction(
                 'tgf_beta_loss',

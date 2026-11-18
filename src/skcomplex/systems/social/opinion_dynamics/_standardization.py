@@ -15,7 +15,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
@@ -306,14 +307,16 @@ class StandardizedAgentsSystem(BaseSystem):
                     intensity=1 / self.T,
                     phase=PHASE,
                 ),
-                MapInteraction(
+                Interaction(
                     'spin',
-                    target='agents',
-                    state='spin',
-                    function=self._get_spin,
-                    schedule='member',
-                    form='agent',
-                    phase=PHASE,
+                    roles={'target': 'agents'},
+                    laws=lambda s: [
+                        UpdateLaw(
+                            s.target,
+                            lambda agent, system: setattr(agent, 'spin', float(self._get_spin(agent, system))),
+                            phase=PHASE,
+                        ),
+                    ],
                 ),
             ],
             solver=MesaSolver(phases=[PhaseSpec(PHASE, activation='visits', groups=('agents',))]),

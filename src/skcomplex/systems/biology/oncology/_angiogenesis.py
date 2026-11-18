@@ -17,8 +17,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element, FieldElement, GroupElement
-from ....core.components.interactions import MapInteraction, RateInteraction, TransferInteraction
-from ....core.components.laws import Source
+from ....core.components.interactions import Interaction, MapInteraction, TransferInteraction
+from ....core.components.laws import RateLaw, Source, UpdateLaw
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import CompositeSystem
@@ -470,23 +470,29 @@ class TumourAngiogenesisSystem(BaseSystem):
         weights = np.exp(tip.chemotaxis * (levels - levels.max()) / level)
         return cells[int(system.rng.choice(len(cells), p=weights / weights.sum()))]
 
-    def _get_tissue(self) -> list[RateInteraction]:
+    def _get_tissue(self) -> list[Interaction]:
         """Return the diffusion and the decay of oxygen and VEGF in the tissue."""
         return [
-            RateInteraction(
+            Interaction(
                 'oxygen_diffusion',
-                target='tissue',
-                state='oxygen',
-                rate=lambda s: self._get_oxygen_diffusion(s) * laplacian(s.target.oxygen),
+                roles={'target': 'tissue'},
+                laws=lambda s: [RateLaw(s.target.oxygen, self._get_oxygen_diffusion(s) * laplacian(s.target.oxygen))],
             ),
-            RateInteraction('oxygen_decay', target='tissue', state='oxygen', rate=self._get_oxygen_decay),
-            RateInteraction(
+            Interaction(
+                'oxygen_decay',
+                roles={'target': 'tissue'},
+                laws=lambda s: [RateLaw(s.target.oxygen, self._get_oxygen_decay(s))],
+            ),
+            Interaction(
                 'vegf_diffusion',
-                target='tissue',
-                state='vegf',
-                rate=lambda s: self._get_vegf_diffusion(s) * laplacian(s.target.vegf),
+                roles={'target': 'tissue'},
+                laws=lambda s: [RateLaw(s.target.vegf, self._get_vegf_diffusion(s) * laplacian(s.target.vegf))],
             ),
-            RateInteraction('vegf_decay', target='tissue', state='vegf', rate=self._get_vegf_decay),
+            Interaction(
+                'vegf_decay',
+                roles={'target': 'tissue'},
+                laws=lambda s: [RateLaw(s.target.vegf, self._get_vegf_decay(s))],
+            ),
         ]
 
     def _get_cells(self) -> list[TransferInteraction | MapInteraction | BirthDeathInteraction | MovementInteraction]:
@@ -503,13 +509,15 @@ class TumourAngiogenesisSystem(BaseSystem):
                 form='agent',
                 schedule='member',
             ),
-            MapInteraction(
+            Interaction(
                 'hypoxia',
-                target=TUMOUR,
-                state='hypoxic',
-                function=self._get_hypoxic,
-                form='agent',
-                schedule='member',
+                roles={'target': TUMOUR},
+                laws=lambda s: [
+                    UpdateLaw(
+                        s.target,
+                        lambda agent, system: setattr(agent, 'hypoxic', float(self._get_hypoxic(agent, system))),
+                    ),
+                ],
             ),
             TransferInteraction(
                 'secretion',

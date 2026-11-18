@@ -16,7 +16,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import MapInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace, ContinuousSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
@@ -415,14 +416,20 @@ class CouzinLeadershipSystem(BaseSystem):
             elements=[shoal],
             interactions=[
                 SchoolingInteraction('schooling', target='shoal', phase='turn'),
-                MapInteraction(
+                Interaction(
                     'deviation',
-                    target='shoal',
-                    state='deviation',
-                    function=self._draw_deviation,
-                    form='agent',
-                    schedule='member',
-                    phase='turn',
+                    roles={'target': 'shoal'},
+                    laws=lambda s: [
+                        UpdateLaw(
+                            s.target,
+                            lambda agent, system: setattr(
+                                agent,
+                                'deviation',
+                                float(self._draw_deviation(agent, system)),
+                            ),
+                            phase='turn',
+                        ),
+                    ],
                 ),
                 SwimmingInteraction('swimming', target='shoal', phase='swim'),
             ],

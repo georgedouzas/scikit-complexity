@@ -16,7 +16,6 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import OncolyticVirusDendriticSystem
@@ -40,7 +39,7 @@ blueprint = rrb.Blueprint(
 system = OncolyticVirusDendriticSystem().prepare().system_
 solver = ScipyODESolver(method='LSODA')
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
-trajectory = simulate(system, dt=0.1, solver=solver, observers=[observer], until=20)
+trajectory = system.set_params(solver=solver).prepare().simulate(dt=0.1, observers=[observer], until=20)
 
 # %%
 # Each therapy alone and both together
@@ -56,7 +55,7 @@ arms = {
 }
 fig, (volume, cells) = plt.subplots(1, 2, figsize=(10, 4))
 for name, arm in arms.items():
-    trajectory = simulate(arm, dt=0.1, solver=solver, until=20)
+    trajectory = arm.set_params(solver=solver).prepare().simulate(dt=0.1, until=20)
     volume.semilogy(
         trajectory.times,
         (trajectory.get_values('site.AU') + trajectory.get_values('site.AV')).clip(1e-6),

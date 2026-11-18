@@ -16,7 +16,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import RateInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import convolve, displacement, where
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
@@ -189,5 +190,9 @@ class AmariNeuralFieldSystem(BaseSystem):
             sigma=self.sigma,
             space=LatticeSpace(self.n_sites, spacing=spacing),
         )
-        rate = RateInteraction('rate', target='field', state='u', rate=self._get_amari_rate)
+        rate = Interaction(
+            'rate',
+            roles={'target': 'field'},
+            laws=lambda s: [RateLaw(s.target.u, self._get_amari_rate(s))],
+        )
         self.system_ = System(self.label, elements=[field], interactions=[rate])

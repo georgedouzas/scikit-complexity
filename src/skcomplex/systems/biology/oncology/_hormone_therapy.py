@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import BaseInteraction, CrossingInteraction, RateInteraction
+from ....core.components.interactions import BaseInteraction, CrossingInteraction, Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import hill, pulse_train
 from ....core.engine.backends import BaseBackend
@@ -1173,14 +1173,18 @@ class ContinuousAndrogenSuppressionSystem(BaseSystem):
             a=self.a,
         )
         interactions = [
-            RateInteraction(
+            Interaction(
                 'dependent_growth',
-                target='tumour',
-                state='AD',
-                rate=lambda s: s.target.r1
-                * s.target.U
-                * (1 - s.target.b * (s.target.AD + s.target.c1 * s.target.AI))
-                * s.target.AD,
+                roles={'target': 'tumour'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.AD,
+                        s.target.r1
+                        * s.target.U
+                        * (1 - s.target.b * (s.target.AD + s.target.c1 * s.target.AI))
+                        * s.target.AD,
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'deprivation_death',
@@ -1195,23 +1199,25 @@ class ContinuousAndrogenSuppressionSystem(BaseSystem):
                 products={'AI': 1},
                 propensity=lambda s: s.target.m1 * (1 - s.target.U / s.target.U0) * s.target.AD,
             ),
-            RateInteraction(
+            Interaction(
                 'independent_growth',
-                target='tumour',
-                state='AI',
-                rate=lambda s: s.target.r2 * (1 - s.target.b * (s.target.AI + s.target.c2 * s.target.AD)) * s.target.AI,
+                roles={'target': 'tumour'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.AI,
+                        s.target.r2 * (1 - s.target.b * (s.target.AI + s.target.c2 * s.target.AD)) * s.target.AI,
+                    ),
+                ],
             ),
-            RateInteraction(
+            Interaction(
                 'androgen_production',
-                target='tumour',
-                state='U',
-                rate=lambda s: -s.target.du * (s.target.U - s.target.U0),
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.U, -s.target.du * (s.target.U - s.target.U0))],
             ),
-            RateInteraction(
+            Interaction(
                 'suppression',
-                target='tumour',
-                state='U',
-                rate=lambda s: -s.target.U0 * s.target.du * s.target.a,
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.U, -s.target.U0 * s.target.du * s.target.a)],
             ),
         ]
         self.system_ = System(self.label, elements=[tumour], interactions=interactions)
@@ -1377,13 +1383,17 @@ class IdetaIntermittentAndrogenSystem(BaseSystem):
             self.h1,
         )
         interactions = [
-            RateInteraction(
+            Interaction(
                 'dependent_growth',
-                target='tumour',
-                state='AD',
-                rate=lambda s: s.target.r1
-                * (s.target.k1 + (1 - s.target.k1) * s.target.U / (s.target.U + s.target.k2))
-                * s.target.AD,
+                roles={'target': 'tumour'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.AD,
+                        s.target.r1
+                        * (s.target.k1 + (1 - s.target.k1) * s.target.U / (s.target.U + s.target.k2))
+                        * s.target.AD,
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'dependent_death',
@@ -1400,11 +1410,10 @@ class IdetaIntermittentAndrogenSystem(BaseSystem):
                 products={'AI': 1},
                 propensity=lambda s: s.target.m1 * (1 - s.target.U / s.target.U0) * s.target.AD,
             ),
-            RateInteraction(
+            Interaction(
                 'independent_growth',
-                target='tumour',
-                state='AI',
-                rate=lambda s: s.target.r2 * (1 - s.target.U / s.target.U0) * s.target.AI,
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.AI, s.target.r2 * (1 - s.target.U / s.target.U0) * s.target.AI)],
             ),
             ReactionInteraction(
                 'independent_death',
@@ -1412,17 +1421,15 @@ class IdetaIntermittentAndrogenSystem(BaseSystem):
                 reactants={'AI': 1},
                 propensity=lambda s: s.target.d2 * s.target.AI,
             ),
-            RateInteraction(
+            Interaction(
                 'androgen_production',
-                target='tumour',
-                state='U',
-                rate=lambda s: -s.target.du * (s.target.U - s.target.U0),
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.U, -s.target.du * (s.target.U - s.target.U0))],
             ),
-            RateInteraction(
+            Interaction(
                 'suppression',
-                target='tumour',
-                state='U',
-                rate=lambda s: -s.target.U0 * s.target.du * s.target.u,
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.U, -s.target.U0 * s.target.du * s.target.u)],
             ),
             *switches,
         ]
@@ -1599,11 +1606,10 @@ class ProstateCellQuotaSystem(BaseSystem):
             width=self.width,
         )
         interactions = [
-            RateInteraction(
+            Interaction(
                 'dependent_growth',
-                target='tumour',
-                state='AD',
-                rate=lambda s: s.target.rm * (1 - s.target.q1 / s.target.Q1) * s.target.AD,
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.AD, s.target.rm * (1 - s.target.q1 / s.target.Q1) * s.target.AD)],
             ),
             ReactionInteraction(
                 'dependent_death',
@@ -1625,11 +1631,10 @@ class ProstateCellQuotaSystem(BaseSystem):
                 products={'AD': 1},
                 propensity=lambda s: s.target.mx2 * hill(s.target.Q2, s.target.m502, s.target.n) * s.target.AI,
             ),
-            RateInteraction(
+            Interaction(
                 'independent_growth',
-                target='tumour',
-                state='AI',
-                rate=lambda s: s.target.rm * (1 - s.target.q2 / s.target.Q2) * s.target.AI,
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.AI, s.target.rm * (1 - s.target.q2 / s.target.Q2) * s.target.AI)],
             ),
             ReactionInteraction(
                 'independent_death',
@@ -1637,17 +1642,15 @@ class ProstateCellQuotaSystem(BaseSystem):
                 reactants={'AI': 1},
                 propensity=lambda s: s.target.d2 * s.target.AI,
             ),
-            RateInteraction(
+            Interaction(
                 'dependent_uptake',
-                target='tumour',
-                state='Q1',
-                rate=lambda s: self._get_quota_uptake(s.target, s.target.Q1, s.target.q1),
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.Q1, self._get_quota_uptake(s.target, s.target.Q1, s.target.q1))],
             ),
-            RateInteraction(
+            Interaction(
                 'dependent_use',
-                target='tumour',
-                state='Q1',
-                rate=lambda s: -s.target.rm * (s.target.Q1 - s.target.q1),
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.Q1, -s.target.rm * (s.target.Q1 - s.target.q1))],
             ),
             ReactionInteraction(
                 'dependent_degradation',
@@ -1655,17 +1658,15 @@ class ProstateCellQuotaSystem(BaseSystem):
                 reactants={'Q1': 1},
                 propensity=lambda s: s.target.d3 * s.target.Q1,
             ),
-            RateInteraction(
+            Interaction(
                 'independent_uptake',
-                target='tumour',
-                state='Q2',
-                rate=lambda s: self._get_quota_uptake(s.target, s.target.Q2, s.target.q2),
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.Q2, self._get_quota_uptake(s.target, s.target.Q2, s.target.q2))],
             ),
-            RateInteraction(
+            Interaction(
                 'independent_use',
-                target='tumour',
-                state='Q2',
-                rate=lambda s: -s.target.rm * (s.target.Q2 - s.target.q2),
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.Q2, -s.target.rm * (s.target.Q2 - s.target.q2))],
             ),
             ReactionInteraction(
                 'independent_degradation',
@@ -1673,18 +1674,21 @@ class ProstateCellQuotaSystem(BaseSystem):
                 reactants={'Q2': 1},
                 propensity=lambda s: s.target.d3 * s.target.Q2,
             ),
-            RateInteraction(
+            Interaction(
                 'psa_leak',
-                target='tumour',
-                state='P',
-                rate=lambda s: s.target.r0 * (s.target.AD + s.target.AI),
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.P, s.target.r0 * (s.target.AD + s.target.AI))],
             ),
-            RateInteraction(
+            Interaction(
                 'psa_production',
-                target='tumour',
-                state='P',
-                rate=lambda s: s.target.r1 * s.target.AD * hill(s.target.Q1, s.target.rho1, s.target.theta)
-                + s.target.r2 * s.target.AI * hill(s.target.Q2, s.target.rho2, s.target.theta),
+                roles={'target': 'tumour'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.P,
+                        s.target.r1 * s.target.AD * hill(s.target.Q1, s.target.rho1, s.target.theta)
+                        + s.target.r2 * s.target.AI * hill(s.target.Q2, s.target.rho2, s.target.theta),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'psa_clearance',
@@ -1692,16 +1696,20 @@ class ProstateCellQuotaSystem(BaseSystem):
                 reactants={'P': 1},
                 propensity=lambda s: s.target.du * s.target.P,
             ),
-            RateInteraction(
+            Interaction(
                 'androgen',
-                target='tumour',
-                state='U',
-                rate=lambda s: s.target.du1
-                * (
-                    s.target.U0
-                    - (s.target.U0 - s.target.Umin) * pulse_train(s.t, tumour.period, tumour.width)
-                    - s.target.U
-                ),
+                roles={'target': 'tumour'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.U,
+                        s.target.du1
+                        * (
+                            s.target.U0
+                            - (s.target.U0 - s.target.Umin) * pulse_train(s.t, tumour.period, tumour.width)
+                            - s.target.U
+                        ),
+                    ),
+                ],
             ),
         ]
         self.system_ = System(self.label, elements=[tumour], interactions=interactions)
@@ -1846,17 +1854,21 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
             age=self.age,
         )
         interactions = [
-            RateInteraction(
+            Interaction(
                 'normal_growth',
-                target='prostate',
-                state='N',
-                rate=lambda s: self._get_receptor_growth(s.target, s.target.psi1_n, s.target.phi1_n)
-                * s.target.N
-                * (
-                    1
-                    - (s.target.N + s.target.c1 * (s.target.AD + s.target.AI))
-                    / (self._get_prostate_volume(s.target, s.t) / s.target.Vc)
-                ),
+                roles={'target': 'prostate'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.N,
+                        self._get_receptor_growth(s.target, s.target.psi1_n, s.target.phi1_n)
+                        * s.target.N
+                        * (
+                            1
+                            - (s.target.N + s.target.c1 * (s.target.AD + s.target.AI))
+                            / (self._get_prostate_volume(s.target, s.t) / s.target.Vc)
+                        ),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'normal_death',
@@ -1864,11 +1876,10 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
                 reactants={'N': 1},
                 propensity=lambda s: self._get_receptor_death(s.target, s.target.psi3_n) * s.target.N,
             ),
-            RateInteraction(
+            Interaction(
                 'dependent_division',
-                target='prostate',
-                state='AD',
-                rate=lambda s: self._get_dependent_division(s.target),
+                roles={'target': 'prostate'},
+                laws=lambda s: [RateLaw(s.target.AD, self._get_dependent_division(s.target))],
             ),
             ReactionInteraction(
                 'mutation',
@@ -1883,13 +1894,17 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
                 reactants={'AD': 1},
                 propensity=lambda s: self._get_receptor_death(s.target, s.target.psi3_d) * s.target.AD,
             ),
-            RateInteraction(
+            Interaction(
                 'independent_growth',
-                target='prostate',
-                state='AI',
-                rate=lambda s: self._get_receptor_growth(s.target, s.target.psi1_i, s.target.phi1_i)
-                * s.target.AI
-                * (1 - (s.target.c1 * s.target.N + s.target.AD + s.target.AI) / s.target.b3),
+                roles={'target': 'prostate'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.AI,
+                        self._get_receptor_growth(s.target, s.target.psi1_i, s.target.phi1_i)
+                        * s.target.AI
+                        * (1 - (s.target.c1 * s.target.N + s.target.AD + s.target.AI) / s.target.b3),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'independent_death',
@@ -1897,12 +1912,18 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
                 reactants={'AI': 1},
                 propensity=lambda s: self._get_receptor_death(s.target, s.target.psi3_i) * s.target.AI,
             ),
-            RateInteraction(
+            Interaction(
                 'psa_production',
-                target='prostate',
-                state='UIP',
-                rate=lambda s: (s.target.UT + s.target.UD + s.target.sigma)
-                * (s.target.beta_n * s.target.N + s.target.beta_d * s.target.AD + s.target.beta_i * s.target.AI),
+                roles={'target': 'prostate'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.UIP,
+                        (s.target.UT + s.target.UD + s.target.sigma)
+                        * (
+                            s.target.beta_n * s.target.N + s.target.beta_d * s.target.AD + s.target.beta_i * s.target.AI
+                        ),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'normal_leak',
@@ -2205,7 +2226,11 @@ class TamoxifenCellCycleSystem(BaseSystem):
                 reactants={'X3': 1},
                 propensity=lambda s: s.target.du2 * s.target.X3,
             ),
-            RateInteraction('effector_source', target='tumour', state='E', rate=lambda s: s.target.s),
+            Interaction(
+                'effector_source',
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.E, s.target.s)],
+            ),
             ReactionInteraction(
                 'effector_death',
                 target='tumour',

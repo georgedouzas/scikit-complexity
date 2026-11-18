@@ -16,6 +16,7 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ....components.interactions import WienerProcessSpec
 from ....components.laws import BaseLaw, BoundaryLaw, CallSpec, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....components.laws._flow_term import FlowTermLaw
 from ....errors import PipelineError, ValidationError
 from ....types import ProcessKey
 from ..._utils import components_of, symbols_of
@@ -357,7 +358,7 @@ class KernelsPass(BasePass):
     def _get_kind_of(law: BaseLaw) -> type:
         """Return the class of a law that decides its form.
 
-        Every noise law counts as a noise law, and every rate law, such as the term of a flow, as a rate law.
+        Every noise law counts as a noise law, and the term of a flow as a rate law.
 
         Args:
             law:
@@ -367,7 +368,9 @@ class KernelsPass(BasePass):
             kind:
                 The class.
         """
-        return next((kind for kind in (NoiseLaw, RateLaw) if isinstance(law, kind)), type(law))
+        if isinstance(law, FlowTermLaw):
+            return RateLaw
+        return NoiseLaw if isinstance(law, NoiseLaw) else type(law)
 
     @staticmethod
     def _is_sympy(value: object) -> bool:

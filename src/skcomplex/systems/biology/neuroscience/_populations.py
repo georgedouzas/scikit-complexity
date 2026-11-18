@@ -15,7 +15,7 @@ from scipy import stats
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import CouplingInteraction, Interaction, RateInteraction
+from ....core.components.interactions import CouplingInteraction, Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import logistic, mean
 from ....core.components.types import Target
@@ -809,17 +809,20 @@ class PolyhomeostaticNeuronSystem(BaseSystem):
                 goal=lambda s: s.target.I0 + s.target.A * sin(s.target.omega * s.t),
                 time=lambda s: 1 / s.target.Gamma,
             ),
-            RateInteraction(
+            Interaction(
                 'gain_plasticity',
-                target='neuron',
-                state='a',
-                rate=lambda s: s.target.eps_a * (1 / s.target.a + (s.target.x - s.target.b) * self._get_kl_gradient(s)),
+                roles={'target': 'neuron'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.a,
+                        s.target.eps_a * (1 / s.target.a + (s.target.x - s.target.b) * self._get_kl_gradient(s)),
+                    ),
+                ],
             ),
-            RateInteraction(
+            Interaction(
                 'threshold_plasticity',
-                target='neuron',
-                state='b',
-                rate=lambda s: -s.target.eps_b * s.target.a * self._get_kl_gradient(s),
+                roles={'target': 'neuron'},
+                laws=lambda s: [RateLaw(s.target.b, -s.target.eps_b * s.target.a * self._get_kl_gradient(s))],
             ),
         ]
         self.system_ = System(self.label, elements=[neuron], interactions=interactions)

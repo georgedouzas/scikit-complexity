@@ -15,7 +15,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import RateInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import pulse_train, where
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -257,12 +258,16 @@ class AdaptiveResponseCostsSystem(BaseSystem):
             period=self.period,
         )
         interactions = [
-            RateInteraction(
+            Interaction(
                 'stimulus',
-                target='organism',
-                state='e',
-                rate=lambda s: (1 - s.target.anticipation)
-                * pulse_train(s.t, organism.period, organism.width, organism.height, start=organism.start),
+                roles={'target': 'organism'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.e,
+                        (1 - s.target.anticipation)
+                        * pulse_train(s.t, organism.period, organism.width, organism.height, start=organism.start),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'effort',
@@ -277,41 +282,45 @@ class AdaptiveResponseCostsSystem(BaseSystem):
                 reactants={'e': 1},
                 propensity=lambda s: s.target.k0 * s.target.e,
             ),
-            RateInteraction(
+            Interaction(
                 'capacity_growth',
-                target='organism',
-                state='c',
-                rate=lambda s: s.target.eta * s.target.e**2,
+                roles={'target': 'organism'},
+                laws=lambda s: [RateLaw(s.target.c, s.target.eta * s.target.e**2)],
             ),
-            RateInteraction(
+            Interaction(
                 'capacity_relaxation',
-                target='organism',
-                state='c',
-                rate=lambda s: (s.target.c0 - s.target.c) / s.target.tau,
+                roles={'target': 'organism'},
+                laws=lambda s: [RateLaw(s.target.c, (s.target.c0 - s.target.c) / s.target.tau)],
             ),
-            RateInteraction(
+            Interaction(
                 'restoration',
-                target='organism',
-                state='S',
-                rate=lambda s: s.target.kappa * (1 - s.target.S),
+                roles={'target': 'organism'},
+                laws=lambda s: [RateLaw(s.target.S, s.target.kappa * (1 - s.target.S))],
             ),
-            RateInteraction(
+            Interaction(
                 'restoration_cost',
-                target='organism',
-                state='restore_cost',
-                rate=lambda s: s.target.price * s.target.kappa * (1 - s.target.S),
+                roles={'target': 'organism'},
+                laws=lambda s: [RateLaw(s.target.restore_cost, s.target.price * s.target.kappa * (1 - s.target.S))],
             ),
-            RateInteraction(
+            Interaction(
                 'repair_cost',
-                target='organism',
-                state='repair_cost',
-                rate=lambda s: s.target.repair * where(s.target.e > s.target.theta, s.target.e - s.target.theta, 0),
+                roles={'target': 'organism'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.repair_cost,
+                        s.target.repair * where(s.target.e > s.target.theta, s.target.e - s.target.theta, 0),
+                    ),
+                ],
             ),
-            RateInteraction(
+            Interaction(
                 'preparation_cost',
-                target='organism',
-                state='prepare_cost',
-                rate=lambda s: s.target.upkeep * (s.target.c - s.target.c0 + s.target.anticipation),
+                roles={'target': 'organism'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.prepare_cost,
+                        s.target.upkeep * (s.target.c - s.target.c0 + s.target.anticipation),
+                    ),
+                ],
             ),
         ]
         self.system_ = System(self.label, elements=[organism], interactions=interactions)

@@ -13,7 +13,6 @@ tumour shrinks to about a third of its initial volume.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import AngiogenesisImmunotherapySystem
 
@@ -36,7 +35,7 @@ arms = {
 }
 fig, (tumour, toxicity) = plt.subplots(1, 2, figsize=(10, 4))
 for name, arm in arms.items():
-    trajectory = simulate(arm, dt=0.5)
+    trajectory = arm.prepare().simulate(dt=0.5)
     tumour.plot(trajectory.times, trajectory.get_values('tumour.A'), label=name)
 tumour.plot(combined.times, combined.get_values('tumour.A'), label='combination', color='black')
 tumour.set_xlabel('time (days)')

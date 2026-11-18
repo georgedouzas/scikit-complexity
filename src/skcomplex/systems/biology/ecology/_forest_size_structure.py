@@ -14,7 +14,8 @@ from sage.all__sagemath_symbolics import SR, Expression, exp
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.components import Observable
-from ....core.components.interactions import ConservationInteraction, RateInteraction
+from ....core.components.interactions import ConservationInteraction, Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import convolve, coordinate, cumulative_integral, displacement, reduce_axes, where
 from ....core.components.spaces import AxisSpec, BaseSpace, FiniteVolumeSpec, LatticeSpace, PhaseSpace
 from ....core.engine.backends import BaseBackend
@@ -276,7 +277,11 @@ class ForestSizeStructureSystem(BaseSystem):
             state='x',
             drift=lambda s: [0, light(s) * growth],
         )
-        demographics = RateInteraction('demography', target='forest', state='x', rate=demography)
+        demographics = Interaction(
+            'demography',
+            roles={'target': 'forest'},
+            laws=lambda s: [RateLaw(s.target.x, demography(s))],
+        )
         self.system_ = System(
             self.label,
             elements=[forest],
