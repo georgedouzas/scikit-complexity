@@ -14,7 +14,12 @@ from ._agents import (
     WalkerElement,
 )
 from ._cities import ColocationInteraction, CommuterElement, EpisimsCitySystem
-from ._concurrency import PairFormationSISSystem, PartnershipEpidemicElement, WattsMayConcurrencySystem
+from ._concurrency import (
+    PairFormationSISSystem,
+    PartnershipEpidemicElement,
+    PartnershipInfectionInteraction,
+    WattsMayConcurrencySystem,
+)
 from ._differentiable_covid import (
     CaseCountElement,
     CaseCountInteraction,
@@ -69,6 +74,7 @@ __all__: list[str] = [
     'NetworkSIRSystem',
     'PairFormationSISSystem',
     'PartnershipEpidemicElement',
+    'PartnershipInfectionInteraction',
     'PathogenElement',
     'PersonElement',
     'QuenchedMeanFieldSISSystem',
