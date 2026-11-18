@@ -21,6 +21,8 @@ from ._drivers import (
     DriverElement,
     MotoristElement,
     RingRoadDriversSystem,
+    RingRoadDrivingInteraction,
+    SafeDistanceInteraction,
 )
 from ._langevin import (
     LangevinDrivingInteraction,
@@ -57,7 +59,9 @@ __all__: list[str] = [
     'RiderElement',
     'RidesharingSystem',
     'RingRoadDriversSystem',
+    'RingRoadDrivingInteraction',
     'RoadElement',
+    'SafeDistanceInteraction',
     'TrafficDensityEquationSystem',
     'TrafficMomentsElement',
     'TrafficMomentsInteraction',
