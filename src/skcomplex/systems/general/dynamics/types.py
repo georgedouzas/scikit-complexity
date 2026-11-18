@@ -8,4 +8,4 @@ from types import SimpleNamespace
 
 type Equations = Mapping[str, Callable[[SimpleNamespace], object]]
 type Noises = Mapping[str, Callable[[SimpleNamespace], object] | float]
-type FlowTable = Mapping[str, tuple[str | None, str | None, Callable[[SimpleNamespace], object]]]
+type FlowTable = Mapping[str, tuple[str | None, str | None, Callable[[SimpleNamespace], object] | float]]

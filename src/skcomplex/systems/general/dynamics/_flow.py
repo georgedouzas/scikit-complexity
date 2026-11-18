@@ -43,7 +43,7 @@ class FlowInteraction(Interaction):
             The stock the flow enters, or `None` for a flow out of the system.
 
         amount:
-            The amount per unit of time as a function of the namespace.
+            The amount per unit of time as a function of the namespace, or a number.
 
     Examples:
         >>> from skcomplex.core.components.elements import Element
@@ -65,7 +65,7 @@ class FlowInteraction(Interaction):
         target: Role,
         leaves: str | None = None,
         enters: str | None = None,
-        amount: Callable[[SimpleNamespace], object],
+        amount: Callable[[SimpleNamespace], object] | float,
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -90,7 +90,7 @@ class FlowInteraction(Interaction):
             raise ValidationError(error_msg)
         if not isinstance(context, SimpleNamespace):
             return
-        amount = SR(self.amount(context))
+        amount = SR(self.amount(context) if callable(self.amount) else self.amount)
         laws: list[BaseComponent] = []
         if self.leaves is not None:
             laws.append(RateLaw(getattr(context.target, self.leaves), -amount, label=self.label))

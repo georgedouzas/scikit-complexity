@@ -455,8 +455,8 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
             if quantity is not None:
                 error_msg = (
                     f'A {type(law).__name__} of {spec.owner} changes {name}, which holds the quantity '
-                    f'{quantity!r}, by {value} outside any flow. Move the change into a Transfer between holders of '
-                    f'{quantity!r} or with Source() or Sink().'
+                    f'{quantity!r}, by {value} outside any flow. Write the change as a flow, rate terms that share a '
+                    f"label, such as RateLaw({name}, -f, label='outflow') for a flow out of the system."
                 )
                 raise ConservationError(error_msg)
 
