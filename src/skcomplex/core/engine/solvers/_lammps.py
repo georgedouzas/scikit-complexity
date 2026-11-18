@@ -746,7 +746,7 @@ class LammpsSolver(ExternalSolver):
 
     @staticmethod
     def _get_unbounded(space: BaseSpace | None) -> BaseSpace | None:
-        """Return an unbounded space of the dimension of a box, or any other space as it is."""
+        """Return an unbounded space of the dimension of a box, or another space as it is."""
         if isinstance(space, ContinuousSpace):
             return ContinuousSpace(n_dim=space.n_dim or len(space.extent))
         return space
