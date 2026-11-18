@@ -13,13 +13,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, exp
 from sage.modules.free_module_element import FreeModuleElement
 
+from ....core.components import Observable
 from ....core.components.elements import FieldElement
 from ....core.components.interactions import ConservationInteraction, RateInteraction
 from ....core.components.laws.utils import convolve, coordinate, cumulative_integral, displacement, reduce_axes, where
 from ....core.components.spaces import AxisSpec, BaseSpace, FiniteVolumeSpec, LatticeSpace, PhaseSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import RK4Solver
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, RK4Solver
 from ....core.errors import ValidationError
+from ....core.systems import BaseSystem, System
 from ..common.populations import PopulationDensityElement
 
 HEIGHT_AXIS = 1
@@ -187,6 +189,12 @@ class ForestSizeStructureSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.ecology import ForestSizeStructureSystem
         >>> ForestSizeStructureSystem(8, 12).prepare().system_.elements[0].space.prepare().shape_
@@ -198,7 +206,6 @@ class ForestSizeStructureSystem(BaseSystem):
     references = ('Grilletta et al. 2026',)
     until = 200.0
     dt = 5.0
-    solver = RK4Solver(dt=0.1)
 
     def __init__(
         self,
@@ -214,8 +221,10 @@ class ForestSizeStructureSystem(BaseSystem):
         fecundity: float = 0.01,
         resources: float = 125.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.positions = positions
         self.heights = heights
         self.width = width
@@ -227,11 +236,14 @@ class ForestSizeStructureSystem(BaseSystem):
         self.fecundity = fecundity
         self.resources = resources
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the McKendrick-von Foerster density of trees.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the McKendrick-von Foerster density of trees.
 
-        The density is over position across a strip and height.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         step = (self.top - self.sapling) / self.heights
         space = PhaseSpace(
             LatticeSpace((self.positions,), spacing=self.width / self.positions, boundary='fixed'),
@@ -269,4 +281,9 @@ class ForestSizeStructureSystem(BaseSystem):
             drift=lambda s: [0, light(s) * growth],
         )
         demographics = RateInteraction('demography', target='forest', state='x', rate=demography)
-        return CompositeSystem(self.label, elements=[forest], interactions=[grow, demographics])
+        self.system_ = System(
+            self.label,
+            elements=[forest],
+            interactions=[grow, demographics],
+            solver=RK4Solver(dt=0.1),
+        )
