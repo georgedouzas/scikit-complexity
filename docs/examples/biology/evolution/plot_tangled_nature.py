@@ -15,14 +15,13 @@ collapse abruptly into new ones, a punctuated equilibrium.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.evolution import TangledNatureSystem
 
 SYSTEM = 'tangled_nature'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(TangledNatureSystem(random_state=0), observers=[observer], random_state=0, until=300)
+trajectory = TangledNatureSystem(random_state=0).prepare().simulate(observers=[observer], random_state=0, until=300)
 
 # %%
 # Population and dominant types

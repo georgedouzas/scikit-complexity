@@ -7,20 +7,23 @@ A few informed individuals steer a Couzin shoal.
 # License: MIT
 
 import math
+from collections.abc import Mapping, Sequence
 from typing import Annotated, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction
-from ....core.components.spaces import ContinuousSpace, DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.spaces import BaseSpace, ContinuousSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.compile import PhaseSpec
+from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
+from ....core.specs import Role, VisualSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ...general.agents import MovementInteraction
 from ._zones import ClampSpec, RadiusSpec, ZoneCouplingInteraction
@@ -32,6 +35,8 @@ class ShoalMemberView(AgentView):
     `ShoalMemberElement` names this class with `_get_view`, so its rules read them with checked types.
     """
 
+    x: float
+    y: float
     vx: float
     vy: float
     omega: float
@@ -94,9 +99,18 @@ class ShoalMemberElement(Element):
         side:
             The side of the square torus.
 
+        values:
+            Further values by name, such as the coordinates `x` and `y` of the fish on the torus.
+
+        size:
+            The number of fish, or `None` for one.
+
+        space:
+            The torus the fish swim on, whose axes `x` and `y` place them, or `None`.
+
     Examples:
         >>> from skcomplex.systems.biology.collective_behaviour import ShoalMemberElement
-        >>> GroupElement('shoal', element=ShoalMemberElement, size=10, location=(5.0, 5.0)).size
+        >>> ShoalMemberElement('shoal', values={'x': 5.0, 'y': 5.0}, size=10).size
         10
     """
 
@@ -106,19 +120,22 @@ class ShoalMemberElement(Element):
         self,
         label: str,
         *,
-        vx: Annotated[float, StateSpec(role='velocity')] = 1.0,
-        vy: Annotated[float, StateSpec(role='velocity')] = 0.0,
-        omega: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        deviation: Annotated[float, StateSpec()] = 0.0,
-        preferred: Annotated[float, ParameterSpec()] = 0.0,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        rho: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 6.0,
-        speed: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
-        max_turn: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.4,
-        noise: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        side: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
+        vx: object = 1.0,
+        vy: object = 0.0,
+        omega: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        deviation: object = 0.0,
+        preferred: float = 0.0,
+        alpha: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        rho: Annotated[float, RealSet.open(0, oo)] = 6.0,
+        speed: Annotated[object, RealSet.open(0, oo)] = 0.3,
+        max_turn: Annotated[float, RealSet.open(0, oo)] = 0.4,
+        noise: Annotated[float, RealSet.closed_open(0, oo)] = 0.05,
+        side: Annotated[float, RealSet.open(0, oo)] = 100.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.vx = vx
         self.vy = vy
         self.omega = omega
@@ -164,7 +181,7 @@ class SchoolingInteraction(ZoneCouplingInteraction):
         [1, 0, 0]
     """
 
-    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()], phase: str | None = None) -> None:
+    def __init__(self, label: str, *, target: Role, phase: str | None = None) -> None:
         super().__init__(
             label,
             target=target,
@@ -260,8 +277,8 @@ class SwimmingInteraction(MovementInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        probability: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 1.0,
+        target: Role,
+        probability: Annotated[float, RealSet.closed(0, 1)] = 1.0,
         phase: str | None = None,
     ) -> None:
         super().__init__(
@@ -320,9 +337,15 @@ class CouzinLeadershipSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.collective_behaviour import CouzinLeadershipSystem
-        >>> int((CouzinLeadershipSystem(20, informed=0.2).prepare().system_.elements[0].values['omega'] > 0).sum())
+        >>> int((CouzinLeadershipSystem(20, informed=0.2).prepare().system_.elements[0].omega > 0).sum())
         4
     """
 
@@ -342,8 +365,10 @@ class CouzinLeadershipSystem(BaseSystem):
         side: float = 100.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_fish = n_fish
         self.informed = informed
         self.omega = omega
@@ -359,8 +384,14 @@ class CouzinLeadershipSystem(BaseSystem):
         """
         return float(system.rng.normal(0.0, agent.noise))
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the Couzin shoal."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the Couzin shoal.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         radius = 5.0 * np.sqrt(rng.uniform(0.0, 1.0, self.n_fish))
         place = rng.uniform(0.0, 2 * math.pi, self.n_fish)
@@ -368,20 +399,18 @@ class CouzinLeadershipSystem(BaseSystem):
         weights = np.zeros(self.n_fish)
         weights[: round(self.informed * self.n_fish)] = self.omega
         locations = self.side / 2 + np.column_stack([radius * np.cos(place), radius * np.sin(place)])
-        shoal = GroupElement(
+        shoal = ShoalMemberElement(
             'shoal',
-            element=ShoalMemberElement,
+            vx=np.cos(headings),
+            vy=np.sin(headings),
+            omega=weights,
+            preferred=self.preferred,
+            side=self.side,
+            values={'x': locations[:, 0], 'y': locations[:, 1]},
             size=self.n_fish,
-            values={
-                'vx': np.cos(headings),
-                'vy': np.sin(headings),
-                'omega': weights,
-                'preferred': self.preferred,
-                'side': self.side,
-            },
-            location=[tuple(point) for point in locations],
+            space=ContinuousSpace(extent=(self.side, self.side), boundary='periodic'),
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[shoal],
             interactions=[
@@ -397,8 +426,5 @@ class CouzinLeadershipSystem(BaseSystem):
                 ),
                 SwimmingInteraction('swimming', target='shoal', phase='swim'),
             ],
-            space=ContinuousSpace(extent=(self.side, self.side), boundary='periodic'),
-            time=DiscreteTime(
-                schedule=PhasesScheduleSpec([PhaseSpec('turn', activation='simultaneous'), PhaseSpec('swim')]),
-            ),
+            solver=MesaSolver(phases=[PhaseSpec('turn', activation='simultaneous'), PhaseSpec('swim')]),
         )

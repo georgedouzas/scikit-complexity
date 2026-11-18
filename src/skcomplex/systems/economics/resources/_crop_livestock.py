@@ -11,7 +11,7 @@ from types import SimpleNamespace
 from sage.all__sagemath_symbolics import Expression, floor
 
 from ....core.components import Observable
-from ....core.components.laws.utils import lag, where
+from ....core.components.laws.utils import where
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ...general.dynamics import DynamicalSystem
@@ -195,7 +195,7 @@ class CropLivestockHouseholdSystem(DynamicalSystem):
         """Return the yearly steps of the stocks, the purchases joining the herd three years later."""
         return {
             'wealth': self._get_wealth,
-            'livestock': lambda s: s.target.livestock + lag(s.target.purchases, 2) - _get_sale(s.target),
+            'livestock': lambda s: s.target.livestock + s.target.purchases(t=s.t - 2) - _get_sale(s.target),
             'yield_multiplier': lambda s: (
                 s.target.yield_multiplier * (1 + s.target.yield_regeneration - s.target.cropping_intensity)
             ),
