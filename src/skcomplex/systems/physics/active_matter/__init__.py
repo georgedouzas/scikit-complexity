@@ -14,6 +14,7 @@ from ._alignment import AligningActiveBrownianParticlesSystem, PolarAlignmentInt
 from ._cells import CellMotilityInteraction, MotileCellElement, SzaboCellsSystem
 from ._chemotaxis import ChemotaxisElement, ChemotaxisInteraction, KellerSegelSystem
 from ._collective import (
+    BirdElement,
     CuckerSmaleAlignmentInteraction,
     CuckerSmaleFlockingSystem,
     LivingCrystalsSystem,
@@ -95,6 +96,7 @@ __all__: list[str] = [
     'BertinDrozGregoireSystem',
     'BinaryCollisionFlockingSystem',
     'BinaryCollisionsInteraction',
+    'BirdElement',
     'CellMotilityInteraction',
     'ChemotaxisElement',
     'ChemotaxisInteraction',

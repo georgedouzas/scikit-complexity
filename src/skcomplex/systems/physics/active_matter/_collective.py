@@ -16,13 +16,11 @@ from sage.all__sagemath_symbolics import Expression, oo, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.interactions import BaseInteraction, Interaction, PairInteraction
 from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.components.laws.utils import advection, divergence, gradient, laplacian, neighbors
 from ....core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace, RadiusNeighborhood
-from ....core.components.systems import BaseSystem as OldBaseSystem
-from ....core.components.systems import CompositeSystem
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver, RK4Solver
 from ....core.specs import ParameterSpec, Role, VisualSpec
@@ -186,7 +184,7 @@ class SoftSphereInteraction(PairInteraction):
             The name of the vector state that holds the positions of the members.
 
         write:
-            The name of the state whose rate the force changes, the position of order 2 by default.
+            The name of the state whose derivative the force changes, the position by default.
 
         divisor:
             The name of the parameter that holds the masses of the members, or `None` for unit masses.
@@ -196,6 +194,10 @@ class SoftSphereInteraction(PairInteraction):
 
         k:
             The stiffness.
+
+        order:
+            The derivative of `write` the force adds to, 2 for the acceleration of a mass, or `None` for the velocity
+            of an overdamped particle.
 
     Examples:
         >>> from skcomplex.systems.physics.active_matter._collective import SoftSphereInteraction
@@ -215,6 +217,7 @@ class SoftSphereInteraction(PairInteraction):
         divisor: str | None = None,
         period: float | None = None,
         k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
+        order: int | None = None,
     ) -> None:
         super().__init__(
             label,
@@ -226,6 +229,7 @@ class SoftSphereInteraction(PairInteraction):
             potential=self._get_soft_sphere_energy,
             divisor=divisor,
             period=period,
+            order=order,
         )
         self.k = k
 
@@ -235,29 +239,21 @@ class SoftSphereInteraction(PairInteraction):
         return s.k * (s.cutoff - r) ** 2 / 2
 
 
-class CuckerSmaleAlignmentInteraction(PairInteraction):
-    """Cucker-Smale alignment.
+class CuckerSmaleAlignmentInteraction(Interaction):
+    """Cucker-Smale alignment, `x_i'' += K / N sum_j psi(r_ij) (x_j' - x_i')` with `psi(r) = (1 + r^2)^(-beta)`.
 
-    The law is `x_i'' += K / N psi(r_ij) (x_j' - x_i')` with `psi(r) = (1 + r^2)^(-beta)`.
-
-    Every pair of members within the cutoff pulls their velocities, the first derivatives of their positions of order
-    2, towards each other with a weight that decays with their distance.
+    Every member pulls its velocity `x'` towards those of the members within the cutoff, with a weight that decays with
+    their distance. It is a flock of birds, a school of fish, or a fleet of drones that agree on a heading.
 
     Args:
         label:
             The label of the interaction, unique among the components of its system.
 
-        first:
-            The path of the group or particle of the first members.
-
-        second:
-            The path of the group or particle of the second members.
+        target:
+            The path of the group of agents.
 
         cutoff:
             The distance beyond which pairs do not align, large for the all-to-all system.
-
-        position:
-            The name of the vector state of order 2 that holds the positions of the members.
 
         K:
             The strength of the alignment.
@@ -265,55 +261,48 @@ class CuckerSmaleAlignmentInteraction(PairInteraction):
         beta:
             The decay exponent of the weight.
 
-        period:
-            The side of a periodic box, for minimum image distances, or `None` for the period of the space.
-
         n_agents:
             The number of agents `N` that normalizes the alignment.
 
     Examples:
         >>> from skcomplex.systems.physics.active_matter import CuckerSmaleAlignmentInteraction
-        >>> CuckerSmaleAlignmentInteraction('align', first='birds', second='birds', beta=0.25).beta
+        >>> CuckerSmaleAlignmentInteraction('align', target='birds', beta=0.25).beta
         0.25
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
         label: str,
-        first: str,
-        second: str,
-        cutoff: float = 1.0,
-        position: str = 'x',
         *,
-        K: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.25,
-        period: float | None = None,
+        target: Role,
+        cutoff: float = 1.0,
+        K: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        beta: Annotated[float, RealSet.closed_open(0, oo)] = 0.25,
         n_agents: int = 1,
     ) -> None:
-        super().__init__(
-            label,
-            first,
-            second,
-            cutoff=cutoff,
-            position=position,
-            write=position,
-            function=self._align,
-            period=period,
-        )
+        super().__init__(label)
+        self.target = target
+        self.cutoff = cutoff
         self.K = K
         self.beta = beta
         self.n_agents = n_agents
 
-    def _align(self, namespace: SimpleNamespace) -> Expression:
-        """Return the pull of the velocity of the first member towards the second.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the pull of the velocity of every agent towards those of the others.
 
-        The pull is `K / N psi(r) (x_j' - x_i')`.
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        first, second = namespace.first, namespace.second
-        separation = getattr(first, self.position) - getattr(second, self.position)
-        velocity = f'{self.position}_d1'
-        weight = namespace.K / self.n_agents * (1 + separation.dot_product(separation)) ** (-namespace.beta)
-        return weight * (getattr(second, velocity) - getattr(first, velocity))
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s, t = context.target, context.t
+            separation = s.x - s.other.x
+            weight = (1 + separation.dot_product(separation)) ** (-context.beta)
+            pull = neighbors(weight * (s.other.x.diff(t) - s.x.diff(t)), over=RadiusNeighborhood(self.cutoff))
+            self.laws_ = [RateLaw(s.x.diff(t, 2), context.K / self.n_agents * pull)]
 
 
 class PhoreticAttractionInteraction(Interaction):
@@ -636,18 +625,24 @@ class LivingCrystalsSystem(BaseSystem):
 
 
 class BirdElement(PointElement):
-    """Point drawn at its position and coloured by its velocity."""
+    """Point drawn at its position and coloured by its velocity.
 
-    visual = VisualSpec('points', {'position': 'x', 'color_by': 'x_d1', 'states': ()})
+    Examples:
+        >>> from skcomplex.systems.physics.active_matter import BirdElement
+        >>> BirdElement('bird', x=[0.0, 1.0]).x
+        [0.0, 1.0]
+    """
+
+    visual = VisualSpec('points', {'position': 'x', 'color_by': "x'", 'states': ()})
 
 
-class CuckerSmaleFlockingSystem(OldBaseSystem):
+class CuckerSmaleFlockingSystem(BaseSystem):
     """Cucker-Smale flocking.
 
     Every agent aligns its velocity with all others, weighted by distance.
 
     The mean velocity is conserved, and for `beta <= 1/2` the velocities converge to it from any start. The system has
-    the positions `birds.x` and velocities `birds.x_d1`.
+    the positions `birds.x` and velocities `birds.x'`.
 
     Args:
         n_agents:
@@ -668,6 +663,12 @@ class CuckerSmaleFlockingSystem(OldBaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for Runge-Kutta 4 with the step 0.05.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.active_matter import CuckerSmaleFlockingSystem
         >>> CuckerSmaleFlockingSystem(5).prepare().system_.interactions[0].n_agents
@@ -679,7 +680,6 @@ class CuckerSmaleFlockingSystem(OldBaseSystem):
     references = ('Cucker and Smale 2007', 'Vicsek and Zafeiris 2012', 'Bellomo et al. 2017')
     until = 20.0
     dt = 0.5
-    solver = RK4Solver(dt=0.05)
 
     def __init__(
         self,
@@ -690,39 +690,48 @@ class CuckerSmaleFlockingSystem(OldBaseSystem):
         size: float = 10.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_agents = n_agents
         self.K = K
         self.beta = beta
         self.size = size
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return Cucker-Smale flocking.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to agents at random places and velocities that align with all others.
 
-        Every agent aligns its velocity with all others, weighted by distance.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
-        birds = GroupElement(
+        plane = ContinuousSpace(n_dim=2)
+        birds = BirdElement(
             'birds',
-            element=BirdElement,
+            x=rng.uniform(0.0, self.size, (self.n_agents, 2)),
+            values={"x'": rng.normal(0.0, 1.0, (self.n_agents, 2))},
             size=self.n_agents,
-            values={
-                'x': rng.uniform(0.0, self.size, (self.n_agents, 2)),
-                'x_d1': rng.normal(0.0, 1.0, (self.n_agents, 2)),
-            },
+            space=plane,
         )
         alignment = CuckerSmaleAlignmentInteraction(
             'align',
-            first='birds',
-            second='birds',
+            target='birds',
             cutoff=1e6,
             K=self.K,
             beta=self.beta,
             n_agents=self.n_agents,
         )
-        return CompositeSystem(self.label, elements=[birds], interactions=[alignment], space=ContinuousSpace(n_dim=2))
+        self.system_ = System(
+            self.label,
+            elements=[birds],
+            interactions=[alignment],
+            space=plane,
+            solver=RK4Solver(dt=0.05),
+        )
 
 
 class TonerTuSystem(BaseSystem):

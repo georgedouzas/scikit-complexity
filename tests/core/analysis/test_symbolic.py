@@ -26,12 +26,11 @@ from skcomplex.systems.biology.epidemiology import RecoveryInteraction
 from skcomplex.systems.economics.finance import AssetElement, GeometricBrownianMotionInteraction
 from skcomplex.systems.economics.markets import CobwebInteraction, MarketElement
 from skcomplex.systems.mathematics.fractals import KochCurveSystem
-from skcomplex.systems.physics.active_matter import CuckerSmaleFlockingSystem
 from skcomplex.systems.physics.common.particles import (
     ConstantForceInteraction,
 )
 from skcomplex.systems.physics.common.quantum import QuantumCompiler
-from skcomplex.systems.physics.statistical_mechanics import QuantumHeisenbergSystem
+from skcomplex.systems.physics.statistical_mechanics import LennardJonesFluidSystem, QuantumHeisenbergSystem
 from skcomplex.systems.physics.waves import HarmonicPotentialInteraction
 
 from ...conftest import BodyElement, CallableGrowthInteraction, HoldingElement
@@ -112,7 +111,7 @@ def test_equations_of_discrete_map_gives_next_value():
 def test_equations_of_group_with_numeric_derivatives_raises_error():
     """A group of order two whose forces are computed numerically has no symbolic equations."""
     with pytest.raises(AnalysisError, match='computed numerically'):
-        symbolic(CuckerSmaleFlockingSystem().prepare().system_)
+        symbolic(LennardJonesFluidSystem(16).prepare().system_)
 
 
 def test_equations_of_jump_process_raises_error():
