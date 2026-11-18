@@ -4,7 +4,8 @@
 # License: MIT
 
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from functools import partial
 from typing import Annotated
 
 import numpy as np
@@ -12,15 +13,16 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import Interaction, MapInteraction, TransferInteraction
-from ....core.components.laws import Source, UpdateLaw
-from ....core.components.spaces import LatticeSpace
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
+from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
+from ....core.types import Array
 from ...general.agents import BirthDeathInteraction, MovementInteraction
 
 
@@ -55,10 +57,18 @@ class PredatorElement(Element):
         death:
             The probability of dying at every step.
 
+        values:
+            Further values by name, such as the cells `x` and `y` of the predators, or `None`.
+
+        size:
+            The number of predators, or `None` for one.
+
+        space:
+            The grid the predators walk on, whose axes `x` and `y` place them, or `None`.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.biology.ecology import PredatorElement
-        >>> GroupElement('foxes', element=PredatorElement, size=50).size
+        >>> PredatorElement('foxes', size=50).size
         50
     """
 
@@ -68,11 +78,14 @@ class PredatorElement(Element):
         self,
         label: str,
         *,
-        meals: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        conversion: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        death: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        meals: Annotated[float | Array, NN] = 0.0,
+        conversion: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.5,
+        death: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.1,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.meals = meals
         self.conversion = conversion
         self.death = death
@@ -105,10 +118,18 @@ class PreyElement(Element):
         birth:
             The probability of giving birth at every step.
 
+        values:
+            Further values by name, such as the cells `x` and `y` of the prey, or `None`.
+
+        size:
+            The number of prey, or `None` for one.
+
+        space:
+            The grid the prey walk on, whose axes `x` and `y` place them, or `None`.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.biology.ecology import PreyElement
-        >>> GroupElement('rabbits', element=PreyElement, size=200).size
+        >>> PreyElement('rabbits', size=200).size
         200
     """
 
@@ -118,9 +139,12 @@ class PreyElement(Element):
         self,
         label: str,
         *,
-        birth: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        birth: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.2,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.birth = birth
 
     @classmethod
@@ -236,10 +260,24 @@ class AgentBasedLotkaVolterraSystem(BaseSystem):
         return float(predator.death) if isinstance(predator, PredatorView) else 0.0
 
     @staticmethod
-    def _get_digested(predator: AgentViewProtocol, system: SystemViewProtocol) -> float:
-        """Return zero, the meals a predator starts its next step with."""
-        del predator, system
-        return 0.0
+    def _digest(predator: AgentViewProtocol, system: SystemViewProtocol) -> None:
+        """Clear the meals of a predator, which starts its next step hungry."""
+        del system
+        if isinstance(predator, PredatorView):
+            predator.meals = 0.0
+
+    @staticmethod
+    def _eat(predator: AgentViewProtocol, system: SystemViewProtocol, *, prey: str) -> None:
+        """Let a predator eat one prey of its cell, drawn at random among several, which dies."""
+        groups = set(system.get_groups(prey))
+        found = [other for other in predator.get_agents_here() if other.group in groups]
+        if len(found) > 1:
+            found = [found[int(index)] for index in system.rng.permutation(len(found))[:1]]
+        for item in found:
+            if predator.alive and item.alive:
+                if isinstance(predator, PredatorView):
+                    predator.meals += 1.0
+                item.remove()
 
     def _get_prey(self, group: str) -> list[MovementInteraction | BirthDeathInteraction]:
         """Return the member interactions of a prey.
@@ -255,38 +293,21 @@ class AgentBasedLotkaVolterraSystem(BaseSystem):
         self,
         group: str,
         prey: str,
-    ) -> list[MovementInteraction | TransferInteraction | BirthDeathInteraction | MapInteraction]:
+    ) -> list[MovementInteraction | Interaction | BirthDeathInteraction]:
         """Return the member interactions of a predator.
 
         A predator walks, eats a prey of its cell, breeds after it, dies, and digests.
         """
+        eat = partial(self._eat, prey=prey)
         return [
             MovementInteraction(f'{group}_walk', target=group, schedule='member'),
-            TransferInteraction(
-                f'{group}_eating',
-                source=prey,
-                target=group,
-                state=Source(),
-                into='meals',
-                amount=1.0,
-                pairing='cell',
-                form='agent',
-                schedule='member',
-                actor='target',
-                partners=1,
-                remove='source',
-            ),
+            Interaction(f'{group}_eating', roles={'target': group}, laws=lambda s: [UpdateLaw(s.target, eat)]),
             BirthDeathInteraction(f'{group}_breeding', target=group, birth=self._get_conversion, schedule='member'),
             BirthDeathInteraction(f'{group}_death', target=group, death=self._get_death, schedule='member'),
             Interaction(
                 f'{group}_digestion',
                 roles={'target': group},
-                laws=lambda s: [
-                    UpdateLaw(
-                        s.target,
-                        lambda agent, system: setattr(agent, 'meals', float(self._get_digested(agent, system))),
-                    ),
-                ],
+                laws=lambda s: [UpdateLaw(s.target, self._digest)],
             ),
         ]
 
@@ -300,27 +321,27 @@ class AgentBasedLotkaVolterraSystem(BaseSystem):
         super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         cells = rng.integers(0, [self.width, self.height], size=(self.prey + self.predators, 2))
-        locations = [tuple(int(item) for item in cell) for cell in cells]
+        space = LatticeSpace((self.width, self.height), boundary='periodic')
+        prey, predators = cells[: self.prey], cells[self.prey :]
         self.system_ = System(
             self.label,
             elements=[
-                GroupElement(
+                PreyElement(
                     'prey',
-                    element=PreyElement,
+                    birth=self.birth,
+                    values={'x': prey[:, 0], 'y': prey[:, 1]},
                     size=self.prey,
-                    values={'birth': self.birth},
-                    variable=True,
-                    location=locations[: self.prey],
+                    space=space,
                 ),
-                GroupElement(
+                PredatorElement(
                     'predators',
-                    element=PredatorElement,
+                    conversion=self.conversion,
+                    death=self.death,
+                    values={'x': predators[:, 0], 'y': predators[:, 1]},
                     size=self.predators,
-                    values={'conversion': self.conversion, 'death': self.death},
-                    variable=True,
-                    location=locations[self.prey :],
+                    space=space,
                 ),
             ],
             interactions=[*self._get_prey('prey'), *self._get_predators('predators', 'prey')],
-            space=LatticeSpace((self.width, self.height), boundary='periodic'),
+            space=space,
         )
