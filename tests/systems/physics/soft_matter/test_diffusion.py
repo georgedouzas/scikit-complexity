@@ -3,7 +3,6 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.systems.physics.soft_matter import (
     BrownianMotionSystem,
@@ -17,12 +16,12 @@ from skcomplex.systems.physics.soft_matter import (
 
 def test_brownian_motion_is_ballistic_then_diffusive():
     """Test that inertial Brownian motion is ballistic below `m / gamma` and diffusive above, and overdamped is not."""
-    system = BrownianMotionSystem(4000)
-    trajectory = simulate(system, until=1, dt=0.05, solver=EulerMaruyamaSolver(dt=0.001), random_state=0)
+    system = BrownianMotionSystem(4000, solver=EulerMaruyamaSolver(dt=0.001)).prepare()
+    trajectory = system.simulate(until=1, dt=0.05, random_state=0)
     positions = trajectory.get_values('beads.x')[..., 0]
     assert (positions[2] ** 2).mean() == pytest.approx(2 * (0.1 - 1 + np.exp(-0.1)), rel=0.1)
-    overdamped = BrownianMotionSystem(4000, inertial=False)
-    trajectory = simulate(overdamped, dt=0.5, solver=EulerMaruyamaSolver(dt=0.01), random_state=0)
+    overdamped = BrownianMotionSystem(4000, inertial=False, solver=EulerMaruyamaSolver(dt=0.01)).prepare()
+    trajectory = overdamped.simulate(dt=0.5, random_state=0)
     assert (trajectory.get_values('beads.x')[-1] ** 2).mean() == pytest.approx(2 * 10, rel=0.1)
 
 

@@ -16,26 +16,22 @@ from sage.all__sagemath_symbolics import SR, exp, oo, sin, sqrt, vector
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BoundaryLaw, NoiseLaw, RateLaw
 from ....core.components.laws.utils import pulse_train, where
 from ....core.components.spaces import BaseSpace, ContinuousSpace
-from ....core.components.systems import BaseSystem as OldBaseSystem
-from ....core.components.systems import CompositeSystem
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver
 from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ..common.particles import (
     POINTS,
-    BrownianParticleElement,
     DoubleWellElement,
     DoubleWellInteraction,
     FrictionNoiseInteraction,
     LangevinThermostatInteraction,
     MassPointElement,
-    ThermalNoiseInteraction,
 )
 
 
@@ -363,12 +359,110 @@ class SpeckleFieldInteraction(Interaction):
 
 
 class BeadElement(MassPointElement):
-    """Point mass drawn as a point at its position."""
+    """Point mass drawn as a point at its position.
+
+    Examples:
+        >>> from skcomplex.systems.physics.soft_matter import BeadElement
+        >>> BeadElement('bead', m=2.0).m
+        2.0
+    """
 
     visual = POINTS
 
 
-class BrownianMotionSystem(OldBaseSystem):
+class BrownianParticleElement(Element):
+    """Overdamped Brownian particle at the position `x`, with the friction `gamma` and the thermal energy `temperature`.
+
+    A `ThermalNoiseInteraction` makes it diffuse, `dx = sqrt(2 temperature / gamma) dW`.
+
+    Args:
+        label:
+            The label of the particle or the group.
+
+        x:
+            The initial position.
+
+        gamma:
+            The friction coefficient.
+
+        temperature:
+            The thermal energy.
+
+        size:
+            The number of particles, or `None` for one.
+
+        space:
+            The continuous space of the particles, or `None` for none.
+
+    Examples:
+        >>> from skcomplex.systems.physics.soft_matter import BrownianParticleElement
+        >>> BrownianParticleElement('bead', temperature=2.0).temperature
+        2.0
+    """
+
+    visual = POINTS
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        x: object = 0.0,
+        gamma: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        temperature: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
+    ) -> None:
+        super().__init__(label, size=size, space=space)
+        self.x = x
+        self.gamma = gamma
+        self.temperature = temperature
+
+
+class ThermalNoiseInteraction(Interaction):
+    """Thermal noise of overdamped particles, the random force `sqrt(2 gamma temperature) dW` over `gamma`.
+
+    The friction `gamma` and the thermal energy `temperature` are values of the target, so every component of the
+    position diffuses with the coefficient `temperature / gamma`. It is a bead in water, a protein in a cell, or a
+    pollen grain under a microscope.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the particle or the group.
+
+        state:
+            The name of the position of the target.
+
+    Examples:
+        >>> from skcomplex.systems.physics.soft_matter import ThermalNoiseInteraction
+        >>> ThermalNoiseInteraction('bath', target='beads').state
+        'x'
+    """
+
+    law_classes = (NoiseLaw,)
+
+    def __init__(self, label: str, *, target: Role, state: str = 'x') -> None:
+        super().__init__(label)
+        self.target = target
+        self.state = state
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the noise of the position of the target.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            target = context.target
+            amplitude = sqrt(2 * target.gamma * target.temperature) / target.gamma
+            self.laws_ = [NoiseLaw(getattr(target, self.state), amplitude)]
+
+
+class BrownianMotionSystem(BaseSystem):
     """Free Brownian particles with or without inertia.
 
     With inertia they follow `m x'' = -gamma x' + sqrt(2 kT gamma) W`.
@@ -402,9 +496,15 @@ class BrownianMotionSystem(OldBaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for Euler-Maruyama with the step 0.005.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.soft_matter import BrownianMotionSystem
-        >>> BrownianMotionSystem(10, inertial=False).prepare().system_.elements[0].element.__name__
+        >>> type(BrownianMotionSystem(10, inertial=False).prepare().system_.elements[0]).__name__
         'BrownianParticleElement'
     """
 
@@ -413,7 +513,6 @@ class BrownianMotionSystem(OldBaseSystem):
     references = ('Argun et al. 2021', 'Li et al. 2010', 'Volpe and Volpe 2013')
     until = 10.0
     dt = 0.1
-    solver = EulerMaruyamaSolver(dt=0.005)
 
     def __init__(
         self,
@@ -426,8 +525,10 @@ class BrownianMotionSystem(OldBaseSystem):
         n_dim: int = 1,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_particles = n_particles
         self.inertial = inertial
         self.m = m
@@ -436,38 +537,37 @@ class BrownianMotionSystem(OldBaseSystem):
         self.n_dim = n_dim
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return free Brownian particles with or without inertia.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to free Brownian particles with or without inertia.
 
-        With inertia they follow `m x'' = -gamma x' + sqrt(2 kT gamma) W`.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         space = ContinuousSpace(n_dim=self.n_dim)
+        solver = EulerMaruyamaSolver(dt=0.005)
+        start = np.zeros((self.n_particles, self.n_dim))
         if not self.inertial:
-            beads = GroupElement(
+            beads = BrownianParticleElement(
                 'beads',
-                element=BrownianParticleElement,
+                x=start,
+                gamma=self.gamma,
+                temperature=self.kT,
                 size=self.n_particles,
-                values={'x': np.zeros((self.n_particles, self.n_dim)), 'gamma': self.gamma, 'temperature': self.kT},
-            )
-            return CompositeSystem(
-                self.label,
-                elements=[beads],
-                interactions=[ThermalNoiseInteraction('bath', target='beads')],
                 space=space,
             )
+            bath = ThermalNoiseInteraction('bath', target='beads')
+            self.system_ = System(self.label, elements=[beads], interactions=[bath], space=space, solver=solver)
+            return
         velocities = np.random.default_rng(self.random_state).normal(
             0.0,
             math.sqrt(self.kT / self.m),
             (self.n_particles, self.n_dim),
         )
-        beads = GroupElement(
-            'beads',
-            element=BeadElement,
-            size=self.n_particles,
-            values={'x': np.zeros((self.n_particles, self.n_dim)), 'x_d1': velocities, 'm': self.m},
-        )
+        beads = BeadElement('beads', x=start, m=self.m, values={"x'": velocities}, size=self.n_particles, space=space)
         bath = LangevinThermostatInteraction('bath', target='beads', temperature=self.kT, gamma=self.gamma)
-        return CompositeSystem(self.label, elements=[beads], interactions=[bath], space=space)
+        self.system_ = System(self.label, elements=[beads], interactions=[bath], space=space, solver=solver)
 
 
 class OpticalTrapSystem(BaseSystem):

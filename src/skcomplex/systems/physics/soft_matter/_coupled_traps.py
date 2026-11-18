@@ -6,6 +6,7 @@ Two Brownian spheres in blinking optical traps share one fluid.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -14,11 +15,14 @@ from sage.all__sagemath_symbolics import oo
 from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element
 from ....core.components.laws.utils import pulse_train
-from ....core.components.spaces import ContinuousSpace, DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.components.spaces import BaseSpace, ContinuousSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import ParameterSpec, RoleSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ..common.particles import StokesianMobilityInteraction
 
 SPHERES = VisualSpec('points', {'position': 'x', 'radius': 1.0})
@@ -42,6 +46,12 @@ class TrappedSphereElement(Element):
         center:
             The centre of the trap of the sphere.
 
+        size:
+            The number of spheres, or `None` for one.
+
+        space:
+            The continuous space of the spheres, or `None` for none.
+
     Examples:
         >>> from skcomplex.systems.physics.soft_matter import TrappedSphereElement
         >>> TrappedSphereElement('bead', center=[3.0, 0.0]).center
@@ -54,10 +64,12 @@ class TrappedSphereElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
-        center: Annotated[npt.ArrayLike, ParameterSpec(vector=True)] = 0.0,
+        x: npt.ArrayLike = 0.0,
+        center: npt.ArrayLike = 0.0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size, space=space)
         self.x = x
         self.center = center
 
@@ -200,9 +212,15 @@ class HydrodynamicallyCoupledTrapsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.soft_matter import HydrodynamicallyCoupledTrapsSystem
-        >>> HydrodynamicallyCoupledTrapsSystem(4.0).prepare().system_.elements[0].values['center']
+        >>> HydrodynamicallyCoupledTrapsSystem(4.0).prepare().system_.elements[0].center
         [[-2.0, 0.0], [2.0, 0.0]]
     """
 
@@ -226,8 +244,10 @@ class HydrodynamicallyCoupledTrapsSystem(BaseSystem):
         off_time: float = 0.1,
         step: float = 5e-3,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.separation = separation
         self.tensor = tensor
         self.root = root
@@ -239,18 +259,17 @@ class HydrodynamicallyCoupledTrapsSystem(BaseSystem):
         self.off_time = off_time
         self.step = step
 
-    def _build_system(self) -> CompositeSystem:
-        """Return two Brownian spheres in blinking optical traps.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to two spheres in blinking traps that share one fluid.
 
-        The free motion of the spheres is correlated through the fluid.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         centers = [[-self.separation / 2, 0.0], [self.separation / 2, 0.0]]
-        spheres = GroupElement(
-            'spheres',
-            element=TrappedSphereElement,
-            size=2,
-            values={'x': centers, 'center': centers},
-        )
+        plane = ContinuousSpace(n_dim=2)
+        spheres = TrappedSphereElement('spheres', x=centers, center=centers, size=2, space=plane)
         traps = BlinkingTrapsInteraction(
             'tweezers',
             target='spheres',
@@ -264,10 +283,4 @@ class HydrodynamicallyCoupledTrapsSystem(BaseSystem):
             temperature=self.kT,
             dt=self.step,
         )
-        return CompositeSystem(
-            self.label,
-            elements=[spheres],
-            interactions=[traps],
-            space=ContinuousSpace(n_dim=2),
-            time=DiscreteTime(),
-        )
+        self.system_ = System(self.label, elements=[spheres], interactions=[traps], space=plane)

@@ -3,7 +3,7 @@
 The package covers Brownian particles, optical and hydrodynamically coupled traps, anomalous diffusion, and transitions.
 """
 
-from ..common.particles import BrownianParticleElement, DoubleWellElement, ThermalNoiseInteraction
+from ..common.particles import DoubleWellElement
 from ._anomalous import (
     AnnealedTransientTimeMotionSystem,
     ContinuousTimeRandomWalkSystem,
@@ -25,7 +25,9 @@ from ._brownian import BrownianNearWallSystem, StochasticResonanceSystem, WallMo
 from ._colored_noise import ColoredNoiseInteraction, ColoredNoiseLangevinSystem, ColoredNoiseParticleElement
 from ._coupled_traps import BlinkingTrapsInteraction, HydrodynamicallyCoupledTrapsSystem, TrappedSphereElement
 from ._diffusion import (
+    BeadElement,
     BrownianMotionSystem,
+    BrownianParticleElement,
     DiffusionInASpeckleFieldSystem,
     KramersEscapeSystem,
     ModulatedNoiseInteraction,
@@ -37,6 +39,7 @@ from ._diffusion import (
     ScaledNoiseInteraction,
     ScaledWalkerElement,
     SpeckleFieldInteraction,
+    ThermalNoiseInteraction,
 )
 from ._friction import FrictionalBlockElement, ShakenFrictionInteraction, ShakenSpringBlockSystem
 from ._ratchets import (
@@ -60,6 +63,7 @@ __all__: list[str] = [
     'AnisotropicDiffusionInteraction',
     'AnisotropicParticleElement',
     'AnnealedTransientTimeMotionSystem',
+    'BeadElement',
     'BiasedHopInteraction',
     'BiasedTrapWalkSystem',
     'BlinkingTrapsInteraction',
