@@ -30,7 +30,11 @@ from ._disease import (
     LayerCouplingInteraction,
     TwoLayerSepsisSystem,
 )
-from ._distribution_networks import BranchingVesselElement, WestBrownEnquistSystem
+from ._distribution_networks import (
+    BranchingVesselElement,
+    VesselSizingInteraction,
+    WestBrownEnquistSystem,
+)
 from ._exchange import (
     ClosedContourCellExchangeSystem,
     ContourCellElement,
@@ -97,5 +101,6 @@ __all__: list[str] = [
     'TwoCompartmentPharmacokineticsSystem',
     'TwoLayerSepsisSystem',
     'VesselSegmentElement',
+    'VesselSizingInteraction',
     'WestBrownEnquistSystem',
 ]
