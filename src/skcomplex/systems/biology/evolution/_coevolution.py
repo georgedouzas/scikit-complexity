@@ -31,6 +31,7 @@ from ....core.engine.backends import BaseBackend, NumbaBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
+from ....core.types import Array
 
 SPECIES_NEIGHBORHOODS: dict[str, LatticeNeighborhood | AdjacencyNeighborhood] = {
     'ring': LatticeNeighborhood(((-1,), (1,))),
@@ -63,7 +64,7 @@ class SpeciesElement(Element):
         self,
         label: str,
         *,
-        fitness: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        fitness: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.5,
         space: BaseSpace | None = None,
     ) -> None:
         super().__init__(label, space=space)
@@ -186,6 +187,8 @@ class BakSneppenSystem(BaseSystem):
         fitness = np.random.default_rng(self.random_state).random(count)
         species = SpeciesElement('species', fitness=fitness, space=space)
         extinction = ExtinctionInteraction(
-            'extinction', target='species', neighbors='ring' if self.graph is None else 'graph'
+            'extinction',
+            target='species',
+            neighbors='ring' if self.graph is None else 'graph',
         )
         self.system_ = System(self.label, elements=[species], interactions=[extinction], backend=NumbaBackend())
