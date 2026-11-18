@@ -312,6 +312,11 @@ class ActiveWalkersSystem(BaseSystem):
         """Return whether a walker stands at its goal at the end of its activation."""
         return float(self._has_arrived(walker, system))
 
+    def _arrive(self, walker: AgentViewProtocol, system: SystemViewProtocol) -> None:
+        """Mark whether a walker stands at its goal at the end of its activation."""
+        if isinstance(walker, WalkerView):
+            walker.arrived = self._get_arrived(walker, system)
+
     @staticmethod
     def _get_step(walker: AgentViewProtocol, system: SystemViewProtocol) -> object:
         """Return a neighbouring cell drawn with a weight growing with its alignment.
@@ -448,12 +453,7 @@ class ActiveWalkersSystem(BaseSystem):
                 Interaction(
                     'arrival',
                     roles={'target': 'people/walkers'},
-                    laws=lambda s: [
-                        UpdateLaw(
-                            s.target,
-                            lambda agent, system: setattr(agent, 'arrived', float(self._get_arrived(agent, system))),
-                        ),
-                    ],
+                    laws=lambda s: [UpdateLaw(s.target, self._arrive)],
                 ),
             ],
         )

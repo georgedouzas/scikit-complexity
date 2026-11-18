@@ -340,6 +340,16 @@ class PheromoneForagingSystem(BaseSystem):
             return 0.0
         return float(not self._is_homing(ant, system) and not self._searches(ant, system))
 
+    def _carry(self, ant: AgentViewProtocol, system: SystemViewProtocol) -> None:
+        """Let an ant take food at the food source or drop it at the nest, the step after it arrived."""
+        if isinstance(ant, AntView):
+            ant.carrying = self._get_carrying(ant, system)
+
+    def _arrive(self, ant: AgentViewProtocol, system: SystemViewProtocol) -> None:
+        """Mark whether an ant arrived at the end of its turn, at the nest with food or near the food without it."""
+        if isinstance(ant, AntView):
+            ant.arrived = self._get_arrived(ant, system)
+
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of ants that find food and lay a pheromone trail home.
 
@@ -422,22 +432,12 @@ class PheromoneForagingSystem(BaseSystem):
                 Interaction(
                     'carrying',
                     roles={'target': 'colony/ants'},
-                    laws=lambda s: [
-                        UpdateLaw(
-                            s.target,
-                            lambda agent, system: setattr(agent, 'carrying', float(self._get_carrying(agent, system))),
-                        ),
-                    ],
+                    laws=lambda s: [UpdateLaw(s.target, self._carry)],
                 ),
                 Interaction(
                     'arrival',
                     roles={'target': 'colony/ants'},
-                    laws=lambda s: [
-                        UpdateLaw(
-                            s.target,
-                            lambda agent, system: setattr(agent, 'arrived', float(self._get_arrived(agent, system))),
-                        ),
-                    ],
+                    laws=lambda s: [UpdateLaw(s.target, self._arrive)],
                 ),
             ],
         )

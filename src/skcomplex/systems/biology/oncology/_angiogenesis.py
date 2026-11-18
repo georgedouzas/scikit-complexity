@@ -398,6 +398,12 @@ class TumourAngiogenesisSystem(BaseSystem):
         return float(system.get_field(OXYGEN, cell.location) < cell.hypoxia)
 
     @staticmethod
+    def _sense_hypoxia(cell: AgentViewProtocol, system: SystemViewProtocol) -> None:
+        """Mark whether the oxygen at the site of a tumour cell is below `hypoxia`."""
+        if isinstance(cell, TumourCellView):
+            cell.hypoxic = TumourAngiogenesisSystem._get_hypoxic(cell, system)
+
+    @staticmethod
     def _secretes(cell: AgentViewProtocol, site: object, system: SystemViewProtocol) -> bool:
         """Return whether a living tumour cell is hypoxic.
 
@@ -512,12 +518,7 @@ class TumourAngiogenesisSystem(BaseSystem):
             Interaction(
                 'hypoxia',
                 roles={'target': TUMOUR},
-                laws=lambda s: [
-                    UpdateLaw(
-                        s.target,
-                        lambda agent, system: setattr(agent, 'hypoxic', float(self._get_hypoxic(agent, system))),
-                    ),
-                ],
+                laws=lambda s: [UpdateLaw(s.target, self._sense_hypoxia)],
             ),
             TransferInteraction(
                 'secretion',
