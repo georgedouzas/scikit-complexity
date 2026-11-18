@@ -274,7 +274,9 @@ class CensusPass(BasePass):
             except SkcomplexError as error:
                 errors.append((block.node.path, error))
         flowing = CensusPass._get_flowing(records)
-        records = [replace(record, law=CensusPass._get_corrected(record.law, record.owner, flowing)) for record in records]
+        records = [
+            replace(record, law=CensusPass._get_corrected(record.law, record.owner, flowing)) for record in records
+        ]
         return _CensusSpec(system, records, errors, declarations.agents)
 
     @staticmethod

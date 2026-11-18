@@ -369,7 +369,8 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
     def _get_state_path(path: str, state: str) -> str:
         """Return the entity path of a state of an element, naming a derivative with primes.
 
-        The derivative `x_d1` of `node_0` is logged under `node_0/x\\'`, the escaped form of `node_0/x'`.
+        The derivative `x_d1` of `node_0` is logged under the escaped form of `node_0/x'`, as Rerun writes a prime in
+        an entity path.
         """
         return f'{path}/{rr.escape_entity_path_part(LayoutSpec._get_display_name(state))}'
 

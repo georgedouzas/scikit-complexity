@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping
 from math import prod
 from types import SimpleNamespace
 from typing import ClassVar

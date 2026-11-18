@@ -58,7 +58,7 @@ def test_scalars_visual_logs_chosen_components():
 
 
 def test_scalars_visual_names_derivatives_with_primes():
-    """Test that the angular velocity of a pendulum is logged under `left/theta\\'`, not `left/theta_d1`."""
+    """Test that the angular velocity of a pendulum is logged under the escaped `left/theta'`, not `left/theta_d1`."""
     problem, frame = _first_frame(CoupledPendulumsSystem().prepare()._get_composite())
     logs = Logs()
     ScalarsVisual(path='left', recording=logs).prepare(problem).run(frame)

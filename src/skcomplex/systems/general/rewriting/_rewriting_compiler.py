@@ -19,7 +19,7 @@ from ....core.engine.compile import BaseCompiler, FlattenPass, IssueSpec
 from ....core.engine.problems import BaseProblemSpec, CompiledElementSpec, LayoutSpec
 from ....core.enums import FormKind, VariableKind
 from ....core.errors import IncompatibleLawsError, RewritingError, SkcomplexError, ValidationError
-from ....core.specs import EntrySpec, VisualSpec
+from ....core.specs import EntrySpec, ParameterSpec, StateSpec, VisualSpec
 from . import _patch, _word
 from ._parameters_spec import _ParametersSpec
 from ._patch_kernel import PatchKernel
@@ -185,7 +185,7 @@ class RewritingCompiler(BaseCompiler):
                 declared = {
                     name: (item.spec.domain, item.value)
                     for name, item in component._get_declared().items()
-                    if name not in component._get_roles()
+                    if isinstance(item.spec, StateSpec | ParameterSpec)
                 }
             else:
                 declared = {

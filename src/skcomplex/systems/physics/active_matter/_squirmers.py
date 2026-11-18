@@ -22,7 +22,7 @@ from ....core.components.elements import Element
 from ....core.components.spaces import BaseSpace, ContinuousSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, Role, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 from ..common.particles import StokesianMobilityInteraction
 

@@ -89,7 +89,9 @@ class PhaseRingVisual(BaseVisual):
         )
         for state, name in element.states.items():
             if state not in {self.phase, self.position}:
-                BaseVisual._log_scalars(recording, BaseVisual._get_state_path(element.path, state), frame.get_value(name))
+                BaseVisual._log_scalars(
+                    recording, BaseVisual._get_state_path(element.path, state), frame.get_value(name),
+                )
 
     def _get_views(
         self,

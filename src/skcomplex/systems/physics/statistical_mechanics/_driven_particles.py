@@ -175,7 +175,7 @@ class ReservoirInteraction(Interaction):
 
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import ReservoirInteraction
-        >>> ReservoirInteraction('bath', sites=['lane[0]'], inflow=0.5).outflow
+        >>> ReservoirInteraction('bath', sites=('lane[0]',), inflow=0.5).outflow
         0.0
     """
 
@@ -564,15 +564,17 @@ class DissipativeZeroRangeSystem(BaseSystem):
             for index in range(self.branches ** (level - 1)):
                 for branch in range(self.branches):
                     child = below + self.branches * index + branch
-                    link = [f'nodes[{start + index}]', f'nodes[{child}]']
+                    link = (f'nodes[{start + index}]', f'nodes[{child}]')
                     interactions.append(
                         ZeroRangeHopInteraction(f'transfer_{start + index}_{child}', link=link, p=rate, q=rate, b=0.0),
                     )
-        leaves = [f'nodes[{index}]' for index in range(self._get_level_start(self.n_levels, self.branches), n_nodes)]
+        leaves = tuple(
+            f'nodes[{index}]' for index in range(self._get_level_start(self.n_levels, self.branches), n_nodes)
+        )
         interactions += [
             ReservoirInteraction(
                 'injection',
-                sites=['nodes[0]'],
+                sites=('nodes[0]',),
                 inflow=self.nu * np.exp(-self.beta_ext * self.epsilon0),
                 outflow=self.nu,
             ),
@@ -675,7 +677,7 @@ class ASEPSystem(BaseSystem):
         lane = Element('lane', values={'n': occupied}, space=LatticeSpace(self.n_sites, boundary='fixed'))
         interactions = [
             ExclusionHopsInteraction('hops', sites='lane', p=self.p, q=self.q),
-            ReservoirInteraction('entry', sites=['lane[0]'], inflow=self.alpha, exclusion=True),
-            ReservoirInteraction('exit', sites=[f'lane[{self.n_sites - 1}]'], outflow=self.gamma, exclusion=True),
+            ReservoirInteraction('entry', sites=('lane[0]',), inflow=self.alpha, exclusion=True),
+            ReservoirInteraction('exit', sites=(f'lane[{self.n_sites - 1}]',), outflow=self.gamma, exclusion=True),
         ]
         self.system_ = System(self.label, elements=[lane], interactions=interactions)

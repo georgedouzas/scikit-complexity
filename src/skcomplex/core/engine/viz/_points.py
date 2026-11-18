@@ -258,7 +258,9 @@ class PointsVisual(BaseVisual):
             self.states if self.states is not None else [state for state in element.states if state != self.position]
         )
         for state in others:
-            BaseVisual._log_scalars(recording, BaseVisual._get_state_path(element.path, state), frame.get_value(element.states[state]))
+            BaseVisual._log_scalars(
+                recording, BaseVisual._get_state_path(element.path, state), frame.get_value(element.states[state]),
+            )
 
     def _get_views(
         self,

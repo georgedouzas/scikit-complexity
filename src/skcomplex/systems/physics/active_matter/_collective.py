@@ -12,7 +12,7 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import SR, Expression, oo, sqrt
+from sage.all__sagemath_symbolics import SR, oo, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
@@ -23,7 +23,7 @@ from ....core.components.laws.utils import advection, divergence, gradient, lapl
 from ....core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace, RadiusNeighborhood
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver, RK4Solver
-from ....core.specs import ParameterSpec, Role, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ...general.elements import PointElement

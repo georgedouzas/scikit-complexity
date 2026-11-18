@@ -261,7 +261,9 @@ class ImageVisual(BaseVisual):
                 values = self._get_sliced(np.asarray(values, dtype=float))
             magnitudes = np.abs(values) if np.iscomplexobj(values) else np.asarray(values, dtype=float)
             if magnitudes.ndim == 1:
-                self._log_space_time(recording, BaseVisual._get_state_path(f'{element.path}/{SPACE_TIME}', state), magnitudes)
+                self._log_space_time(
+                    recording, BaseVisual._get_state_path(f'{element.path}/{SPACE_TIME}', state), magnitudes,
+                )
             if not np.iscomplexobj(values):
                 cyclic = frame.problem.states.get_entry(name).period is not None
                 self._log_image(recording, path, magnitudes, cyclic=cyclic)
@@ -325,7 +327,10 @@ class ImageVisual(BaseVisual):
             )
             if len(shape) == 1 and self._get_history_of(shape[0]):
                 histories.append(
-                    rrb.Spatial2DView(origin=BaseVisual._get_state_path(f'{element.path}/{SPACE_TIME}', state), name=f'{state} history'),
+                    rrb.Spatial2DView(
+                        origin=BaseVisual._get_state_path(f'{element.path}/{SPACE_TIME}', state),
+                        name=f'{state} history',
+                    ),
                 )
             kind = rrb.TensorView if len(shape) - len(self.plane_) > IMAGE_RANK else rrb.Spatial2DView
             views += self._get_moment_views(element, path)
