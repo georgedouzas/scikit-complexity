@@ -18,12 +18,11 @@ from sage.all__sagemath_symbolics import Expression, oo, sin, tanh
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import total
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, StateSpec
 from ....core.systems import BaseSystem, System
 
 
@@ -54,6 +53,9 @@ class ReservoirUnitElement(Element):
         frequency:
             The angular frequency `f` of the input, per step.
 
+        size:
+            The number of units, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.computer_science.neural_networks import ReservoirUnitElement
         >>> ReservoirUnitElement('unit').leak
@@ -64,13 +66,14 @@ class ReservoirUnitElement(Element):
         self,
         label: str,
         *,
-        r: Annotated[float, StateSpec()] = 0.0,
-        w_in: Annotated[float, ParameterSpec()] = 1.0,
-        leak: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
-        amplitude: Annotated[float, ParameterSpec()] = 1.0,
-        frequency: Annotated[float, ParameterSpec()] = 0.2,
+        r: object = 0.0,
+        w_in: object = 1.0,
+        leak: Annotated[float, RealSet.open(0, oo)] = 0.3,
+        amplitude: float = 1.0,
+        frequency: float = 0.2,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.r = r
         self.w_in = w_in
         self.leak = leak
@@ -122,7 +125,7 @@ class EchoStateNetworkSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.computer_science.neural_networks import EchoStateNetworkSystem
-        >>> EchoStateNetworkSystem(50).prepare().system_.elements[0].prepare().size_
+        >>> EchoStateNetworkSystem(50).prepare().system_.elements[0].size
         50
     """
 
@@ -183,17 +186,14 @@ class EchoStateNetworkSystem(BaseSystem):
         super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         weights = self._get_recurrent_weights(self.n_units, self.connectivity, self.spectral_radius, rng)
-        units = GroupElement(
+        units = ReservoirUnitElement(
             'units',
-            element=ReservoirUnitElement,
+            r=rng.uniform(-1.0, 1.0, self.n_units),
+            w_in=rng.uniform(-self.input_scaling, self.input_scaling, self.n_units),
+            leak=self.leak,
+            amplitude=self.amplitude,
+            frequency=self.frequency,
             size=self.n_units,
-            values={
-                'r': rng.uniform(-1.0, 1.0, self.n_units),
-                'w_in': rng.uniform(-self.input_scaling, self.input_scaling, self.n_units),
-                'leak': self.leak,
-                'amplitude': self.amplitude,
-                'frequency': self.frequency,
-            },
         )
         reservoir = MapInteraction(
             'reservoir',

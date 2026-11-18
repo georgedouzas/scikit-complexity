@@ -14,13 +14,15 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
-from ....core.components.interactions import TransferInteraction
-from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw, TransferLaw
 from ....core.components.laws.utils import step, where
+from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ...general.dynamics import StockFlowSystem
 from ...general.dynamics.types import FlowTable
@@ -29,7 +31,44 @@ INFLOW_START = 5.0
 
 
 class StageElement(Element):
-    """Stage of a process, a stock of material `m` with a constant feed."""
+    """Stage of a process, a stock of material `m`.
+
+    Args:
+        label:
+            The label of the stage.
+
+        m:
+            The initial material of the stage.
+
+    Examples:
+        >>> from skcomplex.systems.engineering.processes import StageElement
+        >>> StageElement('stage', m=2.0).m
+        2.0
+    """
+
+    def __init__(self, label: str, *, m: Annotated[object, RealSet.closed_open(0, oo)] = 0.0) -> None:
+        super().__init__(label)
+        self.m = m
+
+
+class FeedInteraction(Interaction):
+    """Constant feed of material into a stage, at the rate `feed`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the stage that receives the feed.
+
+        feed:
+            The feed rate.
+
+    Examples:
+        >>> from skcomplex.systems.engineering.processes import FeedInteraction
+        >>> FeedInteraction('feed', target='stage_1', feed=2.0).feed
+        2.0
+    """
 
     law_classes = (RateLaw,)
 
@@ -37,16 +76,74 @@ class StageElement(Element):
         self,
         label: str,
         *,
-        m: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        feed: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        target: Role,
+        feed: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
     ) -> None:
         super().__init__(label)
-        self.m = m
+        self.target = target
         self.feed = feed
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the constant feed of the stage."""
-        return [RateLaw(s.m, s.feed)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the constant feed of the stage."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [RateLaw(context.target.m.diff(context.t), context.feed)]
+
+
+class StageSplitInteraction(Interaction):
+    """Material that leaves a stage at unit rate, a fraction `k` upwards and `1 - k` downwards.
+
+    The flow `up` carries `k m` to the stage above and the flow `down` carries `(1 - k) m` to the stage below.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the stage the material leaves.
+
+        above:
+            The path of the stage above.
+
+        below:
+            The path of the stage below.
+
+        k:
+            The distribution coefficient, the fraction of material moving up.
+
+    Examples:
+        >>> from skcomplex.systems.engineering.processes import StageSplitInteraction
+        >>> StageSplitInteraction('split', target='stage_2', above='stage_1', below='stage_3').k
+        0.6
+    """
+
+    law_classes = (TransferLaw,)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Role,
+        above: Role,
+        below: Role,
+        k: Annotated[float, RealSet.closed(0, 1)] = 0.6,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.above = above
+        self.below = below
+        self.k = k
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the flows up and down out of the stage."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context
+            m = s.target.m
+            self.laws_: list[BaseComponent] = [
+                TransferLaw(m, s.above.m, s.k * m, label='up'),
+                TransferLaw(m, s.below.m, (1 - s.k) * m, label='down'),
+            ]
 
 
 class BathtubSystem(StockFlowSystem):
@@ -174,7 +271,7 @@ class CascadeClassifierSystem(BaseSystem):
     Examples:
         >>> from skcomplex.systems.engineering.processes import CascadeClassifierSystem
         >>> len(CascadeClassifierSystem(n_stages=4).prepare().system_.interactions)
-        8
+        5
     """
 
     field = 'engineering/processes'
@@ -204,29 +301,20 @@ class CascadeClassifierSystem(BaseSystem):
         """Set `system_` to the components of the system built from its model parameters."""
         super()._prepare(context)
         entry = (self.n_stages + 1) // 2 if self.feed_stage is None else self.feed_stage
-        stages = [
-            StageElement(f'stage_{index}', feed=self.feed if index == entry else 0.0)
-            for index in range(1, self.n_stages + 1)
-        ]
+        stages = [StageElement(f'stage_{index}') for index in range(1, self.n_stages + 1)]
         labels = ['fine', *(stage.label for stage in stages), 'coarse']
         interactions = [
-            TransferInteraction(
-                f'up_{index}',
-                source=labels[index],
-                target=labels[index - 1],
-                state='m',
-                amount=lambda s: self.k * s.source.m,
-            )
-            for index in range(1, self.n_stages + 1)
-        ] + [
-            TransferInteraction(
-                f'down_{index}',
-                source=labels[index],
-                target=labels[index + 1],
-                state='m',
-                amount=lambda s: (1 - self.k) * s.source.m,
-            )
-            for index in range(1, self.n_stages + 1)
+            FeedInteraction('feed', target=f'stage_{entry}', feed=self.feed),
+            *(
+                StageSplitInteraction(
+                    f'split_{index}',
+                    target=labels[index],
+                    above=labels[index - 1],
+                    below=labels[index + 1],
+                    k=self.k,
+                )
+                for index in range(1, self.n_stages + 1)
+            ),
         ]
         self.system_ = System(
             self.label,

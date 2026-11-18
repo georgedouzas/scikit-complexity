@@ -6,7 +6,7 @@ They are a self-indexed shift, power series, naturals, reals, and group values.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -18,14 +18,14 @@ from sage.groups.perm_gps.permgroup import PermutationGroup_generic
 
 from ....core.components import Observable
 from ....core.components.base import BaseComponent
-from ....core.components.elements import DeclaredElement, Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ParameterError
-from ....core.specs import DeclaredVariableSpec, PowerSeriesSpec, Role, StateSpec
+from ....core.specs import PowerSeriesSpec, Role
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ..common.automata import CayleySpace, StateTranslationNeighborhood
@@ -71,27 +71,30 @@ class GroupCellElement(Element):
         self.value = value
 
 
-class PowerSeriesCellElement(DeclaredElement):
+class PowerSeriesCellElement(Element):
     """Cell of an automaton over a ring `K[[t]]` of truncated formal power series.
 
-    The series are truncated at an order. The cell declares the state `value` in the ring it is given, so it holds the
-    coefficients `a_0, ..., a_{order - 1}` of a series, which a local rule reads as one row per cell.
+    The series are truncated at an order. The cell holds the value `value` in the ring it is given, the coefficients
+    `a_0, ..., a_{order - 1}` of a series, which a local rule reads as one row per cell.
 
     Args:
         label:
-            The label of the cell or the lattice group.
+            The label of the cell or the cells.
 
         ring:
             The truncated power series ring of the values.
 
-        variables:
-            Declared states and parameters besides `value`, or values that replace its default, by name.
+        value:
+            The coefficients of the series, one row per cell, or a number for every coefficient.
+
+        space:
+            The space with one cell on every site, such as a lattice, or `None` for one cell.
 
     Examples:
         >>> from skcomplex.core.specs import PowerSeriesSpec
         >>> from skcomplex.systems.computer_science.automata import PowerSeriesCellElement
-        >>> PowerSeriesCellElement('cell', ring=PowerSeriesSpec(3)).get_value('value').tolist()
-        [0.0, 0.0, 0.0]
+        >>> PowerSeriesCellElement('cell', ring=PowerSeriesSpec(3)).ring.order
+        3
     """
 
     def __init__(
@@ -99,18 +102,19 @@ class PowerSeriesCellElement(DeclaredElement):
         label: str,
         *,
         ring: PowerSeriesSpec = RATIONAL_SERIES,
-        variables: Mapping[str, DeclaredVariableSpec] | None = None,
+        value: npt.ArrayLike = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, variables=variables)
+        super().__init__(label, space=space)
         self.ring = ring
+        self.value = value
 
-    def _declare_variables(self) -> Mapping[str, DeclaredVariableSpec]:
-        """Return the state `value` in the ring and the given variables.
+    def _get_hints(self) -> dict[str, object]:
+        """Return the hint of the value, in the ring of the cell.
 
-        The state has the zero series as its default.
+        The ring describes the value, so it is no value itself.
         """
-        value = DeclaredVariableSpec(np.zeros(self.ring.order), StateSpec(domain=self.ring))
-        return {'value': value, **(self.variables or {})}
+        return {'value': Annotated[object, self.ring]}
 
 
 class RealCellElement(Element):
@@ -457,7 +461,7 @@ class PowerSeriesAutomatonSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import PowerSeriesAutomatonSystem
-        >>> PowerSeriesAutomatonSystem(5, order=3).prepare().system_.elements[0].values['value'].shape
+        >>> PowerSeriesAutomatonSystem(5, order=3).prepare().system_.elements[0].value.shape
         (5, 3)
     """
 
@@ -493,13 +497,7 @@ class PowerSeriesAutomatonSystem(BaseSystem):
             values[self.size // 2, 0] = 1.0
         else:
             values = np.asarray(self.initial, dtype=float)
-        cells = GroupElement(
-            'cells',
-            element=PowerSeriesCellElement,
-            space=LatticeSpace(self.size),
-            values={'ring': ring, 'value': values},
-            on='sites',
-        )
+        cells = PowerSeriesCellElement('cells', ring=ring, value=values, space=LatticeSpace(self.size))
         self.system_ = System(
             self.label,
             elements=[cells],

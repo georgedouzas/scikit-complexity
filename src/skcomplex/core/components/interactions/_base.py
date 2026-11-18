@@ -16,6 +16,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import CC, RR, SR, ZZ, Expression, function, vector
 from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.structure.element import Matrix
 from sage.symbolic.function import SymbolicFunction
 from sage.symbolic.operators import FDerivativeOperator
 from sklearn.base import clone
@@ -275,14 +276,18 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         """Return the state, derivative, lag, or delay a function of time stands for."""
         operator = value.operator()
         if isinstance(operator, FDerivativeOperator) and operator.function().name() in symbols:
-            return derivative(symbols[operator.function().name()], len(operator.parameter_set()))
-        name = str(getattr(operator, 'name', lambda: '')())
-        if name not in symbols or len(value.operands()) != 1:
+            state = derivative(symbols[operator.function().name()], len(operator.parameter_set()))
+        else:
+            name = str(getattr(operator, 'name', lambda: '')())
+            if name not in symbols:
+                return None
+            state = symbols[name]
+        if len(value.operands()) != 1:
             return None
         shift = SR(time - value.operands()[0]).simplify_full()
         if shift.is_zero():
-            return symbols[name]
-        return (lag if discrete else delayed)(symbols[name], shift)
+            return state
+        return (lag if discrete else delayed)(state, shift)
 
     @staticmethod
     def _get_translated(value: object, time: Expression, symbols: Mapping[str, Expression], discrete: bool) -> object:
@@ -299,8 +304,8 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
                 )
                 for key, item in value.items()
             }
-        if isinstance(value, FreeModuleElement):
-            return vector(SR, [BaseInteraction._get_translated(item, time, symbols, discrete) for item in value])
+        if isinstance(value, FreeModuleElement | Matrix):
+            return value.apply_map(lambda item: BaseInteraction._get_translated(SR(item), time, symbols, discrete))
         if not isinstance(value, Expression) or value.operator() is None:
             return value
         state = BaseInteraction._get_state_of(value, time, symbols, discrete)
@@ -334,8 +339,8 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
     @staticmethod
     def _collect_states(value: object, time: Expression, symbols: dict[str, Expression]) -> None:
         """Add the symbol of every state a value reads as a function of time, by name."""
-        if isinstance(value, FreeModuleElement | list | tuple):
-            for item in value:
+        if isinstance(value, FreeModuleElement | list | tuple | Matrix):
+            for item in value.list() if isinstance(value, Matrix) else value:
                 BaseInteraction._collect_states(item, time, symbols)
             return
         if not isinstance(value, Expression) or value.operator() is None:

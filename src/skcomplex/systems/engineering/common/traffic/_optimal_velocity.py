@@ -1,4 +1,4 @@
-"""Relaxation of the speed `v` of every car of a ring road.
+"""Relaxation of the speed `x'` of every car of a ring road.
 
 The speed relaxes towards the optimal velocity of its headway.
 """
@@ -13,14 +13,14 @@ from sage.all__sagemath_symbolics import Expression, oo, tanh
 from sage.sets.real_set import RealSet
 
 from .....core.components.laws.utils import mod, shift_member
-from .....core.specs import ParameterSpec, RoleSpec
+from .....core.specs import Role
 from ._speed_adaptation import SpeedAdaptationInteraction
 
 
 class OptimalVelocityInteraction(SpeedAdaptationInteraction):
-    """Relaxation of the speed `v` of every car of a ring road.
+    """Relaxation of the speed `x'` of every car of a ring road.
 
-    The speed follows `v' = a (V(h) - v)` with the optimal velocity `V(h) = V0 (tanh(h - hc) + tanh(hc))` of the
+    The speed follows `x'' = a (V(h) - x')` with the optimal velocity `V(h) = V0 (tanh(h - hc) + tanh(hc))` of the
     headway `h` to the next car, a relaxation over the time `1 / a`.
 
     Args:
@@ -42,19 +42,23 @@ class OptimalVelocityInteraction(SpeedAdaptationInteraction):
         road_length:
             The length of the ring road.
 
+    Examples:
+        >>> from skcomplex.systems.engineering.common.traffic import OptimalVelocityInteraction
+        >>> OptimalVelocityInteraction('follow', target='cars').state
+        "x'"
     """
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        a: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        V0: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        hc: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        road_length: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 40.0,
+        target: Role,
+        a: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        V0: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        hc: Annotated[float, RealSet.open(0, oo)] = 2.0,
+        road_length: Annotated[float, RealSet.open(0, oo)] = 40.0,
     ) -> None:
-        super().__init__(label, target=target, state='v')
+        super().__init__(label, target=target, state="x'")
         self.a = a
         self.V0 = V0
         self.hc = hc

@@ -13,7 +13,6 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
-from ....core.components.laws.utils import lag
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec
@@ -235,7 +234,7 @@ class MultiplierAcceleratorSystem(DynamicalSystem):
         """Return the income of the next period, `c (1 + v) Y_t - c v Y_{t-1} + G`."""
         economy = s.target
         income: Expression = (
-            economy.c * (1 + economy.v) * economy.Y - economy.c * economy.v * lag(economy.Y, 1) + economy.G
+            economy.c * (1 + economy.v) * economy.Y - economy.c * economy.v * economy.Y(t=s.t - 1) + economy.G
         )
         return income
 

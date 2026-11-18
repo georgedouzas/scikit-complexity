@@ -15,13 +15,12 @@ from sage.all__sagemath_symbolics import Expression, erf, exp, oo, pi, sqrt, tan
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, FieldElement
+from ....core.components.elements import Element
 from ....core.components.interactions import ConservationInteraction, RateInteraction
 from ....core.components.laws.utils import laplacian, shifted
-from ....core.components.spaces import FiniteVolumeSpec, LatticeSpace
+from ....core.components.spaces import BaseSpace, FiniteVolumeSpec, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, SSPRKSolver
-from ....core.specs import ParameterSpec, StateSpec
 from ....core.systems import BaseSystem, System
 from ..common.traffic import SpeedAdaptationInteraction
 
@@ -73,6 +72,9 @@ class GasKineticTrafficElement(Element):
         d_rho:
             The width of the transition of the variance prefactor.
 
+        space:
+            The lattice of the cells of the road, or `None` for one cell.
+
     Examples:
         >>> from skcomplex.systems.engineering.traffic import GasKineticTrafficElement
         >>> GasKineticTrafficElement('cell').gamma
@@ -83,19 +85,20 @@ class GasKineticTrafficElement(Element):
         self,
         label: str,
         *,
-        rho: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 20.0,
-        Q: Annotated[float, StateSpec()] = 1800.0,
-        V0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 110.0,
-        T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.8 / 3600,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 35 / 3600,
-        rho_max: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 160.0,
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.2,
-        A0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.008,
-        dA: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
-        rho_c: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.27 * 160,
-        d_rho: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.05 * 160,
+        rho: Annotated[object, RealSet.open(0, oo)] = 20.0,
+        Q: object = 1800.0,
+        V0: Annotated[float, RealSet.open(0, oo)] = 110.0,
+        T: Annotated[float, RealSet.open(0, oo)] = 1.8 / 3600,
+        tau: Annotated[float, RealSet.open(0, oo)] = 35 / 3600,
+        rho_max: Annotated[float, RealSet.open(0, oo)] = 160.0,
+        gamma: Annotated[float, RealSet.open(0, oo)] = 1.2,
+        A0: Annotated[float, RealSet.open(0, oo)] = 0.008,
+        dA: Annotated[float, RealSet.closed_open(0, oo)] = 0.02,
+        rho_c: Annotated[float, RealSet.open(0, oo)] = 0.27 * 160,
+        d_rho: Annotated[float, RealSet.open(0, oo)] = 0.05 * 160,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.rho = rho
         self.Q = Q
         self.V0 = V0
@@ -121,15 +124,16 @@ class KernerKonhauserElement(Element):
         self,
         label: str,
         *,
-        rho: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        q: Annotated[object, StateSpec()] = 0.21,
-        V0: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        rho_max: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        tau: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        c0: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
-        mu: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        rho: Annotated[object, RealSet.closed_open(0, oo)] = 0.3,
+        q: object = 0.21,
+        V0: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        rho_max: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        tau: Annotated[object, RealSet.open(0, oo)] = 0.5,
+        c0: Annotated[object, RealSet.open(0, oo)] = 0.3,
+        mu: Annotated[object, RealSet.closed_open(0, oo)] = 0.05,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.rho = rho
         self.q = q
         self.V0 = V0
@@ -149,11 +153,12 @@ class LighthillWhithamRichardsElement(Element):
         self,
         label: str,
         *,
-        rho: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        vmax: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        rho_max: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        rho: Annotated[object, RealSet.closed_open(0, oo)] = 0.3,
+        vmax: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        rho_max: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.rho = rho
         self.vmax = vmax
         self.rho_max = rho_max
@@ -170,13 +175,14 @@ class PayneElement(Element):
         self,
         label: str,
         *,
-        rho: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        q: Annotated[object, StateSpec()] = 0.21,
-        vmax: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        rho_max: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        tau: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        rho: Annotated[object, RealSet.closed_open(0, oo)] = 0.3,
+        q: object = 0.21,
+        vmax: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        rho_max: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        tau: Annotated[object, RealSet.open(0, oo)] = 0.5,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.rho = rho
         self.q = q
         self.vmax = vmax
@@ -219,7 +225,7 @@ class LighthillWhithamRichardsSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.engineering.traffic import LighthillWhithamRichardsSystem
-        >>> float(LighthillWhithamRichardsSystem(10).prepare().system_.elements[0].values['rho'][-1])
+        >>> float(LighthillWhithamRichardsSystem(10).prepare().system_.elements[0].rho[-1])
         0.8
     """
 
@@ -258,16 +264,19 @@ class LighthillWhithamRichardsSystem(BaseSystem):
         """Set `system_` to the components of the system built from its model parameters."""
         super()._prepare(context)
         density = np.where(np.arange(self.n) < self.n // 2, self.upstream, self.downstream).astype(float)
-        values = {'rho': density, 'vmax': self.vmax, 'rho_max': self.rho_max}
-        space = LatticeSpace(self.n, spacing=1 / self.n)
-        road = FieldElement(
-            'road',
-            element=LighthillWhithamRichardsElement,
-            space=space,
+        space = LatticeSpace(
+            self.n,
+            spacing=1 / self.n,
             boundary={'rho': 'zero-flux'},
-            values=values,
             discretization='finite-volume',
             scheme=FiniteVolumeSpec(riemann='godunov'),
+        )
+        road = LighthillWhithamRichardsElement(
+            'road',
+            rho=density,
+            vmax=self.vmax,
+            rho_max=self.rho_max,
+            space=space,
         )
         flux = self._get_lighthill_whitham_richards_flux
         density = ConservationInteraction('density', target='road', state='rho', flux=flux)
@@ -313,7 +322,7 @@ class PayneSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.engineering.traffic import PayneSystem
-        >>> PayneSystem(10).prepare().system_.elements[0].values['tau']
+        >>> PayneSystem(10).prepare().system_.elements[0].tau
         0.5
     """
 
@@ -358,19 +367,14 @@ class PayneSystem(BaseSystem):
         super()._prepare(context)
         density = self.density
         rho = PayneSystem._get_density_bump(self.n, density, self.bump)
-        values = {
-            'rho': rho,
-            'q': rho * self.vmax * (1 - rho / self.rho_max),
-            'vmax': self.vmax,
-            'rho_max': self.rho_max,
-            'tau': self.tau,
-        }
-        road = FieldElement(
+        road = PayneElement(
             'road',
-            element=PayneElement,
-            space=LatticeSpace(self.n, spacing=1 / self.n),
-            values=values,
-            discretization='finite-volume',
+            rho=rho,
+            q=rho * self.vmax * (1 - rho / self.rho_max),
+            vmax=self.vmax,
+            rho_max=self.rho_max,
+            tau=self.tau,
+            space=LatticeSpace(self.n, spacing=1 / self.n, discretization='finite-volume'),
         )
         density = ConservationInteraction('density', target='road', state='rho', flux=lambda s: s.target.q)
         flow = ConservationInteraction(
@@ -443,7 +447,7 @@ class KernerKonhauserSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.engineering.traffic import KernerKonhauserSystem
-        >>> KernerKonhauserSystem(10).prepare().system_.elements[0].values['mu']
+        >>> KernerKonhauserSystem(10).prepare().system_.elements[0].mu
         0.2
     """
 
@@ -498,22 +502,16 @@ class KernerKonhauserSystem(BaseSystem):
         super()._prepare(context)
         density = self.density
         rho = PayneSystem._get_density_bump(self.n, density, self.bump)
-        values = {
-            'rho': rho,
-            'q': rho * self._compute_kerner_konhauser_speed(rho, self.V0, self.rho_max),
-            'V0': self.V0,
-            'rho_max': self.rho_max,
-            'tau': self.tau,
-            'c0': self.c0,
-            'mu': self.mu,
-        }
-        space = LatticeSpace(self.n, spacing=self.length / self.n)
-        road = FieldElement(
+        road = KernerKonhauserElement(
             'road',
-            element=KernerKonhauserElement,
-            space=space,
-            values=values,
-            discretization='finite-volume',
+            rho=rho,
+            q=rho * self._compute_kerner_konhauser_speed(rho, self.V0, self.rho_max),
+            V0=self.V0,
+            rho_max=self.rho_max,
+            tau=self.tau,
+            c0=self.c0,
+            mu=self.mu,
+            space=LatticeSpace(self.n, spacing=self.length / self.n, discretization='finite-volume'),
         )
         density = ConservationInteraction('density', target='road', state='rho', flux=lambda s: s.target.q)
         flow = ConservationInteraction(
@@ -602,7 +600,7 @@ class GktTrafficSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.engineering.traffic import GktTrafficSystem
-        >>> GktTrafficSystem(10).prepare().system_.elements[0].values['gamma']
+        >>> GktTrafficSystem(10).prepare().system_.elements[0].gamma
         1.2
     """
 
@@ -705,7 +703,6 @@ class GktTrafficSystem(BaseSystem):
         rho = self.density + self.amplitude * (
             np.cosh((centers - start) / width) ** -2 - width / wake * np.cosh((centers - start - 1.00625) / wake) ** -2
         )
-        values = {'V0': self.V0, 'T': self.T, 'tau': self.tau, 'rho_max': self.rho_max, 'gamma': self.gamma}
         cell = GasKineticTrafficElement(
             'cell',
             V0=self.V0,
@@ -714,12 +711,16 @@ class GktTrafficSystem(BaseSystem):
             rho_max=self.rho_max,
             gamma=self.gamma,
         )
-        road = FieldElement(
+        road = GasKineticTrafficElement(
             'road',
-            element=GasKineticTrafficElement,
-            space=LatticeSpace(self.n, spacing=self.length / self.n),
-            values={'rho': rho, 'Q': rho * self._get_gkt_equilibrium_speed(rho, cell), **values},
-            discretization='finite-volume',
+            rho=rho,
+            Q=rho * self._get_gkt_equilibrium_speed(rho, cell),
+            V0=self.V0,
+            T=self.T,
+            tau=self.tau,
+            rho_max=self.rho_max,
+            gamma=self.gamma,
+            space=LatticeSpace(self.n, spacing=self.length / self.n, discretization='finite-volume'),
         )
         vehicles = ConservationInteraction('density', target='road', state='rho', flux=lambda s: s.target.Q)
         momentum = ConservationInteraction(

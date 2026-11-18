@@ -17,14 +17,22 @@ from ._extraction import FisheryCapitalSystem, FisheryElement, OilEconomySystem
 from ._fisheries import HilsaElement, HilsaFisherySystem
 from ._food import FoodSecuritySystem, PartialAdjustmentInteraction, RiceSectorElement
 from ._food_balance import RiceBalanceElement, RiceFoodBalanceSystem
-from ._harvesting import FarmerElement, HarvestingSystem, HarvestInteraction, StockElement
+from ._harvesting import (
+    CatchInteraction,
+    FarmerElement,
+    HarvestingSystem,
+    HarvestInteraction,
+    StockElement,
+    StockGrowthInteraction,
+)
 from ._land_use import BidRentInteraction, LandCellElement, VonThunenSystem
-from ._measurement_errors import FisheryMeasurementErrorsSystem, MeasuredFisheryElement
+from ._measurement_errors import FisheryMeasurementErrorsSystem, MeasuredFisheryElement, QuotaHarvestInteraction
 from ._optimal_harvesting import OptimalHarvestingSystem
 from ._plantations import CocoaSystem, PlantationElement
 
 __all__: list[str] = [
     'BidRentInteraction',
+    'CatchInteraction',
     'CocoaSystem',
     'CowElement',
     'CropLivestockHouseholdSystem',
@@ -46,12 +54,14 @@ __all__: list[str] = [
     'PartialAdjustmentInteraction',
     'PastureElement',
     'PlantationElement',
+    'QuotaHarvestInteraction',
     'QuotaRegulatorInteraction',
     'RegrassingInteraction',
     'RiceBalanceElement',
     'RiceFoodBalanceSystem',
     'RiceSectorElement',
     'StockElement',
+    'StockGrowthInteraction',
     'TragedyOfTheCommonsSystem',
     'VonThunenSystem',
 ]

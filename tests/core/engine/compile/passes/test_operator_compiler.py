@@ -2,6 +2,7 @@
 
 import math
 from operator import attrgetter
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -11,7 +12,7 @@ from sage.all__sagemath_symbolics import CC
 
 from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import NeighborInteraction
+from skcomplex.core.components.interactions import Interaction, NeighborInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import local_operator
 from skcomplex.core.components.spaces import LatticeSpace
@@ -24,6 +25,7 @@ from skcomplex.core.engine.problems._operator_problem_spec import OperatorProble
 from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import IncompatibleLawsError, ValidationError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.common.populations import PopulationElement
 from skcomplex.systems.physics.common.quantum import (
     QUBIT,
@@ -329,3 +331,61 @@ def test_operator_compiler_leaves_every_law_to_the_compiler_of_a_field():
     assert problem.dimensions == (2,)
     with pytest.raises(IncompatibleLawsError, match='GeneratorLaw, which OperatorCompiler cannot compile'):
         OperatorCompiler().prepare(CompositeSystem(elements=[FixedElement('q')])).run()
+
+
+class ExchangeInteraction(Interaction):
+    """Isotropic exchange of every pair of neighbouring spins, set from the namespace of the pair."""
+
+    def __init__(self, label: str, *, among: Annotated[str, RoleSpec()], J: float = 1.0, along: bool = True) -> None:
+        super().__init__(label, among=among, along=along)
+        self.J = J
+
+    def _prepare(self, context=None):
+        """Set the exchange of one pair."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            a, b = context.source.psi, context.target.psi
+            exchange = sum(local_operator(a, axis) * local_operator(b, axis) for axis in 'xyz')
+            self.laws_ = [GeneratorLaw(context.J * exchange)]
+
+
+class TwoStateElement(Element):
+    """Plain two-state element whose state has complex allowed values."""
+
+    def __init__(self, label: str, phi: Annotated[object, CC] = 'up', *, tag: str = 'a') -> None:
+        super().__init__(label)
+        self.phi = phi
+        self.tag = tag
+        self.hilbert = QUBIT
+
+
+def test_compiler_couples_the_neighbours_of_a_plain_element():
+    """Test that spins given as one plain element on a lattice couple their neighbours as a group of spins does."""
+    states = ['up'] * 5 + ['down']
+    plain = CompositeSystem(
+        elements=[Element('chain', values={'psi': states, 'hilbert': QUBIT}, space=LatticeSpace(6))],
+        interactions=[ExchangeInteraction('h', among='chain', J=0.7)],
+    )
+    group = CompositeSystem(
+        elements=[
+            GroupElement('chain', element=QubitElement, space=LatticeSpace(6), values={'psi': states}, on='sites'),
+        ],
+        interactions=[HeisenbergInteraction('h', target='chain', J=0.7)],
+    )
+    problems = [QuantumCompiler().prepare(system).run().problem_ for system in (plain, group)]
+    matrices = [problem._get_generator_at(0.0, problem.initial_parameters).toarray() for problem in problems]
+    assert np.allclose(matrices[0], matrices[1])
+    assert np.array_equal(problems[0].initial_state, problems[1].initial_state)
+    assert problems[0].dimensions == (2,) * 6
+
+
+def test_compiler_reads_the_complex_value_of_a_plain_element_as_its_state():
+    """Test that the state of a plain element is its value with complex allowed values, or its only other value."""
+    assert OperatorCompiler._get_plain_state(TwoStateElement('q')) == 'phi'
+    assert OperatorCompiler._get_plain_state(Element('q', values={'psi': 'up', 'hilbert': QUBIT})) == 'psi'
+
+
+def test_system_runs_a_plain_quantum_element_with_the_compiler_its_hilbert_space_names():
+    """Test that a system of a plain element that takes a Hilbert space prepares the quantum problem by itself."""
+    system = System(elements=[Element('qubit', values={'psi': 'up', 'hilbert': QUBIT})]).prepare()
+    assert type(system.solver_).__name__ == 'LindbladSolver'

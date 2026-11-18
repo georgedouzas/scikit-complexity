@@ -6,7 +6,7 @@ The speed depends on the distance to the car ahead.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -15,14 +15,15 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.spaces import ContinuousSpace
+from ....core.components.laws import UpdateLaw
+from ....core.components.spaces import BaseSpace, ContinuousSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver, SystemView
 from ....core.errors import SimulationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 
 ROAD_WIDTH = 1.0
@@ -46,7 +47,7 @@ class MotoristView(AgentView):
 class MotoristElement(Element):
     """Car of Charbonneau's traffic system.
 
-    It brakes when it is closer than a safe distance to the car ahead.
+    It brakes when it is closer than a safe distance to the car ahead, by the rule of `SafeDistanceInteraction`.
 
     Args:
         label:
@@ -73,30 +74,31 @@ class MotoristElement(Element):
         speed_limit:
             The largest speed.
 
+        size:
+            The number of cars, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.engineering.traffic import MotoristElement
-        >>> GroupElement('cars', element=MotoristElement, size=3, values={'x': [0.0, 10.0, 20.0]}).size
+        >>> MotoristElement('cars', x=[0.0, 10.0, 20.0], size=3).size
         3
     """
 
     visual = VisualSpec('agents', {'position': 'x', 'color_by': 'v'})
 
-    law_classes = (RuleLaw,)
-
     def __init__(
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec(role='position')] = 0.0,
-        v: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), role='velocity')] = 0.0,
-        rank: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        safe_distance: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
-        braking: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
-        acceleration: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        speed_limit: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        x: object = 0.0,
+        v: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        rank: Annotated[object, NN] = 0.0,
+        safe_distance: Annotated[float, RealSet.open(0, oo)] = 5.0,
+        braking: Annotated[float, RealSet.closed_open(0, oo)] = 3.0,
+        acceleration: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        speed_limit: Annotated[float, RealSet.open(0, oo)] = 10.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.x = x
         self.v = v
         self.rank = rank
@@ -113,18 +115,37 @@ class MotoristElement(Element):
         """
         return MotoristView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the speed adjustment rule.
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
+class SafeDistanceInteraction(Interaction):
+    """Speed rule of the cars of Charbonneau's traffic system.
 
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.adjust)]
+    Every step a driver brakes by its braking when the car ahead is closer than its safe distance, and accelerates by
+    its acceleration otherwise, within its speed limit.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of cars.
+
+    Examples:
+        >>> from skcomplex.systems.engineering.traffic import SafeDistanceInteraction
+        >>> SafeDistanceInteraction('adjust', target='cars').target
+        'cars'
+    """
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the speed rule of every car."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.adjust)]
 
     def adjust(self, agent: MotoristView, system: SystemView) -> None:
         """Brake when the car ahead is too close and accelerate otherwise.
@@ -139,7 +160,7 @@ class MotoristElement(Element):
             system:
                 The system.
         """
-        cars = system.get_agents(agent.group, MotoristView)
+        cars = system.get_agents(self.target, MotoristView)
         ahead = next((car for car in cars if int(car.rank) == int(agent.rank) + 1), None)
         if ahead is None:
             behind = next((car for car in cars if int(car.rank) == int(agent.rank) - 1), None)
@@ -165,10 +186,7 @@ class DriverView(AgentView):
 class DriverElement(Element):
     """Driver on a ring road who accelerates as much as allowed.
 
-    The driver stops when the speed would cause a collision. The speed changes by the acceleration, bounded by `min_acc`
-    and `max_acc`, is multiplied by a random factor between `1 - eps` and `1 + eps`, and stays between 0 and the speed
-    limit. A speed larger than the distance to the car ahead becomes 0. The car then moves along the ring by its speed,
-    and the ring is as long as the width of the space.
+    The driver stops when the speed would cause a collision, by the rule of `RingRoadDrivingInteraction`.
 
     Args:
         label:
@@ -195,32 +213,39 @@ class DriverElement(Element):
         eps:
             The relative amplitude of the random error of speed.
 
+        values:
+            Further values by name, such as the position `x` and `y` of every driver on the road.
+
+        size:
+            The number of drivers, or `None` for one.
+
+        space:
+            The road, a continuous space whose axes `x` and `y` place the drivers, or `None` for none.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.engineering.traffic import DriverElement
-        >>> GroupElement('drivers', element=DriverElement, size=2, location=[(0.0, 0.5), (10.0, 0.5)]).size
+        >>> DriverElement('drivers', values={'x': [0.0, 10.0], 'y': 0.5}, size=2).size
         2
     """
 
     visual = VisualSpec('agents', {'color_by': 'speed'})
 
-    draws = True
-
-    law_classes = (RuleLaw,)
-
     def __init__(
         self,
         label: str,
         *,
-        speed: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        rank: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        acceleration: Annotated[float, ParameterSpec()] = 1.0,
-        min_acc: Annotated[float, ParameterSpec()] = -10.0,
-        max_acc: Annotated[float, ParameterSpec()] = 1.0,
-        speed_limit: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 40.0,
-        eps: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
+        speed: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        rank: Annotated[object, NN] = 0.0,
+        acceleration: float = 1.0,
+        min_acc: float = -10.0,
+        max_acc: float = 1.0,
+        speed_limit: Annotated[float, RealSet.open(0, oo)] = 40.0,
+        eps: Annotated[float, RealSet.closed_open(0, oo)] = 0.02,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.speed = speed
         self.rank = rank
         self.acceleration = acceleration
@@ -237,18 +262,41 @@ class DriverElement(Element):
         """
         return DriverView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the driving rule.
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
+class RingRoadDrivingInteraction(Interaction):
+    """Driving rule of the drivers on a ring road.
 
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.drive)]
+    The speed of a driver changes by its acceleration, bounded by `min_acc` and `max_acc`, is multiplied by a random
+    factor between `1 - eps` and `1 + eps`, and stays between 0 and the speed limit. A speed larger than the distance to
+    the car ahead becomes 0. The car then moves along the ring by its speed, and the ring is as long as the width of
+    the space.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of drivers.
+
+    Examples:
+        >>> from skcomplex.systems.engineering.traffic import RingRoadDrivingInteraction
+        >>> RingRoadDrivingInteraction('drive', target='drivers').target
+        'drivers'
+    """
+
+    draws = True
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the driving rule of every driver."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.drive)]
 
     def drive(self, agent: DriverView, system: SystemView) -> None:
         """Choose the speed from the distance to the car ahead and move along the ring.
@@ -260,14 +308,14 @@ class DriverElement(Element):
             system:
                 The system.
         """
-        cars = system.get_agents(agent.group, DriverView)
+        cars = system.get_agents(self.target, DriverView)
         if system.dimensions is None:
             error_msg = 'Drivers move along a ring road, a continuous space with an extent.'
             raise SimulationError(error_msg)
         length = system.dimensions[0]
-        ahead = DriverElement._get_car_ahead(agent, system, len(cars))
-        x, y = DriverElement._get_position(agent)
-        distance = (DriverElement._get_position(ahead)[0] - x) % length if ahead is not None else length
+        ahead = self._get_car_ahead(agent, system, len(cars))
+        x, y = RingRoadDrivingInteraction._get_position(agent)
+        distance = (RingRoadDrivingInteraction._get_position(ahead)[0] - x) % length if ahead is not None else length
         acceleration = min(max(agent.acceleration, agent.min_acc), agent.max_acc)
         speed = (agent.speed + acceleration) * system.rng.uniform(1 - agent.eps, 1 + agent.eps)
         speed = min(max(speed, 0.0), agent.speed_limit)
@@ -280,15 +328,14 @@ class DriverElement(Element):
         x, y = np.asarray(agent.location, dtype=float)
         return float(x), float(y)
 
-    @staticmethod
-    def _get_car_ahead(agent: DriverView, system: SystemView, n_cars: int) -> DriverView | None:
+    def _get_car_ahead(self, agent: DriverView, system: SystemView, n_cars: int) -> DriverView | None:
         """Return the car whose rank follows the agent's rank on a road of `n_cars` cars.
 
         It is `None` for the last car.
         """
         rank = (int(agent.rank) + 1) % n_cars if n_cars else 0
         return next(
-            (car for car in system.get_agents(agent.group, DriverView) if int(car.rank) == rank and car != agent),
+            (car for car in system.get_agents(self.target, DriverView) if int(car.rank) == rank and car != agent),
             None,
         )
 
@@ -318,33 +365,26 @@ class CarelessBrakingInteraction(Interaction):
         0.1
     """
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        cars: Annotated[str, RoleSpec()],
-        probability: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        gap: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        cars: Role,
+        probability: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        gap: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
     ) -> None:
         super().__init__(label)
         self.cars = cars
         self.probability = probability
         self.gap = gap
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule of random braking and motion.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.drive)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rule of random braking and motion of the whole road."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context, self.drive)]
 
     def drive(self, system: SystemView) -> None:
         """Make a random driver brake, then move every car.
@@ -358,10 +398,10 @@ class CarelessBrakingInteraction(Interaction):
         cars = sorted(system.get_agents('cars', MotoristView), key=lambda car: car.rank)
         if not cars:
             return
-        if system.rng.random() < system.get_parameter('probability'):
+        if system.rng.random() < self.probability:
             careless = cars[int(system.rng.integers(len(cars)))]
             careless.v = max(careless.v - careless.braking, 0.0)
-        gap = system.get_parameter('gap')
+        gap = self.gap
         positions = [car.x for car in cars]
         for index, car in enumerate(cars):
             moved = car.x + car.v
@@ -403,7 +443,7 @@ class CharbonneauTrafficSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.engineering.traffic import CharbonneauTrafficSystem
-        >>> CharbonneauTrafficSystem(5).prepare().system_.elements[0].prepare().size_
+        >>> CharbonneauTrafficSystem(5).prepare().system_.elements[0].size
         5
     """
 
@@ -436,22 +476,22 @@ class CharbonneauTrafficSystem(BaseSystem):
         super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         positions = np.cumsum(rng.uniform(3.0, 17.0, self.n_cars))
-        cars = GroupElement(
+        cars = MotoristElement(
             'cars',
-            element=MotoristElement,
+            x=positions,
+            v=np.zeros(self.n_cars),
+            rank=np.arange(self.n_cars, dtype=float),
+            safe_distance=self.safe_distance,
+            speed_limit=self.speed_limit,
             size=self.n_cars,
-            values={
-                'x': positions,
-                'v': np.zeros(self.n_cars),
-                'rank': np.arange(self.n_cars, dtype=float),
-                'safe_distance': self.safe_distance,
-                'speed_limit': self.speed_limit,
-            },
         )
         self.system_ = System(
             self.label,
             elements=[cars],
-            interactions=[CarelessBrakingInteraction('braking', cars='cars', probability=self.probability)],
+            interactions=[
+                SafeDistanceInteraction('adjust', target='cars'),
+                CarelessBrakingInteraction('braking', cars='cars', probability=self.probability),
+            ],
         )
 
 
@@ -517,15 +557,19 @@ class RingRoadDriversSystem(BaseSystem):
         """Set `system_` to the components of the system built from its model parameters."""
         super()._prepare(context)
         positions = np.linspace(0.0, self.length, self.n_cars, endpoint=False)
-        drivers = GroupElement(
+        road = ContinuousSpace(extent=(self.length, ROAD_WIDTH), boundary='periodic')
+        drivers = DriverElement(
             'drivers',
-            element=DriverElement,
+            rank=np.arange(self.n_cars, dtype=float),
+            speed_limit=self.speed_limit,
+            eps=self.eps,
+            values={'x': positions, 'y': ROAD_WIDTH / 2},
             size=self.n_cars,
-            values={'rank': np.arange(self.n_cars, dtype=float), 'eps': self.eps, 'speed_limit': self.speed_limit},
-            location=[(float(position), ROAD_WIDTH / 2) for position in positions],
+            space=road,
         )
         self.system_ = System(
             self.label,
             elements=[drivers],
-            space=ContinuousSpace(extent=(self.length, ROAD_WIDTH), boundary='periodic'),
+            interactions=[RingRoadDrivingInteraction('drive', target='drivers')],
+            space=road,
         )

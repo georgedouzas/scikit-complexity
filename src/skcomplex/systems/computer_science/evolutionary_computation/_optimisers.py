@@ -21,9 +21,9 @@ from sage.all__sagemath_symbolics import Expression, cos, pi
 
 from ....core.components import Observable
 from ....core.components.base import BaseComponent
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction, SamplingInteraction
-from ....core.components.laws import BaseLaw, RuleLaw, UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import BaseSpace, DiscreteTime, LatticeSpace, RadiusNeighborhood
 from ....core.components.systems import CompositeSystem
@@ -32,7 +32,7 @@ from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.enums import ElementKind
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec, RoleSpec, StateSpec
+from ....core.specs import BaseSpec, Role, RoleSpec, StateSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
@@ -185,7 +185,7 @@ class OptimizationInteraction(Interaction):
 
     reports: ClassVar[tuple[str, ...]] = ('best', 'mean')
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw,)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (UpdateLaw,)
 
     draws = True
 
@@ -209,7 +209,7 @@ class OptimizationInteraction(Interaction):
         self.phase = phase
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Raise an error for an algorithm that is not a spec, or an uncallable objective.
+        """Raise an error for an algorithm that is not a spec or an uncallable objective, and set the rule of a step.
 
         Args:
             context:
@@ -227,6 +227,8 @@ class OptimizationInteraction(Interaction):
         if not callable(self.objective):
             error_msg = f'The objective of {self.label!r} must be a function of the array of candidates.'
             raise ValidationError(error_msg)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseLaw] = [UpdateLaw(context, self._advance, phase=self.phase)]
 
     def _get_differential_evolution(self, spec: DifferentialEvolutionSpec, candidates: Array) -> Algorithm:
         """Return differential evolution from the candidates."""
@@ -293,7 +295,7 @@ class OptimizationInteraction(Interaction):
 
         It does not advance once the algorithm has converged.
         """
-        agents = system.get_agents(self._get_role('target'))
+        agents = system.get_agents(self.target)
         if 'algorithm' not in system.storage:
             candidates = np.array([getattr(agent, self.state) for agent in agents], dtype=float)
             seed = int(system.rng.integers(SEEDS))
@@ -314,19 +316,6 @@ class OptimizationInteraction(Interaction):
         system.report('best', best)
         system.report('mean', float(values.mean()))
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule of one generation.
-
-        Args:
-            namespace:
-                The namespace of the symbols the laws can use, which the rule does not read.
-
-        Returns:
-            laws:
-                The rule that advances the population.
-        """
-        return [RuleLaw(self._advance, phase=self.phase)]
-
 
 class AnnealedCandidateElement(Element):
     """Candidate solution of the plane.
@@ -343,6 +332,9 @@ class AnnealedCandidateElement(Element):
         y:
             The second coordinate.
 
+        space:
+            The lattice whose sites hold one candidate each, or `None` for one candidate.
+
     Examples:
         >>> from skcomplex.systems.computer_science.evolutionary_computation import AnnealedCandidateElement
         >>> AnnealedCandidateElement('candidate', x=1.0).x
@@ -352,10 +344,11 @@ class AnnealedCandidateElement(Element):
     def __init__(
         self,
         label: str,
-        x: Annotated[float, StateSpec()] = 0.0,
-        y: Annotated[float, StateSpec()] = 0.0,
+        x: object = 0.0,
+        y: object = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.x = x
         self.y = y
 
@@ -389,7 +382,10 @@ class SearchCandidateElement(Element):
             The label of the candidate or the group.
 
         x:
-            The vector of the candidate.
+            The vector of the candidate, one row per candidate.
+
+        size:
+            The number of candidates, or `None` for one.
 
     Examples:
         >>> from skcomplex.systems.computer_science.evolutionary_computation import SearchCandidateElement
@@ -397,8 +393,8 @@ class SearchCandidateElement(Element):
         (0.0, 1.0)
     """
 
-    def __init__(self, label: str, x: Annotated[npt.ArrayLike, StateSpec(vector=True)] = (0.0, 0.0)) -> None:
-        super().__init__(label)
+    def __init__(self, label: str, x: npt.ArrayLike = (0.0, 0.0), size: int | None = None) -> None:
+        super().__init__(label, size=size)
         self.x = x
 
 
@@ -429,8 +425,8 @@ class RunningBestInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        source: Annotated[str, RoleSpec()],
+        target: Role,
+        source: Role,
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -439,13 +435,8 @@ class RunningBestInteraction(Interaction):
     def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the update of the lowest value.
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The update of `best`.
+        It stays on the old hook, since a law of an interaction that reads an observable cannot yet target a value of
+        a plain element.
         """
         return [UpdateLaw(s.target.best, where(s.source.value < s.target.best, s.source.value, s.target.best))]
 
@@ -585,12 +576,11 @@ class EvolutionaryOptimisersSystem(BaseSystem):
         candidates reach, the observable `search/lowest`.
         """
         generations = self.generations
-        candidates = GroupElement(
+        candidates = AnnealedCandidateElement(
             'candidates',
-            element=AnnealedCandidateElement,
+            x=start[:, 0],
+            y=start[:, 1],
             space=LatticeSpace((len(start),)),
-            values={'x': start[:, 0], 'y': start[:, 1]},
-            on='sites',
         )
         samplers = [
             SamplingInteraction(
@@ -633,12 +623,7 @@ class EvolutionaryOptimisersSystem(BaseSystem):
             self.observables_ = (Observable('search/lowest', member, group='candidates', reduce='min'),)
             self.system_ = self._get_annealing(start, energy)
             return
-        candidates = GroupElement(
-            'candidates',
-            element=SearchCandidateElement,
-            size=self.n_candidates,
-            values={'x': start},
-        )
+        candidates = SearchCandidateElement('candidates', x=start, size=self.n_candidates)
         search = OptimizationInteraction(
             'search',
             target='candidates',

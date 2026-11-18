@@ -1,14 +1,11 @@
 """Test the `_optimisers` module of `skcomplex.systems.computer_science.evolutionary_computation`."""
 
-from typing import Annotated
-
 import numpy as np
 import numpy.typing as npt
 import pytest
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec
 from skcomplex.core.systems import System
 from skcomplex.systems.computer_science.evolutionary_computation import (
     CovarianceAdaptationSpec,
@@ -62,8 +59,8 @@ def test_evolutionary_optimisers_unknown_names() -> None:
 class CandidateElement(Element):
     """Candidate with a vector state."""
 
-    def __init__(self, label: str, x: Annotated[npt.ArrayLike, StateSpec(vector=True)] = (0.0, 0.0)) -> None:
-        super().__init__(label)
+    def __init__(self, label: str, x: npt.ArrayLike = (0.0, 0.0), size: int | None = None) -> None:
+        super().__init__(label, size=size)
         self.x = x
 
 
@@ -75,7 +72,7 @@ def _rastrigin(values: np.ndarray) -> np.ndarray:
 def _system(algorithm: object, count: int = 40) -> System:
     """Return a population on the Rastrigin function with an algorithm."""
     start = np.random.default_rng(0).uniform(-5.12, 5.12, (count, 2))
-    group = GroupElement('swarm', element=CandidateElement, size=count, values={'x': start})
+    group = CandidateElement('swarm', x=start, size=count)
     search = OptimizationInteraction(
         'search',
         target='swarm',

@@ -12,6 +12,7 @@ from ._group import GroupElement
 from ._member import Member
 from ._period import Period
 from ._quantity import Quantity
+from ._tensor import Tensor
 
 __all__: list[str] = [
     'BaseElement',
@@ -22,4 +23,5 @@ __all__: list[str] = [
     'Member',
     'Period',
     'Quantity',
+    'Tensor',
 ]

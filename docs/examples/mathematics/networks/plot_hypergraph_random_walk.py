@@ -12,7 +12,6 @@ every node.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.networks import HypergraphRandomWalkSystem
 
@@ -20,7 +19,7 @@ SYSTEM = 'hypergraph_random_walk'
 
 system = HypergraphRandomWalkSystem(seed=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, until=40, dt=0.5, observers=[observer])
+trajectory = system.prepare().simulate(until=40, dt=0.5, observers=[observer])
 
 # %%
 # Stationary distribution
@@ -29,7 +28,7 @@ trajectory = simulate(system, until=40, dt=0.5, observers=[observer])
 # `e` of node `i`.
 
 probabilities = np.asarray(trajectory.get_values('nodes.p'))[-1]
-weights = np.asarray(system.prepare().system_.elements[0].values['D'])
+weights = np.asarray(system.prepare().system_.elements[0].D)
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(weights / weights.sum(), probabilities, 'o')
 ax.plot([0, probabilities.max()], [0, probabilities.max()], '--', color='black')

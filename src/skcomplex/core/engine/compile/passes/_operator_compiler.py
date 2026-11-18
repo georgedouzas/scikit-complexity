@@ -3,6 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import dataclasses
+import inspect
 import math
 import re
 from collections.abc import Callable, Iterable, Mapping, Sequence
@@ -13,9 +15,10 @@ import numpy.typing as npt
 import qutip
 from sage.all__sagemath_symbolics import CC, SR, Expression
 from sage.modules.free_module import FreeModule_generic
+from sklearn.base import clone
 
 from ....components import Observable
-from ....components.elements import BaseElement, Element, GroupElement
+from ....components.elements import BaseElement, DeclaredElement, Element, GroupElement
 from ....components.interactions import BaseInteraction
 from ....components.laws import BaseLaw
 from ....components.systems import CompositeSystem
@@ -36,6 +39,7 @@ from ...problems._subsystem_spec import _SubsystemSpec
 from ...types import Dissipators, Generators, HilbertSpaceProtocol
 from .._base import BaseCompiler
 from .._issue_spec import IssueSpec
+from .._state_inference import _StateInference
 from ._flatten import FlattenPass
 from ._hilbert_space_error import HilbertSpaceError
 from ._layout import LayoutPass
@@ -177,15 +181,18 @@ class OperatorCompiler(BaseCompiler):
         if space is None:
             error_msg = f'{type(element).__name__} {element.label!r} takes no Hilbert space.'
             raise ValidationError(error_msg)
-        state = OperatorCompiler._get_hilbert_state(type(element))
+        plain = OperatorCompiler._is_plain(element)
+        state = (
+            OperatorCompiler._get_plain_state(element) if plain else OperatorCompiler._get_hilbert_state(type(element))
+        )
         if state is None:
             error_msg = (
-                f'{type(element).__name__} {element.label!r} takes a Hilbert space but declares no complex state. '
-                'Declare its state as `StateSpec(domain=CC)`.'
+                f'{type(element).__name__} {element.label!r} takes a Hilbert space but has no complex state. Give its '
+                "state complex allowed values, such as `psi: Annotated[object, CC] = 'up'`."
             )
             raise ValidationError(error_msg)
         space._check()
-        domain = declarations_of(element, VariableKind.STATE)[state].domain
+        domain = CC if plain else declarations_of(element, VariableKind.STATE)[state].domain
         dimension = domain.dimension() if isinstance(domain, FreeModule_generic) else space.dimension
         if dimension != space.dimension:
             error_msg = (
@@ -212,7 +219,7 @@ class OperatorCompiler(BaseCompiler):
         member = OperatorCompiler._get_member_of(element)
         if member is None:
             return None
-        values = member.get_params(deep=False).values()
+        values = [*member.get_params(deep=False).values(), *(getattr(member, 'values', None) or {}).values()]
         return next((value for value in values if isinstance(value, HilbertSpaceProtocol)), None)
 
     @staticmethod
@@ -246,10 +253,74 @@ class OperatorCompiler(BaseCompiler):
                 The name of the state.
         """
         for name, declaration in declarations_of(element_type, VariableKind.STATE).items():
-            base_ring = getattr(declaration.domain, 'base_ring', None)
-            if declaration.domain is CC or (base_ring is not None and base_ring() is CC):
+            if OperatorCompiler._is_complex(declaration.domain):
                 return name
         return None
+
+    @staticmethod
+    def _is_complex(domain: object) -> bool:
+        """Return whether a domain is `CC` or `CC^dimension`."""
+        base_ring = getattr(domain, 'base_ring', None)
+        return domain is CC or (callable(base_ring) and base_ring() is CC)
+
+    @staticmethod
+    def _get_plain_state(element: Element) -> str | None:
+        """Return the name of the state in the Hilbert space of a plain element, or `None`.
+
+        It is the value whose allowed values in `Annotated` are complex, such as `psi: Annotated[object, CC] = 'up'`,
+        or else the only value besides the Hilbert space, such as `psi` of
+        `Element('qubit', values={'psi': 'up', 'hilbert': QUBIT})`.
+        """
+        values = {
+            name: value
+            for name, value in _StateInference._get_values(element).items()
+            if not isinstance(value, HilbertSpaceProtocol)
+        }
+        hints = element._get_hints()
+        for name, value in values.items():
+            annotation = hints.get(name, inspect.Parameter.empty)
+            if OperatorCompiler._is_complex(_StateInference._get_domain(annotation, value)):
+                return name
+        return next(iter(values)) if len(values) == 1 else None
+
+    @staticmethod
+    def _is_plain(element: object) -> bool:
+        """Return whether an element declares no states, so its values say what it holds."""
+        if not isinstance(element, Element) or isinstance(element, DeclaredElement):
+            return False
+        return not declarations_of(type(element), VariableKind.STATE)
+
+    @staticmethod
+    def _get_count(element: object) -> int | None:
+        """Return the number of members of a plain element, or `None`."""
+        if isinstance(element, Element) and OperatorCompiler._is_plain(element):
+            return _StateInference._get_count(element)
+        return None
+
+    @staticmethod
+    def _get_plain_member(element: Element, member: int, size: int) -> Element:
+        """Return one member of a plain element with many members.
+
+        A value given as one entry per member, such as the labels `['up', 'down']` of two spins, gives the member its
+        entry, and any other value, such as the Hilbert space, is shared.
+        """
+        params = element.get_params(deep=False)
+        settings: dict[str, object] = {
+            'label': f'{element.label}_{member}',
+            'size': None,
+            'space': None,
+            'values': None,
+        }
+        if element.values:
+            settings['values'] = {
+                name: OperatorCompiler._get_member_value(value, member, size) for name, value in element.values.items()
+            }
+        settings |= {
+            name: OperatorCompiler._get_member_value(params[name], member, size)
+            for name in element._get_hints()
+            if name in params
+        }
+        return clone(element).set_params(**{name: value for name, value in settings.items() if name in params})
 
     @staticmethod
     def _get_member_of(element: BaseElement) -> Element | None:
@@ -263,8 +334,12 @@ class OperatorCompiler(BaseCompiler):
 
         Returns:
             member:
-                The element, built with the values of the first member for a group.
+                The element, built with the values of the first member for a group or a plain element with many
+                members.
         """
+        count = OperatorCompiler._get_count(element)
+        if isinstance(element, Element) and count is not None:
+            return OperatorCompiler._get_plain_member(element, 0, count)
         if isinstance(element, Element):
             return element
         if not isinstance(element, GroupElement) or not isinstance(element.element, type):
@@ -312,18 +387,27 @@ class OperatorCompiler(BaseCompiler):
     def _get_members_of(node: _NodeSpec) -> list[tuple[str, _OperatorViewSpec]]:
         """Return the key and the element of every member of an operator element or group."""
         component = node.as_element
-        if isinstance(component, Element):
+        if isinstance(component, Element) and node.members is None:
             return [(node.path, OperatorCompiler._get_view_of(component))]
         size = node.members or 0
         members = []
         for member in range(size):
-            values = {
-                name: OperatorCompiler._get_member_value(value, member, size)
-                for name, value in (component.values or {}).items()
-            }
-            element = component.element(f'{component.label}_{member}').set_params(**values).prepare()
+            if isinstance(component, Element):
+                element = OperatorCompiler._get_plain_member(component, member, size).prepare()
+            else:
+                values = {
+                    name: OperatorCompiler._get_member_value(value, member, size)
+                    for name, value in (component.values or {}).items()
+                }
+                element = component.element(f'{component.label}_{member}').set_params(**values).prepare()
             members.append((f'{node.path}[{member}]', OperatorCompiler._get_view_of(element)))
         return members
+
+    @staticmethod
+    def _get_counted(node: _NodeSpec) -> _NodeSpec:
+        """Return a node with the number of members of its plain element."""
+        count = None if node.interaction else OperatorCompiler._get_count(node.component)
+        return node if count is None else dataclasses.replace(node, members=count)
 
     @staticmethod
     def _check_classical(nodes: list[_NodeSpec]) -> None:
@@ -784,7 +868,7 @@ class OperatorCompiler(BaseCompiler):
                 negative, or an initial state is not normalised.
         """
         time = symbol('t')
-        nodes = FlattenPass._flatten_system(system)
+        nodes = [OperatorCompiler._get_counted(node) for node in FlattenPass._flatten_system(system)]
         OperatorCompiler._check_classical(nodes)
         operator_nodes = [node for node in nodes if OperatorCompiler._is_operator_node(node)]
         subsystems = OperatorCompiler._get_subsystems_of(operator_nodes)
@@ -794,7 +878,7 @@ class OperatorCompiler(BaseCompiler):
         p = np.concatenate(values) if values else np.zeros(0)
         arguments = OperatorCompiler._get_arguments_of(entries, symbols)
         lowering = OperatorLowering(time, subsystems, dimensions, arguments).prepare()
-        groups = {node.path: node for node in operator_nodes if isinstance(node.component, GroupElement)}
+        groups = {node.path: node for node in operator_nodes if node.members is not None}
         generators: Generators = []
         dissipators: Dissipators = []
         members = self._get_element_laws(

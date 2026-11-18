@@ -12,11 +12,11 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ...general.agents import EvolutionInteraction
@@ -44,12 +44,14 @@ class BitStringElement(Element):
         fitness:
             The initial fitness.
 
+        size:
+            The number of agents, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.computer_science.evolutionary_computation import BitStringElement
-        >>> group = GroupElement('genomes', element=BitStringElement, size=4, values={'genome': [0, 1, 2, 3]})
-        >>> group.label, group.element.__name__, group.size
-        ('genomes', 'BitStringElement', 4)
+        >>> group = BitStringElement('genomes', genome=[0, 1, 2, 3], size=4)
+        >>> group.label, group.size
+        ('genomes', 4)
     """
 
     visual = VisualSpec('agents', {'color_by': 'fitness'})
@@ -58,10 +60,11 @@ class BitStringElement(Element):
         self,
         label: str,
         *,
-        genome: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        fitness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        genome: Annotated[object, NN] = 0.0,
+        fitness: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.genome = genome
         self.fitness = fitness
 
@@ -113,9 +116,9 @@ class ReproductionInteraction(EvolutionInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        death: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.1,
-        mutation: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.05,
+        target: Role,
+        death: Annotated[float, RealSet.closed(0, 1)] = 0.1,
+        mutation: Annotated[float, RealSet.closed(0, 1)] = 0.05,
         zero_values: tuple[float, ...] = (),
         one_values: tuple[float, ...] = (),
     ) -> None:
@@ -269,13 +272,6 @@ class BitStringEvolutionSystem(BaseSystem):
         )
         self.system_ = System(
             self.label,
-            elements=[
-                GroupElement(
-                    'genomes',
-                    element=BitStringElement,
-                    size=self.n_agents,
-                    values={'genome': genomes, 'fitness': fitness},
-                ),
-            ],
+            elements=[BitStringElement('genomes', genome=genomes, fitness=fitness, size=self.n_agents)],
             interactions=[reproduction],
         )
