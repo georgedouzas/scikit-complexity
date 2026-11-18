@@ -15,9 +15,8 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.enums import ElementKind
 from ....core.errors import SimulationError, ValidationError
-from ....core.specs import BaseSpec, RoleSpec
+from ....core.specs import BaseSpec, Role
 from ....core.types import Array
 
 SELECTIONS = ('tournament', 'roulette', 'proportional', 'rank')
@@ -146,10 +145,7 @@ class EvolutionInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[
-            str,
-            RoleSpec(elements=(ElementKind.GROUP, ElementKind.VARIABLE_GROUP), states=('strategy',)),
-        ],
+        target: Role,
         strategy: str | Sequence[str] = 'strategy',
         fitness: str | None = 'fitness',
         selection: str = 'tournament',

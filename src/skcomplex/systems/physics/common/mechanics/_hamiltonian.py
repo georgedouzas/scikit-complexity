@@ -5,7 +5,7 @@
 
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import ClassVar
 
 from sage.all__sagemath_symbolics import SR, Expression, vector
 from sage.modules.free_module_element import FreeModuleElement
@@ -15,9 +15,8 @@ from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, RateLaw
 from .....core.components.spaces import BaseSpace
 from .....core.components.types import Target
-from .....core.enums import ElementKind
 from .....core.errors import ValidationError
-from .....core.specs import RoleSpec
+from .....core.specs import Role
 
 
 class HamiltonianInteraction(Interaction):
@@ -76,7 +75,7 @@ class HamiltonianInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('coordinates', 'momenta'))],
+        target: Role,
         coordinates: str | Sequence[str] = 'q',
         momenta: str | Sequence[str] = 'p',
         hamiltonian: Callable[[SimpleNamespace], object] | None = None,
@@ -139,11 +138,7 @@ class HamiltonianInteraction(Interaction):
 
         These are the members of every role of one path.
         """
-        return [
-            getattr(namespace, name)
-            for name, spec in self._get_specs().items()
-            if isinstance(spec, RoleSpec) and not spec.variadic and not spec.noise
-        ]
+        return [getattr(namespace, name) for name in self._get_roles(single=True)]
 
     def _get_state(self, member: SimpleNamespace, name: str) -> Target:
         """Return a canonical state of a member, after checking that it has order 1."""

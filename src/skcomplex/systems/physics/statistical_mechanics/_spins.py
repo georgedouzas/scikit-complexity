@@ -22,7 +22,7 @@ from ....core.components.laws.utils import neighbors, where
 from ....core.components.spaces import BaseNeighborhood, BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import RoleSpec
+from ....core.specs import Role
 from ..common.spins import IsingSamplingInteraction, IsingSpinElement, SpinSamplingInteraction
 
 
@@ -151,7 +151,7 @@ class PottsSamplingInteraction(SpinSamplingInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         q: int = 3,
         state: str = 'color',
         rule: str = 'heat-bath',
@@ -209,7 +209,7 @@ class XYSamplingInteraction(SpinSamplingInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         width: float = 1.0,
         state: str = 'theta',
         neighborhood: BaseNeighborhood | None = None,

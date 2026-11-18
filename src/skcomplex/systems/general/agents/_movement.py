@@ -15,9 +15,8 @@ from ....core.components.interactions import Interaction, TransferInteraction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.enums import ElementKind
 from ....core.errors import ValidationError
-from ....core.specs import RoleSpec
+from ....core.specs import Role
 
 STEPS = ('neighbor', 'gaussian', 'levy', 'best')
 SCHEDULES = ('sequential', 'random-sequential', 'member')
@@ -145,7 +144,7 @@ class MovementInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec(elements=(ElementKind.GROUP, ElementKind.VARIABLE_GROUP))],
+        target: Role,
         step: Step = 'neighbor',
         probability: Annotated[float, RealSet.closed(0, 1)] = 1.0,
         rate: float | None = None,

@@ -6,7 +6,7 @@
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from math import prod
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import ClassVar
 
 from sage.all__sagemath_symbolics import SR, Expression, matrix, vector
 from sage.modules.free_module_element import FreeModuleElement
@@ -19,9 +19,8 @@ from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import distribute_operators, laplacian, partial
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import Target
-from ....core.enums import ElementKind
 from ....core.errors import ValidationError
-from ....core.specs import RoleSpec
+from ....core.specs import Role
 
 ORDERS = (1, 2)
 
@@ -97,10 +96,10 @@ class GradientInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('states', 'divisor'))],
+        target: Role,
         states: str | Sequence[str] = 'x',
         potential: Callable[[SimpleNamespace], object] | None = None,
-        sources: Annotated[Sequence[str], RoleSpec(variadic=True, elements=(ElementKind.ANY,))] = (),
+        sources: tuple[Role, ...] = (),
         divisor: (
             str | Callable[[SimpleNamespace], object] | Mapping[str, str | Callable[[SimpleNamespace], object]] | None
         ) = None,
@@ -300,11 +299,7 @@ class GradientInteraction(Interaction):
 
         These are the members of every role that binds one path.
         """
-        return [
-            getattr(namespace, name)
-            for name, spec in self._get_specs().items()
-            if isinstance(spec, RoleSpec) and not spec.variadic and not spec.noise
-        ]
+        return [getattr(namespace, name) for name in self._get_roles(single=True)]
 
     def _get_gradient_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
         """Return the rate of every moving state, down the potential over the divisor."""

@@ -5,7 +5,7 @@
 
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import ClassVar
 
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
@@ -15,9 +15,8 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, ConstraintLaw
 from ....core.components.laws.utils import derivative
 from ....core.components.spaces import BaseSpace
-from ....core.enums import ElementKind
 from ....core.errors import ValidationError
-from ....core.specs import RoleSpec
+from ....core.specs import Role
 
 
 class EulerLagrangeInteraction(Interaction):
@@ -87,7 +86,7 @@ class EulerLagrangeInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('states',))],
+        target: Role,
         states: str | Sequence[str] = 'x',
         lagrangian: Callable[[SimpleNamespace], object] | None = None,
         dissipation: Callable[[SimpleNamespace], object] | None = None,
@@ -145,9 +144,7 @@ class EulerLagrangeInteraction(Interaction):
         They are every component of the states of every role that binds one path.
         """
         coordinates = []
-        for name, spec in self._get_specs().items():
-            if not isinstance(spec, RoleSpec) or spec.variadic or spec.noise:
-                continue
+        for name in self._get_roles(single=True):
             for state in self._get_names():
                 value = getattr(getattr(namespace, name), state)
                 coordinates += list(value) if isinstance(value, FreeModuleElement) else [value]

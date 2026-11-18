@@ -186,6 +186,19 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
             declared[name] = DeclaredVariableSpec(self._get_matrix_entries(value, tensor), spec)
         return declared
 
+    @classmethod
+    def _get_roles(cls, *, single: bool = False) -> tuple[str, ...]:
+        """Return the names of the arguments that bind elements, in the order of the constructor.
+
+        With `single`, only the roles that bind one element, such as `target: Role`, and not several, such as
+        `reactants: tuple[Role, ...]`, or Wiener processes.
+        """
+        return tuple(
+            name
+            for name, spec in cls._get_specs().items()
+            if isinstance(spec, RoleSpec) and not (single and (spec.variadic or spec.noise))
+        )
+
     @staticmethod
     def _is_numeric(value: object) -> bool:
         """Return whether a value is a number, or a vector or a square matrix of numbers.
