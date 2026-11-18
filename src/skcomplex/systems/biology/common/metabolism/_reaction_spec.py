@@ -11,8 +11,6 @@ from .....core.specs import BaseSpec
 
 DEFAULT_BOUND = 1000.0
 
-type ReactionName = str
-
 
 @dataclass(frozen=True)
 class ReactionSpec(BaseSpec):

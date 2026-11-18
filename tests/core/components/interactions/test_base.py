@@ -563,12 +563,12 @@ def test_get_requirements_names_the_state_of_an_argument():
     assert needs.time == (ContinuousTime,)
 
 
-def test_get_requirements_reads_names_from_sequences_and_mappings():
-    """Test that an argument that holds several names, in a sequence or as the keys of a mapping, gives them all."""
+def test_get_requirements_reads_the_names_of_a_tuple_of_states():
+    """Test that an argument typed `tuple[str, ...]` names the states its role reads, and a mapping names none."""
     gradient = GradientInteraction('flow', target='a', states=('x', 'y'), potential=lambda s: 0.0)
     assert gradient.get_requirements().roles['target'].states == ('x', 'y')
     reaction = ReactionInteraction('r', target='a', reactants={'S': 1, ('b', 'n'): 1}, products={'P': 1})
-    assert reaction.get_requirements().roles['target'].states == ('S', 'P')
+    assert reaction.get_requirements().roles['target'].states == ()
 
 
 def test_get_requirements_leaves_unknown_the_laws_a_subclass_writes():
