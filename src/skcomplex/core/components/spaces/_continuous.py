@@ -31,8 +31,11 @@ class ContinuousSpace(BaseSpace):
     Without an extent the space is unbounded and has `n_dim` dimensions. The positions are states of the members, so the
     space has no sites. The axes are named `x`, `y`, and `z`, or `x0`, `x1`, and so on beyond three dimensions, and a
     value of an element named after an axis is its position, such as `x` in
-    `Element('walker', values={'x': 0.0}, space=ContinuousSpace(n_dim=1))`. A space of two dimensions can hold layers
-    of `regions`, the polygons of a map, which agents are placed in, moved to, and ask about.
+    `Element('walker', values={'x': 0.0}, space=ContinuousSpace(n_dim=1))`. A space of two dimensions can hold
+    `regions`, the polygons of a map, which agents are placed in, moved to, and ask about. A region is one named
+    polygon, such as `regions={'tract_1': polygon}`, or a layer of polygons, such as
+    `regions={'parks': [first, second]}`. Agents whose value `region` names a region start at a point the run draws
+    inside it, such as `Element('residents', values={'region': 'tract_1'}, size=100, space=space)`.
 
     Unlike `LatticeSpace`, whose sites are fixed, it lets members move to any real position. Choose it when members move
     freely, such as particles or animals.
@@ -51,7 +54,7 @@ class ContinuousSpace(BaseSpace):
             `'open'`, `'periodic'`, or `'reflecting'`.
 
         regions:
-            The polygons of every layer of regions by the name of the layer, or `None` for no layers.
+            The polygon of every region, or the polygons of every layer of regions, by name, or `None` for no regions.
 
         label:
             The name of the space in its system, such as `'grid'`.
@@ -64,7 +67,7 @@ class ContinuousSpace(BaseSpace):
             The names of the axes, such as `('x', 'y')` in two dimensions.
 
         regions_:
-            The Shapely `STRtree` of the polygons of every layer of regions by the name of the layer.
+            The Shapely `STRtree` of the polygons of every region or layer of regions by name, one polygon for a region.
 
     Raises:
         SpaceError:
@@ -84,6 +87,9 @@ class ContinuousSpace(BaseSpace):
         >>> space = ContinuousSpace(extent=(5.0, 5.0), regions=layers).prepare()
         >>> space.regions_['parks'].query(Point(2.5, 2.5), predicate='intersects').tolist()
         [1]
+        >>> space = ContinuousSpace(extent=(5.0, 5.0), regions={'centre': box(2.0, 2.0, 3.0, 3.0)}).prepare()
+        >>> space.regions_['centre'].query(Point(2.5, 2.5), predicate='intersects').tolist()
+        [0]
     """
 
     space_tags: ClassVar[tuple[str, ...]] = ('continuous',)
@@ -94,7 +100,7 @@ class ContinuousSpace(BaseSpace):
         *,
         n_dim: int | None = None,
         boundary: str = 'open',
-        regions: Mapping[str, Sequence[Polygon]] | None = None,
+        regions: Mapping[str, Polygon | Sequence[Polygon]] | None = None,
         label: str = 'space',
     ) -> None:
         super().__init__(label)
@@ -114,9 +120,9 @@ class ContinuousSpace(BaseSpace):
             raise SpaceError(error_msg)
 
     def _get_regions(self) -> dict[str, STRtree]:
-        """Return the index of every layer of regions.
+        """Return the index of every region or layer of regions.
 
-        It checks the regions and the dimension of the space first.
+        It checks the regions and the dimension of the space first. A named region is a layer of one polygon.
         """
         layers = self.regions or {}
         if layers and self.n_dim_ != REGION_DIMENSIONS:
@@ -125,10 +131,11 @@ class ContinuousSpace(BaseSpace):
                 f'Give the space {REGION_DIMENSIONS} dimensions.'
             )
             raise SpaceError(error_msg)
-        for layer, regions in layers.items():
+        polygons = {name: [region] if isinstance(region, Polygon) else list(region) for name, region in layers.items()}
+        for layer, regions in polygons.items():
             for index, region in enumerate(regions):
                 self._check_region(layer, index, region)
-        return {layer: STRtree(list(regions)) for layer, regions in layers.items()}
+        return {layer: STRtree(regions) for layer, regions in polygons.items()}
 
     def _prepare(self, context: None = None) -> None:
         """Set the extent, the dimension, the boundary, and the region index of the box.

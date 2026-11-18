@@ -226,6 +226,32 @@ city.regions_['districts'].query(Point(3.0, 1.0), predicate='intersects').tolist
 
 The point `(3, 1)` lies in district 1, the eastern one.
 
+**Starts in a region.** A region may also be one named polygon, such as `regions={'west': polygon}`. Agents whose value
+`region` names a region start at a point the run draws inside it from its own random stream, so a census tract can
+place its residents. Here ten residents live in the western district and twenty in the eastern one, and each counts the
+steps it has lived there.
+
+```python continuation
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.systems import System
+
+
+def settle(agent, system):
+    agent.steps = agent.steps + 1
+
+
+town = ContinuousSpace(extent=(4.0, 2.0), regions={'west': districts[0], 'east': districts[1]})
+residents = Element('residents', values={'steps': 0.0, 'region': ['west'] * 10 + ['east'] * 20}, size=30, space=town)
+living = Interaction('living', roles={'target': 'residents'}, laws=lambda s: [UpdateLaw(s.target, settle)])
+start = System(elements=[residents], interactions=[living]).prepare().simulate(until=1, random_state=0)
+x = start.get_agents('residents', 0).locations[:, 0]
+bool((x[:10] <= 2.0).all() and (x[10:] >= 2.0).all())
+```
+
+Every resident starts inside the district its value names. The same seed draws the same points again.
+
 **How the engine runs it.** The space returns no laws. After every step the solver applies the boundary to every
 position state: a periodic box wraps it, and a reflecting box mirrors it and reverses the velocity across the wall.
 Pair distances in a periodic box use the nearest periodic image.

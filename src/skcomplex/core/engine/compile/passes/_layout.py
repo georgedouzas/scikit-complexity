@@ -181,7 +181,7 @@ class LayoutPass(BasePass):
 
     @staticmethod
     def _declare_activity(declarations: DeclarationsSpec, block: BlockSpec) -> tuple[DeclarationsSpec, BlockSpec]:
-        """Return the declarations and block with the activity of the members of a growing or bare group."""
+        """Return the declarations and block with the activity of a growing or bare group."""
         node = block.node
         if node.active is not None:
             return LayoutPass._declare_topology(declarations, block)
@@ -191,7 +191,7 @@ class LayoutPass(BasePass):
 
     @staticmethod
     def _is_bare_nodes(node: _NodeSpec, block: BlockSpec) -> bool:
-        """Return whether a block is a group of members on the nodes of a network with no values.
+        """Return whether a block is a group on the nodes of a network with no values.
 
         Such a group gets the activity of its members, so a law can count them with `count(over=s.target)` before the
         laws that add nodes make it a growing group.

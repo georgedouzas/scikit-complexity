@@ -13,6 +13,7 @@ from sage.all__sagemath_symbolics import abs_symbolic, oo, sin, sqrt
 from sage.sets.real_set import RealSet
 from scipy.linalg import expm
 from scipy.special import ive
+from shapely import box
 
 from skcomplex.core.analysis import alignment, displacement
 from skcomplex.core.components import Observable
@@ -1433,3 +1434,41 @@ def test_law_reading_an_observable_changes_a_plain_value():
     assert 'peak.high' in system.states_
     trajectory = system.simulate(until=4)
     assert trajectory.get_values('peak.high').tolist() == [0.0, 0.0, 3.0, 3.0, 3.0]
+
+
+def _settle(agent, system):
+    """Count one more step of a resident."""
+    agent.steps = agent.steps + 1
+
+
+def _residents(region: object, size: int = 30) -> System:
+    """Return residents who start in named regions of a map and count their steps."""
+    space = ContinuousSpace(extent=(10.0, 10.0), regions={'west': box(0, 0, 2, 10), 'east': box(8, 0, 10, 10)})
+    residents = Element('residents', values={'steps': 0.0, 'region': region}, size=size, space=space)
+    settle = Interaction('settle', roles={'target': 'residents'}, laws=lambda s: [UpdateLaw(s.target, _settle)])
+    return System(elements=[residents], interactions=[settle])
+
+
+def test_members_start_at_points_drawn_inside_the_regions_their_value_names():
+    """Test that every resident starts inside its region, and that a seed draws the same points again."""
+    names = ['west'] * 10 + ['east'] * 20
+    system = _residents(names).prepare()
+    first, second = (system.simulate(until=1, random_state=0).get_agents('residents', 0) for _ in range(2))
+    x = first.locations[:, 0]
+    assert (x[:10] <= 2.0).all()
+    assert (x[10:] >= 8.0).all()
+    np.testing.assert_array_equal(first.locations, second.locations)
+    other = system.simulate(until=1, random_state=1).get_agents('residents', 0).locations
+    assert not np.array_equal(first.locations, other)
+
+
+def test_members_share_one_region_their_value_names():
+    """Test that one name of a region places every resident inside it."""
+    locations = _residents('east').prepare().simulate(until=1, random_state=0).get_agents('residents', 0).locations
+    assert (locations[:, 0] >= 8.0).all()
+
+
+def test_a_region_the_space_does_not_name_is_refused():
+    """Test that a resident who starts in an unknown region raises an error that lists the regions of the space."""
+    with pytest.raises(ValidationError, match=r'regions are: west, east'):
+        _residents('north').prepare()
