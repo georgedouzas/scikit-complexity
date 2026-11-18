@@ -13,7 +13,6 @@ within a confidence bound. Opinions that start spread uniformly settle into a fe
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.experiments import calibrate
 from skcomplex.systems.social.opinion_dynamics import DeffuantSystem
@@ -22,7 +21,7 @@ SYSTEM = 'deffuant'
 
 system = DeffuantSystem(confidence=0.2, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Number of clusters against the bound
@@ -34,7 +33,7 @@ trajectory = simulate(system, observers=[observer], random_state=0)
 
 def clusters(confidence, seed):
     """Return the number of clusters of at least five people at the end of a run."""
-    run = simulate(DeffuantSystem(confidence=confidence, random_state=seed), random_state=seed)
+    run = DeffuantSystem(confidence=confidence, random_state=seed).prepare().simulate(random_state=seed)
     opinions = np.sort(run.get_agents('people', len(run.times) - 1).values['opinion'])
     groups = np.split(opinions, np.flatnonzero(np.diff(opinions) > 0.01) + 1)
     return sum(len(group) >= 5 for group in groups)
@@ -60,7 +59,9 @@ plt.show()
 # them by their exact log-probability, so `calibrate` with `loss='events'` fits the bound to one run of 100 people
 # over 50 steps. The log-likelihood should peak at the true bound 0.25, and the estimate should lie within 0.02 of it.
 
-recorded = simulate(DeffuantSystem(100, confidence=0.25, steepness=50.0), until=50, random_state=0, record_draws=True)
+recorded = (
+    DeffuantSystem(100, confidence=0.25, steepness=50.0).prepare().simulate(until=50, random_state=0, record_draws=True)
+)
 fit = calibrate(
     DeffuantSystem(100, steepness=50.0),
     recorded,
@@ -70,12 +71,10 @@ fit = calibrate(
 )
 grid = np.linspace(0.15, 0.35, 21)
 scores = [
-    simulate(
-        DeffuantSystem(100, confidence=bound, steepness=50.0),
-        until=50,
-        random_state=0,
-        replay=recorded,
-    ).log_probability
+    DeffuantSystem(100, confidence=bound, steepness=50.0)
+    .prepare()
+    .simulate(until=50, random_state=0, replay=recorded)
+    .log_probability
     for bound in grid
 ]
 fig, ax = plt.subplots(figsize=(6, 4))

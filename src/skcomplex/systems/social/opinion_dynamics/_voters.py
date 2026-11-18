@@ -95,7 +95,7 @@ class VariantVoterElement(Element):
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.opinion_dynamics import VariantVoterElement
         >>> group = GroupElement('voters', element=VariantVoterElement, size=10, values={'threshold': 0.5})
-        >>> group.label, group.element.__name__, group.size
+        >>> group.label, type(group).__name__, group.size
         ('voters', 'VariantVoterElement', 10)
     """
 
@@ -148,7 +148,7 @@ class VoterElement(Element):
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.opinion_dynamics import VoterElement
         >>> group = GroupElement('voters', element=VoterElement, size=20, values={'opinion': 1.0})
-        >>> group.label, group.element.__name__, group.size
+        >>> group.label, type(group).__name__, group.size
         ('voters', 'VoterElement', 20)
     """
 

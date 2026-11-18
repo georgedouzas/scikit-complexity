@@ -3,16 +3,17 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Annotated
+from collections.abc import Sequence
+from typing import cast
 
 import numpy as np
 import numpy.typing as npt
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.engine.solvers import AgentView
-from ....core.specs import StateSpec
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ._random_pairs import RandomPairsInteraction
 
@@ -39,12 +40,15 @@ class NamerElement(Element):
         words:
             The initial inventory, 1 for every known word and 0 otherwise.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
         >>> from skcomplex.core.components.elements import GroupElement
         >>> import numpy as np
         >>> from skcomplex.systems.social.opinion_dynamics import NamerElement
-        >>> group = GroupElement('namers', element=NamerElement, size=5, values={'words': np.zeros((5, 5))})
-        >>> group.label, group.element.__name__, group.size
+        >>> group = NamerElement('namers', words=np.zeros((5, 5)), size=5)
+        >>> group.label, type(group).__name__, group.size
         ('namers', 'NamerElement', 5)
     """
 
@@ -52,9 +56,10 @@ class NamerElement(Element):
         self,
         label: str,
         *,
-        words: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
+        words: npt.ArrayLike = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.words = words
 
     @classmethod
@@ -89,18 +94,17 @@ class NamingGamesInteraction(RandomPairsInteraction):
         'namers'
     """
 
-    def _invent(self, words: Array, system: SystemViewProtocol) -> None:
+    def _invent(self, words: Array, system: SystemView) -> None:
         """Mark a new word in an inventory.
 
         The new word is the first slot of the lexicon that no agent knows.
         """
         known = np.zeros_like(words)
-        for agent in system.get_agents('target'):
-            if isinstance(agent, NamerView):
-                known += np.asarray(agent.words, dtype=np.float64)
+        for agent in cast(list[NamerView], system.get_agents('target')):
+            known += np.asarray(agent.words, dtype=np.float64)
         words[int(np.flatnonzero(known == 0)[0])] = 1.0
 
-    def act_on(self, members: list[AgentViewProtocol], system: SystemViewProtocol) -> None:
+    def act_on(self, members: list[AgentView], system: SystemView) -> None:
         """Play one naming game between the first member and the second.
 
         The first member is the speaker, and the second the hearer.
@@ -112,7 +116,7 @@ class NamingGamesInteraction(RandomPairsInteraction):
             system:
                 The system view of the rule.
         """
-        speaker, hearer = [member for member in members if isinstance(member, NamerView)]
+        speaker, hearer = cast(list[NamerView], members)
         spoken = np.array(speaker.words, dtype=np.float64)
         heard = np.array(hearer.words, dtype=np.float64)
         if not spoken.any():
@@ -139,9 +143,15 @@ class NamingGameSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import NamingGameSystem
-        >>> NamingGameSystem(10).prepare().system_.elements[0].prepare().size_
+        >>> NamingGameSystem(10).prepare().system_.elements[0].size
         10
     """
 
@@ -155,19 +165,17 @@ class NamingGameSystem(BaseSystem):
         n_agents: int = 50,
         *,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_agents = n_agents
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
-        namers = GroupElement(
-            'namers',
-            element=NamerElement,
-            size=self.n_agents,
-            values={'words': np.zeros((self.n_agents, self.n_agents))},
-        )
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
+        namers = NamerElement('namers', words=np.zeros((self.n_agents, self.n_agents)), size=self.n_agents)
+        self.system_ = System(
             self.label,
             elements=[namers],
             interactions=[NamingGamesInteraction('games', target='namers')],

@@ -51,7 +51,7 @@ class PersuaderElement(Element):
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.opinion_dynamics import PersuaderElement
         >>> group = GroupElement('people', element=PersuaderElement, size=10, values={'opinion': 1.0})
-        >>> group.label, group.element.__name__, group.size
+        >>> group.label, type(group).__name__, group.size
         ('people', 'PersuaderElement', 10)
     """
 
@@ -98,7 +98,7 @@ class CitizenElement(Element):
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.opinion_dynamics import CitizenElement
         >>> group = GroupElement('citizens', element=CitizenElement, size=10, values={'opinion': 1.0})
-        >>> group.label, group.element.__name__, group.size
+        >>> group.label, type(group).__name__, group.size
         ('citizens', 'CitizenElement', 10)
     """
 
@@ -161,7 +161,7 @@ class InfluenceeElement(Element):
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.opinion_dynamics import InfluenceeElement
         >>> group = GroupElement('people', element=InfluenceeElement, size=4, values={'opinion': -1.0})
-        >>> group.label, group.element.__name__, group.size
+        >>> group.label, type(group).__name__, group.size
         ('people', 'InfluenceeElement', 4)
     """
 

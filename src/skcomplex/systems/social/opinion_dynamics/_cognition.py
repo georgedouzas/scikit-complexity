@@ -6,7 +6,8 @@ The attitudes settle inside each agent's beliefs.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Annotated
+from collections.abc import Sequence
+from typing import Annotated, cast
 
 import networkx as nx
 import numpy as np
@@ -14,14 +15,15 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import GroupingInteraction
+from ....core.components import Observable
+from ....core.components.elements import Element
 from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.engine.solvers import AgentView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.specs import Role, VisualSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
+from ._random_pairs import NeighborhoodsInteraction
 
 TOPICS = (0, 2)
 COHERENCE = np.array([[0.0, 0.05, 0.0], [0.05, 0.0, -0.05], [0.0, -0.05, 0.0]])
@@ -59,11 +61,14 @@ class ThinkerElement(Element):
         decay:
             The fraction of every valence lost per update of the belief network.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.opinion_dynamics import ThinkerElement
-        >>> group = GroupElement('thinkers', element=ThinkerElement, size=5, values={'valences': [1.0, 1.0, -1.0]})
-        >>> group.label, group.element.__name__, group.size
+        >>> group = ThinkerElement('thinkers', valences=[1.0, 1.0, -1.0], size=5)
+        >>> group.label, type(group).__name__, group.size
         ('thinkers', 'ThinkerElement', 5)
     """
 
@@ -73,11 +78,12 @@ class ThinkerElement(Element):
         self,
         label: str,
         *,
-        valences: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
-        attitude: Annotated[float, StateSpec()] = 0.0,
-        decay: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        valences: npt.ArrayLike = 0.0,
+        attitude: object = 0.0,
+        decay: Annotated[object, RealSet.closed_open(0, oo)] = 0.05,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.valences = valences
         self.attitude = attitude
         self.decay = decay
@@ -134,7 +140,7 @@ def settle(valences: npt.ArrayLike, decay: float = 0.05) -> Array:
     return current
 
 
-class ConversationsInteraction(GroupingInteraction):
+class ConversationsInteraction(NeighborhoodsInteraction):
     """Conversations of the cognitive consistency system.
 
     There is one per agent and step, the agents speaking in random order. A speaker talks to a random neighbour about F1
@@ -153,20 +159,20 @@ class ConversationsInteraction(GroupingInteraction):
 
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import ConversationsInteraction
-        >>> ConversationsInteraction('talks', target='thinkers').groups
-        'neighborhood'
+        >>> ConversationsInteraction('talks', target='thinkers').target
+        'thinkers'
     """
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         phase: str | None = None,
     ) -> None:
-        super().__init__(label, target=target, groups='neighborhood', phase=phase)
+        super().__init__(label, target=target, phase=phase)
 
-    def act_on(self, members: list[AgentViewProtocol], system: SystemViewProtocol) -> None:
+    def act_on(self, members: list[AgentView], system: SystemView) -> None:
         """Let the first member speak to a random neighbour.
 
         The neighbour averages the topic and settles its beliefs.
@@ -178,7 +184,7 @@ class ConversationsInteraction(GroupingInteraction):
             system:
                 The system view of the rule.
         """
-        speaker, *neighbors = [member for member in members if isinstance(member, ThinkerView)]
+        speaker, *neighbors = cast(list[ThinkerView], members)
         if not neighbors:
             return
         hearer = neighbors[int(system.rng.integers(len(neighbors)))]
@@ -211,11 +217,17 @@ class CognitiveConsistencySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.systems.social.opinion_dynamics import CognitiveConsistencySystem
         >>> system = CognitiveConsistencySystem(nx.complete_graph(6), random_state=0).prepare().system_
-        >>> system.elements[0].prepare().size_
+        >>> system.elements[0].size
         6
     """
 
@@ -232,27 +244,25 @@ class CognitiveConsistencySystem(BaseSystem):
         decay: float = 0.05,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.graph = graph
         self.positive = positive
         self.decay = decay
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         graph = self.graph
         graph = nx.complete_graph(40) if graph is None else graph
         size = nx.number_of_nodes(graph)
         signs = np.where(np.random.default_rng(self.random_state).random(size) < self.positive, 1.0, -1.0)
         valences = signs[:, None] * np.array(POSITIVE)
-        thinkers = GroupElement(
-            'thinkers',
-            element=ThinkerElement,
-            size=size,
-            values={'valences': valences, 'attitude': valences[:, 1], 'decay': self.decay},
-        )
-        return CompositeSystem(
+        thinkers = ThinkerElement('thinkers', valences=valences, attitude=valences[:, 1], decay=self.decay, size=size)
+        self.system_ = System(
             self.label,
             elements=[thinkers],
             interactions=[ConversationsInteraction('talks', target='thinkers')],

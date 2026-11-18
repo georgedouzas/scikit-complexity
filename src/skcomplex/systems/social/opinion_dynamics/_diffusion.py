@@ -70,7 +70,7 @@ class BelieverElement(Element):
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.opinion_dynamics import BelieverElement
         >>> group = GroupElement('people', element=BelieverElement, size=4, values={'belief': [1.0, 0.0, 0.0, 0.0]})
-        >>> group.label, group.element.__name__, group.size
+        >>> group.label, type(group).__name__, group.size
         ('people', 'BelieverElement', 4)
     """
 
@@ -133,7 +133,7 @@ class AdopterElement(Element):
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.opinion_dynamics import AdopterElement
         >>> group = GroupElement('people', element=AdopterElement, size=10, values={'threshold': 50.0})
-        >>> group.label, group.element.__name__, group.size
+        >>> group.label, type(group).__name__, group.size
         ('people', 'AdopterElement', 10)
     """
 

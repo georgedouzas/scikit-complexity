@@ -65,10 +65,10 @@ def test_run_settings_depend_on_the_model_parameters():
 
 def test_simulate_reads_the_run_settings_of_an_instance():
     """Test that the observables and invariants of an instance are those `simulate` records and checks."""
-    observables = AxelrodSystem(width=4, height=4).get_run_settings()['observables']
-    trajectory = simulate(AxelrodSystem(width=4, height=4), until=1, random_state=0)
-    assert observables
-    assert all(len(trajectory.get_values(spec.label)) == len(trajectory.times) for spec in observables)
+    system = AxelrodSystem(width=4, height=4).prepare()
+    trajectory = system.simulate(until=1, random_state=0)
+    assert system.observables_
+    assert all(len(trajectory.get_values(spec.label)) == len(trajectory.times) for spec in system.observables_)
     assert OrderBookSystem().get_run_settings()['invariants'] == {'total_money': 1e-6, 'total_shares': 1e-6}
 
 
