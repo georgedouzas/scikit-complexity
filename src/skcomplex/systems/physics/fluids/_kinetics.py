@@ -17,7 +17,9 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import ConservationInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
+from ....core.components.laws.utils import divergence
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, SSPRKSolver
@@ -191,11 +193,10 @@ class WaveBreakingSystem(BaseSystem):
             self.label,
             elements=[train],
             interactions=[
-                ConservationInteraction(
+                Interaction(
                     'action',
-                    target='train',
-                    state='k',
-                    flux=lambda s: sqrt(s.target.g * s.target.k),
+                    roles={'target': 'train'},
+                    laws=lambda s: [RateLaw(s.target.k, -divergence([sqrt(s.target.g * s.target.k)]))],
                 ),
             ],
             solver=SSPRKSolver(),
@@ -294,19 +295,21 @@ class DiscreteVelocityBoltzmannSystem(BaseSystem):
             self.label,
             elements=[gas],
             interactions=[
-                ConservationInteraction(
+                Interaction(
                     'right_movers',
-                    target='gas',
-                    state='f_plus',
-                    flux=lambda s: s.target.c * s.target.f_plus,
-                    source=self._get_collisions,
+                    roles={'target': 'gas'},
+                    laws=lambda s: [
+                        RateLaw(s.target.f_plus, -divergence([s.target.c * s.target.f_plus])),
+                        RateLaw(s.target.f_plus, self._get_collisions(s)),
+                    ],
                 ),
-                ConservationInteraction(
+                Interaction(
                     'left_movers',
-                    target='gas',
-                    state='f_minus',
-                    flux=lambda s: -s.target.c * s.target.f_minus,
-                    source=lambda s: -self._get_collisions(s),
+                    roles={'target': 'gas'},
+                    laws=lambda s: [
+                        RateLaw(s.target.f_minus, -divergence([-s.target.c * s.target.f_minus])),
+                        RateLaw(s.target.f_minus, -self._get_collisions(s)),
+                    ],
                 ),
             ],
             solver=SSPRKSolver(),
