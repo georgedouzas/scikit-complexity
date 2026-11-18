@@ -6,6 +6,7 @@ It includes the security forces that act against it.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from functools import partial
 from types import SimpleNamespace
 from typing import Annotated
@@ -19,9 +20,11 @@ from ....core.components import Observable
 from ....core.components.elements import GroupElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import moment
-from ....core.components.spaces import ContinuousTime, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
+from ....core.components.spaces import LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ...general.kinetics import EncounterInteraction
 from ..common.kinetics import ActivityDensityElement
 
@@ -452,6 +455,12 @@ class CriminalitySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.crowds import CriminalitySystem
         >>> [item.label for item in CriminalitySystem().prepare().system_.interactions]
@@ -465,9 +474,9 @@ class CriminalitySystem(BaseSystem):
     dt = 0.5
 
     @staticmethod
-    def _get_sizes_of(system: CompositeSystem) -> tuple[int, int]:
+    def _get_sizes_of(system: System) -> tuple[int, int]:
         """Return the number of criminality classes and of efficacy classes of a system."""
-        sizes = {item.label: int(item.size or 0) for item in system.elements}
+        sizes = {item.label: int(item.size or np.size(getattr(item, 'x', ()))) for item in system.elements}
         return sizes['citizens'], sizes['security']
 
     def __init__(
@@ -483,8 +492,10 @@ class CriminalitySystem(BaseSystem):
         recruitment: float = 0.5,
         retirement: float = 0.1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.classes = classes
         self.forces = forces
         self.criminals = criminals
@@ -495,20 +506,15 @@ class CriminalitySystem(BaseSystem):
         self.recruitment = recruitment
         self.retirement = retirement
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         citizens = np.zeros(self.classes)
         citizens[0], citizens[-1] = 1.0 - self.criminals, self.criminals
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[
-                GroupElement(
-                    'citizens',
-                    element=ActivityDensityElement,
-                    size=self.classes,
-                    on='sites',
-                    values={'x': citizens},
-                ),
+                ActivityDensityElement('citizens', x=citizens, space=LatticeSpace(self.classes, boundary='fixed')),
                 GroupElement(
                     'security',
                     element=SecurityAgentsElement,
@@ -548,15 +554,6 @@ class CriminalitySystem(BaseSystem):
                 ),
             ],
             space=LatticeSpace(self.classes, boundary='fixed'),
-            time=ContinuousTime(),
         )
-
-    def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings.
-
-        The observables of the components are built from the model parameters.
-        """
-        settings = super().get_run_settings()
-        system = self._get_pass_parameters()
-        settings['observables'] = criminality_observables(*CriminalitySystem._get_sizes_of(system))
-        return settings
+        if not self.observables_:
+            self.observables_ = tuple(criminality_observables(*CriminalitySystem._get_sizes_of(self.system_)))

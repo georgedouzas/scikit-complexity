@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -12,14 +13,16 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, TransitionInteraction
 from ....core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.engine.solvers import AgentView
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ...general.agents import MovementInteraction
 
@@ -66,11 +69,14 @@ class BelieverElement(Element):
         learning:
             The increment per neighbour and step.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.opinion_dynamics import BelieverElement
-        >>> group = GroupElement('people', element=BelieverElement, size=4, values={'belief': [1.0, 0.0, 0.0, 0.0]})
-        >>> group.label, group.element.__name__, group.size
+        >>> group = BelieverElement('people', belief=[1.0, 0.0, 0.0, 0.0], size=4)
+        >>> group.label, type(group).__name__, group.size
         ('people', 'BelieverElement', 4)
     """
 
@@ -83,11 +89,12 @@ class BelieverElement(Element):
         label: str,
         *,
         belief: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
-        caring: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        influence: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
-        learning: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        caring: Annotated[object, StateSpec(domain=NN)] = 0.0,
+        influence: Annotated[object, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
+        learning: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.belief = belief
         self.caring = caring
         self.influence = influence
@@ -129,11 +136,14 @@ class AdopterElement(Element):
         reach:
             The distance within which other agents form an agent's social circle.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.opinion_dynamics import AdopterElement
-        >>> group = GroupElement('people', element=AdopterElement, size=10, values={'threshold': 50.0})
-        >>> group.label, group.element.__name__, group.size
+        >>> group = AdopterElement('people', threshold=50.0, size=10)
+        >>> group.label, type(group).__name__, group.size
         ('people', 'AdopterElement', 10)
     """
 
@@ -143,11 +153,12 @@ class AdopterElement(Element):
         self,
         label: str,
         *,
-        adopted: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        threshold: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 50.0,
-        reach: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 15.0,
+        adopted: Annotated[object, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+        threshold: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 50.0,
+        reach: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 15.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.adopted = adopted
         self.threshold = threshold
         self.reach = reach
@@ -266,9 +277,15 @@ class InfluentialsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import InfluentialsSystem
-        >>> InfluentialsSystem(5, 4, n_influentials=2, random_state=0).prepare().system_.elements[0].prepare().size_
+        >>> InfluentialsSystem(5, 4, n_influentials=2, random_state=0).prepare().system_.elements[0].size
         20
     """
 
@@ -287,8 +304,10 @@ class InfluentialsSystem(BaseSystem):
         news_report: bool = False,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.width = width
         self.height = height
         self.n_influentials = n_influentials
@@ -314,8 +333,9 @@ class InfluentialsSystem(BaseSystem):
         """Return the level an agent cares at, the index of its largest weight."""
         return float(np.argmax(agent.belief))
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         size = self.width * self.height
         belief = rng.integers(0, 5, (size, N_LEVELS)).astype(float)
@@ -347,7 +367,7 @@ class InfluentialsSystem(BaseSystem):
             schedule='member',
             form='agent',
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[people],
             interactions=[learning, caring],
@@ -386,9 +406,15 @@ class ThresholdAdoptionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import ThresholdAdoptionSystem
-        >>> ThresholdAdoptionSystem(40, size=60.0, random_state=0).prepare().system_.elements[0].prepare().size_
+        >>> ThresholdAdoptionSystem(40, size=60.0, random_state=0).prepare().system_.elements[0].size
         40
     """
 
@@ -408,8 +434,10 @@ class ThresholdAdoptionSystem(BaseSystem):
         shifting: float = 0.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_agents = n_agents
         self.size = size
         self.reach = reach
@@ -428,8 +456,9 @@ class ThresholdAdoptionSystem(BaseSystem):
         position = np.asarray(agent.location, dtype=float) + np.array([np.cos(angle), np.sin(angle)])
         return np.mod(position, size)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         drawn = (
             rng.uniform(1, 100, self.n_agents)
@@ -446,7 +475,7 @@ class ThresholdAdoptionSystem(BaseSystem):
             values={'adopted': adopted, 'threshold': drawn, 'reach': self.reach},
             location=rng.uniform(0, self.size, (self.n_agents, 2)),
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[people],
             interactions=[

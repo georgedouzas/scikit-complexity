@@ -14,14 +14,13 @@ cooperative and defecting strategies chase each other across the lattice.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.cooperation import IteratedLatticeDilemmaSystem
 
 SYSTEM = 'iterated_lattice_dilemma'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(IteratedLatticeDilemmaSystem(), until=200, observers=[observer], random_state=0)
+trajectory = IteratedLatticeDilemmaSystem().prepare().simulate(until=200, observers=[observer], random_state=0)
 
 # %%
 # Cycles of strategies and the regimes of two strategies
@@ -40,7 +39,7 @@ cycles.set_title('Strategies emerge, grow, and vanish')
 cycles.legend(fontsize='small', ncol=2)
 for reward in (0.82, 0.84, 0.86):
     system = IteratedLatticeDilemmaSystem(reward=reward, extremes=True)
-    values = simulate(system, random_state=0).get_values('players.strategy')
+    values = system.prepare().simulate(random_state=0).get_values('players.strategy')
     regimes.plot(np.mean(values.reshape(101, -1) == 7, axis=1), label=f'R = {reward}')
 regimes.set_xlabel('steps')
 regimes.set_ylabel('share of cooperators')

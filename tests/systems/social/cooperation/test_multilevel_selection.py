@@ -13,11 +13,10 @@ from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.interactions import ConservationInteraction
 from skcomplex.core.components.laws.utils import coordinate, moment
 from skcomplex.core.components.spaces import AxisSpec, FiniteVolumeSpec, LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver, SSPRKSolver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.social.cooperation import (
     NonlinearPairwiseGroupConflictSystem,
     SimplexSpace,
@@ -103,7 +102,7 @@ def test_moment_over_a_simplex_weights_every_cell_by_its_volume() -> None:
     start = 2.0 * (space.volumes_ > 0)
     groups = FieldElement('groups', element=AmountElement, space=space, values={'x': start})
     observables = [Observable('total', total, group='groups')]
-    trajectory = simulate(CompositeSystem(elements=[groups]), until=0.1, dt=0.1, observables=observables)
+    trajectory = System(elements=[groups]).prepare().simulate(until=0.1, dt=0.1, observables=observables)
     values = np.asarray(trajectory.get_values('total'), dtype=float)
     assert np.abs(values - 1.0).max() < 1e-12
 
@@ -127,7 +126,7 @@ def test_replicator_flow_on_a_simplex_conserves_the_density(solver: object) -> N
         state='x',
         flux=lambda s: [component * s.target.x for component in replicator_drift(s)],
     )
-    trajectory = simulate(CompositeSystem(elements=[groups], interactions=[flow]), until=2.0, dt=0.5, solver=solver)
+    trajectory = System(elements=[groups], interactions=[flow], solver=solver).prepare().simulate(until=2.0, dt=0.5)
     final = trajectory.get_values('groups.x')[-1].reshape(space.shape_)
     weights = space.volumes_ / SIZE**2
     assert abs((final * weights).sum() - 1.0) < 1e-10
@@ -137,7 +136,7 @@ def test_replicator_flow_on_a_simplex_conserves_the_density(solver: object) -> N
 
 def _final_density(system, until, dt=0.02):
     """Return the initial and final density of a system of group compositions."""
-    trajectory = simulate(system, until=until, dt=until, solver=RK4Solver(dt=dt))
+    trajectory = system.set_params(solver=RK4Solver(dt=dt)).prepare().simulate(until=until, dt=until)
     values = trajectory.get_values('groups.x')
     return values[0], values[-1]
 

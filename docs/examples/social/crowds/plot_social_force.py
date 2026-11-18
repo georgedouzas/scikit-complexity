@@ -15,7 +15,6 @@ crowds walk at almost their desired speed.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.crowds import SocialForceSystem
@@ -25,7 +24,9 @@ LENGTH, SPEED, UNTIL = 10.0, 1.34, 60.0
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
 system = SocialForceSystem(n_walkers=40, length=LENGTH, speed=SPEED, random_state=0)
-trajectory = simulate(system, until=UNTIL, solver=RK4Solver(dt=0.05), observers=[observer], random_state=0)
+trajectory = (
+    system.set_params(solver=RK4Solver(dt=0.05)).prepare().simulate(until=UNTIL, observers=[observer], random_state=0)
+)
 
 # %%
 # Lane order and walking speed
@@ -50,7 +51,7 @@ def lane_order(rightward, leftward, bands=10):
 fig, (order, speed) = plt.subplots(1, 2, figsize=(10, 4))
 for index, walkers in enumerate((20, 40, 60)):
     system = SocialForceSystem(n_walkers=walkers, length=LENGTH, speed=SPEED, random_state=0)
-    trajectory = simulate(system, until=UNTIL, solver=RK4Solver(dt=0.05), random_state=0)
+    trajectory = system.set_params(solver=RK4Solver(dt=0.05)).prepare().simulate(until=UNTIL, random_state=0)
     rightward, leftward = trajectory.get_values('rightward.x'), trajectory.get_values('leftward.x')
     order.plot(
         trajectory.times,

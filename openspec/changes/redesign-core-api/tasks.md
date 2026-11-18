@@ -58,12 +58,33 @@ the thread caps for parallel test runs. The new API is built beside the old one 
 Each task rewrites the systems of its fields on the new API: elements as data with declared states, interactions whose `_prepare` sets `laws_` and that own their relation parameters, the seven law kinds, `_prepare` setting `system_` instead of `_build_system`, and `prepare` and `simulate` in tests, docstrings, and gallery examples. Each task verifies with the tests of its fields, its doctests, and a gallery sample of its fields.
 
 - [ ] 5.1 Wave 1: `physics`.
+  - [x] 5.1.1 Mechanics, celestial mechanics, oscillators, climate, oceanography, seismology, cosmology, criticality, synchronization, and most of statistical, soft, and active matter on the new API, with identical results.
+  - [x] 5.1.2 The spectral, finite-volume, and fixed-boundary field systems on fields discretized by their space.
+  - [x] 5.1.3 The angle systems on `Period`: double pendulum, XY, the Kuramoto family, Vicsek, run and tumble, swarmalators, lattice gauge fields.
+  - [ ] 5.1.4 The particle forces and point elements with the velocity `x'`, and the last physics systems on the old base.
 - [ ] 5.2 Wave 1: `chemistry`, `engineering`, and `general`.
+  - [x] 5.2.1 Every chemistry and engineering ready-made system on the new base with `solver=` and `backend=`.
+  - [x] 5.2.2 Companion states `x_d1` replaced by `x'`, and ports rewritten as interactions between node elements.
+  - [x] 5.2.3 The shared bases of `general` with their subclasses, and the reactions, agents, matching, kinetics, gradients, mechanics, and rewriting recipes.
+  - [x] 5.2.4 Stock-flow flows as rate terms that share a label, with the loops analysis and the flow matrix.
+  - [ ] 5.2.5 The remaining old parts of engineering: process, control, robot, and driver elements with laws of their own.
 - [ ] 5.3 Wave 1: `mathematics`.
+  - [x] 5.3.1 Maps, flows, normal forms, ensembles, stochastic processes, fractals, walks, fractional dynamics, and the agent systems.
+  - [x] 5.3.2 The logistic map family with the experiments, and the static and cascading networks.
+  - [ ] 5.3.3 The growing networks, now that groups grow with no capacity, and the hypergraph systems.
 - [ ] 5.4 Wave 1: `computer_science`.
+  - [x] 5.4.1 Automata, evolutionary computation, and neural networks on the new base, with local rules as `UpdateLaw`.
+  - [ ] 5.4.2 The remaining agent rules of DNA computation, genetic algorithms, Hopfield, and the perceptron as `UpdateLaw` rules.
 - [ ] 5.5 Wave 2: `biology`.
+  - [x] 5.5.1 Ecology, neuroscience, physiology, systems biology, oncology, and collective decisions on the new base.
+  - [ ] 5.5.2 The modules the first pass left, the agent modules, and the old parts of the families on the new base.
 - [ ] 5.6 Wave 2: `economics`.
+  - [x] 5.6.1 All ready-made systems but oligopoly on the new base, with identical values.
+  - [ ] 5.6.2 Member links, agents on network nodes, and per-member constraints for labour, credit, commons, discovery, and oligopoly.
+  - [ ] 5.6.3 The remaining old parts: groups, elements with laws, and old wrapper interactions.
 - [ ] 5.7 Wave 2: `social`.
+  - [x] 5.7.1 Every social system on the new base with identical results, interactions setting `laws_`, and plain elements.
+  - [ ] 5.7.2 The remaining old parts: the agent recipes' groups, symbolic groupings, pair potentials, position vectors, and the groups of growing networks.
 - [x] 5.8 Rewrite the experiment functions in `src/skcomplex/core/experiments` to clone, set parameters, prepare, and simulate, preparing once when only initial or random states vary. Verify with tests that an ensemble prepares once and a sweep leaves the user's system unchanged.
 
 ## 6. The old API goes
@@ -77,7 +98,7 @@ Each task rewrites the systems of its fields on the new API: elements as data wi
 
 - [ ] 7.1 Rewrite every docstring of the core in the scikit-learn layout of `design.md`, with no jargon: say explicitly what a thing does in plain words and show it with a short example, such as `Element('ball', values={'x': 10.0, 'm': 1.0})` in place of "an element known only as data". Apply the same rule to the guide, the README, error messages, and replies, and replace the test of the "Unlike" template by tests of the layout and of short examples. Verify with the docstring tests and the doctests.
 - [ ] 7.2 Rewrite the README, the user guide, and the case studies on the new API, with the falling particle, the reaction network with two solvers, the heat equation, and the Ising model as the running examples. Verify with the documents test group and a strict documentation build.
-- [ ] 7.3 Restate the placement rule in `openspec/constitution.md`, `CONTRIBUTING.md`, and the extension page of the user guide, and rewrite the scenarios of the main specs that call `simulate(` in the method form. Verify that the three texts state the same rule and that `rg "simulate\(" openspec/specs` finds only method calls.
+- [x] 7.3 Restate the placement rule in `openspec/constitution.md`, `CONTRIBUTING.md`, and the extension page of the user guide, and rewrite the scenarios of the main specs that call `simulate(` in the method form. Verify that the three texts state the same rule and that `rg "simulate\(" openspec/specs` finds only method calls.
 
 ## 8. Checks
 

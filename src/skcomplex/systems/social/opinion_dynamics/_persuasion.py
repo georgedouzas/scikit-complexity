@@ -6,23 +6,29 @@ The impact is social.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, cast
 
 import networkx as nx
 import numpy as np
 from sage.all__sagemath_symbolics import NN, ZZ, Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import GroupingInteraction, MapInteraction
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
+from ....core.components.interactions import GroupingInteraction, Interaction
+from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import mean, where
-from ....core.components.spaces import LatticeSpace, NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.engine.solvers import AgentView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.components.spaces import BaseSpace, LatticeSpace, NetworkSpace
+from ....core.components.types import SystemViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.specs import Role, VisualSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
+from ._random_pairs import NeighborhoodsInteraction
 
 
 class PersuaderView(AgentView):
@@ -47,11 +53,13 @@ class PersuaderElement(Element):
         opinion:
             The initial opinion, 0 or 1.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.opinion_dynamics import PersuaderElement
-        >>> group = GroupElement('people', element=PersuaderElement, size=10, values={'opinion': 1.0})
-        >>> group.label, group.element.__name__, group.size
+        >>> group = PersuaderElement('people', opinion=1.0, size=10)
+        >>> group.label, type(group).__name__, group.size
         ('people', 'PersuaderElement', 10)
     """
 
@@ -61,9 +69,10 @@ class PersuaderElement(Element):
         self,
         label: str,
         *,
-        opinion: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        opinion: Annotated[object, NN] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.opinion = opinion
 
     @classmethod
@@ -94,11 +103,13 @@ class CitizenElement(Element):
         opinion:
             The initial opinion, 0 or 1.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.opinion_dynamics import CitizenElement
-        >>> group = GroupElement('citizens', element=CitizenElement, size=10, values={'opinion': 1.0})
-        >>> group.label, group.element.__name__, group.size
+        >>> group = CitizenElement('citizens', opinion=1.0, size=10)
+        >>> group.label, type(group).__name__, group.size
         ('citizens', 'CitizenElement', 10)
     """
 
@@ -106,9 +117,10 @@ class CitizenElement(Element):
         self,
         label: str,
         *,
-        opinion: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        opinion: Annotated[object, NN] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.opinion = opinion
 
     @classmethod
@@ -157,11 +169,25 @@ class InfluenceeElement(Element):
         noise:
             The half-width of the uniform random field added to the impact on every agent and step.
 
+        x:
+            The column of the cell of the agent on a lattice, one per agent or shared.
+
+        y:
+            The row of the cell of the agent on a lattice, one per agent or shared.
+
+        size:
+            The number of agents, or `None` for one.
+
+        space:
+            The lattice the agents live on, whose axes `x` and `y` make `x` and `y` their cell, or `None`.
+
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.opinion_dynamics import InfluenceeElement
-        >>> group = GroupElement('people', element=InfluenceeElement, size=4, values={'opinion': -1.0})
-        >>> group.label, group.element.__name__, group.size
+        >>> group = InfluenceeElement('people', opinion=-1.0, size=4)
+        >>> group.label, type(group).__name__, group.size
         ('people', 'InfluenceeElement', 4)
     """
 
@@ -171,18 +197,24 @@ class InfluenceeElement(Element):
         self,
         label: str,
         *,
-        opinion: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
-        persuasiveness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        supportiveness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        exponent: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        noise: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        opinion: Annotated[object, ZZ] = 1.0,
+        persuasiveness: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        supportiveness: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        exponent: Annotated[object, RealSet.open(0, oo)] = 2.0,
+        noise: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        x: object = 0,
+        y: object = 0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size, space=space)
         self.opinion = opinion
         self.persuasiveness = persuasiveness
         self.supportiveness = supportiveness
         self.exponent = exponent
         self.noise = noise
+        self.x = x
+        self.y = y
 
     @classmethod
     def _get_view(cls) -> type[InfluenceeView]:
@@ -217,7 +249,7 @@ class DiscussionsInteraction(GroupingInteraction):
 
     draws = True
 
-    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()], size: int = 3) -> None:
+    def __init__(self, label: str, *, target: Role, size: int = 3) -> None:
         super().__init__(
             label,
             target=target,
@@ -236,7 +268,7 @@ class DiscussionsInteraction(GroupingInteraction):
         return where(mean(group.members.opinion, over=group.members) > 1 / 2, 1, 0)
 
 
-class SocialImpactInteraction(MapInteraction):
+class SocialImpactInteraction(Interaction):
     """Synchronous update of the social impact system.
 
     Every agent takes the opinion of the stronger impact. The impact on agent `i` is
@@ -254,17 +286,29 @@ class SocialImpactInteraction(MapInteraction):
 
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import SocialImpactInteraction
-        >>> SocialImpactInteraction('impact', target='people').form
-        'agent'
+        >>> SocialImpactInteraction('impact', target='people').target
+        'people'
     """
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-    ) -> None:
-        super().__init__(label, target=target, state='opinion', function=self._get_opinion, form='agent')
+    law_classes = (UpdateLaw,)
+    draws = True
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the update of every opinion, from the opinions at the start of the step, as the rule of the system."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context, self._update)]
+
+    def _update(self, system: SystemView) -> None:
+        """Set the opinion of every agent from the opinions at the start of the step."""
+        agents = cast(list[InfluenceeView], system.get_agents('target'))
+        opinions = [float(self._get_opinion(agent, system)) for agent in agents]
+        for agent, opinion in zip(agents, opinions, strict=True):
+            agent.opinion = opinion
 
     def _get_impact(self, agent: InfluenceeView, system: SystemViewProtocol) -> float:
         """Return the net pressure to change on an agent from every agent of the group.
@@ -290,7 +334,7 @@ class SocialImpactInteraction(MapInteraction):
         return -agent.opinion if self._get_impact(agent, system) + field > 0 else float(agent.opinion)
 
 
-class PersuasionInteraction(GroupingInteraction):
+class PersuasionInteraction(NeighborhoodsInteraction):
     """Persuasion of the Sznajd system.
 
     An agreeing pair of neighbours convinces the neighbours of both. Every step every agent, in random order, picks a
@@ -309,20 +353,20 @@ class PersuasionInteraction(GroupingInteraction):
 
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import PersuasionInteraction
-        >>> PersuasionInteraction('persuasion', target='people').groups
-        'neighborhood'
+        >>> PersuasionInteraction('persuasion', target='people').target
+        'people'
     """
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         phase: str | None = None,
     ) -> None:
-        super().__init__(label, target=target, groups='neighborhood', phase=phase)
+        super().__init__(label, target=target, phase=phase)
 
-    def act_on(self, members: list[AgentViewProtocol], system: SystemViewProtocol) -> None:
+    def act_on(self, members: list[AgentView], system: SystemView) -> None:
         """Convince the neighbours of the first member and of a random neighbour of it.
 
         This happens when the two agree.
@@ -334,7 +378,7 @@ class PersuasionInteraction(GroupingInteraction):
             system:
                 The system view of the rule.
         """
-        agent, *neighbors = [member for member in members if isinstance(member, PersuaderView)]
+        agent, *neighbors = cast(list[PersuaderView], members)
         if not neighbors:
             return
         partner = neighbors[int(system.rng.integers(len(neighbors)))]
@@ -363,10 +407,16 @@ class SznajdSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.systems.social.opinion_dynamics import SznajdSystem
-        >>> SznajdSystem(nx.cycle_graph(8), random_state=0).prepare().system_.elements[0].prepare().size_
+        >>> SznajdSystem(nx.cycle_graph(8), random_state=0).prepare().system_.elements[0].size
         8
     """
 
@@ -387,24 +437,26 @@ class SznajdSystem(BaseSystem):
         share: float = 0.5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.graph = graph
         self.share = share
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         graph = self.graph
         graph = nx.cycle_graph(50) if graph is None else graph
         size = nx.number_of_nodes(graph)
-        people = GroupElement(
+        people = PersuaderElement(
             'people',
-            element=PersuaderElement,
+            opinion=SznajdSystem._get_shares(size, self.share, self.random_state),
             size=size,
-            values={'opinion': SznajdSystem._get_shares(size, self.share, self.random_state)},
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[people],
             interactions=[PersuasionInteraction('persuasion', target='people')],
@@ -433,9 +485,15 @@ class GalamMajoritySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import GalamMajoritySystem
-        >>> GalamMajoritySystem(30, random_state=0).prepare().system_.elements[0].prepare().size_
+        >>> GalamMajoritySystem(30, random_state=0).prepare().system_.elements[0].size
         30
     """
 
@@ -452,22 +510,24 @@ class GalamMajoritySystem(BaseSystem):
         share: float = 0.4,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_agents = n_agents
         self.group_size = group_size
         self.share = share
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
-        citizens = GroupElement(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
+        citizens = CitizenElement(
             'citizens',
-            element=CitizenElement,
+            opinion=SznajdSystem._get_shares(self.n_agents, self.share, self.random_state),
             size=self.n_agents,
-            values={'opinion': SznajdSystem._get_shares(self.n_agents, self.share, self.random_state)},
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[citizens],
             interactions=[DiscussionsInteraction('talks', target='citizens', size=self.group_size)],
@@ -501,9 +561,15 @@ class SocialImpactSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import SocialImpactSystem
-        >>> SocialImpactSystem(4, 5, random_state=0).prepare().system_.elements[0].prepare().size_
+        >>> SocialImpactSystem(4, 5, random_state=0).prepare().system_.elements[0].size
         20
     """
 
@@ -522,8 +588,10 @@ class SocialImpactSystem(BaseSystem):
         noise: float = 0.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.width = width
         self.height = height
         self.share = share
@@ -531,26 +599,25 @@ class SocialImpactSystem(BaseSystem):
         self.noise = noise
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         size = self.width * self.height
-        people = GroupElement(
+        people = InfluenceeElement(
             'people',
-            element=InfluenceeElement,
+            opinion=2 * SznajdSystem._get_shares(size, self.share, rng) - 1,
+            persuasiveness=rng.random(size),
+            supportiveness=rng.random(size),
+            exponent=self.exponent,
+            noise=self.noise,
+            x=np.arange(size) // self.height,
+            y=np.arange(size) % self.height,
             size=size,
-            values={
-                'opinion': 2 * SznajdSystem._get_shares(size, self.share, rng) - 1,
-                'persuasiveness': rng.random(size),
-                'supportiveness': rng.random(size),
-                'exponent': self.exponent,
-                'noise': self.noise,
-            },
-            location=[(column, row) for column in range(self.width) for row in range(self.height)],
+            space=LatticeSpace((self.width, self.height), boundary='fixed', capacity=1),
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[people],
             interactions=[SocialImpactInteraction('impact', target='people')],
-            space=LatticeSpace((self.width, self.height), boundary='fixed', capacity=1),
         )

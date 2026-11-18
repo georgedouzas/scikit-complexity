@@ -80,9 +80,9 @@ class BassDiffusionSystem(StockFlowSystem):
     def _get_adoption(s: SimpleNamespace) -> Expression:
         """Return the adoption rate `(p + q A / (P + A)) P` of the market.
 
-        A transfer moves people within the market.
+        A flow moves people within the market.
         """
-        market = s.source
+        market = s.target
         return (market.p + market.q * market.A / (market.P + market.A)) * market.P
 
     def _get_element_label(self) -> str:

@@ -349,6 +349,29 @@ def test_system_without_laws_is_static() -> None:
     assert (system.form_, system.states_, system.parameters_) == ('static solution', (), ('ball.x', 'ball.m'))
 
 
+class _Balance(Interaction):
+    """Interaction that sets the price where the supply `p` meets the demand `d - p`."""
+
+    def __init__(self, label: str, *, target: Role = 'market', d: float = 4.0) -> None:
+        super().__init__(label)
+        self.target = target
+        self.d = d
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the balance of supply and demand as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            price = context.target.p
+            self.laws_ = [ConstraintLaw(price == context.d - price, target=price)]
+
+
+def test_system_of_constraints_alone_is_static() -> None:
+    """A system whose laws are all constraints is solved once, as a static problem."""
+    system = System(elements=[Element('market', values={'p': 0.0})], interactions=[_Balance('balance')]).prepare()
+    assert system.form_ == 'static solution'
+    assert system.simulate(until=1.0).get_values('market.p')[-1] == pytest.approx(2.0)
+
+
 class _Attraction(Interaction):
     """Interaction whose members move towards the mean of all the others of the group."""
 

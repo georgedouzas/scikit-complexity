@@ -306,6 +306,12 @@ def test_prepare_rejects_a_reserved_name_used_for_a_value(element, name):
         element.prepare()
 
 
+def test_prepare_accepts_a_size_counted_by_numpy():
+    """Test that a number of members computed with NumPy, such as the side of a grid squared, is a size."""
+    side = np.int64(5)
+    assert Element('namers', values={'words': 0.0}, size=side**2).prepare().size == 25
+
+
 @pytest.mark.parametrize(
     ('on', 'space'),
     [('links', NetworkSpace(nx.path_graph(3))), ('edges', ContinuousSpace(n_dim=2)), ('edges', None)],

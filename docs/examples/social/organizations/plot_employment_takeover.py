@@ -13,7 +13,6 @@ whose border creeps for a while, then freezes after about forty steps.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.organizations import EmploymentTakeoverSystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'employment_takeover'
 
 system = EmploymentTakeoverSystem(random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='cells/colour')
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # A frozen state

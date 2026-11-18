@@ -10,6 +10,7 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
+from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, ScipyODESolver
 from ....core.systems import BaseSystem, System
@@ -33,6 +34,12 @@ class SpeciesElement(NonnegativeElement):
         x:
             The initial concentration.
 
+        size:
+            The number of members, or `None` for one.
+
+        space:
+            The space with one member per site, such as a lattice of classes, or `None` for none.
+
     Examples:
         >>> from skcomplex.systems.chemistry.kinetics import SpeciesElement
         >>> SpeciesElement('albumin', x=600.0).x
@@ -43,9 +50,11 @@ class SpeciesElement(NonnegativeElement):
         self,
         label: str,
         *,
-        x: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        x: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, x=x)
+        super().__init__(label, x=x, size=size, space=space)
 
 
 class NanoparticleCoronaSystem(BaseSystem):

@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.opinion_dynamics import CoevolvingVoterSystem
 
@@ -37,7 +36,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-trajectory = simulate(system, dt=2.0, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(dt=2.0, observers=[observer], random_state=0)
 
 
 def discordant(trajectory, frame):
@@ -56,7 +55,7 @@ def discordant(trajectory, frame):
 
 fig, axis = plt.subplots(figsize=(6, 4))
 for rewiring in (0.1, 0.3, 0.6, 0.9):
-    run = simulate(CoevolvingVoterSystem(n_voters=400, rewiring=rewiring), until=300, dt=5.0, random_state=1)
+    run = CoevolvingVoterSystem(n_voters=400, rewiring=rewiring).prepare().simulate(until=300, dt=5.0, random_state=1)
     trajectory = run
     axis.plot(
         trajectory.times,

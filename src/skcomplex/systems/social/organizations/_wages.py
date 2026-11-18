@@ -6,20 +6,25 @@ In it, employers learn to pay migrant workers below the minimum wage.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.components.laws import UpdateLaw
+from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.specs import Role, VisualSpec
+from ....core.systems import BaseSystem, System
 
 
 class FarmerView(AgentView):
@@ -61,6 +66,9 @@ class FarmerElement(Element):
         area:
             The area of the farm, 0 near the first slum and 1 near the second.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.social.organizations import FarmerElement
         >>> FarmerElement('farmer', wage=1.5).wage
@@ -73,12 +81,13 @@ class FarmerElement(Element):
         self,
         label: str,
         *,
-        wage: Annotated[float, StateSpec(domain=RealSet.closed(0, 2))] = 1.0,
-        workforce: Annotated[float, StateSpec(domain=NN)] = 50.0,
-        employed: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        area: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+        wage: Annotated[object, RealSet.closed(0, 2)] = 1.0,
+        workforce: Annotated[object, NN] = 50.0,
+        employed: Annotated[object, NN] = 0.0,
+        area: Annotated[object, FiniteEnumeratedSet([0, 1])] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.wage = wage
         self.workforce = workforce
         self.employed = employed
@@ -111,6 +120,9 @@ class HarvesterElement(Element):
         total_pay:
             The pay the worker has earned so far.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.social.organizations import HarvesterElement
         >>> HarvesterElement('worker', slum=1.0).slum
@@ -123,12 +135,13 @@ class HarvesterElement(Element):
         self,
         label: str,
         *,
-        slum: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        working: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        pay: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        total_pay: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        slum: Annotated[object, FiniteEnumeratedSet([0, 1])] = 0.0,
+        working: Annotated[object, FiniteEnumeratedSet([0, 1])] = 0.0,
+        pay: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        total_pay: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.slum = slum
         self.working = working
         self.pay = pay
@@ -180,7 +193,7 @@ class HarvestInteraction(Interaction):
 
     draws = True
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     reports: ClassVar[tuple[str, ...]] = ('slaves', 'in_work')
 
@@ -188,11 +201,11 @@ class HarvestInteraction(Interaction):
         self,
         label: str,
         *,
-        employers: Annotated[str, RoleSpec()],
-        workers: Annotated[str, RoleSpec()],
-        asks: Annotated[int, ParameterSpec(domain=NN)] = 1,
-        chat: Annotated[int, ParameterSpec(domain=NN)] = 3,
-        adjustment: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        employers: Role,
+        workers: Role,
+        asks: Annotated[int, NN] = 1,
+        chat: Annotated[int, NN] = 3,
+        adjustment: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
     ) -> None:
         super().__init__(label)
         self.employers = employers
@@ -201,18 +214,11 @@ class HarvestInteraction(Interaction):
         self.chat = chat
         self.adjustment = adjustment
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule of the working day.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.work)]
+    def _prepare(self, s: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rule of the working day."""
+        super()._prepare(s)
+        if isinstance(s, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(s, self.work)]
 
     def _hire(self, farmers: list[FarmerView], harvesters: list[HarvesterView], rng: np.random.Generator) -> None:
         """Let the workers ask the employers of their area for work.
@@ -248,8 +254,8 @@ class HarvestInteraction(Interaction):
             system:
                 The system.
         """
-        farmers = system.get_agents(self.employers, FarmerView)
-        harvesters = system.get_agents(self.workers, HarvesterView)
+        farmers = cast(list[FarmerView], system.get_agents(self.employers))
+        harvesters = cast(list[HarvesterView], system.get_agents(self.workers))
         rng = system.rng
         for farmer in farmers:
             farmer.employed = 0.0
@@ -304,9 +310,15 @@ class AjanisChoiceSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.organizations import AjanisChoiceSystem
-        >>> AjanisChoiceSystem(5, n_workers=10).prepare().system_.elements[1].prepare().size_
+        >>> AjanisChoiceSystem(5, n_workers=10).prepare().system_.elements[1].size
         20
     """
 
@@ -325,8 +337,10 @@ class AjanisChoiceSystem(BaseSystem):
         adjustment: float = 0.2,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_employers = n_employers
         self.n_workers = n_workers
         self.asks = asks
@@ -334,25 +348,18 @@ class AjanisChoiceSystem(BaseSystem):
         self.adjustment = adjustment
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
-        employers = GroupElement(
+        employers = FarmerElement(
             'employers',
-            element=FarmerElement,
+            wage=1.0 + rng.random(self.n_employers),
+            workforce=rng.integers(50, 100, size=self.n_employers).astype(float),
+            area=rng.integers(2, size=self.n_employers).astype(float),
             size=self.n_employers,
-            values={
-                'wage': 1.0 + rng.random(self.n_employers),
-                'workforce': rng.integers(50, 100, size=self.n_employers).astype(float),
-                'area': rng.integers(2, size=self.n_employers).astype(float),
-            },
         )
-        workers = GroupElement(
-            'workers',
-            element=HarvesterElement,
-            size=2 * self.n_workers,
-            values={'slum': np.repeat([0.0, 1.0], self.n_workers)},
-        )
+        workers = HarvesterElement('workers', slum=np.repeat([0.0, 1.0], self.n_workers), size=2 * self.n_workers)
         day = HarvestInteraction(
             'day',
             employers='employers',
@@ -361,4 +368,4 @@ class AjanisChoiceSystem(BaseSystem):
             chat=self.chat,
             adjustment=self.adjustment,
         )
-        return CompositeSystem(self.label, elements=[employers, workers], interactions=[day])
+        self.system_ = System(self.label, elements=[employers, workers], interactions=[day])

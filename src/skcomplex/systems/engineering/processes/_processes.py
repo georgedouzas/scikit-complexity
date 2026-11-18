@@ -131,8 +131,8 @@ class BathtubSystem(StockFlowSystem):
     def _get_flows(self) -> FlowTable:
         """Return the faucet and drain flows of the tub."""
         return {
-            'faucet': (None, 'water', lambda s: s.source.inflow * step(s.t, INFLOW_START)),
-            'drain': ('water', None, lambda s: where(s.source.water > 0, s.source.outflow, 0)),
+            'faucet': (None, 'water', lambda s: s.target.inflow * step(s.t, INFLOW_START)),
+            'drain': ('water', None, lambda s: where(s.target.water > 0, s.target.outflow, 0)),
         }
 
 

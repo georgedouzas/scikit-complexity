@@ -7,6 +7,7 @@ The infection goes through the links and the filled triangles.
 # License: MIT
 
 import math
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -18,32 +19,38 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import HyperedgeInteraction
-from ....core.components.laws import BaseLaw, JumpLaw
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import JumpLaw
 from ....core.components.laws.utils import where
-from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import Role, VisualSpec
+from ....core.systems import BaseSystem, System
 
 PAIR = 2
 TRIANGLE = 3
 
 
 class InfectiveElement(Element):
-    """Node of a contagion, susceptible at 0 and infected at 1.
+    """Nodes of a contagion, susceptible at 0 and infected at 1.
 
-    It recovers at a rate.
+    They recover at a rate, by a `RecoveryInteraction`.
 
     Args:
         label:
             The label of the node or the group.
 
         infected:
-            The initial state, 0 or 1.
+            The initial state, 0 or 1, one per node or shared.
 
         recovery:
             The rate at which an infected node recovers.
+
+        space:
+            The network with one node per site, or `None` for one node.
 
     Examples:
         >>> from skcomplex.systems.social.spreading import InfectiveElement
@@ -53,36 +60,63 @@ class InfectiveElement(Element):
 
     visual = VisualSpec('sites', {'states': ['infected'], 'low': 0.0, 'high': 1.0})
 
-    law_classes = (JumpLaw,)
-
     def __init__(
         self,
         label: str,
         *,
-        infected: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        recovery: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        infected: Annotated[object, FiniteEnumeratedSet([0, 1])] = 0.0,
+        recovery: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.infected = infected
         self.recovery = recovery
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the recovery of an infected node."""
-        return [JumpLaw(s.recovery * where(s.infected == 1, 1, 0), {s.infected: -1})]
+
+class RecoveryInteraction(Interaction):
+    """Recovery of an infected node at the rate `recovery` of the nodes.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of nodes.
+
+    Examples:
+        >>> from skcomplex.systems.social.spreading import RecoveryInteraction
+        >>> RecoveryInteraction('recovery', target='nodes').target
+        'nodes'
+    """
+
+    law_classes = (JumpLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the recovery of an infected node as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            node = context.target
+            self.laws_: list[BaseComponent] = [
+                JumpLaw(node.recovery * where(node.infected == 1, 1, 0), {node.infected: -1}),
+            ]
 
 
-class SimplicialInfectionInteraction(HyperedgeInteraction):
+class SimplicialInfectionInteraction(Interaction):
     """Infection of a susceptible node by the other members of a link or a triangle.
 
     The triangle is filled, and the infection needs all of them infected. A susceptible node of a link is infected at
     rate `beta` when its neighbour is infected, and a susceptible node of a triangle at rate `beta_triangle` when both
-    other members are infected.
+    other members are infected. The laws run once for every link and triangle of the network.
 
     Args:
         label:
             The label of the interaction, unique among the components of its system.
 
-        target:
+        among:
             The path of the group of nodes.
 
         beta:
@@ -91,9 +125,12 @@ class SimplicialInfectionInteraction(HyperedgeInteraction):
         beta_triangle:
             The rate of infection through a triangle.
 
+        along:
+            The links of the network the laws run on, `'hyperedges'` for its links and triangles.
+
     Examples:
         >>> from skcomplex.systems.social.spreading import SimplicialInfectionInteraction
-        >>> SimplicialInfectionInteraction('infection', target='nodes', beta_triangle=0.5).beta_triangle
+        >>> SimplicialInfectionInteraction('infection', among='nodes', beta_triangle=0.5).beta_triangle
         0.5
     """
 
@@ -103,24 +140,23 @@ class SimplicialInfectionInteraction(HyperedgeInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        beta_triangle: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        among: Role,
+        beta: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        beta_triangle: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        along: str = 'hyperedges',
     ) -> None:
-        super().__init__(label)
-        self.target = target
+        super().__init__(label, among=among, along=along)
         self.beta = beta
         self.beta_triangle = beta_triangle
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the infection of the focal node.
-
-        It happens when every other member of its link or triangle is infected.
-        """
-        infected = s.member.infected
-        rate = s.beta if len(s.others) + 1 == PAIR else s.beta_triangle
-        exposed = math.prod((other.infected for other in s.others), start=where(infected == 0, 1, 0))
-        return [JumpLaw(rate * exposed, {infected: 1})]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the infection of the focal node, when every other member of its link or triangle is infected."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            infected = context.member.infected
+            rate = context.beta if len(context.others) + 1 == PAIR else context.beta_triangle
+            exposed = math.prod((other.infected for other in context.others), start=where(infected == 0, 1, 0))
+            self.laws_: list[BaseComponent] = [JumpLaw(rate * exposed, {infected: 1})]
 
 
 class SimplicialContagionSystem(BaseSystem):
@@ -166,10 +202,16 @@ class SimplicialContagionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.spreading import SimplicialContagionSystem
         >>> system = SimplicialContagionSystem(30, mean_degree=6.0, mean_triangles=2.0).prepare().system_
-        >>> system.elements[0].prepare().size_
+        >>> len(system.elements[0].infected)
         30
     """
 
@@ -192,8 +234,10 @@ class SimplicialContagionSystem(BaseSystem):
         share: float = 0.4,
         seed: int = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_nodes = n_nodes
         self.infectivity = infectivity
         self.triangle_infectivity = triangle_infectivity
@@ -221,8 +265,9 @@ class SimplicialContagionSystem(BaseSystem):
         graph.add_edges_from(edge for edge in members if len(edge) == PAIR)
         return graph, [*graph.edges, *(edge for edge in members if len(edge) == TRIANGLE)]
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         pairs = math.comb(self.n_nodes - 1, PAIR - 1)
         triples = math.comb(self.n_nodes - 1, TRIANGLE - 1)
         triangles = min(self.mean_triangles / triples, 1.0)
@@ -233,17 +278,20 @@ class SimplicialContagionSystem(BaseSystem):
         shared = max(TRIANGLE * sizes.count(TRIANGLE) / self.n_nodes, 1.0)
         rng = np.random.default_rng(self.seed + 1)
         infected = (rng.permutation(self.n_nodes) < round(self.share * self.n_nodes)).astype(float)
-        nodes = GroupElement(
+        nodes = InfectiveElement(
             'nodes',
-            element=InfectiveElement,
+            infected=infected,
+            recovery=self.recovery,
             space=NetworkSpace(graph, hyperedges=hyperedges),
-            values={'infected': infected, 'recovery': self.recovery},
-            on='sites',
         )
         infection = SimplicialInfectionInteraction(
             'infection',
-            target='nodes',
+            among='nodes',
             beta=self.infectivity * self.recovery / degree,
             beta_triangle=self.triangle_infectivity * self.recovery / shared,
         )
-        return CompositeSystem(self.label, elements=[nodes], interactions=[infection])
+        self.system_ = System(
+            self.label,
+            elements=[nodes],
+            interactions=[RecoveryInteraction('recovery', target='nodes'), infection],
+        )

@@ -35,17 +35,14 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
     Thue-Morse sequence in computer science.
 
     Examples:
-        >>> from skcomplex.core.components.spaces import DiscreteTime
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.systems.general.rewriting import ProductionLaw
-        >>> from skcomplex.systems.general.rewriting import RewritingSolver
-        >>> from skcomplex.systems.general.rewriting import WordElement
-        >>> class AlgaeElement(WordElement):
-        ...     def _get_laws(self, namespace):
-        ...         return [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
-        >>> system = CompositeSystem(elements=[AlgaeElement('algae', axiom='A')], time=DiscreteTime())
-        >>> trajectory = simulate(system, until=5, solver=RewritingSolver())
+        >>> from skcomplex.core.systems import System
+        >>> from skcomplex.systems.general.rewriting import (
+        ...     ProductionLaw, RewritingInteraction, RewritingSolver, WordElement
+        ... )
+        >>> laws = [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
+        >>> growth = RewritingInteraction('growth', target='algae', laws=laws)
+        >>> system = System(elements=[WordElement('algae', axiom='A')], interactions=[growth], solver=RewritingSolver())
+        >>> trajectory = system.prepare().simulate(until=5)
         >>> trajectory.get_values('algae.size').tolist()
         [1.0, 2.0, 3.0, 5.0, 8.0, 13.0]
     """

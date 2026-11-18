@@ -4,13 +4,12 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Annotated
 
 from ....core.components.elements import Element
 from ....core.components.spaces import BaseSpace
 from ....core.engine.compile import BaseCompiler
 from ....core.errors import RewritingError
-from ....core.specs import StateSpec, VisualSpec
+from ....core.specs import VisualSpec
 from . import _rewriting_compiler
 from ._affine_spec import AffineSpec
 from ._geometry_visual import GeometryVisual
@@ -21,8 +20,9 @@ class PatchElement(Element):
     """An element that holds tiles that substitutions replace in parallel.
 
     A tile is a copy of a prototile, a basic shape, under an affine placement, a map that scales, rotates, and moves it.
-    At each step every tile is replaced at once by the tiles that its `SubstitutionLaw` gives. A subclass returns these
-    laws from `_get_laws`. The states of the patch are the count of each prototile and the number `size` of tiles.
+    At each step every tile is replaced at once by the tiles that its `SubstitutionLaw` gives. An interaction that binds
+    the patch sets these laws, such as a `RewritingInteraction`. The states of the patch are the count of each
+    prototile and the number `size` of tiles.
 
     Unlike `WordElement`, which rewrites a string of symbols, it rewrites shapes in the plane. Choose it when a model
     grows a geometric pattern by substitution, such as a fractal or a tiling that never repeats.
@@ -54,20 +54,16 @@ class PatchElement(Element):
     Examples:
         Each step keeps the outer thirds of every interval, which builds the Cantor set.
 
-        >>> from skcomplex.systems.general.rewriting import PatchElement
-        >>> from skcomplex.systems.general.rewriting import SubstitutionLaw
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.systems.general.rewriting import AffineSpec
-        >>> from skcomplex.systems.general.rewriting import PrototileSpec
-        >>> class CantorElement(PatchElement):
-        ...     law_classes = (SubstitutionLaw,)
-        ...
-        ...     def _get_laws(self, namespace):
-        ...         thirds = [AffineSpec(scale=1 / 3), AffineSpec(scale=1 / 3, translation=(2 / 3, 0))]
-        ...         return [SubstitutionLaw('interval', [('interval', third) for third in thirds])]
-        >>> cantor = CantorElement('cantor', prototiles=[PrototileSpec('interval', [(0, 0), (1, 0)])])
-        >>> simulate(CompositeSystem(elements=[cantor]), until=3).get_values('cantor.size').tolist()
+        >>> from skcomplex.core.systems import System
+        >>> from skcomplex.systems.general.rewriting import (
+        ...     AffineSpec, PatchElement, PrototileSpec, RewritingInteraction, SubstitutionLaw
+        ... )
+        >>> thirds = [AffineSpec(scale=1 / 3), AffineSpec(scale=1 / 3, translation=(2 / 3, 0))]
+        >>> substitution = SubstitutionLaw('interval', [('interval', third) for third in thirds])
+        >>> cantor = PatchElement('cantor', prototiles=[PrototileSpec('interval', [(0, 0), (1, 0)])])
+        >>> removal = RewritingInteraction('removal', target='cantor', laws=[substitution])
+        >>> trajectory = System(elements=[cantor], interactions=[removal]).prepare().simulate(until=3)
+        >>> trajectory.get_values('cantor.size').tolist()
         [1.0, 2.0, 4.0, 8.0]
     """
 
@@ -76,7 +72,7 @@ class PatchElement(Element):
     def __init__(
         self,
         label: str,
-        tiles: Annotated[Sequence[tuple[str, AffineSpec]] | None, StateSpec(domain=None)] = None,
+        tiles: Sequence[tuple[str, AffineSpec]] | None = None,
         *,
         prototiles: Sequence[PrototileSpec] = (),
         filled: bool = False,

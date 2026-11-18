@@ -54,10 +54,10 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
 
     Any other file becomes one element class, whose states are the stocks and whose parameters are the constants of
     the file, and a system class on `BaseSystem` that builds the `CompositeSystem` of its element and its interactions
-    in `_build_system`. A flow variable becomes a `TransferInteraction`, with `Source()` or `Sink()` for the
-    environment, and what remains of the rate of a stock a `RateInteraction`, with the rate `(goal - stock) / time` for
-    a goal-seeking stock. A system whose stocks are all subscripted over one range becomes a `GroupElement` with one
-    member per subscript.
+    in `_build_system`. A flow variable becomes a `FlowInteraction` of `skcomplex.systems.general.dynamics`, the rate
+    terms that share the name of the flow, with no stock for the environment, and what remains of the rate of a stock a
+    `RateInteraction`, with the rate `(goal - stock) / time` for a goal-seeking stock. A system whose stocks are all
+    subscripted over one range becomes a `GroupElement` with one member per subscript.
 
     Args:
         path:

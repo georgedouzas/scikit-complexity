@@ -1494,14 +1494,12 @@ class MesaSolver(ExternalSolver):
         )
         vars(agent)['view_'] = self._view_classes[agent_class](agent, self)
         self.members_[int(agent.unique_id)] = agent
-        element = spec.element
-        defaults = element.get_declaring_element() if isinstance(element, GroupElement) else type(element)
         positions = self._positions[spec.path]
         missing = [name for name in positions if name not in values]
         for name in spec.states:
             if name in missing:
                 continue
-            value = values[name] if name in values else self._get_shared_default(defaults, name)
+            value = values[name] if name in values else self._get_default(spec, name)
             setattr(agent, name, value)
         place = self._get_place_of(agent, positions) if positions and location is None and not missing else location
         self._place(agent, place)
@@ -2105,9 +2103,28 @@ class MesaSolver(ExternalSolver):
         return AgentSnapshotSpec(ids, values, np.asarray(locations) if has_locations else None, spec.roles)
 
     @staticmethod
-    def _get_shared_default(element: type | BaseElement, name: str) -> object:
-        """Return the default of a state of an element type, or the value its group shares."""
-        return default_of(element, name)
+    def _get_default(spec: _CompiledAgentsSpec, name: str) -> object:
+        """Return the value of a state that a new agent takes when none is given.
+
+        An agent of a plain element takes the value its group shares, such as the `innovation` of
+        `Element('words', values={'count': 1.0, 'innovation': 0.1}, size=1)`, and an agent of a declared element type
+        the default of that type.
+
+        Raises:
+            SimulationError:
+                The group of a plain element gives the state one value per member, so it shares none.
+        """
+        element_type = MesaSolver._get_agent_type(spec)
+        if not issubclass(element_type, DeclaredElement):
+            return default_of(element_type, name)
+        shared = spec.values.get(name)
+        if shared is None or (name not in spec.objects and np.ndim(np.asarray(shared, dtype=object)) > 0):
+            error_msg = (
+                f'A new agent of {spec.path} needs a value of {name!r}, which its group gives per member. Give it when '
+                f'the agent is created, such as create({name}=...).'
+            )
+            raise SimulationError(error_msg)
+        return shared
 
     @staticmethod
     def _get_state_property(name: str) -> property:

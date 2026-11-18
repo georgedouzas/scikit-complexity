@@ -1928,3 +1928,37 @@ def test_a_rule_of_the_whole_system_takes_the_system_alone():
     road = System(elements=[cars], interactions=[AgentRule('drive', target='cars', rule=_drive), _AgentBraking('road')])
     with pytest.raises(ValidationError, match=r'def brake\(system\)'):
         road.prepare()
+
+
+class Arrive(Interaction):
+    """A rule of the whole system that adds one member with a given age to its group every step."""
+
+    def __init__(self, label: str, *, target: Role = 'people') -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: object = None) -> None:
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [UpdateLaw(context, self.arrive)]
+
+    def arrive(self, system: SimpleNamespace) -> None:
+        """Add one member of age 0."""
+        system.create('target', age=0.0)
+
+
+def test_created_agents_take_the_values_their_group_shares():
+    """Test that a new agent of a plain element takes the shared values its creation leaves out."""
+    people = Element('people', values={'age': 5.0, 'kind': 2.0}, size=1)
+    trajectory = System(elements=[people], interactions=[Arrive('arrive')]).prepare().simulate(until=2)
+    agents = trajectory.get_agents('people', 2)
+    assert agents.values['age'].tolist() == [5.0, 0.0, 0.0]
+    assert agents.values['kind'].tolist() == [2.0, 2.0, 2.0]
+
+
+def test_created_agents_need_the_values_their_group_gives_per_member():
+    """Test that a new agent of a plain element needs the values its group gives one per member."""
+    people = Element('people', values={'age': 5.0, 'kind': np.array([1.0, 2.0])}, size=2)
+    system = System(elements=[people], interactions=[Arrive('arrive')]).prepare()
+    with pytest.raises(SimulationError, match="needs a value of 'kind'"):
+        system.simulate(until=1)

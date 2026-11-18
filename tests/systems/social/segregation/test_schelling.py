@@ -2,7 +2,6 @@
 
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.social.segregation import SchellingSystem
 
 
@@ -27,11 +26,7 @@ def _similar_share(snapshot):
 
 def test_schelling_segregation_increases():
     """Test that the share of similar neighbours is higher after 100 steps than at the start."""
-    trajectory = simulate(
-        SchellingSystem(20, 20, threshold=0.5, random_state=0).prepare().system_,
-        until=100,
-        random_state=0,
-    )
+    trajectory = SchellingSystem(20, 20, threshold=0.5, random_state=0).prepare().simulate(until=100, random_state=0)
     assert _similar_share(trajectory.get_agents('residents', 100)) > _similar_share(
         trajectory.get_agents('residents', 0),
     )
@@ -42,10 +37,10 @@ def test_big_sort_segregation_grows_with_the_number_of_choices():
     shares = {}
     for choices in (1, 4, 10):
         system = SchellingSystem(20, 20, choices=choices, random_state=0).prepare().system_
-        trajectory = simulate(system, until=100, random_state=0)
+        trajectory = system.prepare().simulate(until=100, random_state=0)
         shares[choices] = _similar_share(trajectory.get_agents('residents', 100))
     start = _similar_share(
-        simulate(SchellingSystem(20, 20).prepare().system_, until=0, random_state=0).get_agents('residents', 0),
+        SchellingSystem(20, 20).prepare().simulate(until=0, random_state=0).get_agents('residents', 0),
     )
     assert abs(shares[1] - start) < 0.05
     assert start < shares[4] < shares[10]

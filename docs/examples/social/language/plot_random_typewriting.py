@@ -13,14 +13,13 @@ law of word frequencies without any meaning or economy in the text.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.language import RandomTypewritingSystem
 
 SYSTEM = 'random_typewriting'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(RandomTypewritingSystem(), until=100, observers=[observer], random_state=0)
+trajectory = RandomTypewritingSystem().prepare().simulate(until=100, observers=[observer], random_state=0)
 
 # %%
 # Zipf's law from two exponentials

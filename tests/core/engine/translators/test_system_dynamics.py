@@ -10,14 +10,14 @@ import pytest
 
 from skcomplex.core.analysis import loops
 from skcomplex.core.components import Observable
-from skcomplex.core.components.interactions import RateInteraction, TransferInteraction
+from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.systems import BaseSystem as OldBaseSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerSolver
 from skcomplex.core.engine.translators import RunSettingsSpec, SystemDynamicsTranslator
 from skcomplex.core.errors import ConservationError, IncompatibleLawsError, ValidationError
 from skcomplex.core.systems import BaseSystem
-from skcomplex.systems.general.dynamics import StockFlowSystem
+from skcomplex.systems.general.dynamics import FlowInteraction, StockFlowSystem
 
 REFERENCES = {
     'teacup.mdl': 'teacup_mdl.csv',
@@ -190,13 +190,13 @@ def test_run_auxiliaries_are_observables(fixtures_folder, translate):
         assert np.max(np.abs(values - reference[column].to_numpy())) < TOLERANCE
 
 
-def test_run_sir_flows_are_named_transfers(translate):
-    """Test that the infection is a transfer named after the flow, reported under the element, with people conserved."""
+def test_run_sir_flows_are_named_flows(translate):
+    """Test that the infection is a flow named after the flow variable, recorded under the element, keeping people."""
     module = translate('sir.mdl')
     system = _create(module)
     infection = next(item for item in system.prepare().system_.interactions if item.label == 'infection')
-    assert isinstance(infection, TransferInteraction)
-    assert (infection.state, infection.into, infection.flow) == ('susceptible', 'infected', 'infection')
+    assert isinstance(infection, FlowInteraction)
+    assert (infection.leaves, infection.enters) == ('susceptible', 'infected')
     total = Observable('people', _total, element='sir')
     trajectory = _run(
         system,
@@ -231,11 +231,11 @@ def test_run_loops_of_a_translated_system(translate):
     }
 
 
-def test_run_flows_with_the_environment_use_source_and_sink(translate):
-    """Test that a flow of one stock moves from `Source()` when it enters and into `Sink()` when it leaves."""
+def test_run_flows_with_the_environment_have_one_stock(translate):
+    """Test that a flow into a stock leaves no stock, and a flow out of a stock enters none."""
     interactions = {item.label: item for item in _composite_of(translate('population.mdl')).interactions}
-    assert type(interactions['births'].state).__name__ == 'Source'
-    assert type(interactions['deaths'].into).__name__ == 'Sink'
+    assert (interactions['births'].leaves, interactions['births'].enters) == (None, 'population')
+    assert (interactions['deaths'].leaves, interactions['deaths'].enters) == ('population', None)
 
 
 def test_run_goal_seeking_becomes_relaxation(fixtures_folder, translate):

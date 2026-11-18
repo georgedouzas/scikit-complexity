@@ -14,7 +14,6 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
 from ....core.components import Observable
-from ....core.components.elements import GroupElement
 from ....core.components.laws.utils import moment
 from ....core.components.spaces import ContinuousTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
@@ -193,7 +192,7 @@ class ImmuneCompetitionSystem(BaseSystem):
 
         It is the size of its tumour distribution.
         """
-        return int(next(item.size or 0 for item in system.elements if item.label == 'tumour'))
+        return int(np.size(next(item.x for item in system.elements if item.label == 'tumour')))
 
     def __init__(
         self,
@@ -245,21 +244,17 @@ class ImmuneCompetitionSystem(BaseSystem):
         return CompositeSystem(
             self.label,
             elements=[
-                GroupElement(
+                PopulationDensityElement(
                     'tumour',
-                    element=PopulationDensityElement,
-                    size=self.classes,
-                    on='sites',
-                    values={'x': tumour_density},
+                    x=tumour_density,
+                    space=LatticeSpace(self.classes, boundary='fixed'),
                 ),
-                GroupElement(
+                PopulationDensityElement(
                     'immune',
-                    element=PopulationDensityElement,
-                    size=self.classes,
-                    on='sites',
-                    values={'x': immune_density},
+                    x=immune_density,
+                    space=LatticeSpace(self.classes, boundary='fixed'),
                 ),
-                GroupElement('host', element=PopulationDensityElement, size=1, values={'x': 1.0}),
+                PopulationDensityElement('host', x=[1.0], size=1),
             ],
             interactions=[
                 EncounterInteraction(

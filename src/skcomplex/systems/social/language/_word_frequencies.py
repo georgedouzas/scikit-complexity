@@ -5,19 +5,21 @@
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import exp
 
+from ....core.components import Observable
 from ....core.components.base import BaseComponent
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import ConstraintLaw
 from ....core.components.laws.utils import log_sum_exp
-from ....core.components.spaces import StaticTime
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import RoleSpec, StateSpec, VisualSpec
+from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import Role, VisualSpec
+from ....core.systems import BaseSystem, System
 
 
 class LanguageElement(Element):
@@ -36,7 +38,7 @@ class LanguageElement(Element):
         1.0
     """
 
-    def __init__(self, label: str, exponent: Annotated[float, StateSpec()] = 1.0) -> None:
+    def __init__(self, label: str, exponent: float = 1.0) -> None:
         super().__init__(label)
         self.exponent = exponent
 
@@ -54,6 +56,9 @@ class WordElement(Element):
         probability:
             The initial guess of the probability, which the equation replaces.
 
+        size:
+            The number of words, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.social.language import WordElement
         >>> WordElement('word', cost=1.0).cost
@@ -65,10 +70,11 @@ class WordElement(Element):
     def __init__(
         self,
         label: str,
-        cost: Annotated[float, StateSpec()] = 1.0,
-        probability: Annotated[float, StateSpec()] = 0.0,
+        cost: object = 1.0,
+        probability: object = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.cost = cost
         self.probability = probability
 
@@ -102,30 +108,23 @@ class LeastEffortInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        words: Annotated[str, RoleSpec()],
+        target: Role,
+        words: Role,
     ) -> None:
         super().__init__(label)
         self.target = target
         self.words = words
 
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
-        """Return the equations of the exponent and of the probabilities.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The stationarity of the ratio and the probability of a word.
-        """
-        weight = -s.target.exponent * s.words.cost
-        log_partition = log_sum_exp(weight, over=s.words)
-        return [
-            ConstraintLaw(log_partition == 0, target=s.target.exponent),
-            ConstraintLaw(s.words.probability == exp(weight - log_partition), target=s.words.probability),
-        ]
+    def _prepare(self, s: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the equations of the exponent and of the probabilities."""
+        super()._prepare(s)
+        if isinstance(s, SimpleNamespace):
+            weight = -s.target.exponent * s.words.cost
+            log_partition = log_sum_exp(weight, over=s.words)
+            self.laws_: list[BaseComponent] = [
+                ConstraintLaw(log_partition == 0, target=s.target.exponent),
+                ConstraintLaw(s.words.probability == exp(weight - log_partition), target=s.words.probability),
+            ]
 
 
 class MandelbrotLeastEffortSystem(BaseSystem):
@@ -142,10 +141,15 @@ class MandelbrotLeastEffortSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.social.language import MandelbrotLeastEffortSystem
-        >>> trajectory = simulate(MandelbrotLeastEffortSystem(50), until=1.0)
+        >>> trajectory = MandelbrotLeastEffortSystem(50).prepare().simulate(until=1.0)
         >>> round(float(trajectory.get_values('words.probability')[0].sum()), 6)
         1.0
     """
@@ -159,18 +163,20 @@ class MandelbrotLeastEffortSystem(BaseSystem):
         n_words: int = 200,
         *,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_words = n_words
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         costs = np.log(np.arange(1, self.n_words + 1) + 1.0)
-        words = GroupElement('words', element=WordElement, size=self.n_words, values={'cost': costs})
+        words = WordElement('words', cost=costs, size=self.n_words)
         effort = LeastEffortInteraction('effort', target='language', words='words')
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[words, LanguageElement('language')],
             interactions=[effort],
-            time=StaticTime(),
         )

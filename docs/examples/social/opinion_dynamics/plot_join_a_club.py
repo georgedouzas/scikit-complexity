@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.opinion_dynamics import JoinAClubSystem
 
@@ -38,7 +37,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-trajectory = simulate(system, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Order against coupling
@@ -50,7 +49,7 @@ trajectory = simulate(system, observers=[observer], random_state=0)
 betas = np.linspace(0.0, 0.6, 7)
 order, crossing, mixed = [], [], []
 for beta in betas:
-    run = simulate(JoinAClubSystem(beta=beta), dt=10.0, random_state=2)
+    run = JoinAClubSystem(beta=beta).prepare().simulate(dt=10.0, random_state=2)
     members = run.get_values('voters.opinion')[-1]
     snapshot = run.get_network(-1)
     order.append(abs(2 * members.mean() - 1))

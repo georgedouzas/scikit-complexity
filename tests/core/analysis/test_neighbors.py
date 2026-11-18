@@ -23,11 +23,8 @@ def _neighbors(kind: str, source: object, **settings: object) -> NeighborsResult
 
 def _schelling_grid(side: int) -> np.ndarray:
     """Return the groups of a relaxed Schelling system with tolerance 0.5 on a grid, `EMPTY` for empty cells."""
-    trajectory = simulate(
-        SchellingSystem(width=side, height=side, threshold=0.5, random_state=0),
-        until=100,
-        random_state=0,
-    )
+    system = SchellingSystem(width=side, height=side, threshold=0.5, random_state=0)
+    trajectory = system.prepare().simulate(until=100, random_state=0)
     residents = trajectory.get_agents('residents', -1)
     group = next(iter(residents.values.values()))
     grid = np.full((side, side), EMPTY)

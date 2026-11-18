@@ -15,14 +15,15 @@ from sage.all__sagemath_symbolics import SR, Expression, tanh
 from sage.modules.free_module_element import FreeModuleElement
 from scipy.stats import irwinhall
 
-from ....core.components.elements import FieldElement
+from ....core.components import Observable
 from ....core.components.interactions import ConservationInteraction, RateInteraction
 from ....core.components.laws.utils import coordinate, integral_transform, integration_variable
 from ....core.components.spaces import AxisSpec, BaseSpace, FiniteVolumeSpec, LatticeSpace, PhaseSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import RK4Solver
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, RK4Solver
 from ....core.errors import ValidationError
 from ....core.specs import VisualSpec
+from ....core.systems import BaseSystem, System
 from ..common.kinetics import ActivityDensityElement
 
 PAIRWISE_VICTORIES = ('fermi', 'local', 'tullock')
@@ -185,25 +186,16 @@ class SelectionDriftInteraction(ConservationInteraction):
             The state is not a name, or a function is not callable.
 
     Examples:
-        >>> from typing import Annotated
         >>> import numpy as np
-        >>> from skcomplex.core.components.elements import Element, FieldElement
+        >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.spaces import LatticeSpace
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.social.cooperation import SelectionDriftInteraction
-        >>> class CellElement(Element):
-        ...     def __init__(self, label, u: Annotated[float, StateSpec()] = 0.0):
-        ...         super().__init__(label)
-        ...         self.u = u
-        >>> space = LatticeSpace((50,), spacing=0.1, boundary='periodic')
+        >>> space = LatticeSpace((50,), spacing=0.1, boundary='periodic', discretization='finite-volume')
         >>> values = {'u': np.exp(-((np.arange(50) - 25) / 5.0) ** 2)}
-        >>> volumes = 'finite-volume'
-        >>> field = FieldElement('tracer', element=CellElement, space=space, values=values, discretization=volumes)
         >>> drift = SelectionDriftInteraction('drift', target='tracer', state='u', drift=lambda s: 1.0)
-        >>> system = CompositeSystem(elements=[field], interactions=[drift])
-        >>> trajectory = simulate(system, until=1.0, dt=0.01)
+        >>> system = System(elements=[Element('tracer', values=values, space=space)], interactions=[drift])
+        >>> trajectory = system.prepare().simulate(until=1.0, dt=0.01)
         >>> total = trajectory.get_values('tracer.u')[-1].sum()
         >>> round(float(total), 6) == round(float(values['u'].sum()), 6)
         True
@@ -310,13 +302,19 @@ class NonlinearPairwiseGroupConflictSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The victory probability is unknown.
 
     Examples:
         >>> from skcomplex.systems.social.cooperation import NonlinearPairwiseGroupConflictSystem
-        >>> NonlinearPairwiseGroupConflictSystem(40).prepare().system_.elements[0].prepare().size_
+        >>> NonlinearPairwiseGroupConflictSystem(40).prepare().system_.elements[0].x.size
         40
     """
 
@@ -325,7 +323,6 @@ class NonlinearPairwiseGroupConflictSystem(BaseSystem):
     references = REFERENCES
     until = 15.0
     dt = 0.5
-    solver = RK4Solver(dt=0.01)
 
     @staticmethod
     def _get_pairwise_payoff(z: Fraction, payoffs: tuple[float, ...]) -> Fraction:
@@ -357,8 +354,10 @@ class NonlinearPairwiseGroupConflictSystem(BaseSystem):
         sensitivity: float = 2.0,
         exponent: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.cells = cells
         self.victory = victory
         self.group_strength = group_strength
@@ -400,8 +399,9 @@ class NonlinearPairwiseGroupConflictSystem(BaseSystem):
         own_share, other_share = (own - lowest) ** (1 / exponent), (other - lowest) ** (1 / exponent)
         return own_share / (own_share + other_share)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         NonlinearPairwiseGroupConflictSystem._check_victory(self.victory, PAIRWISE_VICTORIES)
         payoffs = (self.benefit, self.cost, self.punishment, self.interaction_cost, self.fixed_cost)
         z, u = coordinate('z'), integration_variable('z')
@@ -425,15 +425,9 @@ class NonlinearPairwiseGroupConflictSystem(BaseSystem):
         advantage = (self.punishment + self.interaction_cost) * z - (
             self.cost + self.fixed_cost + self.interaction_cost
         )
-        space = PhaseSpace(LatticeSpace((1,)), [AxisSpec('z', self.cells, 0.0, 1.0)])
-        groups = FieldElement(
-            'groups',
-            element=ActivityDensityElement,
-            space=space,
-            values={'x': np.ones((1, self.cells))},
-            discretization='finite-volume',
-            scheme=FiniteVolumeSpec(limiter=None),
-        )
+        position = LatticeSpace((1,), discretization='finite-volume', scheme=FiniteVolumeSpec(limiter=None))
+        space = PhaseSpace(position, [AxisSpec('z', self.cells, 0.0, 1.0)])
+        groups = ActivityDensityElement('groups', x=np.ones((1, self.cells)), space=space)
         within = SelectionDriftInteraction(
             'within',
             target='groups',
@@ -446,7 +440,7 @@ class NonlinearPairwiseGroupConflictSystem(BaseSystem):
             state='x',
             rate=lambda s: self.group_strength * s.target.x * integral_transform(s.target.x, gain, ('z',)),
         )
-        return CompositeSystem(self.label, elements=[groups], interactions=[within, between])
+        self.system_ = System(self.label, elements=[groups], interactions=[within, between], solver=RK4Solver(dt=0.01))
 
 
 class TwoLevelReplicatorSystem(BaseSystem):
@@ -492,13 +486,19 @@ class TwoLevelReplicatorSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The victory probability is unknown.
 
     Examples:
         >>> from skcomplex.systems.social.cooperation import TwoLevelReplicatorSystem
-        >>> TwoLevelReplicatorSystem(40).prepare().system_.elements[0].prepare().size_
+        >>> TwoLevelReplicatorSystem(40).prepare().system_.elements[0].x.size
         40
     """
 
@@ -507,7 +507,6 @@ class TwoLevelReplicatorSystem(BaseSystem):
     references = REFERENCES
     until = 40.0
     dt = 1.0
-    solver = RK4Solver(dt=0.01)
 
     def __init__(
         self,
@@ -521,8 +520,10 @@ class TwoLevelReplicatorSystem(BaseSystem):
         interaction_cost: float = 0.5,
         fixed_cost: float = 0.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.cells = cells
         self.victory = victory
         self.group_strength = group_strength
@@ -546,8 +547,9 @@ class TwoLevelReplicatorSystem(BaseSystem):
             values.max() - values.min(),
         )
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         NonlinearPairwiseGroupConflictSystem._check_victory(self.victory, ADDITIVE_VICTORIES)
         payoffs = (self.benefit, self.cost, self.punishment, self.interaction_cost, self.fixed_cost)
         z, u = coordinate('z'), integration_variable('z')
@@ -555,15 +557,9 @@ class TwoLevelReplicatorSystem(BaseSystem):
         advantage = (self.punishment + self.interaction_cost) * z - (
             self.cost + self.fixed_cost + self.interaction_cost
         )
-        space = PhaseSpace(LatticeSpace((1,)), [AxisSpec('z', self.cells, 0.0, 1.0)])
-        groups = FieldElement(
-            'groups',
-            element=ActivityDensityElement,
-            space=space,
-            values={'x': np.ones((1, self.cells))},
-            discretization='finite-volume',
-            scheme=FiniteVolumeSpec(limiter=None),
-        )
+        position = LatticeSpace((1,), discretization='finite-volume', scheme=FiniteVolumeSpec(limiter=None))
+        space = PhaseSpace(position, [AxisSpec('z', self.cells, 0.0, 1.0)])
+        groups = ActivityDensityElement('groups', x=np.ones((1, self.cells)), space=space)
         within = SelectionDriftInteraction(
             'within',
             target='groups',
@@ -576,7 +572,7 @@ class TwoLevelReplicatorSystem(BaseSystem):
             state='x',
             rate=lambda s: self.group_strength * s.target.x * integral_transform(s.target.x, gain, ('z',)),
         )
-        return CompositeSystem(self.label, elements=[groups], interactions=[within, between])
+        self.system_ = System(self.label, elements=[groups], interactions=[within, between], solver=RK4Solver(dt=0.01))
 
 
 class TrimorphicMultilevelSelectionSystem(BaseSystem):
@@ -620,13 +616,19 @@ class TrimorphicMultilevelSelectionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The victory probability is unknown.
 
     Examples:
         >>> from skcomplex.systems.social.cooperation import TrimorphicMultilevelSelectionSystem
-        >>> TrimorphicMultilevelSelectionSystem(10).prepare().system_.elements[0].prepare().size_
+        >>> TrimorphicMultilevelSelectionSystem(10).prepare().system_.elements[0].x.size
         100
     """
 
@@ -635,7 +637,6 @@ class TrimorphicMultilevelSelectionSystem(BaseSystem):
     references = REFERENCES
     until = 30.0
     dt = 1.0
-    solver = RK4Solver(dt=0.01)
 
     @staticmethod
     def _get_trimorphic_payoff(x: Fraction, y: Fraction, payoffs: tuple[float, ...]) -> Fraction:
@@ -678,8 +679,10 @@ class TrimorphicMultilevelSelectionSystem(BaseSystem):
         interaction_cost: float = 0.1,
         fixed_cost: float = 0.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.cells = cells
         self.victory = victory
         self.group_strength = group_strength
@@ -718,21 +721,16 @@ class TrimorphicMultilevelSelectionSystem(BaseSystem):
         exploited = cost + fixed - punishment + punishment * x + (punishment + interaction) * y
         return [0, x * ((1 - x) * punished - y * exploited), y * ((1 - y) * exploited - x * punished)]
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         NonlinearPairwiseGroupConflictSystem._check_victory(self.victory, TRIMORPHIC_VICTORIES)
         payoffs = (self.benefit, self.cost, self.punishment, self.interaction_cost, self.fixed_cost)
         gain = self._get_trimorphic_victory_gain(self.victory, payoffs)
         axes = [AxisSpec('x', self.cells, 0.0, 1.0), AxisSpec('y', self.cells, 0.0, 1.0)]
-        space = SimplexSpace(LatticeSpace((1,)), axes)
-        groups = FieldElement(
-            'groups',
-            element=GroupDensityElement,
-            space=space,
-            values={'x': 2.0 * (space.prepare().volumes_ > 0)},
-            discretization='finite-volume',
-            scheme=FiniteVolumeSpec(limiter=None),
-        )
+        position = LatticeSpace((1,), discretization='finite-volume', scheme=FiniteVolumeSpec(limiter=None))
+        space = SimplexSpace(position, axes)
+        groups = GroupDensityElement('groups', x=2.0 * (space.prepare().volumes_ > 0), space=space)
         drift = self._get_simplex_drift(payoffs)
         within = SelectionDriftInteraction('within', target='groups', state='x', drift=lambda _: drift)
         between = RateInteraction(
@@ -741,4 +739,4 @@ class TrimorphicMultilevelSelectionSystem(BaseSystem):
             state='x',
             rate=lambda s: self.group_strength * s.target.x * integral_transform(s.target.x, gain, ('x', 'y')),
         )
-        return CompositeSystem(self.label, elements=[groups], interactions=[within, between])
+        self.system_ = System(self.label, elements=[groups], interactions=[within, between], solver=RK4Solver(dt=0.01))

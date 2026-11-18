@@ -6,6 +6,7 @@ They run from success to the successful to drift to low performance.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -13,12 +14,13 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element
+from ....core.components.elements import Element, Quantity
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.laws.utils import distributed_delay, series, where
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 
 ACTORS = ('a', 'b', 'c')
 ALLOCATION_TABLE = ((0.0, 0.2, 0.5, 0.8, 1.0), (0.0, 0.05, 0.5, 0.95, 1.0))
@@ -31,11 +33,11 @@ class ArmsRaceElement(Element):
         self,
         label: str,
         *,
-        a: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='arms')] = 10.0,
-        b: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='arms')] = 10.5,
-        margin: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        adjustment_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        perception_delay: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        a: Annotated[object, RealSet.closed_open(0, oo), Quantity('arms')] = 10.0,
+        b: Annotated[object, RealSet.closed_open(0, oo), Quantity('arms')] = 10.5,
+        margin: Annotated[object, RealSet.closed_open(0, oo)] = 0.1,
+        adjustment_time: Annotated[object, RealSet.open(0, oo)] = 2.0,
+        perception_delay: Annotated[object, RealSet.open(0, oo)] = 1.0,
     ) -> None:
         super().__init__(label)
         self.a = a
@@ -52,13 +54,13 @@ class BurdenElement(Element):
         self,
         label: str,
         *,
-        capability: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='capability')] = 0.5,
-        intervention: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='intervention')] = 0.0,
-        desired: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        fix_rate: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        build_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
-        solution_delay: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        erosion: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        capability: Annotated[object, RealSet.closed_open(0, oo), Quantity('capability')] = 0.5,
+        intervention: Annotated[object, RealSet.closed_open(0, oo), Quantity('intervention')] = 0.0,
+        desired: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        fix_rate: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        build_time: Annotated[object, RealSet.open(0, oo)] = 5.0,
+        solution_delay: Annotated[object, RealSet.open(0, oo)] = 2.0,
+        erosion: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
     ) -> None:
         super().__init__(label)
         self.capability = capability
@@ -77,10 +79,10 @@ class ContestElement(Element):
         self,
         label: str,
         *,
-        a: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='resources')] = 55.0,
-        b: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='resources')] = 45.0,
-        budget: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        lifetime: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        a: Annotated[object, RealSet.closed_open(0, oo), Quantity('resources')] = 55.0,
+        b: Annotated[object, RealSet.closed_open(0, oo), Quantity('resources')] = 45.0,
+        budget: Annotated[object, RealSet.closed_open(0, oo)] = 10.0,
+        lifetime: Annotated[object, RealSet.open(0, oo)] = 10.0,
     ) -> None:
         super().__init__(label)
         self.a = a
@@ -96,14 +98,14 @@ class PerformanceElement(Element):
         self,
         label: str,
         *,
-        performance: Annotated[object, StateSpec(quantity='performance')] = 1.0,
-        perceived: Annotated[object, StateSpec(quantity='performance')] = 1.0,
-        desired: Annotated[object, StateSpec(quantity='performance')] = 1.0,
-        bias: Annotated[object, ParameterSpec(domain=RealSet.open(-oo, 1))] = 0.1,
-        perception_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        correction_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        goal_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
-        erosion: Annotated[object, ParameterSpec(domain=RealSet.closed(0, 1))] = 1.0,
+        performance: Annotated[object, Quantity('performance')] = 1.0,
+        perceived: Annotated[object, Quantity('performance')] = 1.0,
+        desired: Annotated[object, Quantity('performance')] = 1.0,
+        bias: Annotated[object, RealSet.open(-oo, 1)] = 0.1,
+        perception_time: Annotated[object, RealSet.open(0, oo)] = 2.0,
+        correction_time: Annotated[object, RealSet.open(0, oo)] = 2.0,
+        goal_time: Annotated[object, RealSet.open(0, oo)] = 5.0,
+        erosion: Annotated[object, RealSet.closed(0, 1)] = 1.0,
     ) -> None:
         super().__init__(label)
         self.performance = performance
@@ -123,17 +125,17 @@ class StandoffElement(Element):
         self,
         label: str,
         *,
-        stock: Annotated[object, StateSpec(quantity='stock')] = 50.0,
-        effort_a: Annotated[object, StateSpec(quantity='effort')] = 0.0,
-        effort_b: Annotated[object, StateSpec(quantity='effort')] = 0.0,
-        effort_c: Annotated[object, StateSpec(quantity='effort')] = 0.0,
-        goal_a: Annotated[object, ParameterSpec()] = 80.0,
-        goal_b: Annotated[object, ParameterSpec()] = 20.0,
-        goal_c: Annotated[object, ParameterSpec()] = 50.0,
-        strength_a: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        strength_b: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        strength_c: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        intensification_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        stock: Annotated[object, Quantity('stock')] = 50.0,
+        effort_a: Annotated[object, Quantity('effort')] = 0.0,
+        effort_b: Annotated[object, Quantity('effort')] = 0.0,
+        effort_c: Annotated[object, Quantity('effort')] = 0.0,
+        goal_a: object = 80.0,
+        goal_b: object = 20.0,
+        goal_c: object = 50.0,
+        strength_a: Annotated[object, RealSet.closed_open(0, oo)] = 0.1,
+        strength_b: Annotated[object, RealSet.closed_open(0, oo)] = 0.1,
+        strength_c: Annotated[object, RealSet.closed_open(0, oo)] = 0.1,
+        intensification_time: Annotated[object, RealSet.open(0, oo)] = 10.0,
     ) -> None:
         super().__init__(label)
         self.stock = stock
@@ -189,6 +191,12 @@ class SuccessToTheSuccessfulSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.organizations import SuccessToTheSuccessfulSystem
         >>> SuccessToTheSuccessfulSystem(a=60.0).prepare().system_.elements[0].a
@@ -213,8 +221,10 @@ class SuccessToTheSuccessfulSystem(BaseSystem):
         budget: float = 10.0,
         lifetime: float = 10.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.a = a
         self.b = b
         self.budget = budget
@@ -246,8 +256,9 @@ class SuccessToTheSuccessfulSystem(BaseSystem):
         """
         return s.source.b / s.source.lifetime
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         allocation = TransferInteraction(
             'allocation',
             source='contest',
@@ -262,7 +273,7 @@ class SuccessToTheSuccessfulSystem(BaseSystem):
                 ('b', Sink('depreciation'), self._get_depreciation_b, 'depreciation_b'),
             ],
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[ContestElement('contest', a=self.a, b=self.b, budget=self.budget, lifetime=self.lifetime)],
             interactions=[allocation],
@@ -315,6 +326,12 @@ class ShiftingTheBurdenSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.organizations import ShiftingTheBurdenSystem
         >>> ShiftingTheBurdenSystem(fix_rate=0.0).prepare().system_.elements[0].fix_rate
@@ -339,8 +356,10 @@ class ShiftingTheBurdenSystem(BaseSystem):
         solution_delay: float = 2.0,
         erosion: float = 0.5,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.capability = capability
         self.intervention = intervention
         self.desired = desired
@@ -365,8 +384,9 @@ class ShiftingTheBurdenSystem(BaseSystem):
         """Return the erosion of capability by the intervention."""
         return s.source.erosion * s.source.intervention * s.source.capability
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         burden = BurdenElement(
             'burden',
             capability=self.capability,
@@ -390,7 +410,7 @@ class ShiftingTheBurdenSystem(BaseSystem):
                 ('capability', Sink('atrophy'), self._get_erosion, 'erosion'),
             ],
         )
-        return CompositeSystem(self.label, elements=[burden], interactions=[flows])
+        self.system_ = System(self.label, elements=[burden], interactions=[flows])
 
 
 def _get_desired_a(s: SimpleNamespace) -> Expression:
@@ -440,6 +460,12 @@ class EscalationSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.organizations import EscalationSystem
         >>> EscalationSystem(margin=0.2).prepare().system_.elements[0].margin
@@ -465,8 +491,10 @@ class EscalationSystem(BaseSystem):
         adjustment_time: float = 2.0,
         perception_delay: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.a = a
         self.b = b
         self.margin = margin
@@ -487,8 +515,9 @@ class EscalationSystem(BaseSystem):
         desired = _get_desired_b(race)
         return where(desired > race.b, desired - race.b, 0) / race.adjustment_time
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         race = ArmsRaceElement(
             'race',
             a=self.a,
@@ -507,7 +536,7 @@ class EscalationSystem(BaseSystem):
             flow='build_a',
             legs=[(Source('production'), 'b', self._build_b, 'build_b')],
         )
-        return CompositeSystem(self.label, elements=[race], interactions=[build])
+        self.system_ = System(self.label, elements=[race], interactions=[build])
 
 
 def _get_compromise(s: SimpleNamespace) -> Expression:
@@ -552,6 +581,12 @@ class PolicyResistanceSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.organizations import PolicyResistanceSystem
         >>> PolicyResistanceSystem(strengths=(0.1, 0.0, 0.1)).prepare().system_.elements[0].strength_b
@@ -581,8 +616,10 @@ class PolicyResistanceSystem(BaseSystem):
         strengths: tuple[float, float, float] = (0.1, 0.1, 0.1),
         intensification_time: float = 10.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.stock = stock
         self.goals = goals
         self.strengths = strengths
@@ -623,8 +660,9 @@ class PolicyResistanceSystem(BaseSystem):
         """
         return PolicyResistanceSystem._pull(s.source, 'c') / s.source.intensification_time
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         standoff = StandoffElement(
             'standoff',
             stock=self.stock,
@@ -650,7 +688,7 @@ class PolicyResistanceSystem(BaseSystem):
                 (Source('actors'), 'effort_c', self._intensify_c, 'intensify_c'),
             ],
         )
-        return CompositeSystem(self.label, elements=[standoff], interactions=[actions])
+        self.system_ = System(self.label, elements=[standoff], interactions=[actions])
 
 
 def _get_discrepancy(s: SimpleNamespace) -> Expression:
@@ -696,6 +734,12 @@ class DriftToLowPerformanceSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.organizations import DriftToLowPerformanceSystem
         >>> DriftToLowPerformanceSystem(absolute=True).prepare().system_.elements[0].erosion
@@ -719,8 +763,10 @@ class DriftToLowPerformanceSystem(BaseSystem):
         goal_time: float = 5.0,
         absolute: bool = False,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.performance = performance
         self.bias = bias
         self.perception_time = perception_time
@@ -754,8 +800,9 @@ class DriftToLowPerformanceSystem(BaseSystem):
         performance = s.source
         return performance.erosion * (performance.perceived - performance.desired) / performance.goal_time
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         element = PerformanceElement(
             'performance',
             performance=self.performance,
@@ -780,4 +827,4 @@ class DriftToLowPerformanceSystem(BaseSystem):
                 (Source('standards'), 'desired', self._get_goal_erosion, 'goal_erosion'),
             ],
         )
-        return CompositeSystem(self.label, elements=[element], interactions=[flows])
+        self.system_ = System(self.label, elements=[element], interactions=[flows])

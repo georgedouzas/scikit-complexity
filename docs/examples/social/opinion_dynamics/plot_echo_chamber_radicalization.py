@@ -14,14 +14,13 @@ opposite echo chambers with it.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.opinion_dynamics import EchoChamberRadicalizationSystem
 
 SYSTEM = 'echo_chamber_radicalization'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(EchoChamberRadicalizationSystem(), observers=[observer], random_state=0)
+trajectory = EchoChamberRadicalizationSystem().prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Consensus, radicalization, and polarization
@@ -36,7 +35,7 @@ cases = {
 }
 fig, axes = plt.subplots(1, 3, figsize=(12, 4))
 for axis, (name, system) in zip(axes, cases.items(), strict=True):
-    trajectory = simulate(system, until=100, random_state=0)
+    trajectory = system.prepare().simulate(until=100, random_state=0)
     opinions = np.array([trajectory.get_agents('agents', frame).values['opinion'] for frame in range(101)])
     axis.plot(np.asarray(trajectory.times) / 10, opinions[:, ::5], linewidth=0.6)
     axis.set_xlabel('time')

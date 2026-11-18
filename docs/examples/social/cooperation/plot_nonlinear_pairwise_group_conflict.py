@@ -17,7 +17,6 @@ of punishers on the right.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.cooperation import NonlinearPairwiseGroupConflictSystem
@@ -27,7 +26,7 @@ CELLS = 100
 
 system = NonlinearPairwiseGroupConflictSystem(cells=CELLS, group_strength=2.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='groups/x', interval=1)
-trajectory = simulate(system, solver=RK4Solver(dt=0.01), observers=[observer])
+trajectory = system.set_params(solver=RK4Solver(dt=0.01)).prepare().simulate(observers=[observer])
 
 # %%
 # Strength of between-group conflict
@@ -51,7 +50,7 @@ for victory in ('fermi', 'local', 'tullock'):
     finals = []
     for strength in strengths:
         model = NonlinearPairwiseGroupConflictSystem(cells=50, victory=victory, group_strength=strength, exponent=2.0)
-        run = simulate(model, dt=15.0, solver=RK4Solver(dt=0.02))
+        run = model.set_params(solver=RK4Solver(dt=0.02)).prepare().simulate(dt=15.0)
         finals.append(run.get_values('groups.x')[-1].reshape(50) @ ((np.arange(50) + 0.5) / 50) / 50)
     means.plot(strengths, finals, 'o-', label=victory)
 means.set_xlabel('strength of between-group conflict lambda')

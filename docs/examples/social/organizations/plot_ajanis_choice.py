@@ -14,14 +14,13 @@ without any employer planning it.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.organizations import AjanisChoiceSystem
 
 SYSTEM = 'ajanis_choice'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(AjanisChoiceSystem(), observers=[observer], random_state=0)
+trajectory = AjanisChoiceSystem().prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Slaves appear only when labour is plentiful
@@ -30,7 +29,7 @@ trajectory = simulate(AjanisChoiceSystem(), observers=[observer], random_state=0
 # paid below it, slave-days in Chesney's words. With 600 workers, fewer than the jobs, wages should rise to the top of
 # the range and no worker should be underpaid.
 
-scarce = simulate(AjanisChoiceSystem(n_workers=300), random_state=0)
+scarce = AjanisChoiceSystem(n_workers=300).prepare().simulate(random_state=0)
 fig, (wages, slaves) = plt.subplots(1, 2, figsize=(10, 4))
 for name, run in (('1000 workers', trajectory), ('600 workers', scarce)):
     mean = [np.mean(run.get_agents('employers', frame).values['wage']) for frame in range(len(run.times))]

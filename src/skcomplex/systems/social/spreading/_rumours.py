@@ -3,17 +3,23 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, JumpLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.components.laws import JumpLaw
+from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 
 
 class ListenersElement(Element):
@@ -36,7 +42,7 @@ class ListenersElement(Element):
         self,
         label: str,
         *,
-        n: Annotated[float, StateSpec(domain=NN)] = 0,
+        n: Annotated[float, NN] = 0,
     ) -> None:
         super().__init__(label)
         self.n = n
@@ -79,11 +85,11 @@ class RumourContactsInteraction(Interaction):
         self,
         label: str,
         *,
-        ignorants: Annotated[str, RoleSpec()],
-        spreaders: Annotated[str, RoleSpec()],
-        stiflers: Annotated[str, RoleSpec()],
-        spread: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        stifle: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        ignorants: Role,
+        spreaders: Role,
+        stiflers: Role,
+        spread: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        stifle: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
     ) -> None:
         super().__init__(label)
         self.ignorants = ignorants
@@ -92,23 +98,19 @@ class RumourContactsInteraction(Interaction):
         self.spread = spread
         self.stifle = stifle
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the telling and stifling jumps.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        ignorants, spreaders, stiflers = s.ignorants.n, s.spreaders.n, s.stiflers.n
-        total = ignorants + spreaders + stiflers
-        return [
-            JumpLaw(s.spread * ignorants * spreaders / total, {ignorants: -1, spreaders: 1}),
-            JumpLaw(s.stifle * spreaders * (spreaders - 1 + stiflers) / total, {spreaders: -1, stiflers: 1}),
-        ]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the telling and stifling jumps as the laws."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            ignorants, spreaders, stiflers = context.ignorants.n, context.spreaders.n, context.stiflers.n
+            total = ignorants + spreaders + stiflers
+            self.laws_: list[BaseComponent] = [
+                JumpLaw(context.spread * ignorants * spreaders / total, {ignorants: -1, spreaders: 1}),
+                JumpLaw(
+                    context.stifle * spreaders * (spreaders - 1 + stiflers) / total,
+                    {spreaders: -1, stiflers: 1},
+                ),
+            ]
 
 
 class MakiThompsonSystem(BaseSystem):
@@ -129,6 +131,12 @@ class MakiThompsonSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.spreading import MakiThompsonSystem
         >>> [element.n for element in MakiThompsonSystem(100).prepare().system_.elements]
@@ -148,15 +156,18 @@ class MakiThompsonSystem(BaseSystem):
         spread: float = 1.0,
         stifle: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_people = n_people
         self.spread = spread
         self.stifle = stifle
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[
                 ListenersElement('ignorants', n=self.n_people - 1),

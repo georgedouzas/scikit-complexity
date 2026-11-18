@@ -6,19 +6,24 @@ The competition is Moran within groups and pairwise conflicts between them.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.components.laws import UpdateLaw
+from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
 PAIR = 2
@@ -45,6 +50,9 @@ class PunisherGroupElement(Element):
         punishers:
             The number of altruistic punishers of the group.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.social.cooperation import PunisherGroupElement
         >>> PunisherGroupElement('group', punishers=3.0).punishers
@@ -55,9 +63,10 @@ class PunisherGroupElement(Element):
         self,
         label: str,
         *,
-        punishers: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        punishers: Annotated[object, NN] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.punishers = punishers
 
     @classmethod
@@ -114,21 +123,21 @@ class TwoLevelBirthDeathInteraction(Interaction):
 
     draws = True
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        members: Annotated[int, ParameterSpec(domain=NN)] = 20,
-        selection: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        conflict_rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        benefit: Annotated[float, ParameterSpec()] = 2.0,
-        cost: Annotated[float, ParameterSpec()] = 1.0,
-        punishment: Annotated[float, ParameterSpec()] = 0.5,
-        interaction_cost: Annotated[float, ParameterSpec()] = 0.5,
-        fixed_cost: Annotated[float, ParameterSpec()] = 0.0,
+        target: Role,
+        members: Annotated[int, NN] = 20,
+        selection: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        conflict_rate: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
+        benefit: float = 2.0,
+        cost: float = 1.0,
+        punishment: float = 0.5,
+        interaction_cost: float = 0.5,
+        fixed_cost: float = 0.0,
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -141,18 +150,11 @@ class TwoLevelBirthDeathInteraction(Interaction):
         self.interaction_cost = interaction_cost
         self.fixed_cost = fixed_cost
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the birth-death rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.compete)]
+    def _prepare(self, s: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the birth-death rule."""
+        super()._prepare(s)
+        if isinstance(s, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(s, self.compete)]
 
     def _get_birth_rates(self, punishers: Array) -> tuple[Array, Array]:
         """Return the rates at which the punishers and the defectors reproduce.
@@ -176,7 +178,7 @@ class TwoLevelBirthDeathInteraction(Interaction):
             system:
                 The system.
         """
-        groups = system.get_agents(self.target, PunisherGroupView)
+        groups = cast(list[PunisherGroupView], system.get_agents(self.target))
         size = len(groups)
         if size < PAIR:
             return
@@ -255,9 +257,15 @@ class TwoLevelBirthDeathSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.cooperation import TwoLevelBirthDeathSystem
-        >>> TwoLevelBirthDeathSystem(10).prepare().system_.elements[0].prepare().size_
+        >>> TwoLevelBirthDeathSystem(10).prepare().system_.elements[0].size
         10
     """
 
@@ -280,8 +288,10 @@ class TwoLevelBirthDeathSystem(BaseSystem):
         fixed_cost: float = 0.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.groups = groups
         self.members = members
         self.selection = selection
@@ -293,14 +303,14 @@ class TwoLevelBirthDeathSystem(BaseSystem):
         self.fixed_cost = fixed_cost
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
-        population = GroupElement(
+        population = PunisherGroupElement(
             'groups',
-            element=PunisherGroupElement,
+            punishers=rng.integers(self.members + 1, size=self.groups).astype(float),
             size=self.groups,
-            values={'punishers': rng.integers(self.members + 1, size=self.groups).astype(float)},
         )
         competition = TwoLevelBirthDeathInteraction(
             'competition',
@@ -314,4 +324,4 @@ class TwoLevelBirthDeathSystem(BaseSystem):
             interaction_cost=self.interaction_cost,
             fixed_cost=self.fixed_cost,
         )
-        return CompositeSystem(self.label, elements=[population], interactions=[competition])
+        self.system_ = System(self.label, elements=[population], interactions=[competition])

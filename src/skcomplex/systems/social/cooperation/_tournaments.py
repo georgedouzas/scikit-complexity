@@ -6,19 +6,25 @@ The iterated dilemma is the prisoner's dilemma.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Annotated
+from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated, cast
 
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import GroupingInteraction
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.engine.solvers import AgentView
-from ....core.specs import RoleSpec, StateSpec, VisualSpec
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
+from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.specs import Role, VisualSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ...general.agents import EvolutionInteraction
 
@@ -53,12 +59,17 @@ class StrategistElement(Element):
         fitness:
             The mean score per round of the last tournament.
 
+        size:
+            The number of agents, or `None` for one.
+
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.cooperation import StrategistElement
-        >>> group = GroupElement('agents', element=StrategistElement, size=10, values={'genome': [1.0] * 7})
-        >>> group.label, group.element.__name__, group.size
-        ('agents', 'StrategistElement', 10)
+        >>> group = StrategistElement('agents', genome=[1.0] * 7, size=10)
+        >>> group.label, group.size
+        ('agents', 10)
     """
 
     visual = VisualSpec('histograms', {'color_by': 'fitness'})
@@ -67,10 +78,11 @@ class StrategistElement(Element):
         self,
         label: str,
         *,
-        genome: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 1.0,
-        fitness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        genome: npt.ArrayLike = 1.0,
+        fitness: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.genome = genome
         self.fitness = fitness
 
@@ -134,7 +146,7 @@ def play(first: npt.ArrayLike, second: npt.ArrayLike, rounds: int = 6) -> tuple[
     return scores[0], scores[1]
 
 
-class TournamentInteraction(GroupingInteraction):
+class TournamentInteraction(Interaction):
     """Tournament of strategies of the iterated prisoner's dilemma.
 
     Every step the agents stand in a random ring, and every agent forms a group with its two neighbours in the ring,
@@ -159,38 +171,46 @@ class TournamentInteraction(GroupingInteraction):
         6
     """
 
+    law_classes = (UpdateLaw,)
+    draws = True
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         rounds: int = 6,
         phase: str | None = None,
     ) -> None:
-        super().__init__(label, target=target, groups='neighborhood', phase=phase)
+        super().__init__(label)
+        self.target = target
         self.rounds = rounds
+        self.phase = phase
 
-    def _get_groups(self, system: SystemViewProtocol) -> list[list[AgentViewProtocol]]:
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the games of every step as the rule of the system."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context, self._play, phase=self.phase)]
+
+    def _play(self, system: SystemView) -> None:
+        """Play the games of one step, the groups in random order."""
+        groups = self._get_groups(system)
+        for index in system.rng.permutation(len(groups)):
+            self._score(groups[int(index)])
+
+    @staticmethod
+    def _get_groups(system: SystemView) -> list[list[StrategistView]]:
         """Return every agent of a random ring followed by its two neighbours in the ring."""
-        agents = [agent for agent in system.get_agents('target') if agent.alive]
+        agents = [agent for agent in cast(list[StrategistView], system.get_agents('target')) if agent.alive]
         if len(agents) < PAIR:
             return []
         ring = [agents[int(index)] for index in system.rng.permutation(len(agents))]
         return [[agent, ring[position - 1], ring[(position + 1) % len(ring)]] for position, agent in enumerate(ring)]
 
-    def act_on(self, members: list[AgentViewProtocol], system: SystemViewProtocol) -> None:
-        """Set the fitness of the first member to its mean score per round.
-
-        The score is against the two others.
-
-        Args:
-            members:
-                The agent, followed by its two neighbours in the ring.
-
-            system:
-                The system view of the rule.
-        """
-        agent, *opponents = [member for member in members if isinstance(member, StrategistView)]
+    def _score(self, members: list[StrategistView]) -> None:
+        """Set the fitness of the first member to its mean score per round against the two others."""
+        agent, *opponents = members
         total = sum(play(agent.genome, opponent.genome, self.rounds)[0] for opponent in opponents)
         agent.fitness = total / (PAIR * self.rounds)
 
@@ -220,9 +240,15 @@ class PrisonersDilemmaTournamentSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.cooperation import PrisonersDilemmaTournamentSystem
-        >>> PrisonersDilemmaTournamentSystem(10, random_state=0).prepare().system_.elements[0].prepare().size_
+        >>> PrisonersDilemmaTournamentSystem(10, random_state=0).prepare().system_.elements[0].size
         10
     """
 
@@ -240,24 +266,22 @@ class PrisonersDilemmaTournamentSystem(BaseSystem):
         mutation: float = 0.05,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_agents = n_agents
         self.rounds = rounds
         self.death = death
         self.mutation = mutation
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         genomes = np.random.default_rng(self.random_state).integers(0, 2, (self.n_agents, GENES)).astype(float)
-        agents = GroupElement(
-            'agents',
-            element=StrategistElement,
-            size=self.n_agents,
-            values={'genome': genomes},
-        )
-        return CompositeSystem(
+        agents = StrategistElement('agents', genome=genomes, size=self.n_agents)
+        self.system_ = System(
             self.label,
             elements=[agents],
             interactions=[

@@ -249,6 +249,11 @@ Two kinds of model need forms that the table above does not name yet.
   the target of a `RateLaw`, such as `RateLaw(fractional(s.target.x, 0.5), -s.k * s.target.x)` for anomalous
   relaxation. Sage has no such derivative, so the operator carries the order and the Caputo solver reads it.
 
+- Flows between stocks. A flow is two rate terms with the same label, `RateLaw(source.n, -f, label='births')` and
+  `RateLaw(sink.n, f, label='births')`, set by one interaction. The loops analysis and the flow matrix read a flow as
+  the rate terms that share a label across stocks, and the trajectory records each labelled flow by name. A flow from
+  outside the system or out of it has only its sink or its source. No law kind is added.
+
 A field law first becomes a recipe of the seven kinds and the core reductions where it can, such as Bak-Sneppen as an
 `UpdateLaw` on the site where `argmin` falls, so it needs no engine code. A law that truly needs numerics of its own,
 such as the Lindblad equation, finite volumes, Cayley graphs, or rewriting, moves with that support: the field package
@@ -353,11 +358,11 @@ The core holds only the components that general systems of several fields are bu
 
 `SimplexSpace` moves to `skcomplex.systems.social.common`, and `CayleySpace`, `MemoryNeighborhood`, and
 `StateTranslationNeighborhood` move to `skcomplex.systems.computer_science.common.automata` with their engine support.
-`BaseTime`, `ContinuousTime`, `DiscreteTime`, and `StaticTime` leave the public API. The laws of single fields move as the
-table of section 4 says: `DissipatorLaw` to the quantum package, `CascadeLaw` to criticality, `ExtremalLaw` to the
-evolution package of biology, `BilinearLaw` to `skcomplex.systems.general.kinetics`, `MatchLaw` to
-`skcomplex.systems.general.matching`, and `ProductionLaw` and `SubstitutionLaw` to `skcomplex.systems.general.rewriting`.
-The core keeps 25 public classes in these families, down from 79.
+`BaseTime`, `ContinuousTime`, `DiscreteTime`, and `StaticTime` leave the public API. The laws of single fields go as the
+table of section 4 says: the quantum generator and dissipator with `HilbertSpec` and their compiler to the quantum
+package, `ProductionLaw` and `SubstitutionLaw` with their compiler to `skcomplex.systems.general.rewriting`, `CascadeLaw`
+to the core operator `relax`, `BilinearLaw` to the core operator `bilinear`, `ExtremalLaw` to an `UpdateLaw` recipe,
+`MatchLaw` to `pairs`, and `FluxLaw` to a `RateLaw` of a divergence on a finite-volume space.
 
 Everything else that is field-specific moves to `skcomplex.systems.<field>.common.<family>` when one field uses it, or
 to `skcomplex.systems.general.<concept>` when several fields share it as a recipe. Moving code never deletes meaningful

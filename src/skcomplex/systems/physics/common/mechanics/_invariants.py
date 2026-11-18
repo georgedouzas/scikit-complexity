@@ -282,7 +282,7 @@ def _get_lagrangian(base: InvariantsResult) -> tuple[Expression, dict[Expression
                 positions = _components(getattr(member, state))
                 rates = _components(getattr(member, f'{state}_d1'))
                 velocities.update(dict(zip(positions, rates, strict=True)))
-        lagrangian += SR(interaction._get_lagrangian(own))
+        lagrangian += interaction._get_symbolic_lagrangian(own)
     if not velocities:
         error_msg = (
             'The system has neither a HamiltonianInteraction nor an EulerLagrangeInteraction, so it has no Hamiltonian '
