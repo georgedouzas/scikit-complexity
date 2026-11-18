@@ -471,7 +471,8 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
                 laws.append(rule)
                 continue
             translated = self._get_law_in_states(law, time, functions)
-            terms = FlowTermLaw._get_terms(translated, self.label) if isinstance(translated, RateLaw) else [translated]
+            flow = isinstance(translated, RateLaw | UpdateLaw)
+            terms = FlowTermLaw._get_terms(translated, self.label) if flow else [translated]
             laws.extend(self._get_local_rule(self._get_normalized(term)) for term in terms)
         return laws
 

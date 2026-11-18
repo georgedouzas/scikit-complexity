@@ -251,7 +251,7 @@ class LaneEntryInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             occupied = context.target.occupied
             enters = (1 - occupied) * bernoulli('entry', context.alpha)
-            self.laws_ = [UpdateLaw(occupied, occupied + enters, increment=True)]
+            self.laws_ = [UpdateLaw({occupied: +1}, enters, increment=True, label=self.label)]
 
 
 class LaneExitInteraction(Interaction):
@@ -291,7 +291,7 @@ class LaneExitInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             occupied = context.target.occupied
             leaves = occupied * bernoulli('exit', context.beta)
-            self.laws_ = [UpdateLaw(occupied, occupied - leaves, increment=True)]
+            self.laws_ = [UpdateLaw({occupied: -1}, leaves, increment=True, label=self.label)]
 
 
 class PercolationSiteElement(Element):
@@ -823,7 +823,8 @@ class TASEPSystem(BaseSystem):
     every pair of neighbouring sites. On an open line particles enter the first site with probability `alpha` and
     leave the last site with probability `beta`. On a ring at density `rho` the current is `(1 - sqrt(1 - 4 p rho (1 -
     rho))) / 2`. On an open line the entry and exit probabilities select the low-density, high-density, or
-    maximal-current phase. The system has the occupations `lane.occupied`.
+    maximal-current phase. The system has the occupations `lane.occupied`, and on an open line the expected entries
+    `lane.entry` and exits `lane.exit` of every step.
 
     Args:
         n_sites:
