@@ -16,7 +16,7 @@ class ProductionLaw(BaseLaw):
     """A law that rewrites every matching symbol of a word by a successor.
 
     A string rewriting system, or L-system, grows a word by replacing each symbol by a string at every generation. A
-    word element returns its productions from `_get_laws`, and every generation applies all of them at once. The
+    interaction that binds a word sets its productions, and every generation applies all of them at once. The
     parameters of the predecessor are symbols bound to the parameters of each matching symbol. The condition, the
     parameters of the successor, and the probability are expressions of these symbols and of the parameters of the
     element. A production with a left or a right context matches only where the neighbours spell it, skipping ignored

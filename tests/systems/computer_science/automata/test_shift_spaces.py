@@ -1,6 +1,7 @@
 """Test the `_shift_spaces` module of `skcomplex.systems.computer_science.automata`."""
 
 import re
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -10,7 +11,7 @@ from skcomplex.systems.computer_science.automata import (
     AddingMachineSystem,
     ContextFreeSubshiftSystem,
     GapSubshiftSystem,
-    MorseElement,
+    MorseInteraction,
     MorseSubshiftSystem,
 )
 
@@ -94,4 +95,5 @@ def test_adding_machine_counts_through_every_residue():
 
 def test_morse_element_doubles_every_letter():
     """Test that the Morse substitution sends 0 to 01 and 1 to 10."""
-    assert [law.successor for law in MorseElement('morse', axiom='0')._get_laws(None)] == ['01', '10']
+    interaction = MorseInteraction('doubling', target='morse').prepare(SimpleNamespace(target=None))
+    assert [law.successor for law in interaction.laws_] == ['01', '10']

@@ -18,16 +18,16 @@ from ._quadratic import (
     QuadraticMapInteraction,
 )
 from ._substitution import (
-    CantorElement,
+    CantorInteraction,
     CantorSetSystem,
     KochCurveSystem,
-    KochElement,
-    SierpinskiElement,
+    KochInteraction,
+    SierpinskiInteraction,
     SierpinskiSubstitutionSystem,
 )
 
 __all__: list[str] = [
-    'CantorElement',
+    'CantorInteraction',
     'CantorSetSystem',
     'ChaosGameSystem',
     'ChaosPointElement',
@@ -36,11 +36,11 @@ __all__: list[str] = [
     'InverseJuliaSystem',
     'JuliaSystem',
     'KochCurveSystem',
-    'KochElement',
+    'KochInteraction',
     'MandelbrotSystem',
     'QuadraticMapElement',
     'QuadraticMapInteraction',
     'RandomAffineMapInteraction',
-    'SierpinskiElement',
+    'SierpinskiInteraction',
     'SierpinskiSubstitutionSystem',
 ]

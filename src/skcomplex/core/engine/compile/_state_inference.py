@@ -174,8 +174,14 @@ class _StateInference:
 
     @staticmethod
     def _is_plain(component: BaseComponent) -> bool:
-        """Return whether an element has values but declares no states or laws."""
+        """Return whether an element has values but declares no states or laws.
+
+        An element whose class names a compiler of its own, such as a word that productions rewrite, is read by that
+        compiler as it is, so it is not plain.
+        """
         if not isinstance(component, Element) or isinstance(component, DeclaredElement):
+            return False
+        if type(component)._get_compiler is not BaseElement._get_compiler:
             return False
         if type(component)._get_laws is not Element._get_laws or not _StateInference._get_values(component):
             return False
