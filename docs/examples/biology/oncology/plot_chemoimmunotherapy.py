@@ -13,7 +13,6 @@ gone after the third, while the NK cells expand and the circulating lymphocytes 
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import ChemoimmunotherapySystem
@@ -37,7 +36,7 @@ arms = {
 }
 fig, (tumour, tcells) = plt.subplots(1, 2, figsize=(10, 4))
 for name, arm in arms.items():
-    trajectory = simulate(arm, dt=0.25, solver=SOLVER, until=60)
+    trajectory = arm.set_params(solver=SOLVER).prepare().simulate(dt=0.25, until=60)
     tumour.semilogy(trajectory.times, trajectory.get_values('tumour.A').clip(1e-2), label=name)
     tcells.semilogy(trajectory.times, trajectory.get_values('tumour.E').clip(1e-2), label=name)
 combined = trajectory

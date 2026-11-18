@@ -14,8 +14,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element, FieldElement, GroupElement
-from ....core.components.interactions import MapInteraction, RateInteraction, TransferInteraction
-from ....core.components.laws import Source
+from ....core.components.interactions import Interaction, MapInteraction, TransferInteraction
+from ....core.components.laws import RateLaw, Source
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import CompositeSystem
@@ -397,23 +397,22 @@ class ActiveWalkersSystem(BaseSystem):
                     'land',
                     elements=[ground],
                     interactions=[
-                        RateInteraction(
+                        Interaction(
                             'fading',
-                            target='ground',
-                            state='G',
-                            rate=lambda s: -s.target.G / self._get_durability(s),
+                            roles={'target': 'ground'},
+                            laws=lambda s: [RateLaw(s.target.G, -s.target.G / self._get_durability(s))],
                         ),
-                        RateInteraction(
+                        Interaction(
                             'spreading',
-                            target='ground',
-                            state='V',
-                            rate=lambda s: self._get_diffusion(s) * laplacian(s.target.V),
+                            roles={'target': 'ground'},
+                            laws=lambda s: [RateLaw(s.target.V, self._get_diffusion(s) * laplacian(s.target.V))],
                         ),
-                        RateInteraction(
+                        Interaction(
                             'smoothing',
-                            target='ground',
-                            state='V',
-                            rate=lambda s: (self._get_structure(s) - s.target.V) / self._get_relaxation(s),
+                            roles={'target': 'ground'},
+                            laws=lambda s: [
+                                RateLaw(s.target.V, (self._get_structure(s) - s.target.V) / self._get_relaxation(s)),
+                            ],
                         ),
                     ],
                 ),

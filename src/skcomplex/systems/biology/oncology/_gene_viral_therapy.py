@@ -12,7 +12,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import RateInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, ScipyODESolver
 from ....core.systems import BaseSystem, System
@@ -600,7 +601,11 @@ class TCRGeneTherapySystem(BaseSystem):
         )
         interactions = [
             DosingInteraction('influx', target='site', state='E', dose=lambda s: s.target.s),
-            RateInteraction('stimulation', target='site', state='E', rate=lambda s: s.target.alpha * s.target.A),
+            Interaction(
+                'stimulation',
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.E, s.target.alpha * s.target.A)],
+            ),
             ReactionInteraction(
                 'effector_death',
                 target='site',
@@ -615,11 +620,10 @@ class TCRGeneTherapySystem(BaseSystem):
                 vmax=lambda s: s.target.r1,
                 km=lambda s: s.target.g1,
             ),
-            RateInteraction(
+            Interaction(
                 'tumour_growth',
-                target='site',
-                state='A',
-                rate=lambda s: s.target.r2 * s.target.A * (1 - s.target.b * s.target.A),
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.A, s.target.r2 * s.target.A * (1 - s.target.b * s.target.A))],
             ),
             MichaelisMentenInteraction(
                 'kill',
@@ -739,11 +743,10 @@ class SirnaTGFBetaSystem(BaseSystem):
             du=self.du,
         )
         interactions = [
-            RateInteraction(
+            Interaction(
                 'stimulation',
-                target='site',
-                state='E',
-                rate=lambda s: s.target.alpha * s.target.A / (1 + s.target.gamma1 * s.target.C2),
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.E, s.target.alpha * s.target.A / (1 + s.target.gamma1 * s.target.C2))],
             ),
             ReactionInteraction(
                 'effector_death',
@@ -751,20 +754,23 @@ class SirnaTGFBetaSystem(BaseSystem):
                 reactants={'E': 1},
                 propensity=lambda s: s.target.d1 * s.target.E,
             ),
-            RateInteraction(
+            Interaction(
                 'effector_proliferation',
-                target='site',
-                state='E',
-                rate=lambda s: s.target.E
-                * s.target.C1
-                / (s.target.g1 + s.target.C1)
-                * (s.target.rho1 - s.target.rmax * s.target.C2 / (s.target.g2 + s.target.C2)),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.E,
+                        s.target.E
+                        * s.target.C1
+                        / (s.target.g1 + s.target.C1)
+                        * (s.target.rho1 - s.target.rmax * s.target.C2 / (s.target.g2 + s.target.C2)),
+                    ),
+                ],
             ),
-            RateInteraction(
+            Interaction(
                 'tumour_growth',
-                target='site',
-                state='A',
-                rate=lambda s: s.target.r1 * s.target.A * (1 - s.target.b * s.target.A),
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.A, s.target.r1 * s.target.A * (1 - s.target.b * s.target.A))],
             ),
             MichaelisMentenInteraction(
                 'kill',
@@ -784,14 +790,18 @@ class SirnaTGFBetaSystem(BaseSystem):
                 km=lambda s: s.target.g4,
                 modifiers={'A': 1},
             ),
-            RateInteraction(
+            Interaction(
                 'il2_production',
-                target='site',
-                state='C1',
-                rate=lambda s: s.target.rho3
-                * s.target.E
-                * s.target.A
-                / ((s.target.g5 + s.target.A) * (1 + s.target.gamma2 * s.target.C2)),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.C1,
+                        s.target.rho3
+                        * s.target.E
+                        * s.target.A
+                        / ((s.target.g5 + s.target.A) * (1 + s.target.gamma2 * s.target.C2)),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'il2_loss',
@@ -799,13 +809,17 @@ class SirnaTGFBetaSystem(BaseSystem):
                 reactants={'C1': 1},
                 propensity=lambda s: s.target.d2 * s.target.C1,
             ),
-            RateInteraction(
+            Interaction(
                 'tgf_beta_production',
-                target='site',
-                state='C2',
-                rate=lambda s: s.target.rho4
-                * s.target.A**2
-                / (s.target.mu**2 + (1 + s.target.psi * s.target.G**s.target.gamma3) * s.target.A**2),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.C2,
+                        s.target.rho4
+                        * s.target.A**2
+                        / (s.target.mu**2 + (1 + s.target.psi * s.target.G**s.target.gamma3) * s.target.A**2),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'tgf_beta_loss',
@@ -903,17 +917,15 @@ class OncolyticVirusSystem(BaseSystem):
         super()._prepare(context)
         tumour = OncolyticVirusElement('tumour', AU=self.AU, AV=self.AV, alpha=self.alpha, r=self.r, d=self.d)
         interactions = [
-            RateInteraction(
+            Interaction(
                 'uninfected_growth',
-                target='tumour',
-                state='AU',
-                rate=lambda s: s.target.AU * (1 - s.target.AU - s.target.AV),
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.AU, s.target.AU * (1 - s.target.AU - s.target.AV))],
             ),
-            RateInteraction(
+            Interaction(
                 'infected_growth',
-                target='tumour',
-                state='AV',
-                rate=lambda s: s.target.r * s.target.AV * (1 - s.target.AU - s.target.AV),
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.AV, s.target.r * s.target.AV * (1 - s.target.AU - s.target.AV))],
             ),
             ReactionInteraction(
                 'infection',
@@ -1026,7 +1038,11 @@ class OncolyticVirusDendriticSystem(BaseSystem):
             a5=self.a5,
         )
         interactions = [
-            RateInteraction('tumour_growth', target='site', state='AU', rate=lambda s: s.target.r1 * s.target.AU),
+            Interaction(
+                'tumour_growth',
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.AU, s.target.r1 * s.target.AU)],
+            ),
             ReactionInteraction(
                 'infection',
                 target='site',
@@ -1064,11 +1080,10 @@ class OncolyticVirusDendriticSystem(BaseSystem):
                 reactants={'AV': 1},
                 propensity=lambda s: s.target.a2 * s.target.AV,
             ),
-            RateInteraction(
+            Interaction(
                 'virus_release',
-                target='site',
-                state='V',
-                rate=lambda s: s.target.r2 * s.target.a2 * s.target.AV,
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.V, s.target.r2 * s.target.a2 * s.target.AV)],
             ),
             DosingInteraction('virus_injection', target='site', state='V', dose=lambda s: s.target.uv),
             ReactionInteraction(
@@ -1077,16 +1092,32 @@ class OncolyticVirusDendriticSystem(BaseSystem):
                 reactants={'V': 1},
                 propensity=lambda s: s.target.du1 * s.target.V,
             ),
-            RateInteraction('effector_recruitment', target='site', state='E', rate=lambda s: s.target.a3 * s.target.AV),
-            RateInteraction('naive_activation', target='site', state='E', rate=lambda s: s.target.m * s.target.EN),
-            RateInteraction('dendritic_activation', target='site', state='E', rate=lambda s: s.target.a4 * s.target.D),
+            Interaction(
+                'effector_recruitment',
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.E, s.target.a3 * s.target.AV)],
+            ),
+            Interaction(
+                'naive_activation',
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.E, s.target.m * s.target.EN)],
+            ),
+            Interaction(
+                'dendritic_activation',
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.E, s.target.a4 * s.target.D)],
+            ),
             ReactionInteraction(
                 'effector_death',
                 target='site',
                 reactants={'E': 1},
                 propensity=lambda s: s.target.d1 * s.target.E,
             ),
-            RateInteraction('naive_recruitment', target='site', state='EN', rate=lambda s: s.target.a5 * s.target.AV),
+            Interaction(
+                'naive_recruitment',
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.EN, s.target.a5 * s.target.AV)],
+            ),
             ReactionInteraction(
                 'naive_death',
                 target='site',

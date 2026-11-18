@@ -15,7 +15,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import RateInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import delayed, hill, pulse
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -378,17 +379,17 @@ class GlucoseDualHormoneControlSystem(BaseSystem):
                 products={'G': 1},
                 propensity=lambda s: s.target.k_n * s.target.N,
             ),
-            RateInteraction(
+            Interaction(
                 'meal',
-                target='organism',
-                state='G',
-                rate=lambda s: s.target.meal * pulse(s.t, organism.meal_time, organism.duration),
+                roles={'target': 'organism'},
+                laws=lambda s: [RateLaw(s.target.G, s.target.meal * pulse(s.t, organism.meal_time, organism.duration))],
             ),
-            RateInteraction(
+            Interaction(
                 'exercise',
-                target='organism',
-                state='G',
-                rate=lambda s: -s.target.exercise * pulse(s.t, organism.exercise_time, organism.duration),
+                roles={'target': 'organism'},
+                laws=lambda s: [
+                    RateLaw(s.target.G, -s.target.exercise * pulse(s.t, organism.exercise_time, organism.duration)),
+                ],
             ),
             ReactionInteraction(
                 'insulin_secretion',
@@ -498,11 +499,10 @@ class CoagulationPositiveFeedbackSystem(BaseSystem):
             ka=self.ka,
         )
         interactions = [
-            RateInteraction(
+            Interaction(
                 'trigger',
-                target='blood',
-                state='T',
-                rate=lambda s: s.target.injury * pulse(s.t, blood.injury_time, blood.duration),
+                roles={'target': 'blood'},
+                laws=lambda s: [RateLaw(s.target.T, s.target.injury * pulse(s.t, blood.injury_time, blood.duration))],
             ),
             ReactionInteraction(
                 'thrombin_feedback',

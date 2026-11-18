@@ -15,7 +15,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import RateInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
@@ -1029,11 +1030,10 @@ class ChemoimmunotherapySystem(BaseSystem):
             doses=self.doses,
         )
         interactions = [
-            RateInteraction(
+            Interaction(
                 'tumour_growth',
-                target='tumour',
-                state='A',
-                rate=lambda s: s.target.r1 * s.target.A * (1 - s.target.b1 * s.target.A),
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.A, s.target.r1 * s.target.A * (1 - s.target.b1 * s.target.A))],
             ),
             ReactionInteraction(
                 'nk_kill',
@@ -1054,18 +1054,23 @@ class ChemoimmunotherapySystem(BaseSystem):
                 reactants={'A': 1},
                 propensity=lambda s: s.target.a2 * (1 - exp(-s.target.M)) * s.target.A,
             ),
-            RateInteraction('nk_production', target='tumour', state='N', rate=lambda s: s.target.m1 * s.target.C),
+            Interaction(
+                'nk_production',
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.N, s.target.m1 * s.target.C)],
+            ),
             ReactionInteraction(
                 'nk_death',
                 target='tumour',
                 reactants={'N': 1},
                 propensity=lambda s: s.target.d1 * s.target.N,
             ),
-            RateInteraction(
+            Interaction(
                 'nk_recruitment',
-                target='tumour',
-                state='N',
-                rate=lambda s: s.target.r2 * s.target.A**2 / (s.target.g2 + s.target.A**2) * s.target.N,
+                roles={'target': 'tumour'},
+                laws=lambda s: [
+                    RateLaw(s.target.N, s.target.r2 * s.target.A**2 / (s.target.g2 + s.target.A**2) * s.target.N),
+                ],
             ),
             ReactionInteraction(
                 'nk_inactivation',
@@ -1080,16 +1085,18 @@ class ChemoimmunotherapySystem(BaseSystem):
                 reactants={'N': 1},
                 propensity=lambda s: s.target.a3 * (1 - exp(-s.target.M)) * s.target.N,
             ),
-            RateInteraction(
+            Interaction(
                 'effector_recruitment',
-                target='tumour',
-                state='E',
-                rate=lambda s: (
-                    s.target.r3
-                    * (self._get_effector_kill(s.target) * s.target.A) ** 2
-                    / (s.target.g3 + (self._get_effector_kill(s.target) * s.target.A) ** 2)
-                    * s.target.E
-                ),
+                roles={'target': 'tumour'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.E,
+                        s.target.r3
+                        * (self._get_effector_kill(s.target) * s.target.A) ** 2
+                        / (s.target.g3 + (self._get_effector_kill(s.target) * s.target.A) ** 2)
+                        * s.target.E,
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'effector_death',
@@ -1116,11 +1123,12 @@ class ChemoimmunotherapySystem(BaseSystem):
                 reactants={'E': 1},
                 propensity=lambda s: s.target.a4 * (1 - exp(-s.target.M)) * s.target.E,
             ),
-            RateInteraction(
+            Interaction(
                 'effector_activation',
-                target='tumour',
-                state='E',
-                rate=lambda s: (s.target.r4 * s.target.N + s.target.r5 * s.target.C) * s.target.A,
+                roles={'target': 'tumour'},
+                laws=lambda s: [
+                    RateLaw(s.target.E, (s.target.r4 * s.target.N + s.target.r5 * s.target.C) * s.target.A),
+                ],
             ),
             MichaelisMentenInteraction(
                 'il2_proliferation',
@@ -1141,7 +1149,11 @@ class ChemoimmunotherapySystem(BaseSystem):
                 start=tumour.start,
                 count=tumour.doses,
             ),
-            RateInteraction('lymphocyte_production', target='tumour', state='C', rate=lambda s: s.target.s1),
+            Interaction(
+                'lymphocyte_production',
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.C, s.target.s1)],
+            ),
             ReactionInteraction(
                 'lymphocyte_death',
                 target='tumour',
@@ -1298,11 +1310,10 @@ class ClonalChemoimmunotherapySystem(BaseSystem):
             u_vaccine=self.u_vaccine,
         )
         interactions = [
-            RateInteraction(
+            Interaction(
                 'first_growth',
-                target='tumour',
-                state='A1',
-                rate=lambda s: s.target.r1 * s.target.A1 * (1 - s.target.b1 * s.target.A1),
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.A1, s.target.r1 * s.target.A1 * (1 - s.target.b1 * s.target.A1))],
             ),
             ReactionInteraction(
                 'first_competition',
@@ -1331,11 +1342,10 @@ class ClonalChemoimmunotherapySystem(BaseSystem):
                 modifiers={'E': 1},
                 propensity=lambda s: s.target.b1 * s.target.u_vaccine * s.target.A1 * s.target.E,
             ),
-            RateInteraction(
+            Interaction(
                 'second_growth',
-                target='tumour',
-                state='A2',
-                rate=lambda s: s.target.r2 * s.target.A2 * (1 - s.target.b2 * s.target.A2),
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.A2, s.target.r2 * s.target.A2 * (1 - s.target.b2 * s.target.A2))],
             ),
             ReactionInteraction(
                 'second_competition',
@@ -1364,17 +1374,20 @@ class ClonalChemoimmunotherapySystem(BaseSystem):
                 modifiers={'E': 1},
                 propensity=lambda s: s.target.b2 * s.target.u_vaccine * s.target.A2 * s.target.E,
             ),
-            RateInteraction(
+            Interaction(
                 'immune_growth',
-                target='tumour',
-                state='E',
-                rate=lambda s: s.target.r3 * s.target.E * (1 - s.target.E / s.target.theta),
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.E, s.target.r3 * s.target.E * (1 - s.target.E / s.target.theta))],
             ),
-            RateInteraction(
+            Interaction(
                 'immune_stimulation',
-                target='tumour',
-                state='E',
-                rate=lambda s: (s.target.s1 * s.target.A1 + s.target.s2 * s.target.A2) * s.target.E / s.target.theta,
+                roles={'target': 'tumour'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.E,
+                        (s.target.s1 * s.target.A1 + s.target.s2 * s.target.A2) * s.target.E / s.target.theta,
+                    ),
+                ],
             ),
         ]
         self.system_ = System(self.label, elements=[tumour], interactions=interactions)
@@ -1476,11 +1489,12 @@ class ChemovirotherapySystem(BaseSystem):
             infusion=self.infusion,
         )
         interactions = [
-            RateInteraction(
+            Interaction(
                 'tumour_growth',
-                target='tumour',
-                state='AU',
-                rate=lambda s: s.target.r1 * s.target.AU * (1 - s.target.b * (s.target.AU + s.target.AV)),
+                roles={'target': 'tumour'},
+                laws=lambda s: [
+                    RateLaw(s.target.AU, s.target.r1 * s.target.AU * (1 - s.target.b * (s.target.AU + s.target.AV))),
+                ],
             ),
             ReactionInteraction(
                 'infection',
@@ -1509,11 +1523,10 @@ class ChemovirotherapySystem(BaseSystem):
                 modifiers={'U': 1},
                 propensity=lambda s: s.target.a3 * s.target.AV * s.target.U,
             ),
-            RateInteraction(
+            Interaction(
                 'burst',
-                target='tumour',
-                state='V',
-                rate=lambda s: s.target.beta_v * s.target.a2 * s.target.AV,
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.V, s.target.beta_v * s.target.a2 * s.target.AV)],
             ),
             ReactionInteraction(
                 'virus_clearance',
@@ -1527,11 +1540,10 @@ class ChemovirotherapySystem(BaseSystem):
                 reactants={'U': 1},
                 propensity=lambda s: s.target.d_u * s.target.U,
             ),
-            RateInteraction(
+            Interaction(
                 'infusion',
-                target='tumour',
-                state='U',
-                rate=lambda s: s.target.u1 * self._get_infusion_shape(s, self.infusion),
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.U, s.target.u1 * self._get_infusion_shape(s, self.infusion))],
             ),
         ]
         self.system_ = System(self.label, elements=[tumour], interactions=interactions)
@@ -1613,11 +1625,10 @@ class GliomaChemovirotherapySystem(BaseSystem):
         super()._prepare(context)
         brain = GliomaBrainElement('brain', AU=self.AU, V=self.V, u1=self.u1)
         interactions = [
-            RateInteraction(
+            Interaction(
                 'glia_growth',
-                target='brain',
-                state='G',
-                rate=lambda s: s.target.r1 * s.target.G * (1 - s.target.b * s.target.G),
+                roles={'target': 'brain'},
+                laws=lambda s: [RateLaw(s.target.G, s.target.r1 * s.target.G * (1 - s.target.b * s.target.G))],
             ),
             ReactionInteraction(
                 'glia_competition',
@@ -1654,11 +1665,12 @@ class GliomaChemovirotherapySystem(BaseSystem):
                 km=lambda s: s.target.g2,
                 modifiers={'U': 1},
             ),
-            RateInteraction(
+            Interaction(
                 'glioma_growth',
-                target='brain',
-                state='AU',
-                rate=lambda s: s.target.r2 * s.target.AU * (1 - s.target.b * (s.target.AU + s.target.AV)),
+                roles={'target': 'brain'},
+                laws=lambda s: [
+                    RateLaw(s.target.AU, s.target.r2 * s.target.AU * (1 - s.target.b * (s.target.AU + s.target.AV))),
+                ],
             ),
             ReactionInteraction(
                 'glioma_competition',
@@ -1689,11 +1701,10 @@ class GliomaChemovirotherapySystem(BaseSystem):
                 reactants={'AV': 1},
                 propensity=lambda s: s.target.a4 * s.target.AV,
             ),
-            RateInteraction(
+            Interaction(
                 'burst',
-                target='brain',
-                state='V',
-                rate=lambda s: s.target.beta_v * s.target.a4 * s.target.AV,
+                roles={'target': 'brain'},
+                laws=lambda s: [RateLaw(s.target.V, s.target.beta_v * s.target.a4 * s.target.AV)],
             ),
             ReactionInteraction(
                 'virus_clearance',
@@ -1993,11 +2004,10 @@ class AngiogenesisImmunotherapySystem(BaseSystem):
             doses=self.doses,
         )
         interactions = [
-            RateInteraction(
+            Interaction(
                 'tumour_growth',
-                target='tumour',
-                state='A',
-                rate=lambda s: -s.target.v1 * s.target.A * log(s.target.A / s.target.Vb),
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.A, -s.target.v1 * s.target.A * log(s.target.A / s.target.Vb))],
             ),
             ReactionInteraction(
                 'immune_kill',
@@ -2012,7 +2022,11 @@ class AngiogenesisImmunotherapySystem(BaseSystem):
                 reactants={'Vb': 1},
                 propensity=lambda s: s.target.v2 * s.target.Vb,
             ),
-            RateInteraction('stimulation', target='tumour', state='Vb', rate=lambda s: s.target.xi_s * s.target.A),
+            Interaction(
+                'stimulation',
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.Vb, s.target.xi_s * s.target.A)],
+            ),
             ReactionInteraction(
                 'inhibition',
                 target='tumour',
@@ -2025,11 +2039,12 @@ class AngiogenesisImmunotherapySystem(BaseSystem):
                 reactants={'Vb': 1},
                 propensity=lambda s: s.target.a2 * s.target.Vb * self._get_drug_effect(s.target, 'an'),
             ),
-            RateInteraction(
+            Interaction(
                 'immune_growth',
-                target='tumour',
-                state='E',
-                rate=lambda s: s.target.r1 * (s.target.A - s.target.c1 * s.target.A**2) * s.target.E,
+                roles={'target': 'tumour'},
+                laws=lambda s: [
+                    RateLaw(s.target.E, s.target.r1 * (s.target.A - s.target.c1 * s.target.A**2) * s.target.E),
+                ],
             ),
             ReactionInteraction(
                 'immune_death',
@@ -2037,12 +2052,15 @@ class AngiogenesisImmunotherapySystem(BaseSystem):
                 reactants={'E': 1},
                 propensity=lambda s: s.target.d1 * s.target.E,
             ),
-            RateInteraction('immune_source', target='tumour', state='E', rate=lambda s: s.target.s_e),
-            RateInteraction(
+            Interaction(
+                'immune_source',
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.E, s.target.s_e)],
+            ),
+            Interaction(
                 'immune_boost',
-                target='tumour',
-                state='E',
-                rate=lambda s: s.target.a3 * s.target.E * self._get_drug_effect(s.target, 'im'),
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.E, s.target.a3 * s.target.E * self._get_drug_effect(s.target, 'im'))],
             ),
             DosingInteraction(
                 'dosing_an',
@@ -2073,11 +2091,15 @@ class AngiogenesisImmunotherapySystem(BaseSystem):
                 products={'c_an': 1},
                 propensity=lambda s: s.target.k21_an * s.target.q_an,
             ),
-            RateInteraction(
+            Interaction(
                 'resistance_an',
-                target='tumour',
-                state='R_an',
-                rate=lambda s: where(s.target.c_an < s.target.u_theta, s.target.u_theta - s.target.c_an, 0),
+                roles={'target': 'tumour'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.R_an,
+                        where(s.target.c_an < s.target.u_theta, s.target.u_theta - s.target.c_an, 0),
+                    ),
+                ],
             ),
             DosingInteraction(
                 'dosing_im',
@@ -2108,11 +2130,15 @@ class AngiogenesisImmunotherapySystem(BaseSystem):
                 products={'c_im': 1},
                 propensity=lambda s: s.target.k21_im * s.target.q_im,
             ),
-            RateInteraction(
+            Interaction(
                 'resistance_im',
-                target='tumour',
-                state='R_im',
-                rate=lambda s: where(s.target.c_im < s.target.u_theta, s.target.u_theta - s.target.c_im, 0),
+                roles={'target': 'tumour'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.R_im,
+                        where(s.target.c_im < s.target.u_theta, s.target.u_theta - s.target.c_im, 0),
+                    ),
+                ],
             ),
         ]
         self.system_ = System(self.label, elements=[tumour], interactions=interactions)

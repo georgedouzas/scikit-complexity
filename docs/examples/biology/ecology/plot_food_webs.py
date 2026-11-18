@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import stability
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import FoodWebsSystem
 
@@ -22,7 +21,7 @@ SYSTEM = 'food_webs'
 
 system = FoodWebsSystem().prepare().system_
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, dt=0.5, observers=[observer], until=100)
+trajectory = system.prepare().simulate(dt=0.5, observers=[observer], until=100)
 
 # %%
 # Stability of the equilibrium

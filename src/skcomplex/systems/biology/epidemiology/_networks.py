@@ -17,7 +17,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import CouplingInteraction, RateInteraction
+from ....core.components.interactions import CouplingInteraction, Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import laplacian
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -176,7 +177,11 @@ class HeterogeneousMeanFieldSISSystem(BaseSystem):
             values={'rho': self.rho, 'lam': self.lam, 'k': degrees, 'P': weights},
         )
         interactions = [
-            RateInteraction('recovery', target='network', state='rho', rate=self._get_recovery),
+            Interaction(
+                'recovery',
+                roles={'target': 'network'},
+                laws=lambda s: [RateLaw(s.target.rho, self._get_recovery(s))],
+            ),
             CouplingInteraction(
                 'infection',
                 target='network',

@@ -542,11 +542,10 @@ class DelayedLIFNetworkSystem(BaseSystem):
             for index, neuron in enumerate(neurons)
         ]
         traces = [
-            RateInteraction(
+            Interaction(
                 f'trace_decay_{index}',
-                target=neuron.label,
-                state='s',
-                rate=lambda s: -s.target.s / s.target.tau_s,
+                roles={'target': neuron.label},
+                laws=lambda s: [RateLaw(s.target.s, -s.target.s / s.target.tau_s)],
             )
             for index, neuron in enumerate(neurons)
         ]

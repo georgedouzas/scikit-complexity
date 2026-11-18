@@ -13,7 +13,6 @@ infected cells rise behind it.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import ChemovirotherapySystem
 
@@ -36,7 +35,7 @@ arms = {
 fig, (curves, bars) = plt.subplots(1, 2, figsize=(10, 4))
 finals = {}
 for name, arm in arms.items():
-    trajectory = simulate(arm, dt=0.2, until=32)
+    trajectory = arm.prepare().simulate(dt=0.2, until=32)
     total = trajectory.get_values('tumour.AU') + trajectory.get_values('tumour.AV')
     curves.semilogy(2 * trajectory.times, total, label=name)
     finals[name] = total[-1]

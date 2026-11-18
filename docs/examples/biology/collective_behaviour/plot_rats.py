@@ -13,7 +13,6 @@ rats start an outbreak and the colony settles with a share `1 - calming / contag
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.collective_behaviour import RatsSystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'rats'
 
 system = RatsSystem(n_rats=100, nervous=5, contagion=2.0, calming=1.0, spontaneous=0.0).prepare().system_
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, dt=0.1, observers=[observer], random_state=0, until=20)
+trajectory = system.prepare().simulate(dt=0.1, observers=[observer], random_state=0, until=20)
 
 # %%
 # The phase transition
@@ -33,7 +32,7 @@ contagions = np.linspace(0.25, 4.0, 16)
 shares = []
 for contagion in contagions:
     system = RatsSystem(contagion=contagion, calming=1.0, spontaneous=0.0, stochastic=False).prepare().system_
-    trajectory = simulate(system, dt=0.1, until=60)
+    trajectory = system.prepare().simulate(dt=0.1, until=60)
     shares.append(trajectory.get_values('nervous.x')[-1] / 100)
 grid = np.linspace(0.25, 4.0, 200)
 fig, ax = plt.subplots(figsize=(7, 4))

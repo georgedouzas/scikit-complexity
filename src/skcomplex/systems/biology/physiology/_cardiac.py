@@ -13,7 +13,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import Interaction, RateInteraction
+from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import BaseSpace, LatticeSpace
@@ -229,11 +229,10 @@ class AlievPanfilovSystem(BaseSystem):
             mu2=self.mu2,
             space=space,
         )
-        diffusion = RateInteraction(
+        diffusion = Interaction(
             'diffusion',
-            target='tissue',
-            state='u',
-            rate=lambda s: self.D * laplacian(s.target.u),
+            roles={'target': 'tissue'},
+            laws=lambda s: [RateLaw(s.target.u, self.D * laplacian(s.target.u))],
         )
         kinetics = AlievPanfilovInteraction('kinetics', target='tissue')
         self.system_ = System(

@@ -14,8 +14,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element, FieldElement, GroupElement
-from ....core.components.interactions import MapInteraction, RateInteraction, TransferInteraction
-from ....core.components.laws import Source
+from ....core.components.interactions import Interaction, MapInteraction, TransferInteraction
+from ....core.components.laws import RateLaw, Source
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import CompositeSystem
@@ -381,11 +381,12 @@ class PheromoneForagingSystem(BaseSystem):
                     'ground',
                     elements=[pheromone],
                     interactions=[
-                        RateInteraction(
+                        Interaction(
                             'diffusion',
-                            target='pheromone',
-                            state='level',
-                            rate=lambda s: self._get_diffusion(s) * laplacian(s.target.level),
+                            roles={'target': 'pheromone'},
+                            laws=lambda s: [
+                                RateLaw(s.target.level, self._get_diffusion(s) * laplacian(s.target.level)),
+                            ],
                         ),
                         EvaporationInteraction('evaporation', target='pheromone', state='level'),
                     ],

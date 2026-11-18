@@ -16,7 +16,7 @@ from sage.modules.free_module_element import FreeModuleElement
 from scipy.stats import irwinhall
 
 from ....core.components import Observable
-from ....core.components.interactions import ConservationInteraction, Interaction, RateInteraction
+from ....core.components.interactions import ConservationInteraction, Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import coordinate, integral_transform, integration_variable
 from ....core.components.spaces import AxisSpec, BaseSpace, FiniteVolumeSpec, LatticeSpace, PhaseSpace
@@ -742,10 +742,14 @@ class TrimorphicMultilevelSelectionSystem(BaseSystem):
         groups = GroupDensityElement('groups', x=2.0 * (space.prepare().volumes_ > 0), space=space)
         drift = self._get_simplex_drift(payoffs)
         within = SelectionDriftInteraction('within', target='groups', state='x', drift=lambda _: drift)
-        between = RateInteraction(
+        between = Interaction(
             'between',
-            target='groups',
-            state='x',
-            rate=lambda s: self.group_strength * s.target.x * integral_transform(s.target.x, gain, ('x', 'y')),
+            roles={'target': 'groups'},
+            laws=lambda s: [
+                RateLaw(
+                    s.target.x,
+                    self.group_strength * s.target.x * integral_transform(s.target.x, gain, ('x', 'y')),
+                ),
+            ],
         )
         self.system_ = System(self.label, elements=[groups], interactions=[within, between], solver=RK4Solver(dt=0.01))

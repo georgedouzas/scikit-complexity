@@ -13,7 +13,8 @@ import numpy as np
 
 from ....core.components import Observable
 from ....core.components.elements import FieldElement, GroupElement
-from ....core.components.interactions import RateInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.engine.backends import BaseBackend
@@ -210,17 +211,19 @@ class CometsSystem(BaseSystem):
                     threshold=0.0,
                 ),
                 GrowthInteraction('growth', cell='cells', biomass='biomass', reaction=GROWTH),
-                RateInteraction(
+                Interaction(
                     'biomass_spread',
-                    target='biomass',
-                    state='x',
-                    rate=lambda s: self.biomass_diffusion * SECONDS_PER_HOUR * laplacian(s.target.x),
+                    roles={'target': 'biomass'},
+                    laws=lambda s: [
+                        RateLaw(s.target.x, self.biomass_diffusion * SECONDS_PER_HOUR * laplacian(s.target.x)),
+                    ],
                 ),
-                RateInteraction(
+                Interaction(
                     'glucose_spread',
-                    target='glucose',
-                    state='c',
-                    rate=lambda s: self.glucose_diffusion * SECONDS_PER_HOUR * laplacian(s.target.c),
+                    roles={'target': 'glucose'},
+                    laws=lambda s: [
+                        RateLaw(s.target.c, self.glucose_diffusion * SECONDS_PER_HOUR * laplacian(s.target.c)),
+                    ],
                 ),
             ],
             space=space,
