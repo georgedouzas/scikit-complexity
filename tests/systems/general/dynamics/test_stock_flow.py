@@ -5,7 +5,7 @@ import pytest
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.laws import Sink, Source
+from skcomplex.core.analysis import loops
 from skcomplex.core.engine.backends import BaseBackend
 from skcomplex.core.engine.runtime import ConservationObserver
 from skcomplex.core.engine.solvers import BaseSolver
@@ -40,7 +40,7 @@ class TankSystem(StockFlowSystem):
         return {'k': self.k}
 
     def _get_flows(self) -> FlowTable:
-        return {'drain': ('level', None, lambda s: s.source.k * s.source.level)}
+        return {'drain': ('level', None, lambda s: s.target.k * s.target.level)}
 
 
 def tub(inflow: float, outflow: float) -> StockFlowSystem:
@@ -48,8 +48,8 @@ def tub(inflow: float, outflow: float) -> StockFlowSystem:
     return StockFlowSystem(
         stocks={'water': 50.0},
         flows={
-            'faucet': (None, 'water', lambda s: s.source.inflow),
-            'drain': ('water', None, lambda s: s.source.outflow),
+            'faucet': (None, 'water', lambda s: s.target.inflow),
+            'drain': ('water', None, lambda s: s.target.outflow),
         },
         parameters={'inflow': inflow, 'outflow': outflow},
         element='tub',
@@ -75,7 +75,7 @@ def test_stock_flow_between_stocks_keeps_the_total():
     """Test that flows between stocks keep their total."""
     system = StockFlowSystem(
         stocks={'a': 10.0, 'b': 0.0},
-        flows={'forth': ('a', 'b', lambda s: 0.3 * s.source.a), 'back': ('b', 'a', lambda s: 0.1 * s.source.b)},
+        flows={'forth': ('a', 'b', lambda s: 0.3 * s.target.a), 'back': ('b', 'a', lambda s: 0.1 * s.target.b)},
     )
     trajectory = system.prepare().simulate(until=40.0, dt=1.0)
     np.testing.assert_allclose(trajectory.get_values('stocks.a') + trajectory.get_values('stocks.b'), 10.0, rtol=1e-9)
@@ -91,24 +91,23 @@ def test_stock_flow_subclass_takes_its_own_parameters():
     assert 'tank.drain' in trajectory.names
 
 
-def test_stock_flow_takes_a_labelled_source_and_sink():
-    """Test that a labelled source and sink name the environment of a flow as `None` does unlabelled."""
+def test_stock_flow_flows_with_the_environment_have_one_stock():
+    """Test that a flow into the system and one out of it each change one stock, booked against the environment."""
     system = StockFlowSystem(
         stocks={'grain': 5.0},
-        flows={
-            'harvest': (Source('farms'), 'grain', lambda s: 2.0),
-            'release': ('grain', Sink('consumers'), lambda s: 2.0),
-        },
+        flows={'harvest': (None, 'grain', lambda s: 2.0), 'release': ('grain', None, lambda s: 2.0)},
     )
-    interactions = system.prepare().system_.interactions
-    assert [interactions[0].state.label, interactions[1].into.label] == ['farms', 'consumers']
     trajectory = system.prepare().simulate(until=3.0, dt=1.0)
     np.testing.assert_allclose(trajectory.get_values('stocks.grain'), 5.0)
+    np.testing.assert_allclose(trajectory.get_values('stocks.release'), 2.0)
+    matrix = loops(trajectory, kind='flow-matrix')
+    assert matrix.holders == ('environment', 'stocks.grain')
+    np.testing.assert_allclose(matrix.matrix, [[-2.0, 2.0], [2.0, -2.0]])
 
 
-def test_stock_flow_rejects_a_flow_between_two_environments():
-    """Test that a flow from a labelled source to a labelled sink names the flow."""
-    system = StockFlowSystem(stocks={'grain': 1.0}, flows={'pass': (Source('farms'), Sink('market'), lambda s: 1.0)})
+def test_stock_flow_rejects_a_flow_of_no_stock():
+    """Test that a flow that neither leaves nor enters a stock names the flow."""
+    system = StockFlowSystem(stocks={'grain': 1.0}, flows={'pass': (None, None, lambda s: 1.0)})
     with pytest.raises(ValidationError, match=r"'pass' .* neither leaves nor enters"):
         system.prepare()
 
@@ -117,7 +116,7 @@ def test_stock_flow_rejects_a_negative_stock_it_allows_only_nonnegative():
     """Test that a stock allowed only nonnegative values rejects a negative one."""
     system = StockFlowSystem(
         stocks={'level': -1.0},
-        flows={'drain': ('level', None, lambda s: s.source.level)},
+        flows={'drain': ('level', None, lambda s: s.target.level)},
         allowed={'level': RealSet.closed_open(0, oo)},
         element='tank',
     )
@@ -129,7 +128,7 @@ def test_stock_flow_keeps_the_quantity_of_a_stock():
     """Test that the conservation monitor follows the quantity a stock holds."""
     system = StockFlowSystem(
         stocks={'water': 1.0},
-        flows={'drain': ('water', None, lambda s: s.source.water)},
+        flows={'drain': ('water', None, lambda s: s.target.water)},
         quantities={'water': 'water'},
         element='tub',
     )

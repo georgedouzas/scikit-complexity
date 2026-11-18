@@ -61,10 +61,11 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
 
     It checks that conserved quantities change only through flows. `prepare(compilation)` reads the quantity of every
     tagged state, and `run(laws)` takes the laws of every kernel spec and sets them in `lowered_` with their flows
-    expanded into laws of other kinds. The labelled rate terms of a spec that share a label are recorded as one flow. A later pass finishes the lowering on the laws of every spec after their complex
-    states and Markov laws are lowered: it checks the conserved quantities and lowers the flows and the delays into the
-    transfer network of the system. The flows of a system that declares discrete time, or that holds update laws, move
-    their amounts once per step. A flow that draws records its expected amount at the state of every frame.
+    expanded into laws of other kinds, and the labelled rate terms of a spec that share a label recorded as one flow. A
+    later pass finishes the lowering on the laws of every spec after their complex states and Markov laws are lowered:
+    it checks the conserved quantities and lowers the flows and the delays into the transfer network of the system.
+    The flows of a system that declares discrete time, or that holds update laws, move their amounts once per step. A
+    flow that draws records its expected amount at the state of every frame.
 
     Attributes:
         quantities_:
@@ -372,16 +373,16 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
 
     @staticmethod
     def _is_negated(value: Expression) -> bool:
-        """Return whether a value is written with a leading minus sign, such as `-k*x`."""
-        return str(value).count('-') > str(-value).count('-')
+        """Return whether Sage writes a value with a leading minus sign, such as `-k*x`."""
+        return str(value).startswith('-')
 
     def _record_flow(self, spec: KernelSpec, label: str, terms: list[RateLaw]) -> None:
         """Record the rate terms of a spec that share a label as one flow.
 
-        A flow takes from its source what it gives to its sink, so two terms add up to zero, and the term written with a
-        minus sign, or else the first, is its source. A flow from outside the system has only its sink, and a flow out
-        of it only its source, written with a minus sign. The flow is reported under the element of its stocks, or under
-        the component when its stocks belong to several elements.
+        A flow takes from its source what it gives to its sink, so two terms add up to zero, and the first term is on
+        its source. A flow from outside the system has only its sink, and a flow out of it only its source, whose term
+        Sage writes with a leading minus sign. The flow is reported under the element of its stocks, or under the
+        component when its stocks belong to several elements.
 
         Raises:
             ValidationError:
@@ -405,8 +406,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
             )
             raise ValidationError(error_msg)
         if len(terms) == FLOW_TERMS:
-            first = 1 if self._is_negated(values[1]) and not self._is_negated(values[0]) else 0
-            source, sink, amount = names[first], names[1 - first], values[1 - first]
+            source, sink, amount = names[0], names[1], values[1]
         elif self._is_negated(values[0]):
             source, sink, amount = names[0], None, -values[0]
         else:

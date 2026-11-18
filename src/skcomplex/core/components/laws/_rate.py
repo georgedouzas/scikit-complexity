@@ -39,9 +39,10 @@ class RateLaw(BaseLaw):
 
         label:
             The name of the flow the rate is a term of, or the empty string for a rate of no flow. A flow is the
-            terms of one interaction that share a label, `-f` on the stock it leaves and `f` on the stock it enters,
-            and the trajectory records `f` under the label, such as `population.births`. A flow from outside the
-            system has only the term on its sink, and a flow out of it only the term `-f` on its source.
+            terms of one interaction that share a label, first `-f` on the stock it leaves and then `f` on the stock
+            it enters, and the trajectory records `f` under the label, such as `population.births`. A flow from
+            outside the system has only the term on its sink, and a flow out of it only the term `-f` on its source,
+            which Sage writes with a leading minus sign.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
