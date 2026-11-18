@@ -22,7 +22,7 @@ from ._koopman import (
     PlantStateElement,
     PredictiveControlInteraction,
 )
-from ._minimum_time_control import BangBangPlantElement, MinimumTimeControlSystem
+from ._minimum_time_control import BangBangPlantElement, BangBangPlantInteraction, MinimumTimeControlSystem
 from ._regulation import (
     CartPendulumInteraction,
     DrivenOscillatorInteraction,
@@ -34,6 +34,7 @@ from ._regulation import (
 
 __all__: list[str] = [
     'BangBangPlantElement',
+    'BangBangPlantInteraction',
     'CartPendulumInteraction',
     'ControlInputElement',
     'ConvectionInteraction',

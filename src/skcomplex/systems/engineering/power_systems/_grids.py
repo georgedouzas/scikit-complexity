@@ -21,7 +21,7 @@ from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, Role
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 
 
@@ -53,7 +53,7 @@ class SwingInteraction(Interaction):
         label: str,
         *,
         target: Role,
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        gamma: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -100,7 +100,7 @@ class TransmissionLineInteraction(Interaction):
         *,
         a: Role,
         b: Role,
-        K: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        K: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
     ) -> None:
         super().__init__(label)
         self.a = a

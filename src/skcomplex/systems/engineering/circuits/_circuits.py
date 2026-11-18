@@ -20,7 +20,7 @@ from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, ScipyODESolver
 from ....core.errors import ParameterError
-from ....core.specs import ParameterSpec, Role
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
@@ -70,7 +70,7 @@ class KirchhoffVoltageInteraction(Interaction):
         target: Role,
         state: str = 'q',
         V: float = 0.0,
-        omega: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        omega: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -160,10 +160,10 @@ class ChuaInteraction(Interaction):
         label: str,
         *,
         target: Role,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 15.6,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 28.0,
-        m0: Annotated[float, ParameterSpec()] = -8 / 7,
-        m1: Annotated[float, ParameterSpec()] = -5 / 7,
+        alpha: Annotated[float, RealSet.open(0, oo)] = 15.6,
+        beta: Annotated[float, RealSet.open(0, oo)] = 28.0,
+        m0: float = -8 / 7,
+        m1: float = -5 / 7,
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -231,11 +231,11 @@ class MultiscrollChuaInteraction(Interaction):
         label: str,
         *,
         target: Role,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.82,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 14.286,
-        a: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.3,
-        b: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.11,
-        c: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
+        alpha: Annotated[float, RealSet.open(0, oo)] = 10.82,
+        beta: Annotated[float, RealSet.open(0, oo)] = 14.286,
+        a: Annotated[float, RealSet.open(0, oo)] = 1.3,
+        b: Annotated[float, RealSet.open(0, oo)] = 0.11,
+        c: Annotated[float, RealSet.open(0, oo)] = 3.0,
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -319,13 +319,13 @@ class MixedModeChuaInteraction(Interaction):
         label: str,
         *,
         target: Role,
-        epsilon: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
-        a: Annotated[float, ParameterSpec()] = 1.5,
-        b: Annotated[float, ParameterSpec()] = -1.0,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        R: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.005,
-        c: Annotated[float, ParameterSpec()] = 0.00053,
+        epsilon: Annotated[float, RealSet.open(0, oo)] = 0.01,
+        a: float = 1.5,
+        b: float = -1.0,
+        alpha: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        R: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        beta: Annotated[float, RealSet.open(0, oo)] = 0.005,
+        c: float = 0.00053,
     ) -> None:
         super().__init__(label)
         self.target = target
