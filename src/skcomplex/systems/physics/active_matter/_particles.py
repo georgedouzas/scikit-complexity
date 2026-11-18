@@ -16,15 +16,13 @@ from sage.all__sagemath_symbolics import SR, cos, oo, sin, sqrt, vector
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element, Period
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw, RuleLaw
+from ....core.components.laws import NoiseLaw, RateLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace, ContinuousSpace
-from ....core.components.systems import BaseSystem as OldBaseSystem
-from ....core.components.systems import CompositeSystem
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver, EulerMaruyamaSolver, SystemView
-from ....core.specs import ParameterSpec, Role, StateSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ..common.particles import POINTS, ActiveDiffusionInteraction, ActiveParticleElement, SelfPropulsionInteraction
@@ -397,6 +395,8 @@ class TumblerView(AgentView):
             The stepper that runs the system.
     """
 
+    x: float
+    y: float
     theta: float
     speed: float
     tumble_rate: float
@@ -404,19 +404,23 @@ class TumblerView(AgentView):
 
 
 class TumblerElement(Element):
-    """Run-and-tumble agent in a periodic square.
+    """Run-and-tumble agents at the points `x` and `y` of a periodic square, each with its direction `theta`.
 
-    The agent runs straight and tumbles to a random direction.
-
-    Every step the agent moves `speed` along its direction, then tumbles with probability `1 - exp(-tumble_rate)`
-    to a direction drawn uniformly, as bacteria such as E. coli do.
+    `RunAndTumbleInteraction` runs every agent straight and tumbles it to a random direction, as bacteria such as E.
+    coli do. The direction wraps around the circle.
 
     Args:
         label:
             The label of the agent or group.
 
+        x:
+            The initial first coordinate, one per agent or shared.
+
+        y:
+            The initial second coordinate, one per agent or shared.
+
         theta:
-            The initial direction.
+            The initial direction, one per agent or shared.
 
         speed:
             The distance run per step.
@@ -427,6 +431,12 @@ class TumblerElement(Element):
         width:
             The side of the periodic square.
 
+        size:
+            The number of agents, or `None` for one.
+
+        space:
+            The continuous space of the agents, or `None` for none.
+
     Examples:
         >>> from skcomplex.systems.physics.active_matter import TumblerElement
         >>> TumblerElement('bacterium').speed
@@ -435,44 +445,71 @@ class TumblerElement(Element):
 
     visual = VisualSpec('agents', {'color_by': 'theta'})
 
-    draws = True
-
-    law_classes = (RuleLaw,)
-
     def __init__(
         self,
         label: str,
         *,
-        theta: Annotated[float, StateSpec(role='direction')] = 0.0,
-        speed: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        tumble_rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        width: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        x: object = 0.0,
+        y: object = 0.0,
+        theta: Annotated[object, Period(2 * math.pi)] = 0.0,
+        speed: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        tumble_rate: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        width: Annotated[float, RealSet.open(0, oo)] = 10.0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size, space=space)
+        self.x = x
+        self.y = y
         self.theta = theta
         self.speed = speed
         self.tumble_rate = tumble_rate
         self.width = width
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the run-and-tumble rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.run_and_tumble)]
 
     @classmethod
     def _get_view(cls) -> type:
         """Return the class of the views of the element's agents."""
         return TumblerView
 
-    def run_and_tumble(self, agent: TumblerView, system: SystemView) -> None:
+
+class RunAndTumbleInteraction(Interaction):
+    """Run of every agent along its direction, then a tumble to a random direction.
+
+    Every step the agent moves `speed` along its direction in a periodic square, then tumbles with probability
+    `1 - exp(-tumble_rate)` to a direction drawn uniformly, as bacteria swim and robots search.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The agents, with the points `x` and `y`, the direction `theta`, and the parameters of the run.
+
+    Examples:
+        >>> from skcomplex.systems.physics.active_matter import RunAndTumbleInteraction
+        >>> RunAndTumbleInteraction('run', target='bacteria').target
+        'bacteria'
+    """
+
+    law_classes = (UpdateLaw,)
+    draws = True
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the run and tumble of every agent as the rule.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [UpdateLaw(context.target, self._run_and_tumble)]
+
+    def _run_and_tumble(self, agent: TumblerView, system: SystemView) -> None:
         """Run one step along the direction, then tumble at random.
 
         Args:
@@ -482,9 +519,8 @@ class TumblerElement(Element):
             system:
                 The system.
         """
-        position = np.asarray(agent.location, dtype=float)
-        heading = np.array([math.cos(agent.theta), math.sin(agent.theta)])
-        agent.move_to(np.mod(position + agent.speed * heading, agent.width))
+        agent.x = float(np.mod(agent.x + agent.speed * math.cos(agent.theta), agent.width))
+        agent.y = float(np.mod(agent.y + agent.speed * math.sin(agent.theta), agent.width))
         if system.rng.random() < -math.expm1(-agent.tumble_rate):
             agent.theta = float(system.rng.uniform(0.0, 2 * math.pi))
 
@@ -804,7 +840,7 @@ class ActiveOrnsteinUhlenbeckParticlesSystem(BaseSystem):
         )
 
 
-class RunAndTumbleSystem(OldBaseSystem):
+class RunAndTumbleSystem(BaseSystem):
     """Run-and-tumble agents in a periodic square.
 
     The agents diffuse with `v^2 (1 + q) / (4 (1 - q))` per step.
@@ -831,9 +867,15 @@ class RunAndTumbleSystem(OldBaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.active_matter import RunAndTumbleSystem
-        >>> RunAndTumbleSystem(10).prepare().system_.elements[0].prepare().size_
+        >>> RunAndTumbleSystem(10).prepare().system_.elements[0].size
         10
     """
 
@@ -852,29 +894,38 @@ class RunAndTumbleSystem(OldBaseSystem):
         size: float = 10.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_agents = n_agents
         self.speed = speed
         self.tumble_rate = tumble_rate
         self.size = size
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of run-and-tumble agents in a periodic square.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         positions, angles = ActiveBrownianParticlesSystem._get_swimmers(self.n_agents, self.size, self.random_state)
-        group = GroupElement(
+        bacteria = TumblerElement(
             'bacteria',
-            element=TumblerElement,
+            x=positions[:, 0],
+            y=positions[:, 1],
+            theta=angles,
+            speed=self.speed,
+            tumble_rate=self.tumble_rate,
+            width=self.size,
             size=self.n_agents,
-            values={'theta': angles, 'speed': self.speed, 'tumble_rate': self.tumble_rate, 'width': self.size},
-            location=positions,
-        )
-        return CompositeSystem(
-            self.label,
-            elements=[group],
             space=ContinuousSpace(extent=(self.size, self.size), boundary='periodic'),
         )
+        run = RunAndTumbleInteraction('run', target='bacteria')
+        self.system_ = System(self.label, elements=[bacteria], interactions=[run])
 
 
 class DepotBrownianParticlesSystem(BaseSystem):

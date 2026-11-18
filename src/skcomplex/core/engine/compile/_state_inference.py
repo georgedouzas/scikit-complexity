@@ -16,6 +16,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ...components.base import BaseComponent
 from ...components.elements import BaseElement, DeclaredElement, Element, FieldElement, GroupElement, Period, Quantity
+from ...components.interactions import Interaction
 from ...components.laws import (
     BaseLaw,
     ConstraintLaw,
@@ -442,10 +443,12 @@ class _StateInference:
         orders, lags = self._get_orders(compilation)
         orders = dict.fromkeys(self._get_rule_reads(compilation), 1) | orders
         kinds = self._get_topology_kinds(compilation)
-        agents = self._get_agent_groups(compilation)
+        runners, readers = self._get_agent_groups(compilation)
         steps = self._get_steps(compilation)
 
         def declare(element: Element, path: str) -> list[BaseElement]:
+            many = element.size is not None or element.space is not None
+            agents = runners | ({path} if path in readers and many else set())
             return self._get_declared_elements(
                 element,
                 (lambda name: 1) if path in agents else (lambda name: orders.get(f'{path}.{name}')),
@@ -521,17 +524,27 @@ class _StateInference:
         return frozenset(kinds)
 
     @staticmethod
-    def _get_agent_groups(compilation: Compilation) -> set[str]:
-        """Return the paths of the groups whose members run agent rules."""
+    def _get_agent_groups(compilation: Compilation) -> tuple[set[str], set[str]]:
+        """Return the paths of the groups whose members run agent rules, and of the elements whole rules bind.
+
+        A rule of the whole system, such as the collisions of a flock, reads and moves the members of the groups its
+        interaction binds, so the members of such a group are agents too.
+        """
         census = Compilation._get_required(compilation.census, 'census')
         nodes = {node.path: node for node in Compilation._get_required(compilation.nodes, 'nodes')}
-        groups: set[str] = set()
+        runners: set[str] = set()
+        readers: set[str] = set()
         for record in census.records:
             node = nodes.get(record.path)
-            if not isinstance(record.law, RuleLaw) or record.law.members is None or node is None:
+            if not isinstance(record.law, RuleLaw) or node is None:
                 continue
-            groups.update(f'{node.scope}{label}' for label in bound_labels(getattr(node.component, record.law.members)))
-        return groups
+            component = node.component
+            if record.law.members is not None:
+                runners.update(f'{node.scope}{label}' for label in bound_labels(getattr(component, record.law.members)))
+            elif isinstance(component, Interaction) and type(component)._get_laws is Interaction._get_laws:
+                for role in component.get_requirements().roles:
+                    readers.update(f'{node.scope}{label}' for label in bound_labels(getattr(component, role, None)))
+        return runners, readers
 
     @staticmethod
     def _get_field(label: str, space: LatticeSpace | NetworkSpace, values: Mapping[str, object]) -> FieldElement:
