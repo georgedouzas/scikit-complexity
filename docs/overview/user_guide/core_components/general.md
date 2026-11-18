@@ -77,7 +77,16 @@ value of zero or above.
 `x` counts people.
 
 ```python continuation
-from skcomplex.systems.biology.common.kinetics import CompartmentElement
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+
+class CompartmentElement(NonnegativeElement):
+    def __init__(self, label, *, x: Annotated[float, RealSet.closed_open(0, oo)] = 0.0, size=None, space=None):
+        super().__init__(label, x=x, size=size, space=space)
+
 
 CompartmentElement('susceptible', x=990.0).get_params()
 ```
