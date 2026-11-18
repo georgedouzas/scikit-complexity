@@ -65,8 +65,8 @@ class BrusselatorElement(BrusselatorReactionElement):
         self,
         label: str,
         *,
-        u: float = 1.0,
-        v: float = 3.0,
+        u: object = 1.0,
+        v: object = 3.0,
         a: float = 1.0,
         b: float = 3.0,
         Du: object = 1.0,
@@ -314,17 +314,19 @@ class BrusselatorSystem(BaseSystem):
         """Set `system_` to the field near its steady state, its reactions, and its diffusions."""
         super()._prepare(context)
         shape = tuple(self.shape)
-        values = {
-            'u': self.a + GrayScottSystem._get_noise(shape, 0.01, self.random_state),
-            'v': np.full(shape, self.b / self.a),
-            'a': self.a,
-            'b': self.b,
-            'Du': self.Du,
-            'Dv': self.Dv,
-        }
+        cells = BrusselatorElement(
+            'cells',
+            u=self.a + GrayScottSystem._get_noise(shape, 0.01, self.random_state),
+            v=np.full(shape, self.b / self.a),
+            a=self.a,
+            b=self.b,
+            Du=self.Du,
+            Dv=self.Dv,
+            space=LatticeSpace(shape),
+        )
         self.system_ = System(
             self.label,
-            elements=[BrusselatorElement('cells', **values, space=LatticeSpace(shape))],
+            elements=[cells],
             interactions=[*self._get_reactions(), *BrusselatorSystem._get_diffusions()],
             solver=RK4Solver(dt=0.01),
         )

@@ -514,7 +514,7 @@ class RidesharingSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _wait(agent: AgentView, system: SystemView) -> None:
+    def _wait(agent: RiderView, system: SystemView) -> None:
         """Count one more step of waiting of a rider."""
         agent.waited += 1.0
 

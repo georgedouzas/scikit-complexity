@@ -66,7 +66,7 @@ class HodgepodgeCellElement(Element):
         self,
         label: str,
         *,
-        level: Annotated[float, NN] = 0,
+        level: Annotated[object, NN] = 0,
         n: Annotated[float, RealSet.open(0, oo)] = 100.0,
         k1: Annotated[float, RealSet.open(0, oo)] = 2.0,
         k2: Annotated[float, RealSet.open(0, oo)] = 3.0,
@@ -207,11 +207,18 @@ class HodgepodgeSystem(BaseSystem):
         super()._prepare(context)
         shape = tuple(self.shape)
         levels = np.random.default_rng(self.random_state).integers(0, int(self.n) + 1, size=shape).astype(float)
-        values = {'level': levels, 'n': self.n, 'k1': self.k1, 'k2': self.k2, 'g': self.g}
         self.system_ = System(
             self.label,
             elements=[
-                HodgepodgeCellElement('cells', **values, space=LatticeSpace(shape)),
+                HodgepodgeCellElement(
+                    'cells',
+                    level=levels,
+                    n=self.n,
+                    k1=self.k1,
+                    k2=self.k2,
+                    g=self.g,
+                    space=LatticeSpace(shape),
+                ),
             ],
             interactions=[
                 HodgepodgeInteraction('infection', target='cells'),

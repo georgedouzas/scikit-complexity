@@ -16,6 +16,7 @@ from sage.all__sagemath_symbolics import Expression
 
 from ....core.analysis import ReservoirResult, reservoir
 from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw, UpdateLaw
@@ -243,6 +244,17 @@ class NextGenerationReservoirSystem(BaseSystem):
         return spread * (readout + bias)
 
     @staticmethod
+    def _get_step(
+        s: SimpleNamespace,
+        *,
+        name: str,
+        increment: Callable[[SimpleNamespace], Expression],
+    ) -> list[BaseComponent]:
+        """Return the update that adds the increment of a variable to it."""
+        value = getattr(s.target, name)
+        return [UpdateLaw(value, value + increment(s), increment=True)]
+
+    @staticmethod
     def _fit_reservoir(
         series: Array | None,
         variables: Sequence[str],
@@ -313,13 +325,7 @@ class NextGenerationReservoirSystem(BaseSystem):
             Interaction(
                 name,
                 roles={'target': 'reservoir'},
-                laws=lambda s, name=name: [
-                    UpdateLaw(
-                        getattr(s.target, name),
-                        getattr(s.target, name) + increments[name](s),
-                        increment=True,
-                    ),
-                ],
+                laws=functools.partial(self._get_step, name=name, increment=increments[name]),
             )
             for name in names
         ]

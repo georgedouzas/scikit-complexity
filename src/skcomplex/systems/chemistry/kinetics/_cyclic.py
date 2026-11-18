@@ -61,7 +61,7 @@ class CyclicCellElement(Element):
         self,
         label: str,
         *,
-        level: Annotated[float, NN] = 0,
+        level: Annotated[object, NN] = 0,
         n: Annotated[float, RealSet.open(0, oo)] = 14.0,
         threshold: Annotated[float, RealSet.open(0, oo)] = 1.0,
         space: BaseSpace | None = None,
