@@ -14,7 +14,6 @@ an S-shaped curve to the whole crowd.
 import matplotlib.pyplot as plt
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import KineticSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.crowds import EvacuationSystem
@@ -31,7 +30,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 system = EvacuationSystem()
-trajectory = simulate(system, until=20, dt=0.2, observers=[observer])
+trajectory = system.prepare().simulate(until=20, dt=0.2, observers=[observer])
 
 # %%
 # Particles against the gain and loss equations
@@ -41,8 +40,13 @@ trajectory = simulate(system, until=20, dt=0.2, observers=[observer])
 # down more in encounters should take longer to leave.
 
 times = trajectory.times
-particles = simulate(system, until=20, dt=0.2, solver=KineticSolver(n=5000), random_state=0).get_values('evacuated')
-crowded = simulate(EvacuationSystem(crowding=8.0), until=20, dt=0.2)
+particles = (
+    system.set_params(solver=KineticSolver(n=5000))
+    .prepare()
+    .simulate(until=20, dt=0.2, random_state=0)
+    .get_values('evacuated')
+)
+crowded = EvacuationSystem(crowding=8.0).prepare().simulate(until=20, dt=0.2)
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(times, trajectory.get_values('evacuated'), label='gain and loss equations')
 ax.plot(times, particles, linestyle='--', label='5000 particles')
