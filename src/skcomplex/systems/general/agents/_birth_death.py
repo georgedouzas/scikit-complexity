@@ -9,7 +9,7 @@ from typing import Annotated, ClassVar
 
 from ....core.components import Tags
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.enums import ElementKind
@@ -150,14 +150,14 @@ class BirthDeathInteraction(Interaction):
 
     reports: ClassVar[tuple[str, ...]] = ('births', 'deaths', 'arrivals')
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw,)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (UpdateLaw,)
 
     def _get_tags(self) -> Tags:
         """Return the tags of the rules of births and deaths.
 
         These rules change the membership of groups.
         """
-        return self._get_variant_tags((RuleLaw,), structure=frozenset({'variable membership'}))
+        return self._get_variant_tags((UpdateLaw,), structure=frozenset({'variable membership'}))
 
     def _get_draws(self) -> bool:
         """Return whether the cycle draws.
@@ -272,6 +272,8 @@ class BirthDeathInteraction(Interaction):
             if value is not None and not callable(value):
                 error_msg = f'The {name} of {self.label!r} is {value!r}. Give a function, or None.'
                 raise ValidationError(error_msg)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseLaw] = self._get_birth_death_laws(context)
 
     @staticmethod
     def _evaluate(value: Chance | Count, agent: AgentViewProtocol, system: SystemViewProtocol) -> float:
@@ -470,7 +472,7 @@ class BirthDeathInteraction(Interaction):
         system.report('deaths', deaths)
         system.report('arrivals', self._arrive(system))
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+    def _get_birth_death_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule of the process.
 
         Args:
@@ -482,5 +484,5 @@ class BirthDeathInteraction(Interaction):
                 The rule that removes and creates agents every step.
         """
         if self.schedule == 'member':
-            return [RuleLaw(self._live_member, phase=self.phase, members=self._get_role('target'))]
-        return [RuleLaw(self._live, phase=self.phase)]
+            return [UpdateLaw(self._get_member(namespace, 'target'), self._live_member, phase=self.phase)]
+        return [UpdateLaw(namespace, self._live, phase=self.phase)]

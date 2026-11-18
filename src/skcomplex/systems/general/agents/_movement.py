@@ -12,12 +12,12 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.interactions import Interaction, TransferInteraction
-from ....core.components.laws import BaseLaw, RuleLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.enums import ElementKind
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec
+from ....core.specs import RoleSpec
 
 STEPS = ('neighbor', 'gaussian', 'levy', 'best')
 SCHEDULES = ('sequential', 'random-sequential', 'member')
@@ -128,7 +128,7 @@ class MovementInteraction(Interaction):
         [True, True]
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw,)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (UpdateLaw,)
 
     def _get_draws(self) -> bool:
         """Return whether the movement draws.
@@ -147,14 +147,14 @@ class MovementInteraction(Interaction):
         *,
         target: Annotated[str, RoleSpec(elements=(ElementKind.GROUP, ElementKind.VARIABLE_GROUP))],
         step: Step = 'neighbor',
-        probability: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 1.0,
+        probability: Annotated[float, RealSet.closed(0, 1)] = 1.0,
         rate: float | None = None,
         condition: Callable[[AgentViewProtocol, SystemViewProtocol], bool] | None = None,
         accept: Callable[[AgentViewProtocol, object, SystemViewProtocol], float] | None = None,
         exclusive: bool = False,
         score: Callable[[AgentViewProtocol, object, SystemViewProtocol], float] | None = None,
-        scale: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        exponent: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.5,
+        scale: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        exponent: Annotated[float, RealSet.open(0, oo)] = 1.5,
         cost: Cost | None = None,
         vision: Vision | None = None,
         schedule: str = 'random-sequential',
@@ -225,6 +225,8 @@ class MovementInteraction(Interaction):
             error_msg = f'The step `best` of {self.label!r} maximizes a score. Pass `score(agent, cell, system)`.'
             raise ValidationError(error_msg)
         self._check_functions()
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseLaw] = self._get_movement_laws(context)
 
     def _count_attempts(self, system: SystemViewProtocol) -> int:
         """Return the number of steps an agent attempts in one step of time."""
@@ -393,7 +395,7 @@ class MovementInteraction(Interaction):
             if agent.alive and (self.condition is None or self.condition(agent, system)):
                 self._move(agent, system, probability, occupied)
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+    def _get_movement_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule of the movement.
 
         Args:
@@ -405,5 +407,5 @@ class MovementInteraction(Interaction):
                 The rule that moves the agents every step.
         """
         if self.schedule == 'member':
-            return [RuleLaw(self._move_member, phase=self.phase, members=self._get_role('target'))]
-        return [RuleLaw(self._move_all, phase=self.phase)]
+            return [UpdateLaw(self._get_member(namespace, 'target'), self._move_member, phase=self.phase)]
+        return [UpdateLaw(namespace, self._move_all, phase=self.phase)]
