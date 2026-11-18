@@ -122,7 +122,7 @@ class Interaction(BaseInteraction):
         self.along = along
 
     def _get_declared(self) -> Mapping[str, DeclaredVariableSpec]:
-        """Return the numeric arguments as parameters, and the entries of `roles` and the group `among` as roles."""
+        """Return the numeric arguments as parameters, and `roles` and `among` as roles."""
         declared = dict(super()._get_declared())
         for name, binding in (self.roles or {}).items():
             declared[name] = DeclaredVariableSpec(binding, RoleSpec())
@@ -179,7 +179,7 @@ class Interaction(BaseInteraction):
 
     @staticmethod
     def _is_sized(along: tuple[object, ...]) -> bool:
-        """Return whether `along` names the hyperedges of a whole number of members of at least two."""
+        """Return whether `along` names hyperedges of a whole size of at least two."""
         if len(along) != MIN_SIZE or along[0] != HYPEREDGES:
             return False
         size = along[1]

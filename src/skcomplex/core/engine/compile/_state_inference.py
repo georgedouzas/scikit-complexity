@@ -400,7 +400,10 @@ class _StateInference:
         declare: Callable[[Element, str], list[BaseElement]],
         scope: str = '',
     ) -> CompositeSystem:
-        """Return a copy of a system tree whose plain elements are declared elements, with its observables."""
+        """Return a copy of a system tree whose plain elements are declared elements.
+
+        The copy keeps the observables of every system.
+        """
         elements = [
             declared
             for element in system.elements

@@ -916,7 +916,7 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         return False
 
     def _get_hyperedge_size(self) -> int | None:
-        """Return the number of members of the hyperedges the laws run on, or `None` for every size."""
+        """Return the size of the hyperedges the laws run on, or `None` for every size."""
         return None
 
     def _get_layer(self) -> str | None:

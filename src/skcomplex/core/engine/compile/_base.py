@@ -146,7 +146,7 @@ class BaseCompiler(BaseConfig[CompositeSystem, Mapping[str, object]]):
         self.report_ = ValidationReportSpec(tuple(roles or self._get_issues(self.system_)))
 
     def _get_domain_issues(self, system: CompositeSystem, scope: str = '') -> list[IssueSpec]:
-        """Return the issue of a role bound to a value of a domain it does not accept, at any depth.
+        """Return the issue of a role bound to a value of a domain it does not accept.
 
         The values of plain elements have their domains only once the laws show which are states, so a role such as
         `Annotated[Role, 'boolean']` is checked on the declared system, whatever kind of law the interaction sets.

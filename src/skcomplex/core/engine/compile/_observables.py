@@ -593,7 +593,10 @@ class ObservableEvaluator:
         return entry
 
     def _get_active(self, group: str, x: Array, p: Array, size: int) -> npt.NDArray[np.bool_]:
-        """Return which of the `size` rows of a group hold a member, every row of a group that does not grow."""
+        """Return which of the `size` rows of a group hold a member.
+
+        Every row of a group that does not grow holds one.
+        """
         name = f'{group}.{ACTIVE}'
         for layout, values in ((self.problem.states, x), (self.problem.parameters, p)):
             active = np.asarray(layout.read(values, name)).reshape(-1) > 0 if layout.has(name) else None

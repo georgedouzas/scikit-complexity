@@ -407,7 +407,7 @@ class GroupElement(BaseElement):
             self.default_visual_ = VisualSpec(drawn.default_visual_ or 'sites', options)
 
     def _get_filled_space(self, context: BaseSpace | None) -> BaseSpace | None:
-        """Return the space whose every site holds one member of a group of a given size, or `None`.
+        """Return the space whose sites the members fill one each, or `None`.
 
         A group of plain elements on the sites of a group space, such as cells on a Cayley graph, has its size given,
         and is drawn as that space draws its sites.
