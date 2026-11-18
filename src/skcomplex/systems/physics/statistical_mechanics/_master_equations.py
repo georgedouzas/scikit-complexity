@@ -15,37 +15,68 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, JumpLaw, LocalRuleLaw, RateLaw
+from ....core.components.laws import JumpLaw, RateLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace
-from ....core.components.systems import BaseSystem as OldBaseSystem
-from ....core.components.systems import CompositeSystem
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, Role, StateSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
+RING = LatticeNeighborhood(((-1,), (0,), (1,)))
+
 
 class MicrostateElement(Element):
-    """State of a discrete master equation on a ring.
-
-    The state has a probability `P` and a potential `U`.
-
-    Every step the probability moves to each neighbouring state `B` from a state `A` with the Glauber probability
-    `w / (1 + exp(beta (U_B - U_A)))`, so `P_A(t + 1) = P_A + sum_B T_AB P_B - sum_B T_BA P_A`, and the stationary
-    distribution is `exp(-beta U) / Z`.
+    """State of a discrete master equation on a ring, with the probability `P` and the potential `U`.
 
     Args:
         label:
-            The label of the state or the lattice group.
+            The label of the state or the ring of states.
 
         P:
             The initial probability.
 
         U:
             The potential.
+
+        space:
+            The ring whose sites hold one state each, or `None` for one state.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics import MicrostateElement
+        >>> MicrostateElement('state', U=1.5).U
+        1.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        P: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        U: object = 0.0,
+        space: BaseSpace | None = None,
+    ) -> None:
+        super().__init__(label, space=space)
+        self.P = P
+        self.U = U
+
+
+class GlauberMasterInteraction(Interaction):
+    """Discrete master equation of states on a ring with Glauber moves between neighbours.
+
+    Every step the probability moves to each neighbouring state `B` from a state `A` with the Glauber probability
+    `w / (1 + exp(beta (U_B - U_A)))`, so `P_A(t + 1) = P_A + sum_B T_AB P_B - sum_B T_BA P_A`, and the stationary
+    distribution is `exp(-beta U) / Z`. It is a molecule hopping between conformations, a walker in a landscape, or a
+    queue whose length changes by one.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the ring of states.
 
         beta:
             The inverse temperature.
@@ -54,75 +85,62 @@ class MicrostateElement(Element):
             The attempt probability of a move to each neighbour, at most 1/2.
 
     Examples:
-        >>> from skcomplex.systems.physics.statistical_mechanics import MicrostateElement
-        >>> MicrostateElement('state').w
+        >>> from skcomplex.systems.physics.statistical_mechanics import GlauberMasterInteraction
+        >>> GlauberMasterInteraction('moves', target='states').w
         0.5
     """
 
-    law_classes = (LocalRuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        P: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        U: Annotated[float, StateSpec()] = 0.0,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        w: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        target: Role,
+        beta: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        w: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
     ) -> None:
         super().__init__(label)
-        self.P = P
-        self.U = U
+        self.target = target
         self.beta = beta
         self.w = w
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the master equation step.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [
-            LocalRuleLaw(
-                s.P,
-                LatticeNeighborhood(((-1,), (0,), (1,))),
-                MicrostateElement._get_master_step,
-                reads=(s.P, s.U),
-            ),
-        ]
-
     @staticmethod
-    def _get_glauber(source: Array, destination: Array, beta: float | Array, w: float | Array) -> Array:
+    def _get_glauber(source: Array, destination: Array, beta: float, w: float) -> Array:
         """Return the probability of a move between two states.
 
         The probability is `w / (1 + exp(beta (U_destination - U_source)))`.
         """
         return w / (1 + np.exp(beta * (destination - source)))
 
-    @staticmethod
-    def _get_master_step(*around: Array, beta: float | Array, w: float | Array) -> Array:
+    def _get_master_step(self, *around: Array) -> Array:
         """Return the probabilities after one step of the master equation.
-
-        The step moves probability to the two neighbouring states.
 
         The neighbourhood columns are the probabilities and then the potentials of the left state, the state, and the
         right state.
         """
         left, center, right, energy_left, energy, energy_right = around
+        beta, w = self.beta, self.w
         gain = (
-            MicrostateElement._get_glauber(energy_left, energy, beta, w) * left
-            + MicrostateElement._get_glauber(energy_right, energy, beta, w) * right
+            self._get_glauber(energy_left, energy, beta, w) * left
+            + self._get_glauber(energy_right, energy, beta, w) * right
         )
         loss = (
-            MicrostateElement._get_glauber(energy, energy_left, beta, w)
-            + MicrostateElement._get_glauber(energy, energy_right, beta, w)
+            self._get_glauber(energy, energy_left, beta, w) + self._get_glauber(energy, energy_right, beta, w)
         ) * center
         return center + gain - loss
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the master equation step of the probabilities of the target.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context.target
+            self.laws_ = [UpdateLaw(s.P, self._get_master_step, neighborhood=RING, reads=(s.P, s.U), label=self.label)]
 
 
 class ZoneElement(Element):
@@ -283,7 +301,7 @@ class LandauRelaxationInteraction(Interaction):
             self.laws_ = [RateLaw(phi.diff(s.t), -s.Gamma * force)]
 
 
-class DiscreteMasterEquationSystem(OldBaseSystem):
+class DiscreteMasterEquationSystem(BaseSystem):
     """The discrete-time master equation of states on a ring.
 
     The equation relaxes to the Boltzmann distribution.
@@ -308,9 +326,15 @@ class DiscreteMasterEquationSystem(OldBaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import DiscreteMasterEquationSystem
-        >>> DiscreteMasterEquationSystem(10).prepare().system_.elements[0].prepare().size_
+        >>> DiscreteMasterEquationSystem(10).prepare().system_.elements[0].space.prepare().size_
         10
     """
 
@@ -328,34 +352,29 @@ class DiscreteMasterEquationSystem(OldBaseSystem):
         depth: float = 2.0,
         w: float = 0.5,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_states = n_states
         self.beta = beta
         self.depth = depth
         self.w = w
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the discrete-time master equation of states on a ring.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the ring of states with all the probability on the state of highest potential.
 
-        The equation relaxes to the Boltzmann distribution.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         potential = self.depth * np.cos(2 * np.pi * np.arange(self.n_states) / self.n_states)
         probability = np.zeros(self.n_states)
         probability[0] = 1.0
-        space = LatticeSpace(self.n_states)
-        return CompositeSystem(
-            self.label,
-            elements=[
-                GroupElement(
-                    'states',
-                    element=MicrostateElement,
-                    space=space,
-                    values={'P': probability, 'U': potential, 'beta': self.beta, 'w': self.w},
-                    on='sites',
-                ),
-            ],
-        )
+        states = MicrostateElement('states', P=probability, U=potential, space=LatticeSpace(self.n_states))
+        moves = GlauberMasterInteraction('moves', target='states', beta=self.beta, w=self.w)
+        self.system_ = System(self.label, elements=[states], interactions=[moves])
 
 
 class TwoPhaseZoneExchangeSystem(BaseSystem):

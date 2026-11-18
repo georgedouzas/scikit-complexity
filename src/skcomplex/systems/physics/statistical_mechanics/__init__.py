@@ -27,6 +27,7 @@ from ._graph_spins import GraphIsingSystem
 from ._kinetic_temperature import KineticTemperatureResult, kinetic_temperature
 from ._master_equations import (
     DiscreteMasterEquationSystem,
+    GlauberMasterInteraction,
     LandauRelaxationInteraction,
     LandauRelaxationSystem,
     MicrostateElement,
@@ -102,6 +103,7 @@ __all__: list[str] = [
     'FullyConnectedSpinElement',
     'GasMoleculeElement',
     'GlauberFlipInteraction',
+    'GlauberMasterInteraction',
     'GraphIsingSystem',
     'IdealGasSystem',
     'IsingSpinElement',

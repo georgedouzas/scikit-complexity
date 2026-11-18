@@ -3,7 +3,6 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.statistical_mechanics import (
     DiscreteMasterEquationSystem,
     LandauRelaxationSystem,
@@ -13,7 +12,7 @@ from skcomplex.systems.physics.statistical_mechanics import (
 
 def test_discrete_master_equation_relaxes_to_boltzmann():
     """Test that the master equation conserves probability and reaches `exp(-beta U) / Z`."""
-    trajectory = simulate(DiscreteMasterEquationSystem(), until=3000, random_state=0)
+    trajectory = DiscreteMasterEquationSystem().prepare().simulate(until=3000, random_state=0)
     probability = trajectory.get_lattice('states.P')
     weights = np.exp(-trajectory.get_lattice('states.U')[-1])
     assert np.allclose(probability.sum(axis=1), 1.0)
