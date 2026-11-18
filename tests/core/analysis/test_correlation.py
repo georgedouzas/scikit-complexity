@@ -7,7 +7,6 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import CorrelationResult, correlation
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 from skcomplex.systems.physics.statistical_mechanics import IsingSystem
@@ -81,7 +80,7 @@ def test_autocorrelation_of_every_series():
 
 def test_autocorrelation_of_a_trajectory_is_in_its_time_units():
     """Test that the lags and the time of a trajectory sampled every 0.1 are in time units, as for its array."""
-    trajectory = simulate(LotkaVolterraSystem(), until=50, dt=STEP)
+    trajectory = LotkaVolterraSystem().prepare().simulate(until=50, dt=STEP)
     analysis = _correlation('auto', trajectory, variables=['prey.x'])
     array = _correlation('auto', trajectory.get_values('prey.x'), dt=STEP)
     assert analysis.lags[:3] == pytest.approx([0.0, 0.1, 0.2])

@@ -312,11 +312,11 @@ try:
 except ValueError as error:
     messages.append(str(error).split('. ')[-1])
 try:
-    simulate(system, until=20, initial_state={'hares.x': 10.0})
+    system.prepare().simulate(until=20, initial_state={'hares.x': 10.0})
 except ValidationError as error:
     messages.append(str(error))
 try:
-    simulate(system, until=20, schedule={'predation.alpha': lambda t: 0.0})
+    system.prepare().simulate(until=20, schedule={'predation.alpha': lambda t: 0.0})
 except ParameterError as error:
     messages.append(str(error))
 messages
@@ -340,10 +340,10 @@ from skcomplex.core.errors import TagError
 
 fits = tags.laws <= RK4Solver.get_supported_tags().laws
 try:
-    simulate(system, until=20, solver=IterationSolver())
+    system.set_params(solver=IterationSolver()).prepare().simulate(until=20)
 except TagError as error:
     message = str(error)
-fits, message, simulate(system, until=20, dt=1.0, solver=RK4Solver()).get_values('prey.x').round(1)[:6].tolist()
+fits, message, system.set_params(solver=RK4Solver()).prepare().simulate(until=20, dt=1.0).get_values('prey.x').round(1)[:6].tolist()
 ```
 
 `RK4Solver`, the classical Runge-Kutta method of order four, integrates the rates of the model, and its run matches the

@@ -23,7 +23,7 @@ def _signatures(trajectory: object) -> list:
 
 def test_signature_analysis_of_a_series():
     """Test that a series gives its power spectrum on log axes with the autocorrelation time."""
-    (signature,) = _signatures(simulate(LotkaVolterraSystem(), until=50.0, random_state=0))
+    (signature,) = _signatures(LotkaVolterraSystem().prepare().simulate(until=50.0, random_state=0))
     assert signature.kind == 'series'
     assert signature.title == 'Power spectrum'
     assert (signature.xscale, signature.yscale) == ('log', 'log')

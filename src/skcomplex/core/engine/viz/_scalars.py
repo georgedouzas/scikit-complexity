@@ -112,10 +112,9 @@ class ScalarsVisual(BaseVisual):
                 A time series view with the element path as origin, or no view for an element without states.
 
         Examples:
-            >>> from skcomplex.core.engine.runtime import simulate
             >>> from skcomplex.core.engine.viz import ScalarsVisual
             >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
-            >>> problem = simulate(LotkaVolterraSystem(), until=0).problem
+            >>> problem = LotkaVolterraSystem().prepare().simulate(until=0).problem
             >>> view = ScalarsVisual(path=problem.elements[0].path).prepare(problem).views_[0]
             >>> type(view).__name__, str(view.origin)
             ('TimeSeriesView', 'prey')

@@ -25,7 +25,7 @@ from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 system = LotkaVolterraSystem(prey=30.0, predators=4.0, r=0.55, a=0.028, b=0.024, d=0.80)
 try:
-    simulate(system, until=20, solver=IterationSolver())
+    system.set_params(solver=IterationSolver()).prepare().simulate(until=20)
 except SkcomplexError as error:
     name, message = type(error).__name__, str(error)
 name, message
@@ -70,10 +70,10 @@ from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 system = LotkaVolterraSystem(prey=30.0, predators=4.0, r=0.55, a=0.028, b=0.024, d=0.80)
 try:
-    simulate(system, until=20, initial_state={'hares.x': 10.0})
+    system.prepare().simulate(until=20, initial_state={'hares.x': 10.0})
 except ValidationError as error:
     message = str(error)
-message, simulate(system, until=1, dt=1.0, initial_state={'prey.x': 10.0}).get_values('prey.x').round(1).tolist()
+message, system.prepare().simulate(until=1, dt=1.0, initial_state={'prey.x': 10.0}).get_values('prey.x').round(1).tolist()
 ```
 
 The message says that `hares.x` is not a state of the system and suggests `prey.x` and `predators.x`. With `prey.x`
@@ -95,7 +95,7 @@ try:
     RK4Solver().prepare()
 except ContextError as error:
     message = str(error)
-message, simulate(system, until=2, dt=1.0, solver=RK4Solver()).get_values('prey.x').round(1).tolist()
+message, system.set_params(solver=RK4Solver()).prepare().simulate(until=2, dt=1.0).get_values('prey.x').round(1).tolist()
 ```
 
 The message reads "A solver prepares on a compiled problem. Pass the problem to `prepare`." The fix passes the solver
@@ -176,9 +176,7 @@ def get_constant(t, values):
 
 constant = Observable('constant', function=get_constant)
 try:
-    simulate(
-        system, until=20, dt=1.0, solver=EulerSolver(dt=0.1), observables=[constant], invariants={'constant': 1e-3}
-    )
+    system.set_params(solver=EulerSolver(dt=0.1)).prepare().simulate(until=20, dt=1.0, observables=[constant], invariants={'constant': 1e-3})
 except ConservationError as error:
     message = str(error)
 message
@@ -307,7 +305,7 @@ from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 system = LotkaVolterraSystem(prey=30.0, predators=4.0, r=0.55, a=0.028, b=0.024, d=0.80)
 try:
-    simulate(system, until=20, schedule={'predation.alpha': lambda t: 0.0})
+    system.prepare().simulate(until=20, schedule={'predation.alpha': lambda t: 0.0})
 except ParameterError as error:
     message = str(error)
 message
@@ -573,7 +571,7 @@ from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 system = LotkaVolterraSystem(prey=30.0, predators=4.0, r=0.55, a=0.028, b=0.024, d=0.80)
 try:
-    simulate(system, until=1, dt=1.0, solver=LammpsSolver())
+    system.set_params(solver=LammpsSolver()).prepare().simulate(until=1, dt=1.0)
 except BackendError as error:
     message = str(error)
 message
@@ -602,10 +600,10 @@ from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 system = LotkaVolterraSystem(prey=30.0, predators=4.0, r=0.55, a=0.028, b=0.024, d=0.80)
 try:
-    simulate(system, until=2, dt=1.0, solver=RK4Solver(dt=-0.1))
+    system.set_params(solver=RK4Solver(dt=-0.1)).prepare().simulate(until=2, dt=1.0)
 except SolverError as error:
     message = str(error)
-message, simulate(system, until=2, dt=1.0, solver=RK4Solver(dt=0.1)).get_values('prey.x').round(1).tolist()
+message, system.set_params(solver=RK4Solver(dt=0.1)).prepare().simulate(until=2, dt=1.0).get_values('prey.x').round(1).tolist()
 ```
 
 The message reads "dt = -0.1 must be positive." With a step of 0.1 the run gives 30.0, 46.4, and 68.5 thousand hares.

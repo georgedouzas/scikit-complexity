@@ -103,9 +103,8 @@ def signatures(source: Source) -> SignaturesResult:
 
     Examples:
         >>> from skcomplex.core.analysis import signatures
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
-        >>> trajectory = simulate(LotkaVolterraSystem(), until=20.0, random_state=0)
+        >>> trajectory = LotkaVolterraSystem().prepare().simulate(until=20.0, random_state=0)
         >>> [signature.title for signature in signatures(trajectory).signatures]
         ['Power spectrum']
     """

@@ -31,7 +31,7 @@ lynx = np.array(
     + [8.0, 12.3, 19.5, 45.7, 51.1, 29.7, 15.8, 9.7, 10.1, 8.6]
 )
 system = LotkaVolterraSystem(prey=30.0, predators=4.0, r=0.55, a=0.028, b=0.024, d=0.80)
-trajectory = simulate(system, until=20, dt=1.0)
+trajectory = system.prepare().simulate(until=20, dt=1.0)
 trajectory.get_values('prey.x').round(1)[:6].tolist()
 ```
 
@@ -69,11 +69,10 @@ because a [schedule](glossary.md#schedule) may change it during the run, as the 
 ## Run settings
 
 The arguments of `simulate` set how a run starts and evolves. Each one left out comes from the tuned run settings of
-the class of the system, which `get_run_settings()` returns.
+the class of the system, its class attributes such as `until` and `dt`.
 
 ```python continuation
-settings = system.get_run_settings()
-settings['until'], settings['dt'], len(simulate(system).times)
+system.until, system.dt, len(system.prepare().simulate().times)
 ```
 
 `LotkaVolterraSystem` tunes `until=50.0` and `dt=0.1`, so a call without them runs fifty years in 501 frames. The
@@ -97,9 +96,9 @@ A schedule changes a parameter while the system runs, and `initial_state` contin
 Here the first run covers 1900 to 1910, and the second starts from its last frame with predation switched off.
 
 ```python continuation
-first = simulate(system, until=10, dt=1.0)
+first = system.prepare().simulate(until=10, dt=1.0)
 last = {name: first.get_values(name)[-1] for name in ('prey.x', 'predators.x')}
-second = simulate(system, until=10, dt=1.0, initial_state=last, schedule={'predation.a': lambda t: 0.0})
+second = system.prepare().simulate(until=10, dt=1.0, initial_state=last, schedule={'predation.a': lambda t: 0.0})
 second.get_values('prey.x')[0] == first.get_values('prey.x')[-1], second.get_values('prey.x').round(1)[-1]
 ```
 
@@ -127,7 +126,7 @@ def get_constant(t, values):
 
 
 constant = Observable('constant', function=get_constant)
-observed = simulate(system, until=20, dt=1.0, observables=[constant], invariants={'constant': 1e-3})
+observed = system.prepare().simulate(until=20, dt=1.0, observables=[constant], invariants={'constant': 1e-3})
 observed.get_values('constant').round(4)[[0, -1]].tolist()
 ```
 
@@ -159,10 +158,10 @@ Euler with a step of 0.1 drifts off the orbit, and the [invariant](glossary.md#i
 from skcomplex.core.engine.solvers import EulerSolver, RK4Solver
 from skcomplex.core.errors import ConservationError
 
-rk4 = simulate(system, until=20, dt=1.0, solver=RK4Solver()).get_values('prey.x').round(1)[:6].tolist()
+rk4 = system.set_params(solver=RK4Solver()).prepare().simulate(until=20, dt=1.0).get_values('prey.x').round(1)[:6].tolist()
 euler = EulerSolver(dt=0.1)
 try:
-    simulate(system, until=20, dt=1.0, solver=euler, observables=[constant], invariants={'constant': 1e-3})
+    system.set_params(solver=euler).prepare().simulate(until=20, dt=1.0, observables=[constant], invariants={'constant': 1e-3})
 except ConservationError as error:
     message = str(error)
 rk4, message
