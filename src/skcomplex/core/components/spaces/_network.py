@@ -59,6 +59,10 @@ class NetworkSpace(BaseSpace):
             The name of the space in its system, such as `'grid'`.
 
     Attributes:
+        axes_:
+            The name of the one coordinate of the network, `('node',)`, so an agent's value `node` places it at that
+            node.
+
         graphs_:
             The graph of every layer by label, `None` first for the graph of the network.
 
@@ -238,6 +242,7 @@ class NetworkSpace(BaseSpace):
                 error_msg = f'The layer {layer.label!r} has other nodes than the graph. Give it the nodes of the graph.'
                 raise ValidationError(error_msg)
         self.size_ = int(self.graph.number_of_nodes())
+        self.axes_ = ('node',)
         self.n_dim_ = 1
         self.shape_ = (self.size_,)
         self.periodic_ = False

@@ -18,6 +18,6 @@ def test_fractional_reserve_money_multiplier():
     np.testing.assert_allclose(trajectory.get_values('reserves'), 1000.0)
     assert trajectory.get_values('broad_money')[90:100].mean() == pytest.approx(10_000.0, rel=0.05)
     assert trajectory.get_values('broad_money')[190:].mean() == pytest.approx(5_000.0, rel=0.05)
-    ratio = trajectory.get_values('banks.reserve_ratio')
+    ratio = trajectory.get_values('reserve_ratio')
     assert ratio[99] == pytest.approx(0.1)
     assert ratio[-1] == pytest.approx(0.2)

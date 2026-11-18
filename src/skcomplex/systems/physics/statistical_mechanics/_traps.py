@@ -6,7 +6,7 @@ Walkers escape from traps of random depth after activated waiting times.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -15,21 +15,22 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import exp, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import BaseLaw, JumpLaw
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import JumpLaw
 from ....core.components.laws.utils import draw, uniform
-from ....core.components.spaces import ContinuousSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.components.spaces import BaseSpace, ContinuousSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import Role, VisualSpec
+from ....core.systems import BaseSystem, System
 
 
 class TrapWalkerElement(Element):
-    """Walker in a trap of depth `E`.
+    """Walker in a trap of depth `E` at the place `x`.
 
-    The walker escapes after an exponential time of mean `tau0 exp(E / T)`.
-
-    On escape the walker falls into a new trap of the fully connected landscape, at a uniformly random place in the
-    unit square, whose depth is drawn from the density `exp(-E)`.
+    A `TrapEscapeInteraction` makes the walker escape after an exponential time of mean `tau0 exp(E / T)`.
 
     Args:
         label:
@@ -47,6 +48,12 @@ class TrapWalkerElement(Element):
         tau0:
             The escape time from a trap of zero depth.
 
+        size:
+            The number of walkers, or `None` for one.
+
+        space:
+            The square of the traps, or `None` for none.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import TrapWalkerElement
         >>> TrapWalkerElement('walker', T=0.5).T
@@ -55,37 +62,63 @@ class TrapWalkerElement(Element):
 
     visual = VisualSpec('points', {'position': 'x', 'color_by': 'E', 'color_range': (0.0, 5.0)})
 
-    law_classes = (JumpLaw,)
-
     def __init__(
         self,
         label: str,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.5,
-        E: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        tau0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        x: npt.ArrayLike = 0.5,
+        E: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        T: Annotated[float, RealSet.open(0, oo)] = 0.5,
+        tau0: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size, space=space)
         self.x = x
         self.E = E
         self.T = T
         self.tau0 = tau0
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the escapes after activated waiting times.
+
+class TrapEscapeInteraction(Interaction):
+    """Escape of walkers from their traps after activated waiting times.
+
+    A walker in a trap of depth `E` escapes after an exponential time of mean `tau0 exp(E / T)` and falls into a new
+    trap of the fully connected landscape, at a uniformly random place in the unit square, whose depth is drawn from
+    the density `exp(-E)`. It is a carrier hopping between the defects of a glass, or a protein between its folds.
+
+    Args:
+        label:
+            The label of the interaction, which names the count of escapes.
+
+        target:
+            The path of the walkers.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics import TrapEscapeInteraction
+        >>> TrapEscapeInteraction('escapes', target='walkers').target
+        'walkers'
+    """
+
+    law_classes = (JumpLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the escapes of the walkers.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        reset = {item: uniform(f'place{index}') for index, item in enumerate(s.x)}
-        waiting = draw('escape', 'expon', scale=s.tau0 * exp(s.E / s.T))
-        return [JumpLaw(waiting=waiting, reset={**reset, s.E: draw('depth', 'expon')}, label='escapes')]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context.target
+            reset = {item: uniform(f'place{index}') for index, item in enumerate(s.x)}
+            waiting = draw('escape', 'expon', scale=s.tau0 * exp(s.E / s.T))
+            self.laws_ = [JumpLaw(waiting=waiting, reset={**reset, s.E: draw('depth', 'expon')}, label=self.label)]
 
 
 class TrapSystem(BaseSystem):
@@ -114,9 +147,15 @@ class TrapSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import TrapSystem
-        >>> TrapSystem(10, T=0.8).prepare().system_.elements[0].values['T']
+        >>> TrapSystem(10, T=0.8).prepare().system_.elements[0].T
         0.8
     """
 
@@ -134,28 +173,33 @@ class TrapSystem(BaseSystem):
         tau0: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_walkers = n_walkers
         self.T = T
         self.tau0 = tau0
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the Bouchaud trap system.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the walkers in traps of random depths and places.
 
-        Walkers escape from traps of exponentially distributed depths.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
-        walkers = GroupElement(
+        square = ContinuousSpace(n_dim=2)
+        walkers = TrapWalkerElement(
             'walkers',
-            element=TrapWalkerElement,
+            x=rng.random((self.n_walkers, 2)),
+            E=rng.exponential(1.0, self.n_walkers),
+            T=self.T,
+            tau0=self.tau0,
             size=self.n_walkers,
-            values={
-                'x': rng.random((self.n_walkers, 2)),
-                'E': rng.exponential(1.0, self.n_walkers),
-                'T': self.T,
-                'tau0': self.tau0,
-            },
+            space=square,
         )
-        return CompositeSystem(self.label, elements=[walkers], space=ContinuousSpace(n_dim=2))
+        escapes = TrapEscapeInteraction('escapes', target='walkers')
+        self.system_ = System(self.label, elements=[walkers], interactions=[escapes], space=square)

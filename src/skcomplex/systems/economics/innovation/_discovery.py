@@ -6,7 +6,7 @@ The urns share their adjacent possible.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -15,13 +15,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.spaces import NetworkSpace
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
+from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
 from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 
 DRAW = 'draw'
@@ -61,6 +63,15 @@ class BallElement(Element):
         drawn:
             1 when the node has drawn the colour, and 0 when it has not.
 
+        values:
+            Further values by name, such as the node `node` of each member on the network.
+
+        size:
+            The number of balls, or `None` for one.
+
+        space:
+            The network the balls live on, whose axis `node` places them, or `None`.
+
     Examples:
         >>> from skcomplex.systems.economics.innovation import BallElement
         >>> BallElement('balls', color=3, count=2).count
@@ -71,11 +82,14 @@ class BallElement(Element):
         self,
         label: str,
         *,
-        color: Annotated[float, StateSpec(domain=NN)] = 0,
-        count: Annotated[float, StateSpec(domain=NN)] = 1,
-        drawn: Annotated[float, StateSpec(domain=NN)] = 0,
+        color: Annotated[object, NN] = 0,
+        count: Annotated[object, NN] = 1,
+        drawn: Annotated[object, NN] = 0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.color = color
         self.count = count
         self.drawn = drawn
@@ -89,23 +103,21 @@ class BallElement(Element):
 class UrnView(AgentView):
     """Urn as its rules see it.
 
-    It holds its `novelties`, the `color` of its last draw, and whether that draw was `novel`.
+    It holds its `novelties`, the `color` of its last draw, whether that draw was `novel`, and its `rho` and `nu`.
     """
 
     novelties: float
     color: float
     novel: float
+    rho: float
+    nu: float
 
 
 class UrnElement(Element):
     """Urn with triggering on a node of a network.
 
-    It draws from its own balls and those of its neighbours. The urn of the interacting discovery processes of Iacopini
-    et al. (2020). The urn of a node is the set of ball agents on its node. Every step the node draws one ball from its
-    social urn, its own balls with their multiplicities and one ball of every colour in the urns of its neighbours, in
-    the phase `'draw'`. In the phase `'grow'` it adds `rho` balls of the drawn colour to its own urn, and when it draws
-    the colour for the first time, a novelty, it adds one ball of each of `nu + 1` colours that no urn held before, the
-    adjacent possible.
+    It draws from its own balls and those of its neighbours by `TriggeringInteraction`. The urn of the interacting
+    discovery processes of Iacopini et al. (2020). The urn of a node is the set of ball agents on its node.
 
     Args:
         label:
@@ -126,27 +138,35 @@ class UrnElement(Element):
         nu:
             The triggering, one less than the colours added after a novelty.
 
+        values:
+            Further values by name, such as the node `node` of each member on the network.
+
+        size:
+            The number of urns, or `None` for one.
+
+        space:
+            The network the urns live on, whose axis `node` places them, or `None`.
+
     Examples:
         >>> from skcomplex.systems.economics.innovation import UrnElement
         >>> UrnElement('urns', rho=4, nu=2).nu
         2
     """
 
-    draws = True
-
-    law_classes = (RuleLaw,)
-
     def __init__(
         self,
         label: str,
         *,
-        novelties: Annotated[float, StateSpec(domain=NN)] = 0,
-        color: Annotated[float, StateSpec()] = -1,
-        novel: Annotated[float, StateSpec(domain=NN)] = 0,
-        rho: Annotated[float, ParameterSpec(domain=NN)] = 4,
-        nu: Annotated[float, ParameterSpec(domain=NN)] = 1,
+        novelties: Annotated[object, NN] = 0,
+        color: object = -1,
+        novel: Annotated[object, NN] = 0,
+        rho: Annotated[object, NN] = 4,
+        nu: Annotated[object, NN] = 1,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.novelties = novelties
         self.color = color
         self.novel = novel
@@ -158,20 +178,48 @@ class UrnElement(Element):
         """Return the view of the agents of the element."""
         return UrnView
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the draw from the social urn and the growth of the own urn.
 
-        They run in their phases.
+class TriggeringInteraction(Interaction):
+    """Draws of urns with triggering from their social urns, and the growth of their own urns.
 
-        Args:
-            namespace:
-                The namespace of the symbols of the element.
+    Every step every node draws one ball from its social urn, its own balls with their multiplicities and one ball of
+    every colour in the urns of its neighbours, in the phase `'draw'`. In the phase `'grow'` it adds `rho` balls of the
+    drawn colour to its own urn, and when it draws the colour for the first time, a novelty, it adds one ball of each
+    of `nu + 1` colours that no urn held before, the adjacent possible.
 
-        Returns:
-            laws:
-                The rules of the two phases.
-        """
-        return [RuleLaw(self.draw, phase=DRAW), RuleLaw(self.grow, phase=GROW)]
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The urns that draw.
+
+        balls:
+            The balls of every urn.
+
+    Examples:
+        >>> from skcomplex.systems.economics.innovation import TriggeringInteraction
+        >>> TriggeringInteraction('triggering').balls
+        'balls'
+    """
+
+    draws = True
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role = 'urns', balls: Role = BALLS) -> None:
+        super().__init__(label)
+        self.target = target
+        self.balls = balls
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the draw and the growth of every urn, each in its phase."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [
+                UpdateLaw(context.target, self.draw, phase=DRAW),
+                UpdateLaw(context.target, self.grow, phase=GROW),
+            ]
 
     @staticmethod
     def draw(agent: UrnView, system: SystemView) -> None:
@@ -211,7 +259,7 @@ class UrnElement(Element):
         """
         if agent.color < 0:
             return
-        rho, nu = system.get_parameter('rho'), system.get_parameter('nu')
+        rho, nu = agent.rho, agent.nu
         own = [ball for ball in agent.get_agents_here(BALLS) if isinstance(ball, BallView)]
         ball = next((ball for ball in own if ball.color == agent.color), None)
         if ball is None:
@@ -309,25 +357,21 @@ class InteractingUrnsNetworkSystem(BaseSystem):
         initial = self.nu + 1 if self.m0 is None else self.m0
         places = [node for node in nodes for _ in range(initial)]
         colors = list(range(len(places)))
+        space = NetworkSpace(graph)
         self.system_ = System(
             self.label,
             elements=[
-                GroupElement(
+                UrnElement(
                     'urns',
-                    element=UrnElement,
+                    rho=self.rho,
+                    nu=self.nu,
+                    values={'node': nodes},
                     size=len(nodes),
-                    location=nodes,
-                    values={'rho': self.rho, 'nu': self.nu},
+                    space=space,
                 ),
-                GroupElement(
-                    'balls',
-                    element=BallElement,
-                    size=len(places),
-                    variable=True,
-                    location=places,
-                    values={'color': colors},
-                ),
+                BallElement(BALLS, color=colors, values={'node': places}, size=len(places), space=space),
             ],
-            space=NetworkSpace(graph),
+            interactions=[TriggeringInteraction('triggering')],
+            space=space,
             solver=MesaSolver(phases=(PhaseSpec(DRAW, activation='simultaneous'), PhaseSpec(GROW))),
         )

@@ -163,7 +163,9 @@ An agent acts on its place through its own methods.
 The values of an agent named after the axes of its space are its location. On a
 [`ContinuousSpace`](../core_components/spaces.md#continuousspace) of two dimensions they are `x` and `y`, and on a
 [`LatticeSpace`](../core_components/spaces.md#latticespace) they are the coordinates of a cell, `x` along the first
-axis and `y` along the second. The agent starts where its values say, and a rule that changes them moves it. Here two
+axis and `y` along the second. On a [`NetworkSpace`](../core_components/spaces.md#networkspace) the one axis is
+`node`, so `values={'node': ['Paris', 'Rome']}` puts two agents at those nodes. The agent starts where its values say,
+and a rule that changes them moves it. Here two
 walkers start at given points of a box of 50 by 50 and drift one unit to the right per step.
 
 ```python
@@ -201,7 +203,8 @@ The walkers start at `(22.7, 1.5)` and `(5.0, 30.0)` and end three units to the 
 - On a periodic space an agent that leaves one side enters the other, and its values wrap with it, so a car at cell 9
   of a ring of 10 cells that moves one cell is at cell 0 with `x = 0`.
 - `agent.move_to(location)` moves an agent and sets its values to the new place.
-- An agent whose group has no values named after the axes, or that lives on a network, starts at a random place.
+- An agent whose group has no values named after the axes starts at a random place, and on a network with no more
+  agents than nodes, at a node of its own.
 
 ## Rules of the whole system
 

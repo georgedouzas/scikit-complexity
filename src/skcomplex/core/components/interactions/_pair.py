@@ -73,6 +73,10 @@ class PairInteraction(BaseInteraction):
         period:
             The side of a periodic box, for minimum image distances, or `None` for the period of the space.
 
+        order:
+            The derivative of `write` the value adds to, such as 2 for a force on a position, or `None` for the
+            highest derivative of the state.
+
     Raises:
         ValidationError:
             The function and the potential are both given, the given one is not a callable, or the potential has
@@ -106,6 +110,7 @@ class PairInteraction(BaseInteraction):
         potential: PairPotential | None = None,
         divisor: str | None = None,
         period: float | None = None,
+        order: int | None = None,
     ) -> None:
         super().__init__(label)
         self.first = first
@@ -117,6 +122,7 @@ class PairInteraction(BaseInteraction):
         self.potential = potential
         self.divisor = divisor
         self.period = period
+        self.order = order
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error unless at most one of the function and the potential is given.
@@ -199,5 +205,7 @@ class PairInteraction(BaseInteraction):
         laws: list[BaseLaw] = []
         for member, pair in ((first, namespace), (second, swapped)):
             values = self._get_values(pair)
-            laws += [RateLaw(getattr(member, name), value) for name, value in zip(names, values, strict=True)]
+            laws += [
+                RateLaw(getattr(member, name), value, self.order) for name, value in zip(names, values, strict=True)
+            ]
         return laws

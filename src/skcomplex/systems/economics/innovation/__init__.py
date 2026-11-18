@@ -7,7 +7,7 @@ from ._adoption import AdoptionInteraction, HouseholdElement, PhoneAdoptionSyste
 from ._bass import BassDiffusionSystem
 from ._catalysis import TapCatalysisSystem
 from ._ccc import CccModelSystem, CombinatorialEntityElement, CombinatorialUpdateInteraction
-from ._discovery import BallElement, InteractingUrnsNetworkSystem, UrnElement
+from ._discovery import BallElement, InteractingUrnsNetworkSystem, TriggeringInteraction, UrnElement
 from ._diversity import AdjacentPossibleElement, CombinationInteraction, CreativePhaseTransitionSystem
 from ._technology import (
     ArthurPolakSystem,
@@ -38,5 +38,6 @@ __all__: list[str] = [
     'RedesignInteraction',
     'TapCatalysisSystem',
     'TechnologyElement',
+    'TriggeringInteraction',
     'UrnElement',
 ]

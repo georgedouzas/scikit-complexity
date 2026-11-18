@@ -5,7 +5,6 @@ import pytest
 import rerun.blueprint as rrb
 from scipy.special import jv
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import ExpectationVisual, RerunObserver
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.physics.common.quantum import QuantumCompiler, operator_measures
@@ -22,7 +21,7 @@ def test_quantum_heisenberg_ground_state_of_the_ring():
 
 def test_quantum_heisenberg_single_magnon_follows_bessel_functions():
     """Test that one flipped spin of the XX ring spreads as J_d(J t)² with a conserved magnetisation."""
-    trajectory = simulate(QuantumHeisenbergSystem(delta=0.0), until=2.0, dt=0.1)
+    trajectory = QuantumHeisenbergSystem(delta=0.0).prepare().simulate(until=2.0, dt=0.1)
     sz = trajectory.get_values('sz')
     for distance in range(-5, 6):
         expected = jv(abs(distance), trajectory.times) ** 2
@@ -32,7 +31,7 @@ def test_quantum_heisenberg_single_magnon_follows_bessel_functions():
 
 def test_quantum_heisenberg_run_by_name_records_states_and_observables():
     """Test that a run records 21 complex states and the local magnetisation of every site."""
-    trajectory = simulate(QuantumHeisenbergSystem(), until=2.0, dt=0.1)
+    trajectory = QuantumHeisenbergSystem().prepare().simulate(until=2.0, dt=0.1)
     assert len(trajectory.times) == 21
     assert trajectory.get_values('system.state').shape == (21, 4096)
     assert np.iscomplexobj(trajectory.get_values('system.state'))
@@ -41,11 +40,19 @@ def test_quantum_heisenberg_run_by_name_records_states_and_observables():
 
 def test_quantum_heisenberg_dephasing_destroys_coherence():
     """Test that dephasing lowers the purity, which a unitary run keeps at 1, and conserves the magnetisation."""
-    trajectory = simulate(QuantumHeisenbergSystem(n_sites=6, initial='neel', gamma=0.1), until=4.0, dt=0.2)
+    trajectory = QuantumHeisenbergSystem(n_sites=6, initial='neel', gamma=0.1).prepare().simulate(until=4.0, dt=0.2)
     values = operator_measures(trajectory, kind='purity').purity
     assert np.all(np.diff(values) <= 1e-10)
     assert values[-1] < 1
     assert np.ptp(trajectory.get_values('magnetization')) < 1e-8
+
+
+def test_quantum_heisenberg_starts_from_the_ground_state():
+    """Test that the initial state `'ground'` starts the ring at the lowest energy, where it stays."""
+    trajectory = QuantumHeisenbergSystem(n_sites=4, initial='ground').prepare().simulate(until=1.0, dt=0.5)
+    magnetization = trajectory.get_values('magnetization')
+    assert np.ptp(magnetization) < 1e-8
+    assert magnetization[0] == pytest.approx(0.0, abs=1e-8)
 
 
 @pytest.mark.parametrize(('values', 'message'), [({'boundary': 'twisted'}, 'boundary'), ({'initial': 'x'}, 'x')])
@@ -63,7 +70,7 @@ def test_quantum_heisenberg_streams_a_light_cone(tmp_path):
     first = blueprint.root_container.contents[0]
     assert isinstance(first, rrb.Container | rrb.Spatial2DView)
     observer = RerunObserver('light_cone', save_path=tmp_path / 'run.rrd')
-    simulate(system, until=2.0, dt=0.5, observers=[observer])
+    system.simulate(until=2.0, dt=0.5, observers=[observer])
     assert observer.logged_frames_ == 5
     assert repr(ExpectationVisual()) == 'ExpectationVisual()'
 

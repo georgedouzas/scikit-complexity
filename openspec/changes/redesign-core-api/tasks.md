@@ -51,7 +51,8 @@ the thread caps for parallel test runs. The new API is built beside the old one 
 - [x] 4.14 Move the discretization, the boundary of each state, and the symmetry of fields onto the space, and migrate the field systems that need them, such as the spectral, finite-volume, and fixed-boundary heat systems of physics. Verify with tests of each scheme and boundary against the old `FieldElement` results.
 - [x] 4.15 Close the smaller gaps found by the physics wave: `Quantity` in `Annotated`, values kept in the order given, starting derivatives per member of a group or field, local rules that read values no law changes, vector parameters of interactions and tensor states, the class drawing of plain elements, `RateLaw` on a second derivative of a vector, prime names in frames and sections, `stability(kind='dispersion')` on a `System`, reductions `over=` a new namespace, readable equations without internal symbols, the event locator of PopulationPollution, and the crash on jump resets of vector components. Verify with a test of each.
 - [x] 4.16 Add `Period` in `Annotated`, so periodic values wrap and the analyses read them as phases or headings, give the generic bases `allowed=` and quantities for their states, move `LorenzElement` into the module of `LorenzSystem`, write the sections of `Quantity` and `EquationInteraction`, and move the doctests and tests that still call the free `simulate` on migrated systems to the method form. Verify with the double pendulum wrapping, the Kuramoto alignment unchanged, a negative stock rejected, and the convention check.
-- [ ] 4.17 Close the gaps found by the economics and biology waves: `Member` in `Annotated`, agents placed by their value `node` on a network, a constraint law that applies to every member of a group, hyperedge groups with a rank, and parameters shaped by the members of a group. Verify with tests of each and with the labour, credit, commons, discovery, and oligopoly systems on the new API.
+- [x] 4.17 Close the gaps found by the economics and biology waves: `Member` in `Annotated`, agents placed by their value `node` on a network, a constraint law that applies to every member of a group, hyperedge groups with a rank, and parameters shaped by the members of a group. Verify with tests of each and with the labour, credit, commons, discovery, and oligopoly systems on the new API.
+- [ ] 4.18 Write flows as one labelled `RateLaw` whose target maps stocks to signs, let an `ObjectiveLaw` name its controls, implement the one-off `Interaction(label, roles=..., laws=...)`, move a point that has a starting velocity and no law at that velocity, record one frame for a static system, run transfers in discrete time with a draw per edge, declare traceless symmetric tensors, and bind neighbour interactions of quantum operators to plain elements. Verify with the stock-flow and loops tests, the optimal-control systems, the ideal gas, a static system, TASEP, the nematics, and the quantum spin chains.
 
 ## 5. Systems migrate field by field
 
@@ -61,7 +62,8 @@ Each task rewrites the systems of its fields on the new API: elements as data wi
   - [x] 5.1.1 Mechanics, celestial mechanics, oscillators, climate, oceanography, seismology, cosmology, criticality, synchronization, and most of statistical, soft, and active matter on the new API, with identical results.
   - [x] 5.1.2 The spectral, finite-volume, and fixed-boundary field systems on fields discretized by their space.
   - [x] 5.1.3 The angle systems on `Period`: double pendulum, XY, the Kuramoto family, Vicsek, run and tumble, swarmalators, lattice gauge fields.
-  - [ ] 5.1.4 The particle forces and point elements with the velocity `x'`, and the last physics systems on the old base.
+  - [x] 5.1.4 The particle forces and point elements with the velocity `x'`, and the physics systems on the old base but two.
+  - [ ] 5.1.5 Nematics, with a traceless symmetric tensor, and TASEP, with transfers in discrete time.
 - [ ] 5.2 Wave 1: `chemistry`, `engineering`, and `general`.
   - [x] 5.2.1 Every chemistry and engineering ready-made system on the new base with `solver=` and `backend=`.
   - [x] 5.2.2 Companion states `x_d1` replaced by `x'`, and ports rewritten as interactions between node elements.
@@ -80,7 +82,7 @@ Each task rewrites the systems of its fields on the new API: elements as data wi
   - [ ] 5.5.2 The modules the first pass left, the agent modules, and the old parts of the families on the new base.
 - [ ] 5.6 Wave 2: `economics`.
   - [x] 5.6.1 All ready-made systems but oligopoly on the new base, with identical values.
-  - [ ] 5.6.2 Member links, agents on network nodes, and per-member constraints for labour, credit, commons, discovery, and oligopoly.
+  - [x] 5.6.2 Member links, agents on network nodes, and per-member constraints for labour, credit, commons, discovery, and oligopoly.
   - [ ] 5.6.3 The remaining old parts: groups, elements with laws, and old wrapper interactions.
 - [ ] 5.7 Wave 2: `social`.
   - [x] 5.7.1 Every social system on the new base with identical results, interactions setting `laws_`, and plain elements.

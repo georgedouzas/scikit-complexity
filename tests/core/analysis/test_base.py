@@ -194,7 +194,7 @@ def test_snapshots_unwrap_agent_positions():
 
 def test_snapshots_of_particle_groups():
     """Test that a particle group gives its positions and velocities in its periodic box."""
-    trajectory = simulate(IdealGasSystem(), until=0.2, random_state=0)
+    trajectory = IdealGasSystem().prepare().simulate(until=0.2, random_state=0)
     snapshots = _read_snapshots(trajectory)
     assert snapshots.positions.shape == snapshots.velocities.shape
     assert snapshots.positions.shape[0] == len(trajectory.times)

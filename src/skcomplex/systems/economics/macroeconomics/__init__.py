@@ -3,7 +3,13 @@
 It also holds international trade and mortal monetary economies.
 """
 
-from ._banking import DepositorElement, FractionalReserveBankingSystem, PolicySwitchInteraction, ReserveBankElement
+from ._banking import (
+    DepositorElement,
+    FractionalReserveBankingSystem,
+    LendingInteraction,
+    PolicySwitchInteraction,
+    ReserveBankElement,
+)
 from ._capital import CapitalStockSystem
 from ._credit import CreditMarketInteraction, CreditNetworksSystem, FirmElement, LenderElement
 from ._firms import InvestingFirmElement, ToyFirmInvestmentSystem
@@ -17,8 +23,10 @@ from ._metaphoria import (
     EstateInteraction,
     FoodMarketInteraction,
     LabourMarketInteraction,
+    LivingInteraction,
     MetaphoriaSystem,
     PlotElement,
+    ProductionInteraction,
     SettlerElement,
 )
 from ._monetary import (
@@ -56,6 +64,8 @@ __all__: list[str] = [
     'InvestingFirmElement',
     'LabourMarketInteraction',
     'LenderElement',
+    'LendingInteraction',
+    'LivingInteraction',
     'Mark0EconomyInteraction',
     'Mark0FirmElement',
     'Mark0System',
@@ -66,6 +76,7 @@ __all__: list[str] = [
     'OptimalConsumptionSystem',
     'PlotElement',
     'PolicySwitchInteraction',
+    'ProductionInteraction',
     'PurchasingPowerElement',
     'ReserveBankElement',
     'SettlerElement',

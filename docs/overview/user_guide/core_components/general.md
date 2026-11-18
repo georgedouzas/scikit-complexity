@@ -95,68 +95,34 @@ See its [API entry][skcomplex.systems.general.elements].
 
 ## PointElement
 
-A `PointElement` is a body that moves in a continuous space by its acceleration. Its state `x` is a vector of order 2,
-the position, and the companion state `x_d1` holds the velocity. Here a ball leaves the origin at the velocity
-`(1, 2)` and falls under a gravity of 1, which a `RateInteraction` gives as the second derivative of `x`.
+A `PointElement` is a body at the position `x` that the forces on it move. The forces give the acceleration `x''`, and
+the velocity is the value `x'`, which starts at zero unless `values` gives it. Here a ball leaves the origin at the
+velocity `(1, 2)` and falls under a gravity of 1, the gradient of the potential `y`.
 
 ```python
-from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.systems.general.elements import PointElement
+import numpy as np
 
-ball = PointElement('ball', x=[0.0, 0.0], x_d1=[1.0, 2.0])
-gravity = RateInteraction('gravity', target='ball', state='x', rate=lambda s: [0.0, -1.0])
-flight = CompositeSystem(elements=[ball], interactions=[gravity], space=ContinuousSpace(n_dim=2))
-simulate(flight, until=2.0, dt=1.0).get_values('ball.x').round(3).tolist()
+from skcomplex.core.components.spaces import ContinuousSpace
+from skcomplex.core.systems import System
+from skcomplex.systems.general.elements import PointElement
+from skcomplex.systems.general.gradients import GradientInteraction
+
+ball = PointElement('ball', x=np.array([0.0, 0.0]), values={"x'": np.array([1.0, 2.0])})
+gravity = GradientInteraction('gravity', target='ball', potential=lambda s: s.target.x[1], order=2)
+flight = System(elements=[ball], interactions=[gravity], space=ContinuousSpace(n_dim=2)).prepare()
+flight.simulate(until=2.0, dt=1.0).get_values('ball.x').round(3).tolist()
 ```
 
 The ball reaches `(1, 1.5)` after one second and `(2, 2)` after two, the parabola `(t, 2t - t^2 / 2)`.
 
-A star that drifts through a cluster at a constant velocity is the same element with no force on it.
-
-```python continuation
-star = PointElement('star', x_d1=[1.0, 0.0])
-drift = CompositeSystem(elements=[star], space=ContinuousSpace(n_dim=2))
-simulate(drift, until=2.0, dt=1.0).get_values('star.x')[-1].tolist()
-```
-
-The star stands at `(2, 0)` after two units of time.
-
-**How the engine runs it.** The laws on `x` give its second derivative, and the compiler adds the first-order
-equations of the pair `x` and `x_d1`. A backend for molecular dynamics, such as LAMMPS, reads the velocity of a point
-from the declared state `x_d1`, and the boundary of the space acts on `x`.
+**How the engine runs it.** The laws on `x''` give the order of the position, and the compiler adds the first-order
+equations of the pair `x` and `x'`. A backend for molecular dynamics, such as LAMMPS, reads the velocity of a point
+from `x'`, and the boundary of the space acts on `x`.
 
 **How it combines.** It lives in a [`ContinuousSpace`](spaces.md#continuousspace). A
 [`PairInteraction`](interactions.md#pairinteraction) adds forces between points, such as those of a gas or of a flock.
 
-**Limits and errors.** Its state is a vector, so the system needs a space with a dimension, and `simulate` raises a
-`SpaceError` without one.
-
-```python continuation
-from skcomplex.core.errors import SpaceError
-
-try:
-    simulate(CompositeSystem(elements=[PointElement('p', x_d1=[1.0, 0.0])]), until=2.0, dt=1.0)
-except SpaceError as error:
-    message = str(error)
-message
-```
-
-The message says that `p.x` is a vector, so the system that holds it must have a space. The fix is
-`space=ContinuousSpace(n_dim=2)`.
-
-**A field realization.** Physics names the point an atom and fixes its start at rest.
-
-```python continuation
-class AtomElement(PointElement):
-    def __init__(self, label, x=0.0):
-        super().__init__(label, x=x, x_d1=0.0)
-
-
-AtomElement('argon', x=[1.0, 2.0]).get_params()
-```
+**A field realization.** Physics names the point with a mass a `MassPointElement`, whose forces divide by `m`.
 
 See its [API entry][skcomplex.systems.general.elements].
 

@@ -16,12 +16,14 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.spaces import CellComplexSpace, DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
+from ....core.components.elements import Element
+from ....core.components.spaces import BaseSpace, CellComplexSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend
 from ....core.engine.runtime import Trajectory
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import AnalysisError, ValidationError
-from ....core.specs import MatrixGroupSpec, StateSpec
+from ....core.specs import MatrixGroupSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array, Indices
 from ..common.fields import WilsonSamplingInteraction
 
@@ -45,9 +47,11 @@ class ColorLinkElement(Element):
         U:
             The real components of the matrix of the link, the identity by default.
 
-    Attributes:
-        default_visual_:
-            How the link is drawn by default, the `visual` of its class.
+        space:
+            The cell complex whose edges hold one link each, or `None` for one link.
+
+        on:
+            `'edges'` for one link per edge of the space.
 
     Examples:
         >>> from skcomplex.systems.physics.waves import ColorLinkElement
@@ -59,9 +63,11 @@ class ColorLinkElement(Element):
         self,
         label: str,
         *,
-        U: Annotated[object, StateSpec(group=COLOR)] = tuple(COLOR.identity),
+        U: Annotated[object, COLOR] = tuple(COLOR.identity),
+        space: BaseSpace | None = None,
+        on: str | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space, on=on)
         self.U = U
 
 
@@ -77,9 +83,11 @@ class IsospinLinkElement(Element):
         U:
             The real components of the matrix of the link, the identity by default.
 
-    Attributes:
-        default_visual_:
-            How the link is drawn by default, the `visual` of its class.
+        space:
+            The cell complex whose edges hold one link each, or `None` for one link.
+
+        on:
+            `'edges'` for one link per edge of the space.
 
     Examples:
         >>> from skcomplex.systems.physics.waves import IsospinLinkElement
@@ -91,9 +99,11 @@ class IsospinLinkElement(Element):
         self,
         label: str,
         *,
-        U: Annotated[object, StateSpec(group=ISOSPIN)] = tuple(ISOSPIN.identity),
+        U: Annotated[object, ISOSPIN] = tuple(ISOSPIN.identity),
+        space: BaseSpace | None = None,
+        on: str | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space, on=on)
         self.U = U
 
 
@@ -375,6 +385,12 @@ class LatticeYangMillsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The number of colors is not 2 or 3, or the initial links do not hold one matrix of the group per link.
@@ -383,7 +399,7 @@ class LatticeYangMillsSystem(BaseSystem):
         >>> from skcomplex.systems.physics.waves import LatticeYangMillsSystem
         >>> [element.label for element in LatticeYangMillsSystem(2, dimension=2).prepare().system_.elements]
         ['links']
-        >>> LatticeYangMillsSystem(2, dimension=2, colors=3).prepare().system_.elements[0].element.__name__
+        >>> type(LatticeYangMillsSystem(2, dimension=2, colors=3).prepare().system_.elements[0]).__name__
         'ColorLinkElement'
     """
 
@@ -434,8 +450,10 @@ class LatticeYangMillsSystem(BaseSystem):
         links: npt.ArrayLike | None = None,
         seed: int = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.size = size
         self.dimension = dimension
         self.extent = extent
@@ -447,11 +465,8 @@ class LatticeYangMillsSystem(BaseSystem):
         self.seed = seed
 
     @staticmethod
-    def _get_yang_mills_observables(system: CompositeSystem) -> list[Observable]:
+    def _get_yang_mills_observables(space: CellComplexSpace, group: MatrixGroupSpec) -> list[Observable]:
         """Return the mean plaquette and the Polyakov loop of the links."""
-        links = next(element for element in system.elements if element.label == 'links')
-        space = links.space.prepare()
-        group = next(group for element, group in LINKS.values() if links.element is element)
         return [
             Observable(
                 'mean_plaquette',
@@ -460,20 +475,18 @@ class LatticeYangMillsSystem(BaseSystem):
             Observable('polyakov_loop', function=partial(LatticeYangMillsSystem._get_polyakov_loop, space, group)),
         ]
 
-    def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to SU(2) or SU(3) matrices on the links of a periodic lattice, sampled by the Wilson action.
 
-        The observables of the components are built from the model parameters.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+
+        Raises:
+            ValidationError:
+                The number of colors is not 2 or 3, or the initial links do not fit the lattice and the group.
         """
-        settings = super().get_run_settings()
-        settings['observables'] = tuple(self._get_yang_mills_observables(self._build_system()))
-        return settings
-
-    def _build_system(self) -> CompositeSystem:
-        """Return SU(2) or SU(3) matrices on the links of a periodic lattice.
-
-        The matrices are sampled by the Wilson action.
-        """
+        super()._prepare(context)
         if self.colors not in LINKS:
             error_msg = f'The lattice gauge group is SU(2) or SU(3), so colors is 2 or 3, but got {self.colors!r}.'
             raise ValidationError(error_msg)
@@ -494,13 +507,7 @@ class LatticeYangMillsSystem(BaseSystem):
                 f'lattice takes {count} matrices of SU({self.colors}), one per link.'
             )
             raise ValidationError(error_msg)
-        group_links = GroupElement(
-            'links',
-            element=element,
-            space=space,
-            on='edges',
-            values={'U': group.get_components_of(matrices)},
-        )
+        group_links = element('links', U=group.get_components_of(matrices), space=space, on='edges')
         sampling = WilsonSamplingInteraction(
             'wilson',
             target='links',
@@ -510,4 +517,5 @@ class LatticeYangMillsSystem(BaseSystem):
             group=group,
             hits=self.hits,
         )
-        return CompositeSystem(self.label, elements=[group_links], interactions=[sampling], time=DiscreteTime())
+        self.system_ = System(self.label, elements=[group_links], interactions=[sampling])
+        self.observables_ = tuple(self._get_yang_mills_observables(space, group))

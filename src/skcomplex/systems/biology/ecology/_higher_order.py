@@ -6,7 +6,6 @@
 from collections.abc import Sequence
 from itertools import combinations
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
@@ -20,7 +19,7 @@ from ....core.components.laws.utils import contraction
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, Role
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ..common.populations import LogisticGrowthInteraction
 
@@ -61,7 +60,7 @@ class TripletInteraction(Interaction):
         label: str,
         *,
         target: Role,
-        a: Annotated[object, ParameterSpec(shape=('target', 'target', 'target'))] = 0.0,
+        a: object = 0.0,
         state: str = 'x',
     ) -> None:
         super().__init__(label)

@@ -53,6 +53,10 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
             The observables compiled with the problem, the tuned `observables` unless `_prepare` sets them from the
             model parameters, such as the lowest energy of the candidates of an annealing that a tracker reads.
 
+        initial_state_:
+            The starting values `simulate` uses when a call gives none, the tuned `initial_state` unless `_prepare` sets
+            them from the model parameters, such as the ground state of a spin chain.
+
     See Also:
         System: The system of components that every ready-made system builds.
 
@@ -77,6 +81,7 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
 
     system_: BaseSystem
     observables_: tuple[Observable, ...]
+    initial_state_: Mapping[str, object] | None
     states_: tuple[str, ...]
     parameters_: tuple[str, ...]
     equations_: dict[str, str]
@@ -168,8 +173,8 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
         """Check the model parameters and set `system_`, the `System` of the components.
 
         A subclass starts with `super()._prepare(context)`, which checks the label and sets `observables_` to the
-        observables of the context. A subclass whose observables depend on its model parameters sets `observables_`
-        after it.
+        observables of the context and `initial_state_` to the tuned starting values. A subclass whose observables or
+        starting values depend on its model parameters sets them after it.
 
         Args:
             context:
@@ -177,6 +182,7 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
         """
         super()._prepare(context)
         self.observables_ = tuple(context or ())
+        self.initial_state_ = self.initial_state
 
     def _run(self, inputs: SimpleNamespace | None) -> None:
         """Set `laws_`, the laws of the system for a namespace of symbols.
@@ -288,16 +294,18 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
         """
         self._check_prepared()
         prepared = self.system_
-        compiled = None if observables else (prepared._problem, prepared.solver_)
+        starting = self.initial_state_ if initial_state is None else initial_state
+        named = any(isinstance(value, str) for value in (starting or {}).values())
+        compiled = None if observables or named else (prepared._problem, prepared.solver_)
         return run_problem(
             prepared._composite,
             compiled,
             until=self.until if until is None else until,
             dt=self.dt if dt is None else dt,
-            initial_state=self.initial_state if initial_state is None else initial_state,
-            solver=prepared.solver_ if observables else None,
+            initial_state=starting,
+            solver=prepared.solver_ if compiled is None else None,
             backend=prepared._backend,
-            observables=observables,
+            observables=observables if compiled is not None or observables else self.observables_,
             observers=observers,
             invariants=self.invariants if invariants is None else invariants,
             schedule=self.schedule if schedule is None else schedule,

@@ -76,10 +76,9 @@ interaction that binds the group. The random energy system of Derrida, `RandomEn
 its entropy this way, from the energies of all the configurations of its spins.
 
 ```python
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.statistical_mechanics import RandomEnergySystem
 
-trajectory = simulate(RandomEnergySystem(n_spins=12, temperature=2.0), until=1.0)
+trajectory = RandomEnergySystem(n_spins=12, temperature=2.0).prepare().simulate(until=1.0)
 round(float(trajectory.get_values('ensemble.entropy')[0]), 4)
 ```
 

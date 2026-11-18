@@ -15,7 +15,6 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from skcomplex.core.analysis import distribution
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem
 
@@ -36,7 +35,7 @@ blueprint = rrb.Blueprint(
 )
 system = IdealGasSystem(n_molecules=800, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Speeds against the Maxwell-Boltzmann distribution
@@ -46,7 +45,7 @@ trajectory = simulate(system, observers=[observer])
 # `f(v) = (m v / kT) exp(-m v^2 / (2 kT))` at that temperature. Walls reverse velocity components without changing
 # speeds, so the agreement holds at every frame.
 
-velocities = trajectory.get_values('gas.x_d1')[-1]
+velocities = trajectory.get_values("gas.x'")[-1]
 speeds = np.linalg.norm(velocities, axis=1)
 kt = float(np.mean(np.sum(velocities**2, axis=1))) / 2
 histogram = distribution(speeds, kind='histogram', bins=25)

@@ -12,7 +12,6 @@ below it the weight freezes on the lowest levels, so the entropy falls to zero.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.experiments import sweep
 from skcomplex.systems.physics.statistical_mechanics import RandomEnergySystem
@@ -21,7 +20,7 @@ SYSTEM = 'random_energy'
 
 system = RandomEnergySystem(n_spins=12, temperature=1.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, until=1.0, observers=[observer])
+trajectory = system.prepare().simulate(until=1.0, observers=[observer])
 
 # %%
 # Entropy against temperature

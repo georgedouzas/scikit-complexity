@@ -6,7 +6,7 @@ Herders' cows graze a shared meadow.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -15,17 +15,18 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction
-from ....core.components.laws import BaseLaw, RuleLaw
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element, Member
+from ....core.components.interactions import Interaction, MapInteraction
+from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import transfer
-from ....core.components.spaces import LatticeSpace
+from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
 from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
 from ....core.errors import SimulationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import Role, RoleSpec, VisualSpec
 from ....core.systems import BaseSystem, System
 from ...general.agents import BirthDeathInteraction
 from ...general.matching import MatchingInteraction, MatchSpec, PartnerMatchingSpec, RandomSearchSpec
@@ -72,12 +73,20 @@ class HerderElement(Element):
             The energy of a new cow.
 
         quota:
-            The largest herd of a herder, an adaptive parameter that a regulator may change.
+            The largest herd of a herder, which a regulator may change.
+
+        values:
+            Further values by name, such as the cells `x` and `y` of the members on the meadow.
+
+        size:
+            The number of herders, or `None` for one.
+
+        space:
+            The meadow the herders live on, whose axes `x` and `y` place them, or `None`.
 
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.resources import HerderElement
-        >>> GroupElement('herders', element=HerderElement, size=5).size
+        >>> HerderElement('herders', size=5).size
         5
     """
 
@@ -85,13 +94,16 @@ class HerderElement(Element):
         self,
         label: str,
         *,
-        income: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        herd: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        upkeep: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        newborn: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 4.0,
-        quota: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo), adaptive=True)] = UNLIMITED,
+        income: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        herd: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        upkeep: Annotated[object, RealSet.closed_open(0, oo)] = 0.3,
+        newborn: Annotated[object, RealSet.open(0, oo)] = 4.0,
+        quota: Annotated[object, RealSet.open(0, oo)] = UNLIMITED,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.income = income
         self.herd = herd
         self.upkeep = upkeep
@@ -121,30 +133,39 @@ class CowElement(Element):
             The label of the agent or group.
 
         owner:
-            The id of the herder that owns the cow, given initially as its position in the group `herders`.
+            The herder that owns the cow among the herders.
 
         energy:
             The energy of the cow.
 
+        values:
+            Further values by name, such as the cells `x` and `y` of the members on the meadow.
+
+        size:
+            The number of cows, or `None` for one.
+
+        space:
+            The meadow the cows live on, whose axes `x` and `y` place them, or `None`.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.resources import CowElement
-        >>> GroupElement('cows', element=CowElement, size=3, values={'energy': 4.0}).size
+        >>> CowElement('cows', energy=4.0, size=3).size
         3
     """
 
     visual = VisualSpec('agents', {'color_by': 'energy'})
 
-    law_classes = ()
-
     def __init__(
         self,
         label: str,
         *,
-        owner: Annotated[float, StateSpec(reference='herders')] = -1.0,
-        energy: Annotated[float, StateSpec()] = 4.0,
+        owner: Annotated[object, Member('herders')] = -1.0,
+        energy: object = 4.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.owner = owner
         self.energy = energy
 
@@ -152,19 +173,6 @@ class CowElement(Element):
     def _get_view(cls) -> type[CowView]:
         """Return the view of the agents of the element."""
         return CowView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return no laws, since the grazing moves the cows and their energy.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return []
 
 
 class PastureView(AgentView):
@@ -180,7 +188,7 @@ class PastureView(AgentView):
 
 
 class PastureElement(Element):
-    """Cell of the meadow whose grass grows back logistically.
+    """Cell of the meadow whose grass grows back logistically by `RegrassingInteraction`.
 
     When it is grazed bare, the grass grows from a seed bank.
 
@@ -200,27 +208,36 @@ class PastureElement(Element):
         seed:
             The share of the capacity that grows back as if it stood on a bare cell.
 
+        values:
+            Further values by name, such as the cells `x` and `y` of the members on the meadow.
+
+        size:
+            The number of pastures, or `None` for one.
+
+        space:
+            The meadow the pastures live on, whose axes `x` and `y` place them, or `None`.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.resources import PastureElement
-        >>> GroupElement('meadow', element=PastureElement, size=4, values={'capacity': 2.0}).size
+        >>> PastureElement('meadow', capacity=2.0, size=4).size
         4
     """
 
     visual = VisualSpec('agents', {'color_by': 'grass', 'color_range': (0.0, 2.0)})
 
-    law_classes = (RuleLaw,)
-
     def __init__(
         self,
         label: str,
         *,
-        grass: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        capacity: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 2.0,
-        regrowth: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        seed: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        grass: Annotated[object, RealSet.closed_open(0, oo)] = 2.0,
+        capacity: Annotated[object, RealSet.open(0, oo)] = 2.0,
+        regrowth: Annotated[object, RealSet.closed_open(0, oo)] = 0.2,
+        seed: Annotated[object, RealSet.closed_open(0, oo)] = 0.05,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.grass = grass
         self.capacity = capacity
         self.regrowth = regrowth
@@ -231,18 +248,42 @@ class PastureElement(Element):
         """Return the view of the agents of the element."""
         return PastureView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the regrowth rule of the phase of growth.
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
+class RegrassingInteraction(Interaction):
+    """Logistic regrowth of the grass of every pasture, from a seed bank when it is bare.
 
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.grow, phase='growth')]
+    The grass `G` of a pasture of capacity `K` grows by `r S (1 - S / K)` up to `K`, with the stand `S` the larger of
+    `G` and the seed share of the capacity, so a bare cell grows back. The rates `r` and the seed share are the values
+    `regrowth` and `seed` of each pasture.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The pastures whose grass grows.
+
+        phase:
+            The phase the grass grows in, or `None` for the default phase.
+
+    Examples:
+        >>> from skcomplex.systems.economics.resources import RegrassingInteraction
+        >>> RegrassingInteraction('regrowth', phase='growth').phase
+        'growth'
+    """
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role = 'meadow', phase: str | None = None) -> None:
+        super().__init__(label)
+        self.target = target
+        self.phase = phase
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the regrowth rule of every pasture."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.grow, phase=self.phase)]
 
     def grow(self, agent: PastureView, system: SystemView) -> None:
         """Grow the grass logistically up to the capacity.
@@ -254,8 +295,8 @@ class PastureElement(Element):
             system:
                 The system.
         """
-        stand = max(agent.grass, system.get_parameter('seed') * agent.capacity)
-        growth = system.get_parameter('regrowth') * stand * (1 - stand / agent.capacity)
+        stand = max(agent.grass, agent.seed * agent.capacity)
+        growth = agent.regrowth * stand * (1 - stand / agent.capacity)
         agent.grass = min(agent.capacity, agent.grass + growth)
 
 
@@ -312,9 +353,9 @@ class GrazingInteraction(MatchingInteraction[SystemView]):
         rule: MatchingRule = RandomSearchSpec(),
         phase: str | None = 'grazing',
         herders: Annotated[str, RoleSpec()],
-        appetite: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        metabolism: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        milk: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        appetite: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        metabolism: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        milk: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
     ) -> None:
         super().__init__(label, requesters=requesters, providers=providers, rule=rule, phase=phase)
         self.herders = herders
@@ -342,7 +383,7 @@ class GrazingInteraction(MatchingInteraction[SystemView]):
 
     @staticmethod
     def _get_herder(cow: CowView) -> HerderView:
-        """Return the herder that owns a cow, which its reference state `owner` names."""
+        """Return the herder that owns a cow, which its value `owner` names."""
         herder = cow.get_referenced('owner')
         if not isinstance(herder, HerderView):
             error_msg = f'Cow {cow.id} names no herder as its owner.'
@@ -389,8 +430,8 @@ class GrazingInteraction(MatchingInteraction[SystemView]):
 class QuotaRegulatorInteraction(PolicyRuleInteraction[SystemView]):
     """Regulator of the quota of cows per herder.
 
-    It halves the quota when the grass runs short and raises it when it recovers. The quota is the adaptive parameter
-    `quota` of every herder. It halves, down to one cow, when the grass falls below the share `low` of the capacity of
+    It halves the quota when the grass runs short and raises it when it recovers. The quota is the value `quota` of
+    every herder. It halves, down to one cow, when the grass falls below the share `low` of the capacity of
     the meadow, and grows by one cow when the grass is above the share `high`. Without regulation it stays as it is.
 
     Args:
@@ -424,9 +465,9 @@ class QuotaRegulatorInteraction(PolicyRuleInteraction[SystemView]):
         *,
         rule: Callable[[SystemView], None] | None = None,
         phase: str | None = None,
-        regulated: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        low: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        high: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
+        regulated: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        low: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        high: Annotated[float, RealSet.closed_open(0, oo)] = 0.8,
     ) -> None:
         super().__init__(label, rule=rule, phase=phase)
         self.regulated = regulated
@@ -543,7 +584,7 @@ class TragedyOfTheCommonsSystem(BaseSystem):
     def _get_owns(herder: AgentViewProtocol, cow: AgentViewProtocol) -> bool:
         """Return whether a herder owns a cow.
 
-        The reference state `owner` of the cow names the herder.
+        The value `owner` of the cow names the herder.
         """
         return cow.get_referenced('owner') is herder
 
@@ -632,31 +673,33 @@ class TragedyOfTheCommonsSystem(BaseSystem):
         super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         cells = [(x, y) for x in range(self.width) for y in range(self.height)]
-        meadow = GroupElement(
+        space = LatticeSpace((self.width, self.height), boundary='periodic', metric='chebyshev')
+        xs, ys = np.array(cells).T
+        meadow = PastureElement(
             'meadow',
-            element=PastureElement,
+            grass=self.capacity,
+            capacity=self.capacity,
+            regrowth=self.regrowth,
+            values={'x': xs, 'y': ys},
             size=len(cells),
-            values={'grass': self.capacity, 'capacity': self.capacity, 'regrowth': self.regrowth},
-            location=cells,
+            space=space,
         )
-        herders = GroupElement(
+        herders = HerderElement(
             'herders',
-            element=HerderElement,
+            upkeep=self.upkeep,
+            quota=UNLIMITED if self.quota is None else self.quota,
+            values={'x': 0, 'y': 0},
             size=self.n_herders,
-            values={
-                'upkeep': self.upkeep,
-                'quota': UNLIMITED if self.quota is None else self.quota,
-            },
-            location=[cells[0]] * self.n_herders,
+            space=space,
         )
         n_cows = self.n_herders * self.cows
-        herd = GroupElement(
+        places = rng.integers(len(cells), size=n_cows)
+        herd = CowElement(
             'cows',
-            element=CowElement,
+            owner=np.repeat(np.arange(self.n_herders), self.cows),
+            values={'x': xs[places], 'y': ys[places]},
             size=n_cows,
-            values={'owner': np.repeat(np.arange(self.n_herders, dtype=float), self.cows)},
-            variable=True,
-            location=[cells[index] for index in rng.integers(len(cells), size=n_cows)],
+            space=space,
         )
         regulator = QuotaRegulatorInteraction('regulator', phase='herding', regulated=float(self.quota is not None))
         grazing = GrazingInteraction(
@@ -669,7 +712,12 @@ class TragedyOfTheCommonsSystem(BaseSystem):
         self.system_ = System(
             self.label,
             elements=[meadow, herd, herders],
-            interactions=[grazing, *self._get_investment(), regulator],
-            space=LatticeSpace((self.width, self.height), boundary='periodic', metric='chebyshev'),
+            interactions=[
+                grazing,
+                RegrassingInteraction('regrowth', phase='growth'),
+                *self._get_investment(),
+                regulator,
+            ],
+            space=space,
             solver=MesaSolver(phases=[PhaseSpec('grazing'), PhaseSpec('growth'), PhaseSpec('herding')]),
         )

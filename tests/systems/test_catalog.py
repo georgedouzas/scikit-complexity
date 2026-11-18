@@ -251,9 +251,11 @@ def test_jacobian_pattern_holds_finite_differences(system: type[BaseSystem | Old
 @pytest.mark.slow
 def test_seeded_runs_of_a_stochastic_system_repeat():
     """Test that seeded runs repeat, for random initial conditions and for stochastic dynamics."""
-    gas = simulate(IdealGasSystem(), random_state=0).get_values('gas.x_d1')
-    np.testing.assert_array_equal(gas, simulate(IdealGasSystem(), random_state=0).get_values('gas.x_d1'))
-    assert not np.array_equal(gas, simulate(IdealGasSystem(random_state=None), random_state=0).get_values('gas.x_d1'))
+    gas = IdealGasSystem().prepare().simulate(random_state=0).get_values("gas.x'")
+    np.testing.assert_array_equal(gas, IdealGasSystem().prepare().simulate(random_state=0).get_values("gas.x'"))
+    assert not np.array_equal(
+        gas, IdealGasSystem(random_state=None).prepare().simulate(random_state=0).get_values("gas.x'"),
+    )
     counts = PoissonProcessSystem().prepare().simulate(random_state=0).get_values('counters.count')
     np.testing.assert_array_equal(
         counts,

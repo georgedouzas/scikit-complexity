@@ -7,6 +7,7 @@ from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
+import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
@@ -20,7 +21,7 @@ from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, Role
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 
 COMMUNITY_GROWTH = (1.0, 0.8, 0.6)
@@ -135,7 +136,7 @@ class GeneralizedLotkaVolterraInteraction(Interaction):
         label: str,
         *,
         target: Role,
-        a: Annotated[object, ParameterSpec(shape=('target', 'target'))] = -1.0,
+        a: object = -1.0,
         state: str = 'x',
     ) -> None:
         super().__init__(label)
@@ -234,7 +235,7 @@ class GeneralizedLotkaVolterraSystem(BaseSystem):
             )
             raise ValidationError(error_msg)
         species = MicrobeElement('species', x=abundances, b=[float(value) for value in self.b], size=size)
-        matrix = tuple(tuple(float(value) for value in row) for row in self.a)
+        matrix = np.asarray(self.a, dtype=float)
         self.system_ = System(
             self.label,
             elements=[species],

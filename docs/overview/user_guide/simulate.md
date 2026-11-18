@@ -286,12 +286,11 @@ example, a gas of 50,000 molecules, shows one.
 
 ```python
 from skcomplex.core.engine.backends import NumbaBackend
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem
 
-gas = IdealGasSystem(n_molecules=50_000, random_state=0)
-trajectory = simulate(gas, until=0.5, dt=0.01, solver=RK4Solver(dt=0.01), backend=NumbaBackend())
+gas = IdealGasSystem(n_molecules=50_000, random_state=0, solver=RK4Solver(dt=0.01), backend=NumbaBackend())
+trajectory = gas.prepare().simulate(until=0.5, dt=0.01)
 trajectory.get_values('gas.x').shape
 ```
 

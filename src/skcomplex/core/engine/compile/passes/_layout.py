@@ -36,6 +36,7 @@ from .._census_record_spec import _CensusRecordSpec
 from .._compilation import Compilation
 
 HIDDEN_MEMBERS = '~members'
+MATRIX_AXES = 2
 MAX_SHOWN_COMPONENTS = 10
 
 
@@ -157,7 +158,8 @@ class LayoutPass(BasePass):
         """
         block = BlockSpec(node)
         states = {} if node.is_agent else declarations_of(node.component_type, VariableKind.STATE)
-        parameters = declarations_of(node.component_type, VariableKind.PARAMETER)
+        shaped = LayoutPass._get_member_shaped(node, groups)
+        parameters = {**declarations_of(node.component_type, VariableKind.PARAMETER), **shaped}
         for variable, declaration in states.items():
             if declaration.shape is None:
                 declarations, block = LayoutPass._declare(declarations, block, variable, declaration, is_state=True)
@@ -321,6 +323,39 @@ class LayoutPass(BasePass):
         return tuple(shape)
 
     @staticmethod
+    def _get_member_shaped(node: _NodeSpec, groups: Mapping[str, int]) -> dict[str, VariableSpec]:
+        """Return the matrix arguments of an interaction shaped by the sizes of its groups.
+
+        An argument given as an array of two or more axes, each as long as a group bound to a role of the interaction,
+        is a parameter with one entry per combination of members, such as the interaction matrix `a_ij` of the species
+        of a community or the coupling tensor `a_ijk` of their triplets. Each axis takes the first role whose group has
+        its length.
+        """
+        component = node.component
+        if not isinstance(component, BaseInteraction) or not component._is_preparing_laws():
+            return {}
+        roles = declarations_of(node.component_type, VariableKind.ROLE)
+        bound = {role: getattr(component, role, None) for role in roles}
+        sizes = {
+            role: groups[f'{node.scope}{label}']
+            for role, label in bound.items()
+            if isinstance(label, str) and f'{node.scope}{label}' in groups
+        }
+        allowed = component._get_allowed()
+        shaped = {}
+        for name, value in component.get_params(deep=False).items():
+            if name in roles or not isinstance(value, list | np.ndarray):
+                continue
+            array = np.asarray(value)
+            if array.ndim < MATRIX_AXES or not np.issubdtype(array.dtype, np.number):
+                continue
+            axes = [next((role for role, size in sizes.items() if size == length), None) for length in array.shape]
+            if None not in axes:
+                domain = allowed.get(name, RR)
+                shaped[name] = VariableSpec(VariableKind.PARAMETER, domain, shape=tuple(str(role) for role in axes))
+        return shaped
+
+    @staticmethod
     def _declare_shaped(
         declarations: DeclarationsSpec,
         block: BlockSpec,
@@ -331,11 +366,16 @@ class LayoutPass(BasePass):
         """Return the declarations and the block with a shaped parameter added.
 
         The parameter is one of a component. The parameter takes one block of the vector in row-major order, which laws
-        read as `s.<variable>`, one symbol that the reductions taking it lower to the reshaped block.
+        read as `s.<variable>`, one symbol that the reductions taking it lower to the reshaped block. A matrix given as
+        its entries row after row takes its shape back.
         """
         node = block.node
         name = f'{node.path}.{variable}'
-        value = LayoutPass._coerce_value(name, LayoutPass._get_value_of(node, variable), shape, declaration.domain)
+        given = LayoutPass._get_value_of(node, variable)
+        entries = np.asarray(given, dtype=object)
+        if len(shape) >= MATRIX_AXES and entries.ndim == 1 and entries.size == np.prod(shape):
+            given = entries.astype(float).reshape(shape)
+        value = LayoutPass._coerce_value(name, given, shape, declaration.domain)
         is_state = declaration.adaptive
         entry = EntrySpec(name, declarations.ends[is_state], shape, declaration.domain)
         handle = symbol(f'{variable}_{re.sub(r"[^0-9A-Za-z]", "_", node.path)}', declaration.domain)

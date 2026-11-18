@@ -15,7 +15,16 @@ from sage.all__sagemath_symbolics import CC, RR, SR, ZZ, Expression
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ...components.base import BaseComponent
-from ...components.elements import BaseElement, DeclaredElement, Element, FieldElement, GroupElement, Period, Quantity
+from ...components.elements import (
+    BaseElement,
+    DeclaredElement,
+    Element,
+    FieldElement,
+    GroupElement,
+    Member,
+    Period,
+    Quantity,
+)
 from ...components.laws import (
     BaseLaw,
     ConstraintLaw,
@@ -32,13 +41,14 @@ from ...components.spaces import CellComplexSpace, ContinuousSpace, LatticeSpace
 from ...components.systems import CompositeSystem
 from ...enums import TopologyKind, VariableKind
 from ...errors import ValidationError
-from ...specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ...specs import DeclaredVariableSpec, MatrixGroupSpec, ParameterSpec, StateSpec, VisualSpec
 from .._utils import bound_labels, declarations_of
 from ..problems._bilinear_law import BilinearLaw
 from ._compilation import Compilation
 
 RESERVED = ('label', 'visual', 'size', 'space', 'values', 'on')
 LINKS = ('edges', 'hyperedges')
+MIN_RANK = 2
 OTHER = '__other'
 BOOLEAN = FiniteEnumeratedSet([0, 1])
 MEMBERSHIP = frozenset(
@@ -122,10 +132,13 @@ class _StateInference:
     def _get_count(element: Element) -> int | None:
         """Return the number of members of an element, or `None` for one element.
 
-        An element in a space without sites, such as a continuous one, is one member unless its size says otherwise.
+        An element in a space without sites, such as a continuous one, is one member unless its size says otherwise,
+        and an element on the hyperedges of a network without any has no members until the laws add hyperedges.
         """
         if element.size is not None:
             return int(element.size)
+        if isinstance(element.space, NetworkSpace) and element.on == 'hyperedges':
+            return len(element.space.prepare().hyperedges_)
         if element.space is not None and element.on in LINKS:
             return element.space.prepare()._count_parts(element.on, None)
         if element.space is not None and not element.space._has_sites():
@@ -138,10 +151,11 @@ class _StateInference:
     def _get_axes(element: Element, agents: bool = False) -> tuple[str, ...]:
         """Return the axes of the continuous space of an element, or none.
 
-        The agents of a lattice also have the axes of its cells, such as `x` and `y`, which place them.
+        The agents of a lattice also have the axes of its cells, such as `x` and `y`, and the agents of a network its
+        axis `node`, which place them.
         """
         space = element.space
-        if isinstance(space, ContinuousSpace) or (agents and isinstance(space, LatticeSpace)):
+        if isinstance(space, ContinuousSpace) or (agents and isinstance(space, LatticeSpace | NetworkSpace)):
             return space.prepare().axes_
         return ()
 
@@ -184,7 +198,9 @@ class _StateInference:
             return False
         if type(component)._get_compiler is not BaseElement._get_compiler:
             return False
-        if type(component)._get_laws is not Element._get_laws or not _StateInference._get_values(component):
+        if type(component)._get_laws is not Element._get_laws:
+            return False
+        if not _StateInference._get_values(component) and not isinstance(component.space, NetworkSpace):
             return False
         specs = type(component)._get_specs()
         return not any(isinstance(spec, StateSpec | ParameterSpec) for spec in specs.values())
@@ -202,7 +218,7 @@ class _StateInference:
             for item in get_args(annotation)[1:]:
                 if isinstance(item, set | frozenset):
                     return FiniteEnumeratedSet(sorted(item, key=str))
-                if hasattr(item, '__contains__') and not isinstance(item, str):
+                if hasattr(item, '__contains__') and not isinstance(item, str | MatrixGroupSpec):
                     return item
             annotation = get_args(annotation)[0]
         annotated = isinstance(annotation, type) and annotation not in {inspect.Parameter.empty, object}
@@ -228,6 +244,18 @@ class _StateInference:
         return None
 
     @staticmethod
+    def _get_group(annotation: object) -> MatrixGroupSpec | None:
+        """Return the matrix group in the `Annotated` of a value, or `None`.
+
+        A value annotated as `Annotated[object, MatrixGroupSpec('SU', 3)]` holds the real components of a matrix of
+        that group, such as the link of a lattice gauge field.
+        """
+        for item in get_args(annotation)[1:] if get_origin(annotation) is Annotated else ():
+            if isinstance(item, MatrixGroupSpec):
+                return item
+        return None
+
+    @staticmethod
     def _get_period(annotation: object) -> float | None:
         """Return the period in the `Annotated` of a value, or `None`.
 
@@ -237,6 +265,18 @@ class _StateInference:
             if isinstance(item, Period):
                 item._check()
                 return float(item.length)
+        return None
+
+    @staticmethod
+    def _get_member(annotation: object) -> str | None:
+        """Return the label of the group in the `Annotated` of a value, or `None`.
+
+        A value annotated as `Annotated[int, Member('firms')]` names a member of the group `firms`, or none with -1.
+        """
+        for item in get_args(annotation)[1:] if get_origin(annotation) is Annotated else ():
+            if isinstance(item, Member):
+                item._check()
+                return item.group
         return None
 
     def _get_spec(
@@ -266,6 +306,8 @@ class _StateInference:
         domain = self._get_domain(annotation, value)
         quantity = self._get_quantity(annotation)
         period = self._get_period(annotation)
+        member = self._get_member(annotation)
+        group = self._get_group(annotation)
         if period is not None and role is None:
             role = 'direction' if moving else 'phase'
         vector, n_dim, tensor = element._get_shape_of(value)
@@ -293,6 +335,8 @@ class _StateInference:
                 quantity=quantity,
             )
             return DeclaredVariableSpec(value, spec)
+        if group is not None:
+            return DeclaredVariableSpec(value, StateSpec(group=group, role=role, quantity=quantity))
         missing = value if lags else 0.0
         initial = tuple(starting.get(index, missing) for index in range(1, count + 1)) if starting else ()
         steps = 1 if lags else order
@@ -307,6 +351,7 @@ class _StateInference:
             period=period,
             role=role,
             quantity=quantity,
+            reference=member,
         )
         return DeclaredVariableSpec(value, spec)
 
@@ -468,6 +513,8 @@ class _StateInference:
         orders, lags = self._get_orders(compilation)
         orders = dict.fromkeys(self._get_rule_reads(compilation), 1) | orders
         kinds = self._get_topology_kinds(compilation)
+        rank = self._get_hyperedge_rank(compilation)
+        links = self._get_edge_spaces(system)
         agents = self._get_agent_groups(compilation)
         steps = self._get_steps(compilation)
 
@@ -478,6 +525,8 @@ class _StateInference:
                 lambda name: lags.get(f'{path}.{name}', 0),
                 kinds,
                 agents=path in agents,
+                rank=rank,
+                links=links,
                 steps={
                     name.removeprefix(f'{path}.'): moved.removeprefix(f'{path}.')
                     for name, moved in steps.items()
@@ -534,6 +583,44 @@ class _StateInference:
         return reads
 
     @staticmethod
+    def _get_hyperedge_rank(compilation: Compilation) -> int | None:
+        """Return the size of the largest hyperedge the laws add, or `None`.
+
+        A new good made from three parents forms a hyperedge of four members, its parents and itself.
+        """
+        census = Compilation._get_required(compilation.census, 'census')
+        sizes: list[int] = []
+        for record in census.records:
+            law = record.law
+            requests = (
+                [law.target]
+                if isinstance(law, UpdateLaw)
+                else list(law.changes or {}) if isinstance(law, JumpLaw) else []
+            )
+            sizes.extend(
+                int(item.hyperedge)
+                for item in requests
+                if isinstance(item, TopologyRequestSpec) and item.hyperedge is not None
+            )
+        return max(sizes, default=None)
+
+    def _get_edge_spaces(self, system: CompositeSystem) -> frozenset[int]:
+        """Return the identities of the networks whose edges a plain element holds.
+
+        A network whose edges an element such as `Element('catalysis', space=network, on='edges')` holds takes no
+        other group on its edges.
+        """
+        spaces = {
+            id(element.space)
+            for element in system.elements
+            if self._is_plain(element) and element.on == 'edges' and isinstance(element.space, NetworkSpace)
+        }
+        for nested in system.systems:
+            if isinstance(nested, CompositeSystem):
+                spaces |= self._get_edge_spaces(nested)
+        return frozenset(spaces)
+
+    @staticmethod
     def _get_topology_kinds(compilation: Compilation) -> frozenset[str]:
         """Return the kinds of the changes the laws make to a network."""
         census = Compilation._get_required(compilation.census, 'census')
@@ -550,8 +637,8 @@ class _StateInference:
     def _get_agent_groups(compilation: Compilation) -> set[str]:
         """Return the paths of the groups whose members are agents.
 
-        Their members run agent rules, or a rule of the whole system, such as `UpdateLaw(s, clear)`, reads them
-        through the roles of its interaction, such as the traders a market clears.
+        Their members run agent rules, or a rule reads them through the roles of its interaction, such as the traders a
+        market clears with `UpdateLaw(s, clear)` or the balls an urn draws from with `UpdateLaw(s.target, draw)`.
         """
         census = Compilation._get_required(compilation.census, 'census')
         nodes = {node.path: node for node in Compilation._get_required(compilation.nodes, 'nodes')}
@@ -560,8 +647,7 @@ class _StateInference:
             node = nodes.get(record.path)
             if not isinstance(record.law, RuleLaw) or node is None:
                 continue
-            members = record.law.members
-            for role in declarations_of(node.component, VariableKind.ROLE) if members is None else (members,):
+            for role in declarations_of(node.component, VariableKind.ROLE):
                 groups.update(f'{node.scope}{label}' for label in bound_labels(getattr(node.component, role, None)))
         return groups
 
@@ -597,6 +683,61 @@ class _StateInference:
         )
 
     @staticmethod
+    def _get_node_edges(element: Element, links: frozenset[int]) -> list[GroupElement]:
+        """Return the variable group on the changing edges of a network, after its nodes.
+
+        A network whose edges an element holds, such as `Element('catalysis', space=network, on='edges')`, takes no
+        such group, since that element is the group on its edges.
+        """
+        if id(element.space) in links:
+            return []
+        return [GroupElement(f'{element.label}_edges', element=Element, space=element.space, on='edges', variable=True)]
+
+    @staticmethod
+    def _get_link_group(
+        element: Element,
+        on: str,
+        count: int | None,
+        values: Mapping[str, object],
+        *,
+        changing: bool,
+        rank: int | None,
+    ) -> GroupElement:
+        """Return the group with one member on every edge or hyperedge of a network.
+
+        When the laws change the network, the group grows and shrinks with its edges or hyperedges, and a group on
+        hyperedges holds the largest hyperedge the laws add, its rank. A group on a network without hyperedges starts
+        empty, as the production functions of goods that are yet to be made.
+        """
+        empty = on == 'hyperedges' and count == 0
+        variable = isinstance(element.space, NetworkSpace) and (changing or empty)
+        return GroupElement(
+            element.label,
+            element=DeclaredElement,
+            size=0 if empty else None,
+            space=element.space,
+            on=on,
+            values=values,
+            variable=variable,
+            rank=(rank or MIN_RANK) if variable and on == 'hyperedges' else None,
+        )
+
+    @staticmethod
+    def _get_group_on(element: Element, count: int | None, agents: bool) -> str | None:
+        """Return where the members of a group sit, `'sites'` or `None`.
+
+        The members of a group in a continuous space, or one per node of a network, sit on its sites. Agents of a
+        network and another number of members, such as the balls in the urns of its nodes, sit on no sites and are
+        placed by their value `node`.
+        """
+        space = element.space
+        if space is None or isinstance(space, LatticeSpace):
+            return None
+        if isinstance(space, NetworkSpace) and (agents or count != space.graph.number_of_nodes()):
+            return None
+        return 'sites'
+
+    @staticmethod
     def _get_past_arrays(name: str, values: object, lags: int) -> dict[str, object]:
         """Return the past values of many members, each its value before the start."""
         return {f'{name}_lag{index}': values for index in range(1, lags + 1)}
@@ -610,6 +751,8 @@ class _StateInference:
         probing: bool = False,
         *,
         agents: bool = False,
+        rank: int | None = None,
+        links: frozenset[int] = frozenset(),
         steps: Mapping[str, str] | None = None,
     ) -> list[BaseElement]:
         """Return the declared element of a plain element, or a group of declared members.
@@ -622,13 +765,14 @@ class _StateInference:
         one agent. A value named after an axis of a continuous space, or of the cells of a lattice for agents, is a
         position, also when no law changes it, and the value an update law adds to a position at every step, as `v` in
         `x <- x + v`, is its velocity. An element on the edges or hyperedges of a network is a group with one member on
-        each. The probe that finds the orders reads no starting values of derivatives or past values. The element keeps
-        the drawing of its class, except a drawing of agents for members that run no agent rules, and the view of its
-        agents.
+        each, which grows and shrinks with them when the laws change the network. The probe that finds the orders
+        reads no starting values of derivatives or past values. The element keeps the drawing of its class, except a
+        drawing of agents for members that run no agent rules, and the view of its agents.
         """
         values = self._get_values(element)
         starting = {} if probing else self._get_starting(element, values)
-        count = self._get_count(element) or (1 if agents else None)
+        count = self._get_count(element)
+        count = 1 if count is None and agents else count
         on = next((part for part in LINKS if element.on == part), None)
         network = bool(kinds) and isinstance(element.space, NetworkSpace) and on is None
         growing = network and bool(kinds & MEMBERSHIP)
@@ -678,31 +822,19 @@ class _StateInference:
                 capacity=None if growing else count,
                 values=values,
             )
-            edges = GroupElement(
-                f'{element.label}_edges',
-                element=Element,
-                space=element.space,
-                on='edges',
-                variable=True,
-            )
-            return [nodes, edges]
+            return [nodes, *self._get_node_edges(element, links)]
         if on is not None:
-            group = GroupElement(
-                element.label,
-                element=DeclaredElement,
-                space=element.space,
-                on=on,
-                values=values,
-            )
-            return [group]
+            return [self._get_link_group(element, on, count, values, changing=bool(kinds), rank=rank)]
         if isinstance(element.space, LatticeSpace | NetworkSpace) and element.size is None:
             return [self._get_field(element.label, element.space, values)]
+        place = self._get_group_on(element, count, agents)
+        off_nodes = place is None and isinstance(element.space, NetworkSpace) and not agents
         group = GroupElement(
             element.label,
             element=DeclaredElement,
             size=count,
-            space=element.space,
-            on=None if element.space is None or isinstance(element.space, LatticeSpace) else 'sites',
+            space=None if off_nodes else element.space,
+            on=place,
             values=values,
             variable=agents,
         )
