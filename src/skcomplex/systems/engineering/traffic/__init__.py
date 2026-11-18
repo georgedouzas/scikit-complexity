@@ -1,6 +1,13 @@
 """Traffic: cars on roads."""
 
-from ._car_following import DelayedCarFollowingSystem, IntelligentDriverSystem, OptimalVelocitySystem
+from ._car_following import (
+    DelayedCarFollowingSystem,
+    DelayedFollowingInteraction,
+    IntelligentDriverInteraction,
+    IntelligentDriverSystem,
+    LeadCarInteraction,
+    OptimalVelocitySystem,
+)
 from ._continuum import (
     GasKineticTrafficElement,
     GktTrafficSystem,
@@ -20,6 +27,7 @@ from ._langevin import (
     LangevinTrafficSystem,
     TrafficDensityEquationSystem,
     TrafficMomentsElement,
+    TrafficMomentsInteraction,
 )
 from ._ridesharing import ArrivalInteraction, CabElement, RiderElement, RidesharingSystem
 from ._traffic import NagelSchreckenbergInteraction, NagelSchreckenbergSystem, RoadElement
@@ -30,13 +38,16 @@ __all__: list[str] = [
     'CarelessBrakingInteraction',
     'CharbonneauTrafficSystem',
     'DelayedCarFollowingSystem',
+    'DelayedFollowingInteraction',
     'DriverElement',
     'GasKineticTrafficElement',
     'GktTrafficSystem',
+    'IntelligentDriverInteraction',
     'IntelligentDriverSystem',
     'KernerKonhauserSystem',
     'LangevinDrivingInteraction',
     'LangevinTrafficSystem',
+    'LeadCarInteraction',
     'LighthillWhithamRichardsSystem',
     'MotoristElement',
     'NagelSchreckenbergInteraction',
@@ -49,4 +60,5 @@ __all__: list[str] = [
     'RoadElement',
     'TrafficDensityEquationSystem',
     'TrafficMomentsElement',
+    'TrafficMomentsInteraction',
 ]

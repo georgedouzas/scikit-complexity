@@ -46,8 +46,8 @@ trajectory = system.prepare().simulate(observers=[observer])
 
 stable = OptimalVelocitySystem(length=80.0).prepare().simulate()
 fig, (spread, cycle) = plt.subplots(1, 2, figsize=(10, 4))
-spread.semilogy(trajectory.times, trajectory.get_values('cars.v').std(axis=1) + 1e-12, label='headway 2, unstable')
-spread.semilogy(stable.times, stable.get_values('cars.v').std(axis=1) + 1e-12, label='headway 4, stable')
+spread.semilogy(trajectory.times, trajectory.get_values("cars.x'").std(axis=1) + 1e-12, label='headway 2, unstable')
+spread.semilogy(stable.times, stable.get_values("cars.x'").std(axis=1) + 1e-12, label='headway 4, stable')
 spread.set_xlabel('time')
 spread.set_ylabel('spread of speeds')
 spread.set_title('The disturbance grows or decays')
@@ -56,7 +56,7 @@ headways = np.mod(np.roll(trajectory.get_values('cars.x'), -1, axis=1) - traject
 late = trajectory.times > 150
 cycle.plot(
     headways[late].ravel(),
-    trajectory.get_values('cars.v')[late].ravel(),
+    trajectory.get_values("cars.x'")[late].ravel(),
     '.',
     markersize=2,
     label='all cars, t > 150',
