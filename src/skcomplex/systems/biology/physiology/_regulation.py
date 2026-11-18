@@ -6,19 +6,20 @@ It covers antagonistic hormone loops and an extracellular cascade with positive 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import delayed, hill, pulse
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ...general.reactions import ReactionInteraction
@@ -102,21 +103,21 @@ class CoagulationElement(Element):
         self,
         label: str,
         *,
-        T: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        C: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        F: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        P: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        ka: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
-        k_half: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        d_t: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        k_c: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        s_c: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        d_c: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        s_f: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        k_p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        s_p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
-        d_p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        injury: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        T: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        C: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        F: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        P: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        ka: Annotated[float, RealSet.closed_open(0, oo)] = 3.0,
+        k_half: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        d_t: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        k_c: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        s_c: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        d_c: Annotated[float, RealSet.closed_open(0, oo)] = 0.05,
+        s_f: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        k_p: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        s_p: Annotated[float, RealSet.closed_open(0, oo)] = 0.02,
+        d_p: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        injury: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
         injury_time: float = 1.0,
         duration: float = 1.0,
     ) -> None:
@@ -222,21 +223,21 @@ class GlucoseControlElement(Element):
         self,
         label: str,
         *,
-        G: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        I: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        N: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        R: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.75,
-        k0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        k_i: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        k_n: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        s_i: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        s_n: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        d_i: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        d_n: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        n: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 4.0,
-        meal: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        exercise: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
+        G: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        I: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        N: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        R: Annotated[float, RealSet.closed_open(0, oo)] = 0.75,
+        k0: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        k_i: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        k_n: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        s_i: Annotated[float, RealSet.closed_open(0, oo)] = 2.0,
+        s_n: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        d_i: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        d_n: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        K: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        n: Annotated[float, RealSet.open(0, oo)] = 4.0,
+        meal: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        exercise: Annotated[float, RealSet.closed_open(0, oo)] = 0.8,
         meal_time: float = 2.0,
         exercise_time: float = 12.0,
         duration: float = 2.0,
@@ -295,6 +296,12 @@ class GlucoseDualHormoneControlSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.physiology import GlucoseDualHormoneControlSystem
         >>> GlucoseDualHormoneControlSystem(glucagon=False).prepare().system_.elements[0].k_n
@@ -317,8 +324,10 @@ class GlucoseDualHormoneControlSystem(BaseSystem):
         exercise_time: float = 12.0,
         duration: float = 2.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.glucagon = glucagon
         self.meal = meal
         self.exercise = exercise
@@ -326,8 +335,14 @@ class GlucoseDualHormoneControlSystem(BaseSystem):
         self.exercise_time = exercise_time
         self.duration = duration
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of blood glucose stabilised by antagonistic hormone loops."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of blood glucose stabilised by antagonistic hormone loops.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         k_n = 1.0 if self.glucagon else 0.0
         insulin, glucagon_level = 2.0 * 0.5, 1.0 * 0.5
         organism = GlucoseControlElement(
@@ -400,7 +415,7 @@ class GlucoseDualHormoneControlSystem(BaseSystem):
                 propensity=lambda s: s.target.d_n * s.target.N,
             ),
         ]
-        return CompositeSystem(self.label, elements=[organism], interactions=interactions)
+        self.system_ = System(self.label, elements=[organism], interactions=interactions)
 
 
 class CoagulationPositiveFeedbackSystem(BaseSystem):
@@ -432,6 +447,12 @@ class CoagulationPositiveFeedbackSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.physiology import CoagulationPositiveFeedbackSystem
         >>> CoagulationPositiveFeedbackSystem(injury=0.2).prepare().system_.elements[0].injury
@@ -452,15 +473,23 @@ class CoagulationPositiveFeedbackSystem(BaseSystem):
         duration: float = 1.0,
         ka: float = 3.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.injury = injury
         self.injury_time = injury_time
         self.duration = duration
         self.ka = ka
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the coagulation cascade."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the coagulation cascade.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         blood = CoagulationElement(
             'blood',
             injury=self.injury,
@@ -532,7 +561,7 @@ class CoagulationPositiveFeedbackSystem(BaseSystem):
                 propensity=lambda s: s.target.d_p * s.target.P,
             ),
         ]
-        return CompositeSystem(self.label, elements=[blood], interactions=interactions)
+        self.system_ = System(self.label, elements=[blood], interactions=interactions)
 
 
 class SteerableFeedbackLoopSystem(DynamicalSystem):

@@ -13,14 +13,13 @@ doses stop the metabolism lowers it.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.physiology import DrugToxicitySystem
 
 SYSTEM = 'drug_toxicity'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(DrugToxicitySystem(), observers=[observer])
+trajectory = DrugToxicitySystem().prepare().simulate(observers=[observer])
 
 # %%
 # Toxicity and exposure
@@ -29,7 +28,7 @@ trajectory = simulate(DrugToxicitySystem(), observers=[observer])
 # With clearance at the rate `eta`, the toxicity should decay as `exp(-eta t)` after the last dose.
 
 times = trajectory.times
-cumulative = simulate(DrugToxicitySystem(eta=0.0))
+cumulative = DrugToxicitySystem(eta=0.0).prepare().simulate()
 exposure = np.concatenate(
     (
         [0.0],

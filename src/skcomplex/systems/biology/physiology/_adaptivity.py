@@ -7,17 +7,20 @@ The responses are stimulus-response, adaptive response, and anticipation.
 # License: MIT
 
 
+from collections.abc import Sequence
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import pulse_train, where
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction
 
 STRATEGIES = {'stimulus-response': (0.0, 0.0), 'adaptive': (0.5, 0.0), 'anticipatory': (0.5, 0.5)}
@@ -117,23 +120,23 @@ class AdaptiveResponderElement(Element):
         self,
         label: str,
         *,
-        e: Annotated[float, StateSpec()] = 0.0,
-        c: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        S: Annotated[float, StateSpec()] = 1.0,
-        response_cost: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        restore_cost: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        repair_cost: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        prepare_cost: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        anticipation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        c0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 50.0,
-        k0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        kappa: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        price: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        theta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        repair: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-        upkeep: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        e: float = 0.0,
+        c: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
+        S: float = 1.0,
+        response_cost: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        restore_cost: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        repair_cost: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        prepare_cost: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        eta: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        anticipation: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        c0: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
+        tau: Annotated[float, RealSet.open(0, oo)] = 50.0,
+        k0: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        kappa: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
+        price: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        theta: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        repair: Annotated[float, RealSet.closed_open(0, oo)] = 5.0,
+        upkeep: Annotated[float, RealSet.closed_open(0, oo)] = 0.05,
         height: float = 1.0,
         width: float = 2.0,
         period: float = 10.0,
@@ -194,6 +197,12 @@ class AdaptiveResponseCostsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The strategy is unknown.
@@ -218,15 +227,23 @@ class AdaptiveResponseCostsSystem(BaseSystem):
         width: float = 2.0,
         period: float = 10.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.strategy = strategy
         self.height = height
         self.width = width
         self.period = period
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of a system that meets recurring demands by stimulus-response."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system, a system that meets recurring demands by stimulus-response.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         if self.strategy not in STRATEGIES:
             error_msg = f'Unknown strategy {self.strategy!r}. Use one of {", ".join(STRATEGIES)}.'
             raise ValidationError(error_msg)
@@ -297,4 +314,4 @@ class AdaptiveResponseCostsSystem(BaseSystem):
                 rate=lambda s: s.target.upkeep * (s.target.c - s.target.c0 + s.target.anticipation),
             ),
         ]
-        return CompositeSystem(self.label, elements=[organism], interactions=interactions)
+        self.system_ = System(self.label, elements=[organism], interactions=interactions)

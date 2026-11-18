@@ -4,15 +4,18 @@
 # License: MIT
 
 
+from collections.abc import Sequence
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction
 from ..common.pharmacokinetics import DosingInteraction
 
@@ -66,11 +69,11 @@ class DrugToxicityElement(Element):
         self,
         label: str,
         *,
-        c: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        T: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        dose: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        c: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        T: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        k: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        eta: Annotated[float, RealSet.closed_open(0, oo)] = 0.05,
+        dose: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
         period: float = 7.0,
         width: float = 1.0,
         doses: int = 6,
@@ -117,6 +120,12 @@ class DrugToxicitySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.physiology import DrugToxicitySystem
         >>> DrugToxicitySystem(eta=0.0).prepare().system_.elements[0].eta
@@ -139,8 +148,10 @@ class DrugToxicitySystem(BaseSystem):
         width: float = 1.0,
         doses: int = 6,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.k = k
         self.eta = eta
         self.dose = dose
@@ -148,8 +159,14 @@ class DrugToxicitySystem(BaseSystem):
         self.width = width
         self.doses = doses
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the toxicity a weekly drug accumulates in the body."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the toxicity a weekly drug accumulates in the body.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         patient = DrugToxicityElement(
             'patient',
             k=self.k,
@@ -183,4 +200,4 @@ class DrugToxicitySystem(BaseSystem):
                 propensity=lambda s: s.target.eta * s.target.T,
             ),
         ]
-        return CompositeSystem(self.label, elements=[patient], interactions=interactions)
+        self.system_ = System(self.label, elements=[patient], interactions=interactions)

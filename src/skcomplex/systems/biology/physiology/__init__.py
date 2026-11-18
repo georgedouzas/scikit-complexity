@@ -30,7 +30,7 @@ from ._exchange import (
     NanotubeGapJunctionExchangeSystem,
 )
 from ._pharmacokinetics import TwoCompartmentElement, TwoCompartmentPharmacokineticsSystem
-from ._physiology import FitzhughNagumoSystem, MackeyGlassElement, MackeyGlassSystem
+from ._physiology import FitzhughNagumoSystem, MackeyGlassElement, MackeyGlassInteraction, MackeyGlassSystem
 from ._regulation import (
     CoagulationElement,
     CoagulationPositiveFeedbackSystem,
@@ -72,6 +72,7 @@ __all__: list[str] = [
     'HyperbolicChemotaxisSystem',
     'LayerCouplingInteraction',
     'MackeyGlassElement',
+    'MackeyGlassInteraction',
     'MackeyGlassSystem',
     'NanotubeGapJunctionExchangeSystem',
     'RegionSamplingInteraction',
