@@ -13,14 +13,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import alignment
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.collective_behaviour import BirdSwarmSystem
 
 SYSTEM = 'bird_swarm'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(BirdSwarmSystem(n_birds=30, random_state=0), observers=[observer], until=100)
+trajectory = BirdSwarmSystem(n_birds=30, random_state=0).prepare().simulate(observers=[observer], until=100)
 
 # %%
 # Mill or flock
