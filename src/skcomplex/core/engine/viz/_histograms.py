@@ -161,7 +161,7 @@ class HistogramVisual(AgentsVisual):
         for state, name in element.states.items():
             numbers = self._get_numbers_of(frame.get_value(name))
             if numbers is not None and numbers.size:
-                self._log_trait(recording, f'{element.path}/{state}', state, numbers)
+                self._log_trait(recording, BaseVisual._get_state_path(element.path, state), state, numbers)
 
     def _log_agents(
         self,

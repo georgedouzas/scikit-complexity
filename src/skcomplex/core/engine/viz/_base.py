@@ -18,6 +18,7 @@ from ...errors import ValidationError
 from ..enums import ComplexComponentKind
 from ..problems import AgentSnapshotSpec, BaseProblemSpec, CompiledElementSpec, FrameSpec
 from ..problems._compiled_agents_spec import _CompiledAgentsSpec
+from ..problems._layout_spec import LayoutSpec
 
 UPWARD = np.array([1.0, -1.0])
 LAYOUT_SEED = 0
@@ -363,6 +364,15 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
         It is smaller for crowds so they do not overlap.
         """
         return POINT_SHARE * (extent if extent > 0 else 1.0) / max(count / CROWD_SIZE, 1.0) ** CROWD_EXPONENT
+
+    @staticmethod
+    def _get_state_path(path: str, state: str) -> str:
+        """Return the entity path of a state, naming a derivative with primes.
+
+        The derivative `x_d1` of `node_0` is logged under the escaped form of `node_0/x'`, as Rerun writes a prime in
+        an entity path.
+        """
+        return f'{path}/{rr.escape_entity_path_part(LayoutSpec._get_display_name(state))}'
 
     @staticmethod
     def _log_scalars(recording: rr.RecordingStream, path: str, value: object) -> None:

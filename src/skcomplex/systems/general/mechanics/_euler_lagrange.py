@@ -3,21 +3,19 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import ClassVar
 
-from sage.all__sagemath_symbolics import SR, Expression
+from sage.all__sagemath_symbolics import SR, Expression, function
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.components.base import BaseComponent
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, ConstraintLaw
-from ....core.components.laws.utils import derivative
 from ....core.components.spaces import BaseSpace
-from ....core.enums import ElementKind
 from ....core.errors import ValidationError
-from ....core.specs import RoleSpec
+from ....core.specs import Role
 
 
 class EulerLagrangeInteraction(Interaction):
@@ -87,7 +85,7 @@ class EulerLagrangeInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('states',))],
+        target: Role,
         states: str | Sequence[str] = 'x',
         lagrangian: Callable[[SimpleNamespace], object] | None = None,
         dissipation: Callable[[SimpleNamespace], object] | None = None,
@@ -145,9 +143,7 @@ class EulerLagrangeInteraction(Interaction):
         They are every component of the states of every role that binds one path.
         """
         coordinates = []
-        for name, spec in self._get_specs().items():
-            if not isinstance(spec, RoleSpec) or spec.variadic or spec.noise:
-                continue
+        for name in self._get_roles(single=True):
             for state in self._get_names():
                 value = getattr(getattr(namespace, name), state)
                 coordinates += list(value) if isinstance(value, FreeModuleElement) else [value]
@@ -157,18 +153,18 @@ class EulerLagrangeInteraction(Interaction):
         """Return the generalized force of every coordinate, zero without a forcing."""
         if self.forcing is None:
             return [SR(0)] * count
-        forces = self._get_in_states(self.forcing, namespace)
+        forces = self.forcing(namespace)
         forces = list(forces) if isinstance(forces, FreeModuleElement | list | tuple) else [forces]
         if len(forces) != count:
             error_msg = f'The forcing of {self.label!r} returns {len(forces)} forces for {count} coordinates.'
             raise ValidationError(error_msg)
         return [SR(force) for force in forces]
 
-    def _get_in_states(self, function: Callable[[SimpleNamespace], object], namespace: SimpleNamespace) -> object:
-        """Return a function of the namespace read in the symbols of the states.
+    def _get_lagrangian_of(self, namespace: SimpleNamespace, velocities: Mapping[Expression, Expression]) -> Expression:
+        """Return the Lagrangian in the symbols of the states and of the velocities.
 
-        The velocity of a coordinate `q` is `derivative(q, 1)`. The namespace holds the states as symbols or as
-        functions of the time `t`.
+        The namespace holds the states as symbols, and the velocity `q.diff(t)` of a coordinate `q` becomes the symbol
+        `velocities[q]`, as the invariants analysis reads it.
         """
         time = getattr(namespace, 't', SR.var('t'))
         functions: dict[str, Expression] = {}
@@ -178,39 +174,43 @@ class EulerLagrangeInteraction(Interaction):
                 for name, item in vars(namespace).items()
             },
         )
-        return self._get_symbolic(function(functional), time)
-
-    def _get_symbolic_lagrangian(self, namespace: SimpleNamespace) -> Expression:
-        """Return the Lagrangian in the symbols of the states.
-
-        The velocity of a coordinate `q` is `derivative(q, 1)`.
-        """
-        return SR(self._get_in_states(self._get_lagrangian, namespace))
+        rates = {function(str(q))(time).diff(time): velocity for q, velocity in velocities.items()}
+        states = {function(name)(time): symbol for name, symbol in functions.items()}
+        return SR(self._get_lagrangian(functional)).subs(rates).subs(states)
 
     def _get_equations(self, namespace: SimpleNamespace) -> list[BaseComponent]:
         """Return the Euler-Lagrange equation of every coordinate.
 
-        The equations are written in the symbols of the states, with derivatives as `derivative(q, k)`.
+        The coordinates, their velocities `q.diff(t)`, and their accelerations `q.diff(t, 2)` take symbols while the
+        Lagrangian is differentiated, and the equations are written back in them.
         """
         time = SR(namespace.t)
-        symbolic = self._get_symbolic(namespace, time)
-        coordinates = self._get_coordinates(symbolic)
-        velocities = {derivative(q, 1): SR.var(f'_velocity_{index}') for index, q in enumerate(coordinates)}
-        back = {symbol: item for item, symbol in velocities.items()}
-        slots = list(velocities.values())
-        lagrangian = self._get_symbolic_lagrangian(namespace).subs(velocities)
-        dissipation = SR(
-            0 if self.dissipation is None else self._get_in_states(self.dissipation, namespace),
-        ).subs(velocities)
-        forces = self._get_forces(namespace, len(coordinates))
+        coordinates = self._get_coordinates(namespace)
+        positions = [SR.var(f'_position_{index}') for index in range(len(coordinates))]
+        slots = [SR.var(f'_velocity_{index}') for index in range(len(coordinates))]
+        accelerations = [SR.var(f'_acceleration_{index}') for index in range(len(coordinates))]
+        rates = {q.diff(time): slot for q, slot in zip(coordinates, slots, strict=True)}
+        states = dict(zip(coordinates, positions, strict=True))
+
+        def slotted(value: object) -> Expression:
+            return SR(value).subs(rates).subs(states)
+
+        back = {
+            **{slot: q.diff(time) for q, slot in zip(coordinates, slots, strict=True)},
+            **{item: q for q, item in zip(coordinates, positions, strict=True)},
+            **{item: q.diff(time, 2) for q, item in zip(coordinates, accelerations, strict=True)},
+        }
+        lagrangian = slotted(self._get_lagrangian(namespace))
+        dissipation = slotted(0 if self.dissipation is None else self.dissipation(namespace))
+        forces = [slotted(force) for force in self._get_forces(namespace, len(coordinates))]
         laws: list[BaseComponent] = []
-        for q, slot, force in zip(coordinates, slots, forces, strict=True):
+        for q, position, slot, force in zip(coordinates, positions, slots, forces, strict=True):
             momentum = lagrangian.diff(slot)
             change = momentum.diff(time) + sum(
-                momentum.diff(other) * other_slot + momentum.diff(other_slot) * derivative(other, 2)
-                for other, other_slot in zip(coordinates, slots, strict=True)
+                momentum.diff(other) * other_slot + momentum.diff(other_slot) * acceleration
+                for other, other_slot, acceleration in zip(positions, slots, accelerations, strict=True)
             )
-            lhs = (change - lagrangian.diff(q)).subs(back)
+            lhs = (change - lagrangian.diff(position)).subs(back)
             rhs = (force - dissipation.diff(slot)).subs(back)
             laws.append(ConstraintLaw(lhs == rhs, target=q))
         return laws

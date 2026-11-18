@@ -236,7 +236,7 @@ class CellVisual(BaseVisual):
         values = np.ravel(np.asarray(frame.get_value(name), dtype=float))
         period = frame.problem.states.get_entry(name).period
         cycle = None if period is None else float(period)
-        path = f'{element.path}/{state}'
+        path = BaseVisual._get_state_path(element.path, state)
         if getattr(element.element, 'on', None) == 'hyperedges':
             self._log_faces(recording, path, space, values, cycle)
             return
@@ -265,4 +265,4 @@ class CellVisual(BaseVisual):
             return []
         self._get_complex_of(element)
         state = self.state if self.state is not None else next(iter(element.states))
-        return [rrb.Spatial2DView(origin=f'{element.path}/{state}', name=state)]
+        return [rrb.Spatial2DView(origin=BaseVisual._get_state_path(element.path, state), name=state)]

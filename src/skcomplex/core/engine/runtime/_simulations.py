@@ -277,14 +277,13 @@ class Simulation(BaseConfig[None, float]):
                 'library from its class, such as `SIRSystem()`.'
             )
             raise ValidationError(error_msg)
-        if not isinstance(self.system, BaseProblemSpec):
-            self._check_report(self._get_compiler().prepare(self.system))
         initial = {LayoutSpec._get_internal_name(name): value for name, value in (self.initial_state or {}).items()}
         named: object = None
         if isinstance(self.system, BaseProblemSpec):
             self.problem_ = PassCompiler._copy_with_initial_state(self.system, initial)
         else:
             compiler = self._get_compiler().prepare(self.system)
+            self._check_report(compiler)
             self.problem_ = compiler.run(initial).problem_
             named = compiler.solver_
         if named is not None and not isinstance(named, BaseSolver):

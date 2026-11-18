@@ -32,7 +32,6 @@ from skcomplex.systems.physics.common.particles import (
     ConstantForceInteraction,
     DampingInteraction,
     LangevinThermostatInteraction,
-    LennardJonesInteraction,
 )
 from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem
 from skcomplex.systems.physics.waves import HarmonicPotentialInteraction
@@ -40,6 +39,39 @@ from skcomplex.systems.physics.waves import HarmonicPotentialInteraction
 from ....conftest import BodyElement
 
 CUTOFF = 2.5
+
+
+class LennardJonesInteraction(PairInteraction):
+    """Lennard-Jones pair potential, which LAMMPS runs as a Lepton pair energy."""
+
+    def __init__(
+        self,
+        label: str,
+        first: str,
+        second: str,
+        cutoff: float = 1.0,
+        position: str = 'x',
+        *,
+        divisor: str | None = None,
+        epsilon: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        sigma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(
+            label,
+            first,
+            second,
+            cutoff=cutoff,
+            position=position,
+            potential=self._get_pair_energy,
+            divisor=divisor,
+            order=2,
+        )
+        self.epsilon = epsilon
+        self.sigma = sigma
+
+    def _get_pair_energy(self, s, r):
+        """Return `4 * epsilon * ((sigma / r) ** 12 - (sigma / r) ** 6)`."""
+        return 4 * s.epsilon * ((s.sigma / r) ** 12 - (s.sigma / r) ** 6)
 
 
 class ExponentialInteraction(PairInteraction):

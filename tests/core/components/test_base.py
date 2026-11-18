@@ -1,5 +1,6 @@
 """Test the `base` module of `skcomplex.core.components`."""
 
+from collections.abc import Mapping
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -164,6 +165,37 @@ def test_get_specs_reads_the_domains_written_after_a_role():
     specs = VoteInteraction._get_specs()
     assert specs['voters'] == RoleSpec(domains=('boolean',))
     assert specs['other'] == RoleSpec()
+
+
+class ReactionInteraction(Interaction):
+    """Interaction whose roles bind one element, one element or none, and several elements."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        reactants: tuple[Role, ...] = (),
+        amounts: Mapping[tuple[Role, str] | Role, float] | None = None,
+        catalyst: Role | None = None,
+        states: tuple[str, ...] = ('x',),
+        k: float = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.reactants = reactants
+        self.amounts = amounts
+        self.catalyst = catalyst
+        self.states = states
+        self.k = k
+
+
+def test_get_specs_reads_roles_from_type_hints():
+    """Test that `tuple[Role, ...]` and a mapping keyed by roles bind several elements and `Role | None` is optional."""
+    specs = ReactionInteraction._get_specs()
+    assert specs['reactants'] == RoleSpec(variadic=True)
+    assert specs['amounts'] == RoleSpec(variadic=True, optional=True)
+    assert specs['catalyst'] == RoleSpec(optional=True)
+    assert 'states' not in specs
+    assert list(ReactionInteraction('reaction')._get_declared()) == ['k']
 
 
 class FeedInteraction(Interaction):

@@ -13,6 +13,7 @@ from typing import Annotated, get_args, get_origin
 import numpy as np
 from sage.all__sagemath_symbolics import CC, RR, SR, ZZ, Expression
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from shapely import Polygon
 
 from ...components.base import BaseComponent
 from ...components.elements import (
@@ -39,7 +40,7 @@ from ...components.laws import (
     UpdateLaw,
 )
 from ...components.laws.utils import delayed, derivative, lag
-from ...components.spaces import CellComplexSpace, ContinuousSpace, LatticeSpace, NetworkSpace
+from ...components.spaces import BaseSpace, CellComplexSpace, ContinuousSpace, LatticeSpace, NetworkSpace
 from ...components.systems import CompositeSystem
 from ...enums import TopologyKind, VariableKind
 from ...errors import ValidationError
@@ -49,6 +50,7 @@ from ..problems._bilinear_law import BilinearLaw
 from ._compilation import Compilation
 
 RESERVED = ('label', 'visual', 'size', 'space', 'values', 'on')
+REGION = 'region'
 LINKS = ('edges', 'hyperedges')
 MIN_RANK = 2
 OTHER = '__other'
@@ -144,10 +146,9 @@ class _StateInference:
     def _get_histories(element: Element, delays: Collection[str]) -> dict[str, tuple[str, object]]:
         """Return the history of every value the laws read with a delay.
 
-        The history is the value before the start, given as the past value with the index `-1`, such as
-        `values={'I': 0.01, 'I[-1]': 0.0}` for a number of infected people that was zero before an outbreak, a number or
-        a function of time. Each comes
-        with the name it is given under.
+        The history is the value before the start, given as the past value with the index `-1`, a number or a
+        function of time, such as `values={'I': 0.01, 'I[-1]': 0.0}` for infected people who were none before an
+        outbreak. Each comes with the name it is given under.
         """
         histories = {}
         for name, value in (element.values or {}).items():
@@ -161,8 +162,8 @@ class _StateInference:
         """Return the starting derivatives of the values of agents, by engine name.
 
         The engine name of `"x'"` is `x_d1`. Rules change such a derivative as a value of its own, such as the
-        velocity `"x'"` of a boid that its steering turns and its flight adds to `x`, and read it as `agent.x_d1`. Each
-        comes with the name it is given under and the value it derives.
+        velocity `"x'"` of a boid that its steering turns and its flight adds to `x`, and read it as `agent.x_d1`.
+        Each comes with the name it is given under and the value it derives.
         """
         derivatives = {}
         for name, value in (element.values or {}).items():
@@ -224,15 +225,15 @@ class _StateInference:
         return None
 
     @staticmethod
-    def _get_axes(element: Element, agents: bool = False) -> tuple[str, ...]:
+    def _get_axes(element: Element, agents: bool = False, space: BaseSpace | None = None) -> tuple[str, ...]:
         """Return the axes of the continuous space of an element, or none.
 
-        The agents of a lattice also have the axes of its cells, such as `x` and `y`, and the agents of a network its
-        axis `node`, which place them.
+        The space is that of the element, or else the continuous space of its system. The agents of a lattice also have
+        the axes of its cells, such as `x` and `y`, and the agents of a network its axis `node`, which place them.
         """
-        space = element.space
+        space = element.space or (space if isinstance(space, ContinuousSpace) else None)
         if isinstance(space, ContinuousSpace) or (agents and isinstance(space, LatticeSpace | NetworkSpace)):
-            return space.prepare().axes_
+            return getattr(space.prepare(), 'axes_', ())
         return ()
 
     @staticmethod
@@ -480,20 +481,28 @@ class _StateInference:
     def _replace(
         self,
         system: CompositeSystem,
-        declare: Callable[[Element, str], list[BaseElement]],
+        declare: Callable[[Element, str, BaseSpace | None], list[BaseElement]],
         scope: str = '',
+        space: BaseSpace | None = None,
     ) -> CompositeSystem:
         """Return a copy of a system tree whose plain elements are declared elements.
 
-        The copy keeps the observables of every system.
+        Every element is declared in the space of its nearest system. The copy keeps the observables of every system.
         """
+        space = system.space or space
         elements = [
             declared
             for element in system.elements
-            for declared in (declare(element, f'{scope}{element.label}') if self._is_plain(element) else [element])
+            for declared in (
+                declare(element, f'{scope}{element.label}', space) if self._is_plain(element) else [element]
+            )
         ]
         systems = [
-            self._replace(nested, declare, f'{scope}{nested.label}/') if isinstance(nested, CompositeSystem) else nested
+            (
+                self._replace(nested, declare, f'{scope}{nested.label}/', space)
+                if isinstance(nested, CompositeSystem)
+                else nested
+            )
             for nested in system.systems
         ]
         replaced = CompositeSystem(
@@ -632,8 +641,11 @@ class _StateInference:
                 orders[name] = _StateInference._get_order(name, 1, orders.get(name))
             for name, steps in _StateInference._get_lags(law, named).items():
                 lags[name] = max(steps, lags.get(name, 0))
-            order = (law.order or 1) if isinstance(law, RateLaw | NoiseLaw) else 1
-            order = 0 if isinstance(law, LinearProgramLaw) else order
+            order = (
+                (law.order or 1)
+                if isinstance(law, RateLaw | NoiseLaw)
+                else 0 if isinstance(law, LinearProgramLaw) else 1
+            )
             names = [entry.name for entry in record.targets]
             if isinstance(law, ConstraintLaw) and law.target is not None and str(law.target) in named:
                 names.append(named[str(law.target)])
@@ -659,8 +671,8 @@ class _StateInference:
         if not self._has_plain(system):
             return system
 
-        def probe(element: Element, path: str) -> list[BaseElement]:
-            return self._get_declared_elements(element, lambda name: 1, lambda name: 0, probing=True)
+        def probe(element: Element, path: str, space: BaseSpace | None) -> list[BaseElement]:
+            return self._get_declared_elements(element, lambda name: 1, lambda name: 0, probing=True, space=space)
 
         compilation = self.census(self._replace(system, probe))
         orders, lags = self._get_orders(compilation)
@@ -672,7 +684,7 @@ class _StateInference:
         steps = self._get_steps(compilation)
         delays = self._get_delays(compilation)
 
-        def declare(element: Element, path: str) -> list[BaseElement]:
+        def declare(element: Element, path: str, space: BaseSpace | None) -> list[BaseElement]:
             return self._get_declared_elements(
                 element,
                 (lambda name: 1) if path in agents else (lambda name: orders.get(f'{path}.{name}')),
@@ -687,6 +699,7 @@ class _StateInference:
                     for name, moved in steps.items()
                     if name.startswith(f'{path}.') and moved.startswith(f'{path}.')
                 },
+                space=space,
             )
 
         return self._replace(system, declare)
@@ -888,6 +901,79 @@ class _StateInference:
         )
 
     @staticmethod
+    def _get_probed(value: object) -> object:
+        """Return a value for the probe of the laws, with zeros in place of `nan`.
+
+        The probe reads only the shapes of the values, and an agent may hold `nan` until a rule sets it.
+        """
+        if isinstance(value, np.ndarray | list | tuple | float):
+            array = np.asarray(value)
+            if array.dtype.kind == 'f' and np.isnan(array).any():
+                return np.nan_to_num(array, nan=0.0)
+        return value
+
+    @staticmethod
+    def _get_start_regions(
+        element: Element,
+        region: object,
+        count: int | None,
+        agents: bool,
+        space: BaseSpace | None = None,
+    ) -> list[Polygon]:
+        """Return the region of its continuous space that every member starts in.
+
+        The value `region` names one region of the space for every member, or one region for all of them, such as
+        `Element('residents', values={'region': 'tract_1'}, size=100, space=space)`. The run draws the starting point
+        of every member inside its region.
+
+        Args:
+            element:
+                The element.
+
+            region:
+                The name of a region, or one name per member.
+
+            count:
+                The number of members, or `None` for a single element.
+
+            agents:
+                Whether the members run agent rules.
+
+            space:
+                The space of the system, which an element without a space of its own lives in.
+
+        Returns:
+            regions:
+                The polygon every member starts in.
+
+        Raises:
+            ValidationError:
+                The element is not on a continuous space, its members run no agent rules, or a name is not one of the
+                regions of the space.
+        """
+        space = element.space if element.space is not None else space
+        if not isinstance(space, ContinuousSpace) or not agents:
+            error_msg = (
+                f'Element {element.label!r} starts in a region, which members that run agent rules on a continuous '
+                "space do, such as Element('residents', values={'region': 'tract_1'}, size=100, space=space)."
+            )
+            raise ValidationError(error_msg)
+        named = dict(space.regions or {})
+        names = np.broadcast_to(np.asarray(region, dtype=object), (count or 1,)).tolist()
+        regions = []
+        for name in names:
+            polygon = named.get(name) if isinstance(name, str) else None
+            if not isinstance(polygon, Polygon):
+                found = [key for key, value in named.items() if isinstance(value, Polygon)]
+                error_msg = (
+                    f'Element {element.label!r} starts in the region {name!r}, which the space does not name. Its '
+                    f'regions are: {", ".join(found) or "none"}.'
+                )
+                raise ValidationError(error_msg)
+            regions.append(polygon)
+        return regions
+
+    @staticmethod
     def _get_group_on(element: Element, count: int | None, agents: bool) -> str | None:
         """Return where the members of a group sit, `'sites'` or `None`.
 
@@ -937,6 +1023,7 @@ class _StateInference:
         sizes: frozenset[int] = frozenset(),
         links: frozenset[int] = frozenset(),
         steps: Mapping[str, str] | None = None,
+        space: BaseSpace | None = None,
         delays: frozenset[str] = frozenset(),
     ) -> list[BaseElement]:
         """Return the declared element of a plain element, or a group of declared members.
@@ -954,16 +1041,19 @@ class _StateInference:
         drawing of agents for members that run no agent rules, and the view of its agents.
         """
         values = self._get_values(element)
+        region = values.pop(REGION, None)
+        values = {name: self._get_probed(value) for name, value in values.items()} if probing else values
         histories = self._get_histories(element, delays)
         derivatives = self._get_rule_derivatives(element) if agents else {}
         skipped = [name for name, _ in histories.values()] + [name for name, _, _ in derivatives.values()]
         starting = {} if probing else self._get_starting(element, values, skipped)
         count = self._get_count(element)
         count = 1 if count is None and agents else count
+        regions = None if region is None or probing else self._get_start_regions(element, region, count, agents, space)
         link = self._get_link(element)
         network = bool(kinds) and isinstance(element.space, NetworkSpace) and link is None
         growing = network and bool(kinds & MEMBERSHIP)
-        axes = self._get_axes(element, agents)
+        axes = self._get_axes(element, agents, space)
         velocities = {name for name, moved in (steps or {}).items() if moved in axes}
         variables = {}
         arrays = {}
@@ -1036,6 +1126,7 @@ class _StateInference:
             space=None if off_nodes else element.space,
             on=place,
             values=values,
+            location=regions,
             variable=agents,
         )
         return [group]

@@ -15,8 +15,8 @@ from sklearn.base import clone
 from skcomplex.core.components.elements import BaseElement, Element, GroupElement
 from skcomplex.core.components.interactions import Interaction, WienerProcessSpec
 from skcomplex.core.components.laws import NoiseLaw, RateLaw, TopologyRequestSpec, UpdateLaw
-from skcomplex.core.components.laws.utils import neighbors
-from skcomplex.core.components.spaces import BaseSpace, NetworkSpace
+from skcomplex.core.components.laws.utils import neighbors, total
+from skcomplex.core.components.spaces import BaseSpace, LatticeSpace, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
@@ -389,6 +389,28 @@ def test_interaction_along_hyperedges_of_a_wrong_size_is_refused(along):
         Interaction('push', among='nodes', along=along).prepare()
 
 
+def test_interaction_along_neighborhoods_adds_up_the_groups_of_a_member():
+    """Test that a site adds up a function of every group of a site and its neighbours that holds it."""
+    values = np.arange(16.0)
+    space = LatticeSpace((4, 4), metric='manhattan', boundary='fixed')
+    voters = Element('voters', values={'s': values}, space=space)
+    weighted = Interaction(
+        'weighted',
+        among='voters',
+        along='neighborhoods',
+        laws=lambda s: [UpdateLaw(s.member.s, s.member.s * total(s.members.s, over=s.members))],
+    )
+    result = System(elements=[voters], interactions=[weighted]).prepare().simulate(until=1).get_values('voters.s')[1]
+    rows, columns = np.divmod(np.arange(16), 4)
+    groups = [
+        [site, *np.flatnonzero(np.abs(rows - rows[site]) + np.abs(columns - columns[site]) == 1).tolist()]
+        for site in range(16)
+    ]
+    expected = [sum(values[site] * values[group].sum() for group in groups if site in group) for site in range(16)]
+    assert np.allclose(result, expected, atol=1e-12)
+    assert (weighted._runs_on_edges(), weighted._get_layer()) == (False, None)
+
+
 class _TriangleGrowthInteraction(Interaction):
     """Growth of one node per step that forms a triangle with two others, and the ageing of every triangle."""
 
@@ -434,6 +456,23 @@ def test_interaction_rewires_the_edges_of_a_network():
     assert all(len(frame) == graph.number_of_edges() for frame in edges)
     assert all(edges[i] != edges[i + 1] for i in range(len(edges) - 1) if discordant[i] > 0)
     assert discordant[-1] < discordant[0] / 4
+
+
+def test_interaction_along_edges_removes_the_edges_whose_ends_disagree():
+    """Test that a one-off interaction along edges removes every edge between disagreeing voters in one step."""
+    graph = nx.cycle_graph(6)
+    opinions = np.array([0.0, 0.0, 1.0, 1.0, 1.0, 0.0])
+    voters = Element('voters', values={'opinion': opinions}, space=NetworkSpace(graph))
+    pruning = Interaction(
+        'pruning',
+        among='voters',
+        along=True,
+        laws=lambda s: [UpdateLaw(TopologyRequestSpec('remove-edge'), (s.source.opinion - s.target.opinion) ** 2)],
+    )
+    trajectory = System(elements=[voters], interactions=[pruning]).prepare().simulate(until=1, random_state=0)
+    network = trajectory.get_network(-1)
+    kept = {tuple(sorted((int(a), int(b)))) for a, b in zip(network.sources, network.targets, strict=True)}
+    assert kept == {(0, 1), (2, 3), (3, 4), (0, 5)}
 
 
 class GravityInteraction(Interaction):

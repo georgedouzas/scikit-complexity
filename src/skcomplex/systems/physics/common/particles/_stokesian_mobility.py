@@ -18,13 +18,13 @@ from sage.all__sagemath_symbolics import SR, Expression, fast_callable, oo
 from sage.sets.real_set import RealSet
 
 from .....core.components import Tags
+from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, CallSpec, RateLaw, UpdateLaw
 from .....core.components.spaces import BaseSpace
 from .....core.components.types import NamespaceFunction, PairPotential, Target
-from .....core.enums import ElementKind
 from .....core.errors import ValidationError
-from .....core.specs import ParameterSpec, RoleSpec
+from .....core.specs import Role
 from .....core.types import Array
 
 TENSORS = ('free-draining', 'oseen', 'rotne-prager-yamakawa')
@@ -326,7 +326,7 @@ class StokesianMobilityInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec(elements=(ElementKind.GROUP,), states=('position', 'orientation'))],
+        target: Role,
         position: str = 'x',
         orientation: str | None = None,
         tensor: str = 'rotne-prager-yamakawa',
@@ -340,10 +340,10 @@ class StokesianMobilityInteraction(Interaction):
         cutoff: float | None = None,
         root: str = 'cholesky',
         tolerance: float = 1e-6,
-        radius: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        viscosity: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        temperature: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        dt: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
+        radius: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        viscosity: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        temperature: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        dt: Annotated[float, RealSet.open(0, oo)] = 0.01,
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -366,13 +366,14 @@ class StokesianMobilityInteraction(Interaction):
         self.dt = dt
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Raise an error for an unknown variant, a bad function, or continuous noise.
+        """Raise an error for an unknown variant, a bad function, or continuous noise, and set the laws.
 
         The noise may not run in continuous time.
 
         Args:
             context:
-                The space the interaction inherits from its system.
+                The space the interaction inherits from its system, or the namespace of the target, the time `t`, and
+                the parameters.
 
         Raises:
             ValidationError:
@@ -393,6 +394,8 @@ class StokesianMobilityInteraction(Interaction):
                 "which has no noise. Use `form='map'` in discrete time for Brownian displacements."
             )
             raise ValidationError(error_msg)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = self._get_motion_laws(context)
 
     def _get_vector(self, function: NamespaceFunction | None, namespace: SimpleNamespace, size: int) -> list[Target]:
         """Return the components of a vector function of the namespace.
@@ -436,7 +439,7 @@ class StokesianMobilityInteraction(Interaction):
         symbols = [item for item in slope.variables() if not item.is_trivially_equal(distance)]
         return fast_callable(slope, vars=[distance, *symbols], domain=float), symbols
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+    def _get_motion_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
         """Return the rate or update laws of the positions and orientations of the members.
 
         Args:
@@ -468,7 +471,7 @@ class StokesianMobilityInteraction(Interaction):
             *self._get_vector(self.velocity, s, dimension),
             *self._get_stresslet(s, dimension),
             *self._get_vector(self.dipole, s, dimension),
-            *(self._get_parameter_symbol(name, s) for name in ('radius', 'viscosity', 'temperature', 'dt')),
+            *(self._get_parameter_symbol(name, s) for name in ("radius", "viscosity", "temperature", "dt")),
             SR(self._get_cutoff(s)),
             *symbols,
         )

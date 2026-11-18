@@ -440,15 +440,15 @@ class HyperedgeTables:
         size = getattr(space, 'size_', None)
         if space is None or size is None or nodes.rows != size:
             error_msg = (
-                f'Grouping {node.path} forms the neighbourhoods of {nodes.node.path}, which lives on {space!r}. Bind a '
+                f'{node.path} forms the neighbourhoods of {nodes.node.path}, which lives on {space!r}. Bind a '
                 'group with one member per site of a lattice or node of a network.'
             )
             raise RoleError(error_msg)
         return [[site, *space._get_neighbors(site).tolist()] for site in range(size)]
 
     @staticmethod
-    def _get_groups_of(node: _NodeSpec, nodes: BlockSpec) -> list[np.ndarray]:
-        """Return the members of the groups of a grouping.
+    def _get_groups_of(node: _NodeSpec, nodes: BlockSpec, kind: str, size: int) -> list[np.ndarray]:
+        """Return the members of the groups of an interaction along groups.
 
         There is one array per size, with one row per group. Pairs and partitions hold positions in an order drawn at
         every step: consecutive positions form a group, the positions left over form the last group of a partition, and
@@ -456,10 +456,16 @@ class HyperedgeTables:
 
         Args:
             node:
-                The grouping.
+                The interaction.
 
             nodes:
                 The block of the group it binds.
+
+            kind:
+                `'pairs'`, `'partition'`, or `'neighborhood'`.
+
+            size:
+                The number of members of a group of a partition.
 
         Returns:
             groups:
@@ -467,17 +473,16 @@ class HyperedgeTables:
 
         Raises:
             RoleError:
-                The target is not a group, or its space has no neighbourhoods for groups of neighbourhoods.
+                The bound element is not a group, or its space has no neighbourhoods for groups of neighbourhoods.
         """
         if nodes.node.members is None:
-            error_msg = f'Grouping {node.path} binds {nodes.node.path}, a single element. Bind a group.'
+            error_msg = f'{node.path} runs along groups of {nodes.node.path}, a single element. Bind a group.'
             raise RoleError(error_msg)
-        kind = getattr(node.component, 'groups', None)
         if kind == 'neighborhood':
             found = HyperedgeTables._get_neighborhoods(node, nodes)
             sizes = sorted({len(group) for group in found})
             return [np.asarray([group for group in found if len(group) == size], dtype=np.intp) for size in sizes]
-        size = 2 if kind == 'pairs' else int(getattr(node.component, 'size', 2))
+        size = 2 if kind == 'pairs' else size
         whole = nodes.rows // size * size
         groups = [np.arange(whole, dtype=np.intp).reshape(-1, size)]
         if kind == 'partition' and whole < nodes.rows:

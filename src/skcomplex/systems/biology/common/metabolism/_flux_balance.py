@@ -21,7 +21,7 @@ from .....core.components.laws.utils import both, either
 from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
 from .....core.specs import Role, VisualSpec
-from ._reaction_spec import ReactionSpec
+from ._reaction_spec import ReactionName, ReactionSpec
 
 SWITCH_THRESHOLD = 0.5
 NO_REACTIONS: Mapping[str, ReactionSpec] = {}
@@ -96,8 +96,8 @@ class FluxBalanceInteraction(Interaction):
         label: str = 'fba',
         *,
         cell: Role = 'cell',
-        reactions: Mapping[str, ReactionSpec] = NO_REACTIONS,
-        objective: Mapping[str, float] = NO_OBJECTIVE,
+        reactions: Mapping[ReactionName, ReactionSpec] = NO_REACTIONS,
+        objective: Mapping[ReactionName, float] = NO_OBJECTIVE,
         parsimonious: bool = False,
         infeasible: str = 'raise',
         name: str | None = None,

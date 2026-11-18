@@ -19,7 +19,7 @@ from ....core.engine.compile import BaseCompiler, FlattenPass, IssueSpec
 from ....core.engine.problems import BaseProblemSpec, CompiledElementSpec, LayoutSpec
 from ....core.enums import FormKind, VariableKind
 from ....core.errors import IncompatibleLawsError, RewritingError, SkcomplexError, ValidationError
-from ....core.specs import EntrySpec, RoleSpec, VisualSpec
+from ....core.specs import EntrySpec, ParameterSpec, StateSpec, VisualSpec
 from . import _patch, _word
 from ._parameters_spec import _ParametersSpec
 from ._patch_kernel import PatchKernel
@@ -133,9 +133,9 @@ class RewritingCompiler(BaseCompiler):
                 A role binds no word or patch.
         """
         bound = {}
-        for name, spec in interaction._get_specs().items():
+        for name in interaction._get_roles():
             value = getattr(interaction, name, None)
-            if not isinstance(spec, RoleSpec) or not isinstance(value, str):
+            if not isinstance(value, str):
                 continue
             target = f'{scope}{value}'
             if target not in rewritten:
@@ -185,7 +185,7 @@ class RewritingCompiler(BaseCompiler):
                 declared = {
                     name: (item.spec.domain, item.value)
                     for name, item in component._get_declared().items()
-                    if not isinstance(item.spec, RoleSpec)
+                    if isinstance(item.spec, StateSpec | ParameterSpec)
                 }
             else:
                 declared = {

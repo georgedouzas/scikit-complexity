@@ -23,7 +23,7 @@ from .....core.components.laws import ArrayUpdateLaw, BaseLaw, SampleLaw
 from .....core.components.laws.utils import exterior_derivative, neighbors
 from .....core.components.spaces import BaseSpace, CellComplexSpace, CofaceNeighborhood
 from .....core.errors import ValidationError
-from .....core.specs import BaseSpec, MatrixGroupSpec, ParameterSpec, RoleSpec
+from .....core.specs import BaseSpec, MatrixGroupSpec, ParameterSpec, Role
 from .....core.types import Array, ComplexArray, Indices
 
 HOLONOMY_MOVES = ('rotate', 'random-value')
@@ -150,7 +150,7 @@ class WilsonSamplingInteraction(SamplingInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
         state: str = 'theta',
         move: str = 'rotate',

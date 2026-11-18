@@ -83,5 +83,5 @@ class LangevinThermostatInteraction(Interaction):
             x, m = getattr(s.target, self.state), getattr(s.target, self.divisor)
             self.laws_ = [
                 RateLaw(x.diff(t, 2), -x.diff(t) / (1 / s.gamma) / m),
-                NoiseLaw(x, sqrt(2 * s.gamma * s.temperature) / m, order=2),
+                NoiseLaw(x.diff(t, 2), sqrt(2 * s.gamma * s.temperature) / m),
             ]

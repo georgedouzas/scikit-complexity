@@ -11,11 +11,11 @@ from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 
 import networkx as nx
-from sage.all__sagemath_symbolics import Expression
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import TopologyInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import JumpLaw, TopologyRequestSpec
 from ....core.components.laws.utils import count, where
 from ....core.components.spaces import NetworkSpace
 from ....core.engine.backends import BaseBackend
@@ -93,34 +93,33 @@ class TapCatalysisSystem(BaseSystem):
         self.goods = goods
         self.pc = pc
 
-    @staticmethod
-    def _get_combination_rate(order: int, alpha: float, goods: int) -> Callable[[SimpleNamespace], Expression]:
-        """Return the rate `alpha^i C(M, i)` of new goods of `i` parents.
+    def _get_combination_laws(self, order: int) -> Callable[[SimpleNamespace], list[JumpLaw]]:
+        """Return the jump of new goods of `i` parents at the rate `alpha^i C(M, i)`.
 
-        It stops at `goods` goods.
+        A new good forms a production function with its parents and catalyses every other good, and every other good
+        catalyses it, each with the probability `pc`.
         """
+        request = TopologyRequestSpec(
+            'add-node',
+            toward=lambda node: self.pc,
+            hyperedge=order + 1,
+            independent=True,
+            direction='both',
+        )
 
-        def rate(namespace: SimpleNamespace) -> Expression:
-            present = count(over=namespace.source)
+        def laws(namespace: SimpleNamespace) -> list[JumpLaw]:
+            present = count(over=namespace.target)
             combinations = math.prod(present - parent for parent in range(order)) / math.factorial(order)
-            return where(present < goods, alpha**order * combinations, 0)
+            rate = where(present < self.goods, self.alpha**order * combinations, 0)
+            return [JumpLaw(rate, {request: 1})]
 
-        return rate
+        return laws
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of the components built from the model parameters."""
         super()._prepare(context)
         growth = [
-            TopologyInteraction(
-                f'order_{order}',
-                target='goods',
-                action='add-node',
-                rate=self._get_combination_rate(order, self.alpha, self.goods),
-                hyperedge=order + 1,
-                independent=True,
-                direction='both',
-                toward=lambda node: self.pc,
-            )
+            Interaction(f'order_{order}', roles={'target': 'goods'}, laws=self._get_combination_laws(order))
             for order in range(1, self.parents + 1)
         ]
         space = NetworkSpace(nx.empty_graph(self.m0, create_using=nx.DiGraph))

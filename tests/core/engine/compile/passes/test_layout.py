@@ -2,6 +2,7 @@
 
 from typing import Annotated
 
+import networkx as nx
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import NN, oo
@@ -9,9 +10,9 @@ from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import UpdateLaw
-from skcomplex.core.components.laws.utils import total
-from skcomplex.core.components.spaces import LatticeSpace
+from skcomplex.core.components.laws import JumpLaw, TopologyRequestSpec, UpdateLaw
+from skcomplex.core.components.laws.utils import count, total, where
+from skcomplex.core.components.spaces import LatticeSpace, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
@@ -146,3 +147,16 @@ def test_matrix_argument_shaped_by_the_members_of_a_group_is_a_matrix_parameter(
     trajectory = system.simulate(until=1)
     np.testing.assert_allclose(trajectory.get_values('nodes.x')[-1], matrix @ np.arange(1.0, size + 1))
     np.testing.assert_allclose(trajectory.get_values('coupling.a')[-1], matrix)
+
+
+def test_a_law_counts_the_members_of_a_group_with_no_values():
+    """Test that new nodes arrive at a rate of one until a law that counts the nodes of a bare group sees five."""
+    space = NetworkSpace(nx.empty_graph(3, create_using=nx.DiGraph))
+    request = TopologyRequestSpec('add-node', independent=True)
+    growth = Interaction(
+        'growth',
+        roles={'target': 'nodes'},
+        laws=lambda s: [JumpLaw(where(count(over=s.target) < 5, 1.0, 0), {request: 1})],
+    )
+    system = System(elements=[Element('nodes', space=space)], interactions=[growth], space=space).prepare()
+    assert len(system.simulate(until=50, random_state=0).get_network(-1).nodes) == 5

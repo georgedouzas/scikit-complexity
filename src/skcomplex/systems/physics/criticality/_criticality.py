@@ -29,7 +29,7 @@ from ....core.components.spaces import (
 )
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import Role, RoleSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ..common.avalanches import TopplingInteraction
@@ -124,7 +124,7 @@ class AvalancheInteraction(TopplingInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         state: str = 'height',
         threshold: int = 4,
         mode: str = 'redistribute',

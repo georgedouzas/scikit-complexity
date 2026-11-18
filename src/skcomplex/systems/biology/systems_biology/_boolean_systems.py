@@ -222,7 +222,7 @@ class ThreeGeneBooleanNetworkSystem(BaseSystem):
             BooleanFunctionInteraction(
                 f'function_{name}',
                 target=name,
-                inputs=list(inputs),
+                inputs=tuple(inputs),
                 table=(
                     (0,) * 2 ** len(inputs)
                     if name in knockouts
@@ -408,11 +408,11 @@ class BooleanRepressilatorSystem(BaseSystem):
         ):
             chain = [repressor, *(f'{repressor}_{step}' for step in range(1, self.delay + 1))]
             functions.extend(
-                BooleanFunctionInteraction(f'relay_{relay}', target=relay, inputs=[source], table=(0, 1))
+                BooleanFunctionInteraction(f'relay_{relay}', target=relay, inputs=(source,), table=(0, 1))
                 for source, relay in itertools.pairwise(chain)
             )
             functions.append(
-                BooleanFunctionInteraction(f'repression_{target}', target=target, inputs=[chain[-1]], table=(1, 0)),
+                BooleanFunctionInteraction(f'repression_{target}', target=target, inputs=(chain[-1],), table=(1, 0)),
             )
         self.system_ = System(self.label, elements=[*genes, *relays], interactions=functions)
 

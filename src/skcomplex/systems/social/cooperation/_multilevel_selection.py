@@ -16,14 +16,14 @@ from sage.modules.free_module_element import FreeModuleElement
 from scipy.stats import irwinhall
 
 from ....core.components import Observable
-from ....core.components.interactions import ConservationInteraction, Interaction
+from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
-from ....core.components.laws.utils import coordinate, integral_transform, integration_variable
+from ....core.components.laws.utils import coordinate, divergence, integral_transform, integration_variable
 from ....core.components.spaces import AxisSpec, BaseSpace, FiniteVolumeSpec, LatticeSpace, PhaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver
 from ....core.errors import ValidationError
-from ....core.specs import VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 from ..common.kinetics import ActivityDensityElement
 
@@ -152,7 +152,7 @@ class GroupDensityElement(ActivityDensityElement):
     visual = VisualSpec('image', {'slices': {0: 0}})
 
 
-class SelectionDriftInteraction(ConservationInteraction):
+class SelectionDriftInteraction(Interaction):
     """Selection drift `du/dt + divergence(a u) = source(ns)` of a density `u` over a trait.
 
     Evolutionary game theory names it the selection within groups, the drift of a density of traits by selection.
@@ -160,7 +160,8 @@ class SelectionDriftInteraction(ConservationInteraction):
     form, so the total of the state on a periodic field stays constant and, on a spectral field, the dealiasing of
     products applies to it. The drift is one expression for a field of one dimension, or one per dimension, of the
     states and parameters of the field, and may read other states than the one it carries, such as the flow of a fluid
-    derived from a streamfunction, or the drift of a probability density in a Fokker-Planck equation.
+    derived from a streamfunction, or the drift of a probability density in a Fokker-Planck equation. Its laws are
+    `RateLaw(u, -divergence(flux))` and, with a source, `RateLaw(u, source)`.
 
     Args:
         label:
@@ -177,10 +178,6 @@ class SelectionDriftInteraction(ConservationInteraction):
 
         source:
             A function of the namespace that returns the source, or `None` for none.
-
-        sources:
-            The paths of other elements the drift and the source read, as the namespaces `sources`. A field over the
-            position lattice of a target on a phase space is read broadcast along the class axes.
 
     Raises:
         ValidationError:
@@ -206,36 +203,42 @@ class SelectionDriftInteraction(ConservationInteraction):
         self,
         label: str,
         *,
-        target: str,
+        target: Role,
         state: str = 'u',
         drift: Callable[[SimpleNamespace], object] | None = None,
         source: Callable[[SimpleNamespace], object] | None = None,
-        sources: Sequence[str] = (),
     ) -> None:
-        super().__init__(
-            label,
-            target=target,
-            state=state,
-            source=source,
-            sources=sources,
-        )
+        super().__init__(label)
+        self.target = target
+        self.state = state
         self.drift = drift
+        self.source = source
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Raise an error for a state that is not a name or a drift that is not callable.
+        """Set the rate of the divergence of the flux and of the source, after checking the functions.
 
         Args:
             context:
-                The space the interaction inherits from its system.
+                The space the interaction inherits from its system, or the namespace of the field.
 
         Raises:
             ValidationError:
-                The type declares states, the state is not a name, or a function is not callable.
+                The state is not a name, or the drift or the source is not callable.
         """
         super()._prepare(context)
-        if not callable(self.drift):
-            error_msg = f'The drift of {self.label!r} is {self.drift!r}. Give a function of the namespace.'
+        if not isinstance(self.state, str):
+            error_msg = f'The state of {self.label!r} is {self.state!r}. Give the name of a state of the field.'
             raise ValidationError(error_msg)
+        if not callable(self.drift) or (self.source is not None and not callable(self.source)):
+            error_msg = f'The drift and the source of {self.label!r} are functions of the namespace.'
+            raise ValidationError(error_msg)
+        if isinstance(context, SimpleNamespace):
+            state = getattr(context.target, self.state)
+            flux = self._get_flux(context)
+            components = list(flux) if isinstance(flux, list) else [flux]
+            self.laws_ = [RateLaw(state, -divergence(components))]
+            if self.source is not None:
+                self.laws_.append(RateLaw(state, self.source(context)))
 
     def _get_flux(self, namespace: SimpleNamespace) -> object:
         """Return the flux `a u`, one component per component of the drift.
@@ -248,7 +251,7 @@ class SelectionDriftInteraction(ConservationInteraction):
             flux:
                 The flux, one expression or one per dimension.
         """
-        state = getattr(self._get_member(namespace, 'target'), self.state)
+        state = getattr(namespace.target, self.state)
         drift = self.drift(namespace) if callable(self.drift) else None
         if isinstance(drift, FreeModuleElement | list | tuple):
             return [SR(component) * state for component in drift]

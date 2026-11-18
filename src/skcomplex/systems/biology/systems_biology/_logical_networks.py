@@ -21,7 +21,7 @@ from ....core.components.laws.utils import where
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import Role, Roles
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ...general.elements import NonnegativeElement
 from ...general.reactions import ReactionInteraction
@@ -123,7 +123,7 @@ class LogicalRegulationInteraction(Interaction):
         label: str,
         *,
         target: Role,
-        regulators: Roles = (),
+        regulators: tuple[Role, ...] = (),
         thresholds: Sequence[int] = (),
         parameters: Mapping[tuple[bool, ...], int] | None = None,
     ) -> None:
@@ -238,7 +238,7 @@ class GeneralizedLogicalNetworkSystem(BaseSystem):
                 LogicalRegulationInteraction(
                     f'{name}_regulation',
                     target=name,
-                    regulators=list(regulators),
+                    regulators=tuple(regulators),
                     thresholds=tuple(thresholds),
                     parameters=dict(parameters),
                 )

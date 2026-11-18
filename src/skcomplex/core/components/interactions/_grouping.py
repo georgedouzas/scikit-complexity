@@ -213,6 +213,11 @@ class GroupingInteraction(Interaction):
             )
             raise ValidationError(error_msg)
 
+    def _get_grouping(self) -> tuple[str, int, str] | None:
+        """Return the kind, size, and reduction of the symbolic groups, or `None`."""
+        symbolic = self.form == 'symbolic' and isinstance(self.groups, str) and self.groups != 'state'
+        return (str(self.groups), self.size, self.reduce) if symbolic else None
+
     def _check_space(self, space: BaseSpace | None) -> None:
         """Raise an error for groups of neighbouring cells or nodes in a continuous space."""
         if self.groups == 'neighborhood':

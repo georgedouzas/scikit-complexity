@@ -14,12 +14,13 @@ from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import Expression, oo, sqrt
+from sage.all__sagemath_symbolics import SR, Expression, oo, sqrt
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.interactions import Interaction, PairInteraction
+from ....core.components.base import BaseComponent
+from ....core.components.interactions import Interaction
 from ....core.components.laws import NoiseLaw, RateLaw
 from ....core.components.laws.utils import neighbors
 from ....core.components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
@@ -142,7 +143,7 @@ class TargetSpeedInteraction(Interaction):
             speed = sqrt(velocity.dot_product(velocity) + SOFTENING)
             self.laws_ = [
                 RateLaw(x.diff(t, 2), velocity * (s.mu * (s.target.active * s.v0 - speed) / speed)),
-                NoiseLaw(x, s.target.active * s.eta, order=2),
+                NoiseLaw(x.diff(t, 2), s.target.active * s.eta),
             ]
 
 
@@ -369,6 +370,27 @@ class ActivePassiveFlockingSystem(BaseSystem):
         overlap = 1 - r / (2 * radius)
         return epsilon * 2 * radius * overlap ** (exponent + 1) / (exponent + 1)
 
+    def _get_repulsion_laws(self, s: SimpleNamespace) -> list[BaseComponent]:
+        """Return the push of every agent by the agents that overlap it.
+
+        The push of one agent is minus the slope of the repulsion energy along the line of centres, summed over the
+        agents within two radii.
+        """
+        x = s.target.x
+        separation = x - s.target.other.x
+        r = sqrt(separation.dot_product(separation))
+        distance = SR.var('r', domain='positive')
+        energy = self._get_repulsion_energy(
+            s,
+            distance,
+            epsilon=self.epsilon,
+            radius=self.radius,
+            exponent=self.exponent,
+        )
+        slope = SR(energy).diff(distance).subs({distance: r})
+        push = neighbors(-slope * separation / r, RadiusNeighborhood(2 * self.radius))
+        return [RateLaw(x.diff(s.t, 2), push)]
+
     @staticmethod
     def _get_observables(system: System) -> list[Observable]:
         """Return the observables of the agents.
@@ -433,22 +455,8 @@ class ActivePassiveFlockingSystem(BaseSystem):
             size=self.n_agents,
             space=box,
         )
-        energy = functools.partial(
-            self._get_repulsion_energy,
-            epsilon=self.epsilon,
-            radius=self.radius,
-            exponent=self.exponent,
-        )
         interactions = [
-            PairInteraction(
-                'repulsion',
-                'agents',
-                'agents',
-                cutoff=2 * self.radius,
-                potential=energy,
-                period=self.size,
-                order=2,
-            ),
+            Interaction('repulsion', roles={'target': 'agents'}, laws=self._get_repulsion_laws),
             TargetSpeedInteraction(
                 'propulsion',
                 target='agents',

@@ -90,6 +90,15 @@ def test_continuous_space_indexes_its_regions():
     assert ContinuousSpace(extent=(4.0, 4.0)).prepare().regions_ == {}
 
 
+def test_continuous_space_indexes_a_named_region_as_a_layer_of_one_polygon():
+    """Test that a region named by itself, beside a layer, is indexed as a layer that holds its one polygon."""
+    tract = box(0.0, 0.0, 1.0, 1.0)
+    space = ContinuousSpace(extent=(4.0, 4.0), regions={'tract_1': tract, 'parks': [box(2.0, 2.0, 3.0, 3.0)]})
+    index = space.prepare().regions_['tract_1']
+    assert index.query(Point(0.5, 0.5), predicate='intersects').tolist() == [0]
+    assert index.geometries.tolist() == [tract]
+
+
 def test_continuous_space_clones_with_its_regions():
     """Test that a clone of a space keeps its layers and indexes them."""
     space = clone(ContinuousSpace(extent=(4.0, 4.0), regions={'parks': [box(0.0, 0.0, 1.0, 1.0)]}))

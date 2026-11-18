@@ -9,23 +9,24 @@ A cascade drives a state and then relaxes every member at or above a threshold.
 import inspect
 from collections.abc import Callable
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import ClassVar
 
 import numpy as np
+from sage.all__sagemath_symbolics import Expression
 
-from .....core.components.interactions import NeighborInteraction
+from .....core.components.base import BaseComponent
+from .....core.components.interactions import Interaction
 from .....core.components.laws import ArrayUpdateLaw, BaseLaw, UpdateLaw
 from .....core.components.laws.utils import relax
 from .....core.components.spaces import BaseNeighborhood, BaseSpace, LatticeNeighborhood, RadiusNeighborhood
-from .....core.enums import ElementKind
 from .....core.errors import ValidationError
-from .....core.specs import BaseSpec, RoleSpec
+from .....core.specs import BaseSpec, Role
 from .....core.types import Array
 
 MODES = ('redistribute', 'reset', 'random')
 
 
-class TopplingInteraction(NeighborInteraction):
+class TopplingInteraction(Interaction):
     """Cascade of the members whose state reaches a threshold.
 
     These members relax and pass shares to their neighbours. At every step the drive changes the state, and then every
@@ -66,9 +67,6 @@ class TopplingInteraction(NeighborInteraction):
             neighbourhood of a square lattice with its centre. A network takes `AdjacencyNeighborhood(center=True)`,
             and the mode `'random'` takes a lattice neighbourhood.
 
-        layer:
-            The layer of the network whose edges the interaction runs on, or `None` for the graph of the network.
-
     Raises:
         ValidationError:
             The mode is unknown, the drive is not callable, the neighbourhood leaves out the member itself, or the
@@ -95,16 +93,15 @@ class TopplingInteraction(NeighborInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state',))],
+        target: Role,
         state: str = 'x',
         threshold: float = 1.0,
         share: float = 0.0,
         mode: str = 'redistribute',
         drive: Callable[..., Array] | None = None,
         neighborhood: BaseNeighborhood | None = None,
-        layer: str | None = None,
     ) -> None:
-        super().__init__(label, layer=layer)
+        super().__init__(label)
         self.target = target
         self.state = state
         self.threshold = threshold
@@ -137,11 +134,12 @@ class TopplingInteraction(NeighborInteraction):
             raise ValidationError(error_msg)
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Raise an error for a mode, drive, neighbourhood, or parcels it cannot take.
+        """Raise an error for a mode, drive, neighbourhood, or parcels it cannot take, and set the cascade.
 
         Args:
             context:
-                The space the interaction inherits from its system.
+                The space the interaction inherits from its system, or the namespace of the target, the time `t`, and
+                the parameters.
 
         Raises:
             ValidationError:
@@ -160,6 +158,9 @@ class TopplingInteraction(NeighborInteraction):
             )
             raise ValidationError(error_msg)
         self._check_random()
+        if isinstance(context, SimpleNamespace):
+            target = self._get_symbolic(self._get_member(context, 'target'), context.t)
+            self.laws_ = self._get_cascade(getattr(target, self.state))
 
     def _relax(self, threshold: float, share: float) -> Callable[..., Array]:
         """Return the rule of one relaxation of every member.
@@ -200,18 +201,8 @@ class TopplingInteraction(NeighborInteraction):
 
         return scatter
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the update of the state of the target, driven and relaxed until stable.
-
-        Args:
-            namespace:
-                The namespace of an edge.
-
-        Returns:
-            laws:
-                The cascade of the state.
-        """
-        value = getattr(self._get_member(namespace, 'target'), self.state)
+    def _get_cascade(self, value: Expression) -> list[BaseComponent]:
+        """Return the update of the state of the target, driven and relaxed until stable."""
         threshold, share = self.threshold, self.share
         drive = [] if self.drive is None else [ArrayUpdateLaw(value, self.drive)]
         neighborhood = self.neighborhood

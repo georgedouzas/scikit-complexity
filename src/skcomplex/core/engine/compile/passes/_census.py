@@ -68,11 +68,13 @@ from .._relaxation_law import RelaxationLaw
 from .._renewal_law import RenewalLaw
 from ._cells import DEGREES
 from ._hyperedges import HYPEREDGE_LAWS, HyperedgeTables
+from ._kernels import KernelsPass
 from ._layout import LayoutPass
 from ._noise import NoisePass
 from ._specs import SpecsPass
 
 EDGE_REQUESTS = ('remove-edge', 'rewire')
+SHIFT = 'shift_member'
 SYMMETRY_TOLERANCE = 1e-9
 SYMMETRY_TRIALS = 3
 
@@ -275,7 +277,51 @@ class CensusPass(BasePass):
                 records += CensusPass._get_records_of(block, elements, observer, declarations, agents)
             except SkcomplexError as error:
                 errors.append((block.node.path, error))
+        flowing = CensusPass._get_flowing(records)
+        records = [
+            replace(record, law=CensusPass._get_corrected(record.law, record.owner, flowing)) for record in records
+        ]
         return _CensusSpec(system, records, errors, declarations.agents)
+
+    @staticmethod
+    def _get_flowing(records: Sequence[_CensusRecordSpec]) -> frozenset[str]:
+        """Return the paths of the elements and groups that flow.
+
+        Rate or noise laws change their states.
+        """
+        return frozenset(
+            record.owner for record in records if KernelsPass._get_kind_of(record.law) in (RateLaw, NoiseLaw)
+        )
+
+    @staticmethod
+    def _get_corrected(law: BaseLaw, owner: str, flowing: frozenset[str]) -> BaseLaw:
+        """Return an update law of an element that flows as a correction after each step.
+
+        A value corrected after every step of the solver, such as a wall reflecting `x` to `abs(x)` with
+        `UpdateLaw(x, abs(x))` or a controller setting the input of a plant, is an update law of an element whose states
+        rate or noise laws change. An update law of an element that only steps, such as a counter, or one that adds to
+        other updates, reads neighbours, or runs in an order or a phase, stays an update law.
+
+        Args:
+            law:
+                The law.
+
+            owner:
+                The path of the element or group whose state the law changes.
+
+            flowing:
+                The paths of the elements and groups whose states rate or noise laws change.
+
+        Returns:
+            law:
+                The law, or the correction it states.
+        """
+        if not isinstance(law, UpdateLaw) or not isinstance(law.target, Expression | FreeModuleElement):
+            return law
+        plain = not law.increment and law.source is None and law.order is None and law.phase is None
+        if not plain or law.neighborhood is not None or owner not in flowing:
+            return law
+        return BoundaryLaw(law.target, law.value, label=law.label).prepare(owner)
 
     @staticmethod
     def _get_renewal_group(spec: KernelSpec, law: RenewalLaw) -> str:
@@ -305,10 +351,22 @@ class CensusPass(BasePass):
         return None
 
     @staticmethod
+    def _is_offset(target: object) -> bool:
+        """Return whether a target is a member at an offset, such as `shift_member(n, 1)`."""
+        operator = target.operator() if isinstance(target, Expression) else None
+        return getattr(operator, 'name', lambda: '')() == SHIFT
+
+    @staticmethod
     def _get_changed_target(spec: KernelSpec, law: BaseLaw) -> object:
-        """Return the target of a law, or the first state a jump changes."""
+        """Return the target of a law, or the first state a jump changes.
+
+        A jump changes the state of a member it reads at an offset, such as `shift_member(n, 1)`, of the group of its
+        other states, so the first state read at no offset comes first.
+        """
         if isinstance(law, JumpLaw):
-            return next(iter(law.changes or {}))
+            changed = list(law.changes or {})
+            direct = [item for item in changed if not CensusPass._is_offset(item)]
+            return next(iter(direct or changed))
         if not law._get_targets():
             error_msg = f'A {type(law).__name__} of {spec.owner} changes no state of its component.'
             raise ValidationError(error_msg)
@@ -970,7 +1028,7 @@ class CensusPass(BasePass):
 
     @staticmethod
     def _get_programs(laws: Sequence[BaseLaw], owner: str) -> list[BaseLaw]:
-        """Return the laws of a component with its linear programs gathered.
+        """Return the laws of a component, its linear objectives as linear programs.
 
         An objective without controls that is linear in its targets, or a sum of their absolute values, is minimised
         as a linear program, under the constraints of the component that read its targets, such as the balances and the
@@ -993,7 +1051,8 @@ class CensusPass(BasePass):
         for law in laws:
             if id(law) in programs:
                 continue
-            if isinstance(law, ObjectiveLaw) and law.controls is None and len(law._get_values_in_order()) != 1:
+            objective = isinstance(law, ObjectiveLaw) and law.controls is None
+            if objective and not isinstance(law.value, Expression) and isinstance(law.value, Sequence):
                 error_msg = (
                     f'The objective of {owner} is a sequence of values, which is minimised in order as a linear '
                     'program, so every value is linear in the targets or a sum of their absolute values.'
@@ -1031,10 +1090,7 @@ class CensusPass(BasePass):
 
     @staticmethod
     def _is_linear_objective(law: ObjectiveLaw) -> bool:
-        """Return whether every value of an objective is linear in its targets.
-
-        A sum of absolute values of the targets counts as linear.
-        """
+        """Return whether an objective is linear or sums absolute values of its targets."""
         targets = {str(item) for item in law._get_targets()}
         for value in law._get_values_in_order():
             expression = SR(value)

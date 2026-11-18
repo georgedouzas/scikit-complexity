@@ -105,7 +105,10 @@ def test_rerun_observers_release_the_threads_of_finished_recordings(tmp_path):
 def test_rerun_observer_interval_thins_frames(tmp_path):
     """Test that only every n-th frame is logged."""
     observer = RerunObserver('test', save_path=tmp_path / 'run.rrd', interval=10)
-    system = CompositeSystem(elements=[PopulationElement('a')])
+    system = System(
+        elements=[PopulationElement('a')],
+        interactions=[ExponentialGrowthInteraction('g', target='a')],
+    )
     _run(system, observer, until=0.99, dt=0.01)
     assert observer.logged_frames_ == 10
 
@@ -138,7 +141,7 @@ def test_points_visual_logs_positions(n_dim, archetype):
         .run(frame)
     )
     assert recording.logs[0][1] == archetype
-    assert ('ball/x_d1', 'Scalars') in recording.logs
+    assert ("ball/x\\'", 'Scalars') in recording.logs
 
 
 def test_rerun_observer_logs_parameters(monkeypatch, tmp_path):

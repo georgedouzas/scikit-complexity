@@ -82,7 +82,7 @@ class ScalarsVisual(BaseVisual):
         for state, name in element.states.items():
             if frame.problem.companions.get(name, ('',))[0] == 'lag':
                 continue
-            path, value = f'{element.path}/{state}', self._get_value(frame.get_value(name))
+            path, value = BaseVisual._get_state_path(element.path, state), self._get_value(frame.get_value(name))
             if path not in self.styled_:
                 self._log_series_style(
                     recording,

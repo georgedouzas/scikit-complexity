@@ -254,14 +254,18 @@ class ImageVisual(BaseVisual):
             if (self.states is not None and state not in self.states) or shaped:
                 continue
             values = np.asarray(frame.get_lattice(name))
-            path = f'{element.path}/{state}'
+            path = BaseVisual._get_state_path(element.path, state)
             if self.moments:
                 self._log_moments(recording, element, path, np.asarray(values, dtype=float))
             if self.plane_:
                 values = self._get_sliced(np.asarray(values, dtype=float))
             magnitudes = np.abs(values) if np.iscomplexobj(values) else np.asarray(values, dtype=float)
             if magnitudes.ndim == 1:
-                self._log_space_time(recording, f'{element.path}/{SPACE_TIME}/{state}', magnitudes)
+                self._log_space_time(
+                    recording,
+                    BaseVisual._get_state_path(f'{element.path}/{SPACE_TIME}', state),
+                    magnitudes,
+                )
             if not np.iscomplexobj(values):
                 cyclic = frame.problem.states.get_entry(name).period is not None
                 self._log_image(recording, path, magnitudes, cyclic=cyclic)
@@ -320,12 +324,15 @@ class ImageVisual(BaseVisual):
             if (self.states is not None and state not in self.states) or problem.states.get_entry(name).member_shape:
                 continue
             path, shape = (
-                f'{element.path}/{state}',
+                BaseVisual._get_state_path(element.path, state),
                 problem.get_lattice_shape(name) or (),
             )
             if len(shape) == 1 and self._get_history_of(shape[0]):
                 histories.append(
-                    rrb.Spatial2DView(origin=f'{element.path}/{SPACE_TIME}/{state}', name=f'{state} history'),
+                    rrb.Spatial2DView(
+                        origin=BaseVisual._get_state_path(f'{element.path}/{SPACE_TIME}', state),
+                        name=f'{state} history',
+                    ),
                 )
             kind = rrb.TensorView if len(shape) - len(self.plane_) > IMAGE_RANK else rrb.Spatial2DView
             views += self._get_moment_views(element, path)

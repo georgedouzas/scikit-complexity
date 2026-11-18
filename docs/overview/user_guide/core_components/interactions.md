@@ -160,8 +160,72 @@ round(float(fall.simulate(until=1.0, dt=1.0).get_values('ball.x')[-1]), 3)
 The ball falls from 10 to 5.095 in one second, as `x = 10 - 9.81 t^2 / 2` says. The namespace `s` holds every state as
 a function of the time `s.t`, so `s.target.x.diff(s.t, 2)` is the acceleration of the ball.
 
+**Random groups and neighbourhoods.** `along=RandomPartition(k)` binds random groups of `k` members drawn at every step,
+which [RandomPartition](#randompartition) shows. `along='neighborhoods'` gives every member of a group on a lattice or a
+network one group with the members around it, so a member belongs to its own group and to the groups of its neighbours,
+and its updates from all of them add up. In the public goods game of Szabó and Hauert every player pays 1 into each
+group it belongs to when it cooperates, and each pot, tripled, is shared among the members of its group.
+
+```python continuation
+from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.components.laws.utils import count, total
+from skcomplex.core.components.spaces import LatticeSpace
+
+play = Interaction(
+    'play',
+    among='players',
+    along='neighborhoods',
+    laws=lambda s: [
+        UpdateLaw(
+            s.member.payoff,
+            3.0 * total(s.members.strategy, over=s.members) / count(over=s.members) - s.member.strategy,
+        ),
+    ],
+)
+players = Element(
+    'players',
+    values={'strategy': [1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0], 'payoff': 0.0},
+    space=LatticeSpace((3, 3), metric='manhattan', boundary='fixed'),
+)
+game = System(elements=[players], interactions=[play]).prepare()
+game.simulate(until=1).get_values('players.payoff')[-1].round(2).tolist()
+```
+
+The cooperator in the corner belongs to three groups and earns 1, 0.5, and 1.25 from them, 2.75 in all, while the
+defector in the middle earns 7.35 from five groups without paying anything.
+
 See its [fact sheet](../../../components/interactions.md#interaction)
 and its [API entry][skcomplex.core.components.interactions.Interaction].
+
+## RandomPartition
+
+A `RandomPartition` binds an interaction to random groups. `along=RandomPartition(k)` shuffles the members of the
+group `among` at every step and cuts them into groups of `k`, the members left over forming one smaller group. The laws
+run once for every member of every group and read `s.member`, the member they change, `s.others`, the other members of
+its group, and `s.members`, every member of the group, which reductions read with `over=s.members`. In Galam's model of
+opinion, citizens discuss in groups of three and every group adopts the opinion of its majority.
+
+```python continuation
+from skcomplex.core.components.interactions import RandomPartition
+from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.components.laws.utils import mean, where
+
+talks = Interaction(
+    'talks',
+    among='citizens',
+    along=RandomPartition(3),
+    laws=lambda s: [UpdateLaw(s.member.opinion, where(mean(s.members.opinion, over=s.members) > 0.5, 1, 0))],
+)
+citizens = Element('citizens', values={'opinion': [1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0]}, size=9)
+debate = System(elements=[citizens], interactions=[talks]).prepare()
+debate.simulate(until=4, random_state=0).get_values('citizens.opinion').sum(axis=1).tolist()
+```
+
+The four citizens of opinion 1 lose one of their own in the first round of discussions, and three remain after the next
+three rounds. The groups come from the random stream of the run, so one seed gives the same groups every time. Players
+of a public goods game and animals that meet in random encounters form groups in the same way.
+
+See its [API entry][skcomplex.core.components.interactions.RandomPartition].
 
 ## RateInteraction
 

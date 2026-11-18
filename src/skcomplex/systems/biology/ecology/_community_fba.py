@@ -118,7 +118,7 @@ class CommunityFBASystem(BaseSystem):
             networks.append(network)
         joint = CommunityInteraction(
             'joint',
-            members=[member.label for member in members],
+            members=tuple(member.label for member in members),
             medium='medium',
             abundances=tuple(self.abundances),
             exchanges=shared,

@@ -12,7 +12,7 @@ from collections.abc import Mapping
 
 from .....core.specs import Role
 from ._flux_balance import FluxBalanceInteraction
-from ._reaction_spec import ReactionSpec
+from ._reaction_spec import ReactionName, ReactionSpec
 
 TOY_REACTIONS = {
     'v1': ReactionSpec({'A': -1.0, 'ATP': 1.0, 'B': 1.0}),
@@ -65,8 +65,8 @@ class ToyFluxBalanceInteraction(FluxBalanceInteraction):
         label: str = 'fba',
         *,
         cell: Role = 'cell',
-        reactions: Mapping[str, ReactionSpec] = TOY_REACTIONS,
-        objective: Mapping[str, float] = TOY_OBJECTIVE,
+        reactions: Mapping[ReactionName, ReactionSpec] = TOY_REACTIONS,
+        objective: Mapping[ReactionName, float] = TOY_OBJECTIVE,
         parsimonious: bool = False,
         infeasible: str = 'raise',
         name: str | None = 'ToyNetwork',

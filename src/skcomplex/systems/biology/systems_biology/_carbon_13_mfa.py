@@ -31,7 +31,7 @@ from ....core.errors import AnalysisError, ValidationError
 from ....core.specs import BaseSpec, Role
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
-from ..common.metabolism import FluxBalanceInteraction, MetabolicCellElement, ReactionSpec
+from ..common.metabolism import FluxBalanceInteraction, MetabolicCellElement, ReactionName, ReactionSpec
 
 SUM_TOLERANCE = 1e-9
 KINDS = ('simulation', 'estimation')
@@ -113,8 +113,8 @@ class TcaFluxBalanceInteraction(FluxBalanceInteraction):
         label: str = 'fba',
         *,
         cell: Role = 'tca',
-        reactions: Mapping[str, ReactionSpec] = TCA_REACTIONS,
-        objective: Mapping[str, float] = TCA_OBJECTIVE,
+        reactions: Mapping[ReactionName, ReactionSpec] = TCA_REACTIONS,
+        objective: Mapping[ReactionName, float] = TCA_OBJECTIVE,
         parsimonious: bool = False,
         infeasible: str = 'raise',
         name: str | None = 'TcaNetwork',

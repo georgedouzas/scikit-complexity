@@ -80,6 +80,7 @@ from .._utils import binding_of, bound_labels, declarations_of, default_of, symb
 from ..backends import BaseBackend
 from ..problems import BaseProblemSpec, ProblemSpec
 from ..problems._bilinear_law import BilinearLaw
+from ..problems._layout_spec import LayoutSpec
 from ..problems._neighborhood_kernel import NeighborhoodKernel
 from ..problems._node_spec import _NodeSpec
 from ..problems._partition_spec import PartitionSpec
@@ -1010,7 +1011,7 @@ class PassCompiler(BaseCompiler):
         carried = sorted(name for kind in kinds for name in declarations_of(bound.component_type, kind))
         issues = []
         for state in needs.states:
-            if state in carried:
+            if state in carried or LayoutSpec._get_internal_name(state) in carried:
                 continue
             message = (
                 f'The role {role!r} of {node.path} reads the state {state!r}, but the element {bound.path} bound to it '

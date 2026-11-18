@@ -7,13 +7,12 @@ Monte Carlo sweeps flip up and down spins coupled to their neighbours and a fiel
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression
 
 from .....core.components.laws.utils import neighbors
 from .....core.components.spaces import BaseNeighborhood
-from .....core.specs import RoleSpec
+from .....core.specs import Role
 from ._spin_sampling import SpinSamplingInteraction
 
 
@@ -58,7 +57,7 @@ class IsingSamplingInteraction(SpinSamplingInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         state: str = 'spin',
         rule: str = 'metropolis',
         schedule: str = 'checkerboard',

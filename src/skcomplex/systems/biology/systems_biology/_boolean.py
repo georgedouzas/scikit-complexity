@@ -17,7 +17,7 @@ from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import Role, Roles
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ..common.networks import BooleanFunctionInteraction, BooleanNodeElement
 
@@ -76,7 +76,7 @@ class ThresholdFunctionInteraction(Interaction):
         label: str,
         *,
         target: Role,
-        inputs: Roles,
+        inputs: tuple[Role, ...],
         weights: Sequence[float] = (),
         decays: bool = False,
     ) -> None:
@@ -189,7 +189,7 @@ class RandomBooleanNetworkSystem(BaseSystem):
             BooleanFunctionInteraction(
                 f'function_{index}',
                 target=f'node_{index}',
-                inputs=[f'node_{source}' for source in rng.choice(self.n_nodes, size=self.k, replace=False)],
+                inputs=tuple(f'node_{source}' for source in rng.choice(self.n_nodes, size=self.k, replace=False)),
                 table=tuple(int(entry) for entry in rng.random(2**self.k) < self.bias),
             )
             for index in range(self.n_nodes)
@@ -257,7 +257,7 @@ class YeastCellCycleSystem(BaseSystem):
             ThresholdFunctionInteraction(
                 f'regulation_{name}',
                 target=name,
-                inputs=[source for source, _ in YEAST_INPUTS[name]],
+                inputs=tuple(source for source, _ in YEAST_INPUTS[name]),
                 weights=[float(weight) for _, weight in YEAST_INPUTS[name]],
                 decays=name in YEAST_DECAYING,
             )

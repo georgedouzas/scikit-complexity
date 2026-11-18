@@ -176,9 +176,29 @@ class LayoutPass(BasePass):
         declarations, block = LayoutPass._declare_coordinates(declarations, block)
         if isinstance(node.component, BaseInteraction):
             declarations = LayoutPass._declare_processes(declarations, node)
-        if node.active is not None:
-            declarations, block = LayoutPass._declare_topology(declarations, block)
+        declarations, block = LayoutPass._declare_activity(declarations, block)
         return replace(declarations, blocks={**declarations.blocks, node.path: block}), block
+
+    @staticmethod
+    def _declare_activity(declarations: DeclarationsSpec, block: BlockSpec) -> tuple[DeclarationsSpec, BlockSpec]:
+        """Return the declarations and block with the activity of a growing or bare group."""
+        node = block.node
+        if node.active is not None:
+            return LayoutPass._declare_topology(declarations, block)
+        if LayoutPass._is_bare_nodes(node, block):
+            return LayoutPass._declare_hidden(declarations, block, ACTIVE, np.ones(node.members or 0))
+        return declarations, block
+
+    @staticmethod
+    def _is_bare_nodes(node: _NodeSpec, block: BlockSpec) -> bool:
+        """Return whether a block is a group on the nodes of a network with no values.
+
+        Such a group gets the activity of its members, so a law can count them with `count(over=s.target)` before the
+        laws that add nodes make it a growing group.
+        """
+        group = node.component
+        on_nodes = isinstance(group, GroupElement) and group.on not in {'edges', 'hyperedges'}
+        return on_nodes and node.members is not None and not block.symbols and isinstance(node.space, NetworkSpace)
 
     @staticmethod
     def _declare_processes(declarations: DeclarationsSpec, node: _NodeSpec) -> DeclarationsSpec:
@@ -347,7 +367,10 @@ class LayoutPass(BasePass):
         for name, value in component.get_params(deep=False).items():
             if name in roles or not isinstance(value, list | np.ndarray):
                 continue
-            array = np.asarray(value)
+            try:
+                array = np.asarray(value)
+            except ValueError:
+                continue
             if array.ndim < MATRIX_AXES or not np.issubdtype(array.dtype, np.number):
                 continue
             axes = [next((role for role, size in sizes.items() if size == length), None) for length in array.shape]

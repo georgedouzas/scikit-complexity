@@ -10,6 +10,7 @@ import json
 import math
 from collections.abc import Mapping, Sequence
 from importlib.resources import files
+from types import SimpleNamespace
 from typing import Annotated, cast
 
 import numpy as np
@@ -21,14 +22,15 @@ from shapely import Polygon
 from shapely.geometry import shape
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction
-from ....core.components.spaces import ContinuousSpace
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
+from ....core.components.spaces import BaseSpace, ContinuousSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ...general.agents import MovementInteraction
@@ -93,8 +95,9 @@ class ResidentElement(Element):
     """Resident of the Kauai population system.
 
     The resident lives, works, and spends time at points of a map. A resident starts at its home, a point of its census
-    region. It holds a sentiment between -1 and 1, one weight per topic of the events that move the sentiment, and the
-    demographic scalars of Carmichael et al. (2019 ch. 3 §4.2).
+    region, which the value `region` names, such as `values={'region': 'census_0'}`. It holds a sentiment between -1 and
+    1, one weight per topic of the events that move the sentiment, and the demographic scalars of Carmichael et al.
+    (2019 ch. 3 §4.2).
 
     Args:
         label:
@@ -145,10 +148,19 @@ class ResidentElement(Element):
         partners:
             The largest number of residents drawn from the grid cell as possible partners.
 
+        values:
+            Further values by name, such as the region `region` a resident starts in or its position `x` and `y`, or
+            `None`.
+
+        size:
+            The number of residents, or `None` for one.
+
+        space:
+            The continuous space the residents live in, or `None`.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.organizations import ResidentElement
-        >>> GroupElement('residents', element=ResidentElement, size=10).size
+        >>> ResidentElement('residents', size=10).size
         10
     """
 
@@ -158,23 +170,26 @@ class ResidentElement(Element):
         self,
         label: str,
         *,
-        sentiment: Annotated[float, StateSpec(domain=RealSet.closed(-1, 1))] = 0.0,
-        weights: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
-        home: Annotated[npt.ArrayLike, StateSpec(vector=True)] = (math.nan, math.nan),
-        census: Annotated[float, StateSpec()] = 0.0,
-        work: Annotated[float, StateSpec()] = 0.0,
-        favourite: Annotated[float, StateSpec()] = 0.0,
-        visits: Annotated[float, StateSpec()] = 0.0,
-        race: Annotated[float, StateSpec()] = 0.0,
-        gender: Annotated[float, StateSpec()] = 0.0,
-        occupation: Annotated[float, StateSpec()] = 0.0,
-        age: Annotated[float, StateSpec()] = 0.0,
-        convergence: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 1.0,
-        event_rate: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.05,
-        cell_size: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1000.0,
-        partners: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 15.0,
+        sentiment: Annotated[object, RealSet.closed(-1, 1)] = 0.0,
+        weights: npt.ArrayLike = (0.0,),
+        home: npt.ArrayLike = (math.nan, math.nan),
+        census: object = 0.0,
+        work: object = 0.0,
+        favourite: object = 0.0,
+        visits: object = 0.0,
+        race: object = 0.0,
+        gender: object = 0.0,
+        occupation: object = 0.0,
+        age: object = 0.0,
+        convergence: Annotated[object, RealSet.closed(0, 1)] = 1.0,
+        event_rate: Annotated[object, RealSet.closed(0, 1)] = 0.05,
+        cell_size: Annotated[object, RealSet.open(0, oo)] = 1000.0,
+        partners: Annotated[object, RealSet.closed_open(0, oo)] = 15.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.sentiment = sentiment
         self.weights = weights
         self.home = home
@@ -217,7 +232,7 @@ class CommuteInteraction(MovementInteraction):
         'member'
     """
 
-    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
+    def __init__(self, label: str, *, target: Role) -> None:
         super().__init__(label, target=target, step=self._commute, schedule='member')
 
     @staticmethod
@@ -237,7 +252,7 @@ class CommuteInteraction(MovementInteraction):
         return resident.home
 
 
-class PlaceVisitsInteraction(MapInteraction):
+class PlaceVisitsInteraction(Interaction):
     """Count of the steps every resident stands in its favourite place.
 
     The place is read from the regions of the layer `places`.
@@ -251,29 +266,28 @@ class PlaceVisitsInteraction(MapInteraction):
 
     Examples:
         >>> from skcomplex.systems.social.organizations import PlaceVisitsInteraction
-        >>> PlaceVisitsInteraction('visits', target='residents').mode
-        'increment'
+        >>> PlaceVisitsInteraction('visits', target='residents').target
+        'residents'
     """
 
-    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
-        super().__init__(
-            label,
-            target=target,
-            state='visits',
-            function=self._count,
-            mode='increment',
-            schedule='member',
-            form='agent',
-        )
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rule that counts the visits of every resident."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [UpdateLaw(context.target, self._count)]
 
     @staticmethod
-    def _count(agent: AgentViewProtocol, system: SystemViewProtocol) -> float:
-        """Return 1 for a resident that stands in its favourite place and 0 for any other."""
+    def _count(agent: AgentViewProtocol, system: SystemViewProtocol) -> None:
+        """Add 1 to the visits of a resident that stands in its favourite place."""
         resident = cast(ResidentView, agent)
-        return float(int(resident.favourite) in resident.get_regions_here('places'))
+        resident.visits = float(resident.visits) + float(int(resident.favourite) in resident.get_regions_here('places'))
 
 
-class SentimentInteraction(MapInteraction):
+class SentimentInteraction(Interaction):
     """Sentiment of every resident.
 
     It responds to events and to the partner the resident chooses at each step. The rules are those of Zanbaka et al. in
@@ -309,18 +323,18 @@ class SentimentInteraction(MapInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         events: Sequence[tuple[int, int, float]] = (),
     ) -> None:
-        super().__init__(
-            label,
-            target=target,
-            state='sentiment',
-            function=self._update,
-            schedule='member',
-            form='agent',
-        )
+        super().__init__(label)
+        self.target = target
         self.events = events
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rule that moves the sentiment of every resident."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [UpdateLaw(context.target, self._set_sentiment)]
 
     def _respond_to_events(self, resident: ResidentView, time: int) -> float:
         """Return the sentiment of a resident after the events of a step, by Eq.
@@ -371,19 +385,17 @@ class SentimentInteraction(MapInteraction):
         drawn = [here[int(index)] for index in system.rng.choice(len(here), size=count, replace=False)]
         return max(drawn, key=lambda other: self._read_probability(resident, other))
 
-    def _update(self, agent: AgentViewProtocol, system: SystemViewProtocol) -> float:
-        """Return the sentiment of a resident after the step.
-
-        It also sets the sentiment of its partner.
-        """
+    def _set_sentiment(self, agent: AgentViewProtocol, system: SystemViewProtocol) -> None:
+        """Set the sentiment of a resident after the step, and of its partner."""
         resident = cast(ResidentView, agent)
         own = self._respond_to_events(resident, int(system.time))
         partner = self._choose_partner(resident, system)
         if partner is None:
-            return own
+            resident.sentiment = own
+            return
         other = partner.sentiment
         partner.sentiment = other + (1 - abs(other) * partner.convergence) * (own - other)
-        return own + (1 - abs(own) * resident.convergence) * (other - own)
+        resident.sentiment = float(own + (1 - abs(own) * resident.convergence) * (other - own))
 
 
 def _read_layer(layer: str) -> str:
@@ -442,7 +454,8 @@ class KauaiPopulationSystem(BaseSystem):
     topic weights, or the demographics, which are choices of this system.
 
     The system has the group `residents`, its states `sentiment`, `weights`, `home`, `census`, `work`, `favourite`,
-    `visits`, `race`, `gender`, `occupation`, and `age`, and the region layers in its space.
+    `visits`, `race`, `gender`, `occupation`, and `age`, and the region layers in its space, where every census region
+    is the named region `census_<k>` that its residents start in.
 
     Args:
         populations:
@@ -560,33 +573,33 @@ class KauaiPopulationSystem(BaseSystem):
         census = np.repeat(np.arange(len(counts)), counts)
         size = len(census)
         shares = np.array(OCCUPATION_SHARES) / sum(OCCUPATION_SHARES)
-        residents = GroupElement(
-            'residents',
-            element=ResidentElement,
-            size=size,
-            values={
-                'sentiment': rng.uniform(-0.2, 0.2, size),
-                'weights': self._get_weights(size, self.n_topics, self.weighted_share, rng),
-                'home': np.full((size, 2), np.nan),
-                'census': census.astype(float),
-                'work': rng.integers(len(regions['facilities']), size=size).astype(float),
-                'favourite': rng.integers(len(regions['places']), size=size).astype(float),
-                'race': rng.integers(RACES, size=size).astype(float),
-                'gender': rng.integers(GENDERS, size=size).astype(float),
-                'occupation': rng.choice(len(shares), size=size, p=shares).astype(float),
-                'age': rng.uniform(0.0, OLDEST_AGE, size),
-                'convergence': self.convergence,
-                'event_rate': self.event_rate,
-                'cell_size': self.cell_size,
-                'partners': float(self.partners),
-            },
-            location=[regions['census'][region] for region in census.tolist()],
-        )
         bounds = shapely.total_bounds([polygon for polygons in regions.values() for polygon in polygons])
+        tracts = {f'census_{index}': polygon for index, polygon in enumerate(regions['census'])}
+        layers = {layer: polygons for layer, polygons in regions.items() if layer != 'census'}
+        space = ContinuousSpace(extent=(float(bounds[2]), float(bounds[3])), regions={**layers, **tracts})
+        residents = ResidentElement(
+            'residents',
+            sentiment=rng.uniform(-0.2, 0.2, size),
+            weights=self._get_weights(size, self.n_topics, self.weighted_share, rng),
+            home=np.full((size, 2), np.nan),
+            census=census.astype(float),
+            work=rng.integers(len(regions['facilities']), size=size).astype(float),
+            favourite=rng.integers(len(regions['places']), size=size).astype(float),
+            race=rng.integers(RACES, size=size).astype(float),
+            gender=rng.integers(GENDERS, size=size).astype(float),
+            occupation=rng.choice(len(shares), size=size, p=shares).astype(float),
+            age=rng.uniform(0.0, OLDEST_AGE, size),
+            convergence=self.convergence,
+            event_rate=self.event_rate,
+            cell_size=self.cell_size,
+            partners=float(self.partners),
+            values={'region': [f'census_{region}' for region in census.tolist()]},
+            size=size,
+            space=space,
+        )
         interactions = [
             CommuteInteraction('commute', target='residents'),
             PlaceVisitsInteraction('visits', target='residents'),
             SentimentInteraction('sentiment', target='residents', events=self.events),
         ]
-        space = ContinuousSpace(extent=(float(bounds[2]), float(bounds[3])), regions=regions)
         self.system_ = System(self.label, elements=[residents], interactions=interactions, space=space)

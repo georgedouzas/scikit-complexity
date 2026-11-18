@@ -12,13 +12,13 @@ from typing import Annotated, cast
 
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import NN, ZZ, Expression, oo
+from sage.all__sagemath_symbolics import NN, ZZ, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
-from ....core.components.interactions import GroupingInteraction, Interaction
+from ....core.components.interactions import Interaction, RandomPartition
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import mean, where
 from ....core.components.spaces import BaseSpace, LatticeSpace, NetworkSpace
@@ -29,6 +29,8 @@ from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ._random_pairs import NeighborhoodsInteraction
+
+TRIPLES = RandomPartition(3)
 
 
 class PersuaderView(AgentView):
@@ -225,47 +227,39 @@ class InfluenceeElement(Element):
         return InfluenceeView
 
 
-class DiscussionsInteraction(GroupingInteraction):
+class DiscussionsInteraction(Interaction):
     """Discussions of the Galam system.
 
-    They split the citizens into random groups that adopt their majority opinion. It is a symbolic `GroupingInteraction`
-    of random partitions, drawn again at every step. A tie in a group of even size goes to opinion 0, the status quo.
+    They split the citizens into random groups that adopt their majority opinion, drawn again at every step. A tie in a
+    group of even size goes to opinion 0, the status quo.
 
     Args:
         label:
             The label of the interaction.
 
-        target:
+        among:
             The path of the group of citizens.
 
-        size:
-            The number of citizens in each discussion group, the last group holding the remainder.
+        along:
+            The random groups of the discussions, such as `RandomPartition(3)` for groups of three citizens, the last
+            group holding the remainder.
 
     Examples:
+        >>> from skcomplex.core.components.interactions import RandomPartition
         >>> from skcomplex.systems.social.opinion_dynamics import DiscussionsInteraction
-        >>> DiscussionsInteraction('talks', target='citizens', size=4).write
-        'opinion'
+        >>> DiscussionsInteraction('talks', among='citizens', along=RandomPartition(4)).along
+        RandomPartition(size=4)
     """
 
-    draws = True
+    def __init__(self, label: str, *, among: Role, along: RandomPartition = TRIPLES) -> None:
+        super().__init__(label, among=among, along=along)
 
-    def __init__(self, label: str, *, target: Role, size: int = 3) -> None:
-        super().__init__(
-            label,
-            target=target,
-            groups='partition',
-            size=size,
-            form='symbolic',
-            write='opinion',
-            function=self._get_majority,
-        )
-
-    def _get_majority(self, group: SimpleNamespace) -> Expression:
-        """Return 1 when most members of a group hold opinion 1, and 0 otherwise.
-
-        Most means more than half.
-        """
-        return where(mean(group.members.opinion, over=group.members) > 1 / 2, 1, 0)
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the opinion of every citizen to 1 when most members of its group hold 1, and to 0 otherwise."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            majority = where(mean(context.members.opinion, over=context.members) > 1 / 2, 1, 0)
+            self.laws_ = [UpdateLaw(context.member.opinion, majority)]
 
 
 class SocialImpactInteraction(Interaction):
@@ -530,7 +524,7 @@ class GalamMajoritySystem(BaseSystem):
         self.system_ = System(
             self.label,
             elements=[citizens],
-            interactions=[DiscussionsInteraction('talks', target='citizens', size=self.group_size)],
+            interactions=[DiscussionsInteraction('talks', among='citizens', along=RandomPartition(self.group_size))],
         )
 
 

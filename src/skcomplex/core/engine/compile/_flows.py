@@ -408,7 +408,8 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
             )
             raise ValidationError(error_msg)
         amounts = [term.sign * SR(term.value) for term in terms]
-        if len(amounts) == FLOW_TERMS and not bool((amounts[0] - amounts[1]).is_trivial_zero()):
+        shifted = any(term.shifted for term in terms)
+        if len(amounts) == FLOW_TERMS and not shifted and not bool((amounts[0] - amounts[1]).is_trivial_zero()):
             error_msg = (
                 f'The flows labelled {label!r} of {spec.owner} move {amounts[0]} out of {names[0]} and {amounts[1]} '
                 f'into {names[1]}. Write one flow, such as RateLaw({{s.alive: -1, s.dead: +1}}, f, label={label!r}).'
@@ -416,7 +417,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
             raise ValidationError(error_msg)
         source = next((name for name, sign in zip(names, signs, strict=True) if sign < 0), None)
         sink = next((name for name, sign in zip(names, signs, strict=True) if sign > 0), None)
-        amount = amounts[0]
+        amount = next((value for value, term in zip(amounts, terms, strict=True) if not term.shifted), amounts[0])
         elements = {name.rpartition('.')[0] for name in names}
         owner = next(iter(elements)) if len(elements) == 1 else spec.owner
         path = f'{owner}.{label}'

@@ -181,8 +181,7 @@ def test_simulation_updates_one_per_entry_weight_live():
 
 def test_closed_economy_changes_money_only_by_lending_and_repayment():
     """Test that total money changes by lending minus repayment, and every transaction-flow row sums to zero."""
-    trajectory = simulate(
-        StockFlowConsistentEconomySystem().prepare().system_,
+    trajectory = StockFlowConsistentEconomySystem().prepare().simulate(
         until=100,
         dt=1,
         observers=[ConservationObserver()],
@@ -376,9 +375,7 @@ def test_simulation_default_frames(until, frames, dt):
 
 def test_trajectory_lists_its_names():
     """Test that a trajectory lists the names of its states, parameters, reporters, and observables."""
-    system = HilsaFisherySystem().prepare().system_
-    observables = HilsaFisherySystem().get_run_settings()['observables']
-    trajectory = simulate(system, until=2, dt=1, observables=observables)
+    trajectory = HilsaFisherySystem().prepare().simulate(until=2, dt=1)
     names = trajectory.names
     assert 'hilsa.adult_weight' in names
     assert all(name in names for name in trajectory.problem.states.names)
@@ -386,7 +383,7 @@ def test_trajectory_lists_its_names():
 
 def test_trajectory_gives_agent_locations_over_frames():
     """Test that the locations of a group of agents come as one array per frame."""
-    trajectory = simulate(BoidsSystem().prepare().system_, until=3, random_state=0)
+    trajectory = BoidsSystem().prepare().simulate(until=3, random_state=0)
     locations = trajectory.get_agent_locations('flock')
     assert len(locations) == len(trajectory.times)
     np.testing.assert_allclose(locations[-1], trajectory.get_agents('flock', len(trajectory.times) - 1).locations)
@@ -429,14 +426,8 @@ def test_perfect_correlation_keeps_states_equal():
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 def test_unnamed_noise_reproduces_stored_trajectory(backend):
     """Test that geometric Brownian motion with random state 0 repeats the stored trajectory on both backends."""
-    simulation = simulate(
-        GeometricBrownianMotionSystem().prepare().system_,
-        until=0.5,
-        backend=backend(),
-        random_state=0,
-        dt=0.05,
-    )
-    trajectory = simulation
+    system = GeometricBrownianMotionSystem(backend=backend()).prepare()
+    trajectory = system.simulate(until=0.5, random_state=0, dt=0.05)
     np.testing.assert_array_equal(trajectory.get_values('asset.price'), STORED_GEOMETRIC_BROWNIAN_MOTION)
 
 

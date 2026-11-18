@@ -23,6 +23,7 @@ from ..specs._tensor_spec import TENSOR_DIMENSIONS
 from ._tags import STOCHASTIC_LAWS, Tags
 
 MATRIX_AXES = 2
+ROLE_CONTAINERS = (tuple, list, Sequence, Mapping, dict)
 
 
 class BaseComponent[ContextT, InputT](BaseConfig[ContextT, InputT]):
@@ -181,11 +182,35 @@ class BaseComponent[ContextT, InputT](BaseConfig[ContextT, InputT]):
                 for item in metadata:
                     if isinstance(item, StateSpec | ParameterSpec | RoleSpec):
                         specs[name] = item
+                hinted = None if metadata else cls._get_role_of(argument.annotation)
+                if hinted is not None:
+                    specs[name] = hinted
                 domains = tuple(item for item in metadata if isinstance(item, str))
                 role = specs.get(name)
                 if domains and isinstance(role, RoleSpec) and role in metadata:
                     specs[name] = replace(role, domains=(*role.domains, *domains))
         return {name: specs[name] for name in inspect.signature(cls).parameters if name in specs}
+
+    @staticmethod
+    def _get_role_of(annotation: object) -> RoleSpec | None:
+        """Return the role a type hint states, or `None` for a hint of no role.
+
+        `Role` binds one element, `Role | None` one element or none, and a container of roles binds several, such as
+        `tuple[Role, ...]` for the reactants of a reaction or a mapping keyed by roles for their amounts.
+        """
+        annotated = BaseComponent._get_annotated(annotation)
+        if get_origin(annotated) is Annotated:
+            return next((item for item in get_args(annotated)[1:] if isinstance(item, RoleSpec)), None)
+        origin, args = get_origin(annotated), get_args(annotated)
+        if origin is Union or origin is UnionType:
+            found = [role for arg in args if (role := BaseComponent._get_role_of(arg)) is not None]
+            if not found:
+                return None
+            role = next((role for role in found if role.variadic), found[0])
+            return replace(role, optional=NoneType in args)
+        if origin in ROLE_CONTAINERS and any(BaseComponent._get_role_of(arg) is not None for arg in args):
+            return RoleSpec(variadic=True)
+        return None
 
     @classmethod
     def _get_declared_laws(cls) -> tuple[type, ...] | None:

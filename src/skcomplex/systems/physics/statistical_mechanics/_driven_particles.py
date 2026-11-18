@@ -16,13 +16,13 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import BaseInteraction, Interaction, TransferInteraction
+from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import JumpLaw
-from ....core.components.laws.utils import where
+from ....core.components.laws.utils import shift_member, where
 from ....core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend, NumbaBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import Role, StateSpec, VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
@@ -90,13 +90,14 @@ class TreeNodeElement(Element):
         self.x = x
 
 
-class ExclusionHopsInteraction(TransferInteraction):
+class ExclusionHopsInteraction(Interaction):
     """Hops of a particle from every site of a line to an empty neighbour.
 
     The particle hops to the right at rate `p` and to the left at `q`.
 
-    No particle hops past the ends of the line. It is a transfer of one particle along every edge of the line, to the
-    right and back, from an occupied site to an empty one.
+    No particle hops past the ends of the line, where the site on the right reads as full. Every site moves one
+    particle to the site on its right, `JumpLaw(p n (1 - n'), {n: -1, n': 1})` with `n'` the site on the right, and
+    back.
 
     Args:
         label:
@@ -121,38 +122,31 @@ class ExclusionHopsInteraction(TransferInteraction):
         self,
         label: str,
         *,
-        sites: Annotated[str, RoleSpec()],
-        p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        q: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        sites: Role,
+        p: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        q: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
     ) -> None:
-        super().__init__(
-            label,
-            source=sites,
-            target=sites,
-            state='n',
-            amount=1.0,
-            rate=self._get_right_rate,
-            reverse_rate=self._get_left_rate,
-            offset=1,
-            boundary='fixed',
-        )
+        super().__init__(label)
         self.sites = sites
         self.p = p
         self.q = q
 
-    def _get_holders(self, namespace: SimpleNamespace) -> list[tuple[SimpleNamespace, SimpleNamespace]]:
-        """Return the sites, whose every member hops to the next one and back."""
-        return [(namespace.sites, namespace.sites)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the hops of a particle to the empty site on the right and back.
 
-    @staticmethod
-    def _get_right_rate(s: SimpleNamespace) -> Expression:
-        """Return the rate `p` of a hop to the right from an occupied site to an empty one."""
-        return s.p * s.source.n * (1 - s.target.n)
-
-    @staticmethod
-    def _get_left_rate(s: SimpleNamespace) -> Expression:
-        """Return the rate of a hop to the left, `q` from an occupied site to an empty one."""
-        return s.q * s.target.n * (1 - s.source.n)
+        Args:
+            context:
+                The namespace of the sites, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            n = context.sites.n
+            right = shift_member(n, 1, boundary='fixed')
+            full = shift_member(n, 1, boundary='fixed', fill=1.0)
+            self.laws_ = [
+                JumpLaw(context.p * n * (1 - full), {n: -1, right: 1}),
+                JumpLaw(context.q * right * (1 - n), {right: -1, n: 1}),
+            ]
 
 
 class ReservoirInteraction(Interaction):
@@ -181,7 +175,7 @@ class ReservoirInteraction(Interaction):
 
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import ReservoirInteraction
-        >>> ReservoirInteraction('bath', sites=['lane[0]'], inflow=0.5).outflow
+        >>> ReservoirInteraction('bath', sites=('lane[0]',), inflow=0.5).outflow
         0.0
     """
 
@@ -189,7 +183,7 @@ class ReservoirInteraction(Interaction):
         self,
         label: str,
         *,
-        sites: Annotated[list[str], RoleSpec(variadic=True)],
+        sites: tuple[Role, ...],
         inflow: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
         outflow: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
         exclusion: bool = False,
@@ -254,7 +248,7 @@ class ZeroRangeHopInteraction(Interaction):
         self,
         label: str,
         *,
-        link: Annotated[list[str], RoleSpec(variadic=True)],
+        link: tuple[Role, ...],
         p: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
         q: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
         b: Annotated[float, RealSet.closed_open(0, oo)] = 4.0,
@@ -289,13 +283,14 @@ class ZeroRangeHopInteraction(Interaction):
         return where(n > 0, 1 + b / where(n > 0, n, 1), 0)
 
 
-class ZeroRangeHopsInteraction(TransferInteraction):
+class ZeroRangeHopsInteraction(Interaction):
     """Hops of one particle from every site of a ring.
 
     The particle hops to the right at rate `p u(n)` and to the left at rate `q u(n)`.
 
-    The rate depends only on the occupation `n` of the departure site, through `u(n) = 1 + b / n`. It is a transfer of
-    one particle along every edge of the ring, to the right and back.
+    The rate depends only on the occupation `n` of the departure site, through `u(n) = 1 + b / n`. Every site moves one
+    particle to the site on its right, `JumpLaw(p u(n), {n: -1, n': 1})` with `n'` the site on the right, and the site
+    on the right moves one back at the rate `q u(n')`.
 
     Args:
         label:
@@ -323,39 +318,32 @@ class ZeroRangeHopsInteraction(TransferInteraction):
         self,
         label: str,
         *,
-        sites: Annotated[str, RoleSpec()],
-        p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        q: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
+        sites: Role,
+        p: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        q: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        b: Annotated[float, RealSet.closed_open(0, oo)] = 4.0,
     ) -> None:
-        super().__init__(
-            label,
-            source=sites,
-            target=sites,
-            state='n',
-            amount=1.0,
-            rate=self._get_right_rate,
-            reverse_rate=self._get_left_rate,
-            offset=1,
-        )
+        super().__init__(label)
         self.sites = sites
         self.p = p
         self.q = q
         self.b = b
 
-    def _get_holders(self, namespace: SimpleNamespace) -> list[tuple[SimpleNamespace, SimpleNamespace]]:
-        """Return the sites, whose every member hops to the next one and back."""
-        return [(namespace.sites, namespace.sites)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the hops of a particle to the site on the right and back.
 
-    @staticmethod
-    def _get_right_rate(s: SimpleNamespace) -> Expression:
-        """Return the rate `p u(n)` of a hop to the right."""
-        return s.p * ZeroRangeHopInteraction._get_departure_rate(s.source.n, s.b)
-
-    @staticmethod
-    def _get_left_rate(s: SimpleNamespace) -> Expression:
-        """Return the rate `q u(n)` of a hop to the left, from the site on the right."""
-        return s.q * ZeroRangeHopInteraction._get_departure_rate(s.target.n, s.b)
+        Args:
+            context:
+                The namespace of the sites, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            n = context.sites.n
+            right = shift_member(n, 1)
+            self.laws_ = [
+                JumpLaw(context.p * ZeroRangeHopInteraction._get_departure_rate(n, context.b), {n: -1, right: 1}),
+                JumpLaw(context.q * ZeroRangeHopInteraction._get_departure_rate(right, context.b), {right: -1, n: 1}),
+            ]
 
 
 class ZeroRangeProcessSystem(BaseSystem):
@@ -576,15 +564,17 @@ class DissipativeZeroRangeSystem(BaseSystem):
             for index in range(self.branches ** (level - 1)):
                 for branch in range(self.branches):
                     child = below + self.branches * index + branch
-                    link = [f'nodes[{start + index}]', f'nodes[{child}]']
+                    link = (f'nodes[{start + index}]', f'nodes[{child}]')
                     interactions.append(
                         ZeroRangeHopInteraction(f'transfer_{start + index}_{child}', link=link, p=rate, q=rate, b=0.0),
                     )
-        leaves = [f'nodes[{index}]' for index in range(self._get_level_start(self.n_levels, self.branches), n_nodes)]
+        leaves = tuple(
+            f'nodes[{index}]' for index in range(self._get_level_start(self.n_levels, self.branches), n_nodes)
+        )
         interactions += [
             ReservoirInteraction(
                 'injection',
-                sites=['nodes[0]'],
+                sites=('nodes[0]',),
                 inflow=self.nu * np.exp(-self.beta_ext * self.epsilon0),
                 outflow=self.nu,
             ),
@@ -687,7 +677,7 @@ class ASEPSystem(BaseSystem):
         lane = Element('lane', values={'n': occupied}, space=LatticeSpace(self.n_sites, boundary='fixed'))
         interactions = [
             ExclusionHopsInteraction('hops', sites='lane', p=self.p, q=self.q),
-            ReservoirInteraction('entry', sites=['lane[0]'], inflow=self.alpha, exclusion=True),
-            ReservoirInteraction('exit', sites=[f'lane[{self.n_sites - 1}]'], outflow=self.gamma, exclusion=True),
+            ReservoirInteraction('entry', sites=('lane[0]',), inflow=self.alpha, exclusion=True),
+            ReservoirInteraction('exit', sites=(f'lane[{self.n_sites - 1}]',), outflow=self.gamma, exclusion=True),
         ]
         self.system_ = System(self.label, elements=[lane], interactions=interactions)

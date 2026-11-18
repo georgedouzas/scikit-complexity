@@ -9,7 +9,6 @@ The equations live on the phase spaces of the core.
 import math
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
@@ -25,7 +24,7 @@ from ....core.components.spaces import AxisSpec, BaseSpace, LatticeSpace, PhaseS
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver, SemiLagrangianSolver, SSPRKSolver, StrangSplittingSolver
 from ....core.errors import ValidationError
-from ....core.specs import Role, RoleSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 from ...general.kinetics import EncounterInteraction
 from ..common.fields import AdvectionInteraction, PhaseSpaceDensityElement
@@ -198,7 +197,7 @@ class BhatnagarGrossKrookInteraction(RelaxationTimeInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         state: str = 'x',
         axes: Sequence[str] = ('v',),
         time: Callable[[SimpleNamespace], object] | float = 1.0,
