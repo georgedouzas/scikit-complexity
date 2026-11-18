@@ -1,7 +1,14 @@
 """Econophysics: wealth exchange between agents."""
 
 from ._coalitions import CoalitionBarInteraction, CoalitionPatronElement, ElFarolCoalitionsSystem
-from ._el_farol import ElFarolSystem, PatronElement, PredictorPoolElement, forecasts
+from ._el_farol import (
+    ElFarolSystem,
+    ForecastingInteraction,
+    PatronElement,
+    PredictingInteraction,
+    PredictorPoolElement,
+    forecasts,
+)
 from ._exchange import BoltzmannWealthSystem, TraderElement
 from ._kinetic import (
     DebtExchangeInteraction,
@@ -34,6 +41,7 @@ __all__: list[str] = [
     'DinerElement',
     'ElFarolCoalitionsSystem',
     'ElFarolSystem',
+    'ForecastingInteraction',
     'KineticWealthExchangeSystem',
     'KineticWealthWelfareSystem',
     'KolkataRestaurantSystem',
@@ -41,6 +49,7 @@ __all__: list[str] = [
     'MinorityGameSystem',
     'MinorityPlayerElement',
     'PatronElement',
+    'PredictingInteraction',
     'PredictorPoolElement',
     'RestaurantsInteraction',
     'SavingExchangeInteraction',
