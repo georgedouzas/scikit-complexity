@@ -338,7 +338,7 @@ class NextGenerationNeuralMassSystem(BaseSystem):
         self.nu = nu
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
-        """Set the system of exact quadratic integrate-and-fire neural mass.
+        """Set the system of the exact quadratic integrate-and-fire neural mass.
 
         Args:
             context:

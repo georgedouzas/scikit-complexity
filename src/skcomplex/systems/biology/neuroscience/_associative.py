@@ -300,7 +300,7 @@ class AssociativeThoughtProcessSystem(BaseSystem):
         self.start = start
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
-        """Set the system of dense homogeneous associative network of Gros.
+        """Set the system of the dense homogeneous associative network of Gros.
 
         Args:
             context:

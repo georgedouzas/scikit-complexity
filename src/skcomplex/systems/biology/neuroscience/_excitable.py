@@ -187,7 +187,7 @@ class KinouchiCopelliSystem(BaseSystem):
         ]
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
-        """Set the system of Kinouchi-Copelli network of excitable elements.
+        """Set the system of the Kinouchi-Copelli network of excitable elements.
 
         Args:
             context:
