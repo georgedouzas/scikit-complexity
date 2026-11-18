@@ -592,7 +592,7 @@ class ObservableEvaluator:
             raise ValidationError(error_msg)
         return entry
 
-    def _get_active(self, group: str, x: Array, p: Array, size: int) -> Array:
+    def _get_active(self, group: str, x: Array, p: Array, size: int) -> npt.NDArray[np.bool_]:
         """Return which of the `size` rows of a group hold a member, every row of a group that does not grow."""
         name = f'{group}.{ACTIVE}'
         for layout, values in ((self.problem.states, x), (self.problem.parameters, p)):
