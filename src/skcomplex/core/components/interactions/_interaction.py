@@ -122,7 +122,7 @@ class Interaction(BaseInteraction):
         self.along = along
 
     def _get_declared(self) -> Mapping[str, DeclaredVariableSpec]:
-        """Return the numeric arguments as parameters, and the entries of `roles` and the group `among` as roles."""
+        """Return the numeric arguments as parameters, and `roles` and `among` as roles."""
         declared = dict(super()._get_declared())
         for name, binding in (self.roles or {}).items():
             declared[name] = DeclaredVariableSpec(binding, RoleSpec())
