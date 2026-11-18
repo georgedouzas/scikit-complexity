@@ -902,7 +902,7 @@ class _StateInference:
 
     @staticmethod
     def _get_probed(value: object) -> object:
-        """Return a value for the probe of the laws, with zeros for values not set yet, as `nan`.
+        """Return a value for the probe of the laws, with zeros in place of `nan`.
 
         The probe reads only the shapes of the values, and an agent may hold `nan` until a rule sets it.
         """
