@@ -5,76 +5,24 @@
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import Annotated
 
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, exp, oo, sqrt, vector
 from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction
-from ....core.components.laws import RateLaw
 from ....core.components.spaces import ContinuousSpace, RadiusNeighborhood
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.specs import ParameterSpec, RoleSpec
 from ....core.systems import BaseSystem, System
+from ...general.elements import PointElement
+from ._flocks import SelfPropulsionInteraction
 
 NEIGHBOURS = 10
-
-
-class SwarmAgentElement(Element):
-    """Self-propelled agent driven to the speed `sqrt(alpha / beta)`.
-
-    The position `x` is a state of order 2, whose velocity `v` is the first derivative `x_d1`, and the agent alone
-    accelerates by the Rayleigh self-propulsion `(alpha - beta |v|^2) v`.
-
-    Args:
-        label:
-            The label of the agent.
-
-        x:
-            The position.
-
-        x_d1:
-            The velocity.
-
-        alpha:
-            The propulsion.
-
-        beta:
-            The friction at high speed.
-
-    Examples:
-        >>> from skcomplex.systems.biology.collective_behaviour import SwarmAgentElement
-        >>> SwarmAgentElement('agent', alpha=2.0).alpha
-        2.0
-    """
-
-    law_classes: ClassVar[tuple[type, ...]] = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, order=2, role='position')] = 0.0,
-        x_d1: npt.ArrayLike = 0.0,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label)
-        self.x = x
-        self.x_d1 = x_d1
-        self.alpha = alpha
-        self.beta = beta
-
-    def _get_laws(self, s: SimpleNamespace) -> list[RateLaw]:
-        """Return the self-propulsion of the agent."""
-        velocity = s.x_d1
-        return [RateLaw(s.x, (s.alpha - s.beta * velocity.dot_product(velocity)) * velocity)]
 
 
 class MorseAlignmentInteraction(CouplingInteraction):
@@ -297,7 +245,7 @@ class ManyBodyAlignmentSwarmSystem(BaseSystem):
     triple of neighbours weighted by `kappa_4`. The neighbours are the agents within `R`, found again at every
     evaluation, and the smooth cutoff `(1 - rho^2 / R^2)^2` weighs every neighbour at the distance `rho`. With
     `kappa_v = kappa_4 = 0` the swarm is the classical pairwise collective. The agents move in a periodic box that holds
-    about ten neighbours around each. The system has the positions `agents.x` and the velocities `agents.x_d1`.
+    about ten neighbours around each. The system has the positions `agents.x` and the velocities `agents.x'`.
 
     Args:
         size:
@@ -357,8 +305,8 @@ class ManyBodyAlignmentSwarmSystem(BaseSystem):
     Examples:
         >>> from skcomplex.systems.biology.collective_behaviour import ManyBodyAlignmentSwarmSystem
         >>> system = ManyBodyAlignmentSwarmSystem(12).prepare().system_
-        >>> system.elements[0].prepare().size_, [component.label for component in system.interactions]
-        (12, ['pairs', 'flanking', 'encirclement'])
+        >>> system.elements[0].size, [component.label for component in system.interactions]
+        (12, ['propulsion', 'pairs', 'flanking', 'encirclement'])
     """
 
     field = 'biology/collective_behaviour'
@@ -423,12 +371,9 @@ class ManyBodyAlignmentSwarmSystem(BaseSystem):
         headings = rng.normal(size=(self.size, self.dimension))
         speed = np.sqrt(self.alpha / self.beta)
         velocities = speed * headings / np.linalg.norm(headings, axis=1, keepdims=True)
-        agents = GroupElement(
-            'agents',
-            element=SwarmAgentElement,
-            size=self.size,
-            values={'x': positions, 'x_d1': velocities, 'alpha': self.alpha, 'beta': self.beta},
-        )
+        space = ContinuousSpace(extent=(spacing * sides,) * self.dimension, boundary='periodic')
+        agents = PointElement('agents', x=positions, values={"x'": velocities}, size=self.size, space=space)
+        propulsion = SelfPropulsionInteraction('propulsion', target='agents', alpha=self.alpha, beta=self.beta)
         pairs = MorseAlignmentInteraction(
             'pairs',
             target='agents',
@@ -451,6 +396,6 @@ class ManyBodyAlignmentSwarmSystem(BaseSystem):
         self.system_ = System(
             self.label,
             elements=[agents],
-            interactions=[pairs, flanking, encirclement],
-            space=ContinuousSpace(extent=(spacing * sides,) * self.dimension, boundary='periodic'),
+            interactions=[propulsion, pairs, flanking, encirclement],
+            space=space,
         )
