@@ -22,6 +22,7 @@ from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import BaseProblemSpec
 from ..engine.runtime import BaseClock, BaseObserver, Trajectory, run_problem
 from ..engine.solvers import BaseSolver
+from ..enums import FormKind
 from ..errors import NotPreparedError
 
 AUTO = 'auto'
@@ -240,7 +241,8 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
 
         Args:
             until:
-                The end time, or `None` for the tuned one.
+                The end time, or `None` for the tuned one. A static system, which only solves its objectives and
+                constraints, needs none.
 
             dt:
                 The time between frames, or `None` for the tuned one.
@@ -297,10 +299,11 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
         starting = self.initial_state_ if initial_state is None else initial_state
         named = any(isinstance(value, str) for value in (starting or {}).values())
         compiled = None if observables or named else (prepared._problem, prepared.solver_)
+        end = self.until if until is None else until
         return run_problem(
             prepared._composite,
             compiled,
-            until=self.until if until is None else until,
+            until=0.0 if end is None and prepared.form_ == FormKind.STATIC else end,
             dt=self.dt if dt is None else dt,
             initial_state=starting,
             solver=prepared.solver_ if compiled is None else None,
