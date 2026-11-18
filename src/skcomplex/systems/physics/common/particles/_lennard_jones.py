@@ -6,42 +6,36 @@
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import Expression, oo
+from sage.all__sagemath_symbolics import SR, oo, sqrt
 from sage.sets.real_set import RealSet
 
-from .....core.components.interactions import PairInteraction
-from .....core.specs import ParameterSpec
+from .....core.components.interactions import Interaction
+from .....core.components.laws import RateLaw
+from .....core.components.laws.utils import neighbors
+from .....core.components.spaces import BaseSpace, RadiusNeighborhood
+from .....core.specs import Role
 
 
-class LennardJonesInteraction(PairInteraction):
+class LennardJonesInteraction(Interaction):
     """Lennard-Jones pair potential without a shift.
 
-    The potential is `4 * epsilon * ((sigma / r) ** 12 - (sigma / r) ** 6)`.
+    The potential is `U(r) = 4 epsilon ((sigma / r)^12 - (sigma / r)^6)`, and every member feels the force `-U'(r)`
+    along the line of centres from each member within the cutoff, `x_i'' += sum_j -U'(r_ij) (x_i - x_j) / (r_ij m_i)`.
+    In a periodic box the separations are minimum images. It is the force between atoms of a noble gas, a model fluid
+    of molecular dynamics, or colloids with a short-range attraction.
 
     Args:
         label:
             The label of the interaction.
 
-        first:
-            The path of the group or particle of the first members.
-
-        second:
-            The path of the group or particle of the second members.
+        target:
+            The path of the group of particles.
 
         cutoff:
             The distance beyond which pairs do not interact.
 
-        position:
-            The name of the vector state that holds the positions of the members.
-
-        write:
-            The name of the state whose derivative the force changes, the position by default.
-
         divisor:
-            The name of the parameter that holds the masses of the members, or `None` for unit masses.
-
-        period:
-            The side of a periodic box, for minimum image distances, or `None` for the period of the space.
+            The name of the value of the members that holds their masses, or `None` for unit masses.
 
         epsilon:
             The depth of the potential well.
@@ -49,46 +43,44 @@ class LennardJonesInteraction(PairInteraction):
         sigma:
             The distance at which the potential is zero.
 
-        order:
-            The derivative of `write` the force adds to, 2 for the acceleration of a position.
-
     Examples:
         >>> from skcomplex.systems.physics.common.particles import LennardJonesInteraction
-        >>> LennardJonesInteraction('lj', first='gas', second='gas', cutoff=2.5).sigma
+        >>> LennardJonesInteraction('lj', target='gas', cutoff=2.5).sigma
         1.0
     """
 
     def __init__(
         self,
         label: str,
-        first: str,
-        second: str,
-        cutoff: float = 1.0,
-        position: str = 'x',
         *,
-        write: str = 'x',
+        target: Role,
+        cutoff: Annotated[float, RealSet.open(0, oo)] = 1.0,
         divisor: str | None = None,
-        period: float | None = None,
-        epsilon: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        sigma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        order: int | None = 2,
+        epsilon: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        sigma: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(
-            label,
-            first,
-            second,
-            cutoff=cutoff,
-            position=position,
-            write=write,
-            potential=self._get_lennard_jones_energy,
-            divisor=divisor,
-            period=period,
-            order=order,
-        )
+        super().__init__(label)
+        self.target = target
+        self.cutoff = cutoff
+        self.divisor = divisor
         self.epsilon = epsilon
         self.sigma = sigma
 
-    @staticmethod
-    def _get_lennard_jones_energy(s: SimpleNamespace, r: Expression) -> Expression:
-        """Return `4 * epsilon * ((sigma / r) ** 12 - (sigma / r) ** 6)`."""
-        return 4 * s.epsilon * ((s.sigma / r) ** 12 - (s.sigma / r) ** 6)
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the force of the neighbours within the cutoff on every particle.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s, x = context, context.target.x
+            separation = x - s.target.other.x
+            r = sqrt(separation.dot_product(separation))
+            distance = SR.var('r', domain='positive')
+            energy = 4 * s.epsilon * ((s.sigma / distance) ** 12 - (s.sigma / distance) ** 6)
+            slope = energy.diff(distance).subs({distance: r})
+            force = neighbors(-slope * separation / r, RadiusNeighborhood(self.cutoff))
+            mass = 1 if self.divisor is None else getattr(s.target, self.divisor)
+            self.laws_ = [RateLaw(x.diff(s.t, 2), force / mass)]

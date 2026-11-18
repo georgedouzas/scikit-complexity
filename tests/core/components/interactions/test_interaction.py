@@ -458,6 +458,23 @@ def test_interaction_rewires_the_edges_of_a_network():
     assert discordant[-1] < discordant[0] / 4
 
 
+def test_interaction_along_edges_removes_the_edges_whose_ends_disagree():
+    """Test that a one-off interaction along edges removes every edge between disagreeing voters in one step."""
+    graph = nx.cycle_graph(6)
+    opinions = np.array([0.0, 0.0, 1.0, 1.0, 1.0, 0.0])
+    voters = Element('voters', values={'opinion': opinions}, space=NetworkSpace(graph))
+    pruning = Interaction(
+        'pruning',
+        among='voters',
+        along=True,
+        laws=lambda s: [UpdateLaw(TopologyRequestSpec('remove-edge'), (s.source.opinion - s.target.opinion) ** 2)],
+    )
+    trajectory = System(elements=[voters], interactions=[pruning]).prepare().simulate(until=1, random_state=0)
+    network = trajectory.get_network(-1)
+    kept = {tuple(sorted((int(a), int(b)))) for a, b in zip(network.sources, network.targets, strict=True)}
+    assert kept == {(0, 1), (2, 3), (3, 4), (0, 5)}
+
+
 class GravityInteraction(Interaction):
     """Gravity on the element of its target, `x'' = -g`."""
 
@@ -508,3 +525,12 @@ def test_an_interaction_without_a_class_rejects_wrong_arguments(arguments, match
     """Test that a role named after an argument, or laws that are no function, raise an error."""
     with pytest.raises(ValidationError, match=match):
         System(elements=[Element('ball', values={'x': 1.0})], interactions=[Interaction('rule', **arguments)]).prepare()
+
+
+def test_an_interaction_without_a_class_binds_among_as_a_role():
+    """Test that `among` of a rule written without a class binds its group, which the laws read as `s.among`."""
+    cells = Element('cells', values={'n': np.ones(3)}, size=3)
+    decay = Interaction('decay', among='cells', laws=lambda s: [RateLaw(s.among.n.diff(s.t), -s.among.n)])
+    system = System(elements=[cells], interactions=[decay]).prepare()
+    assert system.equations_ == {'cells.n[i]': '-cells.n[i]'}
+    assert system.simulate(until=1.0).get_values('cells.n')[-1] == pytest.approx(np.full(3, np.exp(-1.0)), rel=1e-3)

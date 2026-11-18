@@ -10,8 +10,8 @@ import inspect
 from abc import abstractmethod
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
-from types import SimpleNamespace
-from typing import Annotated, ClassVar, TypeAliasType, get_args, get_origin
+from types import NoneType, SimpleNamespace, UnionType
+from typing import Annotated, ClassVar, TypeAliasType, Union, get_args, get_origin
 
 import numpy as np
 from sklearn.base import BaseEstimator
@@ -23,6 +23,7 @@ from ..specs._tensor_spec import TENSOR_DIMENSIONS
 from ._tags import STOCHASTIC_LAWS, Tags
 
 MATRIX_AXES = 2
+ROLE_CONTAINERS = (tuple, list, Sequence, Mapping, dict)
 
 
 class BaseComponent[ContextT, InputT](BaseConfig[ContextT, InputT]):
@@ -136,8 +137,17 @@ class BaseComponent[ContextT, InputT](BaseConfig[ContextT, InputT]):
 
         A short annotation such as `State[float]` or `Role` stands for the `Annotated` form it aliases, and any other
         annotation stands for itself. A short annotation inside `Annotated`, such as `Annotated[Role, 'boolean']`,
-        stands for the form it aliases with the further metadata added.
+        stands for the form it aliases with the further metadata added. A role that may be `None`, such as
+        `Role | None`, stands for an optional role.
         """
+        others = [item for item in get_args(annotation) if item is not NoneType]
+        if get_origin(annotation) in (UnionType, Union) and len(others) == 1 < len(get_args(annotation)):
+            inner = BaseComponent._get_annotated(others[0])
+            if get_origin(inner) is not Annotated:
+                return annotation
+            base, *metadata = get_args(inner)
+            optional = [replace(item, optional=True) if isinstance(item, RoleSpec) else item for item in metadata]
+            return Annotated[base | None, *optional]
         if get_origin(annotation) is Annotated:
             inner, *extra = get_args(annotation)
             aliased = BaseComponent._get_annotated(inner)
@@ -172,11 +182,35 @@ class BaseComponent[ContextT, InputT](BaseConfig[ContextT, InputT]):
                 for item in metadata:
                     if isinstance(item, StateSpec | ParameterSpec | RoleSpec):
                         specs[name] = item
+                hinted = None if metadata else cls._get_role_of(argument.annotation)
+                if hinted is not None:
+                    specs[name] = hinted
                 domains = tuple(item for item in metadata if isinstance(item, str))
                 role = specs.get(name)
                 if domains and isinstance(role, RoleSpec) and role in metadata:
                     specs[name] = replace(role, domains=(*role.domains, *domains))
         return {name: specs[name] for name in inspect.signature(cls).parameters if name in specs}
+
+    @staticmethod
+    def _get_role_of(annotation: object) -> RoleSpec | None:
+        """Return the role a type hint states, or `None` for a hint of no role.
+
+        `Role` binds one element, `Role | None` one element or none, and a container of roles binds several, such as
+        `tuple[Role, ...]` for the reactants of a reaction or a mapping keyed by roles for their amounts.
+        """
+        annotated = BaseComponent._get_annotated(annotation)
+        if get_origin(annotated) is Annotated:
+            return next((item for item in get_args(annotated)[1:] if isinstance(item, RoleSpec)), None)
+        origin, args = get_origin(annotated), get_args(annotated)
+        if origin is Union or origin is UnionType:
+            found = [role for arg in args if (role := BaseComponent._get_role_of(arg)) is not None]
+            if not found:
+                return None
+            role = next((role for role in found if role.variadic), found[0])
+            return replace(role, optional=NoneType in args)
+        if origin in ROLE_CONTAINERS and any(BaseComponent._get_role_of(arg) is not None for arg in args):
+            return RoleSpec(variadic=True)
+        return None
 
     @classmethod
     def _get_declared_laws(cls) -> tuple[type, ...] | None:

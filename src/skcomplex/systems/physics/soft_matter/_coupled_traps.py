@@ -21,7 +21,7 @@ from ....core.components.laws.utils import pulse_train
 from ....core.components.spaces import BaseSpace, ContinuousSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, RoleSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 from ..common.particles import StokesianMobilityInteraction
 
@@ -129,16 +129,16 @@ class BlinkingTrapsInteraction(StokesianMobilityInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        target: Role,
+        k: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
         on_time: float = 1.0,
         off_time: float = 0.0,
         tensor: str = 'rotne-prager-yamakawa',
         root: str = 'cholesky',
-        radius: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        viscosity: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        temperature: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        dt: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
+        radius: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        viscosity: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        temperature: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        dt: Annotated[float, RealSet.open(0, oo)] = 0.01,
     ) -> None:
         super().__init__(
             label,

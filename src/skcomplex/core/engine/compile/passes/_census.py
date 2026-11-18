@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import operator
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from types import SimpleNamespace
@@ -23,8 +24,11 @@ from ....components.laws import (
     ConstraintLaw,
     EventLaw,
     JumpLaw,
+    LinearObjectiveSpec,
+    LinearProgramLaw,
     LocalRuleLaw,
     NoiseLaw,
+    ObjectiveLaw,
     RateLaw,
     RuleLaw,
     SampleLaw,
@@ -64,11 +68,13 @@ from .._relaxation_law import RelaxationLaw
 from .._renewal_law import RenewalLaw
 from ._cells import DEGREES
 from ._hyperedges import HYPEREDGE_LAWS, HyperedgeTables
+from ._kernels import KernelsPass
 from ._layout import LayoutPass
 from ._noise import NoisePass
 from ._specs import SpecsPass
 
 EDGE_REQUESTS = ('remove-edge', 'rewire')
+SHIFT = 'shift_member'
 SYMMETRY_TOLERANCE = 1e-9
 SYMMETRY_TRIALS = 3
 
@@ -271,7 +277,51 @@ class CensusPass(BasePass):
                 records += CensusPass._get_records_of(block, elements, observer, declarations, agents)
             except SkcomplexError as error:
                 errors.append((block.node.path, error))
+        flowing = CensusPass._get_flowing(records)
+        records = [
+            replace(record, law=CensusPass._get_corrected(record.law, record.owner, flowing)) for record in records
+        ]
         return _CensusSpec(system, records, errors, declarations.agents)
+
+    @staticmethod
+    def _get_flowing(records: Sequence[_CensusRecordSpec]) -> frozenset[str]:
+        """Return the paths of the elements and groups that flow.
+
+        Rate or noise laws change their states.
+        """
+        return frozenset(
+            record.owner for record in records if KernelsPass._get_kind_of(record.law) in (RateLaw, NoiseLaw)
+        )
+
+    @staticmethod
+    def _get_corrected(law: BaseLaw, owner: str, flowing: frozenset[str]) -> BaseLaw:
+        """Return an update law of an element that flows as a correction after each step.
+
+        A value corrected after every step of the solver, such as a wall reflecting `x` to `abs(x)` with
+        `UpdateLaw(x, abs(x))` or a controller setting the input of a plant, is an update law of an element whose states
+        rate or noise laws change. An update law of an element that only steps, such as a counter, or one that adds to
+        other updates, reads neighbours, or runs in an order or a phase, stays an update law.
+
+        Args:
+            law:
+                The law.
+
+            owner:
+                The path of the element or group whose state the law changes.
+
+            flowing:
+                The paths of the elements and groups whose states rate or noise laws change.
+
+        Returns:
+            law:
+                The law, or the correction it states.
+        """
+        if not isinstance(law, UpdateLaw) or not isinstance(law.target, Expression | FreeModuleElement):
+            return law
+        plain = not law.increment and law.source is None and law.order is None and law.phase is None
+        if not plain or law.neighborhood is not None or owner not in flowing:
+            return law
+        return BoundaryLaw(law.target, law.value, label=law.label).prepare(owner)
 
     @staticmethod
     def _get_renewal_group(spec: KernelSpec, law: RenewalLaw) -> str:
@@ -301,10 +351,22 @@ class CensusPass(BasePass):
         return None
 
     @staticmethod
+    def _is_offset(target: object) -> bool:
+        """Return whether a target is a member at an offset, such as `shift_member(n, 1)`."""
+        operator = target.operator() if isinstance(target, Expression) else None
+        return getattr(operator, 'name', lambda: '')() == SHIFT
+
+    @staticmethod
     def _get_changed_target(spec: KernelSpec, law: BaseLaw) -> object:
-        """Return the target of a law, or the first state a jump changes."""
+        """Return the target of a law, or the first state a jump changes.
+
+        A jump changes the state of a member it reads at an offset, such as `shift_member(n, 1)`, of the group of its
+        other states, so the first state read at no offset comes first.
+        """
         if isinstance(law, JumpLaw):
-            return next(iter(law.changes or {}))
+            changed = list(law.changes or {})
+            direct = [item for item in changed if not CensusPass._is_offset(item)]
+            return next(iter(direct or changed))
         if not law._get_targets():
             error_msg = f'A {type(law).__name__} of {spec.owner} changes no state of its component.'
             raise ValidationError(error_msg)
@@ -907,7 +969,7 @@ class CensusPass(BasePass):
         if not isinstance(returned, list | tuple) or len(laws) < len(returned):
             error_msg = f'`_get_laws` of {spec.owner} must return a list of laws.'
             raise ValidationError(error_msg)
-        lowered = [BilinearLaw._get_lowered(law) for law in laws]
+        lowered = [BilinearLaw._get_lowered(law) for law in CensusPass._get_programs(laws, spec.owner)]
         split = [item for law in lowered for item in CensusPass._get_component_rates(spec, law)]
         declared = [CensusPass._get_relaxation(law).prepare(spec.owner) for law in split]
         if spec.hyperedge is not None:
@@ -963,6 +1025,85 @@ class CensusPass(BasePass):
                 error_msg = f'{type(law).__name__} of {spec.owner}: {error}'
                 raise ValidationError(error_msg) from error
         return [*rules, *checked]
+
+    @staticmethod
+    def _get_programs(laws: Sequence[BaseLaw], owner: str) -> list[BaseLaw]:
+        """Return the laws of a component, its linear objectives as linear programs.
+
+        An objective without controls that is linear in its targets, or a sum of their absolute values, is minimised
+        as a linear program, under the constraints of the component that read its targets, such as the balances and the
+        bounds of the fluxes of a metabolic network. A sequence of values is minimised in order, each minimum held
+        while the next one is sought, as the smallest total flux at the greatest growth. An inequality of another
+        component is a constraint of the program of the value its `target` names, such as the uptake a medium allows.
+
+        Raises:
+            ValidationError:
+                A sequence of values is not linear in the targets, or an inequality outside a program names no target.
+        """
+        programs = {
+            id(law): law
+            for law in laws
+            if isinstance(law, ObjectiveLaw) and law.controls is None and CensusPass._is_linear_objective(law)
+        }
+        targets = {str(item) for law in programs.values() for item in law._get_targets()}
+        kept: list[BaseLaw] = []
+        constraints: list[Expression] = []
+        for law in laws:
+            if id(law) in programs:
+                continue
+            objective = isinstance(law, ObjectiveLaw) and law.controls is None
+            if objective and not isinstance(law.value, Expression) and isinstance(law.value, Sequence):
+                error_msg = (
+                    f'The objective of {owner} is a sequence of values, which is minimised in order as a linear '
+                    'program, so every value is linear in the targets or a sum of their absolute values.'
+                )
+                raise ValidationError(error_msg)
+            if not isinstance(law, ConstraintLaw):
+                kept.append(law)
+                continue
+            relation = SR(law.lhs) if law.rhs is None else SR(law.lhs) == SR(law.rhs)
+            inequality = relation.operator() is not operator.eq
+            if targets & {str(item) for item in relation.variables()}:
+                constraints.append(relation)
+            elif inequality and law.target is None:
+                error_msg = (
+                    f'The inequality {relation} of {owner} holds in a linear program, so it names the value it bounds '
+                    'in `target`, such as `ConstraintLaw(flux >= -uptake, target=flux)`.'
+                )
+                raise ValidationError(error_msg)
+            elif inequality:
+                kept.append(LinearProgramLaw([SR(law.target)], [relation], label=law.label))
+            else:
+                kept.append(law)
+        converted = [
+            LinearProgramLaw(
+                list(law._get_targets()),
+                constraints if position == 0 else [],
+                [LinearObjectiveSpec(value, sense='min') for value in law._get_values_in_order()],
+                active=law.active,
+                infeasible=law.infeasible,
+                label=law.label,
+            )
+            for position, law in enumerate(programs.values())
+        ]
+        return [*kept, *converted]
+
+    @staticmethod
+    def _is_linear_objective(law: ObjectiveLaw) -> bool:
+        """Return whether an objective is linear or sums absolute values of its targets."""
+        targets = {str(item) for item in law._get_targets()}
+        for value in law._get_values_in_order():
+            expression = SR(value)
+            absolutes = {
+                item: symbol(f'_absolute_{index}')
+                for index, item in enumerate(BasePass._get_calls_of(expression, 'abs'))
+                if str(item.operands()[0]) in targets
+            }
+            expression = expression.subs(absolutes)
+            for item in expression.variables():
+                if str(item) in targets and targets & {str(other) for other in expression.diff(item).variables()}:
+                    return False
+        return True
 
     @staticmethod
     def _get_component_of(node: _NodeSpec) -> BaseComponent:

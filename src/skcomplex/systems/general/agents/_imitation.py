@@ -18,9 +18,9 @@ from ....core.components.laws import BaseLaw, JumpLaw, UpdateLaw
 from ....core.components.laws.utils import categorical, neighbors, uniform, where
 from ....core.components.spaces import AdjacencyNeighborhood, BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.enums import ElementKind, ScheduleKind
+from ....core.enums import ScheduleKind
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec, RoleSpec
+from ....core.specs import BaseSpec, Role
 
 RULES = ('random', 'majority', 'best', 'better', 'fermi')
 FORMS = ('rate', 'probability', 'agent')
@@ -128,7 +128,7 @@ class ImitationInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state',))],
+        target: Role,
         state: str = 'state',
         payoff: str = 'payoff',
         options: Sequence[float] = (0.0, 1.0),

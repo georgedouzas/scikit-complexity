@@ -8,6 +8,7 @@ from dataclasses import replace
 from sage.all__sagemath_symbolics import Expression
 
 from ....components.laws import BaseLaw, BoundaryLaw, ConstraintLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....components.laws._flow_term import FlowTermLaw
 from ....components.laws.utils._draws import draws_in
 from ....components.laws.utils._reductions import hyperedges_in, neighborhoods_in, reductions_in
 from ....components.spaces import DiscreteTime
@@ -59,12 +60,14 @@ class RowsPass(BasePass):
         """Return the identities of the rate laws of flows that move once per step.
 
         They move their amounts once per step and may draw. The flows of a system that declares discrete time, or that
-        holds update laws, become updates.
+        holds update laws or flows of increments, become updates.
         """
         born = compilation.transfer.born if compilation.transfer is not None else {}
         declared = isinstance(compilation.system.time, DiscreteTime)
         if not declared and not any(
-            isinstance(law, UpdateLaw) and id(law) not in born for items in laws for law in items
+            (isinstance(law, UpdateLaw) and id(law) not in born) or (isinstance(law, FlowTermLaw) and law.increment)
+            for items in laws
+            for law in items
         ):
             return set()
         return {id(law) for items in laws for law in items if id(law) in born and isinstance(law, RateLaw)}

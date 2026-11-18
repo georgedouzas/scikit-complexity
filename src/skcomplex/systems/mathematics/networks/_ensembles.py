@@ -20,7 +20,7 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
-from ....core.components.interactions import Interaction, TopologyInteraction
+from ....core.components.interactions import Interaction
 from ....core.components.laws import TopologyRequestSpec, UpdateLaw
 from ....core.components.laws.utils import components, maximum, mod, neighbors, where
 from ....core.components.spaces import AdjacencyNeighborhood, BaseSpace, LayerSpec, NetworkSpace
@@ -438,7 +438,12 @@ class RandomGraphEnsemblesSystem(BaseSystem):
         space = NetworkSpace(nx.watts_strogatz_graph(self.n_nodes, int(self.mean_degree), 0.0))
         rate = 1 - (1 - self.rewiring) ** (1 / self.steps)
         groups = RandomGraphEnsemblesSystem._get_variable_network(space)
-        rewiring = TopologyInteraction('rewiring', target='nodes', action='rewire', probability=rate)
+        rewiring = Interaction(
+            'rewiring',
+            among='nodes',
+            along=True,
+            laws=lambda s: [UpdateLaw(TopologyRequestSpec('rewire'), rate)],
+        )
         self.system_ = System(
             self.label,
             elements=groups,

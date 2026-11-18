@@ -20,7 +20,7 @@ from ....core.components import Observable
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, Period
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BoundaryLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....core.components.laws import NoiseLaw, RateLaw, UpdateLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import BaseSpace, ContinuousSpace
 from ....core.engine.backends import BaseBackend
@@ -120,7 +120,7 @@ class LightSensitivityInteraction(Interaction):
         5.0
     """
 
-    law_classes = (RateLaw, NoiseLaw, BoundaryLaw)
+    law_classes = (RateLaw, NoiseLaw, UpdateLaw)
 
     def __init__(
         self,
@@ -168,8 +168,8 @@ class LightSensitivityInteraction(Interaction):
             RateLaw(x.diff(t), speed * cos(phi)),
             RateLaw(y.diff(t), speed * sin(phi)),
             NoiseLaw(phi, sqrt(2 / s.tau)),
-            BoundaryLaw(x, x * s.R / reach),
-            BoundaryLaw(y, y * s.R / reach),
+            UpdateLaw(x, x * s.R / reach),
+            UpdateLaw(y, y * s.R / reach),
         ]
 
     @staticmethod

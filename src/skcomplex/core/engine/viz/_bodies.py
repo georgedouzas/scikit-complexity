@@ -237,7 +237,7 @@ class BodiesVisual(BaseVisual):
             )
         self._log_trail(recording, path, bodies, share * TRAIL_SHARE)
         for state, name in element.states.items():
-            BaseVisual._log_scalars(recording, f'{path}/{state}', frame.get_value(name))
+            BaseVisual._log_scalars(recording, BaseVisual._get_state_path(path, state), frame.get_value(name))
 
     def _get_views(
         self,
@@ -274,7 +274,7 @@ class BodiesVisual(BaseVisual):
         values = self._get_values_of(element, read)
         bodies = self._get_bodies(values)
         path = element.path
-        contents = [f'+ {path}/{state}/**' for state in element.states]
+        contents = [f'+ {BaseVisual._get_state_path(path, state)}/**' for state in element.states]
         series = rrb.TimeSeriesView(origin=path, contents=contents, name=f'{path} states')
         if bodies.shape[1] == SPACE:
             return [rrb.Spatial3DView(origin=path, name=path), series]

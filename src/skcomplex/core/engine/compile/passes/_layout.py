@@ -367,7 +367,10 @@ class LayoutPass(BasePass):
         for name, value in component.get_params(deep=False).items():
             if name in roles or not isinstance(value, list | np.ndarray):
                 continue
-            array = np.asarray(value)
+            try:
+                array = np.asarray(value)
+            except ValueError:
+                continue
             if array.ndim < MATRIX_AXES or not np.issubdtype(array.dtype, np.number):
                 continue
             axes = [next((role for role, size in sizes.items() if size == length), None) for length in array.shape]

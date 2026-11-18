@@ -5,7 +5,7 @@
 
 from collections.abc import Callable
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import ClassVar
 
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
@@ -14,9 +14,8 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import bilinear, collision_integral
 from ....core.components.spaces import BaseSpace
-from ....core.enums import ElementKind
 from ....core.errors import ValidationError
-from ....core.specs import RoleSpec
+from ....core.specs import Role
 
 OUTCOMES = ('conservative', 'destructive', 'proliferative')
 
@@ -104,8 +103,8 @@ class EncounterInteraction(Interaction):
         self,
         label: str,
         *,
-        candidate: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state',))],
-        field: Annotated[str | None, RoleSpec(optional=True, elements=(ElementKind.ANY,), states=('state',))] = None,
+        candidate: Role,
+        field: Role | None = None,
         rate: Callable[[SimpleNamespace], object] | None = None,
         kernel: Callable[[SimpleNamespace], object] | None = None,
         outcome: str = 'conservative',

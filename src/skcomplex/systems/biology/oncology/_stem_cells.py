@@ -18,10 +18,9 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
-from ....core.components.laws.utils import delayed, pulse
+from ....core.components.laws.utils import pulse
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, ScipyODESolver
-from ....core.specs import ParameterSpec, StateSpec
 from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction
 
@@ -356,7 +355,7 @@ class StemCellDifferentiationElement(Element):
     differentiate. The renewal of normal progenitors gets the feedback `beta0 (1 - ND / (ND + kappa0))` of the
     differentiated cells. Normal progenitors mutate into malignant ones at the rate `m1`. A therapy multiplies the
     death rates of the progenitors and the basal cells by its dose, and that of the normal progenitors also by
-    `1 + delta` times their renewal rate. A pulsed therapy multiplies them by 4 more from `start` for `duration`.
+    `1 + delta` times their renewal rate. A pulsed therapy multiplies them by 4 more for the time of its pulse.
 
     The element holds the states and parameters and has no laws of its own: the interactions of
     `StemCellDifferentiationSystem` read its parameters.
@@ -485,68 +484,56 @@ class StemCellDifferentiationElement(Element):
         uc:
             The dose of the continuous therapy.
 
-        therapy:
-            The mode of therapy, `'none'`, `'pulsed'`, or `'continuous'`.
-
-        start:
-            The time the pulse of a pulsed therapy starts.
-
-        duration:
-            The duration of the pulse of a pulsed therapy.
-
     Examples:
         >>> from skcomplex.systems.biology.oncology import StemCellDifferentiationElement
-        >>> StemCellDifferentiationElement('tissue', therapy='pulsed').therapy
-        'pulsed'
+        >>> StemCellDifferentiationElement('tissue', uc=5.0).uc
+        5.0
     """
 
     def __init__(
         self,
         label: str,
         *,
-        NSq: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
-        NPr: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1000.0,
-        NBs: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 2000.0,
-        ND: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 2000.0,
-        ASq: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-        APr: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        ABs: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        AD: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0001,
-        d2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
-        d3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        d4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
-        d5: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
-        d6: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        d7: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        d8: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        k12: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        k21: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        k23: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        k34: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.06,
-        k56: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        k65: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.9,
-        k67: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        k78: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
-        r3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
-        r4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
-        m1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005,
-        NPinf: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
-        APinf: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
-        NPmax: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10000.0,
-        APmax: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 50000.0,
-        Nbmax: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10000.0,
-        Abmax: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5000.0,
-        beta0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-        kappa0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2000.0,
-        delta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        up: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 30.0,
-        uc: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        therapy: str = 'continuous',
-        start: float = 100.0,
-        duration: float = 100.0,
+        NSq: Annotated[float, RealSet.closed_open(0, oo)] = 100.0,
+        NPr: Annotated[float, RealSet.closed_open(0, oo)] = 1000.0,
+        NBs: Annotated[float, RealSet.closed_open(0, oo)] = 2000.0,
+        ND: Annotated[float, RealSet.closed_open(0, oo)] = 2000.0,
+        ASq: Annotated[float, RealSet.closed_open(0, oo)] = 5.0,
+        APr: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        ABs: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        AD: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        d1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0001,
+        d2: Annotated[float, RealSet.closed_open(0, oo)] = 0.001,
+        d3: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        d4: Annotated[float, RealSet.closed_open(0, oo)] = 0.001,
+        d5: Annotated[float, RealSet.closed_open(0, oo)] = 0.001,
+        d6: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        d7: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        d8: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        k12: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        k21: Annotated[float, RealSet.closed_open(0, oo)] = 0.05,
+        k23: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        k34: Annotated[float, RealSet.closed_open(0, oo)] = 0.06,
+        k56: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        k65: Annotated[float, RealSet.closed_open(0, oo)] = 0.9,
+        k67: Annotated[float, RealSet.closed_open(0, oo)] = 0.3,
+        k78: Annotated[float, RealSet.closed_open(0, oo)] = 0.05,
+        r1: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        r2: Annotated[float, RealSet.closed_open(0, oo)] = 0.001,
+        r3: Annotated[float, RealSet.closed_open(0, oo)] = 0.001,
+        r4: Annotated[float, RealSet.closed_open(0, oo)] = 0.001,
+        m1: Annotated[float, RealSet.closed_open(0, oo)] = 0.005,
+        NPinf: Annotated[float, RealSet.open(0, oo)] = 100.0,
+        APinf: Annotated[float, RealSet.open(0, oo)] = 100.0,
+        NPmax: Annotated[float, RealSet.open(0, oo)] = 10000.0,
+        APmax: Annotated[float, RealSet.open(0, oo)] = 50000.0,
+        Nbmax: Annotated[float, RealSet.open(0, oo)] = 10000.0,
+        Abmax: Annotated[float, RealSet.open(0, oo)] = 5000.0,
+        beta0: Annotated[float, RealSet.closed_open(0, oo)] = 5.0,
+        kappa0: Annotated[float, RealSet.open(0, oo)] = 2000.0,
+        delta: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        up: Annotated[float, RealSet.closed_open(0, oo)] = 30.0,
+        uc: Annotated[float, RealSet.closed_open(0, oo)] = 10.0,
     ) -> None:
         super().__init__(label)
         self.NSq = NSq
@@ -589,9 +576,6 @@ class StemCellDifferentiationElement(Element):
         self.delta = delta
         self.up = up
         self.uc = uc
-        self.therapy = therapy
-        self.start = start
-        self.duration = duration
 
 
 class StemCellDifferentiationSystem(BaseSystem):
@@ -722,9 +706,6 @@ class StemCellDifferentiationSystem(BaseSystem):
             m1=m1,
             beta0=self.beta0,
             delta=self.delta,
-            therapy=self.therapy,
-            start=self.start,
-            duration=self.duration,
         )
         interactions = [
             ReactionInteraction(
@@ -1012,9 +993,9 @@ class BoneMarrowBloodLeukaemiaSystem(BaseSystem):
                     RateLaw(
                         s.target.NPB,
                         s.target.m2
-                        * delayed(s.target.NBM, s.target.tau1)
-                        * exp(-s.target.alpha1 * s.target.tau1 - s.target.r2 * delayed(s.target.APB, s.target.tau1))
-                        / (s.target.theta2 + delayed(s.target.NPB, s.target.tau1)),
+                        * s.target.NBM(t=s.t - s.target.tau1)
+                        * exp(-s.target.alpha1 * s.target.tau1 - s.target.r2 * s.target.APB(t=s.t - s.target.tau1))
+                        / (s.target.theta2 + s.target.NPB(t=s.t - s.target.tau1)),
                     ),
                 ],
             ),
@@ -1062,8 +1043,8 @@ class BoneMarrowBloodLeukaemiaSystem(BaseSystem):
                     RateLaw(
                         s.target.ABM,
                         s.target.m5
-                        * exp(-s.target.alpha2 * s.target.tau2 - s.target.r4 * delayed(s.target.APB, s.target.tau2))
-                        * delayed(s.target.AS, s.target.tau2),
+                        * exp(-s.target.alpha2 * s.target.tau2 - s.target.r4 * s.target.APB(t=s.t - s.target.tau2))
+                        * s.target.AS(t=s.t - s.target.tau2),
                     ),
                 ],
             ),

@@ -8,11 +8,10 @@ Monte Carlo sweeps sample spins at the temperature the spins hold.
 
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
 from .....core.components.laws import ArrayUpdateLaw, BaseLaw, SampleLaw
 from .....core.components.spaces import BaseNeighborhood
-from .....core.specs import RoleSpec
+from .....core.specs import Role
 from ._thermal_sampling import ThermalSamplingInteraction
 
 
@@ -70,7 +69,7 @@ class SpinSamplingInteraction(ThermalSamplingInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         state: str,
         energy: Callable[[SimpleNamespace], object],
         move: str | Callable[..., object] = 'flip',

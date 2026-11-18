@@ -18,9 +18,9 @@ from ....core.components.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, Update
 from ....core.components.laws.utils import where
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.enums import ElementKind, ScheduleKind
+from ....core.enums import ScheduleKind
 from ....core.errors import ValidationError
-from ....core.specs import RoleSpec
+from ....core.specs import Role
 from .types import Stoichiometry
 
 MODES = ('rate', 'jump', 'langevin')
@@ -169,15 +169,12 @@ class ReactionInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[
-            str | None,
-            RoleSpec(elements=(ElementKind.ANY,), states=('reactants', 'products', 'modifiers')),
-        ] = None,
-        reactants: Annotated[Stoichiometry | None, RoleSpec(variadic=True, elements=(ElementKind.ANY,))] = None,
-        products: Annotated[Stoichiometry | None, RoleSpec(variadic=True, elements=(ElementKind.ANY,))] = None,
+        target: Role | None = None,
+        reactants: Stoichiometry | None = None,
+        products: Stoichiometry | None = None,
         k: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
         propensity: Callable[..., object] | None = None,
-        modifiers: Annotated[Stoichiometry | None, RoleSpec(variadic=True, elements=(ElementKind.ANY,))] = None,
+        modifiers: Stoichiometry | None = None,
         mode: str = 'rate',
         form: str = 'symbolic',
         phase: str | None = None,
@@ -225,11 +222,7 @@ class ReactionInteraction(Interaction):
 
     def _get_bound(self, namespace: SimpleNamespace) -> dict[str, SimpleNamespace]:
         """Return the namespace of every path the plain roles of the reaction bind."""
-        roles = [
-            name
-            for name, spec in self._get_specs().items()
-            if isinstance(spec, RoleSpec) and not spec.variadic and not spec.noise
-        ]
+        roles = self._get_roles(single=True)
         return {
             getattr(self, name): getattr(namespace, name)
             for name in roles

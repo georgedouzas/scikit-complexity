@@ -5,16 +5,15 @@
 
 from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import ClassVar
 
 from ....core.components import Tags
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.enums import ElementKind
 from ....core.errors import ValidationError
-from ....core.specs import RoleSpec
+from ....core.specs import Role
 
 PLACEMENTS = ('here', 'neighbor')
 SCHEDULES = ('sequential', 'random-sequential', 'member')
@@ -177,10 +176,7 @@ class BirthDeathInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[
-            str,
-            RoleSpec(elements=(ElementKind.GROUP, ElementKind.VARIABLE_GROUP), states=('inherit', 'split')),
-        ],
+        target: Role,
         birth: Chance | None = None,
         death: Chance | None = None,
         rate: Chance | None = None,
@@ -191,7 +187,7 @@ class BirthDeathInteraction(Interaction):
         mutate: Mutation | None = None,
         schedule: str = 'random-sequential',
         phase: str | None = None,
-        group: Annotated[str | None, RoleSpec(optional=True, elements=(ElementKind.ANY,))] = None,
+        group: Role | None = None,
         values: Values | None = None,
         keep: Chance | None = None,
         reset: Mapping[str, object] | None = None,

@@ -8,8 +8,9 @@ import inspect
 from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import fields as dataclass_fields
 from dataclasses import is_dataclass, replace
-from types import SimpleNamespace
-from typing import ClassVar, cast
+from operator import lt as operator_lt
+from types import SimpleNamespace, UnionType
+from typing import ClassVar, Union, cast, get_args, get_origin
 
 import numpy as np
 import numpy.typing as npt
@@ -191,6 +192,21 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
             declared[name] = DeclaredVariableSpec(self._get_matrix_entries(value, tensor), spec)
         return declared
 
+    @classmethod
+    def _get_roles(cls, *, single: bool = False) -> tuple[str, ...]:
+        """Return the names of the arguments that bind elements.
+
+        They come in the order of the constructor.
+
+        With `single`, only the roles that bind one element, such as `target: Role`, and not several, such as
+        `reactants: tuple[Role, ...]`, or Wiener processes.
+        """
+        return tuple(
+            name
+            for name, spec in cls._get_specs().items()
+            if isinstance(spec, RoleSpec) and not (single and (spec.variadic or spec.noise))
+        )
+
     @staticmethod
     def _is_numeric(value: object) -> bool:
         """Return whether a value is a number, or a vector or a square matrix of numbers.
@@ -289,11 +305,29 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
             state = symbols[name]
         if len(value.operands()) != 1:
             return None
-        shift = SR(time - value.operands()[0]).simplify_full()
-        if shift.is_zero():
+        shift = SR(time - value.operands()[0]).expand()
+        if shift.is_trivial_zero():
             return state
         shift = SR(BaseInteraction._get_translated(shift, time, symbols, discrete))
-        return (lag if discrete else delayed)(state, shift)
+        if discrete:
+            return lag(state, shift)
+        shortest = BaseInteraction._get_shortest(shift)
+        return delayed(state, shift) if shortest is None else delayed(state, shift, shortest)
+
+    @staticmethod
+    def _get_shortest(shift: Expression) -> Expression | None:
+        """Return the lower bound of a delay that reads states, or `None` for none.
+
+        A delay clipped from below, such as `x(t=t - clip(tau, low=0.1))` for a delay `tau` that changes with the
+        state, is never shorter than its bound, which bounds the steps of the solver. The shift is expanded and never
+        simplified, since a clipped delay holds conditions that simplifying cannot read.
+        """
+        operator = shift.operator()
+        if getattr(operator, 'name', lambda: '')() != 'where':
+            return None
+        condition, then, _ = shift.operands()
+        bounded = condition.operator() is operator_lt and bool(SR(condition.rhs() - then).is_trivial_zero())
+        return then if bounded else None
 
     @staticmethod
     def _get_translated(value: object, time: Expression, symbols: Mapping[str, Expression], discrete: bool) -> object:
@@ -468,7 +502,7 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
             for name, item in vars(inputs).items()
         }
         functional = SimpleNamespace(**roles)
-        prepared = clone(self)
+        prepared = copy.copy(self)
         prepared.prepare(functional)
         laws: list[BaseComponent] = []
         for law in prepared.laws_:
@@ -899,6 +933,38 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
             return ()
         return tuple(dict.fromkeys(kind for classes in kinds for kind in classes))
 
+    @classmethod
+    def _get_state_arguments(cls, role: RoleSpec) -> tuple[str, ...]:
+        """Return the arguments that name the states a role of one element reads.
+
+        They follow from the type hints.
+
+        Such an argument holds names of states, such as `states: tuple[str, ...]` or the keys of a mapping
+        `Mapping[str, float]`. A role of several elements or of Wiener processes reads none.
+        """
+        if role.variadic or role.noise:
+            return ()
+        hints = inspect.signature(cls.__init__, eval_str=True).parameters.items()
+        return tuple(name for name, argument in hints if cls._is_state_names(argument.annotation))
+
+    @classmethod
+    def _is_state_names(cls, annotation: object) -> bool:
+        """Return whether a type hint holds names of states.
+
+        It does as a tuple of `str` or a mapping keyed by `str`.
+        """
+        hint = cls._get_annotated(annotation)
+        origin, args = get_origin(hint), get_args(hint)
+        if origin is Union or origin is UnionType:
+            return any(cls._is_state_names(arg) for arg in args)
+        if origin is tuple and args[1:] != (Ellipsis,):
+            return False
+        if origin in (tuple, Mapping, dict) and args:
+            first = args[0]
+            keys = get_args(first) if get_origin(first) in (Union, UnionType) else (first,)
+            return str in keys
+        return False
+
     def _get_state_names(self, names: Sequence[str]) -> tuple[str, ...]:
         """Return the states that declared names mean.
 
@@ -989,7 +1055,7 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
             space=self._get_accepted([need.space for need in needs]),
             sites=any(need.sites for need in needs),
             roles={
-                name: replace(spec, states=self._get_state_names(spec.states))
+                name: replace(spec, states=self._get_state_names(spec.states or self._get_state_arguments(spec)))
                 for name, spec in self._get_component_specs().items()
                 if isinstance(spec, RoleSpec)
             },

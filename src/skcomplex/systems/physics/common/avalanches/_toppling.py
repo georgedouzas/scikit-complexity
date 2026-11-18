@@ -9,7 +9,7 @@ A cascade drives a state and then relaxes every member at or above a threshold.
 import inspect
 from collections.abc import Callable
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import ClassVar
 
 import numpy as np
 
@@ -17,9 +17,8 @@ from .....core.components.interactions import NeighborInteraction
 from .....core.components.laws import ArrayUpdateLaw, BaseLaw, UpdateLaw
 from .....core.components.laws.utils import relax
 from .....core.components.spaces import BaseNeighborhood, BaseSpace, LatticeNeighborhood, RadiusNeighborhood
-from .....core.enums import ElementKind
 from .....core.errors import ValidationError
-from .....core.specs import BaseSpec, RoleSpec
+from .....core.specs import BaseSpec, Role
 from .....core.types import Array
 
 MODES = ('redistribute', 'reset', 'random')
@@ -95,7 +94,7 @@ class TopplingInteraction(NeighborInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state',))],
+        target: Role,
         state: str = 'x',
         threshold: float = 1.0,
         share: float = 0.0,

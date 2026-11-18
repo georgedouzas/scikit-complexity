@@ -139,6 +139,14 @@ class Interaction(BaseInteraction):
             declared['among'] = DeclaredVariableSpec(self.among, RoleSpec())
         return declared
 
+    @classmethod
+    def _get_state_arguments(cls, role: RoleSpec) -> tuple[str, ...]:
+        """Return the arguments that name the states a role reads.
+
+        The mapping `roles` of bindings names none.
+        """
+        return tuple(name for name in super()._get_state_arguments(role) if name != 'roles')
+
     def _get_binding(self, role: str) -> object:
         """Return what a role binds, from `roles` or from the argument of its name.
 
@@ -219,8 +227,9 @@ class Interaction(BaseInteraction):
 
     def _get_layer(self) -> str | None:
         """Return the layer `along` names, or `None` for no layer."""
-        named = isinstance(self.along, str) and self.along != NEIGHBORHOODS
-        return self.along if named and not self._runs_on_hyperedges() else None
+        if not isinstance(self.along, str) or self.along == NEIGHBORHOODS or self._runs_on_hyperedges():
+            return None
+        return self.along
 
     def _get_grouping(self) -> tuple[str, int, str] | None:
         """Return the kind, size, and reduction of the groups `along` names, or `None`."""
