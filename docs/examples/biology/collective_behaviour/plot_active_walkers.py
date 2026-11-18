@@ -12,14 +12,15 @@ are used, so instead of a lawn worn evenly a few shared trails emerge that bundl
 import matplotlib.pyplot as plt
 
 from skcomplex.core.analysis import distribution
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.collective_behaviour import ActiveWalkersSystem
 
 SYSTEM = 'active_walkers'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(ActiveWalkersSystem(size=30, n_walkers=20, random_state=0), observers=[observer], random_state=0)
+trajectory = (
+    ActiveWalkersSystem(size=30, n_walkers=20, random_state=0).prepare().simulate(observers=[observer], random_state=0)
+)
 
 # %%
 # Trails concentrate the wear
