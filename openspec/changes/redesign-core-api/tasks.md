@@ -63,7 +63,7 @@ Each task rewrites the systems of its fields on the new API: elements as data wi
   - [x] 5.1.2 The spectral, finite-volume, and fixed-boundary field systems on fields discretized by their space.
   - [x] 5.1.3 The angle systems on `Period`: double pendulum, XY, the Kuramoto family, Vicsek, run and tumble, swarmalators, lattice gauge fields.
   - [x] 5.1.4 The particle forces and point elements with the velocity `x'`, and the physics systems on the old base but two.
-  - [ ] 5.1.5 Nematics, with a traceless symmetric tensor, and TASEP, with transfers in discrete time.
+  - [x] 5.1.5 Nematics, with a traceless symmetric tensor, and TASEP, with transfers in discrete time.
 - [ ] 5.2 Wave 1: `chemistry`, `engineering`, and `general`.
   - [x] 5.2.1 Every chemistry and engineering ready-made system on the new base with `solver=` and `backend=`.
   - [x] 5.2.2 Companion states `x_d1` replaced by `x'`, and ports rewritten as interactions between node elements.

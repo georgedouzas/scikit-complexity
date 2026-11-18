@@ -24,6 +24,7 @@ from ...components.elements import (
     Member,
     Period,
     Quantity,
+    Tensor,
 )
 from ...components.laws import (
     BaseLaw,
@@ -268,6 +269,19 @@ class _StateInference:
         return None
 
     @staticmethod
+    def _get_symmetry(annotation: object) -> str | None:
+        """Return the symmetry of the tensor in the `Annotated` of a value, or `None`.
+
+        A value annotated as `Annotated[object, Tensor('traceless')]` holds the independent components of a symmetric
+        traceless matrix, which laws read as a Sage matrix.
+        """
+        for item in get_args(annotation)[1:] if get_origin(annotation) is Annotated else ():
+            if isinstance(item, Tensor):
+                item._check()
+                return item.symmetry
+        return None
+
+    @staticmethod
     def _get_member(annotation: object) -> str | None:
         """Return the label of the group in the `Annotated` of a value, or `None`.
 
@@ -310,9 +324,14 @@ class _StateInference:
         group = self._get_group(annotation)
         if period is not None and role is None:
             role = 'direction' if moving else 'phase'
-        vector, n_dim, tensor = element._get_shape_of(value)
-        value = element._get_matrix_entries(value, tensor)
-        starting = {index: element._get_matrix_entries(item, tensor) for index, item in (starting or {}).items()}
+        symmetry = self._get_symmetry(annotation)
+        vector, n_dim, tensor = (False, None, symmetry) if symmetry else element._get_shape_of(value)
+        if symmetry is None:
+            value = element._get_matrix_entries(value, tensor)
+        starting = {
+            index: item if symmetry else element._get_matrix_entries(item, tensor)
+            for index, item in (starting or {}).items()
+        }
         count = lags or max(int(order or 1) - 1, 0)
         unread = sorted(index for index in starting if index > count)
         if unread and order is not None:
@@ -796,7 +815,8 @@ class _StateInference:
                 role='position' if name in axes else 'velocity' if name in velocities else None,
                 moving=any(axis in values for axis in axes),
             )
-            tensor = element._get_shape_of(member)[2]
+            annotation = element._get_hints().get(name, inspect.Parameter.empty)
+            tensor = None if self._get_symmetry(annotation) else element._get_shape_of(member)[2]
             if np.ndim(np.asarray(value, dtype=object)) > 0:
                 arrays[name] = element._get_matrix_entries(value, tensor)
                 arrays |= self._get_past_arrays(name, arrays[name], 0 if count is None or probing else lags(name))

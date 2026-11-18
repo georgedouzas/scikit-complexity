@@ -56,11 +56,12 @@ def _undeclared_laws(system: CompositeSystem) -> list[str]:
     return found + [item for child in system.systems for item in _undeclared_laws(child)]
 
 
-def test_run_settings_depend_on_the_model_parameters():
-    """Test that a system class whose tuned run settings depend on its model parameters gives them for these."""
-    assert ActiveGelsSystem().get_run_settings()['until'] == ActiveGelsSystem.until
-    assert ActiveGelsSystem(order='polar').get_run_settings()['until'] == 200.0
-    assert simulate(ActiveGelsSystem(order='polar', shape=(4, 4)), until=2.0).times[-1] == 2.0
+def test_tuned_solver_depends_on_the_model_parameters():
+    """Test that a system class whose tuned solver depends on its model parameters gives it for these."""
+    assert ActiveGelsSystem((4, 4)).prepare().solver_.dt == 5e-4
+    polar = ActiveGelsSystem((4, 4), order='polar').prepare()
+    assert polar.solver_.dt == 0.05
+    assert polar.simulate(until=2.0).times[-1] == 2.0
 
 
 def test_simulate_reads_the_run_settings_of_an_instance():
@@ -254,7 +255,8 @@ def test_seeded_runs_of_a_stochastic_system_repeat():
     gas = IdealGasSystem().prepare().simulate(random_state=0).get_values("gas.x'")
     np.testing.assert_array_equal(gas, IdealGasSystem().prepare().simulate(random_state=0).get_values("gas.x'"))
     assert not np.array_equal(
-        gas, IdealGasSystem(random_state=None).prepare().simulate(random_state=0).get_values("gas.x'"),
+        gas,
+        IdealGasSystem(random_state=None).prepare().simulate(random_state=0).get_values("gas.x'"),
     )
     counts = PoissonProcessSystem().prepare().simulate(random_state=0).get_values('counters.count')
     np.testing.assert_array_equal(
