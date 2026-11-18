@@ -394,7 +394,7 @@ class TraffickingSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _bill(system: SystemViewProtocol) -> None:
+    def _add_bills(system: SystemViewProtocol) -> None:
         """Count a day at every premises and add to its bills the growth `1 / (1 + exp(x0 - n))` for the `n` inside."""
         places = [place for place in system.get_agents('premises') if isinstance(place, PremisesView)]
         for place in places:
@@ -455,7 +455,7 @@ class TraffickingSystem(BaseSystem):
                 'bills',
                 roles={'premises': 'premises', 'women': 'women'},
                 laws=lambda s: [
-                    UpdateLaw(s, self._bill, phase=BILLING),
+                    UpdateLaw(s, self._add_bills, phase=BILLING),
                     UpdateLaw(s, self._close_quarter, phase=QUARTERLY),
                 ],
             ),
