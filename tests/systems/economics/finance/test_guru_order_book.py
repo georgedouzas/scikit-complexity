@@ -14,7 +14,7 @@ def test_guru_order_book_coordinates_on_gurus_with_fat_tailed_returns():
     trajectory = _run_observed(
         system,
         1000,
-        observables=GuruOrderBookSystem().get_run_settings()['observables'],
+        observables=GuruOrderBookSystem().prepare().observables_,
         invariants={'total_cash': 1e-6, 'total_stocks': 1e-6},
     )
     returns = trajectory.get_values('market.log_return')[1:]

@@ -2,7 +2,7 @@
 
 from ..common.assets import AssetElement, GeometricBrownianMotionInteraction
 from ..common.banking import BalanceSheetElement
-from ._arbitrage import ArbitrageDensityElement, ArbitrageTradersSystem
+from ._arbitrage import ArbitrageDensityElement, ArbitrageTradersSystem, CovariantDiffusionInteraction
 from ._assets import GeometricBrownianMotionSystem
 from ._contagion import DebtRankCascadeInteraction, DebtrankSystem, InterbankElement
 from ._correlated_assets import CorrelatedGeometricBrownianMotionSystem
@@ -10,8 +10,10 @@ from ._fire_sales import FireSaleInteraction, MarketAssetElement, OverlappingPor
 from ._gauge_arbitrage import ExchangeLinkElement, GaugeArbitrageMarketSystem, GoodSiteElement, TraderCurrentInteraction
 from ._growth_processes import (
     GibratFirmElement,
+    GibratGrowthInteraction,
     GibratProcessSystem,
     KestenFirmElement,
+    KestenGrowthInteraction,
     KestenProcessSystem,
     MultiplicativeProcessSystem,
     ReflectingFloorInteraction,
@@ -35,6 +37,7 @@ __all__: list[str] = [
     'BookInteraction',
     'BouchaudMezardWealthSystem',
     'CorrelatedGeometricBrownianMotionSystem',
+    'CovariantDiffusionInteraction',
     'DebtRankCascadeInteraction',
     'DebtrankSystem',
     'DefaultCascadeInteraction',
@@ -46,6 +49,7 @@ __all__: list[str] = [
     'GeometricBrownianMotionInteraction',
     'GeometricBrownianMotionSystem',
     'GibratFirmElement',
+    'GibratGrowthInteraction',
     'GibratProcessSystem',
     'GoodSiteElement',
     'GuruMarketInteraction',
@@ -53,6 +57,7 @@ __all__: list[str] = [
     'GuruTraderElement',
     'InterbankElement',
     'KestenFirmElement',
+    'KestenGrowthInteraction',
     'KestenProcessSystem',
     'KirmanExchangeRateSystem',
     'MarketAssetElement',

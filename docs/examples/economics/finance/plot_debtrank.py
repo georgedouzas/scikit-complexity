@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.finance import DebtrankSystem
 
@@ -27,7 +26,7 @@ N_BANKS, DENSITY, ROUNDS = 50, 0.1, 10
 def cascade(bank):
     """Return the trajectory of the cascade from the default of one bank."""
     system = DebtrankSystem(n_banks=N_BANKS, density=DENSITY, distressed=(bank,), random_state=0)
-    return simulate(system, until=ROUNDS, random_state=0)
+    return system.prepare().simulate(until=ROUNDS, random_state=0)
 
 
 def debtrank(trajectory):
@@ -45,7 +44,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(system, until=ROUNDS, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=ROUNDS, observers=[observer], random_state=0)
 
 # %%
 # DebtRank of every bank
