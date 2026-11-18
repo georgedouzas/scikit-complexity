@@ -18,14 +18,14 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import Interaction, MapInteraction, TopologyInteraction
-from ....core.components.laws import BaseLaw, RuleLaw, TopologyRequestSpec, UpdateLaw
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, TopologyRequestSpec, UpdateLaw
 from ....core.components.laws.utils import both, minimum, mod, neighbors, total, uniform, where
-from ....core.components.spaces import NetworkSpace
+from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver, SystemView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ..common.networks import EdgeDrawInteraction, WeightedEdgeElement
@@ -34,12 +34,7 @@ from ..common.networks import EdgeDrawInteraction, WeightedEdgeElement
 class ChemicalElement(Element):
     """Molecular species of a pool whose population grows with its catalysts.
 
-    The relative population grows with the populations of its catalysts.
-
-    The populations follow the catalytic network: every species gains `h` times the populations of the species that
-    catalyse it, and the populations are normalised, so they approach the Perron eigenvector of the network. Every
-    `period` steps the least populated species, with ties broken at random, is replaced by a new species with `k`
-    random catalysts, and every species catalyses the new one with probability `p`.
+    The relative population grows with the populations of its catalysts under an `AutocatalyticGrowthInteraction`.
 
     Args:
         label:
@@ -63,8 +58,8 @@ class ChemicalElement(Element):
         period:
             The number of steps between two graph updates.
 
-        k:
-            The number of catalysts of a new species.
+        space:
+            The network whose nodes hold one species each, or `None` for one species.
 
     Examples:
         >>> from skcomplex.systems.biology.evolution import ChemicalElement
@@ -73,64 +68,90 @@ class ChemicalElement(Element):
     """
 
     visual = VisualSpec('sites', {'states': ['x']})
-    draws = True
-
-    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        tie: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        fresh: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
-        h: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
-        period: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
-        k: int = 1,
+        x: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.0,
+        tie: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.5,
+        fresh: Annotated[float | Array, FiniteEnumeratedSet([0, 1])] = 1.0,
+        h: Annotated[float | Array, RealSet.open(0, oo)] = 0.5,
+        p: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.02,
+        period: Annotated[float | Array, RealSet.open(0, oo)] = 10.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.x = x
         self.tie = tie
         self.fresh = fresh
         self.h = h
         self.p = p
         self.period = period
+
+
+class AutocatalyticGrowthInteraction(Interaction):
+    """Catalytic growth of the species of a pool and the replacement of the least populated one.
+
+    The populations follow the catalytic network: every species gains `h` times the populations of the species that
+    catalyse it, and the populations are normalised, so they approach the Perron eigenvector of the network. Every
+    `period` steps the least populated species, with ties broken at random, is replaced by a new species with `k`
+    random catalysts, and every species catalyses the new one with probability `p`. The growth `h`, the probability
+    `p`, and the period are values of the species, a `ChemicalElement`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of species on the nodes.
+
+        k:
+            The number of catalysts of a new species.
+
+    Examples:
+        >>> from skcomplex.systems.biology.evolution import AutocatalyticGrowthInteraction
+        >>> AutocatalyticGrowthInteraction('growth', target='species', k=2).k
+        2
+    """
+
+    draws = True
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role, k: int = 1) -> None:
+        super().__init__(label)
+        self.target = target
         self.k = k
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the catalytic growth and the replacement of the least populated species.
+    @staticmethod
+    def _get_fresh(node: SimpleNamespace) -> object:
+        """Return the weight of a candidate catalysed species, 1 for the new species and 0 otherwise."""
+        return node.fresh
 
-        The replacement happens at every graph update.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the catalytic growth and the replacement of the least populated species at every graph update.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the group of species.
         """
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        s = context.target
         grown = s.x + s.h * neighbors(s.other.x) + 1e-6
         key = s.x + 1e-9 * s.tie
-        update = mod(s.t, s.period) > s.period - 3 / 2
+        update = mod(context.t, s.period) > s.period - 3 / 2
         least = where(both(key <= minimum(key), update), 1, 0)
         newcomer = where(total(s.fresh) > 1 / 2, 1, 0) * (1 - s.fresh)
-
-        def fresh(node: SimpleNamespace) -> object:
-            """Return the weight of a candidate catalysed species.
-
-            The weight is 1 for the new species and 0 otherwise.
-            """
-            return node.fresh
-
-        return [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(s.x, grown / total(grown)),
             UpdateLaw(s.tie, uniform('tie')),
             UpdateLaw(s.fresh, 0),
             UpdateLaw(TopologyRequestSpec('add-node', edges=self.k), least),
             UpdateLaw(TopologyRequestSpec('remove-node'), least),
-            UpdateLaw(TopologyRequestSpec('add-edge', toward=fresh), s.p * newcomer),
+            UpdateLaw(TopologyRequestSpec('add-edge', toward=self._get_fresh), s.p * newcomer),
         ]
 
 
@@ -151,6 +172,9 @@ class TaxonElement(Element):
         age:
             The number of steps since the species appeared.
 
+        space:
+            The network whose nodes hold one species each, or `None` for one species.
+
     Examples:
         >>> from skcomplex.systems.biology.evolution import TaxonElement
         >>> TaxonElement('species').h
@@ -163,10 +187,11 @@ class TaxonElement(Element):
         self,
         label: str,
         *,
-        h: Annotated[float, StateSpec()] = 1.0,
-        age: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        h: float | Array = 1.0,
+        age: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.h = h
         self.age = age
 
@@ -209,7 +234,10 @@ class CompetingSpeciesElement(Element):
             The relative population.
 
         links:
-            The effects of every species on this one.
+            The effects of every species on this one, one row of the interaction matrix per member.
+
+        size:
+            The number of species, or `None` for one.
 
     Examples:
         >>> from skcomplex.systems.biology.evolution import CompetingSpeciesElement
@@ -221,10 +249,11 @@ class CompetingSpeciesElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        links: Annotated[object, StateSpec(vector=True)] = 0.0,
+        x: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.0,
+        links: float | Array = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.x = x
         self.links = links
 
@@ -270,13 +299,13 @@ class CompetitiveSelectionInteraction(Interaction):
 
     draws = True
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        species: Annotated[str, RoleSpec()],
+        species: Role,
         p: float = 0.05,
         duration: float = 20.0,
         step: float = 0.05,
@@ -287,18 +316,16 @@ class CompetitiveSelectionInteraction(Interaction):
         self.duration = duration
         self.step = step
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the selection rule.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the selection, a rule of the whole system.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the system.
         """
-        return [RuleLaw(self.select)]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseLaw] = [UpdateLaw(context, self.select)]
 
     def select(self, system: SystemView) -> None:
         """Run the population dynamics, then replace the least populated species.
@@ -365,25 +392,23 @@ class DependencyFieldInteraction(Interaction):
         self,
         label: str,
         *,
-        species: Annotated[str, RoleSpec()],
-        couplings: Annotated[str, RoleSpec()],
+        species: Role,
+        couplings: Role,
     ) -> None:
         super().__init__(label)
         self.species = species
         self.couplings = couplings
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the field of every species.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the field of every species.
 
         Args:
-            s:
-                The namespace with `s.species` and `s.couplings`.
-
-        Returns:
-            laws:
-                The update of the field.
+            context:
+                The namespace with `context.species` and `context.couplings`.
         """
-        return [UpdateLaw(s.species.h, neighbors(1, weight=s.couplings.w))]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseLaw] = [UpdateLaw(context.species.h, neighbors(1, weight=context.couplings.w))]
 
 
 class SoleManrubiaSystem(BaseSystem):
@@ -468,40 +493,26 @@ class SoleManrubiaSystem(BaseSystem):
         couplings = rng.uniform(-1, 1, edges)
         sources, _ = space.edges_[None]
         fields = np.bincount(sources, weights=couplings, minlength=self.n)
-        species = GroupElement(
-            'species',
-            element=TaxonElement,
-            space=space,
-            on='sites',
-            variable=True,
-            capacity=2 * self.n,
-            values={'h': fields},
-        )
-        edge_group = GroupElement(
-            'couplings',
-            element=CouplingEdgeElement,
-            space=space,
-            on='edges',
-            variable=True,
-            capacity=4 * edges,
-            values={'w': couplings, 'fresh': 0.0},
-        )
+        species = TaxonElement('species', h=fields, space=space)
+        edge_group = CouplingEdgeElement('couplings', w=couplings, fresh=np.zeros(edges), space=space, on='edges')
         self.system_ = System(
             self.label,
             elements=[species, edge_group],
             interactions=[
                 DependencyFieldInteraction('field', species='species', couplings='couplings'),
-                EdgeDrawInteraction('drift', target='species', edges='couplings', noise=self.noise),
-                MapInteraction('ageing', target='species', state='age', function=lambda s: 1, mode='increment'),
-                TopologyInteraction(
-                    'extinction',
-                    target='species',
-                    action='replace-node',
-                    condition=lambda s: s.source.h < 0,
-                    edges=self.k,
+                EdgeDrawInteraction('drift', among='species', noise=self.noise),
+                Interaction(
+                    'ageing',
+                    roles={'target': 'species'},
+                    laws=lambda s: [UpdateLaw(s.target.age, s.target.age + 1, increment=True)],
                 ),
+                Interaction('extinction', roles={'nodes': 'species'}, laws=self._get_extinction, along=True),
             ],
         )
+
+    def _get_extinction(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the replacement of a species whose field turns negative by a new species."""
+        return [UpdateLaw(TopologyRequestSpec('replace-node', self.k), where(s.source.h < 0, 1, 0))]
 
 
 class JainKrishnaSystem(BaseSystem):
@@ -543,7 +554,7 @@ class JainKrishnaSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.biology.evolution import JainKrishnaSystem
-        >>> round(float(JainKrishnaSystem(n=10).prepare().system_.elements[0].values['x'].sum()), 6)
+        >>> round(float(JainKrishnaSystem(n=10).prepare().system_.elements[0].x.sum()), 6)
         1.0
     """
 
@@ -583,32 +594,19 @@ class JainKrishnaSystem(BaseSystem):
         rng = np.random.default_rng(self.seed)
         graph = nx.gnp_random_graph(self.n, self.p, seed=int(rng.integers(2**31)), directed=True)
         space = NetworkSpace(graph)
-        species = GroupElement(
+        species = ChemicalElement(
             'species',
-            element=ChemicalElement,
+            x=np.full(self.n, 1 / self.n),
+            tie=rng.random(self.n),
+            fresh=np.zeros(self.n),
+            h=self.h,
+            p=self.p,
+            period=float(self.period),
             space=space,
-            on='sites',
-            variable=True,
-            capacity=2 * self.n,
-            values={
-                'x': np.full(self.n, 1 / self.n),
-                'tie': rng.random(self.n),
-                'fresh': 0.0,
-                'h': self.h,
-                'p': self.p,
-                'period': float(self.period),
-                'k': max(1, round(self.p * self.n)),
-            },
         )
-        links = GroupElement(
-            'links',
-            element=CatalyticLinkElement,
-            space=space,
-            on='edges',
-            variable=True,
-            capacity=self.n * self.n,
-        )
-        self.system_ = System(self.label, elements=[species, links])
+        links = CatalyticLinkElement('links', space=space, on='edges')
+        growth = AutocatalyticGrowthInteraction('growth', target='species', k=max(1, round(self.p * self.n)))
+        self.system_ = System(self.label, elements=[species, links], interactions=[growth])
 
 
 class CompetitiveJainKrishnaSystem(BaseSystem):
@@ -684,11 +682,6 @@ class CompetitiveJainKrishnaSystem(BaseSystem):
         rng = np.random.default_rng(self.seed)
         matrix = rng.uniform(-1, 1, (self.n, self.n)) * (rng.random((self.n, self.n)) < self.p)
         np.fill_diagonal(matrix, -rng.random(self.n))
-        species = GroupElement(
-            'species',
-            element=CompetingSpeciesElement,
-            size=self.n,
-            values={'x': np.full(self.n, 1 / self.n), 'links': matrix},
-        )
+        species = CompetingSpeciesElement('species', x=np.full(self.n, 1 / self.n), links=matrix, size=self.n)
         selection = CompetitiveSelectionInteraction('selection', species='species', p=self.p, duration=self.duration)
         self.system_ = System(self.label, elements=[species], interactions=[selection])

@@ -33,6 +33,7 @@ from ._games import (
     StrategyElement,
 )
 from ._networks import (
+    AutocatalyticGrowthInteraction,
     ChemicalElement,
     CompetingSpeciesElement,
     CompetitiveJainKrishnaSystem,
@@ -69,6 +70,7 @@ __all__: list[str] = [
     'AlleleFrequencyElement',
     'AssemblyGrowthSystem',
     'AssemblyLevelElement',
+    'AutocatalyticGrowthInteraction',
     'BakSneppenSystem',
     'CatalysisInteraction',
     'ChemicalElement',

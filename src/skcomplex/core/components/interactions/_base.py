@@ -287,6 +287,7 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         shift = SR(time - value.operands()[0]).simplify_full()
         if shift.is_zero():
             return state
+        shift = SR(BaseInteraction._get_translated(shift, time, symbols, discrete))
         return (lag if discrete else delayed)(state, shift)
 
     @staticmethod

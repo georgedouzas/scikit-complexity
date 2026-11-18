@@ -206,6 +206,27 @@ class _StateInference:
         return array[0]
 
     @staticmethod
+    def _get_new_member_default(
+        element: Element,
+        name: str,
+        declared: DeclaredVariableSpec,
+        member: object,
+    ) -> DeclaredVariableSpec:
+        """Return the declaration of a value given per member, whose default is the default of the element class.
+
+        A member that the laws add to a group, such as a new species or a new edge, takes the default of the argument
+        of the class, as a new instance of the class would, and not the value of the first member. A value without a
+        default of its class keeps the value of the first member.
+        """
+        parameter = inspect.signature(type(element)).parameters.get(name)
+        if parameter is None or parameter.default is inspect.Parameter.empty:
+            return declared
+        default = parameter.default
+        if np.ndim(np.asarray(default, dtype=object)) != np.ndim(np.asarray(member, dtype=object)):
+            return declared
+        return DeclaredVariableSpec(default, declared.spec)
+
+    @staticmethod
     def _is_plain(component: BaseComponent) -> bool:
         """Return whether an element has values but declares no states or laws.
 
@@ -840,6 +861,7 @@ class _StateInference:
             annotation = element._get_hints().get(name, inspect.Parameter.empty)
             tensor = None if self._get_symmetry(annotation) else element._get_shape_of(member)[2]
             if np.ndim(np.asarray(value, dtype=object)) > 0:
+                variables[name] = self._get_new_member_default(element, name, variables[name], member)
                 arrays[name] = element._get_matrix_entries(value, tensor)
                 arrays |= self._get_past_arrays(name, arrays[name], 0 if count is None or probing else lags(name))
             for index, given in starting.get(name, {}).items():

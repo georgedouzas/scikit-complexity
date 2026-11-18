@@ -8,7 +8,6 @@ from typing import Annotated
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from .....core.components.elements import Element
-from .....core.specs import StateSpec
 
 
 class BooleanNodeElement(Element):
@@ -31,7 +30,7 @@ class BooleanNodeElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
+        x: Annotated[float, FiniteEnumeratedSet([0, 1])] = 0,
     ) -> None:
         super().__init__(label)
         self.x = x

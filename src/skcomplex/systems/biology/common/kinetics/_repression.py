@@ -14,7 +14,6 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from .....core.components.laws.utils import hill
-from .....core.specs import RoleSpec
 from ....general.reactions import ReactionInteraction
 from ....general.reactions.types import Stoichiometry
 
@@ -77,9 +76,9 @@ class RepressionInteraction(ReactionInteraction):
         self,
         label: str,
         *,
-        reactants: Annotated[Stoichiometry | None, RoleSpec(variadic=True)] = None,
-        products: Annotated[Stoichiometry | None, RoleSpec(variadic=True)] = None,
-        modifiers: Annotated[Stoichiometry | None, RoleSpec(variadic=True)] = None,
+        reactants: Stoichiometry | None = None,
+        products: Stoichiometry | None = None,
+        modifiers: Stoichiometry | None = None,
         alpha: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
         alpha0: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
         K: Annotated[float, RealSet.open(0, oo)] = 1.0,

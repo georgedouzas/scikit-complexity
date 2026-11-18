@@ -16,9 +16,9 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import TopologyInteraction
-from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, JumpLaw, RateLaw, TopologyRequestSpec
 from ....core.components.laws.utils import delayed
 from ....core.components.spaces import NetworkSpace
 from ....core.engine.backends import BaseBackend
@@ -345,28 +345,18 @@ class PairFormationSISSystem(BaseSystem):
         sigma = self.turnover / self.k if sigma is None else sigma
         space = NetworkSpace(nx.random_regular_graph(self.k, self.n, seed=self.seed))
         initial = (np.random.default_rng(self.seed).random(self.n) < self.infected).astype(float)
-        people = GroupElement(
-            'people',
-            element=PersonElement,
-            space=space,
-            on='sites',
-            variable=True,
-            capacity=self.n,
-            values={'i': initial},
-        )
-        partnerships = GroupElement(
-            'partnerships',
-            element=PartnershipEdgeElement,
-            space=space,
-            on='edges',
-            variable=True,
-            capacity=space.graph.number_of_edges(),
-        )
+        people = PersonElement('people', i=initial, space=space)
+        partnerships = PartnershipEdgeElement('partnerships', space=space, on='edges')
         self.system_ = System(
             self.label,
             elements=[people, partnerships],
             interactions=[
                 SpreadingInteraction('spreading', target='people', state='i', beta=beta, gamma=self.gamma),
-                TopologyInteraction('dissolution', target='people', action='rewire', rate=sigma, keep='source'),
+                Interaction(
+                    'dissolution',
+                    roles={'nodes': 'people'},
+                    laws=lambda s: [JumpLaw(sigma, {TopologyRequestSpec('rewire', keep='source'): 1})],
+                    along=True,
+                ),
             ],
         )
