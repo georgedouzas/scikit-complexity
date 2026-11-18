@@ -15,7 +15,7 @@ from sage.all__sagemath_symbolics import sqrt
 from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BoundaryLaw, NoiseLaw, RateLaw
+from ....core.components.laws import NoiseLaw, RateLaw, UpdateLaw
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
@@ -102,7 +102,7 @@ class ActivePercolationInteraction(Interaction):
         0.2
     """
 
-    law_classes = (BoundaryLaw, NoiseLaw, RateLaw)
+    law_classes = (UpdateLaw, NoiseLaw, RateLaw)
 
     def __init__(
         self,
@@ -142,8 +142,8 @@ class ActivePercolationInteraction(Interaction):
                 RateLaw(rho.diff(t), (s.a + s.b * nu) * rho - s.c * rho**2 + s.d * laplacian(rho)),
                 NoiseLaw(rho, s.e * sqrt(rho)),
                 RateLaw(nu.diff(t), laplacian(nu) + s.f - s.g * rho),
-                BoundaryLaw(rho, (rho + abs(rho)) / 2),
-                BoundaryLaw(nu, (nu + abs(nu)) / 2),
+                UpdateLaw(rho, (rho + abs(rho)) / 2),
+                UpdateLaw(nu, (nu + abs(nu)) / 2),
             ]
 
 

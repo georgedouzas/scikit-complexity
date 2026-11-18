@@ -18,7 +18,7 @@ class CollectPass(BasePass):
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
-        return ('specs',)
+        return ('specs', 'census')
 
     def _get_writes(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass writes."""
@@ -28,8 +28,17 @@ class CollectPass(BasePass):
         """Collect the laws of every kernel spec."""
         compilation = self.compilation_
         specs = Compilation._get_required(compilation.specs, 'specs')
+        census = Compilation._get_required(compilation.census, 'census')
+        scopes = CensusPass._get_continuous_scopes(census.records)
         declared = [
-            (spec, CensusPass._get_declared_laws(spec, CensusPass._get_component_of(block.node)), block)
+            (
+                spec,
+                [
+                    CensusPass._get_corrected(law, block.node.path, scopes)
+                    for law in CensusPass._get_declared_laws(spec, CensusPass._get_component_of(block.node))
+                ],
+                block,
+            )
             for spec, block in specs
         ]
         compilation.collected = [

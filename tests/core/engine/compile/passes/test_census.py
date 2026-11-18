@@ -8,14 +8,15 @@ import pytest
 from skfem import MeshTri
 
 from skcomplex.core.components.elements import Element, FieldElement, GroupElement
-from skcomplex.core.components.interactions import CouplingInteraction
-from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.interactions import CouplingInteraction, Interaction
+from skcomplex.core.components.laws import NoiseLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import laplacian, logistic
 from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.systems import System
 
 
 class SiteElement(Element):
@@ -167,3 +168,33 @@ def test_declared_laws_divide_the_mean_by_the_lattice_neighbours():
     coupling = CouplingInteraction('c', target='m', read='u', write='u', function=_logistic, reduce='mean')
     expected = _neighbor_sum(np.pad(field, 1, mode='wrap')) / 4
     assert np.abs(_rate(group, [coupling]) - np.ravel(expected)).max() < 1e-12
+
+
+def _reflected(s):
+    """Return a drift and noise of a walker with a wall at zero that reflects it."""
+    x = s.target.x
+    return [RateLaw(x.diff(s.t), -0.5), NoiseLaw(x, 1.0), UpdateLaw(x, abs(x))]
+
+
+def test_update_law_beside_rate_laws_corrects_the_state_after_each_step():
+    """Test that `UpdateLaw(x, abs(x))` beside rate laws reflects a walker at a wall after each step."""
+    walker = Element('walker', values={'x': 0.1})
+    wall = Interaction('wall', roles={'target': 'walker'}, laws=_reflected)
+    system = System(elements=[walker], interactions=[wall]).prepare()
+    positions = np.ravel(system.simulate(until=20.0, random_state=1).get_values('walker.x'))
+    assert system.form_ == 'stochastic differential equations'
+    assert positions.min() >= 0.0
+
+
+def test_update_law_of_a_discrete_child_stays_a_map():
+    """Test that an update law of a nested system that steps stays a map beside a continuous parent."""
+    decay = Interaction(
+        'decay',
+        roles={'target': 'tank'},
+        laws=lambda s: [RateLaw(s.target.v.diff(s.t), -0.1 * s.target.v)],
+    )
+    double = Interaction('double', roles={'target': 'count'}, laws=lambda s: [UpdateLaw(s.target.n, 2 * s.target.n)])
+    child = System('counter', elements=[Element('count', values={'n': 1.0})], interactions=[double])
+    system = System(elements=[Element('tank', values={'v': 1.0})], interactions=[decay], systems=[child]).prepare()
+    counts = np.ravel(system.simulate(until=3.0).get_values('counter/count.n'))
+    assert counts[-1] == 8.0

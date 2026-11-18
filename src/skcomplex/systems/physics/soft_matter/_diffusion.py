@@ -18,7 +18,7 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BoundaryLaw, NoiseLaw, RateLaw
+from ....core.components.laws import NoiseLaw, RateLaw, UpdateLaw
 from ....core.components.laws.utils import pulse_train, where
 from ....core.components.spaces import BaseSpace, ContinuousSpace
 from ....core.engine.backends import BaseBackend
@@ -91,7 +91,7 @@ class ModulatedNoiseInteraction(Interaction):
         1.8
     """
 
-    law_classes = (NoiseLaw, BoundaryLaw)
+    law_classes = (NoiseLaw, UpdateLaw)
 
     def __init__(
         self,
@@ -123,7 +123,7 @@ class ModulatedNoiseInteraction(Interaction):
             x = s.target.x
             self.laws_ = [
                 NoiseLaw(x, s.s0 + s.ds * (x / s.L - 0.5), convention=self.convention),
-                BoundaryLaw(x, where(x < 0, -x, where(x > s.L, 2 * s.L - x, x))),
+                UpdateLaw(x, where(x < 0, -x, where(x > s.L, 2 * s.L - x, x))),
             ]
 
 
