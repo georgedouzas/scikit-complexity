@@ -10,18 +10,21 @@ from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import Expression, oo
+from sage.all__sagemath_symbolics import SR, Expression, oo, vector
+from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
-from ....core.components import Observable
-from ....core.components.elements import Element
-from ....core.components.interactions import RateInteraction, TransferInteraction
-from ....core.components.laws import BaseLaw, RateLaw, Sink, Source
+from ....core.components import Observable, Tags
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element, Quantity
+from ....core.components.interactions import Interaction
+from ....core.components.laws import NoiseLaw, RateLaw
 from ....core.components.laws.utils import series
+from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 
 INPUT_EFFECT = ((0.0, 0.25, 0.5, 0.75, 1.0, 1.5), (0.3, 0.45, 0.58, 0.68, 0.75, 0.8))
@@ -141,54 +144,38 @@ class RiceSectorElement(Element):
         0.5
     """
 
-    law_classes = (RateLaw,)
-
-    @staticmethod
-    def _get_rice_laws(s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the yield potential, the soil, and the practice."""
-        chemical = 1 - s.bio_fraction
-        return [
-            RateLaw(s.potential, s.research * (s.potential_limit - s.potential) / s.research_time),
-            RateLaw(
-                s.soil_quality,
-                (1 - s.soil_quality) / s.regeneration_time
-                - s.degradation * chemical * _get_input_ratio(s) * s.cropping_intensity * s.soil_quality,
-            ),
-            RateLaw(s.practice, series(s.training, *LEARNING_EFFECT) * (1 - s.practice) / s.learning_time),
-        ]
-
     def __init__(
         self,
         label: str,
         *,
-        available_land: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='land')] = 0.088,
-        rice_area: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='land')] = 0.680647,
-        population: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='people')] = 18.1024,
-        potential: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 6.0,
-        soil_quality: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.99,
-        practice: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.61,
-        training: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        bio_fraction: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        cropping_intensity: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        conversion_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 8.0,
-        discard_rate: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0085,
-        growth_rate: Annotated[object, ParameterSpec()] = 0.021,
-        consumption: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 80.0,
-        milling_rate: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.65,
-        subsidy: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.67,
-        farmer_inputs: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        research: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        potential_limit: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
-        research_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 20.0,
-        regeneration_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
-        degradation: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.002,
-        learning_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
-        training_target: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        extension_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
-        bio_target: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        transition_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
-        intensity_target: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        implementation_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        available_land: Annotated[object, RealSet.closed_open(0, oo), Quantity('land')] = 0.088,
+        rice_area: Annotated[object, RealSet.closed_open(0, oo), Quantity('land')] = 0.680647,
+        population: Annotated[object, RealSet.closed_open(0, oo), Quantity('people')] = 18.1024,
+        potential: Annotated[object, RealSet.closed_open(0, oo)] = 6.0,
+        soil_quality: Annotated[object, RealSet.closed_open(0, oo)] = 0.99,
+        practice: Annotated[object, RealSet.closed_open(0, oo)] = 0.61,
+        training: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        bio_fraction: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        cropping_intensity: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        conversion_time: Annotated[object, RealSet.open(0, oo)] = 8.0,
+        discard_rate: Annotated[object, RealSet.closed_open(0, oo)] = 0.0085,
+        growth_rate: object = 0.021,
+        consumption: Annotated[object, RealSet.closed_open(0, oo)] = 80.0,
+        milling_rate: Annotated[object, RealSet.closed_open(0, oo)] = 0.65,
+        subsidy: Annotated[object, RealSet.closed_open(0, oo)] = 0.67,
+        farmer_inputs: Annotated[object, RealSet.closed_open(0, oo)] = 0.3,
+        research: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        potential_limit: Annotated[object, RealSet.open(0, oo)] = 10.0,
+        research_time: Annotated[object, RealSet.open(0, oo)] = 20.0,
+        regeneration_time: Annotated[object, RealSet.open(0, oo)] = 10.0,
+        degradation: Annotated[object, RealSet.closed_open(0, oo)] = 0.002,
+        learning_time: Annotated[object, RealSet.open(0, oo)] = 5.0,
+        training_target: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        extension_time: Annotated[object, RealSet.open(0, oo)] = 5.0,
+        bio_target: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        transition_time: Annotated[object, RealSet.open(0, oo)] = 10.0,
+        intensity_target: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        implementation_time: Annotated[object, RealSet.open(0, oo)] = 10.0,
     ) -> None:
         super().__init__(label)
         self.available_land = available_land
@@ -220,29 +207,16 @@ class RiceSectorElement(Element):
         self.intensity_target = intensity_target
         self.implementation_time = implementation_time
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the potential, soil, and practice of the sector.
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the element.
-        """
-        return RiceSectorElement._get_rice_laws(s)
-
-
-class PartialAdjustmentInteraction(RateInteraction):
+class PartialAdjustmentInteraction(Interaction):
     """Partial adjustment of a quantity towards a target over an adjustment time.
 
     Economics names it partial adjustment, as of a policy or an investment that closes a gap to its target at a rate.
     The rate is `(goal(ns) - x) / time(ns)` of a state `x` of a target, with optional noise. With a constant goal and
     time and an additive noise of amplitude `sigma`, the state follows the Ornstein-Uhlenbeck process `dx = (goal - x) /
-    time dt + sigma dW`, whose stationary variance is `sigma**2 time / 2`. A goal or a time function takes the namespace
-    of the interaction, as for `RateInteraction`, and a number stands for a constant. A goal that is a number applies to
-    every component of a vector state.
+    time dt + sigma dW`, whose stationary variance is `sigma**2 time / 2`. A goal, a time, or a noise function takes the
+    namespace of the interaction, whose `target` holds the values of the target, and a number stands for a constant. A
+    goal that is a number applies to every component of a vector state.
 
     Args:
         label:
@@ -278,26 +252,75 @@ class PartialAdjustmentInteraction(RateInteraction):
         10.0
     """
 
+    law_classes = (RateLaw, NoiseLaw)
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of the rate law, with a noise law for a noise."""
+        return self._get_variant_tags((RateLaw, NoiseLaw) if self.noise is not None else (RateLaw,))
+
     def __init__(
         self,
         label: str,
         *,
-        target: str,
+        target: Role,
         state: str = 'x',
         goal: Callable[[SimpleNamespace], object] | float = 0.0,
         time: Callable[[SimpleNamespace], object] | float = 1.0,
         noise: Callable[[SimpleNamespace], object] | float | None = None,
     ) -> None:
-        super().__init__(label, target=target, state=state, noise=noise)
+        super().__init__(label)
+        self.target = target
+        self.state = state
         self.goal = goal
         self.time = time
+        self.noise = noise
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the relaxation of the state and its noise as the laws.
+
+        Args:
+            context:
+                The space the interaction inherits from its system, or the namespace of the target.
+
+        Raises:
+            ValidationError:
+                The state is not a name, or a function is neither callable nor a number.
+        """
+        super()._prepare(context)
+        self._check_functions()
+        if not isinstance(context, SimpleNamespace):
+            return
+        state = getattr(context.target, self.state)
+        laws: list[BaseComponent] = [RateLaw(state, self._broadcast(self._get_rate(context), state))]
+        if self.noise is not None:
+            laws.append(NoiseLaw(state, self._evaluate(self.noise, context)))
+        self.laws_ = laws
+
+    @staticmethod
+    def _evaluate(value: object, namespace: SimpleNamespace) -> object:
+        """Return a number, or the value of a function of the namespace."""
+        return value(namespace) if callable(value) else value
+
+    @staticmethod
+    def _broadcast(value: object, state: object) -> object:
+        """Return a value with one component per component of a vector state, repeating a number."""
+        if isinstance(state, FreeModuleElement) and not isinstance(value, FreeModuleElement | list | tuple):
+            return vector(SR, [value] * len(state))
+        if isinstance(value, list | tuple):
+            return vector(SR, value)
+        return value
 
     def _check_functions(self) -> None:
         """Raise an error for a state that is not a name, or a bad function.
 
         A bad function is neither callable nor a number.
         """
-        super()._check_functions()
+        if not isinstance(self.state, str):
+            error_msg = f'The state of {self.label!r} is {self.state!r}. Give the name of a state of the target.'
+            raise ValidationError(error_msg)
+        if self.noise is not None and not (callable(self.noise) or isinstance(self.noise, int | float)):
+            error_msg = f'The noise of {self.label!r} is {self.noise!r}. Give a function of the namespace or a number.'
+            raise ValidationError(error_msg)
         for name in ('goal', 'time'):
             value = getattr(self, name)
             if not (callable(value) or isinstance(value, int | float)):
@@ -326,7 +349,7 @@ class PartialAdjustmentInteraction(RateInteraction):
             rate:
                 The rate of the state.
         """
-        state = getattr(self._get_member(namespace, 'target'), self.state)
+        state = getattr(namespace.target, self.state)
         goal = self._broadcast(self._get_goal(namespace), state)
         return (goal - state) / self._get_time(namespace)
 
@@ -443,6 +466,21 @@ class FoodSecuritySystem(BaseSystem):
         self.training_target = training_target
         self.intensity_target = intensity_target
 
+    @staticmethod
+    def _get_rice_laws(namespace: SimpleNamespace) -> list[BaseComponent]:
+        """Return the yield potential, the soil, and the practice of the sector."""
+        s = namespace.target
+        chemical = 1 - s.bio_fraction
+        return [
+            RateLaw(s.potential, s.research * (s.potential_limit - s.potential) / s.research_time),
+            RateLaw(
+                s.soil_quality,
+                (1 - s.soil_quality) / s.regeneration_time
+                - s.degradation * chemical * _get_input_ratio(s) * s.cropping_intensity * s.soil_quality,
+            ),
+            RateLaw(s.practice, series(s.training, *LEARNING_EFFECT) * (1 - s.practice) / s.learning_time),
+        ]
+
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of the components built from the model parameters."""
         super()._prepare(context)
@@ -455,24 +493,29 @@ class FoodSecuritySystem(BaseSystem):
             intensity_target=self.intensity_target,
         )
         transfers = [
-            TransferInteraction(
+            Interaction('sector', roles={'target': 'rice'}, laws=self._get_rice_laws),
+            Interaction(
                 'land_use',
-                source='rice',
-                target='rice',
-                state='available_land',
-                into='rice_area',
-                amount=lambda s: s.source.available_land / s.source.conversion_time,
-                flow='development',
-                legs=[('rice_area', Sink('urban'), lambda s: s.source.discard_rate * s.source.rice_area, 'discard')],
+                roles={'target': 'rice'},
+                laws=lambda s: [
+                    RateLaw(
+                        {s.target.available_land: -1, s.target.rice_area: +1},
+                        s.target.available_land / s.target.conversion_time,
+                        label='development',
+                    ),
+                    RateLaw({s.target.rice_area: -1}, s.target.discard_rate * s.target.rice_area, label='discard'),
+                ],
             ),
-            TransferInteraction(
+            Interaction(
                 'births',
-                source='rice',
-                target='rice',
-                state=Source('births'),
-                into='population',
-                amount=lambda s: s.source.growth_rate * s.source.population,
-                flow='population_growth',
+                roles={'target': 'rice'},
+                laws=lambda s: [
+                    RateLaw(
+                        {s.target.population: +1},
+                        s.target.growth_rate * s.target.population,
+                        label='population_growth',
+                    ),
+                ],
             ),
         ]
         relaxations = [

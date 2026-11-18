@@ -55,8 +55,10 @@ def test_urban_scaling_interactions_meetings_stay_within_the_neighbours():
     trajectory = system.prepare().simulate(until=30, random_state=0)
     meetings = np.asarray(trajectory.get_values('residents.meetings')[-1])
     degree = np.asarray(trajectory.get_values('residents.degree')[-2])
-    assert (meetings <= degree).all()
-    assert meetings.sum() > 0
+    present = ~np.isnan(meetings) & ~np.isnan(degree)
+    assert present.sum() == 30
+    assert (meetings[present] <= degree[present]).all()
+    assert meetings[present].sum() > 0
 
 
 @pytest.mark.parametrize(

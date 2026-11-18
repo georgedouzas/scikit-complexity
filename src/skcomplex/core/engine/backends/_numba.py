@@ -392,7 +392,8 @@ class NumbaBackend(BaseBackend):
             return {entry.name: entry for entry in (search.source, search.target, search.active)}
         if not isinstance(search, MetricSearch):
             return {}
-        found = {search.positions.name: search.positions}
+        placed = search.positions if isinstance(search.positions, tuple) else (search.positions,)
+        found = {entry.name: entry for entry in placed}
         if search.direction is not None:
             found[search.direction.entry.name] = search.direction.entry
         return found

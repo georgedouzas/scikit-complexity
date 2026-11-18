@@ -6,7 +6,7 @@ The traces are left by their movements.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -16,16 +16,17 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import Interaction, MapInteraction
-from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.spaces import LatticeSpace
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
+from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
 from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
 from ....core.errors import SpaceError
-from ....core.specs import RoleSpec, StateSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 
 MONTH = 30
@@ -75,12 +76,20 @@ class PremisesElement(Element):
         day:
             The number of days run.
 
+        values:
+            Further values by name, such as the cell `x` and `y` of every member.
+
+        size:
+            The number of members, or `None` for one.
+
+        space:
+            The grid whose axes `x` and `y` place the members, or `None` for none.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.organizations import PremisesElement
-        >>> group = GroupElement('premises', element=PremisesElement, size=3, values={'brothel': 1.0})
-        >>> group.label, group.element.__name__, group.size
-        ('premises', 'PremisesElement', 3)
+        >>> group = PremisesElement('premises', brothel=1.0, size=3)
+        >>> group.label, group.size
+        ('premises', 3)
     """
 
     visual = VisualSpec('agents', {'color_by': 'brothel', 'color_range': (0.0, 1.0)})
@@ -89,13 +98,16 @@ class PremisesElement(Element):
         self,
         label: str,
         *,
-        brothel: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        bills: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        last_bills: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        efficiency: Annotated[float, StateSpec()] = 1.0,
-        day: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        brothel: Annotated[object, FiniteEnumeratedSet([0, 1])] = 0.0,
+        bills: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        last_bills: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        efficiency: object = 1.0,
+        day: Annotated[object, NN] = 0.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.brothel = brothel
         self.bills = bills
         self.last_bills = last_bills
@@ -136,12 +148,20 @@ class TravellerElement(Element):
         trips:
             The number of train trips between cities.
 
+        values:
+            Further values by name, such as the cell `x` and `y` of every member.
+
+        size:
+            The number of members, or `None` for one.
+
+        space:
+            The grid whose axes `x` and `y` place the members, or `None` for none.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.organizations import TravellerElement
-        >>> group = GroupElement('women', element=TravellerElement, size=4, values={'victim': 1.0})
-        >>> group.label, group.element.__name__, group.size
-        ('women', 'TravellerElement', 4)
+        >>> group = TravellerElement('women', victim=1.0, size=4)
+        >>> group.label, group.size
+        ('women', 4)
     """
 
     visual = VisualSpec('agents', {'color_by': 'victim', 'color_range': (0.0, 1.0)})
@@ -150,10 +170,13 @@ class TravellerElement(Element):
         self,
         label: str,
         *,
-        victim: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        trips: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        victim: Annotated[object, FiniteEnumeratedSet([0, 1])] = 0.0,
+        trips: Annotated[object, NN] = 0.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.victim = victim
         self.trips = trips
 
@@ -198,14 +221,14 @@ class DailyMovementsInteraction(Interaction):
         3
     """
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        women: Annotated[str, RoleSpec()],
-        premises: Annotated[str, RoleSpec()],
+        women: Role,
+        premises: Role,
         n_cities: int = 3,
         phase: str | None = None,
         victims_phase: str | None = None,
@@ -217,18 +240,14 @@ class DailyMovementsInteraction(Interaction):
         self.phase = phase
         self.victims_phase = victims_phase
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rules of the free woman and of the victims.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.move_free, phase=self.phase), RuleLaw(self.move_victims, phase=self.victims_phase)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rules of the free women and of the victims as rules of the system, in their phases."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [
+                UpdateLaw(context, self.move_free, phase=self.phase),
+                UpdateLaw(context, self.move_victims, phase=self.victims_phase),
+            ]
 
     def _get_city(self, location: object, width: int) -> int:
         """Return the city of a cell of a grid of a given width."""
@@ -375,28 +394,24 @@ class TraffickingSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _get_heat(place: PremisesView, system: SystemViewProtocol) -> float:
-        """Return the growth of the bills of a premises in a day.
-
-        It is `1 / (1 + exp(x0 - n))` for the `n` people inside.
-        """
-        people = system.get_occupancy('sources').get(place.location_key, 0)
-        return float(1 / (1 + np.exp(place.efficiency - people)))
-
-    @staticmethod
-    def _count_day(place: PremisesView, system: SystemViewProtocol) -> float:
-        """Return one day."""
-        return 1.0
+    def _add_bills(system: SystemViewProtocol) -> None:
+        """Count a day at every premises and add to its bills the growth `1 / (1 + exp(x0 - n))` for the `n` inside."""
+        places = [place for place in system.get_agents('premises') if isinstance(place, PremisesView)]
+        for place in places:
+            place.day = place.day + 1.0
+        occupancy = system.get_occupancy('women')
+        heat = [float(1 / (1 + np.exp(place.efficiency - occupancy.get(place.location_key, 0)))) for place in places]
+        for place, growth in zip(places, heat, strict=True):
+            place.bills = place.bills + growth
 
     @staticmethod
-    def _record(place: PremisesView, system: SystemViewProtocol) -> float:
-        """Return the bills of the quarter that ends."""
-        return float(place.bills)
-
-    @staticmethod
-    def _reset(place: PremisesView, system: SystemViewProtocol) -> float:
-        """Return the bills at the start of a quarter."""
-        return 0.0
+    def _close_quarter(system: SystemViewProtocol) -> None:
+        """Record the bills of the quarter that ends at every premises and start the next quarter at zero."""
+        places = [place for place in system.get_agents('premises') if isinstance(place, PremisesView)]
+        for place in places:
+            place.last_bills = float(place.bills)
+        for place in places:
+            place.bills = 0.0
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set `system_` to the components built from the model parameters."""
@@ -406,22 +421,26 @@ class TraffickingSystem(BaseSystem):
         cells = rng.permutation(self.width * self.height)[:n_places]
         places = [(int(cell % self.width), int(cell // self.width)) for cell in cells]
         brothel = (np.arange(n_places) >= self.n_houses).astype(float)
-        premises = GroupElement(
+        space = LatticeSpace((self.width, self.height), boundary='fixed')
+        x, y = np.array(places).T
+        premises = PremisesElement(
             'premises',
-            element=PremisesElement,
+            brothel=brothel,
+            efficiency=rng.uniform(0, 3, n_places),
+            values={'x': x, 'y': y},
             size=n_places,
-            values={'brothel': brothel, 'efficiency': rng.uniform(0, 3, n_places)},
-            location=places,
+            space=space,
         )
         homes = [places[self.n_houses + index % self.n_brothels] for index in range(self.n_victims)]
         homes += [(int(rng.integers(self.width)), int(rng.integers(self.height))) for _ in range(self.n_free)]
         victim = (np.arange(self.n_victims + self.n_free) < self.n_victims).astype(float)
-        women = GroupElement(
+        x, y = np.array(homes).T
+        women = TravellerElement(
             'women',
-            element=TravellerElement,
+            victim=victim,
+            values={'x': x, 'y': y},
             size=self.n_victims + self.n_free,
-            values={'victim': victim},
-            location=homes,
+            space=space,
         )
         day = DailyMovementsInteraction(
             'day',
@@ -432,40 +451,13 @@ class TraffickingSystem(BaseSystem):
             victims_phase=MONTHLY,
         )
         bills = [
-            MapInteraction(
-                'days',
-                target='premises',
-                state='day',
-                function=self._count_day,
-                mode='increment',
-                form='agent',
-                phase=BILLING,
-            ),
-            MapInteraction(
+            Interaction(
                 'bills',
-                target='premises',
-                state='bills',
-                function=self._get_heat,
-                sources=['women'],
-                mode='increment',
-                form='agent',
-                phase=BILLING,
-            ),
-            MapInteraction(
-                'record',
-                target='premises',
-                state='last_bills',
-                function=self._record,
-                form='agent',
-                phase=QUARTERLY,
-            ),
-            MapInteraction(
-                'reset',
-                target='premises',
-                state='bills',
-                function=self._reset,
-                form='agent',
-                phase=QUARTERLY,
+                roles={'premises': 'premises', 'women': 'women'},
+                laws=lambda s: [
+                    UpdateLaw(s, self._add_bills, phase=BILLING),
+                    UpdateLaw(s, self._close_quarter, phase=QUARTERLY),
+                ],
             ),
         ]
         phases = [
@@ -478,6 +470,6 @@ class TraffickingSystem(BaseSystem):
             self.label,
             elements=[premises, women],
             interactions=[day, *bills],
-            space=LatticeSpace((self.width, self.height), boundary='fixed'),
+            space=space,
             solver=MesaSolver(phases=phases),
         )

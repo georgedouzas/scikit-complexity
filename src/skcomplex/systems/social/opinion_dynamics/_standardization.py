@@ -14,14 +14,14 @@ from sage.all__sagemath_symbolics import NN, ZZ, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
 from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ....core.types import AnyArray, Array
 from ...general.agents import ChoiceInteraction
@@ -44,8 +44,8 @@ class ComplexAgentElement(Element):
     """Agent with many internal configurations.
 
     Two of them show a characteristic with the spin `1` or `-1`. Configuration 0 has the spin `S = 1`, configuration 1
-    the spin `S = -1`, and the configurations from 2 to `H + 1` the spin 0. In `StandardizedAgentsSystem`, a
-    `MapInteraction` sets the spin after every change of configuration.
+    the spin `S = -1`, and the configurations from 2 to `H + 1` the spin 0. In `StandardizedAgentsSystem`, an agent rule
+    sets the spin after every change of configuration.
 
     Args:
         label:
@@ -57,12 +57,12 @@ class ComplexAgentElement(Element):
         spin:
             The spin of the configuration.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.opinion_dynamics import ComplexAgentElement
-        >>> GroupElement(
-        ...     'agents', element=ComplexAgentElement, size=10, values={'configuration': 5.0, 'spin': 0.0}
-        ... ).size
+        >>> ComplexAgentElement('agents', configuration=5.0, spin=0.0, size=10).size
         10
     """
 
@@ -70,10 +70,11 @@ class ComplexAgentElement(Element):
         self,
         label: str,
         *,
-        configuration: Annotated[float, StateSpec(domain=NN)] = 2.0,
-        spin: Annotated[float, StateSpec(domain=ZZ)] = 0.0,
+        configuration: Annotated[object, NN] = 2.0,
+        spin: Annotated[object, ZZ] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.configuration = configuration
         self.spin = spin
 
@@ -131,9 +132,9 @@ class StandardizationInteraction(ChoiceInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        K: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        J: Annotated[float, ParameterSpec()] = 1.0,
+        target: Role,
+        K: Annotated[float, RealSet.closed_open(0, oo)] = 10.0,
+        J: float = 1.0,
         H: int = 50,
         intensity: float = 2.0,
         activity: float = 1.0,
@@ -232,7 +233,7 @@ class StandardizedAgentsSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import StandardizedAgentsSystem
-        >>> StandardizedAgentsSystem(10, standardized=0.0).prepare().system_.elements[0].values['spin'].tolist()
+        >>> StandardizedAgentsSystem(10, standardized=0.0).prepare().system_.elements[0].spin.tolist()
         [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
     """
 
@@ -269,9 +270,10 @@ class StandardizedAgentsSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _get_spin(agent: ComplexAgentView, system: SystemViewProtocol) -> float:
-        """Return the spin of the configuration of an agent."""
-        return float(StandardizationInteraction._get_spins(np.array(agent.configuration)))
+    def _set_spin(agent: ComplexAgentView, system: SystemViewProtocol) -> None:
+        """Set the spin of an agent to the spin of its configuration."""
+        del system
+        agent.spin = float(StandardizationInteraction._get_spins(np.array(agent.configuration)))
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set `system_` to the components built from the model parameters."""
@@ -287,14 +289,11 @@ class StandardizedAgentsSystem(BaseSystem):
         self.system_ = System(
             self.label,
             elements=[
-                GroupElement(
+                ComplexAgentElement(
                     'agents',
-                    element=ComplexAgentElement,
+                    configuration=configurations,
+                    spin=StandardizationInteraction._get_spins(configurations),
                     size=self.agents,
-                    values={
-                        'configuration': configurations,
-                        'spin': StandardizationInteraction._get_spins(configurations),
-                    },
                 ),
             ],
             interactions=[
@@ -310,13 +309,7 @@ class StandardizedAgentsSystem(BaseSystem):
                 Interaction(
                     'spin',
                     roles={'target': 'agents'},
-                    laws=lambda s: [
-                        UpdateLaw(
-                            s.target,
-                            lambda agent, system: setattr(agent, 'spin', float(self._get_spin(agent, system))),
-                            phase=PHASE,
-                        ),
-                    ],
+                    laws=lambda s: [UpdateLaw(s.target, self._set_spin, phase=PHASE)],
                 ),
             ],
             solver=MesaSolver(phases=[PhaseSpec(PHASE, activation='visits', groups=('agents',))]),

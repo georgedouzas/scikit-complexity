@@ -609,6 +609,7 @@ VERBS = frozenset(
         'unroll',
         'update',
         'visit',
+        'vote',
         'wait',
         'waits',
         'walk',

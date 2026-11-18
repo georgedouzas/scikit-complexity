@@ -18,7 +18,7 @@ from ....core.components.laws import RateLaw
 from ....core.components.spaces import BaseSpace, ContinuousSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver
-from ....core.specs import ParameterSpec, Role, RoleSpec
+from ....core.specs import ParameterSpec, Role
 from ....core.systems import BaseSystem, System
 from ...general.elements import PointElement
 from ...general.gradients import GradientInteraction
@@ -192,11 +192,11 @@ class WallsInteraction(GradientInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        width: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
-        strength: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        falloff: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.2,
-        radius: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        target: Role,
+        width: Annotated[float, RealSet.open(0, oo)] = 10.0,
+        strength: Annotated[float, RealSet.closed_open(0, oo)] = 10.0,
+        falloff: Annotated[float, RealSet.open(0, oo)] = 0.2,
+        radius: Annotated[float, RealSet.closed_open(0, oo)] = 0.3,
     ) -> None:
         super().__init__(label, target=target, potential=self._get_potential, order=2)
         self.width = width

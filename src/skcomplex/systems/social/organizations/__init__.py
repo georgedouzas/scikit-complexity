@@ -20,7 +20,15 @@ from ._mobility import (
     ExplorerElement,
     ExplorerView,
 )
-from ._obesity import EaterElement, EaterView, ObesitySystem, RestaurantElement, RestaurantView, basal_metabolic_rate
+from ._obesity import (
+    DietInteraction,
+    EaterElement,
+    EaterView,
+    ObesitySystem,
+    RestaurantElement,
+    RestaurantView,
+    basal_metabolic_rate,
+)
 from ._queues import ExecutionInteraction, PriorityQueuesSystem, TaskElement, TaskView
 from ._sabotage import EmployeeElement, EmployeeView, InsiderSabotageSystem
 from ._supply_chains import SupplierElement, SupplierView, SupplyChainDiffusionSystem
@@ -64,6 +72,7 @@ __all__: list[str] = [
     'ContenderView',
     'ContestElement',
     'DailyMovementsInteraction',
+    'DietInteraction',
     'DriftToLowPerformanceSystem',
     'EaterElement',
     'EaterView',

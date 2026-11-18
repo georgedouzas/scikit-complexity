@@ -17,13 +17,14 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import GroupElement
-from ....core.components.interactions import RateInteraction
+from ....core.components.base import BaseComponent
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import moment
-from ....core.components.spaces import LatticeSpace
+from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ...general.kinetics import EncounterInteraction
 from ..common.kinetics import ActivityDensityElement
@@ -47,10 +48,15 @@ class SecurityAgentsElement(ActivityDensityElement):
         share:
             The share of new recruits that join the efficacy class.
 
+        size:
+            The number of classes, or `None` for one or one per site of the space.
+
+        space:
+            The lattice whose sites are the efficacy classes, or `None` for none.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.crowds import SecurityAgentsElement
-        >>> GroupElement('security', element=SecurityAgentsElement, size=3, values={'share': [0.5, 0.3, 0.2]}).size
+        >>> SecurityAgentsElement('security', share=[0.5, 0.3, 0.2], size=3).size
         3
     """
 
@@ -58,10 +64,12 @@ class SecurityAgentsElement(ActivityDensityElement):
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        share: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        x: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        share: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, x=x)
+        super().__init__(label, x=x, size=size, space=space)
         self.share = share
 
 
@@ -138,12 +146,12 @@ class CriminalContagionInteraction(EncounterInteraction):
         self,
         label: str,
         *,
-        candidate: Annotated[str, RoleSpec()],
-        field: Annotated[str, RoleSpec()],
-        classes: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 5,
-        eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        attraction: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        redemption: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        candidate: Role,
+        field: Role,
+        classes: Annotated[int, RealSet.open(0, oo)] = 5,
+        eta: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        attraction: Annotated[float, RealSet.closed_open(0, oo)] = 0.3,
+        redemption: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
     ) -> None:
         super().__init__(label, candidate=candidate, field=field, rate=self._get_rate, kernel=self._get_kernel)
         self.classes = classes
@@ -228,11 +236,11 @@ class DeterrenceInteraction(EncounterInteraction):
         self,
         label: str,
         *,
-        candidate: Annotated[str, RoleSpec()],
-        field: Annotated[str, RoleSpec()],
-        classes: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 5,
-        forces: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 3,
-        deterrence: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        candidate: Role,
+        field: Role,
+        classes: Annotated[int, RealSet.open(0, oo)] = 5,
+        forces: Annotated[int, RealSet.open(0, oo)] = 3,
+        deterrence: Annotated[float, RealSet.closed_open(0, oo)] = 2.0,
     ) -> None:
         super().__init__(label, candidate=candidate, field=field, rate=self._get_rate, kernel=self._get_kernel)
         self.classes = classes
@@ -272,12 +280,12 @@ def criminality_grid(classes: int) -> npt.NDArray[np.float64]:
     return np.linspace(0.0, 1.0, classes)
 
 
-class RecruitmentInteraction(RateInteraction):
+class RecruitmentInteraction(Interaction):
     """Recruitment of security agents in proportion to the mean criminality.
 
-    It is a macro-scale external action. It is a `RateInteraction` of the density `x` of the security forces that reads
-    the citizens. The security forces grow at the rate `recruitment m share_k` in efficacy class `k`, where `m` is the
-    mean criminality of the citizens, a moment of their distribution, and retire at the rate `retirement`.
+    It is a macro-scale external action, a rate of the density `x` of the security forces that reads the citizens. The
+    security forces grow at the rate `recruitment m share_k` in efficacy class `k`, where `m` is the mean criminality of
+    the citizens, a moment of their distribution, and retire at the rate `retirement`.
 
     Args:
         label:
@@ -308,17 +316,24 @@ class RecruitmentInteraction(RateInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        citizens: Annotated[str, RoleSpec()],
-        classes: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 5,
-        recruitment: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        retirement: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        target: Role,
+        citizens: Role,
+        classes: Annotated[int, RealSet.open(0, oo)] = 5,
+        recruitment: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        retirement: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
     ) -> None:
-        super().__init__(label, target=target, state='x', rate=self._get_rate)
+        super().__init__(label)
+        self.target = target
         self.citizens = citizens
         self.classes = classes
         self.recruitment = recruitment
         self.retirement = retirement
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the recruitment less the retirement of the security forces as the rate of their density."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [RateLaw(context.target.x, self._get_rate(context))]
 
     def _get_rate(self, s: SimpleNamespace) -> Expression:
         """Return the recruitment of security agents, less the retirement.
@@ -515,16 +530,11 @@ class CriminalitySystem(BaseSystem):
             self.label,
             elements=[
                 ActivityDensityElement('citizens', x=citizens, space=LatticeSpace(self.classes, boundary='fixed')),
-                GroupElement(
+                SecurityAgentsElement(
                     'security',
-                    element=SecurityAgentsElement,
-                    size=self.forces,
-                    on='sites',
+                    x=np.full(self.forces, self.security / self.forces),
+                    share=np.full(self.forces, 1.0 / self.forces),
                     space=LatticeSpace(self.forces, boundary='fixed'),
-                    values={
-                        'x': np.full(self.forces, self.security / self.forces),
-                        'share': np.full(self.forces, 1.0 / self.forces),
-                    },
                 ),
             ],
             interactions=[

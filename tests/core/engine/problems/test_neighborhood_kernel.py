@@ -4,20 +4,27 @@ from typing import Annotated
 
 import networkx as nx
 import numpy as np
+import pytest
 from sage.all__sagemath_gap import libgap
 
 from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import (
     AdjacencyNeighborhood,
+    ContinuousSpace,
     LatticeNeighborhood,
     LatticeSpace,
     NetworkSpace,
     RadiusNeighborhood,
 )
 from skcomplex.core.engine._utils import declarations_of
+from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.problems._neighborhood_kernel import NeighborhoodKernel
 from skcomplex.core.enums import VariableKind
 from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.computer_science.common.automata import CayleySpace
 
 
@@ -134,3 +141,32 @@ def test_neighborhood_kernel_get_spaces_of():
         == "(<class 'skcomplex.core.components.spaces._continuous.ContinuousSpace'>, "
         "<class 'skcomplex.core.components.spaces._lattice.LatticeSpace'>)"
     )
+
+
+@pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()])
+@pytest.mark.parametrize(
+    ('boundary', 'counts', 'shifts'),
+    [('open', [1.0, 1.0, 0.0], [1.0, -1.0, 0.0]), ('periodic', [2.0, 1.0, 1.0], [0.0, -1.0, 1.0])],
+)
+def test_radius_reductions_read_the_values_on_the_axes_as_positions(backend, boundary, counts, shifts):
+    """Test that reductions over a radius find the neighbours of walkers placed by their values `x` and `y`."""
+    space = ContinuousSpace(extent=[10.0, 10.0], boundary=boundary)
+    walkers = Element(
+        'walkers',
+        values={'x': [0.5, 1.5, 9.5], 'y': [0.5, 0.5, 0.5], 'count': 0.0, 'shift': 0.0},
+        size=3,
+        space=space,
+    )
+    near = RadiusNeighborhood(1.5)
+    tally = Interaction(
+        'tally',
+        roles={'target': 'walkers'},
+        laws=lambda s: [
+            UpdateLaw(s.target.count, neighbors(1, over=near)),
+            UpdateLaw(s.target.shift, neighbors(s.target.other.x - s.target.x, over=near)),
+        ],
+    )
+    system = System(elements=[walkers], interactions=[tally], space=space, backend=backend)
+    trajectory = system.prepare().simulate(until=1, random_state=0)
+    assert trajectory.get_values('walkers.count')[-1].tolist() == counts
+    assert trajectory.get_values('walkers.shift')[-1] == pytest.approx(shifts)

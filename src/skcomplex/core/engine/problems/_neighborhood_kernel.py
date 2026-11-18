@@ -184,7 +184,8 @@ class NeighborhoodKernel(BaseKernel):
                     raise ValidationError(error_msg)
                 if pair.position not in differences:
                     differences[pair.position] = self.search.get_differences(x, readers, neighbours)
-                values.append(column[readers] - differences[pair.position][:, read.column])
+                axis = read.column if pair.axis is None else pair.axis
+                values.append(column[readers] - differences[pair.position][:, axis])
             elif pair.table is not None:
                 values.append(column[pair.table[neighbours]])
             else:
@@ -513,6 +514,29 @@ class NeighborhoodKernel(BaseKernel):
         return next((name for name, item in states.items() if item.is_place), None)
 
     @staticmethod
+    def _get_axis_states(space: object, states: Mapping[str, VariableSpec]) -> tuple[str, ...] | None:
+        """Return the scalar positions of the members on every axis, or `None`.
+
+        A value named after an axis, such as `x` and `y` of walkers in a plane, is the position of a member along it.
+
+        Args:
+            space:
+                The space of the group.
+
+            states:
+                The state declarations by name.
+
+        Returns:
+            names:
+                The names of the positions in the order of the axes, or `None` when a member lacks one.
+        """
+        if not isinstance(space, ContinuousSpace):
+            return None
+        axes = tuple(space.prepare().axes_)
+        placed = all(name in states and states[name].role == 'position' and not states[name].vector for name in axes)
+        return axes if axes and placed else None
+
+    @staticmethod
     def _get_cone_direction(cone: RadiusNeighborhood, states: Mapping[str, VariableSpec], n_dim: int) -> str:
         """Return the state that holds the direction of a cone.
 
@@ -642,14 +666,20 @@ class NeighborhoodKernel(BaseKernel):
             )
             raise ValidationError(error_msg)
         position = NeighborhoodKernel._get_position_state(states)
+        axes = NeighborhoodKernel._get_axis_states(space, states)
         metric = RadiusNeighborhood | NearestNeighborhood | DelaunayNeighborhood
-        if position is None or not isinstance(space, ContinuousSpace) or not isinstance(over, metric):
+        if (
+            (position is None and axes is None)
+            or not isinstance(space, ContinuousSpace)
+            or not isinstance(over, metric)
+        ):
             error_msg = (
-                f'A reduction over {over!r} measures distances between positions, but the members declare no vector '
-                "position state. Declare one with `state(vector=True, role='position')`."
+                f'A reduction over {over!r} measures distances between positions, but the members have no position. '
+                'Give them a value named after every axis of the space, such as `x` and `y`.'
             )
             raise ValidationError(error_msg)
         continuous = space
+        positions = entries[position] if position is not None else tuple(entries[name] for name in axes or ())
         periods = continuous.extent_ if continuous.periodic_ else None
         direction = None
         if isinstance(over, RadiusNeighborhood) and float(over.angle) < math.pi:
@@ -658,7 +688,7 @@ class NeighborhoodKernel(BaseKernel):
             if direction is None:
                 error_msg = f'The cone reads the direction {name!r}, which the members do not hold.'
                 raise ValidationError(error_msg)
-        return MetricSearch(over, entries[position], periods, direction).prepare()
+        return MetricSearch(over, positions, periods, direction).prepare()
 
     @staticmethod
     def _get_spaces_of(neighborhood: BaseNeighborhood) -> tuple[type, ...]:
