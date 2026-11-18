@@ -16,7 +16,6 @@ two diffuse together. The view shows the two spheres of radius 1 um, 3 um apart,
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.soft_matter import HydrodynamicallyCoupledTrapsSystem
 
@@ -24,7 +23,8 @@ SYSTEM = 'hydrodynamically_coupled_traps'
 DT, ON, OFF = 5e-3, 0.3, 0.1
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=10)
-simulation = simulate(HydrodynamicallyCoupledTrapsSystem(), until=2000, observers=[observer], random_state=0)
+system = HydrodynamicallyCoupledTrapsSystem().prepare()
+simulation = system.simulate(until=2000, observers=[observer], random_state=0)
 
 # %%
 # Released and caught again
@@ -61,7 +61,7 @@ separations = np.array([2.2, 2.5, 3.0, 4.0, 6.0, 8.0])
 def free_correlations(separation, tensor, seed):
     """Return the correlations of the free steps of the spheres along and across their line of centres."""
     system = HydrodynamicallyCoupledTrapsSystem(separation=separation, tensor=tensor)
-    trajectory = simulate(system, until=10000, random_state=seed)
+    trajectory = system.prepare().simulate(until=10000, random_state=seed)
     free = (trajectory.times[:-1] * DT) % (ON + OFF) >= ON - 1e-9
     steps = np.diff(trajectory.get_values('spheres.x'), axis=0)[free]
     return [np.corrcoef(steps[:, 0, axis], steps[:, 1, axis])[0, 1] for axis in (0, 1)]

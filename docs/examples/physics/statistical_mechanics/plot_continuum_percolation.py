@@ -12,7 +12,6 @@ the spanning probabilities of two sizes cross near the threshold.
 import matplotlib.pyplot as plt
 
 from skcomplex.core.analysis import bind_analysis, clusters
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.experiments import sweep
 from skcomplex.systems.physics.statistical_mechanics import ContinuumPercolationSystem
@@ -21,7 +20,7 @@ SYSTEM = 'continuum_percolation'
 
 system = ContinuumPercolationSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, until=1.0, observers=[observer])
+trajectory = system.prepare().simulate(until=1.0, observers=[observer])
 
 # %%
 # Spanning probability against the filling factor

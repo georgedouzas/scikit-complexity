@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import neighbors
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.statistical_mechanics import LennardJonesFluidSystem
 
@@ -23,7 +22,7 @@ SYSTEM = 'lennard_jones_fluid'
 
 system = LennardJonesFluidSystem(random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(system, until=2.5, observers=[observer])
+trajectory = system.prepare().simulate(until=2.5, observers=[observer])
 
 # %%
 # Structure of a gas and a liquid
@@ -37,12 +36,8 @@ trajectory = simulate(system, until=2.5, observers=[observer])
 fig, ax = plt.subplots(figsize=(7, 4))
 for density in (0.2, 0.8):
     side = np.sqrt(400 / density)
-    run = simulate(
-        LennardJonesFluidSystem(density=density, temperature=1.0, random_state=1).prepare().system_,
-        until=20,
-        dt=0.05,
-        random_state=1,
-    )
+    fluid = LennardJonesFluidSystem(density=density, temperature=1.0, random_state=1).prepare()
+    run = fluid.simulate(until=20, dt=0.05, random_state=1)
     positions = np.mod(run.get_values('fluid.x')[100:], side)
     pairs = neighbors(positions, kind='radial-distribution', box=[side, side], bins=120, r_max=5.0)
     distances, g = pairs.radii, pairs.distribution

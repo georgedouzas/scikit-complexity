@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.special import jv
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.common.quantum import SectorSpec, operator_measures
 from skcomplex.systems.physics.statistical_mechanics import QuantumHeisenbergSystem, total_magnetization
@@ -24,7 +23,7 @@ SYSTEM = 'quantum_heisenberg'
 
 system = QuantumHeisenbergSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulate(system, observers=[observer])
+system.prepare().simulate(observers=[observer])
 
 # %%
 # Magnon and ground-state energy
@@ -35,7 +34,7 @@ simulate(system, observers=[observer])
 # antiferromagnetic rings from exact diagonalisation in the sector of zero magnetisation. It approaches the Bethe
 # ansatz value `1/4 - ln 2` of the infinite chain as the ring grows.
 
-magnon = simulate(QuantumHeisenbergSystem(delta=0.0), until=4.0)
+magnon = QuantumHeisenbergSystem(delta=0.0).prepare().simulate(until=4.0)
 
 
 sizes = np.arange(4, 15, 2)

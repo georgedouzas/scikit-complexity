@@ -13,7 +13,6 @@ sum of the string's normal modes beating together.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.waves import SpringChainSystem
 
@@ -22,7 +21,7 @@ N_MASSES = 15
 
 system = SpringChainSystem(n_masses=N_MASSES, pluck=0.05)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(system, until=4, dt=0.02, observers=[observer])
+trajectory = system.prepare().simulate(until=4, dt=0.02, observers=[observer])
 
 # %%
 # Normal modes

@@ -53,11 +53,10 @@ site.
 ```python
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.statistical_mechanics import QuantumHeisenbergSystem
 
-chain = QuantumHeisenbergSystem(n_sites=6, initial='neel')
-trajectory = simulate(chain, until=2.0, dt=0.5)
+chain = QuantumHeisenbergSystem(n_sites=6, initial='neel').prepare()
+trajectory = chain.simulate(until=2.0, dt=0.5)
 trajectory.get_values('sz').shape, round(float(np.ptp(trajectory.get_values('energy'))), 8)
 ```
 
