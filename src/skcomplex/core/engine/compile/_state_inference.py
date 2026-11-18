@@ -141,9 +141,9 @@ class _StateInference:
 
     @staticmethod
     def _get_histories(element: Element, delays: Collection[str]) -> dict[str, tuple[str, object]]:
-        """Return the values before the start of the values the laws read with a delay, by value.
+        """Return the history of every value the laws read with a delay.
 
-        The value before the start is the past value with the index `-1`, such as `values={'I': 0.01, 'I[-1]': 0.0}`
+        The history is its value before the start. The value before the start is the past value with the index `-1`, such as `values={'I': 0.01, 'I[-1]': 0.0}`
         for a number of infected people that was zero before an outbreak, a number or a function of time. Each comes
         with the name it is given under.
         """
@@ -156,9 +156,9 @@ class _StateInference:
 
     @staticmethod
     def _get_rule_derivatives(element: Element) -> dict[str, tuple[str, str, object]]:
-        """Return the starting derivatives of the values of agents, by engine name, such as `x_d1` for `"x'"`.
+        """Return the starting derivatives of the values of agents, by engine name.
 
-        Rules change such a derivative as a value of its own, such as the velocity `"x'"` of a boid that its steering
+        The engine name of `"x'"` is `x_d1`. Rules change such a derivative as a value of its own, such as the velocity `"x'"` of a boid that its steering
         turns and its flight adds to `x`, and read it as `agent.x_d1`. Each comes with the name it is given under and
         the value it derives.
         """
@@ -189,9 +189,9 @@ class _StateInference:
 
     @staticmethod
     def _get_link(element: Element) -> tuple[str, str | None] | None:
-        """Return the part of a network an element sits on and its layer, or `None` for the sites.
+        """Return the part of a network an element sits on and its layer.
 
-        An element on the edges of a layer, such as `Element('immune_links', values={...}, space=network,
+        It is `None` for the sites. An element on the edges of a layer, such as `Element('immune_links', values={...}, space=network,
         on='immune')`, sits on the edges of that layer, and `on='edges'` on those of the graph of the network.
         """
         if element.on in LINKS:
@@ -533,7 +533,10 @@ class _StateInference:
 
     @staticmethod
     def _get_delays(compilation: Compilation) -> set[str]:
-        """Return the dotted names of the values the laws read with a delay, such as `x(t=t - tau)`."""
+        """Return the dotted names of the values the laws read with a delay.
+
+        A law reads such a value as `x(t=t - tau)`.
+        """
         census = Compilation._get_required(compilation.census, 'census')
         layout = Compilation._get_required(compilation.layout, 'layout')
         named = {
@@ -902,9 +905,9 @@ class _StateInference:
         count: int | None,
         axes: Collection[str],
     ) -> dict[str, DeclaredVariableSpec]:
-        """Return the declarations of the derivatives of agents that their rules change, by engine name.
+        """Return the declarations of the derivatives that the rules of agents change.
 
-        The first derivative of a position, such as `"x'"`, is a velocity.
+        They are keyed by engine name, and the first derivative of a position, such as `"x'"`, is a velocity.
         """
         declared = {}
         for name, (_, base, given) in derivatives.items():
@@ -996,7 +999,9 @@ class _StateInference:
                     )
         if not probing:
             variables |= self._get_rule_derivative_specs(element, derivatives, count, axes)
-            arrays |= {name: given for name, (_, _, given) in derivatives.items() if np.ndim(given) > 0}
+            arrays |= {
+                name: given for name, (_, _, given) in derivatives.items() if np.ndim(np.asarray(given, dtype=object))
+            }
         visual = element._get_visual()
         drawing = None if visual == VisualSpec() or (visual.kind == 'agents' and not agents) else visual
         view = element._get_view()
