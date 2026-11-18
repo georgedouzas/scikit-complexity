@@ -128,6 +128,11 @@ class Particle(Element):
 - The generic ready-made bases that build one element from a mapping of states, such as `DynamicalSystem` and
   `StockFlowSystem`, take the allowed values and quantities of those states as their own arguments, such as
   `allowed={'n': RealSet.closed_open(0, oo)}`, and keep them on the element they build. `Element` keeps its arguments.
+- A value that holds the index of a member of another group, such as the employer of a worker among the firms, says
+  so in `Annotated`: `employer: Annotated[int, Member('firms')] = -1`. The value -1 means none, and removing a member
+  of that group clears the links to it.
+- A network space names its one axis `node`, so an agent on a network starts at the node its value `node` gives and
+  moves by changing it, as `x` and `y` place agents on other spaces.
 - Values keep the order in which they are given, so states and parameters come out in that order and results do not
   depend on alphabetical order.
 - A value named after an axis of the element's space is a position, with no flag. In
