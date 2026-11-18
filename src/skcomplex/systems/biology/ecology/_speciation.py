@@ -7,6 +7,7 @@ Its species arise by speciation and vanish by drift.
 # License: MIT
 
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -17,9 +18,10 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import AnyArray
 from ...general.agents import EvolutionInteraction
 
@@ -158,9 +160,15 @@ class NeutralBiodiversitySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.ecology import NeutralBiodiversitySystem
-        >>> NeutralBiodiversitySystem(20).prepare().system_.elements[0].prepare().size_
+        >>> NeutralBiodiversitySystem(20).prepare().system_.elements[0].size
         20
     """
 
@@ -178,17 +186,25 @@ class NeutralBiodiversitySystem(BaseSystem):
         species: int = 1,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.individuals = individuals
         self.nu = nu
         self.species = species
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of a neutral community of constant size."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a neutral community of constant size.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         labels = np.random.default_rng(self.random_state).integers(self.species, size=self.individuals).astype(float)
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[
                 GroupElement('community', element=OrganismElement, size=self.individuals, values={'species': labels}),
