@@ -2,21 +2,17 @@
 
 from collections.abc import Callable
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
 import pytest
-from sage.all__sagemath_symbolics import oo
-from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import Element, FieldElement, GroupElement
 from skcomplex.core.components.laws.utils import coordinate
 from skcomplex.core.components.spaces import AxisSpec, LatticeSpace, PhaseSpace
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import Role, StateSpec
+from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
 from skcomplex.systems.general.elements import NonnegativeElement
 from skcomplex.systems.general.kinetics import EncounterInteraction
@@ -46,20 +42,12 @@ class MeetingInteraction(EncounterInteraction):
         return {'candidate': 'walkers', 'field': 'medium'}.get(role, role)
 
 
-class DensityElement(Element):
-    """Density at one class, declared a state, so a field that no law changes is read as a density."""
-
-    def __init__(self, label: str, *, x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0) -> None:
-        super().__init__(label)
-        self.x = x
-
-
 def _densities(encounter, until, initial=(0.2, 0.3, 0.5)):
     """Return the candidate densities over time, meeting a constant field of density 1."""
     system = System(
         elements=[
-            GroupElement('candidates', element=DensityElement, size=CLASSES, on='sites', values={'x': list(initial)}),
-            GroupElement('field', element=DensityElement, size=1, values={'x': 1.0}),
+            NonnegativeElement('candidates', x=list(initial), space=LatticeSpace(CLASSES, boundary='fixed')),
+            NonnegativeElement('field', x=[1.0], size=1),
         ],
         interactions=[encounter],
         space=LatticeSpace(CLASSES, boundary='fixed'),
@@ -176,7 +164,7 @@ def test_encounter_rate_reads_the_coordinate_of_the_candidate_class() -> None:
     """Remove a density at a rate that reads the coordinate of its class."""
     space = PhaseSpace(LatticeSpace((1,)), [AxisSpec('c', 2, 0.0, 4.0)]).prepare()
     gas = NonnegativeElement('gas', x=1.0, space=space)
-    level = FieldElement('level', element=DensityElement, space=space, values={'x': 1.0})
+    level = NonnegativeElement('level', x=1.0, space=space)
     remove = EncounterInteraction(
         'remove',
         candidate='gas',

@@ -16,12 +16,11 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import GroupElement
 from ....core.components.interactions import BaseInteraction
 from ....core.components.laws.utils import moment, total
-from ....core.components.spaces import ContinuousTime, LatticeSpace
+from ....core.components.spaces import BaseSpace, ContinuousTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.specs import ParameterSpec
 from ...general.elements import NonnegativeElement
 from ...general.kinetics import EncounterInteraction
 
@@ -31,8 +30,8 @@ WELFARE_REFERENCES = ('Bellomo et al. 2017', 'Dolfin and Lachowicz 2014', 'Berto
 class WealthDensityElement(NonnegativeElement):
     """Value `x` of the density of agents at one wealth class.
 
-    A wealth distribution is a group of these elements on the sites of a lattice of wealth classes, one member per
-    class, and the exchanges and the welfare policy change it. The element has no laws of its own.
+    A wealth distribution is this element on a lattice of wealth classes, with one value per class, and the exchanges
+    and the welfare policy change it. The element has no laws of its own.
 
     Args:
         label:
@@ -41,24 +40,29 @@ class WealthDensityElement(NonnegativeElement):
         x:
             The initial density, a nonnegative number.
 
+        size:
+            The number of members, or `None` for one.
+
+        space:
+            The space with one member per site, such as a lattice of classes, or `None` for none.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.core.components.spaces import LatticeSpace
         >>> from skcomplex.systems.economics.econophysics import WealthDensityElement
         >>> classes = LatticeSpace(5, boundary='fixed')
-        >>> values = {'x': 0.2}
-        >>> group = GroupElement('wealth', element=WealthDensityElement, space=classes, on='sites', values=values)
-        >>> group.prepare().size_
-        5
+        >>> WealthDensityElement('wealth', x=[0.2] * 5, space=classes).x
+        [0.2, 0.2, 0.2, 0.2, 0.2]
     """
 
     def __init__(
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        x: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, x=x)
+        super().__init__(label, x=x, size=size, space=space)
 
 
 def exchange_table(classes: int, cooperation: object, competition: object) -> npt.NDArray[np.object_]:
@@ -397,7 +401,7 @@ class KineticWealthWelfareSystem(BaseSystem):
     @staticmethod
     def _get_classes_of(system: CompositeSystem) -> int:
         """Return the number of wealth classes of a system, the size of its distribution."""
-        return int(next(item.size or 0 for item in system.elements if item.label == 'wealth'))
+        return int(np.size(next(item.x for item in system.elements if item.label == 'wealth')))
 
     def __init__(
         self,
@@ -419,13 +423,11 @@ class KineticWealthWelfareSystem(BaseSystem):
     def _build_system(self) -> CompositeSystem:
         """Return the components of the system built from its model parameters."""
         initial = np.exp(-((wealth_classes(self.classes) - 0.5) ** 2) / 0.05)
-        components: list[GroupElement] = [
-            GroupElement(
+        components = [
+            WealthDensityElement(
                 'wealth',
-                element=WealthDensityElement,
-                size=self.classes,
-                on='sites',
-                values={'x': initial / initial.sum()},
+                x=initial / initial.sum(),
+                space=LatticeSpace(self.classes, boundary='fixed'),
             ),
         ]
         interactions: list[BaseInteraction] = [
@@ -440,7 +442,7 @@ class KineticWealthWelfareSystem(BaseSystem):
             ),
         ]
         if self.tax > 0:
-            components.append(GroupElement('state', element=WealthDensityElement, size=1, values={'x': 1.0}))
+            components.append(WealthDensityElement('state', x=[1.0], size=1))
             interactions.append(
                 WelfarePolicyInteraction(
                     'welfare',
