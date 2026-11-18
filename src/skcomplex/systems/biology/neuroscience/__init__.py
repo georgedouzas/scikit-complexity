@@ -30,7 +30,14 @@ from ._neural_masses import (
     SynapticDriveInteraction,
     ThetaForcingInteraction,
 )
-from ._neurons import IntegrateAndFireSystem, IzhikevichElement, IzhikevichSystem, LeakyIntegrateAndFireElement
+from ._neurons import (
+    IntegrateAndFireSystem,
+    IzhikevichElement,
+    IzhikevichInteraction,
+    IzhikevichSystem,
+    LeakyIntegrateAndFireElement,
+    LeakyIntegrateAndFireInteraction,
+)
 from ._plastic_networks import (
     AdaptiveDelayNetworkSystem,
     AxonElement,
@@ -75,9 +82,11 @@ __all__: list[str] = [
     'InhibitorElement',
     'IntegrateAndFireSystem',
     'IzhikevichElement',
+    'IzhikevichInteraction',
     'IzhikevichSystem',
     'KinouchiCopelliSystem',
     'LeakyIntegrateAndFireElement',
+    'LeakyIntegrateAndFireInteraction',
     'LeakyIntegrationInteraction',
     'LegionSystem',
     'MutualInhibitionInteraction',
