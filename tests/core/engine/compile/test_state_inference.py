@@ -1243,3 +1243,37 @@ def test_a_rule_of_the_system_reads_the_typed_agents_of_a_group_it_binds():
     system = System(elements=[counters], interactions=[TallyInteraction('tally')]).prepare()
     trajectory = system.simulate(until=3, random_state=0)
     assert trajectory.get_agents('counters', 3).values['count'].tolist() == [3.0, 8.0]
+
+
+class Combination(Interaction):
+    """Interaction that adds one node at every step, made from two nodes with which it forms a hyperedge."""
+
+    def __init__(self, label: str, *, among: Role = 'goods', along: bool | str | None = None) -> None:
+        super().__init__(label, among=among, along=along)
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the request of one new node with a hyperedge of three members."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            request = TopologyRequestSpec('add-node', hyperedge=3, independent=True, one=True)
+            self.laws_: list[BaseComponent] = [UpdateLaw(request, 1.0)]
+
+
+def test_get_declared_grows_a_group_on_the_hyperedges_the_laws_add():
+    """Test that elements with no values on the nodes and hyperedges of a network grow with the hyperedges added."""
+    space = NetworkSpace(nx.empty_graph(3))
+    goods = Element('goods', space=space)
+    functions = Element('functions', space=space, on='hyperedges')
+    trajectory = (
+        System(elements=[goods, functions], interactions=[Combination('combination')])
+        .prepare()
+        .simulate(
+            until=4,
+            dt=1,
+            random_state=0,
+        )
+    )
+    assert trajectory.get_values('goods._active').sum(axis=1).tolist() == [3, 4, 5, 6, 7]
+    assert trajectory.get_values('functions._active').sum(axis=1).tolist() == [0, 1, 2, 3, 4]
+    members = trajectory.get_values('functions._members')[-1][trajectory.get_values('functions._active')[-1] > 0]
+    assert sorted(members[:, -1].tolist()) == [3.0, 4.0, 5.0, 6.0]

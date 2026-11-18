@@ -47,6 +47,7 @@ from ._compilation import Compilation
 
 RESERVED = ('label', 'visual', 'size', 'space', 'values', 'on')
 LINKS = ('edges', 'hyperedges')
+MIN_RANK = 2
 OTHER = '__other'
 BOOLEAN = FiniteEnumeratedSet([0, 1])
 MEMBERSHIP = frozenset(
@@ -130,10 +131,13 @@ class _StateInference:
     def _get_count(element: Element) -> int | None:
         """Return the number of members of an element, or `None` for one element.
 
-        An element in a space without sites, such as a continuous one, is one member unless its size says otherwise.
+        An element in a space without sites, such as a continuous one, is one member unless its size says otherwise,
+        and an element on the hyperedges of a network without any has no members until the laws add hyperedges.
         """
         if element.size is not None:
             return int(element.size)
+        if isinstance(element.space, NetworkSpace) and element.on == 'hyperedges':
+            return len(element.space.prepare().hyperedges_)
         if element.space is not None and element.on in LINKS:
             return element.space.prepare()._count_parts(element.on, None)
         if element.space is not None and not element.space._has_sites():
@@ -202,7 +206,9 @@ class _StateInference:
         """Return whether an element has values but declares no states or laws."""
         if not isinstance(component, Element) or isinstance(component, DeclaredElement):
             return False
-        if type(component)._get_laws is not Element._get_laws or not _StateInference._get_values(component):
+        if type(component)._get_laws is not Element._get_laws:
+            return False
+        if not _StateInference._get_values(component) and not isinstance(component.space, NetworkSpace):
             return False
         specs = type(component)._get_specs()
         return not any(isinstance(spec, StateSpec | ParameterSpec) for spec in specs.values())
@@ -487,6 +493,8 @@ class _StateInference:
         orders, lags = self._get_orders(compilation)
         orders = dict.fromkeys(self._get_rule_reads(compilation), 1) | orders
         kinds = self._get_topology_kinds(compilation)
+        rank = self._get_hyperedge_rank(compilation)
+        links = self._get_edge_spaces(system)
         agents = self._get_agent_groups(compilation)
         steps = self._get_steps(compilation)
 
@@ -497,6 +505,8 @@ class _StateInference:
                 lambda name: lags.get(f'{path}.{name}', 0),
                 kinds,
                 agents=path in agents,
+                rank=rank,
+                links=links,
                 steps={
                     name.removeprefix(f'{path}.'): moved.removeprefix(f'{path}.')
                     for name, moved in steps.items()
@@ -551,6 +561,44 @@ class _StateInference:
             if local and law.reads is not None:
                 reads.update(named[str(item)] for item in law.reads if str(item) in named)
         return reads
+
+    @staticmethod
+    def _get_hyperedge_rank(compilation: Compilation) -> int | None:
+        """Return the size of the largest hyperedge the laws add, or `None` when they add none.
+
+        A new good made from three parents forms a hyperedge of four members, its parents and itself.
+        """
+        census = Compilation._get_required(compilation.census, 'census')
+        sizes: list[int] = []
+        for record in census.records:
+            law = record.law
+            requests = (
+                [law.target]
+                if isinstance(law, UpdateLaw)
+                else list(law.changes or {}) if isinstance(law, JumpLaw) else []
+            )
+            sizes.extend(
+                int(item.hyperedge)
+                for item in requests
+                if isinstance(item, TopologyRequestSpec) and item.hyperedge is not None
+            )
+        return max(sizes, default=None)
+
+    def _get_edge_spaces(self, system: CompositeSystem) -> frozenset[int]:
+        """Return the networks of a system tree that a plain element holds the edges of, by their identity.
+
+        A network whose edges an element such as `Element('catalysis', space=network, on='edges')` holds takes no
+        other group on its edges.
+        """
+        spaces = {
+            id(element.space)
+            for element in system.elements
+            if self._is_plain(element) and element.on == 'edges' and isinstance(element.space, NetworkSpace)
+        }
+        for nested in system.systems:
+            if isinstance(nested, CompositeSystem):
+                spaces |= self._get_edge_spaces(nested)
+        return frozenset(spaces)
 
     @staticmethod
     def _get_topology_kinds(compilation: Compilation) -> frozenset[str]:
@@ -615,6 +663,46 @@ class _StateInference:
         )
 
     @staticmethod
+    def _get_node_edges(element: Element, links: frozenset[int]) -> list[GroupElement]:
+        """Return the variable group on the edges of a network whose edges the laws change, named after its nodes.
+
+        A network whose edges an element holds, such as `Element('catalysis', space=network, on='edges')`, takes no
+        such group, since that element is the group on its edges.
+        """
+        if id(element.space) in links:
+            return []
+        return [GroupElement(f'{element.label}_edges', element=Element, space=element.space, on='edges', variable=True)]
+
+    @staticmethod
+    def _get_link_group(
+        element: Element,
+        on: str,
+        count: int | None,
+        values: Mapping[str, object],
+        *,
+        changing: bool,
+        rank: int | None,
+    ) -> GroupElement:
+        """Return the group with one member on every edge or hyperedge of a network.
+
+        When the laws change the network, the group grows and shrinks with its edges or hyperedges, and a group on
+        hyperedges holds the largest hyperedge the laws add, its rank. A group on a network without hyperedges starts
+        empty, as the production functions of goods that are yet to be made.
+        """
+        empty = on == 'hyperedges' and count == 0
+        variable = isinstance(element.space, NetworkSpace) and (changing or empty)
+        return GroupElement(
+            element.label,
+            element=DeclaredElement,
+            size=0 if empty else None,
+            space=element.space,
+            on=on,
+            values=values,
+            variable=variable,
+            rank=(rank or MIN_RANK) if variable and on == 'hyperedges' else None,
+        )
+
+    @staticmethod
     def _get_group_part(element: Element, count: int | None, agents: bool) -> str | None:
         """Return the part of the space a group of members sits on, `'sites'` or none.
 
@@ -643,6 +731,8 @@ class _StateInference:
         probing: bool = False,
         *,
         agents: bool = False,
+        rank: int | None = None,
+        links: frozenset[int] = frozenset(),
         steps: Mapping[str, str] | None = None,
     ) -> list[BaseElement]:
         """Return the declared element of a plain element, or a group of declared members.
@@ -655,13 +745,14 @@ class _StateInference:
         one agent. A value named after an axis of a continuous space, or of the cells of a lattice for agents, is a
         position, also when no law changes it, and the value an update law adds to a position at every step, as `v` in
         `x <- x + v`, is its velocity. An element on the edges or hyperedges of a network is a group with one member on
-        each. The probe that finds the orders reads no starting values of derivatives or past values. The element keeps
-        the drawing of its class, except a drawing of agents for members that run no agent rules, and the view of its
-        agents.
+        each, which grows and shrinks with them when the laws change the network. The probe that finds the orders
+        reads no starting values of derivatives or past values. The element keeps the drawing of its class, except a
+        drawing of agents for members that run no agent rules, and the view of its agents.
         """
         values = self._get_values(element)
         starting = {} if probing else self._get_starting(element, values)
-        count = self._get_count(element) or (1 if agents else None)
+        count = self._get_count(element)
+        count = 1 if count is None and agents else count
         on = next((part for part in LINKS if element.on == part), None)
         network = bool(kinds) and isinstance(element.space, NetworkSpace) and on is None
         growing = network and bool(kinds & MEMBERSHIP)
@@ -714,23 +805,9 @@ class _StateInference:
                 capacity=None if growing else count,
                 values=values,
             )
-            edges = GroupElement(
-                f'{element.label}_edges',
-                element=Element,
-                space=element.space,
-                on='edges',
-                variable=True,
-            )
-            return [nodes, edges]
+            return [nodes, *self._get_node_edges(element, links)]
         if on is not None:
-            group = GroupElement(
-                element.label,
-                element=DeclaredElement,
-                space=element.space,
-                on=on,
-                values=values,
-            )
-            return [group]
+            return [self._get_link_group(element, on, count, values, changing=bool(kinds), rank=rank)]
         if isinstance(element.space, LatticeSpace | NetworkSpace) and element.size is None:
             return [self._get_field(element.label, element.space, values)]
         part = self._get_group_part(element, count, agents)

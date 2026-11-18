@@ -14,7 +14,7 @@ import networkx as nx
 from sage.all__sagemath_symbolics import Expression
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.interactions import TopologyInteraction
 from ....core.components.laws.utils import count, where
 from ....core.components.spaces import NetworkSpace
@@ -123,22 +123,14 @@ class TapCatalysisSystem(BaseSystem):
             )
             for order in range(1, self.parents + 1)
         ]
-        links = int(3 * self.pc * self.goods * self.goods) + self.goods
+        space = NetworkSpace(nx.empty_graph(self.m0, create_using=nx.DiGraph))
         self.system_ = System(
             self.label,
             elements=[
-                GroupElement('goods', element=Element, on='sites', variable=True, capacity=self.goods),
-                GroupElement('catalysis', element=Element, on='edges', variable=True, capacity=links),
-                GroupElement(
-                    'functions',
-                    element=Element,
-                    on='hyperedges',
-                    variable=True,
-                    size=0,
-                    capacity=self.goods,
-                    rank=self.parents + 1,
-                ),
+                Element('goods', space=space),
+                Element('catalysis', space=space, on='edges'),
+                Element('functions', space=space, on='hyperedges'),
             ],
             interactions=growth,
-            space=NetworkSpace(nx.empty_graph(self.m0, create_using=nx.DiGraph)),
+            space=space,
         )
