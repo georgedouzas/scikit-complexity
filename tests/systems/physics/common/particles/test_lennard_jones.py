@@ -14,7 +14,7 @@ def _pair(distance, solver='auto'):
     """Return a system of two particles at a distance under the Lennard-Jones potential."""
     return System(
         elements=[PointElement('pair', x=np.array([[0.0, 0.0], [distance, 0.0]]), size=2)],
-        interactions=[LennardJonesInteraction('lj', first='pair', second='pair', cutoff=2.5)],
+        interactions=[LennardJonesInteraction('lj', target='pair', cutoff=2.5)],
         space=ContinuousSpace(n_dim=2),
         solver=solver,
     )

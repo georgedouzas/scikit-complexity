@@ -12,12 +12,12 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, oo, sqrt
+from sage.all__sagemath_symbolics import SR, Expression, oo, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import BaseInteraction, Interaction, PairInteraction
+from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.components.laws.utils import advection, divergence, gradient, laplacian, neighbors
 from ....core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace, RadiusNeighborhood
@@ -162,81 +162,68 @@ class TonerTuInteraction(Interaction):
             self.laws_ = laws
 
 
-class SoftSphereInteraction(PairInteraction):
+class SoftSphereInteraction(Interaction):
     """Soft repulsion between overlapping spheres.
 
-    The energy is `k * (cutoff - r) ** 2 / 2` closer than the cutoff.
+    The energy is `k (cutoff - r)^2 / 2` closer than the cutoff, so every member is pushed by `k (cutoff - r)` along the
+    line of centres from each member that overlaps it, `x_i' += sum_j k (cutoff - r_ij) (x_i - x_j) / r_ij`. In a
+    periodic box the separations are minimum images. It is the contact of disks in a granular layer, of cells in a
+    tissue, or of swimmers that bump into each other.
 
     Args:
         label:
             The label of the interaction.
 
-        first:
-            The path of the group or particle of the first members.
-
-        second:
-            The path of the group or particle of the second members.
+        target:
+            The path of the group of spheres.
 
         cutoff:
             The contact distance, the sum of the two radii.
-
-        position:
-            The name of the vector state that holds the positions of the members.
-
-        write:
-            The name of the state whose derivative the force changes, the position by default.
-
-        divisor:
-            The name of the parameter that holds the masses of the members, or `None` for unit masses.
-
-        period:
-            The side of a periodic box, for minimum image distances, or `None` for the period of the space.
 
         k:
             The stiffness.
 
         order:
-            The derivative of `write` the force adds to, 2 for the acceleration of a mass, or `None` for the velocity
-            of an overdamped particle.
+            The derivative of the position the force adds to, 1 for the velocity of an overdamped particle or 2 for the
+            acceleration of a unit mass.
 
     Examples:
         >>> from skcomplex.systems.physics.active_matter._collective import SoftSphereInteraction
-        >>> SoftSphereInteraction('contact', first='gas', second='gas', cutoff=0.1, k=50.0).k
+        >>> SoftSphereInteraction('contact', target='gas', cutoff=0.1, k=50.0).k
         50.0
     """
 
     def __init__(
         self,
         label: str,
-        first: str,
-        second: str,
-        cutoff: float = 1.0,
-        position: str = 'x',
         *,
-        write: str = 'x',
-        divisor: str | None = None,
-        period: float | None = None,
-        k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
-        order: int | None = None,
+        target: Role,
+        cutoff: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        k: Annotated[float, RealSet.open(0, oo)] = 100.0,
+        order: int = 1,
     ) -> None:
-        super().__init__(
-            label,
-            first,
-            second,
-            cutoff=cutoff,
-            position=position,
-            write=write,
-            potential=self._get_soft_sphere_energy,
-            divisor=divisor,
-            period=period,
-            order=order,
-        )
+        super().__init__(label)
+        self.target = target
+        self.cutoff = cutoff
         self.k = k
+        self.order = order
 
-    @staticmethod
-    def _get_soft_sphere_energy(s: SimpleNamespace, r: Expression) -> Expression:
-        """Return `k * (cutoff - r) ** 2 / 2`."""
-        return s.k * (s.cutoff - r) ** 2 / 2
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the push of the overlapping neighbours on every sphere.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s, x = context, context.target.x
+            separation = x - s.target.other.x
+            r = sqrt(separation.dot_product(separation))
+            distance = SR.var('r', domain='positive')
+            slope = (s.k * (s.cutoff - distance) ** 2 / 2).diff(distance).subs({distance: r})
+            push = neighbors(-slope * separation / r, RadiusNeighborhood(self.cutoff))
+            self.laws_ = [RateLaw(x.diff(s.t, self.order), push)]
 
 
 class CuckerSmaleAlignmentInteraction(Interaction):
@@ -490,14 +477,7 @@ class MotilityInducedPhaseSeparationSystem(BaseSystem):
             self.D_r,
             self.random_state,
         )
-        repulsion = SoftSphereInteraction(
-            'contact',
-            first='swimmers',
-            second='swimmers',
-            cutoff=1.0,
-            period=size,
-            k=self.k,
-        )
+        repulsion = SoftSphereInteraction('contact', target='swimmers', cutoff=1.0, k=self.k)
         self.system_ = System(
             self.label,
             elements=[swimmers],
@@ -601,14 +581,7 @@ class LivingCrystalsSystem(BaseSystem):
             self.D_r,
             self.random_state,
         )
-        repulsion = SoftSphereInteraction(
-            'contact',
-            first='swimmers',
-            second='swimmers',
-            cutoff=2.0,
-            period=self.size,
-            k=self.k,
-        )
+        repulsion = SoftSphereInteraction('contact', target='swimmers', cutoff=2.0, k=self.k)
         attraction = PhoreticAttractionInteraction(
             'phoresis',
             target='swimmers',

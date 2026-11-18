@@ -38,7 +38,7 @@ from ...components.laws import (
     UpdateLaw,
 )
 from ...components.laws.utils import derivative, lag
-from ...components.spaces import CellComplexSpace, ContinuousSpace, LatticeSpace, NetworkSpace
+from ...components.spaces import BaseSpace, CellComplexSpace, ContinuousSpace, LatticeSpace, NetworkSpace
 from ...components.systems import CompositeSystem
 from ...enums import TopologyKind, VariableKind
 from ...errors import ValidationError
@@ -166,13 +166,13 @@ class _StateInference:
         return None
 
     @staticmethod
-    def _get_axes(element: Element, agents: bool = False) -> tuple[str, ...]:
+    def _get_axes(element: Element, agents: bool = False, space: BaseSpace | None = None) -> tuple[str, ...]:
         """Return the axes of the continuous space of an element, or none.
 
-        The agents of a lattice also have the axes of its cells, such as `x` and `y`, and the agents of a network its
-        axis `node`, which place them.
+        The space is that of the element, or else the continuous space of its system. The agents of a lattice also have
+        the axes of its cells, such as `x` and `y`, and the agents of a network its axis `node`, which place them.
         """
-        space = element.space
+        space = element.space or (space if isinstance(space, ContinuousSpace) else None)
         if isinstance(space, ContinuousSpace) or (agents and isinstance(space, LatticeSpace | NetworkSpace)):
             return space.prepare().axes_
         return ()
@@ -397,20 +397,28 @@ class _StateInference:
     def _replace(
         self,
         system: CompositeSystem,
-        declare: Callable[[Element, str], list[BaseElement]],
+        declare: Callable[[Element, str, BaseSpace | None], list[BaseElement]],
         scope: str = '',
+        space: BaseSpace | None = None,
     ) -> CompositeSystem:
         """Return a copy of a system tree whose plain elements are declared elements.
 
-        The copy keeps the observables of every system.
+        Every element is declared in the space of its nearest system. The copy keeps the observables of every system.
         """
+        space = system.space or space
         elements = [
             declared
             for element in system.elements
-            for declared in (declare(element, f'{scope}{element.label}') if self._is_plain(element) else [element])
+            for declared in (
+                declare(element, f'{scope}{element.label}', space) if self._is_plain(element) else [element]
+            )
         ]
         systems = [
-            self._replace(nested, declare, f'{scope}{nested.label}/') if isinstance(nested, CompositeSystem) else nested
+            (
+                self._replace(nested, declare, f'{scope}{nested.label}/', space)
+                if isinstance(nested, CompositeSystem)
+                else nested
+            )
             for nested in system.systems
         ]
         replaced = CompositeSystem(
@@ -551,8 +559,8 @@ class _StateInference:
         if not self._has_plain(system):
             return system
 
-        def probe(element: Element, path: str) -> list[BaseElement]:
-            return self._get_declared_elements(element, lambda name: 1, lambda name: 0, probing=True)
+        def probe(element: Element, path: str, space: BaseSpace | None) -> list[BaseElement]:
+            return self._get_declared_elements(element, lambda name: 1, lambda name: 0, probing=True, space=space)
 
         compilation = self.census(self._replace(system, probe))
         orders, lags = self._get_orders(compilation)
@@ -563,7 +571,7 @@ class _StateInference:
         agents = self._get_agent_groups(compilation)
         steps = self._get_steps(compilation)
 
-        def declare(element: Element, path: str) -> list[BaseElement]:
+        def declare(element: Element, path: str, space: BaseSpace | None) -> list[BaseElement]:
             return self._get_declared_elements(
                 element,
                 (lambda name: 1) if path in agents else (lambda name: orders.get(f'{path}.{name}')),
@@ -577,6 +585,7 @@ class _StateInference:
                     for name, moved in steps.items()
                     if name.startswith(f'{path}.') and moved.startswith(f'{path}.')
                 },
+                space=space,
             )
 
         return self._replace(system, declare)
@@ -806,6 +815,7 @@ class _StateInference:
         sizes: frozenset[int] = frozenset(),
         links: frozenset[int] = frozenset(),
         steps: Mapping[str, str] | None = None,
+        space: BaseSpace | None = None,
     ) -> list[BaseElement]:
         """Return the declared element of a plain element, or a group of declared members.
 
@@ -828,7 +838,7 @@ class _StateInference:
         on = next((part for part in LINKS if element.on == part), None)
         network = bool(kinds) and isinstance(element.space, NetworkSpace) and on is None
         growing = network and bool(kinds & MEMBERSHIP)
-        axes = self._get_axes(element, agents)
+        axes = self._get_axes(element, agents, space)
         velocities = {name for name, moved in (steps or {}).items() if moved in axes}
         variables = {}
         arrays = {}

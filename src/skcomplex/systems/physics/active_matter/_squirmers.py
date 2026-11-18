@@ -22,7 +22,7 @@ from ....core.components.elements import Element
 from ....core.components.spaces import BaseSpace, ContinuousSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, RoleSpec, VisualSpec
+from ....core.specs import ParameterSpec, Role, VisualSpec
 from ....core.systems import BaseSystem, System
 from ..common.particles import StokesianMobilityInteraction
 
@@ -118,12 +118,12 @@ class SquirmerSlipInteraction(StokesianMobilityInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        B1: Annotated[float, ParameterSpec()] = 1.0,
-        B2: Annotated[float, ParameterSpec()] = 0.0,
-        epsilon: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        radius: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        viscosity: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        target: Role,
+        B1: float = 1.0,
+        B2: float = 0.0,
+        epsilon: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        radius: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        viscosity: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
         super().__init__(
             label,

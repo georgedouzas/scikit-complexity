@@ -260,8 +260,6 @@ class StateFeedbackInteraction(Interaction):
         (1.0, 1.7)
     """
 
-    law_classes = (UpdateLaw,)
-
     def __init__(
         self,
         label: str,
