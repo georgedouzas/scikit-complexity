@@ -17,7 +17,7 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
-from ....core.components.interactions import Interaction, MapInteraction
+from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import transfer
 from ....core.components.spaces import BaseSpace, LatticeSpace
@@ -514,6 +514,11 @@ class RidesharingSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
+    def _wait(agent: AgentView, system: SystemView) -> None:
+        """Count one more step of waiting of a rider."""
+        agent.waited += 1.0
+
+    @staticmethod
     def _get_nearness(rider: object, cab: object) -> float:
         """Return the preference of a rider for a cab, higher for a cab fewer blocks away."""
         if not isinstance(rider, RiderView) or not isinstance(cab, CabView):
@@ -581,14 +586,10 @@ class RidesharingSystem(BaseSystem):
                     width=self.width,
                     height=self.height,
                 ),
-                MapInteraction(
+                Interaction(
                     'waiting',
-                    target='riders',
-                    state='waited',
-                    function=lambda agent, system: 1.0,
-                    mode='increment',
-                    form='agent',
-                    phase='drive',
+                    roles={'target': 'riders'},
+                    laws=lambda s: [UpdateLaw(s.target, self._wait, phase='drive')],
                 ),
                 MatchingInteraction(
                     'dispatch',
