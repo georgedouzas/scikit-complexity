@@ -71,6 +71,7 @@ from ._hyperedges import HYPEREDGE_LAWS, HyperedgeTables
 from ._kernels import KernelsPass
 from ._layout import LayoutPass
 from ._noise import NoisePass
+from ._rows import RowsPass
 from ._specs import SpecsPass
 
 EDGE_REQUESTS = ('remove-edge', 'rewire')
@@ -203,12 +204,19 @@ class CensusPass(BasePass):
         declarations: DeclarationsSpec,
         agents: set[str],
     ) -> list[_CensusRecordSpec]:
-        """Return the census records of the laws of one component."""
+        """Return the census records of the laws of one component.
+
+        A linear program has as many members as the rows its laws settle, such as the members of two groups it reads
+        row by row.
+        """
         records = []
         specs, _ = SpecsPass._get_specs_of(block, elements, declarations, observer)
         for spec in specs:
             component = CensusPass._get_component_of(block.node)
-            for law in CensusPass._get_declared_laws(spec, component):
+            laws = CensusPass._get_declared_laws(spec, component)
+            programs = any(isinstance(law, LinearProgramLaw) for law in laws)
+            rows = RowsPass._get_settled(spec, list(laws)).rows if programs else spec.rows
+            for law in laws:
                 items = [item for target in law._get_targets() for item in ProblemSpec._get_real_components_of(target)]
                 references = [spec.references.get(item) for item in items if isinstance(item, Expression)]
                 targets = tuple(dict.fromkeys(item.entry for item in references if item is not None))
@@ -226,7 +234,7 @@ class CensusPass(BasePass):
                         vectors,
                         kind,
                         SpecsPass._get_group_space(elements.get(owner, block)),
-                        members=spec.rows,
+                        members=rows if isinstance(law, LinearProgramLaw) else spec.rows,
                         handles=CensusPass._handle_uses(law, declarations.handles),
                         degrees=CensusPass._get_cell_degrees(spec, declarations),
                         processes=processes,

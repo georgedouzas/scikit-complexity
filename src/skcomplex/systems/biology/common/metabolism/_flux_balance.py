@@ -79,6 +79,13 @@ class FluxBalanceInteraction(Interaction):
         name:
             The name of the network, or `None` for none.
 
+        biomass:
+            The path of the biomass that `threshold` reads, or `None` for none.
+
+        threshold:
+            The biomass above which the program is solved, or `None` for always. The fluxes are zero elsewhere, as at
+            the empty boxes of a plate.
+
     Examples:
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.systems import System
@@ -101,6 +108,8 @@ class FluxBalanceInteraction(Interaction):
         parsimonious: bool = False,
         infeasible: str = 'raise',
         name: str | None = None,
+        biomass: Role | None = None,
+        threshold: float | None = None,
     ) -> None:
         super().__init__(label)
         self.cell = cell
@@ -109,6 +118,8 @@ class FluxBalanceInteraction(Interaction):
         self.parsimonious = parsimonious
         self.infeasible = infeasible
         self.name = name
+        self.biomass = biomass
+        self.threshold = threshold
 
     @staticmethod
     @functools.cache
@@ -227,12 +238,14 @@ class FluxBalanceInteraction(Interaction):
             bounds.append(ConstraintLaw(flux <= getattr(cell, f'upper_{identifier}') * gate))
         return bounds
 
-    def _get_objective(self, cell: SimpleNamespace) -> ObjectiveLaw:
+    def _get_objective(self, cell: SimpleNamespace, biomass: SimpleNamespace | None) -> ObjectiveLaw:
         """Return the objective of the network over its fluxes.
 
         It is the greatest weighted sum of `objective`, then the smallest total absolute flux for a parsimonious
-        network, or any point that the balances and bounds allow for a network without an objective.
+        network, or any point that the balances and bounds allow for a network without an objective. With a threshold,
+        it is sought only where the biomass lies above it.
         """
+        active = None if self.threshold is None or biomass is None else biomass.x > float(self.threshold)
         fluxes = [getattr(cell, self.get_flux_name(name)) for name in self.reactions]
         values = []
         if self.objective:
@@ -241,16 +254,16 @@ class FluxBalanceInteraction(Interaction):
             if self.parsimonious:
                 absolutes = [abs(flux) for flux in fluxes]
                 values.append(sum(absolutes[1:], absolutes[0]))
-        return ObjectiveLaw(values, fluxes, infeasible=self.infeasible)
+        return ObjectiveLaw(values, fluxes, active=active, infeasible=self.infeasible)
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Set the objective of the network with its balances and bounds.
 
         Args:
             context:
-                The namespace of the cell.
+                The namespace of the cell and the biomass.
         """
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             laws: list[BaseLaw] = [*self._get_balances(context.cell), *self._get_bounds(context.cell)]
-            self.laws_ = [*laws, self._get_objective(context.cell)]
+            self.laws_ = [*laws, self._get_objective(context.cell, None if self.biomass is None else context.biomass)]
