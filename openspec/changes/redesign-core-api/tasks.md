@@ -61,7 +61,8 @@ Each task rewrites the systems of its fields on the new API: elements as data wi
   - [x] 5.1.1 Mechanics, celestial mechanics, oscillators, climate, oceanography, seismology, cosmology, criticality, synchronization, and most of statistical, soft, and active matter on the new API, with identical results.
   - [x] 5.1.2 The spectral, finite-volume, and fixed-boundary field systems on fields discretized by their space.
   - [x] 5.1.3 The angle systems on `Period`: double pendulum, XY, the Kuramoto family, Vicsek, run and tumble, swarmalators, lattice gauge fields.
-  - [ ] 5.1.4 The particle forces and point elements with the velocity `x'`, and the last physics systems on the old base.
+  - [x] 5.1.4 The particle forces and point elements with the velocity `x'`, and the physics systems on the old base but two.
+  - [ ] 5.1.5 Nematics, with a traceless symmetric tensor, and TASEP, with transfers in discrete time.
 - [ ] 5.2 Wave 1: `chemistry`, `engineering`, and `general`.
   - [x] 5.2.1 Every chemistry and engineering ready-made system on the new base with `solver=` and `backend=`.
   - [x] 5.2.2 Companion states `x_d1` replaced by `x'`, and ports rewritten as interactions between node elements.
@@ -80,7 +81,7 @@ Each task rewrites the systems of its fields on the new API: elements as data wi
   - [ ] 5.5.2 The modules the first pass left, the agent modules, and the old parts of the families on the new base.
 - [ ] 5.6 Wave 2: `economics`.
   - [x] 5.6.1 All ready-made systems but oligopoly on the new base, with identical values.
-  - [ ] 5.6.2 Member links, agents on network nodes, and per-member constraints for labour, credit, commons, discovery, and oligopoly.
+  - [x] 5.6.2 Member links, agents on network nodes, and per-member constraints for labour, credit, commons, discovery, and oligopoly.
   - [ ] 5.6.3 The remaining old parts: groups, elements with laws, and old wrapper interactions.
 - [ ] 5.7 Wave 2: `social`.
   - [x] 5.7.1 Every social system on the new base with identical results, interactions setting `laws_`, and plain elements.
