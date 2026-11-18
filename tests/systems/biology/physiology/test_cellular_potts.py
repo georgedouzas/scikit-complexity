@@ -27,7 +27,9 @@ TARGET = 30.0
 
 def _series(lattice, until, **parameters):
     """Return the trajectory of a cellular Potts tissue on a lattice."""
-    return simulate(CellularPottsSystem(shape=SHAPE, lattice=lattice, **parameters), until=until, random_state=0)
+    return (
+        CellularPottsSystem(shape=SHAPE, lattice=lattice, **parameters).prepare().simulate(until=until, random_state=0)
+    )
 
 
 def _area(labels):
