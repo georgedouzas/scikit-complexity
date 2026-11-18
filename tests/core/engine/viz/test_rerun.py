@@ -307,7 +307,7 @@ def test_group_is_logged_as_one_batch(monkeypatch, tmp_path):
 
     monkeypatch.setattr(rr.RecordingStream, 'log', log)
     observer = RerunObserver('test', save_path=tmp_path / 'gas.rrd')
-    simulate(IdealGasSystem(10_000, random_state=0).prepare().system_, until=0.02, dt=0.01, observers=[observer])
+    IdealGasSystem(10_000, random_state=0).prepare().simulate(until=0.02, dt=0.01, observers=[observer])
     batches = [entry for entry in logged if entry[0] == 'gas']
     assert len(batches) == 3
     assert all(name == 'Points2D' and len(positions) == 10_000 for _, name, positions in batches)

@@ -230,7 +230,7 @@ def test_group_parameter_with_wrong_shape_raises_error():
 
 def test_reflecting_box_keeps_members_inside_ode_run():
     """Test that no member crosses a wall of a reflecting box in an ODE system."""
-    trajectory = simulate(IdealGasSystem(500, kT=4.0, random_state=1).prepare().system_, until=2, dt=0.01)
+    trajectory = IdealGasSystem(500, kT=4.0, random_state=1).prepare().simulate(until=2, dt=0.01)
     positions = trajectory.get_values('gas.x')
     assert np.all((positions >= 0) & (positions <= 1))
 

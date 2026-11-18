@@ -13,6 +13,7 @@ import rerun.blueprint as rrb
 
 from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec
 from ..problems._compiled_agents_spec import _CompiledAgentsSpec
+from ..problems._layout_spec import LayoutSpec
 from ._base import UPWARD, BaseVisual
 
 MAX_POINT_DIMENSIONS = 3
@@ -209,7 +210,8 @@ class PointsVisual(BaseVisual):
 
     @staticmethod
     def _get_path(element: CompiledElementSpec, name: str) -> str:
-        """Return the dotted name of a state or a parameter, such as a fixed position."""
+        """Return the dotted name of a state or a parameter, such as a fixed position or the velocity `x'`."""
+        name = LayoutSpec._get_internal_name(name)
         return element.states.get(name) or element.parameters[name]
 
     def _read_points(self, element: CompiledElementSpec, frame: FrameSpec) -> npt.NDArray[np.float64]:

@@ -1285,7 +1285,7 @@ def test_compiler_keeps_oscillator_equations():
     x, v = problem.state_symbols
     k = problem.symbols['trap.k']
     m = problem.symbols['p.m']
-    (center,) = problem.symbols['trap.center']
+    center = problem.symbols['trap.center']
     assert problem.equations['p.x[0]'] == v
     assert (problem.equations['p.x_d1[0]'] + k * (x - center) / m).simplify_full() == 0
 

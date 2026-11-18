@@ -145,7 +145,7 @@ def test_solve_symbolically_constant_acceleration():
         space=ContinuousSpace(n_dim=1),
     )
     problem = PassCompiler().prepare(system).run().problem_
-    (F,) = problem.symbols['push.F']
+    F = problem.symbols['push.F']
     m = problem.symbols['p.m']
     solution = symbolic(system, kind='solve', use_initial_state=True).solutions['p.x[0]']
     assert (solution.rhs() - F * problem.time**2 / (2 * m)).simplify_full() == 0
@@ -160,7 +160,7 @@ def test_solve_symbolically_harmonic_oscillator():
     )
     problem = PassCompiler().prepare(system).run().problem_
     k, m, t = problem.symbols['trap.k'], problem.symbols['p.m'], problem.time
-    (center,) = problem.symbols['trap.center']
+    center = problem.symbols['trap.center']
     solution = symbolic(system, kind='solve', use_initial_state=True).solutions['p.x[0]'].rhs().subs({center: 0})
     expected = cos(sqrt(k / m) * t)
     values = {k: 2.0, m: 0.5}

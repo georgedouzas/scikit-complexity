@@ -9,7 +9,8 @@ import numpy as np
 import numpy.typing as npt
 import pytest
 import qutip
-from sage.all__sagemath_symbolics import CC, pi
+from sage.all__sagemath_symbolics import CC, oo, pi
+from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction, WienerProcessSpec
@@ -68,7 +69,7 @@ class BodyElement(Element):
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, order=2, role='position')] = 0.0,
         x_d1: npt.ArrayLike = 0.0,
         *,
-        m: Annotated[float, ParameterSpec()] = 1.0,
+        m: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
         super().__init__(label)
         self.x = x
