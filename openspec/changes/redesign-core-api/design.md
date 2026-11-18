@@ -275,6 +275,12 @@ Two kinds of model need forms that the table above does not name yet.
   `TrainingInteraction(..., trained=['net__recurrent__W'])`, and the learning compiler makes exactly those paths
   adaptive when it compiles the inner system. No marker goes on the value.
 
+- Newborn agents. A member that a rule creates takes, for every value the rule does not give, the default of that
+  argument of its element class. A plain `Element(values=...)` has no class default, so its rule gives every value its
+  group holds per member, or creation raises an error naming the missing ones.
+- A field or group bound to rules keeps as states only the values the rules change, found by running the rule once as
+  for agents. Its other values stay parameters, as for every other element.
+
 A field law first becomes a recipe of the seven kinds and the core reductions where it can, such as Bak-Sneppen as an
 `UpdateLaw` on the site where `argmin` falls, so it needs no engine code. A law that truly needs numerics of its own,
 such as the Lindblad equation, finite volumes, Cayley graphs, or rewriting, moves with that support: the field package
