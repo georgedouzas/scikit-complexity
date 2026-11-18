@@ -95,7 +95,7 @@ def test_discovery_leaves_out_analyses_whose_tags_the_system_lacks():
 
 def test_discovery_lists_only_core_analyses():
     """Test that a quantum spin chain lists only public analyses of the core."""
-    discovery = applicable_analyses(simulate(QuantumHeisenbergSystem(n_sites=4), until=1.0, dt=0.1))
+    discovery = applicable_analyses(QuantumHeisenbergSystem(n_sites=4).prepare().simulate(until=1.0, dt=0.1))
     functions = [item.func for analyses in discovery.analyses.values() for item in analyses]
     assert functions
     assert all(

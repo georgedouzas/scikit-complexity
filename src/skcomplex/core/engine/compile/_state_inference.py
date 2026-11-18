@@ -32,7 +32,7 @@ from ...components.spaces import CellComplexSpace, ContinuousSpace, LatticeSpace
 from ...components.systems import CompositeSystem
 from ...enums import TopologyKind, VariableKind
 from ...errors import ValidationError
-from ...specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ...specs import DeclaredVariableSpec, MatrixGroupSpec, ParameterSpec, StateSpec, VisualSpec
 from .._utils import bound_labels, declarations_of
 from ..problems._bilinear_law import BilinearLaw
 from ._compilation import Compilation
@@ -202,7 +202,7 @@ class _StateInference:
             for item in get_args(annotation)[1:]:
                 if isinstance(item, set | frozenset):
                     return FiniteEnumeratedSet(sorted(item, key=str))
-                if hasattr(item, '__contains__') and not isinstance(item, str):
+                if hasattr(item, '__contains__') and not isinstance(item, str | MatrixGroupSpec):
                     return item
             annotation = get_args(annotation)[0]
         annotated = isinstance(annotation, type) and annotation not in {inspect.Parameter.empty, object}
@@ -225,6 +225,18 @@ class _StateInference:
             if isinstance(item, Quantity):
                 item._check()
                 return item.name
+        return None
+
+    @staticmethod
+    def _get_group(annotation: object) -> MatrixGroupSpec | None:
+        """Return the matrix group in the `Annotated` of a value, or `None`.
+
+        A value annotated as `Annotated[object, MatrixGroupSpec('SU', 3)]` holds the real components of a matrix of
+        that group, such as the link of a lattice gauge field.
+        """
+        for item in get_args(annotation)[1:] if get_origin(annotation) is Annotated else ():
+            if isinstance(item, MatrixGroupSpec):
+                return item
         return None
 
     @staticmethod
@@ -266,6 +278,7 @@ class _StateInference:
         domain = self._get_domain(annotation, value)
         quantity = self._get_quantity(annotation)
         period = self._get_period(annotation)
+        group = self._get_group(annotation)
         if period is not None and role is None:
             role = 'direction' if moving else 'phase'
         vector, n_dim, tensor = element._get_shape_of(value)
@@ -293,6 +306,8 @@ class _StateInference:
                 quantity=quantity,
             )
             return DeclaredVariableSpec(value, spec)
+        if group is not None:
+            return DeclaredVariableSpec(value, StateSpec(group=group, role=role, quantity=quantity))
         missing = value if lags else 0.0
         initial = tuple(starting.get(index, missing) for index in range(1, count + 1)) if starting else ()
         steps = 1 if lags else order
