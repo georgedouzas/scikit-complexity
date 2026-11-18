@@ -3,7 +3,7 @@
 They cover spiking and conductance-based neurons, populations, networks, excitable networks, and synapses.
 """
 
-from ..common.excitable import SpikeResetInteraction, ThetaNeuronElement
+from ..common.excitable import SpikeResetInteraction, ThetaNeuronElement, ThetaNeuronInteraction
 from ._associative import (
     AssociativeSiteElement,
     AssociativeThoughtProcessSystem,
@@ -48,7 +48,9 @@ from ._plastic_networks import (
     AxonElement,
     DelayAdaptationInteraction,
     PhaseUnitElement,
+    RotationInteraction,
     SpikeTimingPlasticityInteraction,
+    SpikeTraceInteraction,
     STDPNetworkSystem,
     SynapseElement,
     TracedThetaNeuronElement,
@@ -104,15 +106,18 @@ __all__: list[str] = [
     'PulseCouplingInteraction',
     'RateUnitElement',
     'ReservoirInteraction',
+    'RotationInteraction',
     'STDPNetworkSystem',
     'SpikeResetInteraction',
     'SpikeTimingPlasticityInteraction',
+    'SpikeTraceInteraction',
     'SpikingNeuronElement',
     'SynapseElement',
     'SynapticDriveInteraction',
     'TermanWangElement',
     'ThetaForcingInteraction',
     'ThetaNeuronElement',
+    'ThetaNeuronInteraction',
     'ThetaNeuronsSystem',
     'TracedThetaNeuronElement',
     'WilsonCowanElement',
