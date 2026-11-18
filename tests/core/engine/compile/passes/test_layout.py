@@ -10,6 +10,7 @@ from sage.sets.real_set import RealSet
 from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.components.laws.utils import total
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
@@ -119,3 +120,29 @@ def test_a_square_matrix_of_an_interaction_is_laid_out_as_its_entries():
     spread = SpreadInteraction('spread', weights=[[0.0, 1.0], [1.0, 0.0]])
     trajectory = System(elements=[nodes], interactions=[spread]).prepare().simulate(until=1, random_state=0)
     assert trajectory.get_agents('nodes', 1).values['x'].tolist() == [2.0, 1.0]
+
+
+class Coupling(Interaction):
+    """Coupling `x_i <- sum_j a_ij x_j` of the members of a group through a matrix."""
+
+    def __init__(self, label: str, *, target: Role = 'nodes', a: object = 1.0) -> None:
+        super().__init__(label)
+        self.target = target
+        self.a = a
+
+    def _prepare(self, context):
+        """Set the coupled update of every member."""
+        super()._prepare(context)
+        x = context.target.x
+        self.laws_ = [UpdateLaw(x, total(x, weights=context.a))]
+
+
+@pytest.mark.parametrize('size', [3, 4])
+def test_matrix_argument_shaped_by_the_members_of_a_group_is_a_matrix_parameter(size):
+    """Test that an array argument of one row and one column per member couples the members, also for three."""
+    matrix = np.arange(size * size, dtype=float).reshape(size, size) / 10
+    nodes = Element('nodes', values={'x': np.arange(1.0, size + 1)}, size=size)
+    system = System(elements=[nodes], interactions=[Coupling('coupling', a=matrix)]).prepare()
+    trajectory = system.simulate(until=1)
+    np.testing.assert_allclose(trajectory.get_values('nodes.x')[-1], matrix @ np.arange(1.0, size + 1))
+    np.testing.assert_allclose(trajectory.get_values('coupling.a')[-1], matrix)
