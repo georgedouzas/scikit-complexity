@@ -144,8 +144,9 @@ class _StateInference:
     def _get_histories(element: Element, delays: Collection[str]) -> dict[str, tuple[str, object]]:
         """Return the history of every value the laws read with a delay.
 
-        The history is its value before the start. The value before the start is the past value with the index `-1`, such as `values={'I': 0.01, 'I[-1]': 0.0}`
-        for a number of infected people that was zero before an outbreak, a number or a function of time. Each comes
+        The history is the value before the start, given as the past value with the index `-1`, such as
+        `values={'I': 0.01, 'I[-1]': 0.0}` for a number of infected people that was zero before an outbreak, a number or
+        a function of time. Each comes
         with the name it is given under.
         """
         histories = {}
@@ -159,9 +160,9 @@ class _StateInference:
     def _get_rule_derivatives(element: Element) -> dict[str, tuple[str, str, object]]:
         """Return the starting derivatives of the values of agents, by engine name.
 
-        The engine name of `"x'"` is `x_d1`. Rules change such a derivative as a value of its own, such as the velocity `"x'"` of a boid that its steering
-        turns and its flight adds to `x`, and read it as `agent.x_d1`. Each comes with the name it is given under and
-        the value it derives.
+        The engine name of `"x'"` is `x_d1`. Rules change such a derivative as a value of its own, such as the
+        velocity `"x'"` of a boid that its steering turns and its flight adds to `x`, and read it as `agent.x_d1`. Each
+        comes with the name it is given under and the value it derives.
         """
         derivatives = {}
         for name, value in (element.values or {}).items():
@@ -192,8 +193,9 @@ class _StateInference:
     def _get_link(element: Element) -> tuple[str, str | None] | None:
         """Return the part of a network an element sits on and its layer.
 
-        It is `None` for the sites. An element on the edges of a layer, such as `Element('immune_links', values={...}, space=network,
-        on='immune')`, sits on the edges of that layer, and `on='edges'` on those of the graph of the network.
+        It is `None` for the sites. An element on the edges of a layer, such as
+        `Element('immune_links', values={...}, space=network, on='immune')`, sits on the edges of that layer, and
+        `on='edges'` on those of the graph of the network.
         """
         if element.on in LINKS:
             return str(element.on), None
@@ -630,7 +632,8 @@ class _StateInference:
                 orders[name] = _StateInference._get_order(name, 1, orders.get(name))
             for name, steps in _StateInference._get_lags(law, named).items():
                 lags[name] = max(steps, lags.get(name, 0))
-            order = (law.order or 1) if isinstance(law, RateLaw | NoiseLaw) else 0 if isinstance(law, LinearProgramLaw) else 1
+            order = (law.order or 1) if isinstance(law, RateLaw | NoiseLaw) else 1
+            order = 0 if isinstance(law, LinearProgramLaw) else order
             names = [entry.name for entry in record.targets]
             if isinstance(law, ConstraintLaw) and law.target is not None and str(law.target) in named:
                 names.append(named[str(law.target)])
@@ -988,7 +991,7 @@ class _StateInference:
             )
             annotation = element._get_hints().get(name, inspect.Parameter.empty)
             tensor = None if self._get_symmetry(annotation) else element._get_shape_of(member)[2]
-            if np.ndim(np.asarray(value, dtype=object)) > 0:
+            if count is not None and np.ndim(np.asarray(value, dtype=object)) > 0:
                 variables[name] = self._get_new_member_default(element, name, variables[name], member)
                 arrays[name] = element._get_matrix_entries(value, tensor)
                 arrays |= self._get_past_arrays(name, arrays[name], 0 if count is None or probing else lags(name))

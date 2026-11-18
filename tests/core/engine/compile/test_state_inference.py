@@ -1517,3 +1517,18 @@ def test_an_element_on_the_edges_of_a_layer_holds_one_member_per_edge_of_that_la
     last = system.simulate(until=0.1).get_values('cells.x')[-1]
     exact = expm(np.array([[0.0, 0.0, 3.0], [0.0, 0.0, 0.0], [2.0, 0.0, 0.0]]) * 0.1) @ [1.0, 0.0, 0.0]
     np.testing.assert_allclose(last, exact, rtol=1e-6)
+
+
+class _ProbeElement(Element):
+    """Element whose position is a vector with a default of its class."""
+
+    def __init__(self, label, x=(0.0, 0.0), values=None, size=None, space=None):
+        super().__init__(label, values=values, size=size, space=space)
+        self.x = x
+
+
+def test_a_single_element_keeps_its_vector_value_over_the_default_of_its_class():
+    """Test that one element with a vector value starts at that value, not at the default of its class."""
+    drift = Interaction('drift', roles={'target': 'probe'}, laws=lambda s: [RateLaw(s.target.x.diff(s.t), [1.0, 1.0])])
+    system = System(elements=[_ProbeElement('probe', x=[3.0, 4.0])], interactions=[drift], solver=RK4Solver(dt=0.5))
+    assert system.prepare().simulate(until=1.0).get_values('probe.x')[0].tolist() == [3.0, 4.0]
