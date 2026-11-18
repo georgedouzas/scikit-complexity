@@ -16,14 +16,16 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import BaseInteraction, TransferInteraction
 from ....core.components.laws import BaseLaw, PartnerSpec, RuleLaw
-from ....core.components.spaces import ContinuousSpace, DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
-from ....core.engine.solvers import AgentView, SystemView
+from ....core.components.spaces import ContinuousSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.compile import PhaseSpec
+from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ...general.agents import MovementInteraction
 
@@ -152,7 +154,7 @@ class EaterElement(Element):
         >>> group = GroupElement(
         ...     'people', element=EaterElement, size=5, values={'home': [1.0, 2.0], 'work': [3.0, 4.0]}
         ... )
-        >>> group.label, type(group).__name__, group.size
+        >>> group.label, group.element.__name__, group.size
         ('people', 'EaterElement', 5)
     """
 
@@ -350,7 +352,7 @@ class RestaurantElement(Element):
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.organizations import RestaurantElement
         >>> group = GroupElement('restaurants', element=RestaurantElement, size=3, values={'kind': 2.0})
-        >>> group.label, type(group).__name__, group.size
+        >>> group.label, group.element.__name__, group.size
         ('restaurants', 'RestaurantElement', 3)
     """
 
@@ -406,6 +408,12 @@ class ObesitySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.organizations import ObesitySystem
         >>> [group.size for group in ObesitySystem(10, n_places=4, random_state=0).prepare().system_.elements]
@@ -427,8 +435,10 @@ class ObesitySystem(BaseSystem):
         activity: float = 1.55,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_people = n_people
         self.n_places = n_places
         self.size = size
@@ -436,8 +446,9 @@ class ObesitySystem(BaseSystem):
         self.activity = activity
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         homes, works = rng.uniform(0, self.size, (2, self.n_places, 2))
         home, work = (
@@ -494,10 +505,10 @@ class ObesitySystem(BaseSystem):
                 ),
             ]
         phases = (PhaseSpec('home'), PhaseSpec('work'), PhaseSpec('evening'), PhaseSpec('week', period=DAYS_PER_WEEK))
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[people, restaurants],
             interactions=interactions,
             space=ContinuousSpace(extent=(self.size, self.size)),
-            time=DiscreteTime(schedule=PhasesScheduleSpec(phases)),
+            solver=MesaSolver(phases=phases),
         )

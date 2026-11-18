@@ -17,7 +17,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import fit_law
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.organizations import PriorityQueuesSystem
 
@@ -25,7 +24,7 @@ SYSTEM = 'priority_queues'
 
 system = PriorityQueuesSystem(greed=0.999, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=400)
-trajectory = simulate(system, until=100_000, dt=1, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=100_000, dt=1, observers=[observer], random_state=0)
 
 # %%
 # Distribution of waiting times

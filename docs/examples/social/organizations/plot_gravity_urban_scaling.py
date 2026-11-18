@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import scaling
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.experiments import sweep
 from skcomplex.systems.social.organizations import GravityUrbanScalingSystem
@@ -23,8 +22,8 @@ SYSTEM = 'gravity_urban_scaling'
 
 system = GravityUrbanScalingSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-observables = system.get_run_settings()['observables']
-trajectory = simulate(system, until=1.0, observables=observables, observers=[observer])
+observables = system.observables
+trajectory = system.prepare().simulate(until=1.0, observers=[observer])
 
 # %%
 # Total interaction against the population

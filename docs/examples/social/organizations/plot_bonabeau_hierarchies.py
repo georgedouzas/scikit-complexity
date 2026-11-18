@@ -14,7 +14,6 @@ subordinate, while sparse agents stay alike.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.organizations import BonabeauHierarchiesSystem
 
@@ -22,7 +21,7 @@ SYSTEM = 'bonabeau_hierarchies'
 
 system = BonabeauHierarchiesSystem(density=0.5, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, until=100, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=100, observers=[observer], random_state=0)
 
 # %%
 # Spread of strengths against density
@@ -36,7 +35,7 @@ densities = np.linspace(0.1, 0.8, 8)
 spread_runs = []
 for density in densities:
     runs = [
-        simulate(BonabeauHierarchiesSystem(density=density, random_state=seed), until=100, random_state=seed)
+        BonabeauHierarchiesSystem(density=density, random_state=seed).prepare().simulate(until=100, random_state=seed)
         for seed in range(3)
     ]
     finals = [run.get_agents('contenders', len(run.times) - 1).values['strength'] for run in runs]

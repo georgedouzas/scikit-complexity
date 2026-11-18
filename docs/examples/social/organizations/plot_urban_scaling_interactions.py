@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import scaling
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.experiments import sweep
 from skcomplex.systems.social.organizations import UrbanScalingInteractionsSystem
@@ -24,8 +23,8 @@ SYSTEM = 'urban_scaling_interactions'
 
 system = UrbanScalingInteractionsSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-observables = system.get_run_settings()['observables']
-trajectory = simulate(system, observables=observables, observers=[observer], random_state=0)
+observables = system.observables
+trajectory = system.prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Meetings against the population

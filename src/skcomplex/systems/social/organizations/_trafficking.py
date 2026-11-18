@@ -6,6 +6,7 @@ The traces are left by their movements.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -14,16 +15,18 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction, MapInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.spaces import LatticeSpace
 from ....core.components.types import SystemViewProtocol
-from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
-from ....core.engine.solvers import AgentView, SystemView
+from ....core.engine.backends import BaseBackend
+from ....core.engine.compile import PhaseSpec
+from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
 from ....core.errors import SpaceError
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 
 MONTH = 30
 QUARTER = 90
@@ -76,7 +79,7 @@ class PremisesElement(Element):
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.organizations import PremisesElement
         >>> group = GroupElement('premises', element=PremisesElement, size=3, values={'brothel': 1.0})
-        >>> group.label, type(group).__name__, group.size
+        >>> group.label, group.element.__name__, group.size
         ('premises', 'PremisesElement', 3)
     """
 
@@ -137,7 +140,7 @@ class TravellerElement(Element):
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.organizations import TravellerElement
         >>> group = GroupElement('women', element=TravellerElement, size=4, values={'victim': 1.0})
-        >>> group.label, type(group).__name__, group.size
+        >>> group.label, group.element.__name__, group.size
         ('women', 'TravellerElement', 4)
     """
 
@@ -328,6 +331,12 @@ class TraffickingSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.organizations import TraffickingSystem
         >>> system = TraffickingSystem(n_houses=5, n_brothels=2, n_victims=4, n_free=3).prepare().system_
@@ -352,8 +361,10 @@ class TraffickingSystem(BaseSystem):
         n_free: int = 30,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.width = width
         self.height = height
         self.n_cities = n_cities
@@ -387,8 +398,9 @@ class TraffickingSystem(BaseSystem):
         """Return the bills at the start of a quarter."""
         return 0.0
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         n_places = self.n_houses + self.n_brothels
         cells = rng.permutation(self.width * self.height)[:n_places]
@@ -462,10 +474,10 @@ class TraffickingSystem(BaseSystem):
             PhaseSpec(BILLING, activation='sequential'),
             PhaseSpec(QUARTERLY, activation='sequential', period=QUARTER),
         ]
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[premises, women],
             interactions=[day, *bills],
             space=LatticeSpace((self.width, self.height), boundary='fixed'),
-            time=DiscreteTime(schedule=PhasesScheduleSpec(phases)),
+            solver=MesaSolver(phases=phases),
         )

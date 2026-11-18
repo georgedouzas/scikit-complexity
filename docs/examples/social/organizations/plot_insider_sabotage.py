@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import distribution
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.organizations import InsiderSabotageSystem
 
@@ -23,7 +22,7 @@ SYSTEM = 'insider_sabotage'
 
 system = InsiderSabotageSystem(random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(system, dt=1, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(dt=1, observers=[observer], random_state=0)
 
 # %%
 # Risk builds up over the year

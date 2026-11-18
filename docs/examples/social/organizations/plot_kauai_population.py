@@ -14,7 +14,6 @@ the chapter are left out.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.organizations import KauaiPopulationSystem
 
@@ -22,7 +21,7 @@ SYSTEM = 'kauai_population'
 
 system = KauaiPopulationSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(system, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Where the residents stand

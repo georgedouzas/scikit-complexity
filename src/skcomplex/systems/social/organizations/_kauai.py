@@ -24,11 +24,12 @@ from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.engine.solvers import AgentView
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ...general.agents import MovementInteraction
 
@@ -481,6 +482,12 @@ class KauaiPopulationSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The populations do not name one number per census region.
@@ -511,8 +518,10 @@ class KauaiPopulationSystem(BaseSystem):
         partners: int = 15,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.populations = populations
         self.layers = layers
         self.n_topics = n_topics
@@ -537,8 +546,9 @@ class KauaiPopulationSystem(BaseSystem):
             weights[weighted, topic] = rng.uniform(MIN_WEIGHT, 1.0, n_weighted)
         return weights
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         regions = load_island_layers() if self.layers is None else self.layers
         counts = load_island_populations() if self.populations is None else self.populations
         if len(counts) != len(regions['census']):
@@ -579,4 +589,4 @@ class KauaiPopulationSystem(BaseSystem):
             SentimentInteraction('sentiment', target='residents', events=self.events),
         ]
         space = ContinuousSpace(extent=(float(bounds[2]), float(bounds[3])), regions=regions)
-        return CompositeSystem(self.label, elements=[residents], interactions=interactions, space=space)
+        self.system_ = System(self.label, elements=[residents], interactions=interactions, space=space)

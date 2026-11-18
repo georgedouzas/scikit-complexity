@@ -8,20 +8,23 @@ They follow exploration and preferential return, or move between nested containe
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
+from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver, SystemView
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
 
@@ -55,6 +58,9 @@ class ExplorerElement(Element):
         level:
             The level-distance of the last displacement in a hierarchy of containers, 0 without one.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.social.organizations import ExplorerElement
         >>> ExplorerElement('individual').distinct
@@ -65,12 +71,13 @@ class ExplorerElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec()] = 0.0,
-        y: Annotated[float, StateSpec()] = 0.0,
-        distinct: Annotated[float, StateSpec(domain=NN)] = 1.0,
-        level: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        x: object = 0.0,
+        y: object = 0.0,
+        distinct: Annotated[object, NN] = 1.0,
+        level: Annotated[object, NN] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.x = x
         self.y = y
         self.distinct = distinct
@@ -117,17 +124,17 @@ class ExplorationInteraction(Interaction):
 
     draws = True
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        rho: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.6,
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.21,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.open(1, oo))] = 1.55,
-        least_jump: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        target: Role,
+        rho: Annotated[float, RealSet.closed(0, 1)] = 0.6,
+        gamma: Annotated[float, RealSet.closed_open(0, oo)] = 0.21,
+        beta: Annotated[float, RealSet.open(1, oo)] = 1.55,
+        least_jump: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -136,18 +143,11 @@ class ExplorationInteraction(Interaction):
         self.beta = beta
         self.least_jump = least_jump
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the displacement rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.move)]
+    def _prepare(self, s: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the displacement rule."""
+        super()._prepare(s)
+        if isinstance(s, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(s, self.move)]
 
     def move(self, system: SystemView) -> None:
         """Displace every individual once, to a new location or back to a visited one.
@@ -158,7 +158,7 @@ class ExplorationInteraction(Interaction):
         """
         rng = system.rng
         memory = system.storage
-        for individual in system.get_agents(self.target, ExplorerView):
+        for individual in cast(list[ExplorerView], system.get_agents(self.target)):
             places = memory.setdefault(f'places {individual.id}', [(individual.x, individual.y)])
             visits = memory.setdefault(f'visits {individual.id}', [1.0])
             if not isinstance(places, list) or not isinstance(visits, list):
@@ -221,17 +221,17 @@ class ContainerMobilityInteraction(Interaction):
 
     draws = True
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        levels: Annotated[int, ParameterSpec(domain=NN)] = 3,
-        side: Annotated[int, ParameterSpec(domain=NN)] = 4,
+        target: Role,
+        levels: Annotated[int, NN] = 3,
+        side: Annotated[int, NN] = 4,
         travel: Sequence[float] = (0.6, 0.3, 0.1),
-        exponent: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.5,
+        exponent: Annotated[float, RealSet.open(0, oo)] = 1.5,
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -240,34 +240,23 @@ class ContainerMobilityInteraction(Interaction):
         self.travel = travel
         self.exponent = exponent
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Raise an error for probabilities of travel that do not match the levels.
+    def _prepare(self, s: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the displacement rule.
 
         Args:
-            context:
-                The space the interaction inherits from its system.
+            s:
+                The space the interaction inherits from its system, or the namespace of the symbols the laws can use.
 
         Raises:
             ValidationError:
                 The probabilities of travel do not match the levels.
         """
-        super()._prepare(context)
+        super()._prepare(s)
         if len(self.travel) != self.levels or not np.isclose(sum(self.travel), 1.0):
             error_msg = f'Give {self.levels} probabilities of travel that sum to 1, not {tuple(self.travel)}.'
             raise ValidationError(error_msg)
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the displacement rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.move)]
+        if isinstance(s, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(s, self.move)]
 
     def _get_attractiveness(self, rng: np.random.Generator) -> list[Array]:
         """Return the attractiveness of every container of every level.
@@ -319,7 +308,7 @@ class ContainerMobilityInteraction(Interaction):
         memory = system.storage
         children, levels = int(self.side) ** 2, int(self.levels)
         travel = np.asarray(self.travel, dtype=float)
-        for individual in system.get_agents(self.target, ExplorerView):
+        for individual in cast(list[ExplorerView], system.get_agents(self.target)):
             if f'location {individual.id}' not in memory:
                 memory[f'attractiveness {individual.id}'] = self._get_attractiveness(rng)
                 memory[f'location {individual.id}'], memory[f'visited {individual.id}'] = 0, {0}
@@ -376,9 +365,15 @@ class ExplorationPreferentialReturnSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.organizations import ExplorationPreferentialReturnSystem
-        >>> ExplorationPreferentialReturnSystem(3).prepare().system_.elements[0].prepare().size_
+        >>> ExplorationPreferentialReturnSystem(3).prepare().system_.elements[0].size
         3
     """
 
@@ -396,17 +391,20 @@ class ExplorationPreferentialReturnSystem(BaseSystem):
         beta: float = 1.55,
         least_jump: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_individuals = n_individuals
         self.rho = rho
         self.gamma = gamma
         self.beta = beta
         self.least_jump = least_jump
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
-        individuals = GroupElement('individuals', element=ExplorerElement, size=self.n_individuals)
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
+        individuals = ExplorerElement('individuals', size=self.n_individuals)
         displacement = ExplorationInteraction(
             'displacement',
             target='individuals',
@@ -415,7 +413,7 @@ class ExplorationPreferentialReturnSystem(BaseSystem):
             beta=self.beta,
             least_jump=self.least_jump,
         )
-        return CompositeSystem(self.label, elements=[individuals], interactions=[displacement])
+        self.system_ = System(self.label, elements=[individuals], interactions=[displacement])
 
 
 class ContainerMobilitySystem(BaseSystem):
@@ -451,9 +449,15 @@ class ContainerMobilitySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.organizations import ContainerMobilitySystem
-        >>> ContainerMobilitySystem(3).prepare().system_.elements[0].prepare().size_
+        >>> ContainerMobilitySystem(3).prepare().system_.elements[0].size
         3
     """
 
@@ -471,17 +475,20 @@ class ContainerMobilitySystem(BaseSystem):
         travel: Sequence[float] = (0.6, 0.3, 0.1),
         exponent: float = 1.5,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_individuals = n_individuals
         self.levels = levels
         self.side = side
         self.travel = travel
         self.exponent = exponent
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
-        individuals = GroupElement('individuals', element=ExplorerElement, size=self.n_individuals)
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
+        individuals = ExplorerElement('individuals', size=self.n_individuals)
         displacement = ContainerMobilityInteraction(
             'displacement',
             target='individuals',
@@ -490,4 +497,4 @@ class ContainerMobilitySystem(BaseSystem):
             travel=self.travel,
             exponent=self.exponent,
         )
-        return CompositeSystem(self.label, elements=[individuals], interactions=[displacement])
+        self.system_ = System(self.label, elements=[individuals], interactions=[displacement])
