@@ -6,6 +6,7 @@ The dosing balances tumour burden against drug cost.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -15,9 +16,10 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import PontryaginSolver
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, PontryaginSolver
 from ....core.specs import ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction
 from ..common.kinetics import MichaelisMentenInteraction
 from ..common.pharmacokinetics import DosingInteraction
@@ -341,6 +343,12 @@ class OptimalChemotherapySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import OptimalChemotherapySystem
         >>> OptimalChemotherapySystem(w=1.0).prepare().system_.elements[0].w
@@ -352,7 +360,6 @@ class OptimalChemotherapySystem(BaseSystem):
     references = (BOOK, 'de Pillis and Radunskaya 2001')
     until = 30.0
     dt = 0.25
-    solver = PontryaginSolver(objective=_get_chemotherapy_cost, terminal=_get_tumour)
     observables = (Observable('tumour_share', _get_tumour_share),)
 
     def __init__(
@@ -363,18 +370,27 @@ class OptimalChemotherapySystem(BaseSystem):
         *,
         w: float = 0.1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.E = E
         self.A = A
         self.N = N
         self.w = w
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of a patient under the chemotherapy."""
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a patient under the chemotherapy.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[OptimalChemotherapyElement('patient', E=self.E, A=self.A, N=self.N, w=self.w)],
+            solver=PontryaginSolver(objective=_get_chemotherapy_cost, terminal=_get_tumour),
         )
 
 
@@ -429,6 +445,12 @@ class OptimalImmunotherapySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import OptimalImmunotherapySystem
         >>> OptimalImmunotherapySystem(w1=0.5).prepare().system_.elements[0].w1
@@ -440,11 +462,6 @@ class OptimalImmunotherapySystem(BaseSystem):
     references = (BOOK, 'Kirschner and Panetta 1998')
     until = 50.0
     dt = 0.5
-    solver = PontryaginSolver(
-        objective=_get_immunotherapy_cost,
-        terminal=_get_tumour_site,
-        nodes=1001,
-    )
     observables = (Observable('immune_ratio', _get_immune_ratio),)
 
     def __init__(
@@ -456,16 +473,24 @@ class OptimalImmunotherapySystem(BaseSystem):
         w1: float = 1.0,
         w2: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.y = y
         self.alpha_a = alpha_a
         self.w1 = w1
         self.w2 = w2
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of a tumour under the adoptive therapy and IL-2 injection."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a tumour under the adoptive therapy and IL-2 injection.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         site = OptimalImmunotherapyElement('site', x=self.x, y=self.y, alpha_a=self.alpha_a, w1=self.w1, w2=self.w2)
         interactions = [
             RateInteraction('stimulation', target='site', state='x', rate=lambda s: s.target.alpha_a * s.target.y),
@@ -517,4 +542,9 @@ class OptimalImmunotherapySystem(BaseSystem):
                 propensity=lambda s: s.target.du * s.target.z,
             ),
         ]
-        return CompositeSystem(self.label, elements=[site], interactions=interactions)
+        self.system_ = System(
+            self.label,
+            elements=[site],
+            interactions=interactions,
+            solver=PontryaginSolver(objective=_get_immunotherapy_cost, terminal=_get_tumour_site, nodes=1001),
+        )
