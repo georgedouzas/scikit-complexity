@@ -124,7 +124,10 @@ class FlowTermLaw(RateLaw):
 
     @staticmethod
     def _get_offset(stock: object) -> tuple[Expression, int, str] | None:
-        """Return the state, the offset, and the boundary of a stock read at a member offset, or `None`."""
+        """Return the state, offset, and boundary of a stock at a member offset.
+
+        It is `None` for a stock at no offset.
+        """
         if not isinstance(stock, Expression) or getattr(stock.operator(), 'name', lambda: '')() != SHIFT:
             return None
         state, offset, boundary, _ = stock.operands()

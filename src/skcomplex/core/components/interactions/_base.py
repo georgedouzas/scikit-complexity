@@ -188,7 +188,9 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
 
     @classmethod
     def _get_roles(cls, *, single: bool = False) -> tuple[str, ...]:
-        """Return the names of the arguments that bind elements, in the order of the constructor.
+        """Return the names of the arguments that bind elements.
+
+        They come in the order of the constructor.
 
         With `single`, only the roles that bind one element, such as `target: Role`, and not several, such as
         `reactants: tuple[Role, ...]`, or Wiener processes.
@@ -908,7 +910,9 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
 
     @classmethod
     def _get_state_arguments(cls, role: RoleSpec) -> tuple[str, ...]:
-        """Return the arguments that name the states a role of one element reads, from their type hints.
+        """Return the arguments that name the states a role of one element reads.
+
+        They follow from the type hints.
 
         Such an argument holds names of states, such as `states: tuple[str, ...]` or the keys of a mapping
         `Mapping[str, float]`. A role of several elements or of Wiener processes reads none.
@@ -916,15 +920,18 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         if role.variadic or role.noise:
             return ()
         hints = inspect.signature(cls.__init__, eval_str=True).parameters.items()
-        return tuple(name for name, argument in hints if cls._names_states(argument.annotation))
+        return tuple(name for name, argument in hints if cls._is_state_names(argument.annotation))
 
     @classmethod
-    def _names_states(cls, annotation: object) -> bool:
-        """Return whether a type hint holds names of states, as a tuple of `str` or a mapping keyed by `str`."""
+    def _is_state_names(cls, annotation: object) -> bool:
+        """Return whether a type hint holds names of states.
+
+        It does as a tuple of `str` or a mapping keyed by `str`.
+        """
         hint = cls._get_annotated(annotation)
         origin, args = get_origin(hint), get_args(hint)
         if origin is Union or origin is UnionType:
-            return any(cls._names_states(arg) for arg in args)
+            return any(cls._is_state_names(arg) for arg in args)
         if origin is tuple and args[1:] != (Ellipsis,):
             return False
         if origin in (tuple, Mapping, dict) and args:

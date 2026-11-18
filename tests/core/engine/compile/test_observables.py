@@ -53,7 +53,7 @@ class ObservedValueElement(Element):
 def _tuned_observables(system):
     """Return the observables a ready-made system records by default, on either base of ready-made systems."""
     if isinstance(system, BaseSystem):
-        return list(system.observables)
+        return list(system.observables) or list(system.prepare().observables_)
     return list(system.get_run_settings()['observables'])
 
 

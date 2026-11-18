@@ -262,7 +262,9 @@ class ImageVisual(BaseVisual):
             magnitudes = np.abs(values) if np.iscomplexobj(values) else np.asarray(values, dtype=float)
             if magnitudes.ndim == 1:
                 self._log_space_time(
-                    recording, BaseVisual._get_state_path(f'{element.path}/{SPACE_TIME}', state), magnitudes,
+                    recording,
+                    BaseVisual._get_state_path(f'{element.path}/{SPACE_TIME}', state),
+                    magnitudes,
                 )
             if not np.iscomplexobj(values):
                 cyclic = frame.problem.states.get_entry(name).period is not None

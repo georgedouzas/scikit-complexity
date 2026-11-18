@@ -259,7 +259,9 @@ class PointsVisual(BaseVisual):
         )
         for state in others:
             BaseVisual._log_scalars(
-                recording, BaseVisual._get_state_path(element.path, state), frame.get_value(element.states[state]),
+                recording,
+                BaseVisual._get_state_path(element.path, state),
+                frame.get_value(element.states[state]),
             )
 
     def _get_views(

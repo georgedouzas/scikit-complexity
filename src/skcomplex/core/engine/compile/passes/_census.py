@@ -281,14 +281,17 @@ class CensusPass(BasePass):
 
     @staticmethod
     def _get_flowing(records: Sequence[_CensusRecordSpec]) -> frozenset[str]:
-        """Return the paths of the elements and groups whose states rate or noise laws change."""
+        """Return the paths of the elements and groups that flow.
+
+        Rate or noise laws change their states.
+        """
         return frozenset(
             record.owner for record in records if KernelsPass._get_kind_of(record.law) in (RateLaw, NoiseLaw)
         )
 
     @staticmethod
     def _get_corrected(law: BaseLaw, owner: str, flowing: frozenset[str]) -> BaseLaw:
-        """Return an update law of an element that flows as a correction after each continuous step.
+        """Return an update law of an element that flows as a correction after each step.
 
         A value corrected after every step of the solver, such as a wall reflecting `x` to `abs(x)` with
         `UpdateLaw(x, abs(x))` or a controller setting the input of a plant, is an update law of an element whose states
@@ -345,7 +348,7 @@ class CensusPass(BasePass):
 
     @staticmethod
     def _is_offset(target: object) -> bool:
-        """Return whether a target is a member read at an offset, such as `shift_member(n, 1)`."""
+        """Return whether a target is a member at an offset, such as `shift_member(n, 1)`."""
         operator = target.operator() if isinstance(target, Expression) else None
         return getattr(operator, 'name', lambda: '')() == SHIFT
 
