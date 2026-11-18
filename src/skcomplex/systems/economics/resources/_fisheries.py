@@ -7,7 +7,6 @@ Natural losses and the catch deplete the stages.
 # License: MIT
 
 from collections.abc import Sequence
-from functools import partial
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -15,9 +14,10 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, Quantity
-from ....core.components.interactions import TransferInteraction
-from ....core.components.laws import Sink, Source
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import minimum
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -280,42 +280,42 @@ class HilsaFisherySystem(BaseSystem):
         following: str,
         time: str,
         losses: tuple[tuple[str, str], ...],
-    ) -> TransferInteraction:
-        """Return the transfer that drains a stage over its duration.
+    ) -> Interaction:
+        """Return the flows that drain a stage over its duration.
 
         A share goes to each loss and the rest to the next stage. The stage reads the duration `time` and the share of
         every loss by name, and reports the flow to the next stage as `hilsa.<label>` and the flow to every loss as
         `hilsa.<label>_<loss>`.
         """
         shares = [share for share, _ in losses]
-        return TransferInteraction(
-            label,
-            source='hilsa',
-            target='hilsa',
-            state=stock,
-            into=following,
-            amount=partial(HilsaFisherySystem._get_survival, stock=stock, time=time, shares=shares),
-            flow=label,
-            legs=[
-                (
-                    stock,
-                    Sink(sink),
-                    partial(HilsaFisherySystem._get_loss, stock=stock, time=time, share=share),
-                    f'{label}_{sink}',
-                )
+
+        def drain(s: SimpleNamespace) -> list[BaseComponent]:
+            """Return the flow into the next stage and the flow to every loss."""
+            held = getattr(s.target, stock)
+            flows: list[BaseComponent] = [
+                RateLaw(
+                    {held: -1, getattr(s.target, following): +1},
+                    HilsaFisherySystem._get_survival(s, stock, time, shares),
+                    label=label,
+                ),
+            ]
+            flows += [
+                RateLaw({held: -1}, HilsaFisherySystem._get_loss(s, stock, time, share), label=f'{label}_{sink}')
                 for share, sink in losses
-            ],
-        )
+            ]
+            return flows
+
+        return Interaction(label, roles={'target': 'hilsa'}, laws=drain)
 
     @staticmethod
     def _get_outflow(s: SimpleNamespace, stock: str, time: str) -> Expression:
         """Return the outflow of a stage over its duration."""
-        return getattr(s.source, stock) / getattr(s.source, time)
+        return getattr(s.target, stock) / getattr(s.target, time)
 
     @staticmethod
     def _get_survival(s: SimpleNamespace, stock: str, time: str, shares: list[str]) -> Expression:
         """Return the outflow of a stage that survives its losses into the next stage."""
-        return (1 - sum((getattr(s.source, share) for share in shares), start=0)) * HilsaFisherySystem._get_outflow(
+        return (1 - sum((getattr(s.target, share) for share in shares), start=0)) * HilsaFisherySystem._get_outflow(
             s,
             stock,
             time,
@@ -324,7 +324,7 @@ class HilsaFisherySystem(BaseSystem):
     @staticmethod
     def _get_loss(s: SimpleNamespace, stock: str, time: str, share: str) -> Expression:
         """Return the outflow of a stage to one loss."""
-        return getattr(s.source, share) * HilsaFisherySystem._get_outflow(s, stock, time)
+        return getattr(s.target, share) * HilsaFisherySystem._get_outflow(s, stock, time)
 
     def __init__(
         self,
@@ -346,21 +346,19 @@ class HilsaFisherySystem(BaseSystem):
         self.migration_loss = migration_loss
 
     @staticmethod
-    def _get_birth_death() -> list[TransferInteraction]:
+    def _get_birth_death() -> list[Interaction]:
         """Return the life cycle flows of the stages of the hilsa.
 
         They are the spawning, hatching, growth, migration, losses, and catch.
         """
         mortality = 'mortality'
         return [
-            TransferInteraction(
+            Interaction(
                 'egg_deposition',
-                source='hilsa',
-                target='hilsa',
-                state=Source('spawning'),
-                into='eggs',
-                amount=lambda s: s.source.eggs_per_nest * _nests(s.source),
-                flow='egg_deposition',
+                roles={'target': 'hilsa'},
+                laws=lambda s: [
+                    RateLaw({s.target.eggs: +1}, s.target.eggs_per_nest * _nests(s.target), label='egg_deposition'),
+                ],
             ),
             HilsaFisherySystem._get_stage('hatching', 'eggs', 'larvae', 'hatching_time', (('egg_loss', mortality),)),
             HilsaFisherySystem._get_stage(
@@ -398,20 +396,15 @@ class HilsaFisherySystem(BaseSystem):
                 'migration_time',
                 (('migration_loss', mortality),),
             ),
-            TransferInteraction(
+            Interaction(
                 'spawning',
-                source='hilsa',
-                target='hilsa',
-                state='spawners',
-                into=Sink('spent'),
-                amount=lambda s: _get_spawning(s.source),
-                flow='spawning',
-                legs=[
-                    (
-                        'spawners',
-                        Sink('catch'),
-                        lambda s: s.source.adult_harvest * s.source.spawners / s.source.spawning_time,
-                        'adult_catch',
+                roles={'target': 'hilsa'},
+                laws=lambda s: [
+                    RateLaw({s.target.spawners: -1}, _get_spawning(s.target), label='spawning'),
+                    RateLaw(
+                        {s.target.spawners: -1},
+                        s.target.adult_harvest * s.target.spawners / s.target.spawning_time,
+                        label='adult_catch',
                     ),
                 ],
             ),
