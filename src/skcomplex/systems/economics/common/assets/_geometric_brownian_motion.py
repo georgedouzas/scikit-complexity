@@ -16,7 +16,7 @@ from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction, WienerProcessSpec
 from .....core.components.laws import NoiseLaw, RateLaw
 from .....core.components.spaces import BaseSpace
-from .....core.specs import Role, RoleSpec
+from .....core.specs import Role
 
 
 class GeometricBrownianMotionInteraction(Interaction):
@@ -63,7 +63,7 @@ class GeometricBrownianMotionInteraction(Interaction):
         target: Role,
         mu: float = 0.05,
         sigma: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
-        process: Annotated[WienerProcessSpec | None, RoleSpec(noise=True)] = None,
+        process: WienerProcessSpec | None = None,
         index: int | None = None,
     ) -> None:
         super().__init__(label)

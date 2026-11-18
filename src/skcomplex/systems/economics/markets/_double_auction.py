@@ -7,6 +7,7 @@ The traders trade with and without budget constraints.
 # License: MIT
 
 from collections.abc import Sequence
+from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
 import numpy as np
@@ -14,11 +15,15 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
-from ....core.components.interactions import MapInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
+from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
 from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ...general.matching import BatchMatchingSpec, ContinuousMatchingSpec, MatchingInteraction, MatchSpec
 from ..common.policy import PolicyRuleInteraction
@@ -103,25 +108,6 @@ class ZeroIntelligenceBuyerElement(Element):
         """Return the view of a buyer, with its value, bid, demand, and profit."""
         return ZeroIntelligenceBuyerView
 
-    @staticmethod
-    def get_bid(agent: ZeroIntelligenceBuyerView, system: SystemView) -> float:
-        """Return a bid drawn uniformly from 0 to the value.
-
-        Without the constraint, the bid goes up to the price ceiling.
-
-        Args:
-            agent:
-                The buyer.
-
-            system:
-                The system view of the quotes.
-
-        Returns:
-            bid:
-                The bid of the round.
-        """
-        return float(system.rng.uniform(0.0, agent.value if agent.constrained else agent.ceiling))
-
 
 class ZeroIntelligenceSellerView(AgentView):
     """Zero-intelligence seller as the rules see it.
@@ -199,26 +185,6 @@ class ZeroIntelligenceSellerElement(Element):
         """Return the view of a seller, with its cost, ask, supply, and profit."""
         return ZeroIntelligenceSellerView
 
-    @staticmethod
-    def get_ask(agent: ZeroIntelligenceSellerView, system: SystemView) -> float:
-        """Return an ask drawn uniformly from the cost to the price ceiling.
-
-        Without the constraint, the ask starts from 0.
-
-        Args:
-            agent:
-                The seller.
-
-            system:
-                The system view of the quotes.
-
-        Returns:
-            ask:
-                The ask of the round.
-        """
-        bottom = agent.value if agent.constrained else 0.0
-        return float(system.rng.uniform(bottom, max(bottom, agent.ceiling)))
-
 
 def maximum_surplus(values: np.ndarray, costs: np.ndarray) -> float:
     """Return the largest total surplus of single units.
@@ -245,6 +211,59 @@ def maximum_surplus(values: np.ndarray, costs: np.ndarray) -> float:
     demand, supply = np.sort(values)[::-1], np.sort(costs)
     size = min(len(demand), len(supply))
     return float(np.maximum(demand[:size] - supply[:size], 0).sum())
+
+
+class QuotingInteraction(Interaction):
+    """Quotes of the zero-intelligence traders in every round.
+
+    Every buyer bids a price drawn uniformly from 0 to its value and every seller asks a price drawn uniformly from its
+    cost to the price ceiling. Without the budget constraint, the bid goes up to the ceiling and the ask starts from 0.
+
+    Args:
+        label:
+            The label of the quotes.
+
+        buyers:
+            The path of the group of buyers.
+
+        sellers:
+            The path of the group of sellers.
+
+        phase:
+            The phase the traders quote in.
+
+    Examples:
+        >>> from skcomplex.systems.economics.markets import QuotingInteraction
+        >>> QuotingInteraction('quotes', buyers='buyers', sellers='sellers').phase
+        'trade'
+    """
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, buyers: Role, sellers: Role, phase: str | None = 'trade') -> None:
+        super().__init__(label)
+        self.buyers = buyers
+        self.sellers = sellers
+        self.phase = phase
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the quotes of every round as the rule of the system."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context, self.quote, phase=self.phase)]
+
+    def quote(self, system: SystemView) -> None:
+        """Draw the bid of every buyer and then the ask of every seller.
+
+        Args:
+            system:
+                The system view of the quotes.
+        """
+        for buyer in system.get_agents('buyers', ZeroIntelligenceBuyerView):
+            buyer.bid = float(system.rng.uniform(0.0, buyer.value if buyer.constrained else buyer.ceiling))
+        for seller in system.get_agents('sellers', ZeroIntelligenceSellerView):
+            bottom = seller.value if seller.constrained else 0.0
+            seller.ask = float(system.rng.uniform(bottom, max(bottom, seller.ceiling)))
 
 
 class AuctionLedgerInteraction(PolicyRuleInteraction[SystemView]):
@@ -419,16 +438,13 @@ class DoubleAuctionSystem(BaseSystem):
             phase='trade',
             on_match=self._record_profit,
         )
-        quotes = [
-            MapInteraction(label, target=group, state=state, function=function, form='agent', phase='trade')
-            for label, group, state, function in (
-                ('bids', 'buyers', 'bid', ZeroIntelligenceBuyerElement.get_bid),
-                ('asks', 'sellers', 'ask', ZeroIntelligenceSellerElement.get_ask),
-            )
-        ]
         self.system_ = System(
             self.label,
             elements=[buyers, sellers],
-            interactions=[*quotes, market, AuctionLedgerInteraction('ledger', phase='close')],
+            interactions=[
+                QuotingInteraction('quotes', buyers='buyers', sellers='sellers'),
+                market,
+                AuctionLedgerInteraction('ledger', phase='close'),
+            ],
             solver=MesaSolver(phases=[PhaseSpec('trade', repeat=self.rounds), PhaseSpec('close')]),
         )

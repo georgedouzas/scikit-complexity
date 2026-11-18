@@ -19,7 +19,13 @@ from ._growth_processes import (
     ReflectingFloorInteraction,
 )
 from ._guru_order_book import GuruMarketInteraction, GuruOrderBookSystem, GuruTraderElement
-from ._order_book import BookInteraction, OrderBookSystem, StockTraderElement
+from ._order_book import (
+    AccountingInteraction,
+    BookInteraction,
+    LimitOrderInteraction,
+    OrderBookSystem,
+    StockTraderElement,
+)
 from ._solvency import (
     DefaultCascadeInteraction,
     DefaultCascadeSystem,
@@ -30,6 +36,7 @@ from ._switching_exchange import KirmanExchangeRateSystem
 from ._wealth import BouchaudMezardWealthSystem, NetworkSaverElement
 
 __all__: list[str] = [
+    'AccountingInteraction',
     'ArbitrageDensityElement',
     'ArbitrageTradersSystem',
     'AssetElement',
@@ -60,6 +67,7 @@ __all__: list[str] = [
     'KestenGrowthInteraction',
     'KestenProcessSystem',
     'KirmanExchangeRateSystem',
+    'LimitOrderInteraction',
     'MarketAssetElement',
     'MultiplicativeProcessSystem',
     'NetworkSaverElement',

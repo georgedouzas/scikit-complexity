@@ -334,6 +334,22 @@ def test_interaction_along_edges_runs_once_per_edge():
     assert last == pytest.approx(expm(-nx.laplacian_matrix(graph).toarray() * 0.5) @ start, abs=1e-6)
 
 
+def test_an_interaction_without_a_class_runs_along_edges():
+    """Test that an exchange written without a class, with `among` and `along`, matches the exact consensus."""
+    graph = nx.path_graph(4)
+    start = np.array([1.0, 0.0, 0.0, 0.0])
+    nodes = Element('nodes', values={'x': start}, space=NetworkSpace(graph))
+    exchange = Interaction(
+        'exchange',
+        among='nodes',
+        along=True,
+        laws=lambda s: [RateLaw(s.target.x, s.source.x - s.target.x), RateLaw(s.source.x, s.target.x - s.source.x)],
+    )
+    last = System(elements=[nodes], interactions=[exchange]).prepare().simulate(until=0.5, dt=0.01)
+    expected = expm(-nx.laplacian_matrix(graph).toarray() * 0.5) @ start
+    assert last.get_values('nodes.x')[-1] == pytest.approx(expected, abs=1e-6)
+
+
 def test_interaction_along_edges_clones_with_its_binding():
     """Test that the binding of an interaction is one of its parameters, kept by a clone."""
     copy = clone(_ExchangeInteraction('exchange', among='cells', along='roads'))

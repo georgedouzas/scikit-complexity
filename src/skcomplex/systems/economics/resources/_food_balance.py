@@ -14,9 +14,10 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, Quantity
-from ....core.components.interactions import TransferInteraction
-from ....core.components.laws import Sink, Source
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import where
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -28,7 +29,7 @@ class RiceBalanceElement(Element):
 
     It holds the land available for rice and the rice each person needs. The area cultivated grows towards the land
     available over a planning time and loses a fraction to housing, roads, and industry, and the population grows by
-    births and falls by deaths, through transfers of the system.
+    births and falls by deaths, through labelled flows of the system.
 
     Args:
         label:
@@ -216,8 +217,26 @@ class RiceFoodBalanceSystem(BaseSystem):
 
         It is `MAX((total_land_available - area_cultivated) / planning_time, 0)`.
         """
-        gap = (s.source.total_land_available - s.source.area_cultivated) / s.source.planning_time
+        gap = (s.target.total_land_available - s.target.area_cultivated) / s.target.planning_time
         return where(gap > 0, gap, 0)
+
+    @staticmethod
+    def _get_land_flows(s: SimpleNamespace) -> list[BaseComponent]:
+        """Return the increase of the area cultivated and the land lost to housing, roads, and industry."""
+        area = s.target.area_cultivated
+        return [
+            RateLaw({area: +1}, RiceFoodBalanceSystem._get_area_increase(s), label='area_increase_rate'),
+            RateLaw({area: -1}, area * s.target.land_fraction_lost, label='land_lost'),
+        ]
+
+    @staticmethod
+    def _get_people_flows(s: SimpleNamespace) -> list[BaseComponent]:
+        """Return the births and the deaths of the population."""
+        population = s.target.population
+        return [
+            RateLaw({population: +1}, population * s.target.birth_fraction, label='birth_rate'),
+            RateLaw({population: -1}, population / s.target.life_expectancy, label='death_rate'),
+        ]
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of the components built from the model parameters."""
@@ -234,33 +253,6 @@ class RiceFoodBalanceSystem(BaseSystem):
             life_expectancy=self.life_expectancy,
             food_per_capita=self.food_per_capita,
         )
-        land = TransferInteraction(
-            'land',
-            source='region',
-            target='region',
-            state=Source('suitable_land'),
-            into='area_cultivated',
-            amount=self._get_area_increase,
-            flow='area_increase_rate',
-            legs=[
-                (
-                    'area_cultivated',
-                    Sink('urban_land'),
-                    lambda s: s.source.area_cultivated * s.source.land_fraction_lost,
-                    'land_lost',
-                ),
-            ],
-        )
-        people = TransferInteraction(
-            'people',
-            source='region',
-            target='region',
-            state=Source('births'),
-            into='population',
-            amount=lambda s: s.source.population * s.source.birth_fraction,
-            flow='birth_rate',
-            legs=[
-                ('population', Sink('deaths'), lambda s: s.source.population / s.source.life_expectancy, 'death_rate'),
-            ],
-        )
+        land = Interaction('land', roles={'target': 'region'}, laws=self._get_land_flows)
+        people = Interaction('people', roles={'target': 'region'}, laws=self._get_people_flows)
         self.system_ = System(self.label, elements=[region], interactions=[land, people])

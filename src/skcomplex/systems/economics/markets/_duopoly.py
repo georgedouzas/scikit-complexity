@@ -14,11 +14,14 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
+from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver, SystemView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 
 N_FIRMS = 2
@@ -46,10 +49,12 @@ class DuopolistElement(Element):
         cost:
             The marginal cost.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.markets import DuopolistElement
-        >>> GroupElement('firms', element=DuopolistElement, size=2, values={'output': [100.0, 100.0]}).size
+        >>> DuopolistElement('firms', output=[100.0, 100.0], size=2).size
         2
     """
 
@@ -57,10 +62,11 @@ class DuopolistElement(Element):
         self,
         label: str,
         *,
-        output: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 50.0,
-        cost: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        output: Annotated[object, RealSet.closed_open(0, oo)] = 50.0,
+        cost: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.output = output
         self.cost = cost
 
@@ -70,13 +76,13 @@ class DuopolistElement(Element):
         return DuopolistView
 
 
-class CournotAdjustmentInteraction(MapInteraction):
+class CournotAdjustmentInteraction(Interaction):
     """Simultaneous best responses of two firms to their beliefs.
 
     The beliefs are about the rival's last output. Under the inverse demand `P = a - b Q`, each firm sets
     `q_i = (a - c_i) / (2 b) - belief_j / 2`, where the belief is the rival's last output scaled by a factor drawn
-    uniformly from `[1 - error, 1 + error]`. It is a synchronous map of the agent form of the outputs, so both firms
-    respond to the outputs of the step before.
+    uniformly from `[1 - error, 1 + error]`. It is a rule of the system that sets every output from the outputs of the
+    step before, so both firms respond to them.
 
     Args:
         label:
@@ -104,15 +110,34 @@ class CournotAdjustmentInteraction(MapInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        a: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1500.0,
-        b: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
-        error: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        target: Role,
+        a: Annotated[float, RealSet.open(0, oo)] = 1500.0,
+        b: Annotated[float, RealSet.open(0, oo)] = 10.0,
+        error: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
     ) -> None:
-        super().__init__(label, target=target, state='output', function=self._get_response, form='agent')
+        super().__init__(label)
+        self.target = target
         self.a = a
         self.b = b
         self.error = error
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the responses of the firms of every step as the rule of the system."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context, self.respond)]
+
+    def respond(self, system: SystemView) -> None:
+        """Set the output of every firm to its response to the outputs of the step before.
+
+        Args:
+            system:
+                The system view of the market.
+        """
+        firms = system.get_agents('target', DuopolistView)
+        responses = [self._get_response(firm, system) for firm in firms]
+        for firm, response in zip(firms, responses, strict=True):
+            firm.output = response
 
     def _get_response(self, agent: DuopolistView, system: SystemView) -> float:
         """Return the best response of a firm to its belief.
@@ -202,12 +227,7 @@ class CournotDuopolySystem(BaseSystem):
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of the components built from the model parameters."""
         super()._prepare(context)
-        firms = GroupElement(
-            'firms',
-            element=DuopolistElement,
-            size=N_FIRMS,
-            values={'output': list(self.outputs), 'cost': list(self.costs)},
-        )
+        firms = DuopolistElement('firms', output=list(self.outputs), cost=list(self.costs), size=N_FIRMS)
         self.system_ = System(
             self.label,
             elements=[firms],

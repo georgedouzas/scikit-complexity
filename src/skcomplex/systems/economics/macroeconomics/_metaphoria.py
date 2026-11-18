@@ -10,7 +10,7 @@ import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
@@ -20,14 +20,14 @@ from ....core.analysis import distribution
 from ....core.components import Observable
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, Member, Quantity
-from ....core.components.interactions import BaseInteraction, Interaction, TransferInteraction
-from ....core.components.laws import BaseLaw, RuleLaw, UpdateLaw
-from ....core.components.laws.utils import transfer
+from ....core.components.interactions import BaseInteraction, Interaction
+from ....core.components.laws import PartnerSpec, UpdateLaw
+from ....core.components.laws.utils import pairs, transfer
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
 from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
-from ....core.specs import BaseSpec, Role, RoleSpec
+from ....core.specs import BaseSpec, Role
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ...general.matching import MatchingInteraction, MatchSpec, PartnerMatchingSpec
@@ -121,27 +121,8 @@ class CentralBankElement(Element):
         """Return the view of the bank, with its money and loans."""
         return CentralBankView
 
-    @staticmethod
-    def get_income(agent: CentralBankView, holder: AgentView, system: SystemView) -> float:
-        """Return the income of the step that the bank pays as a dividend.
 
-        It is its money plus its loans.
-
-        Args:
-            agent:
-                The bank.
-
-            holder:
-                The person, or the firm when nobody lives, that receives the dividend.
-
-            system:
-                The system view of the dividends.
-
-        Returns:
-            income:
-                The income.
-        """
-        return agent.money + agent.loans
+type Dividends = list[tuple[CentralBankView, SettlerView | BusinessView]]
 
 
 class PlotView(AgentView):
@@ -835,29 +816,22 @@ class CommonsInteraction(Interaction):
         'people'
     """
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        people: Annotated[str, RoleSpec()],
+        people: Role,
     ) -> None:
         super().__init__(label)
         self.people = people
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the harvest rule in the phase of work.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.harvest, phase='work')]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rule of the system in the phase `work`."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context, self.harvest, phase='work')]
 
     def harvest(self, system: SystemView) -> None:
         """Harvest every occupied patch and share the food among the people on it.
@@ -901,7 +875,7 @@ class EstateInteraction(Interaction):
 
     draws = True
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     reports: ClassVar[tuple[str, ...]] = ('births', 'starvations', 'old_age')
 
@@ -909,7 +883,7 @@ class EstateInteraction(Interaction):
         self,
         label: str,
         *,
-        people: Annotated[str, RoleSpec()],
+        people: Role,
     ) -> None:
         super().__init__(label)
         self.people = people
@@ -943,18 +917,11 @@ class EstateInteraction(Interaction):
         for person in dead:
             self._settle(person, living, system)
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the counting rule in the phase of the census.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.count, phase='census')]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rule of the system in the phase `census`."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context, self.count, phase='census')]
 
 
 class FoodMarketInteraction(MatchingInteraction[SystemView]):
@@ -1233,6 +1200,21 @@ class MetaphoriaSystem(BaseSystem):
         self.n_firms = n_firms
         self.random_state = random_state
 
+    @staticmethod
+    def _pay_dividends(system: SystemView) -> None:
+        """Pay the income of the bank, its money plus its loans, to a random person, or firm when nobody lives."""
+        banks = system.get_agents('bank', CentralBankView)
+        holders: list[SettlerView] | list[BusinessView] = system.get_agents('people', SettlerView)
+        if not any(holder.alive for holder in holders):
+            holders = system.get_agents('businesses', BusinessView)
+        found = cast(Dividends, list(pairs(banks, holders, system.rng, PartnerSpec('all', 'uniform'))))
+        for index in system.rng.permutation(len(found)):
+            bank, holder = found[int(index)]
+            income = bank.money + bank.loans
+            if bank.alive and holder.alive and income > 0:
+                bank.money -= income
+                holder.money += income
+
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of the components built from the model parameters."""
         super()._prepare(context)
@@ -1305,17 +1287,10 @@ class MetaphoriaSystem(BaseSystem):
             phase='market',
             on_match=FoodMarketInteraction.sell,
         )
-        dividends = TransferInteraction(
+        dividends = Interaction(
             'dividends',
-            source='bank',
-            target='people',
-            state='money',
-            amount=CentralBankElement.get_income,
-            pairing='random',
-            fallback='businesses',
-            guard=lambda agent, holder, system: CentralBankElement.get_income(agent, holder, system) > 0,
-            form='agent',
-            phase='banking',
+            roles={'bank': 'bank', 'people': 'people', 'businesses': 'businesses'},
+            laws=lambda s: [UpdateLaw(s, MetaphoriaSystem._pay_dividends, phase='banking')],
         )
         exchange: list[BaseInteraction] = (
             [CommonsInteraction('commons', people='people')]

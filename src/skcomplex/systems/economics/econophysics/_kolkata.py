@@ -16,12 +16,15 @@ from sage.all__sagemath_symbolics import NN
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
-from ....core.components.interactions import GroupingInteraction
-from ....core.components.laws import BaseLaw, RuleLaw, UpdateLaw
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
+from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ...general.agents import ChoiceInteraction
 
@@ -158,7 +161,7 @@ class CrowdAvoidanceInteraction(ChoiceInteraction):
         return -math.log1p(-1 / agent.crowd)
 
 
-class RestaurantsInteraction(GroupingInteraction):
+class RestaurantsInteraction(Interaction):
     """Restaurants that each serve one meal every evening.
 
     The meal goes to one of the diners who come, chosen at random. The diners are grouped by their restaurant. Every
@@ -183,11 +186,11 @@ class RestaurantsInteraction(GroupingInteraction):
 
     Examples:
         >>> from skcomplex.systems.economics.econophysics import RestaurantsInteraction
-        >>> RestaurantsInteraction('restaurants', target='diners', n_restaurants=5).groups
-        'state'
+        >>> RestaurantsInteraction('restaurants', target='diners', n_restaurants=5).by
+        'restaurant'
     """
 
-    law_classes = (RuleLaw, UpdateLaw)
+    law_classes = (UpdateLaw,)
 
     reports: ClassVar[tuple[str, ...]] = ('utilization',)
 
@@ -195,13 +198,45 @@ class RestaurantsInteraction(GroupingInteraction):
         self,
         label: str,
         *,
-        target: str,
+        target: Role,
         n_restaurants: int = 100,
         by: str = 'restaurant',
         phase: str | None = None,
     ) -> None:
-        super().__init__(label, target=target, groups='state', by=by, phase=phase)
+        super().__init__(label)
+        self.target = target
         self.n_restaurants = n_restaurants
+        self.by = by
+        self.phase = phase
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the serving and then the reporting of every evening as rules of the system."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [
+                UpdateLaw(context, self.serve, phase=self.phase),
+                UpdateLaw(context, self.report, phase=self.phase),
+            ]
+
+    def serve(self, system: SystemViewProtocol) -> None:
+        """Group the diners by their restaurant and serve every restaurant, in random order.
+
+        The diners of a restaurant come in a random order, and the restaurants are visited in a random order.
+
+        Args:
+            system:
+                The system view of the restaurants.
+        """
+        shared: dict[float, list[AgentViewProtocol]] = {}
+        for agent in system.get_agents('target'):
+            if agent.alive:
+                shared.setdefault(float(getattr(agent, self.by)), []).append(agent)
+        groups = []
+        for value in sorted(shared):
+            members = shared[value]
+            groups.append([members[int(index)] for index in system.rng.permutation(len(members))])
+        for index in system.rng.permutation(len(groups)):
+            self.act_on(groups[int(index)], system)
 
     def act_on(self, members: list[AgentViewProtocol], system: SystemViewProtocol) -> None:
         """Tell every diner of a restaurant its crowd and serve the first diner.
@@ -225,23 +260,8 @@ class RestaurantsInteraction(GroupingInteraction):
             system:
                 The system view of the restaurants.
         """
-        visited = {float(getattr(agent, str(self.by))) for agent in system.get_agents('target')}
+        visited = {float(getattr(agent, self.by)) for agent in system.get_agents('target')}
         system.report('utilization', len(visited) / self.n_restaurants)
-
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule that serves the diners and the utilization report.
-
-        The report is a rule of its own.
-
-        Args:
-            namespace:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The serving and the reporting rules.
-        """
-        return [*super()._get_laws(namespace), RuleLaw(self.report, phase=self.phase)]
 
 
 class KolkataRestaurantSystem(BaseSystem):

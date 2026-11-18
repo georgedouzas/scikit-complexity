@@ -18,14 +18,15 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import Interaction, NeighborInteraction
-from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import codifferential, exterior_derivative
-from ....core.components.spaces import CellComplexSpace, LatticeSpace
+from ....core.components.spaces import BaseSpace, CellComplexSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
@@ -42,6 +43,9 @@ class GoodSiteElement(Element):
         rho:
             The initial density of the good.
 
+        space:
+            The space whose sites hold the members, or `None` for one site.
+
     Attributes:
         default_visual_:
             How the site is drawn by default, the `visual` of its class.
@@ -56,9 +60,10 @@ class GoodSiteElement(Element):
         self,
         label: str,
         *,
-        rho: Annotated[float, StateSpec()] = 1.0,
+        rho: object = 1.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.rho = rho
 
 
@@ -77,6 +82,12 @@ class ExchangeLinkElement(Element):
         E:
             The initial value of `F_0i` of Schwichtenberg (2020 Eq. 2.22), the rate of change of the potential.
 
+        space:
+            The space whose links hold the members, or `None` for one link.
+
+        on:
+            `'edges'` for one member on every link of the space, or `None` for one per site.
+
     Attributes:
         default_visual_:
             How the link is drawn by default, the `visual` of its class.
@@ -93,15 +104,17 @@ class ExchangeLinkElement(Element):
         self,
         label: str,
         *,
-        A: Annotated[float, StateSpec()] = 0.0,
-        E: Annotated[float, StateSpec()] = 0.0,
+        A: object = 0.0,
+        E: object = 0.0,
+        space: BaseSpace | None = None,
+        on: str | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space, on=on)
         self.A = A
         self.E = E
 
 
-class TraderCurrentInteraction(NeighborInteraction):
+class TraderCurrentInteraction(Interaction):
     """Trader current along the links, down the covariant gradient.
 
     The current is `J = -D (rho_t - rho_s - q A (rho_s + rho_t) / 2)`. The covariant derivative is `D_mu = d_mu - A_mu`
@@ -115,11 +128,9 @@ class TraderCurrentInteraction(NeighborInteraction):
         label:
             The label of the interaction, unique among the components of its system.
 
-        target:
-            The path of the group on the sites.
-
-        links:
-            The path of the group on the edges.
+        among:
+            The path of the group on the sites, whose links the laws run on, reading the potential `A` of the element on
+            the links.
 
         D:
             The diffusivity of the good.
@@ -127,9 +138,12 @@ class TraderCurrentInteraction(NeighborInteraction):
         q:
             The charge of the good.
 
+        along:
+            The edges the laws run on, `True` for the links of the space of the sites.
+
     Examples:
         >>> from skcomplex.systems.economics.finance import TraderCurrentInteraction
-        >>> TraderCurrentInteraction('current', target='sites', links='links', q=0.5).q
+        >>> TraderCurrentInteraction('current', among='sites', q=0.5).q
         0.5
     """
 
@@ -139,32 +153,27 @@ class TraderCurrentInteraction(NeighborInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        links: Annotated[str, RoleSpec()],
-        D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        q: Annotated[float, ParameterSpec()] = 0.2,
+        among: Role,
+        D: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        q: float = 0.2,
+        along: bool | str = True,
     ) -> None:
-        super().__init__(label)
-        self.target = target
-        self.links = links
+        super().__init__(label, among=among, along=along)
         self.D = D
         self.q = q
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rates of the good at both ends of a link and of its electric field.
-
-        Args:
-            namespace:
-                The namespace of an edge, with the ends `source` and `target` and the member `edge`.
-
-        Returns:
-            laws:
-                The rates.
-        """
-        source, target, edge = namespace.source, namespace.target, namespace.edge
-        middle = (source.rho + target.rho) / 2
-        current = -namespace.D * (target.rho - source.rho - namespace.q * edge.A * middle)
-        return [RateLaw(source.rho, -current), RateLaw(target.rho, current), RateLaw(edge.E, -current)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rates of the good at both ends of a link and of its electric field as the laws."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            source, target, edge = context.source, context.target, context.edge
+            middle = (source.rho + target.rho) / 2
+            current = -context.D * (target.rho - source.rho - context.q * edge.A * middle)
+            self.laws_: list[BaseComponent] = [
+                RateLaw(source.rho, -current),
+                RateLaw(target.rho, current),
+                RateLaw(edge.E, -current),
+            ]
 
 
 class GaugeArbitrageMarketSystem(BaseSystem):
@@ -304,20 +313,8 @@ class GaugeArbitrageMarketSystem(BaseSystem):
         space = CellComplexSpace(LatticeSpace((self.size, self.size))).prepare()
         density = 1.0 + self.bump * np.random.default_rng(self.seed).random(self.size * self.size)
         field = self._get_initial_field(space.incidences_[0], density - density.mean())
-        sites = GroupElement(
-            'sites',
-            element=GoodSiteElement,
-            space=space,
-            on='sites',
-            values={'rho': density},
-        )
-        links = GroupElement(
-            'links',
-            element=ExchangeLinkElement,
-            space=space,
-            on='edges',
-            values={'E': field},
-        )
+        sites = GoodSiteElement('sites', rho=density, space=space)
+        links = ExchangeLinkElement('links', E=field, space=space, on='edges')
         interactions = [
             Interaction(
                 'potential',
@@ -329,7 +326,7 @@ class GaugeArbitrageMarketSystem(BaseSystem):
                 roles={'target': 'links'},
                 laws=lambda s: [RateLaw(s.target.E.diff(s.t), self._get_field_rate(s))],
             ),
-            TraderCurrentInteraction('current', target='sites', links='links', D=self.D, q=self.q),
+            TraderCurrentInteraction('current', among='sites', D=self.D, q=self.q),
         ]
         self.system_ = System(self.label, elements=[sites, links], interactions=interactions, solver=RK4Solver(dt=0.02))
         self.observables_ = tuple(GaugeArbitrageMarketSystem._get_market_observables(self.system_))

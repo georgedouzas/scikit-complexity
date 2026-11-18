@@ -22,7 +22,6 @@ from ....core.components.laws.utils import moment, total
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec
 from ....core.systems import BaseSystem, System
 from ...general.elements import NonnegativeElement
 from ...general.kinetics import EncounterInteraction
@@ -147,10 +146,10 @@ class WealthExchangeInteraction(EncounterInteraction):
         *,
         candidate: str,
         field: str,
-        classes: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 9,
-        eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        cooperation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        competition: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        classes: Annotated[int, RealSet.open(0, oo)] = 9,
+        eta: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        cooperation: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
+        competition: Annotated[float, RealSet.closed_open(0, oo)] = 0.3,
     ) -> None:
         super().__init__(label, candidate=candidate, field=field, rate=self._get_rate, kernel=self._get_kernel)
         self.classes = classes
@@ -237,8 +236,8 @@ class WelfarePolicyInteraction(EncounterInteraction):
         *,
         candidate: str,
         field: str,
-        classes: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 9,
-        tax: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        classes: Annotated[int, RealSet.open(0, oo)] = 9,
+        tax: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
     ) -> None:
         super().__init__(label, candidate=candidate, field=field, rate=self._get_rate, kernel=self._get_kernel)
         self.classes = classes

@@ -7,7 +7,7 @@ They choose under ethics, budget, and peer influence.
 # License: MIT
 
 import math
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Annotated
 
 import numpy as np
@@ -16,11 +16,11 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.spaces import LatticeSpace
+from ....core.components.elements import Element
+from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver, SystemView
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ...general.agents import ChoiceInteraction
 
@@ -74,9 +74,18 @@ class ConsumerElement(Element):
         social_weight:
             The weight of the share of neighbours who buy fair food.
 
+        values:
+            Further values by name, such as the cell `x` and `y` of every member.
+
+        size:
+            The number of members, or `None` for one.
+
+        space:
+            The grid whose axes `x` and `y` place the members, or `None` for none.
+
     Examples:
         >>> from skcomplex.systems.economics.markets import ConsumerElement
-        >>> GroupElement('consumers', element=ConsumerElement, size=4, values={'ethics': 0.5}).size
+        >>> ConsumerElement('consumers', ethics=0.5, size=4).size
         4
     """
 
@@ -86,15 +95,18 @@ class ConsumerElement(Element):
         self,
         label: str,
         *,
-        fair: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        ethics: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        budget: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        premium: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        ethics_weight: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        price_weight: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-        social_weight: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        fair: Annotated[object, FiniteEnumeratedSet([0, 1])] = 0.0,
+        ethics: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
+        budget: Annotated[object, RealSet.closed_open(0, oo)] = 2.0,
+        premium: Annotated[object, RealSet.closed_open(0, oo)] = 0.3,
+        ethics_weight: Annotated[object, RealSet.closed_open(0, oo)] = 2.0,
+        price_weight: Annotated[object, RealSet.closed_open(0, oo)] = 5.0,
+        social_weight: Annotated[object, RealSet.closed_open(0, oo)] = 2.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.fair = fair
         self.ethics = ethics
         self.budget = budget
@@ -228,19 +240,19 @@ class FairFoodSystem(BaseSystem):
         super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         size = self.width * self.height
-        consumers = GroupElement(
+        space = LatticeSpace((self.width, self.height), boundary='periodic', capacity=1)
+        x, y = np.array([(x, y) for x in range(self.width) for y in range(self.height)]).T
+        consumers = ConsumerElement(
             'consumers',
-            element=ConsumerElement,
+            ethics=rng.random(size),
+            budget=rng.uniform(self.low_budget, self.high_budget, size),
+            premium=self.premium,
+            ethics_weight=self.ethics_weight,
+            price_weight=self.price_weight,
+            social_weight=self.social_weight,
+            values={'x': x, 'y': y},
             size=size,
-            values={
-                'ethics': rng.random(size),
-                'budget': rng.uniform(self.low_budget, self.high_budget, size),
-                'premium': self.premium,
-                'ethics_weight': self.ethics_weight,
-                'price_weight': self.price_weight,
-                'social_weight': self.social_weight,
-            },
-            location=[(x, y) for x in range(self.width) for y in range(self.height)],
+            space=space,
         )
         choice = ChoiceInteraction(
             'shopping',
@@ -255,5 +267,5 @@ class FairFoodSystem(BaseSystem):
             self.label,
             elements=[consumers],
             interactions=[choice],
-            space=LatticeSpace((self.width, self.height), boundary='periodic', capacity=1),
+            space=space,
         )

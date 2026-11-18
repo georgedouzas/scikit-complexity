@@ -6,7 +6,8 @@ The firms switch to cheaper lenders.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
+from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
 import numpy as np
@@ -15,11 +16,15 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, Member
-from ....core.components.interactions import MapInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
+from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
 from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ...general.matching import MatchingInteraction, MatchSpec, PartnerSwitchSpec
 
@@ -144,78 +149,6 @@ class FirmElement(Element):
         """Return the view of a firm, with its balance sheet and its loan."""
         return FirmView
 
-    @staticmethod
-    def get_return(agent: FirmView, system: SystemView) -> float:
-        """Return the return on the net worth and the loan invested.
-
-        The rate of return is normal and at least -1.
-
-        Args:
-            agent:
-                The firm.
-
-            system:
-                The system view of the investment.
-
-        Returns:
-            gross_return:
-                The return of the step.
-        """
-        draw = agent.mean_return + agent.volatility * system.rng.standard_normal()
-        return (agent.net_worth + agent.loan) * max(draw, -1.0)
-
-    @staticmethod
-    def get_worth(agent: FirmView) -> float:
-        """Return the net worth after the return and the interest.
-
-        It is negative for a firm that defaults.
-
-        Args:
-            agent:
-                The firm.
-
-        Returns:
-            worth:
-                The net worth before a default.
-        """
-        return agent.net_worth + agent.gross_return - agent.loan * agent.rate
-
-    @staticmethod
-    def get_plan() -> tuple[tuple[str, Callable[[FirmView, SystemView], float]], ...]:
-        """Return the states a firm sets in the plan of a step.
-
-        It requests a loan of `leverage` times its net worth.
-
-        Returns:
-            plan:
-                The name of every state and the function of its value, of the firm and the system view.
-        """
-        return (
-            ('demand', lambda agent, system: agent.leverage * agent.net_worth),
-            ('loan', lambda agent, system: 0.0),
-            ('rate', lambda agent, system: 0.0),
-            ('defaulted', lambda agent, system: 0.0),
-            ('injected', lambda agent, system: 0.0),
-        )
-
-    @staticmethod
-    def get_default() -> tuple[tuple[str, Callable[[FirmView, SystemView], float]], ...]:
-        """Return the states a firm sets after its return.
-
-        A firm that defaults takes those of an entrant.
-
-        Returns:
-            default:
-                The name of every state and the function of its value, of the firm and the system view.
-        """
-        worth = FirmElement.get_worth
-        return (
-            ('injected', lambda agent, system: agent.entry if worth(agent) < 0 else agent.injected),
-            ('defaulted', lambda agent, system: 1.0 if worth(agent) < 0 else agent.defaulted),
-            ('partner', lambda agent, system: -1.0 if worth(agent) < 0 else agent.partner),
-            ('net_worth', lambda agent, system: agent.entry if worth(agent) < 0 else worth(agent)),
-        )
-
 
 class LenderView(AgentView):
     """Lender as the rules see it.
@@ -236,9 +169,9 @@ class LenderElement(Element):
     """Bank that lends up to a multiple of its equity.
 
     Its rate falls with its equity. The bank asks the rate `alpha * equity ** -alpha` of Delli Gatti et al. (2010), so
-    better capitalised banks lend cheaper, and it offers loans up to `equity / capital_ratio`. The maps of its
-    settlement read the firms bound to their role `sources`, whose interest and defaults reach the bank they name in
-    their value `partner`.
+    better capitalised banks lend cheaper, and it offers loans up to `equity / capital_ratio`. The interest and
+    the defaults of the firms reach the bank they name in their value `partner`, by the rules of
+    `BalanceSheetsInteraction`.
 
     Args:
         label:
@@ -301,79 +234,97 @@ class LenderElement(Element):
         """Return the view of a bank, with its equity, quote, and loans."""
         return LenderView
 
+
+class BalanceSheetsInteraction(Interaction):
+    """Plan and settlement of the balance sheets of the firms and the banks of the credit network.
+
+    In the plan of a step every firm requests a loan of `leverage` times its net worth, and every bank asks the rate
+    `alpha * equity ** -alpha` of Delli Gatti et al. (2010), so better capitalised banks lend cheaper, and offers
+    loans up to `equity / capital_ratio`. In the settlement every firm earns a normal rate of return, at least -1, on
+    its net worth and its loan, every bank earns the interest of its borrowers less what the defaulting ones cannot
+    repay, and a firm whose net worth after interest turns negative defaults and takes the net worth of an entrant.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        firms:
+            The path of the group of firms.
+
+        banks:
+            The path of the group of banks.
+
+    Examples:
+        >>> from skcomplex.systems.economics.macroeconomics import BalanceSheetsInteraction
+        >>> BalanceSheetsInteraction('sheets', firms='firms', banks='banks').banks
+        'banks'
+    """
+
+    law_classes = (UpdateLaw,)
+    draws = True
+
+    def __init__(self, label: str, *, firms: Role, banks: Role) -> None:
+        super().__init__(label)
+        self.firms = firms
+        self.banks = banks
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the plan and the settlement of every step as the rules of the system, in the phases of their names."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [
+                UpdateLaw(context, self.plan, phase='plan'),
+                UpdateLaw(context, self.settle, phase='settle'),
+            ]
+
     @staticmethod
-    def get_quote() -> tuple[tuple[str, Callable[[LenderView, SystemView], float]], ...]:
-        """Return the states a bank sets in the plan of a step.
+    def _get_worth(firm: FirmView) -> float:
+        """Return the net worth of a firm after the return and the interest, negative for a firm that defaults."""
+        return firm.net_worth + firm.gross_return - firm.loan * firm.rate
 
-        They are its rate and lending capacity from its equity.
-
-        Returns:
-            quote:
-                The name of every state and the function of its value, of the bank and the system view.
-        """
-        return (
-            ('ask', lambda agent, system: agent.alpha * max(agent.equity, 1e-6) ** -agent.alpha),
-            ('supply', lambda agent, system: max(agent.equity, 0.0) / agent.capital_ratio),
-            ('lent', lambda agent, system: 0.0),
-            ('losses', lambda agent, system: 0.0),
-        )
-
-    @staticmethod
-    def _get_borrowers(agent: LenderView, system: SystemView) -> list[FirmView]:
-        """Return the firms bound to the role `sources` that borrowed from a bank.
-
-        They borrowed in the step. The firms are grouped by their bank once per step of each settlement map, which reads
-        but does not change them.
-        """
-        step = (system.time, system.round)
-        cached = system.storage.get('borrowers')
-        if not (isinstance(cached, tuple) and cached[0] == step):
-            borrowers: dict[int, list[FirmView]] = {}
-            for firm in system.get_agents('sources', FirmView):
-                bank = firm.get_referenced('partner') if firm.loan > 0 else None
-                if bank is not None:
-                    borrowers.setdefault(bank.id, []).append(firm)
-            cached = (step, borrowers)
-            system.storage['borrowers'] = cached
-        return list(cached[1].get(agent.id, []))
-
-    @staticmethod
-    def get_income(agent: LenderView, system: SystemView) -> float:
-        """Return the interest a bank earns in the step.
-
-        It is less what its defaulting borrowers cannot repay.
+    def plan(self, system: SystemView) -> None:
+        """Set the loan request of every firm, and then the rate and the lending capacity of every bank.
 
         Args:
-            agent:
-                The bank.
-
             system:
-                The system view of the settlement.
-
-        Returns:
-            income:
-                The change of the equity.
+                The system view of the plan.
         """
-        borrowers = LenderElement._get_borrowers(agent, system)
-        return sum(firm.loan * firm.rate + min(FirmElement.get_worth(firm), 0.0) for firm in borrowers)
+        for firm in system.get_agents('firms', FirmView):
+            firm.demand = firm.leverage * firm.net_worth
+            firm.loan = firm.rate = firm.defaulted = firm.injected = 0.0
+        for bank in system.get_agents('banks', LenderView):
+            bank.ask = bank.alpha * max(bank.equity, 1e-6) ** -bank.alpha
+            bank.supply = max(bank.equity, 0.0) / bank.capital_ratio
+            bank.lent = bank.losses = 0.0
 
-    @staticmethod
-    def get_losses(agent: LenderView, system: SystemView) -> float:
-        """Return the loans of a bank written off in the step.
+    def settle(self, system: SystemView) -> None:
+        """Draw the return of every firm, settle the banks, and replace every defaulting firm by an entrant.
 
         Args:
-            agent:
-                The bank.
-
             system:
                 The system view of the settlement.
-
-        Returns:
-            losses:
-                The change of the losses.
         """
-        borrowers = LenderElement._get_borrowers(agent, system)
-        return sum(max(-FirmElement.get_worth(firm), 0.0) for firm in borrowers)
+        firms = system.get_agents('firms', FirmView)
+        for firm in firms:
+            draw = firm.mean_return + firm.volatility * system.rng.standard_normal()
+            firm.gross_return = (firm.net_worth + firm.loan) * max(draw, -1.0)
+        borrowers: dict[int, list[FirmView]] = {}
+        for firm in firms:
+            bank = firm.get_referenced('partner') if firm.loan > 0 else None
+            if bank is not None:
+                borrowers.setdefault(bank.id, []).append(firm)
+        banks = system.get_agents('banks', LenderView)
+        for bank in banks:
+            owed = borrowers.get(bank.id, [])
+            bank.equity += sum(firm.loan * firm.rate + min(self._get_worth(firm), 0.0) for firm in owed)
+        for bank in banks:
+            bank.losses += sum(max(-self._get_worth(firm), 0.0) for firm in borrowers.get(bank.id, []))
+        for firm in firms:
+            worth = self._get_worth(firm)
+            if worth < 0:
+                firm.injected, firm.defaulted, firm.partner, firm.net_worth = firm.entry, 1.0, -1.0, firm.entry
+            else:
+                firm.net_worth = worth
 
 
 class CreditMarketInteraction(MatchingInteraction[SystemView]):
@@ -615,55 +566,9 @@ class CreditNetworksSystem(BaseSystem):
             phase='credit',
             on_match=self._lend,
         )
-        plan = [
-            MapInteraction(
-                f'{group}_plan_{name}',
-                target=group,
-                state=name,
-                function=function,
-                form='agent',
-                phase='plan',
-            )
-            for group, steps in (('firms', FirmElement.get_plan()), ('banks', LenderElement.get_quote()))
-            for name, function in steps
-        ]
-        settlement = [
-            MapInteraction(
-                'returns',
-                target='firms',
-                state='gross_return',
-                function=FirmElement.get_return,
-                form='agent',
-                phase='settle',
-            ),
-            *(
-                MapInteraction(
-                    f'bank_{name}',
-                    target='banks',
-                    state=name,
-                    function=function,
-                    sources=('firms',),
-                    mode='increment',
-                    form='agent',
-                    phase='settle',
-                )
-                for name, function in (('equity', LenderElement.get_income), ('losses', LenderElement.get_losses))
-            ),
-            *(
-                MapInteraction(
-                    f'firms_settle_{name}',
-                    target='firms',
-                    state=name,
-                    function=function,
-                    form='agent',
-                    phase='settle',
-                )
-                for name, function in FirmElement.get_default()
-            ),
-        ]
         self.system_ = System(
             self.label,
             elements=[borrowers, lenders],
-            interactions=[*plan, market, *settlement],
+            interactions=[BalanceSheetsInteraction('sheets', firms='firms', banks='banks'), market],
             solver=MesaSolver(phases=[PhaseSpec('plan'), PhaseSpec('credit'), PhaseSpec('settle')]),
         )

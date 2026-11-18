@@ -14,13 +14,13 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element
-from ....core.components.interactions import TransferInteraction
-from ....core.components.laws import BaseLaw, RateLaw, Sink
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element, Quantity
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import clip, series
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, StateSpec
 from ....core.systems import BaseSystem, System
 
 PROFITABILITY_EFFECT = (
@@ -116,42 +116,27 @@ class PlantationElement(Element):
         0.5
     """
 
-    law_classes = (RateLaw,)
-
-    @staticmethod
-    def _get_cocoa_laws(s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the thinning of shade and the growth and control of the insects."""
-        unprotected = 1 - s.subsidy
-        return [
-            RateLaw(s.shade_removal, unprotected * (FULL_INDEX - s.shade_removal) / s.thinning_time),
-            RateLaw(
-                s.insects,
-                s.insect_growth * unprotected * s.shade_removal / FULL_INDEX * s.insects * (1 - s.insects / FULL_INDEX)
-                - s.insect_control * s.subsidy * s.insects,
-            ),
-        ]
-
     def __init__(
         self,
         label: str,
         *,
-        forest: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='land')] = 490.0,
-        area: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='land')] = 10.0,
-        abandoned: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='land')] = 0.0,
-        shade_removal: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-        insects: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        yield_normal: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-        price: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 40.0,
-        cost: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
-        thinning_cost: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
-        adjustment_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
-        abandon_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 4.0,
-        conversion_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
-        palm_margin: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.4,
-        thinning_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 8.0,
-        insect_growth: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.6,
-        insect_control: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        subsidy: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        forest: Annotated[object, RealSet.closed_open(0, oo), Quantity('land')] = 490.0,
+        area: Annotated[object, RealSet.closed_open(0, oo), Quantity('land')] = 10.0,
+        abandoned: Annotated[object, RealSet.closed_open(0, oo), Quantity('land')] = 0.0,
+        shade_removal: Annotated[object, RealSet.closed_open(0, oo)] = 5.0,
+        insects: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        yield_normal: Annotated[object, RealSet.closed_open(0, oo)] = 5.0,
+        price: Annotated[object, RealSet.closed_open(0, oo)] = 40.0,
+        cost: Annotated[object, RealSet.closed_open(0, oo)] = 100.0,
+        thinning_cost: Annotated[object, RealSet.closed_open(0, oo)] = 20.0,
+        adjustment_time: Annotated[object, RealSet.open(0, oo)] = 3.0,
+        abandon_time: Annotated[object, RealSet.open(0, oo)] = 4.0,
+        conversion_time: Annotated[object, RealSet.open(0, oo)] = 3.0,
+        palm_margin: Annotated[object, RealSet.open(0, oo)] = 0.4,
+        thinning_time: Annotated[object, RealSet.open(0, oo)] = 8.0,
+        insect_growth: Annotated[object, RealSet.closed_open(0, oo)] = 0.6,
+        insect_control: Annotated[object, RealSet.closed_open(0, oo)] = 0.3,
+        subsidy: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
     ) -> None:
         super().__init__(label)
         self.forest = forest
@@ -171,19 +156,6 @@ class PlantationElement(Element):
         self.insect_growth = insect_growth
         self.insect_control = insect_control
         self.subsidy = subsidy
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the thinning of shade and the growth and control of the insects.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the element.
-        """
-        return PlantationElement._get_cocoa_laws(s)
 
 
 def _get_cocoa_yield(s: SimpleNamespace) -> Expression:
@@ -266,19 +238,38 @@ class CocoaSystem(BaseSystem):
     )
 
     @staticmethod
+    def _get_cocoa_laws(s: SimpleNamespace) -> list[BaseComponent]:
+        """Return the thinning of shade and the growth and control of the insects."""
+        land = s.target
+        unprotected = 1 - land.subsidy
+        return [
+            RateLaw(land.shade_removal, unprotected * (FULL_INDEX - land.shade_removal) / land.thinning_time),
+            RateLaw(
+                land.insects,
+                land.insect_growth
+                * unprotected
+                * land.shade_removal
+                / FULL_INDEX
+                * land.insects
+                * (1 - land.insects / FULL_INDEX)
+                - land.insect_control * land.subsidy * land.insects,
+            ),
+        ]
+
+    @staticmethod
     def _get_planting(s: SimpleNamespace) -> Expression:
         """Return the planting of forest towards the desired area.
 
         The desired area grows with the profitability.
         """
-        land = s.source
+        land = s.target
         desired = land.area * series(_get_profitability(land), *PROFITABILITY_EFFECT)
         return clip(desired - land.area, 0) / land.adjustment_time * land.forest / (land.forest + land.area)
 
     @staticmethod
     def _get_abandonment(s: SimpleNamespace) -> Expression:
         """Return the abandonment of plantations whose yield and profit fall."""
-        land = s.source
+        land = s.target
         effects = series(_get_cocoa_yield(land), *YIELD_EFFECT) * series(_get_profit_per_area(land), *PROFIT_EFFECT)
         return land.area * effects / land.abandon_time
 
@@ -310,37 +301,20 @@ class CocoaSystem(BaseSystem):
         self.subsidy = subsidy
 
     @staticmethod
-    def _land_use() -> TransferInteraction:
-        """Return the planting, abandonment, fallow, and conversion of cocoa land.
-
-        They are reported under the plantation.
-        """
-        return TransferInteraction(
-            'land_use',
-            source='cocoa',
-            target='cocoa',
-            state='forest',
-            into='area',
-            amount=CocoaSystem._get_planting,
-            flow='planting',
-            legs=[
-                ('area', 'abandoned', CocoaSystem._get_abandonment, 'abandonment'),
-                (
-                    'abandoned',
-                    'forest',
-                    lambda s: (1 - CocoaSystem._get_conversion(s.source))
-                    * s.source.abandoned
-                    / s.source.conversion_time,
-                    'fallow',
-                ),
-                (
-                    'abandoned',
-                    Sink('oil_palm'),
-                    lambda s: CocoaSystem._get_conversion(s.source) * s.source.abandoned / s.source.conversion_time,
-                    'conversion',
-                ),
-            ],
-        )
+    def _get_land_use(s: SimpleNamespace) -> list[BaseComponent]:
+        """Return the planting, abandonment, fallow, and conversion of cocoa land, reported under the plantation."""
+        land = s.target
+        conversion = CocoaSystem._get_conversion(land)
+        return [
+            RateLaw({land.forest: -1, land.area: +1}, CocoaSystem._get_planting(s), label='planting'),
+            RateLaw({land.area: -1, land.abandoned: +1}, CocoaSystem._get_abandonment(s), label='abandonment'),
+            RateLaw(
+                {land.abandoned: -1, land.forest: +1},
+                (1 - conversion) * land.abandoned / land.conversion_time,
+                label='fallow',
+            ),
+            RateLaw({land.abandoned: -1}, conversion * land.abandoned / land.conversion_time, label='conversion'),
+        ]
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of the components built from the model parameters."""
@@ -353,4 +327,11 @@ class CocoaSystem(BaseSystem):
             insect_growth=self.insect_growth,
             subsidy=self.subsidy,
         )
-        self.system_ = System(self.label, elements=[plantation], interactions=[self._land_use()])
+        self.system_ = System(
+            self.label,
+            elements=[plantation],
+            interactions=[
+                Interaction('farming', roles={'target': 'cocoa'}, laws=self._get_cocoa_laws),
+                Interaction('land_use', roles={'target': 'cocoa'}, laws=self._get_land_use),
+            ],
+        )

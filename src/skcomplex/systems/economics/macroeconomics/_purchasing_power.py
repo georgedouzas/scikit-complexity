@@ -6,7 +6,7 @@ It runs under sector policies, decoupled by feedback.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from functools import partial
 from types import SimpleNamespace
 
@@ -14,12 +14,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
 from ....core.components import Observable
-from ....core.components.elements import DeclaredElement
-from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import step
+from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 
 SECTORS = 3
@@ -29,24 +32,24 @@ C_MATRIX = ((1.0, 0.3, 0.0), (0.0, 1.0, 0.3), (0.2, 0.0, 1.0))
 D_MATRIX = ((1.0, 0.2, 0.0), (0.0, 1.0, 0.2), (0.1, 0.0, 1.0))
 
 
-class PurchasingPowerElement(DeclaredElement):
-    """National economy of three spending sectors, with sector policies.
+class PurchasingPowerInteraction(Interaction):
+    """Dynamics of a national economy of three spending sectors, with sector policies.
 
-    It follows `z' = A z + B u` and `y = C z + D u`. The state `z_i` is the gap between the demand and the supply of
-    money of sector `i`, the basic, the desired, and the luxurious living conditions, the output `y_i` is the index of
-    the sector, and the policy `x_i` of a sector is a step of size `policy_i` at the time `policy_time_i`. Without
-    feedback the economy takes the policies as its inputs, `u = x`. With feedback, the market reactions of Forrest's
-    feedback component set `u` so that every sector responds to its own policy only, as the decoupled systems
-    `w_i' = A w_i + B_i x_i` and `y_i = C_i w_i + D_i x_i`, whose states `w_ik` the element holds. The feedback
-    component holds a copy of `z` that equals `z` from the common zero start, so `u = D^-1 (y - C z)` with the decoupled
-    outputs `y`.
+    It follows `z' = A z + B u` and `y = C z + D u`. The state `z_i` of the economy is the gap between the demand and
+    the supply of money of sector `i`, the basic, the desired, and the luxurious living conditions, the output `y_i` is
+    the index of the sector, and the policy `x_i` of a sector is a step of size `policy_i` at the time `policy_time_i`,
+    values of the economy. Without feedback the economy takes the policies as its inputs, `u = x`. With feedback, the
+    market reactions of Forrest's feedback component set `u` so that every sector responds to its own policy only, as
+    the decoupled systems `w_i' = A w_i + B_i x_i` and `y_i = C_i w_i + D_i x_i`, whose states `w_ik` the economy holds.
+    The feedback component holds a copy of `z` that equals `z` from the common zero start, so `u = D^-1 (y - C z)` with
+    the decoupled outputs `y`.
 
     Args:
         label:
-            The label of the economy.
+            The label of the interaction.
 
-        variables:
-            Declared states and parameters that replace the derived ones, by name.
+        target:
+            The path of the economy.
 
         A:
             The matrix of the state.
@@ -64,9 +67,9 @@ class PurchasingPowerElement(DeclaredElement):
             Whether the feedback component decouples the sectors.
 
     Examples:
-        >>> from skcomplex.systems.economics.macroeconomics import PurchasingPowerElement
-        >>> PurchasingPowerElement('economy', feedback=True).get_value('z1')
-        0.0
+        >>> from skcomplex.systems.economics.macroeconomics import PurchasingPowerInteraction
+        >>> PurchasingPowerInteraction('dynamics', target='economy', feedback=True).feedback
+        True
     """
 
     law_classes = (RateLaw,)
@@ -75,33 +78,43 @@ class PurchasingPowerElement(DeclaredElement):
         self,
         label: str,
         *,
-        variables: Mapping[str, DeclaredVariableSpec] | None = None,
+        target: Role,
         A: Sequence[Sequence[float]] = A_MATRIX,
         B: Sequence[Sequence[float]] = B_MATRIX,
         C: Sequence[Sequence[float]] = C_MATRIX,
         D: Sequence[Sequence[float]] = D_MATRIX,
         feedback: bool = False,
     ) -> None:
-        super().__init__(label, variables=variables)
+        super().__init__(label)
+        self.target = target
         self.A = A
         self.B = B
         self.C = C
         self.D = D
         self.feedback = feedback
 
-    def _declare_variables(self) -> Mapping[str, DeclaredVariableSpec]:
-        """Return the states `z_i`, with feedback `w_ik`, starting at zero.
+    def get_values(self, policy: Sequence[float], policy_time: Sequence[float]) -> dict[str, float]:
+        """Return the values of the economy: the states `z_i`, with feedback `w_ik`, at zero, then the policies.
 
-        It also returns the sizes and times of the policies.
+        Args:
+            policy:
+                The size of the step policy of every sector.
+
+            policy_time:
+                The time of the step policy of every sector.
+
+        Returns:
+            values:
+                The value of every state and parameter of the economy by name.
         """
         states = [f'z{i}' for i in range(1, SECTORS + 1)]
         if self.feedback:
             states += [f'w{i}{k}' for i in range(1, SECTORS + 1) for k in range(1, SECTORS + 1)]
-        declared = {name: DeclaredVariableSpec(0.0, StateSpec()) for name in states}
-        for i in range(1, SECTORS + 1):
-            declared[f'policy{i}'] = DeclaredVariableSpec(0.0, ParameterSpec())
-            declared[f'policy_time{i}'] = DeclaredVariableSpec(1.0, ParameterSpec())
-        return {**declared, **(self.variables or {})}
+        values = dict.fromkeys(states, 0.0)
+        for i in range(SECTORS):
+            values[f'policy{i + 1}'] = float(policy[i])
+            values[f'policy_time{i + 1}'] = float(policy_time[i])
+        return values
 
     @staticmethod
     def _get_policies(s: SimpleNamespace) -> list[Expression]:
@@ -113,7 +126,7 @@ class PurchasingPowerElement(DeclaredElement):
 
         Args:
             s:
-                The namespace of the economy.
+                The namespace of the economy, with the time `t`.
 
         Returns:
             outputs:
@@ -135,7 +148,7 @@ class PurchasingPowerElement(DeclaredElement):
 
         Args:
             s:
-                The namespace of the economy.
+                The namespace of the economy, with the time `t`.
 
         Returns:
             inputs:
@@ -148,20 +161,15 @@ class PurchasingPowerElement(DeclaredElement):
         gaps = [y[i] - sum(C[i, k] * z[k] for k in range(SECTORS)) for i in range(SECTORS)]
         return [sum(inverse[i, k] * gaps[k] for k in range(SECTORS)) for i in range(SECTORS)]
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rates of the economy and, with feedback, of the decoupled systems.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the element.
-        """
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rates of the economy and, with feedback, of the decoupled systems as the laws."""
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        s = SimpleNamespace(t=context.t, **vars(context.target))
         A, B = np.asarray(self.A), np.asarray(self.B)
         z, u = [getattr(s, f'z{i}') for i in range(1, SECTORS + 1)], self.get_inputs(s)
-        laws: list[BaseLaw] = [
+        laws: list[BaseComponent] = [
             RateLaw(z[i], sum(A[i, k] * z[k] + B[i, k] * u[k] for k in range(SECTORS))) for i in range(SECTORS)
         ]
         if self.feedback:
@@ -171,7 +179,7 @@ class PurchasingPowerElement(DeclaredElement):
                 laws += [
                     RateLaw(w[j], sum(A[j, k] * w[k] for k in range(SECTORS)) + B[j, i] * x[i]) for j in range(SECTORS)
                 ]
-        return laws
+        self.laws_ = laws
 
 
 class CategorizedPurchasingPowerSystem(BaseSystem):
@@ -224,7 +232,7 @@ class CategorizedPurchasingPowerSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.economics.macroeconomics import CategorizedPurchasingPowerSystem
-        >>> CategorizedPurchasingPowerSystem(feedback=False).prepare().system_.elements[0].feedback
+        >>> CategorizedPurchasingPowerSystem(feedback=False).prepare().system_.interactions[0].feedback
         False
     """
 
@@ -235,21 +243,26 @@ class CategorizedPurchasingPowerSystem(BaseSystem):
     dt = 0.05
 
     @staticmethod
-    def _get_sector_value(s: SimpleNamespace, economy: PurchasingPowerElement, method: str, index: int) -> Expression:
+    def _get_sector_value(
+        s: SimpleNamespace,
+        dynamics: PurchasingPowerInteraction,
+        method: str,
+        index: int,
+    ) -> Expression:
         """Return the index or the input of one sector of the economy."""
-        values: list[Expression] = getattr(economy, method)(s)
+        values: list[Expression] = getattr(dynamics, method)(s)
         return values[index]
 
     @staticmethod
     def _get_observables(system: System) -> list[Observable]:
         """Return the index and the input of every sector."""
-        economy = system.elements[0]
-        if not isinstance(economy, PurchasingPowerElement):
+        dynamics = system.interactions[0]
+        if not isinstance(dynamics, PurchasingPowerInteraction):
             return []
         return [
             Observable(
                 f'{name}{i + 1}',
-                partial(CategorizedPurchasingPowerSystem._get_sector_value, economy=economy, method=method, index=i),
+                partial(CategorizedPurchasingPowerSystem._get_sector_value, dynamics=dynamics, method=method, index=i),
                 element='economy',
             )
             for name, method in (('y', 'get_outputs'), ('u', 'get_inputs'))
@@ -282,19 +295,15 @@ class CategorizedPurchasingPowerSystem(BaseSystem):
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of the components built from the model parameters."""
         super()._prepare(context)
-        variables = {
-            name: DeclaredVariableSpec(float(value), ParameterSpec())
-            for i in range(SECTORS)
-            for name, value in ((f'policy{i + 1}', self.policy[i]), (f'policy_time{i + 1}', self.policy_time[i]))
-        }
-        economy = PurchasingPowerElement(
-            'economy',
-            variables=variables,
+        dynamics = PurchasingPowerInteraction(
+            'dynamics',
+            target='economy',
             A=self.A,
             B=self.B,
             C=self.C,
             D=self.D,
             feedback=self.feedback,
         )
-        self.system_ = System(self.label, elements=[economy])
+        economy = Element('economy', values=dynamics.get_values(self.policy, self.policy_time))
+        self.system_ = System(self.label, elements=[economy], interactions=[dynamics])
         self.observables_ = tuple(CategorizedPurchasingPowerSystem._get_observables(self.system_))
