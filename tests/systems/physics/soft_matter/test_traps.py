@@ -5,14 +5,13 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.soft_matter import BiasedTrapWalkSystem
 
 
 def test_biased_trap_walk_subdiffusion():
     """Test that walkers among traps of exponent 1/2 travel as t^(1/2) with the renewal prefactor."""
     alpha = 0.5
-    trajectory = simulate(BiasedTrapWalkSystem(100, n_sites=200, alpha=alpha), random_state=0)
+    trajectory = BiasedTrapWalkSystem(100, n_sites=200, alpha=alpha).prepare().simulate(random_state=0)
     times, position = trajectory.times, trajectory.get_values('position')
     late = times >= 50
     slope = np.polyfit(np.log(times[late]), np.log(position[late]), 1)[0]

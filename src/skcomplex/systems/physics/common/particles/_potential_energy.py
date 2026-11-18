@@ -8,9 +8,8 @@ Their forces are minus the gradients of the energy of their positions.
 
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
-from .....core.specs import RoleSpec
+from .....core.specs import Role
 from ....general.gradients import GradientInteraction
 
 
@@ -53,7 +52,7 @@ class PotentialEnergyInteraction(GradientInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         potential: Callable[[SimpleNamespace], object] | None = None,
         states: str | Sequence[str] = 'x',
         divisor: str = 'm',

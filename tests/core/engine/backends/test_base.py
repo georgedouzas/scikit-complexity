@@ -41,8 +41,10 @@ from skcomplex.core.errors import BackendWarning, SolverError
 from skcomplex.core.specs import BaseSpec, ParameterSpec, RoleSpec, StateSpec
 from skcomplex.systems.biology.common.populations import PopulationElement
 from skcomplex.systems.biology.epidemiology import InfectionInteraction, RecoveryInteraction
-from skcomplex.systems.physics.common.particles import HarmonicPotentialInteraction, MassPointElement
+from skcomplex.systems.physics.common.particles import HarmonicPotentialInteraction
 from skcomplex.systems.physics.statistical_mechanics import ContactProcessSystem
+
+from ....conftest import BodyElement
 
 CUTOFF = 2.5
 
@@ -202,7 +204,7 @@ def _lennard_jones_gas(n=400, period=None):
         elements=[
             GroupElement(
                 'gas',
-                element=MassPointElement,
+                element=BodyElement,
                 size=n,
                 values={'x': grid + rng.normal(0, 0.05, (n, 2)), 'x_d1': rng.normal(0, 1, (n, 2))},
             ),
@@ -245,7 +247,7 @@ def test_backend_runs_the_kernels_of_a_form(backend):
 def test_compile_auto_backend_depends_on_group_size():
     """Test that `auto` picks Numba for 1000 members and NumPy for two single elements."""
     large = CompositeSystem(
-        elements=[GroupElement('gas', element=MassPointElement, size=1000)],
+        elements=[GroupElement('gas', element=BodyElement, size=1000)],
         space=ContinuousSpace(n_dim=2),
     )
     small = CompositeSystem(elements=[PopulationElement('a'), PopulationElement('b')])
@@ -279,8 +281,8 @@ def test_backends_agree_on_two_groups(numba_backend):
     rng = np.random.default_rng(1)
     system = CompositeSystem(
         elements=[
-            GroupElement('a', element=MassPointElement, size=150, values={'x': rng.uniform(0, 12, (150, 2))}),
-            GroupElement('b', element=MassPointElement, size=100, values={'x': rng.uniform(3, 15, (100, 2))}),
+            GroupElement('a', element=BodyElement, size=150, values={'x': rng.uniform(0, 12, (150, 2))}),
+            GroupElement('b', element=BodyElement, size=100, values={'x': rng.uniform(3, 15, (100, 2))}),
         ],
         interactions=[LennardJonesInteraction('lj', first='a', second='b', cutoff=CUTOFF)],
         space=ContinuousSpace(n_dim=2),
@@ -466,7 +468,7 @@ def test_compiled_iteration_matches_numpy(numba_backend):
 def test_velocity_verlet_conserves_energy(backend, numba_backend):
     """Test that velocity Verlet keeps the energy of an oscillator within 1e-3 over 1000 time units."""
     system = CompositeSystem(
-        elements=[GroupElement('p', element=MassPointElement, size=1, values={'x': [[1.0]], 'x_d1': [[0.0]]})],
+        elements=[GroupElement('p', element=BodyElement, size=1, values={'x': [[1.0]], 'x_d1': [[0.0]]})],
         interactions=[HarmonicPotentialInteraction('trap', target='p')],
         space=ContinuousSpace(n_dim=1),
     )

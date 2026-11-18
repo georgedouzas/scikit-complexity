@@ -7,10 +7,11 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import Expression, oo
+from sage.all__sagemath_symbolics import SR, Expression, oo, vector
+from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
-from .....core.specs import ParameterSpec, RoleSpec
+from .....core.specs import Role
 from ._potential_energy import PotentialEnergyInteraction
 
 
@@ -48,9 +49,9 @@ class HarmonicPotentialInteraction(PotentialEnergyInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        center: Annotated[npt.ArrayLike, ParameterSpec(vector=True)] = 0.0,
+        target: Role,
+        k: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        center: npt.ArrayLike = 0.0,
         states: str = 'x',
         divisor: str = 'm',
     ) -> None:
@@ -73,5 +74,8 @@ class HarmonicPotentialInteraction(PotentialEnergyInteraction):
             energy:
                 The potential energy as a symbolic expression.
         """
-        displacement = getattr(s.target, self._get_names()[0]) - self._get_center(s)
+        position, center = getattr(s.target, self._get_names()[0]), self._get_center(s)
+        if not isinstance(center, FreeModuleElement):
+            center = vector(SR, [center] * len(position))
+        displacement = position - center
         return s.k * displacement.dot_product(displacement) / 2

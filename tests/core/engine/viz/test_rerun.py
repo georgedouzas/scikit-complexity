@@ -37,11 +37,12 @@ from skcomplex.systems.biology.evolution import MoranProcessSystem
 from skcomplex.systems.chemistry.pattern_formation import GrayScottSystem
 from skcomplex.systems.computer_science.automata import ElementaryAutomatonSystem
 from skcomplex.systems.economics.resources import HilsaFisherySystem
-from skcomplex.systems.physics.common.particles import ConstantForceInteraction, MassPointElement
+from skcomplex.systems.physics.common.particles import ConstantForceInteraction
 from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem
 from skcomplex.systems.social.opinion_dynamics import VoterSystem
 from skcomplex.systems.social.segregation import SchellingSystem
 
+from ....conftest import BodyElement
 from .conftest import _prepared, _views, default_blueprint
 
 
@@ -124,7 +125,7 @@ def test_scalars_visual_logs_nested_paths():
 def test_points_visual_logs_positions(n_dim, archetype):
     """Test that positions are logged as points of their dimension."""
     system = CompositeSystem(
-        elements=[MassPointElement('ball')],
+        elements=[BodyElement('ball')],
         interactions=[ConstantForceInteraction('push', target='ball', F=1.0)],
         space=ContinuousSpace(n_dim=n_dim),
     )
@@ -254,7 +255,7 @@ def test_rerun_observer_waits_for_a_file_without_limit(monkeypatch, tmp_path):
 
 def _gas():
     """Return a compiled gas of two particles."""
-    gas = GroupElement('gas', element=MassPointElement, size=2)
+    gas = GroupElement('gas', element=BodyElement, size=2)
     return simulate(CompositeSystem(elements=[gas], space=ContinuousSpace(n_dim=2)), until=0).problem
 
 
@@ -319,7 +320,7 @@ def test_points_colored_by_speed_follow_the_color_scale():
         elements=[
             GroupElement(
                 'gas',
-                element=MassPointElement,
+                element=BodyElement,
                 size=3,
                 values={'x_d1': [[0.1, 0.0], [1.0, 0.0], [2.0, 0.0]]},
             ),

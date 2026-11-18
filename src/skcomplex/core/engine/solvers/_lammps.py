@@ -19,7 +19,9 @@ import numpy.typing as npt
 from lammps import lammps
 from sage.all__sagemath_symbolics import SR, Expression, oo
 from sage.sets.real_set import RealSet
+from sklearn.base import clone
 
+from ...components.elements import GroupElement
 from ...components.interactions import BaseInteraction, PairInteraction
 from ...components.laws import BoundaryLaw, ConstraintLaw, NoiseLaw, RateLaw
 from ...components.spaces import BaseSpace, ContinuousSpace, ContinuousTime
@@ -636,16 +638,23 @@ class LammpsSolver(ExternalSolver):
     def _find_position(element: CompiledElementSpec) -> str | None:
         """Return the name of the order 2 vector position state of the members.
 
-        The members are those of an element, and `None` is returned without such a state.
+        The members are those of an element, and `None` is returned without such a state. A plain element has it when
+        its laws give the second derivative of a state, so the state has the velocity `x'` and no `x''`.
         """
-        element_type = element.element.element if element.members is not None else type(element.element)
-        declarations = declarations_of(element_type, VariableKind.STATE)
-        return next(
+        declared = element.element.element if isinstance(element.element, GroupElement) else type(element.element)
+        declarations = declarations_of(declared, VariableKind.STATE)
+        found = next(
             (
                 name
                 for name, declaration in declarations.items()
                 if declaration.is_place and declaration.order == POSITION_ORDER
             ),
+            None,
+        )
+        if found is not None or declarations:
+            return found
+        return next(
+            (name for name in element.states if f'{name}_d1' in element.states and f'{name}_d2' not in element.states),
             None,
         )
 
@@ -714,20 +723,33 @@ class LammpsSolver(ExternalSolver):
     def _filter_system(system: CompositeSystem, keep: set[str], scope: str = '') -> CompositeSystem:
         """Return a copy of a system tree that keeps only some interactions.
 
-        The interactions kept are those whose paths are in `keep`. A box becomes an unbounded continuous space of its
-        dimension, since LAMMPS applies the walls and the periodic sides itself and the copy only evaluates forces.
+        The interactions kept are those whose paths are in `keep`. A box of the system or of an element becomes an
+        unbounded continuous space of its dimension, since LAMMPS applies the walls and the periodic sides itself and
+        the copy only evaluates forces.
         """
-        space = system.space
-        if isinstance(space, ContinuousSpace):
-            space = ContinuousSpace(n_dim=space.n_dim or len(space.extent))
+        elements = [
+            (
+                clone(element).set_params(space=LammpsSolver._unbound(element.space))
+                if isinstance(getattr(element, 'space', None), ContinuousSpace)
+                else element
+            )
+            for element in system.elements
+        ]
         return CompositeSystem(
             system.label,
-            elements=system.elements,
+            elements=elements,
             interactions=[item for item in system.interactions if f'{scope}{item.label}' in keep],
             systems=[LammpsSolver._filter_system(child, keep, f'{scope}{child.label}/') for child in system.systems],
-            space=space,
+            space=LammpsSolver._unbound(system.space),
             time=system.time,
         )
+
+    @staticmethod
+    def _unbound(space: BaseSpace | None) -> BaseSpace | None:
+        """Return an unbounded continuous space of the dimension of a box, or any other space as it is."""
+        if isinstance(space, ContinuousSpace):
+            return ContinuousSpace(n_dim=space.n_dim or len(space.extent))
+        return space
 
     @staticmethod
     def _check_masses(problem: ProblemSpec, element: CompiledElementSpec) -> list[str]:

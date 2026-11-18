@@ -53,13 +53,14 @@ from ._rigid_bodies import (
     RigidDimersSystem,
     RigidRodInteraction,
 )
-from ._traps import BiasedTrapWalkSystem, TrapSiteElement
+from ._traps import BiasedHopInteraction, BiasedTrapWalkSystem, TrapSiteElement
 
 __all__: list[str] = [
     'AnisotropicBrownianParticlesSystem',
     'AnisotropicDiffusionInteraction',
     'AnisotropicParticleElement',
     'AnnealedTransientTimeMotionSystem',
+    'BiasedHopInteraction',
     'BiasedTrapWalkSystem',
     'BlinkingTrapsInteraction',
     'BrownianMotionSystem',

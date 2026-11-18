@@ -9,7 +9,7 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo, sqrt
 from sage.sets.real_set import RealSet
 
-from .....core.specs import ParameterSpec, RoleSpec
+from .....core.specs import Role
 from ._potential_energy import PotentialEnergyInteraction
 
 
@@ -50,10 +50,10 @@ class SpringInteraction(PotentialEnergyInteraction):
         self,
         label: str,
         *,
-        first: Annotated[str, RoleSpec()],
-        second: Annotated[str, RoleSpec()],
-        k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        length: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        first: Role,
+        second: Role,
+        k: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        length: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
         states: str = 'x',
         divisor: str = 'm',
     ) -> None:

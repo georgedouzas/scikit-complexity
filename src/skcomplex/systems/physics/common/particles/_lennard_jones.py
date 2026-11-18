@@ -35,7 +35,7 @@ class LennardJonesInteraction(PairInteraction):
             The name of the vector state that holds the positions of the members.
 
         write:
-            The name of the state whose rate the force changes, the position of order 2 by default.
+            The name of the state whose derivative the force changes, the position by default.
 
         divisor:
             The name of the parameter that holds the masses of the members, or `None` for unit masses.
@@ -48,6 +48,9 @@ class LennardJonesInteraction(PairInteraction):
 
         sigma:
             The distance at which the potential is zero.
+
+        order:
+            The derivative of `write` the force adds to, 2 for the acceleration of a position.
 
     Examples:
         >>> from skcomplex.systems.physics.common.particles import LennardJonesInteraction
@@ -68,6 +71,7 @@ class LennardJonesInteraction(PairInteraction):
         period: float | None = None,
         epsilon: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         sigma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        order: int | None = 2,
     ) -> None:
         super().__init__(
             label,
@@ -79,6 +83,7 @@ class LennardJonesInteraction(PairInteraction):
             potential=self._get_lennard_jones_energy,
             divisor=divisor,
             period=period,
+            order=order,
         )
         self.epsilon = epsilon
         self.sigma = sigma

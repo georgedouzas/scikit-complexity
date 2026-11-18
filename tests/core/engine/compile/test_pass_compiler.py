@@ -99,13 +99,20 @@ from skcomplex.systems.economics.markets import CobwebInteraction, MarketElement
 from skcomplex.systems.physics.common.particles import (
     ConstantForceInteraction,
     HarmonicPotentialInteraction,
-    MassPointElement,
 )
 from skcomplex.systems.physics.common.quantum import QubitElement
 from skcomplex.systems.physics.statistical_mechanics import ParticleSiteElement, ZeroRangeHopInteraction
 from skcomplex.systems.social.cooperation import SimplexSpace
 
-from ....conftest import CallableGrowthInteraction, HoldingElement, NodeElement, _correlated, _summed, _weighted
+from ....conftest import (
+    BodyElement,
+    CallableGrowthInteraction,
+    HoldingElement,
+    NodeElement,
+    _correlated,
+    _summed,
+    _weighted,
+)
 from .conftest import PairElement
 
 CUTOFF = 2.5
@@ -1144,7 +1151,7 @@ def _lennard_jones_gas(n, seed=0):
         elements=[
             GroupElement(
                 'gas',
-                element=MassPointElement,
+                element=BodyElement,
                 size=n,
                 values={'x': grid + rng.normal(0, 0.05, (n, 2)), 'x_d1': rng.normal(0, 0.5, (n, 2))},
             ),
@@ -1256,7 +1263,7 @@ def test_compiler_callable_law_is_evaluated():
 def test_compiler_rates_add_up():
     """Test that two forces on one particle add up."""
     system = CompositeSystem(
-        elements=[MassPointElement('p', x=1.0, m=2.0)],
+        elements=[BodyElement('p', x=1.0, m=2.0)],
         interactions=[
             ConstantForceInteraction('push', target='p', F=4.0),
             HarmonicPotentialInteraction('trap', target='p', k=6.0),
@@ -1270,7 +1277,7 @@ def test_compiler_rates_add_up():
 def test_compiler_keeps_oscillator_equations():
     """Test that the velocity equation of an oscillator is `-k * (x - center) / m`."""
     system = CompositeSystem(
-        elements=[MassPointElement('p')],
+        elements=[BodyElement('p')],
         interactions=[HarmonicPotentialInteraction('trap', target='p')],
         space=ContinuousSpace(n_dim=1),
     )
@@ -1285,7 +1292,7 @@ def test_compiler_keeps_oscillator_equations():
 
 def test_compiler_vector_state_takes_space_dimension():
     """Test that vector states have one component per dimension."""
-    system = CompositeSystem(elements=[MassPointElement('p')], space=ContinuousSpace(n_dim=2))
+    system = CompositeSystem(elements=[BodyElement('p')], space=ContinuousSpace(n_dim=2))
     problem = PassCompiler().prepare(system).run().problem_
     assert problem.states.component_names == ['p.x[0]', 'p.x[1]', 'p.x_d1[0]', 'p.x_d1[1]']
 
@@ -1293,20 +1300,20 @@ def test_compiler_vector_state_takes_space_dimension():
 def test_compiler_vector_state_without_space_raises_error():
     """Test that a vector state needs a space."""
     with pytest.raises(SpaceError, match='must have a space'):
-        PassCompiler().prepare(CompositeSystem(elements=[MassPointElement('p')])).run()
+        PassCompiler().prepare(CompositeSystem(elements=[BodyElement('p')])).run()
 
 
 @pytest.mark.parametrize('m', [-2.0, 0.0, 'm'])
 def test_compiler_value_outside_domain_raises_error(m):
     """Test that a parameter outside its domain is rejected."""
-    system = CompositeSystem(elements=[MassPointElement('p', m=m)], space=ContinuousSpace(n_dim=1))
+    system = CompositeSystem(elements=[BodyElement('p', m=m)], space=ContinuousSpace(n_dim=1))
     with pytest.raises(ValidationError, match=r'p\.m'):
         PassCompiler().prepare(system).run()
 
 
 def test_compiler_wrong_shape_raises_error():
     """Test that a vector value of the wrong size is rejected."""
-    system = CompositeSystem(elements=[MassPointElement('p', x=[1, 2, 3])], space=ContinuousSpace(n_dim=2))
+    system = CompositeSystem(elements=[BodyElement('p', x=[1, 2, 3])], space=ContinuousSpace(n_dim=2))
     with pytest.raises(ValidationError, match='shape'):
         PassCompiler().prepare(system).run()
 
@@ -1435,7 +1442,7 @@ def test_compile_group_time_does_not_grow_with_size():
     def compile_time(n):
         start = time.perf_counter()
         system = CompositeSystem(
-            elements=[GroupElement('gas', element=MassPointElement, size=n)],
+            elements=[GroupElement('gas', element=BodyElement, size=n)],
             space=ContinuousSpace(extent=(1.0, 1.0), boundary='reflecting'),
         )
         PassCompiler().prepare(system).run()
@@ -1448,7 +1455,7 @@ def test_compile_group_time_does_not_grow_with_size():
 def test_compile_group_names_states_by_group_path():
     """Test that a group state is named by its group path with the group shape."""
     system = CompositeSystem(
-        elements=[GroupElement('gas', element=MassPointElement, size=500)],
+        elements=[GroupElement('gas', element=BodyElement, size=500)],
         space=ContinuousSpace(n_dim=2),
     )
     problem = PassCompiler().prepare(system).run().problem_
@@ -1476,8 +1483,8 @@ def test_compile_pair_forces_between_two_groups():
     """Test that a pair interaction between two groups attracts both beyond the potential minimum."""
     system = CompositeSystem(
         elements=[
-            GroupElement('a', element=MassPointElement, size=1, values={'x': [[0.0, 0.0]]}),
-            GroupElement('b', element=MassPointElement, size=1, values={'x': [[1.5, 0.0]]}),
+            GroupElement('a', element=BodyElement, size=1, values={'x': [[0.0, 0.0]]}),
+            GroupElement('b', element=BodyElement, size=1, values={'x': [[1.5, 0.0]]}),
         ],
         interactions=[LennardJonesInteraction('lj', first='a', second='b', cutoff=CUTOFF)],
         space=ContinuousSpace(n_dim=2),
@@ -1492,7 +1499,7 @@ def test_compile_pair_forces_between_two_groups():
 def test_compile_pair_forces_use_minimum_image():
     """Test that periodic pair interactions use minimum image distances."""
     system = CompositeSystem(
-        elements=[GroupElement('gas', element=MassPointElement, size=2, values={'x': [[0.1, 0.5], [9.6, 0.5]]})],
+        elements=[GroupElement('gas', element=BodyElement, size=2, values={'x': [[0.1, 0.5], [9.6, 0.5]]})],
         interactions=[LennardJonesInteraction('lj', first='gas', second='gas', cutoff=CUTOFF, period=10.0)],
         space=ContinuousSpace(n_dim=2),
     )
@@ -1508,7 +1515,7 @@ def test_compile_pair_forces_use_minimum_image():
 def test_compile_reflecting_box_keeps_ode_form():
     """Test that a reflecting box adds boundary laws without changing the form."""
     system = CompositeSystem(
-        elements=[GroupElement('gas', element=MassPointElement, size=4)],
+        elements=[GroupElement('gas', element=BodyElement, size=4)],
         space=ContinuousSpace(extent=(1.0, 1.0), boundary='reflecting'),
     )
     problem = PassCompiler().prepare(system).run().problem_
@@ -1548,7 +1555,7 @@ def test_compile_periodic_box_wraps_positions():
         elements=[
             GroupElement(
                 'gas',
-                element=MassPointElement,
+                element=BodyElement,
                 size=1,
                 values={'x': [[1.25, 0.5]], 'x_d1': [[1.0, 0.0]]},
             ),
@@ -1635,7 +1642,7 @@ def test_compile_boundary_twice_raises_error():
             return [BoundaryLaw(s.target.x[0], mod(s.target.x[0], 1))]
 
     system = CompositeSystem(
-        elements=[GroupElement('gas', element=MassPointElement, size=2)],
+        elements=[GroupElement('gas', element=BodyElement, size=2)],
         interactions=[WrapInteraction('wrap', target='gas')],
         space=ContinuousSpace(extent=(1.0,), boundary='reflecting'),
     )
@@ -1753,7 +1760,7 @@ def test_stratonovich_callable_amplitude_raises_an_error_naming_the_drift_correc
 def test_components_receive_sage_symbols_and_vectors():
     """Test that scalar symbols are Sage expressions with their domains and vector states are Sage vectors."""
     system = CompositeSystem(
-        elements=[MassPointElement('p')],
+        elements=[BodyElement('p')],
         interactions=[RecorderInteraction('record', target='p')],
         space=ContinuousSpace(n_dim=3),
     )

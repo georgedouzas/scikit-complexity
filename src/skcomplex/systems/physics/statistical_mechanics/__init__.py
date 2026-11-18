@@ -22,7 +22,7 @@ from ._fully_connected_spins import (
     GlauberFlipInteraction,
     SherringtonKirkpatrickSystem,
 )
-from ._gases import IdealGasSystem, LennardJonesFluidSystem
+from ._gases import FreeFlightInteraction, GasMoleculeElement, IdealGasSystem, LennardJonesFluidSystem
 from ._graph_spins import GraphIsingSystem
 from ._kinetic_temperature import KineticTemperatureResult, kinetic_temperature
 from ._master_equations import (
@@ -70,7 +70,7 @@ from ._spin_glasses import (
 )
 from ._spins import IsingSystem, PottsSpinElement, PottsSystem, XYSpinElement, XYSystem
 from ._susceptibility import SusceptibilityResult, susceptibility
-from ._traps import TrapSystem, TrapWalkerElement
+from ._traps import TrapEscapeInteraction, TrapSystem, TrapWalkerElement
 from ._urns import EhrenfestMoveInteraction, EhrenfestUrnSystem
 
 __all__: list[str] = [
@@ -98,7 +98,9 @@ __all__: list[str] = [
     'ExclusionHopsInteraction',
     'ExclusionSiteElement',
     'FireSpreadInteraction',
+    'FreeFlightInteraction',
     'FullyConnectedSpinElement',
+    'GasMoleculeElement',
     'GlauberFlipInteraction',
     'GraphIsingSystem',
     'IdealGasSystem',
@@ -127,6 +129,7 @@ __all__: list[str] = [
     'SitePercolationSystem',
     'SusceptibilityResult',
     'TASEPSystem',
+    'TrapEscapeInteraction',
     'TrapSystem',
     'TrapWalkerElement',
     'TreeNodeElement',

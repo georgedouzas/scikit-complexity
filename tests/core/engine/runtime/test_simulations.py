@@ -40,10 +40,10 @@ from skcomplex.systems.economics.finance import GeometricBrownianMotionSystem
 from skcomplex.systems.economics.macroeconomics import StockFlowConsistentEconomySystem
 from skcomplex.systems.economics.markets import CobwebInteraction, MarketElement
 from skcomplex.systems.economics.resources import HilsaFisherySystem
-from skcomplex.systems.physics.common.particles import ConstantForceInteraction, MassPointElement
+from skcomplex.systems.physics.common.particles import ConstantForceInteraction
 from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem
 
-from ....conftest import AdaptiveInputInteraction, _correlated, _summed, _weighted
+from ....conftest import AdaptiveInputInteraction, BodyElement, _correlated, _summed, _weighted
 
 STORED_GEOMETRIC_BROWNIAN_MOTION = [
     100.0,
@@ -77,7 +77,7 @@ class AmountElement(Element):
 def _pushed_gas(n=500):
     """Return a group pushed by a constant force, whose velocity change depends on the mass."""
     return CompositeSystem(
-        elements=[GroupElement('gas', element=MassPointElement, size=n)],
+        elements=[GroupElement('gas', element=BodyElement, size=n)],
         interactions=[ConstantForceInteraction('push', target='gas', F=[1.0, 0.0])],
         space=ContinuousSpace(n_dim=2),
     )

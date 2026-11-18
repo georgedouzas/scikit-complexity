@@ -57,6 +57,25 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
                 item.add_marker(pytest.mark.skip(reason=reason))
 
 
+class BodyElement(Element):
+    """Body with a declared vector position of order 2, its velocity `x_d1`, and its mass `m`."""
+
+    visual = VisualSpec('points', {'position': 'x'})
+
+    def __init__(
+        self,
+        label: str,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, order=2, role='position')] = 0.0,
+        x_d1: npt.ArrayLike = 0.0,
+        *,
+        m: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.x_d1 = x_d1
+        self.m = m
+
+
 class NodeElement(Element):
     """Node element."""
 
