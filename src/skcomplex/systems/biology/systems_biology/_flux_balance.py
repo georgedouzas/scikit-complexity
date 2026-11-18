@@ -13,7 +13,7 @@ from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
 from ....core.systems import BaseSystem, System
-from ..common.metabolism import ToyNetworkElement, load_network
+from ..common.metabolism import MetabolicCellElement, ToyFluxBalanceInteraction, load_network
 
 NETWORKS = ('toy', 'ecoli')
 OXYGEN_EXCHANGE = 'EX_o2_e'
@@ -94,13 +94,13 @@ class FluxBalanceSystem(BaseSystem):
             error_msg = f'Unknown network {self.network!r}. Use one of {", ".join(NETWORKS)}.'
             raise ValidationError(error_msg)
         if self.network == 'toy':
-            self.system_ = System(
-                self.label,
-                elements=[ToyNetworkElement('cell', parsimonious=self.parsimonious)],
-            )
+            network = ToyFluxBalanceInteraction('fba', parsimonious=self.parsimonious)
+            cell = MetabolicCellElement('cell', values=network.get_values())
+            self.system_ = System(self.label, elements=[cell], interactions=[network])
             return
-        element = load_network('textbook', 'cell', needed_by='flux_balance')
-        element.parsimonious = self.parsimonious
-        identifier = f'lower_{element._get_identifier(OXYGEN_EXCHANGE)}'
-        element.set_params(**{identifier: -float(self.oxygen)})
-        self.system_ = System(self.label, elements=[element])
+        network = load_network('textbook', 'cell', needed_by='flux_balance').set_params(
+            parsimonious=self.parsimonious,
+        )
+        identifier = f'lower_{network._get_identifier(OXYGEN_EXCHANGE)}'
+        cell = MetabolicCellElement('cell', values=network.get_values() | {identifier: -float(self.oxygen)})
+        self.system_ = System(self.label, elements=[cell], interactions=[network])

@@ -3,10 +3,10 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.components.spaces import StaticTime
-from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.components.elements import Element
 from skcomplex.core.errors import ValidationError
-from skcomplex.systems.biology.common.metabolism import ReactionSpec, metabolic_network_type
+from skcomplex.core.systems import System
+from skcomplex.systems.biology.common.metabolism import FluxBalanceInteraction, ReactionSpec
 from skcomplex.systems.biology.systems_biology import (
     AtomMapSpec,
     Carbon13MFASystem,
@@ -87,9 +87,15 @@ def test_check_names_an_unbalanced_letter():
         AtomMapSpec('v1', [('A', 'ab')], [('B', 'az')])._check()
 
 
+def _get_system(reactions):
+    """Return the system of a network of some reactions whose cell is `net`."""
+    network = FluxBalanceInteraction('fba', cell='net', reactions=reactions)
+    return System(elements=[Element('net', values=network.get_values())], interactions=[network])
+
+
 def _system():
     """Return the system of the TCA example of Antoniewicz et al. (2007)."""
-    return CompositeSystem(elements=[metabolic_network_type('TcaElement', REACTIONS)('net')], time=StaticTime())
+    return _get_system(REACTIONS)
 
 
 def _simulated(tracers):
@@ -216,7 +222,7 @@ def test_simulation_scrambles_a_symmetric_metabolite():
         AtomMapSpec('on', [('Suc', 'abcd')], [('Fum', 'abcd')]),
     ]
     fragments = [FragmentSpec('Fum', (atom,), f'atom{atom}') for atom in (1, 2, 3, 4)]
-    system = CompositeSystem(elements=[metabolic_network_type('SymmetricElement', reactions)('net')], time=StaticTime())
+    system = _get_system(reactions)
     found = labelling(
         system,
         atoms=atoms,

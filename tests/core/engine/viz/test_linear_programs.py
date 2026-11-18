@@ -86,7 +86,7 @@ def test_observer_streams_a_batch_culture_to_a_file(tmp_path: Path):
     assert (tmp_path / 'run.rrd').exists()
     assert observer.logged_frames_ == 3
     objective = trajectory.get_values('fba/cell.objective_0')
-    assert objective[-1] == pytest.approx(0.8739, rel=0.01)
+    assert -objective[-1] == pytest.approx(0.8739, rel=0.01)
 
 
 def test_observer_logs_the_growth_of_every_site_as_an_image(tmp_path: Path):

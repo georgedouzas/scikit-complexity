@@ -12,7 +12,7 @@ from ....core.components import Observable
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
-from ..common.metabolism import load_network
+from ..common.metabolism import MetabolicCellElement, load_network
 
 
 class MetabolicPerturbationsSystem(BaseSystem):
@@ -44,7 +44,7 @@ class MetabolicPerturbationsSystem(BaseSystem):
     Examples:
         >>> from skcomplex.systems.biology.systems_biology import MetabolicPerturbationsSystem
         >>> trajectory = MetabolicPerturbationsSystem(genes=('b4025',)).prepare().simulate(until=0.0)
-        >>> round(float(trajectory.get_values('cell.objective_0')[0]), 3)
+        >>> round(float(trajectory.get_values('cell.v_Biomass_Ecoli_core')[0]), 3)
         0.863
     """
 
@@ -72,6 +72,7 @@ class MetabolicPerturbationsSystem(BaseSystem):
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
-        element = load_network('textbook', 'cell', needed_by='metabolic_perturbations')
-        element.set_params(**{element.get_gene_name(gene): 0.0 for gene in self.genes})
-        self.system_ = System(self.label, elements=[element])
+        network = load_network('textbook', 'cell', needed_by='metabolic_perturbations')
+        knocked = {network.get_gene_name(gene): 0.0 for gene in self.genes}
+        cell = MetabolicCellElement('cell', values=network.get_values() | knocked)
+        self.system_ = System(self.label, elements=[cell], interactions=[network])

@@ -6,25 +6,28 @@ The culture is the biomass, the substrates, and the exchanges with them.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
+import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from .....core.components.elements import DeclaredElement, Element
+from .....core.components.elements import Element
 from .....core.components.interactions import Interaction
-from .....core.components.laws import BaseLaw, LinearObjectiveSpec, LinearProgramLaw, RateLaw, UpdateLaw
+from .....core.components.laws import BaseLaw, ConstraintLaw, ObjectiveLaw, RateLaw, UpdateLaw
 from .....core.components.laws.utils import either, where
-from .....core.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec
-from ._metabolic_network import MetabolicNetworkElement
+from .....core.components.spaces import BaseSpace
+from .....core.specs import Role
+from ._flux_balance import FluxBalanceInteraction
+from ._reaction_spec import ReactionName
 
 POSITIVE = RealSet.open(0, oo)
 
 
 class BiomassElement(Element):
-    """Biomass of a culture.
+    """Biomass of a culture, in gDW per L.
 
     Args:
         label:
@@ -32,6 +35,15 @@ class BiomassElement(Element):
 
         x:
             The biomass in gDW per L.
+
+        values:
+            Further values by name.
+
+        size:
+            The number of members, or `None` for one.
+
+        space:
+            The space of the members, such as the plate of a culture with one biomass per cell, or `None`.
 
     Examples:
         >>> from skcomplex.systems.biology.common.metabolism import BiomassElement
@@ -43,14 +55,17 @@ class BiomassElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec()] = 0.01,
+        x: float | npt.ArrayLike = 0.01,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.x = x
 
 
 class SubstrateElement(Element):
-    """Concentration of a metabolite of a medium.
+    """Concentration of a metabolite of a medium, in mM.
 
     Args:
         label:
@@ -58,6 +73,15 @@ class SubstrateElement(Element):
 
         c:
             The concentration in mM.
+
+        values:
+            Further values by name.
+
+        size:
+            The number of members, or `None` for one.
+
+        space:
+            The space of the members, such as the plate of a culture with one concentration per cell, or `None`.
 
     Examples:
         >>> from skcomplex.systems.biology.common.metabolism import SubstrateElement
@@ -69,9 +93,12 @@ class SubstrateElement(Element):
         self,
         label: str,
         *,
-        c: Annotated[float, StateSpec()] = 10.0,
+        c: float | npt.ArrayLike = 10.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.c = c
 
 
@@ -85,7 +112,7 @@ class GrowthInteraction(Interaction):
             The label of the interaction.
 
         cell:
-            The path of the metabolic network.
+            The path of the cell whose values hold the fluxes of the network.
 
         biomass:
             The path of the biomass.
@@ -99,14 +126,12 @@ class GrowthInteraction(Interaction):
         'grow'
     """
 
-    law_classes = (RateLaw,)
-
     def __init__(
         self,
         label: str,
         *,
-        cell: Annotated[str, RoleSpec()] = 'cell',
-        biomass: Annotated[str, RoleSpec()] = 'biomass',
+        cell: Role = 'cell',
+        biomass: Role = 'biomass',
         reaction: str = 'Biomass_Ecoli_core',
     ) -> None:
         super().__init__(label)
@@ -114,19 +139,17 @@ class GrowthInteraction(Interaction):
         self.biomass = biomass
         self.reaction = reaction
 
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseLaw]:
-        """Return the rate of the biomass.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rate of the biomass.
 
         Args:
-            namespace:
-                The namespace of the roles.
-
-        Returns:
-            laws:
-                The rate law of the biomass.
+            context:
+                The namespace of the cell and the biomass.
         """
-        flux = getattr(namespace.cell, MetabolicNetworkElement.get_flux_name(self.reaction))
-        return [RateLaw(namespace.biomass.x, flux * namespace.biomass.x)]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            flux = getattr(context.cell, FluxBalanceInteraction.get_flux_name(self.reaction))
+            self.laws_: list[BaseLaw] = [RateLaw(context.biomass.x, flux * context.biomass.x)]
 
 
 class ExchangeInteraction(Interaction):
@@ -136,14 +159,15 @@ class ExchangeInteraction(Interaction):
 
     The law bounds the uptake, the negative flux of the exchange reaction, by `vmax c / (km + c)` and, with an interval,
     by what the medium holds per biomass over the interval (Raman 2021, Section 9.6). The medium changes at the rate
-    `dc/dt = v x`, and a depleted medium loses nothing more.
+    `dc/dt = v x`, and a depleted medium loses nothing more. With a threshold, the program of the network is solved only
+    where the biomass lies above it, and the fluxes are zero elsewhere, as at the empty boxes of a plate.
 
     Args:
         label:
             The label of the interaction.
 
         cell:
-            The path of the metabolic network.
+            The path of the cell whose values hold the fluxes of the network.
 
         biomass:
             The path of the biomass.
@@ -164,7 +188,7 @@ class ExchangeInteraction(Interaction):
             The time over which the medium must last, or `None` for no such bound.
 
         threshold:
-            The biomass above which the program solves, or `None` for always.
+            The biomass above which the program of the network is solved, or `None` for always.
 
     Examples:
         >>> from skcomplex.systems.biology.common.metabolism import ExchangeInteraction
@@ -172,21 +196,16 @@ class ExchangeInteraction(Interaction):
         10.0
     """
 
-    law_classes = (
-        LinearProgramLaw,
-        RateLaw,
-    )
-
     def __init__(
         self,
         label: str,
         *,
-        cell: Annotated[str, RoleSpec()] = 'cell',
-        biomass: Annotated[str, RoleSpec()] = 'biomass',
-        substrate: Annotated[str, RoleSpec()] = 'substrate',
+        cell: Role = 'cell',
+        biomass: Role = 'biomass',
+        substrate: Role = 'substrate',
         reaction: str = 'EX_glc__D_e',
-        vmax: Annotated[float, ParameterSpec(domain=POSITIVE)] = 10.0,
-        km: Annotated[float, ParameterSpec(domain=POSITIVE)] = 0.015,
+        vmax: Annotated[float, POSITIVE] = 10.0,
+        km: Annotated[float, POSITIVE] = 0.015,
         interval: float | None = None,
         threshold: float | None = None,
     ) -> None:
@@ -200,98 +219,40 @@ class ExchangeInteraction(Interaction):
         self.interval = interval
         self.threshold = threshold
 
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseLaw]:
-        """Return the bound of the uptake and the rate of the medium.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the bounds of the uptake and the rate of the medium.
 
         Args:
-            namespace:
+            context:
                 The namespace of the roles and parameters.
-
-        Returns:
-            laws:
-                The linear program law of the bound and the rate law of the medium.
         """
-        flux = getattr(namespace.cell, MetabolicNetworkElement.get_flux_name(self.reaction))
-        amount, biomass = namespace.substrate.c, namespace.biomass.x
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        flux = getattr(context.cell, FluxBalanceInteraction.get_flux_name(self.reaction))
+        amount, biomass = context.substrate.c, context.biomass.x
         held = where(amount > 0, amount, 0)
-        constraints = [flux >= -namespace.vmax * held / (namespace.km + held)]
+        laws: list[BaseLaw] = [ConstraintLaw(flux >= -context.vmax * held / (context.km + held), target=flux)]
         if self.interval is not None:
-            constraints.append(flux >= -held / (biomass * float(self.interval)))
-        active = None if self.threshold is None else biomass > float(self.threshold)
-        return [
-            LinearProgramLaw([flux], constraints, active=active, infeasible='zero'),
-            RateLaw(amount, flux * biomass * where(either(amount > 0, flux > 0), 1, 0)),
-        ]
-
-
-class CommunityMediumElement(DeclaredElement):
-    """Medium that a community shares, with one algebraic state per shared exchange.
-
-    The element declares the state `u_<reaction>` of the net exchange of every reaction.
-
-    Args:
-        label:
-            The label of the element.
-
-        exchanges:
-            The names of the reactions.
-
-        variables:
-            The declared states that replace the states of the net exchanges, by name, or `None` for none.
-
-    Examples:
-        >>> from skcomplex.systems.biology.common.metabolism import CommunityMediumElement
-        >>> CommunityMediumElement.get_state_name('EX_glc__D_e')
-        'u_EX_glc__D_e'
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        exchanges: Sequence[str] = (),
-        variables: Mapping[str, DeclaredVariableSpec] | None = None,
-    ) -> None:
-        super().__init__(label, variables=variables)
-        self.exchanges = exchanges
-
-    def _declare_variables(self) -> Mapping[str, DeclaredVariableSpec]:
-        """Return the state of the net exchange of every reaction.
-
-        The variables that replace them come with it.
-        """
-        flux = StateSpec(algebraic=True)
-        return {
-            **{self.get_state_name(reaction): DeclaredVariableSpec(0.0, flux) for reaction in self.exchanges},
-            **(self.variables or {}),
-        }
-
-    @staticmethod
-    def get_state_name(reaction: str) -> str:
-        """Return the name of the state of the net exchange of a reaction.
-
-        Args:
-            reaction:
-                The name of the reaction.
-
-        Returns:
-            name:
-                The name of the state.
-        """
-        return f'u_{MetabolicNetworkElement._get_identifier(reaction)}'
+            laws.append(ConstraintLaw(flux >= -held / (biomass * float(self.interval)), target=flux))
+        if self.threshold is not None:
+            laws.append(ObjectiveLaw([], [flux], active=biomass > float(self.threshold), infeasible='zero'))
+        laws.append(RateLaw(amount, flux * biomass * where(either(amount > 0, flux > 0), 1, 0)))
+        self.laws_ = laws
 
 
 class CommunityInteraction(Interaction):
-    """Joint program of a community.
+    """Joint flux balance of a community, whose medium balances the exchanges of its members.
 
-    The medium balances the exchanges, and its law holds the objective of growth.
+    The members share one program, which holds the objective of their growth, weighted by their abundances, and the
+    medium holds the net exchange `u_<reaction>` of the community for every shared reaction, which `get_values` gives.
 
     Args:
         label:
             The label of the interaction.
 
         members:
-            The paths of the metabolic networks.
+            The paths of the cells whose values hold the fluxes of the members.
 
         medium:
             The path of the shared medium.
@@ -311,20 +272,19 @@ class CommunityInteraction(Interaction):
 
     Examples:
         >>> from skcomplex.systems.biology.common.metabolism import CommunityInteraction
-        >>> CommunityInteraction('joint', members=['a', 'b'], medium='medium', abundances=(0.5, 0.5)).abundances
-        (0.5, 0.5)
+        >>> joint = CommunityInteraction('joint', members=['a', 'b'], medium='medium', exchanges={'EX_a': -10.0})
+        >>> joint.get_values()
+        {'u_EX_a': 0.0}
     """
-
-    law_classes = (LinearProgramLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        members: Annotated[list[str], RoleSpec(variadic=True)],
-        medium: Annotated[str, RoleSpec()],
+        members: tuple[Role, ...],
+        medium: Role,
         abundances: Sequence[float] = (),
-        exchanges: Mapping[str, float] | None = None,
+        exchanges: Mapping[ReactionName, float] | None = None,
         growth: str = 'Biomass_Ecoli_core',
         common_rate: bool = False,
     ) -> None:
@@ -336,67 +296,63 @@ class CommunityInteraction(Interaction):
         self.growth = growth
         self.common_rate = common_rate
 
-    def _get_weighted(self, namespace: SimpleNamespace, reaction: str) -> Expression:
+    @staticmethod
+    def get_state_name(reaction: str) -> str:
+        """Return the name of the value of the medium that holds the net exchange of a reaction.
+
+        Args:
+            reaction:
+                The name of the reaction.
+
+        Returns:
+            name:
+                The name of the value, such as `u_EX_glc__D_e`.
+        """
+        return f'u_{FluxBalanceInteraction._get_identifier(reaction)}'
+
+    def get_values(self) -> dict[str, float]:
+        """Return the values the medium starts with, the net exchange of every reaction at zero.
+
+        Returns:
+            values:
+                The values by name.
+        """
+        return dict.fromkeys(map(self.get_state_name, self.exchanges or {}), 0.0)
+
+    def _get_weighted(self, members: Sequence[SimpleNamespace], reaction: str) -> Expression:
         """Return the sum over the members of the flux of a reaction.
 
         The flux of every member is weighted by its abundance.
         """
-        name = MetabolicNetworkElement.get_flux_name(reaction)
-        terms = [
-            float(share) * getattr(member, name)
-            for share, member in zip(self.abundances, namespace.members, strict=True)
-        ]
+        name = FluxBalanceInteraction.get_flux_name(reaction)
+        terms = [float(share) * getattr(member, name) for share, member in zip(self.abundances, members, strict=True)]
         return sum(terms[1:], terms[0])
 
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseLaw]:
-        """Return the program that joins the members through the medium.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the objective that joins the members through the medium, with its balances.
 
         Args:
-            namespace:
-                The namespace of the roles.
-
-        Returns:
-            laws:
-                The linear program law.
+            context:
+                The namespace of the members and the medium.
         """
-        variables = []
-        relations: list[Expression] = []
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        targets = []
+        laws: list[BaseLaw] = []
         for reaction, floor in (self.exchanges or {}).items():
-            state = getattr(namespace.medium, CommunityMediumElement.get_state_name(reaction))
-            variables.append(state)
-            relations += [state == self._get_weighted(namespace, reaction), state >= float(floor)]
-        name = MetabolicNetworkElement.get_flux_name(self.growth)
-        growth = [getattr(member, name) for member in namespace.members]
+            state = getattr(context.medium, self.get_state_name(reaction))
+            targets.append(state)
+            laws += [
+                ConstraintLaw(state == self._get_weighted(context.members, reaction)),
+                ConstraintLaw(state >= float(floor)),
+            ]
+        name = FluxBalanceInteraction.get_flux_name(self.growth)
+        growth = [getattr(member, name) for member in context.members]
         if self.common_rate:
-            relations += [item == growth[0] for item in growth[1:]]
-        objective = LinearObjectiveSpec(self._get_weighted(namespace, self.growth))
-        return [LinearProgramLaw([*variables, *growth], relations, [objective])]
-
-
-def community_medium_type(exchanges: Sequence[str]) -> Callable[..., CommunityMediumElement]:
-    """Return a function that creates a `CommunityMediumElement`.
-
-    The element has the state of the net exchange of some reactions.
-
-    Args:
-        exchanges:
-            The names of the reactions.
-
-    Returns:
-        create_medium:
-            The function, which takes the label, the visual, and the initial values of the states by name.
-
-    Examples:
-        >>> from skcomplex.systems.biology.common.metabolism import community_medium_type
-        >>> community_medium_type(['EX_a'])('medium').get_value('u_EX_a')
-        0.0
-    """
-
-    def create_medium(label: str, **values: float) -> CommunityMediumElement:
-        medium = CommunityMediumElement(label, exchanges=tuple(exchanges))
-        return medium.set_params(**values)
-
-    return create_medium
+            laws += [ConstraintLaw(item == growth[0]) for item in growth[1:]]
+        objective = -self._get_weighted(context.members, self.growth)
+        self.laws_ = [*laws, ObjectiveLaw([objective], [*targets, *growth])]
 
 
 class ObjectiveFloorInteraction(Interaction):
@@ -409,7 +365,7 @@ class ObjectiveFloorInteraction(Interaction):
             The label of the interaction.
 
         cell:
-            The path of the metabolic network.
+            The path of the cell whose values hold the fluxes of the network.
 
         weights:
             The coefficient of every reaction in the objective.
@@ -423,14 +379,12 @@ class ObjectiveFloorInteraction(Interaction):
         0.5
     """
 
-    law_classes = (LinearProgramLaw,)
-
     def __init__(
         self,
         label: str,
         *,
-        cell: Annotated[str, RoleSpec()] = 'cell',
-        weights: Mapping[str, float] | None = None,
+        cell: Role = 'cell',
+        weights: Mapping[ReactionName, float] | None = None,
         floor: float = 0.0,
     ) -> None:
         super().__init__(label)
@@ -438,20 +392,20 @@ class ObjectiveFloorInteraction(Interaction):
         self.weights = weights
         self.floor = floor
 
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseLaw]:
-        """Return the bound of the objective.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the bound of the objective.
 
         Args:
-            namespace:
-                The namespace of the roles.
-
-        Returns:
-            laws:
-                The linear program law of the bound.
+            context:
+                The namespace of the cell.
         """
-        fluxes = [getattr(namespace.cell, MetabolicNetworkElement.get_flux_name(name)) for name in self.weights or {}]
-        terms = [float(weight) * flux for weight, flux in zip((self.weights or {}).values(), fluxes, strict=True)]
-        return [LinearProgramLaw(fluxes, [sum(terms[1:], terms[0]) >= float(self.floor)])]
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        weights = self.weights or {}
+        fluxes = [getattr(context.cell, FluxBalanceInteraction.get_flux_name(name)) for name in weights]
+        terms = [float(weight) * flux for weight, flux in zip(weights.values(), fluxes, strict=True)]
+        self.laws_: list[BaseLaw] = [ConstraintLaw(sum(terms[1:], terms[0]) >= float(self.floor), target=fluxes[0])]
 
 
 class SwitchInteraction(Interaction):
@@ -465,7 +419,7 @@ class SwitchInteraction(Interaction):
             The path of the Boolean node, whose state `x` is 1 for on.
 
         cell:
-            The path of the metabolic network.
+            The path of the cell whose values hold the switches of the network.
 
         genes:
             The names of the genes the node represses.
@@ -476,14 +430,12 @@ class SwitchInteraction(Interaction):
         ('b2296',)
     """
 
-    law_classes = (UpdateLaw,)
-
     def __init__(
         self,
         label: str,
         *,
-        node: Annotated[str, RoleSpec()] = 'node',
-        cell: Annotated[str, RoleSpec()] = 'cell',
+        node: Role = 'node',
+        cell: Role = 'cell',
         genes: Sequence[str] = (),
     ) -> None:
         super().__init__(label)
@@ -491,18 +443,16 @@ class SwitchInteraction(Interaction):
         self.cell = cell
         self.genes = genes
 
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseLaw]:
-        """Return the update of every switch.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the update of every switch.
 
         Args:
-            namespace:
-                The namespace of the roles.
-
-        Returns:
-            laws:
-                One update law per gene.
+            context:
+                The namespace of the node and the cell.
         """
-        return [
-            UpdateLaw(getattr(namespace.cell, MetabolicNetworkElement.get_gene_name(gene)), 1 - namespace.node.x)
-            for gene in self.genes
-        ]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseLaw] = [
+                UpdateLaw(getattr(context.cell, FluxBalanceInteraction.get_gene_name(gene)), 1 - context.node.x)
+                for gene in self.genes
+            ]

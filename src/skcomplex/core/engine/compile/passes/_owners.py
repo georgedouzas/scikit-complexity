@@ -104,13 +104,28 @@ class OwnersPass(BasePass):
 
     @staticmethod
     def _set_program_steps(kinds: dict[str, set[type]], times: dict[str, type | None]) -> None:
-        """Count a linear program under discrete time as an update.
+        """Count a linear program as an update where it is solved once per step.
 
-        Each step of a map solves it.
+        It is solved once per step under discrete time or in a nested system of programs.
+
+        Each step of a map solves it. A nested system with no time of its own whose laws are all linear programs, such
+        as the flux balance of a cell beside the culture it feeds, keeps the static time they imply, so it is solved
+        once per unit of time of its parent, as a nested system of updates steps.
         """
+        systems = {owner.rpartition('/')[0] for owner in kinds}
+        alone = {
+            path
+            for path in systems
+            if path
+            and times.get(path) is None
+            and all(
+                classes <= {LinearProgramLaw} for owner, classes in kinds.items() if owner.rpartition('/')[0] == path
+            )
+        }
         for owner, classes in kinds.items():
-            time = times.get(owner.rpartition('/')[0])
-            if LinearProgramLaw in classes and time is not None and issubclass(time, DiscreteTime):
+            path = owner.rpartition('/')[0]
+            time = times.get(path)
+            if LinearProgramLaw in classes and (path in alone or (time is not None and issubclass(time, DiscreteTime))):
                 classes.add(UpdateLaw)
 
     @staticmethod

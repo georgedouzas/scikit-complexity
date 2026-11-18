@@ -5,18 +5,16 @@ import sys
 import numpy as np
 import pytest
 
-from skcomplex.core.components.spaces import StaticTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.components.elements import Element
 from skcomplex.core.engine.problems import RunStateSpec
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import MissingExtraError
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.common.metabolism import (
+    FluxBalanceInteraction,
     ReactionSpec,
     cobra_measures,
     flux_variability,
     load_network,
-    metabolic_network_type,
     production_scan,
     strain_design,
     to_cobra,
@@ -26,15 +24,21 @@ GROWTH = 'Biomass_Ecoli_core'
 AEROBIC = 0.8739215
 
 
-def _core_system(**values):
+def _get_system(network, **values):
+    """Return the system of a network whose cell starts with some values replaced."""
+    cell = Element(network.cell, values=network.get_values() | values)
+    return System(elements=[cell], interactions=[network])
+
+
+def _core_system(parsimonious=False, **values):
     """Return the system of the E. coli core system."""
-    return CompositeSystem(elements=[load_network('textbook', 'cell').set_params(**values)], time=StaticTime())
+    return _get_system(load_network('textbook', 'cell').set_params(parsimonious=parsimonious), **values)
 
 
 def _objective(system):
-    """Return the objective of the only program of a static system."""
-    trajectory = simulate(system, until=0.0)
-    return float(trajectory.get_values('cell.objective_0')[0])
+    """Return the greatest growth of the only program of a static system."""
+    trajectory = system.prepare().simulate(until=0.0)
+    return -float(trajectory.get_values('cell.objective_0')[0])
 
 
 def test_cobra_variability_fixes_growth_at_the_optimum():
@@ -46,10 +50,11 @@ def test_cobra_variability_fixes_growth_at_the_optimum():
 def test_cobra_parity_with_the_core_solve():
     """Test that COBRApy and the core agree on growth and on the parsimonious total flux."""
     system = _core_system(parsimonious=True)
-    problem = PassCompiler().prepare(system).run().problem_
+    problem = system.prepare().simulate(until=0.0).problem
     solved = problem.programs[0].run(RunStateSpec(0.0, problem.initial_state, problem.initial_parameters)).values_
-    reconstruction = to_cobra(system.elements[0])
-    assert problem.states.read(solved, 'cell.objective_0') == pytest.approx(reconstruction.slim_optimize(), abs=1e-7)
+    reconstruction = to_cobra(system.interactions[0], system.elements[0])
+    growth = -problem.states.read(solved, 'cell.objective_0')
+    assert growth == pytest.approx(reconstruction.slim_optimize(), abs=1e-7)
     total = cobra_measures(system, kind='parsimonious').total
     assert problem.states.read(solved, 'cell.objective_1') == pytest.approx(total, abs=1e-6)
 
@@ -91,7 +96,7 @@ def test_strain_design_couples_succinate_to_growth():
         interventions=3,
     ).designs
     assert designs
-    reconstruction = to_cobra(_core_system().elements[0])
+    reconstruction = to_cobra(load_network('textbook', 'cell'))
     cobra = pytest.importorskip('cobra')
     wild = cobra.flux_analysis.flux_variability_analysis(
         reconstruction,
@@ -129,10 +134,7 @@ def test_flux_variability_reports_ranges_without_the_extra():
         'one': ReactionSpec({'A': -1.0}),
         'two': ReactionSpec({'A': -1.0}),
     }
-    system = CompositeSystem(
-        elements=[metabolic_network_type('Parallel', reactions, {'in': 1.0})('net')],
-        time=StaticTime(),
-    )
+    system = _get_system(FluxBalanceInteraction('fba', cell='net', reactions=reactions, objective={'in': 1.0}))
     ranges = flux_variability(system).ranges
     assert ranges.loc['one'].tolist() == [0.0, 4.0]
     assert ranges.loc['in'].tolist() == [4.0, 4.0]
@@ -160,7 +162,7 @@ def test_strain_design_computes_every_kind(kind, settings):
     """Test that the other kinds of strain design return their designs as sets of reaction names."""
     analysis = strain_design(_core_system(), kind=kind, interventions=2, **settings)
     assert all(isinstance(design, set) for design in analysis.designs)
-    names = set(_core_system().elements[0].reactions)
+    names = set(_core_system().interactions[0].reactions)
     assert all(design <= names for design in analysis.designs)
 
 
@@ -171,9 +173,8 @@ def test_flux_variability_keeps_an_objective_of_several_reactions():
         'one': ReactionSpec({'A': -1.0}),
         'two': ReactionSpec({'A': -1.0}),
     }
-    element_type = metabolic_network_type('TwoGoalsElement', reactions, {'one': 1.0, 'two': 1.0})
-    system = CompositeSystem(elements=[element_type('net')], time=StaticTime())
-    analysis = flux_variability(system)
+    network = FluxBalanceInteraction('fba', cell='net', reactions=reactions, objective={'one': 1.0, 'two': 1.0})
+    analysis = flux_variability(_get_system(network))
     assert analysis.optimum == pytest.approx(4.0)
     assert analysis.ranges.loc['in'].tolist() == pytest.approx([4.0, 4.0])
     assert analysis.ranges.loc['one'].tolist() == pytest.approx([0.0, 4.0])

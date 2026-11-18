@@ -9,12 +9,13 @@ from skfem import MeshTri
 
 from skcomplex.core.components.elements import Element, FieldElement, GroupElement
 from skcomplex.core.components.interactions import CouplingInteraction, Interaction
-from skcomplex.core.components.laws import NoiseLaw, RateLaw, UpdateLaw
+from skcomplex.core.components.laws import ConstraintLaw, NoiseLaw, ObjectiveLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import laplacian, logistic
 from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.core.systems import System
 
@@ -168,6 +169,101 @@ def test_declared_laws_divide_the_mean_by_the_lattice_neighbours():
     coupling = CouplingInteraction('c', target='m', read='u', write='u', function=_logistic, reduce='mean')
     expected = _neighbor_sum(np.pad(field, 1, mode='wrap')) / 4
     assert np.abs(_rate(group, [coupling]) - np.ravel(expected)).max() < 1e-12
+
+
+def _get_plant(laws, **values):
+    """Return the prepared system of a plant whose program a rule sets."""
+    plant = Element('plant', values={'v': 0.0, 'w': 0.0, **values})
+    return System(elements=[plant], interactions=[Interaction('lp', roles={'target': 'plant'}, laws=laws)]).prepare()
+
+
+def _get_dispatch(s):
+    """Return the dispatch of two plants of a capacity at the least cost, the greatest output."""
+    v, w = s.target.v, s.target.w
+    bounds = [ConstraintLaw(v >= 0), ConstraintLaw(w >= 0), ConstraintLaw(v <= 3)]
+    return [ObjectiveLaw(-(2 * v + w), [v, w]), ConstraintLaw(v + w <= s.target.cap), *bounds]
+
+
+def test_linear_objective_with_its_constraints_is_solved_as_a_linear_program():
+    """Test that a linear objective with linear inequalities sets its targets to the optimum of a linear program."""
+    system = _get_plant(_get_dispatch, cap=5.0)
+    trajectory = system.simulate(until=0.0)
+    assert [float(trajectory.get_values(name)[0]) for name in ('plant.v', 'plant.w')] == [3.0, 2.0]
+    assert float(trajectory.get_values('plant.objective_0')[0]) == -8.0
+    assert system.parameters_ == ('plant.cap',)
+
+
+def test_linear_program_is_solved_at_every_time_of_a_run():
+    """Test that a program whose capacity grows in time sets its targets at every time."""
+    plant = Element('plant', values={'v': 0.0, 'w': 0.0, 'cap': 1.0})
+    grow = Interaction('grow', roles={'target': 'plant'}, laws=lambda s: [RateLaw(s.target.cap.diff(s.t), 1.0)])
+    program = Interaction('lp', roles={'target': 'plant'}, laws=_get_dispatch)
+    trajectory = System(elements=[plant], interactions=[program, grow]).prepare().simulate(until=2.0, dt=1.0)
+    assert trajectory.get_values('plant.v').tolist() == pytest.approx([1.0, 2.0, 3.0])
+    assert trajectory.get_values('plant.w').tolist() == pytest.approx([0.0, 0.0, 0.0])
+
+
+def test_sequence_of_objectives_is_minimised_in_order():
+    """Test that the second objective is minimised while the first one keeps its optimum."""
+
+    def laws(s):
+        v, w = s.target.v, s.target.w
+        bounds = [ConstraintLaw(v >= 0), ConstraintLaw(w >= 0), ConstraintLaw(w <= 3), ConstraintLaw(v + w <= 4)]
+        return [ObjectiveLaw([-(v + w), abs(v)], [v, w]), *bounds]
+
+    trajectory = _get_plant(laws).simulate(until=0.0)
+    assert [float(trajectory.get_values(name)[0]) for name in ('plant.v', 'plant.w')] == pytest.approx([1.0, 3.0])
+    assert float(trajectory.get_values('plant.objective_1')[0]) == pytest.approx(1.0)
+
+
+def test_objective_is_sought_only_where_it_is_active():
+    """Test that an inactive program sets its targets to zero, and an infeasible one to zero with the policy."""
+
+    def laws(s):
+        v = s.target.v
+        active = s.target.switch > 0
+        return [ObjectiveLaw(-v, [v], active=active, infeasible='zero'), ConstraintLaw(v <= 2), ConstraintLaw(v >= 1)]
+
+    assert float(_get_plant(laws, switch=1.0).simulate(until=0.0).get_values('plant.v')[0]) == 2.0
+    assert float(_get_plant(laws, switch=0.0).simulate(until=0.0).get_values('plant.v')[0]) == 0.0
+
+    def infeasible(s):
+        v = s.target.v
+        return [ObjectiveLaw(-v, [v], infeasible='zero'), ConstraintLaw(v <= 1), ConstraintLaw(v >= 2)]
+
+    assert float(_get_plant(infeasible).simulate(until=0.0).get_values('plant.v')[0]) == 0.0
+
+
+def test_inequality_of_another_interaction_joins_the_program_of_its_target():
+    """Test that a bound set by another interaction on a target of a program constrains the program."""
+    plant = Element('plant', values={'v': 0.0, 'w': 0.0, 'cap': 5.0})
+    program = Interaction('lp', roles={'target': 'plant'}, laws=_get_dispatch)
+    limit = Interaction(
+        'limit',
+        roles={'target': 'plant'},
+        laws=lambda s: [ConstraintLaw(s.target.v <= 1, target=s.target.v)],
+    )
+    trajectory = System(elements=[plant], interactions=[program, limit]).prepare().simulate(until=0.0)
+    assert [float(trajectory.get_values(name)[0]) for name in ('plant.v', 'plant.w')] == [1.0, 4.0]
+
+
+def test_inequality_outside_a_program_names_its_target():
+    """Test that an inequality of an interaction without an objective and without a target is refused."""
+    limit = Interaction('limit', roles={'target': 'plant'}, laws=lambda s: [ConstraintLaw(s.target.v <= 1)])
+    with pytest.raises(ValidationError, match='target'):
+        System(elements=[Element('plant', values={'v': 0.0})], interactions=[limit]).prepare()
+
+
+def test_nonlinear_objective_stays_a_minimum():
+    """Test that an objective that is not linear in its targets is minimised, not solved as a linear program."""
+    system = _get_plant(lambda s: [ObjectiveLaw((s.target.v - 2) ** 2, s.target.v)])
+    assert float(system.simulate(until=0.0).get_values('plant.v')[0]) == pytest.approx(2.0, abs=1e-6)
+
+
+def test_nonlinear_sequence_of_objectives_is_refused():
+    """Test that a sequence of objectives that is not linear in its targets raises an error."""
+    with pytest.raises(ValidationError, match='sequence of values'):
+        _get_plant(lambda s: [ObjectiveLaw([s.target.v**2, s.target.w], [s.target.v, s.target.w])])
 
 
 def _reflected(s):

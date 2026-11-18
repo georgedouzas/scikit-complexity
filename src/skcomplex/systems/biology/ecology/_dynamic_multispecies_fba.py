@@ -9,12 +9,17 @@ The two strains compete for the medium.
 from collections.abc import Sequence
 
 from ....core.components import Observable
-from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import CompositeSystem
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, CoSimulationSolver, RK4Solver
 from ....core.systems import BaseSystem, System
-from ..common.metabolism import BiomassElement, ExchangeInteraction, GrowthInteraction, SubstrateElement, load_network
+from ..common.metabolism import (
+    BiomassElement,
+    ExchangeInteraction,
+    GrowthInteraction,
+    MetabolicCellElement,
+    SubstrateElement,
+    load_network,
+)
 
 GROWTH = 'Biomass_Ecoli_core'
 GLUCOSE_EXCHANGE = 'EX_glc__D_e'
@@ -101,11 +106,17 @@ class DynamicMultispeciesFBASystem(BaseSystem):
         """
         super()._prepare(context)
         cells = []
+        networks = []
         interactions = []
         for name, vmax in (('fast', self.fast_vmax), ('slow', self.slow_vmax)):
-            cell = load_network('textbook', f'cell_{name}', needed_by='dynamic_multispecies_fba')
-            cell.parsimonious, cell.infeasible = True, 'zero'
-            cells.append(cell)
+            network = load_network(
+                'textbook',
+                f'cell_{name}',
+                label=f'fba_{name}',
+                needed_by='dynamic_multispecies_fba',
+            ).set_params(parsimonious=True, infeasible='zero')
+            cells.append(MetabolicCellElement(network.cell, values=network.get_values()))
+            networks.append(network)
             interactions += [
                 ExchangeInteraction(
                     f'uptake_{name}',
@@ -127,8 +138,8 @@ class DynamicMultispeciesFBASystem(BaseSystem):
         self.system_ = System(
             self.label,
             systems=[
-                CompositeSystem('fba', elements=cells, time=DiscreteTime()),
-                CompositeSystem(
+                System('fba', elements=cells, interactions=networks),
+                System(
                     'culture',
                     elements=[
                         BiomassElement('biomass_fast', x=self.biomass),

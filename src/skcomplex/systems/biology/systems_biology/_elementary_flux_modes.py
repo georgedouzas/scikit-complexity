@@ -12,7 +12,7 @@ from ....core.components import Observable
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
-from ..common.metabolism import ToyNetworkElement
+from ..common.metabolism import MetabolicCellElement, ToyFluxBalanceInteraction
 
 
 class ElementaryFluxModesSystem(BaseSystem):
@@ -68,4 +68,6 @@ class ElementaryFluxModesSystem(BaseSystem):
         """
         super()._prepare(context)
         closed = {f'{bound}_{name}': 0.0 for name in self.knockouts for bound in ('lower', 'upper')}
-        self.system_ = System(self.label, elements=[ToyNetworkElement('cell').set_params(**closed)])
+        network = ToyFluxBalanceInteraction('fba')
+        cell = MetabolicCellElement('cell', values=network.get_values() | closed)
+        self.system_ = System(self.label, elements=[cell], interactions=[network])

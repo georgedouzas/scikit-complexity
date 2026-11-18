@@ -1081,7 +1081,7 @@ class _StateInference:
             )
             annotation = element._get_hints().get(name, inspect.Parameter.empty)
             tensor = None if self._get_symmetry(annotation) else element._get_shape_of(member)[2]
-            if np.ndim(np.asarray(value, dtype=object)) > 0:
+            if count is not None and np.ndim(np.asarray(value, dtype=object)) > 0:
                 variables[name] = self._get_new_member_default(element, name, variables[name], member)
                 arrays[name] = element._get_matrix_entries(value, tensor)
                 arrays |= self._get_past_arrays(name, arrays[name], 0 if count is None or probing else lags(name))

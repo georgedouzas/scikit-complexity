@@ -4,6 +4,7 @@ import multiprocessing
 
 import pytest
 
+from skcomplex.core.components.elements import Element
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.systems import System
 from skcomplex.systems.biology.common.metabolism import (
@@ -27,15 +28,20 @@ sys.meta_path.insert(0, Blocker())
 """
 
 
+def _get_system(network, **values):
+    """Return the system of a network whose cell starts with some values replaced."""
+    return System(elements=[Element(network.cell, values=network.get_values() | values)], interactions=[network])
+
+
 def _core_system(**values):
     """Return the system of the E. coli core system."""
-    return System(elements=[load_network('textbook', 'cell').set_params(**values)])
+    return _get_system(load_network('textbook', 'cell'), **values)
 
 
 def _objective(system):
-    """Return the objective of the only program of a static system."""
+    """Return the greatest growth of the only program of a static system."""
     trajectory = system.prepare().simulate(until=0.0)
-    return float(trajectory.get_values('cell.objective_0')[0])
+    return -float(trajectory.get_values('cell.objective_0')[0])
 
 
 def test_bundled_core_system_grows_with_and_without_oxygen():
@@ -60,7 +66,7 @@ def test_round_trip_keeps_the_network(tmp_path, suffix):
         )
         for metabolite, value in spec.coefficients.items():
             assert other.coefficients[metabolite] == pytest.approx(value)
-    optimum = _objective(System(elements=[copy]))
+    optimum = _objective(_get_system(copy))
     assert optimum == pytest.approx(AEROBIC, abs=1e-6)
 
 
