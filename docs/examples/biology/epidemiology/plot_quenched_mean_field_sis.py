@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.epidemiology import QuenchedMeanFieldSISSystem
 
@@ -24,7 +23,7 @@ SYSTEM = 'quenched_mean_field_sis'
 graph = QuenchedMeanFieldSISSystem().prepare().system_.elements[0].space.graph
 threshold = 1 / max(np.linalg.eigvalsh(nx.to_numpy_array(graph)))
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(QuenchedMeanFieldSISSystem(lam=2 * threshold), dt=0.5, observers=[observer])
+trajectory = QuenchedMeanFieldSISSystem(lam=2 * threshold).prepare().simulate(dt=0.5, observers=[observer])
 
 # %%
 # Infection probability by degree
@@ -35,7 +34,7 @@ trajectory = simulate(QuenchedMeanFieldSISSystem(lam=2 * threshold), dt=0.5, obs
 final = trajectory.get_values('nodes.p')[-1]
 adjacency = nx.to_numpy_array(graph)
 pressure = 2 * threshold * adjacency @ final
-below = simulate(QuenchedMeanFieldSISSystem(lam=0.5 * threshold), dt=0.5).get_values('nodes.p')[-1]
+below = QuenchedMeanFieldSISSystem(lam=0.5 * threshold).prepare().simulate(dt=0.5).get_values('nodes.p')[-1]
 degrees = adjacency.sum(axis=1)
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(degrees, final, 'o', alpha=0.6, label='simulated')
