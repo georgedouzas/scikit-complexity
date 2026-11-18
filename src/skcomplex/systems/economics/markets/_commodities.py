@@ -14,9 +14,10 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, Quantity
-from ....core.components.interactions import TransferInteraction
-from ....core.components.laws import Sink, Source
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import distributed_delay, series, step
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -33,8 +34,8 @@ class CommodityMarketElement(Element):
     inventory relative to the desired coverage. Production is the capacity times the relative price to the supply
     elasticity, consumption the demand times the relative price to minus the demand elasticity. Capacity is ordered at
     the rate of retirements times a rising table function of the smoothed price, completed through a third-order delay,
-    and retired over its lifetime. The market holds the stocks and the parameters, and transfers within it of the system
-    move the commodity and the capacity.
+    and retired over its lifetime. The market holds the stocks and the parameters, and labelled flows of the system move
+    the commodity and the capacity.
 
     Args:
         label:
@@ -222,11 +223,8 @@ class CommodityCycleSystem(BaseSystem):
 
     @staticmethod
     def _get_market(s: SimpleNamespace) -> SimpleNamespace:
-        """Return the symbols of the market a transfer moves.
-
-        The transfer moves the commodity or the capacity, with the time.
-        """
-        return SimpleNamespace(t=s.t, **vars(s.source))
+        """Return the symbols of the market whose commodity or capacity a flow moves, with the time."""
+        return SimpleNamespace(t=s.t, **vars(s.target))
 
     def __init__(
         self,
@@ -285,6 +283,24 @@ class CommodityCycleSystem(BaseSystem):
         market = CommodityCycleSystem._get_market(s)
         return distributed_delay(_get_capacity_orders(market), order=3, time=market.construction_delay)
 
+    @staticmethod
+    def _get_commodity_flows(s: SimpleNamespace) -> list[BaseComponent]:
+        """Return the production into the inventory and the consumption out of it."""
+        inventory = s.target.inventory
+        return [
+            RateLaw({inventory: +1}, CommodityCycleSystem._get_production(s), label='production'),
+            RateLaw({inventory: -1}, CommodityCycleSystem._get_consumption(s), label='consumption'),
+        ]
+
+    @staticmethod
+    def _get_capacity_flows(s: SimpleNamespace) -> list[BaseComponent]:
+        """Return the completions of capacity and its retirements over its lifetime."""
+        capacity = s.target.capacity
+        return [
+            RateLaw({capacity: +1}, CommodityCycleSystem._get_completions(s), label='completions'),
+            RateLaw({capacity: -1}, capacity / s.target.lifetime, label='retirements'),
+        ]
+
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of the components built from the model parameters."""
         super()._prepare(context)
@@ -303,24 +319,6 @@ class CommodityCycleSystem(BaseSystem):
             construction_delay=self.construction_delay,
             lifetime=self.lifetime,
         )
-        commodity = TransferInteraction(
-            'commodity',
-            source='market',
-            target='market',
-            state=Source('producers'),
-            into='inventory',
-            amount=self._get_production,
-            flow='production',
-            legs=[('inventory', Sink('consumers'), self._get_consumption, 'consumption')],
-        )
-        capacity_flows = TransferInteraction(
-            'capacity_flows',
-            source='market',
-            target='market',
-            state=Source('construction'),
-            into='capacity',
-            amount=self._get_completions,
-            flow='completions',
-            legs=[('capacity', Sink('retirement'), lambda s: s.source.capacity / s.source.lifetime, 'retirements')],
-        )
+        commodity = Interaction('commodity', roles={'target': 'market'}, laws=self._get_commodity_flows)
+        capacity_flows = Interaction('capacity_flows', roles={'target': 'market'}, laws=self._get_capacity_flows)
         self.system_ = System(self.label, elements=[market], interactions=[commodity, capacity_flows])
