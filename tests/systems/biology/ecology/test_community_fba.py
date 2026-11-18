@@ -2,7 +2,6 @@
 
 import pytest
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.common.metabolism import community_growth
 from skcomplex.systems.biology.ecology import CommunityFBASystem
 
@@ -11,7 +10,7 @@ GROWTH = 'v_Biomass_Ecoli_core'
 
 def _growth(**arguments):
     """Return the community growth and the growth of the members of a run."""
-    trajectory = simulate(CommunityFBASystem(**arguments))
+    trajectory = CommunityFBASystem(**arguments).prepare().simulate()
     members = [
         float(trajectory.get_values(f'member_{position}.{GROWTH}')[0])
         for position in range(len(arguments.get('knockouts', (0, 0))))
