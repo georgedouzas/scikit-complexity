@@ -14,7 +14,6 @@ from skcomplex.core.components.elements import Element, FieldElement, GroupEleme
 from skcomplex.core.components.laws import RateLaw, RuleLaw, TopologyRequestSpec, UpdateLaw
 from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.systems import System
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems import FrameSpec
 from skcomplex.core.engine.runtime import simulate
@@ -29,6 +28,7 @@ from skcomplex.core.engine.viz import (
 )
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.collective_behaviour import BoidsSystem
 from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
 from skcomplex.systems.biology.ecology import HigherOrderRandomLotkaVolterraSystem, LotkaVolterraSystem, WolfSheepSystem
