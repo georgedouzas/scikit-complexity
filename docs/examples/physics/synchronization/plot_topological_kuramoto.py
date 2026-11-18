@@ -11,7 +11,6 @@ projections on the nodes and on the triangles, and the two layers scale each oth
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.synchronization import TopologicalKuramotoSystem
 
@@ -19,7 +18,7 @@ SYSTEM = 'topological_kuramoto'
 
 system = TopologicalKuramotoSystem(coupling=8.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulate(system, until=20, dt=0.5, observers=[observer])
+system.prepare().simulate(until=20, dt=0.5, observers=[observer])
 
 # %%
 # Synchronization against the coupling
@@ -30,7 +29,7 @@ couplings = np.linspace(0.0, 8.0, 5)
 orders = []
 for coupling in couplings:
     system_system = TopologicalKuramotoSystem(coupling=coupling)
-    run = simulate(system_system, until=20, dt=0.5)
+    run = system_system.prepare().simulate(until=20, dt=0.5)
     orders.append(np.mean(run.get_values('link_order')[-10:]))
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(couplings, orders, 'o-')
@@ -52,7 +51,7 @@ for model in ('NL', 'NLT'):
     orders = []
     for coupling in weak:
         system_system = TopologicalKuramotoSystem(coupling=coupling, model=model)
-        run = simulate(system_system, until=20, dt=0.5)
+        run = system_system.prepare().simulate(until=20, dt=0.5)
         orders.append(np.mean(run.get_values('node_order')[-10:]))
     ax.plot(weak, orders, 'o-', label=model)
 ax.set_xlabel('coupling K')

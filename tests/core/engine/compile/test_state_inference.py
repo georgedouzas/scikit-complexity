@@ -15,7 +15,7 @@ from scipy.special import ive
 
 from skcomplex.core.analysis import alignment, displacement
 from skcomplex.core.components.base import BaseComponent
-from skcomplex.core.components.elements import Element, FieldElement, Quantity
+from skcomplex.core.components.elements import Element, FieldElement, Period, Quantity
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import (
     BoundaryLaw,
@@ -1092,3 +1092,72 @@ def test_get_declared_accepts_an_array_for_a_hint_of_several_types():
     system = System(elements=[Charges('charges', q=np.array([1.0, -2.0, 0.5]), size=3)]).prepare()
     assert system.parameters_ == ('charges.q[i]',)
     assert system.simulate(until=0).get_values('charges.q')[0] == pytest.approx([1.0, -2.0, 0.5])
+
+
+class Rotor(Element):
+    """Rotors whose angles wrap around the circle, placed on a line when they have a position."""
+
+    def __init__(
+        self,
+        label: str,
+        theta: Annotated[object, Period(2 * np.pi)] = 0.0,
+        *,
+        size: int | None = None,
+        space: BaseSpace | None = None,
+        values: dict[str, object] | None = None,
+    ) -> None:
+        super().__init__(label, size=size, space=space, values=values)
+        self.theta = theta
+
+
+class Spin(Interaction):
+    """Turn of the angles of a target at the unit rate."""
+
+    def __init__(self, label: str, *, target: Role = 'rotors') -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the unit rate of the angles."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [RateLaw(context.target.theta.diff(context.t), 1)]
+
+
+def test_get_declared_wraps_a_periodic_value_and_reads_it_as_a_phase():
+    """Test that an angle with a period comes back within one period and is the phase the alignment reads."""
+    rotors = Rotor('rotors', theta=np.array([0.0, 0.0]), size=2)
+    trajectory = System(elements=[rotors], interactions=[Spin('spin')]).prepare().simulate(until=4.0, dt=1.0)
+    assert trajectory.get_values('rotors.theta')[-1] == pytest.approx([4.0 - 2 * np.pi] * 2)
+    assert [element.roles for element in trajectory.problem.elements] == [{'theta': 'phase'}]
+    assert alignment(trajectory).order == pytest.approx(np.ones(5))
+
+
+def test_get_declared_reads_a_periodic_value_of_a_mover_as_a_heading():
+    """Test that the angle of an element with a position in a space is its heading."""
+    rotors = Rotor('rotors', size=2, space=ContinuousSpace(n_dim=1), values={'x': np.array([[0.0], [1.0]])})
+    trajectory = System(elements=[rotors], interactions=[Spin('spin')]).prepare().simulate(until=1.0)
+    assert trajectory.problem.elements[0].roles == {'theta': 'direction', 'x': 'position'}
+
+
+class Echo(Interaction):
+    """Map that sets every angle to a tenth of the sum of the angles of its neighbours two steps ago."""
+
+    def __init__(self, label: str, *, target: Role = 'rotors') -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the angle to a tenth of the delayed sum of the neighbours."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            past = context.target.other.theta(t=context.t - 2)
+            self.laws_ = [UpdateLaw(context.target.theta, neighbors(past, over=RadiusNeighborhood(1.5)) / 10)]
+
+
+def test_get_declared_keeps_the_past_values_neighbours_read_from_each_member():
+    """Test that past values read through neighbours are kept, and start at the value of each member."""
+    line = {'space': ContinuousSpace(n_dim=1), 'values': {'x': np.array([[0.0], [1.0], [2.0]])}}
+    rotors = Rotor('rotors', theta=np.array([0.1, 0.2, 0.3]), size=3, **line)
+    trajectory = System(elements=[rotors], interactions=[Echo('echo')]).prepare().simulate(until=1)
+    assert trajectory.get_values('rotors.theta')[-1] == pytest.approx([0.02, 0.04, 0.02])

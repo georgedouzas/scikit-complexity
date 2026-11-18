@@ -14,7 +14,6 @@ across, each moving at its own frequency.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.synchronization import AdaptiveKuramotoSystem
 
@@ -22,7 +21,7 @@ SYSTEM = 'adaptive_kuramoto'
 
 system = AdaptiveKuramotoSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=20)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Clusters and their weights

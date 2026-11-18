@@ -46,7 +46,7 @@ def test_discovery_of_a_system_with_several_kinds():
 
 def test_discovery_of_an_agent_system():
     """Test that a Vicsek trajectory lists the alignment, nearest-neighbour, and displacement analyses under agents."""
-    discovery = _discover(simulate(VicsekSystem(), until=3, random_state=0))
+    discovery = _discover(VicsekSystem().prepare().simulate(until=3, random_state=0))
     agents = discovery.analyses['agents']
     assert {('alignment', 'mean-vector'), ('neighbors', 'distances'), ('displacement', None)} <= _names(agents)
 

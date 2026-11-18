@@ -15,7 +15,6 @@ with one jump where the phase wraps from pi to -pi.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.synchronization import SwarmalatorsSystem
 
@@ -32,7 +31,7 @@ def order_parameters(positions, phases):
 
 system = SwarmalatorsSystem(J=1.0, K=0.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Order parameters of the static states
@@ -48,7 +47,7 @@ history = np.array([order_parameters(position, phase) for position, phase in zip
 couplings = [-1.0, -0.5, -0.1, 0.0, 0.5, 1.0]
 final = []
 for K in couplings:
-    run = simulate(SwarmalatorsSystem(n_units=60, J=1.0, K=K), until=60)
+    run = SwarmalatorsSystem(n_units=60, J=1.0, K=K).prepare().simulate(until=60)
     final.append(
         order_parameters(
             np.asarray(run.get_values('units.x'))[-1],

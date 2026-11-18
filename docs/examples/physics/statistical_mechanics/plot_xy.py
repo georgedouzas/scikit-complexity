@@ -14,7 +14,6 @@ Kosterlitz-Thouless temperature, near 0.89, free vortices proliferate.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.statistical_mechanics import XYSystem
 
@@ -28,7 +27,7 @@ def wrap_angle(angles):
 
 system = XYSystem(size=64, temperature=0.3, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Vortices and energy against temperature
@@ -41,10 +40,13 @@ trajectory = simulate(system, observers=[observer], random_state=0)
 
 def measure(temperature):
     """Return the vortex density and the energy per spin over the last 100 of 400 sweeps from random angles."""
-    run = simulate(
-        XYSystem(size=32, temperature=temperature, random_state=1).prepare().system_,
-        until=400,
-        random_state=1,
+    run = (
+        XYSystem(size=32, temperature=temperature, random_state=1)
+        .prepare()
+        .simulate(
+            until=400,
+            random_state=1,
+        )
     )
     theta = np.asarray(run.get_lattice('spins.theta'))[-100:]
     right, down = np.roll(theta, -1, axis=-1), np.roll(theta, -1, axis=-2)

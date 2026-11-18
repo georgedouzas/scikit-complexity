@@ -569,7 +569,7 @@ def test_temperature_changes_live():
 
 def test_monte_carlo_wraps_angles_after_every_sweep():
     """Test that Monte Carlo rotations of the XY system keep every angle in (-π, π]."""
-    values = simulate(XYSystem(16).prepare().system_, until=50).get_values('spins.theta')
+    values = XYSystem(16).prepare().simulate(until=50).get_values('spins.theta')
     assert np.all((values > -np.pi) & (values <= np.pi))
 
 

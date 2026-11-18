@@ -183,7 +183,7 @@ def test_fields_of_a_lattice():
 
 def test_snapshots_unwrap_agent_positions():
     """Test that walkers in a periodic square of side 10 are unwrapped so no step exceeds half the side."""
-    trajectory = simulate(RunAndTumbleSystem(n_agents=50, speed=1.0), until=200, random_state=0)
+    trajectory = RunAndTumbleSystem(n_agents=50, speed=1.0).prepare().simulate(until=200, random_state=0)
     snapshots = _read_snapshots(trajectory)
     steps = np.linalg.norm(np.diff(snapshots.positions, axis=0), axis=-1)
     assert snapshots.periodic
@@ -273,7 +273,7 @@ def test_series_leave_out_variable_groups(system):
 
 def test_sites_are_read_as_series_and_not_as_particles():
     """Test that oscillators on fixed sites give no particle snapshots, and their sites are no series."""
-    trajectory = simulate(NonlocalRingChimeraSystem(n_oscillators=20, R=3), until=0.5, random_state=0)
+    trajectory = NonlocalRingChimeraSystem(n_oscillators=20, R=3).prepare().simulate(until=0.5, random_state=0)
     assert trajectory.problem.elements[0].roles == {'x': 'site', 'theta': 'phase'}
     with pytest.raises(AnalysisError, match='no agent group'):
         _read_snapshots(trajectory)
@@ -281,7 +281,7 @@ def test_sites_are_read_as_series_and_not_as_particles():
 
 def test_snapshots_of_phases():
     """Test that a state with the role phase gives the phases of the snapshots, not a direction or another state."""
-    trajectory = simulate(SwarmalatorsSystem(), until=0.5, random_state=0)
+    trajectory = SwarmalatorsSystem().prepare().simulate(until=0.5, random_state=0)
     snapshots = _read_snapshots(trajectory)
     np.testing.assert_array_equal(snapshots.phases, trajectory.get_values('units.theta'))
     assert snapshots.directions is None

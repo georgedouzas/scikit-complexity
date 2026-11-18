@@ -16,7 +16,6 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.active_matter import VicsekSystem
 
@@ -38,7 +37,7 @@ blueprint = rrb.Blueprint(
 system = VicsekSystem(n_particles=400, eta=0.1, seed=0)
 observables = VicsekSystem.observables
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-trajectory = simulate(system, until=150, observers=[observer], random_state=0, observables=observables)
+trajectory = system.prepare().simulate(until=150, observers=[observer], random_state=0, observables=observables)
 
 # %%
 # Order against noise
@@ -51,8 +50,7 @@ noises = np.linspace(0.05, 0.95, 10)
 orders = []
 for noise in noises:
     system_system = VicsekSystem(n_particles=400, eta=noise, seed=1)
-    run = simulate(
-        system_system.prepare().system_,
+    run = system_system.prepare().simulate(
         until=150,
         dt=5.0,
         random_state=1,
@@ -95,8 +93,7 @@ ks = [1, 2, 4, 8]
 topological = []
 for k in ks:
     system_system = VicsekSystem(n_particles=100, size=100.0, v0=1.0, neighbors=k, seed=0)
-    run = simulate(
-        system_system.prepare().system_,
+    run = system_system.prepare().simulate(
         until=300,
         dt=10.0,
         random_state=0,
@@ -108,7 +105,7 @@ clustering = []
 for delay in delays:
     system_system = VicsekSystem(n_particles=100, size=50.0, v0=0.15, eta=0.2 / np.pi, delay=delay, seed=0)
     positions = np.asarray(
-        simulate(system_system, until=2000, dt=100.0, random_state=0).get_values('flock.x'),
+        system_system.prepare().simulate(until=2000, dt=100.0, random_state=0).get_values('flock.x'),
     )
     clustering.append(np.mean([neighbours(frame, 50.0) for frame in positions[-5:]]))
 fig, (left, right) = plt.subplots(1, 2, figsize=(10, 4))

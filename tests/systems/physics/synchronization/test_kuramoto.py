@@ -6,7 +6,6 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.interactions import PairInteraction
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.systems.physics.synchronization import (
     DelayedKuramotoSystem,
@@ -57,7 +56,9 @@ def test_kuramoto_in_linear_time():
 def test_kuramoto_transition(factor, synchronized):
     """Test that 2000 oscillators stay incoherent at half the critical coupling and synchronize at twice it."""
     critical = 2 * math.sqrt(2 / math.pi)
-    trajectory = simulate(KuramotoSystem(2000, K=factor * critical), until=100, solver=ScipyODESolver(method='RK45'))
+    trajectory = (
+        KuramotoSystem(2000, K=factor * critical).prepare().simulate(until=100, solver=ScipyODESolver(method='RK45'))
+    )
     order = _series(trajectory, 'order')[0][trajectory.times >= 50].mean()
     assert (order > 0.6) == synchronized
     assert (order < 0.1) == (not synchronized)

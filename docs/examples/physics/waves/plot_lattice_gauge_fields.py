@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.special import iv
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.waves import LatticeGaugeFieldsSystem
 
@@ -22,7 +21,7 @@ SYSTEM = 'lattice_gauge_fields'
 
 system = LatticeGaugeFieldsSystem(size=16)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=10)
-trajectory = simulate(system, until=400, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=400, observers=[observer], random_state=0)
 series = trajectory.get_values('mean_plaquette')
 
 # %%

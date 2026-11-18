@@ -13,7 +13,7 @@ def test_adaptive_kuramoto_splits_identical_oscillators_into_frequency_clusters(
 
     12).
     """
-    trajectory = simulate(AdaptiveKuramotoSystem())
+    trajectory = AdaptiveKuramotoSystem().prepare().simulate()
     theta = np.asarray(trajectory.get_values('nodes.theta'))
     frequencies = np.sort((theta[-1] - theta[-201]) / 200)
     clusters = np.split(frequencies, np.flatnonzero(np.diff(frequencies) > 0.05) + 1)

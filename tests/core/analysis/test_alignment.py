@@ -122,9 +122,9 @@ def test_alignment_checks_its_settings():
 
 def test_alignment_on_three_domains():
     """Test the mean vector of a Vicsek flock and of an XY lattice, and the mean phase of Kuramoto oscillators."""
-    flock = simulate(VicsekSystem(), until=3, random_state=0)
-    spins = simulate(XYSystem(), until=3, random_state=0)
-    oscillators = simulate(KuramotoSystem(), until=3, random_state=0)
+    flock = VicsekSystem().prepare().simulate(until=3, random_state=0)
+    spins = XYSystem().prepare().simulate(until=3, random_state=0)
+    oscillators = KuramotoSystem().prepare().simulate(until=3, random_state=0)
     runs = (
         (_alignment('mean-vector', flock), flock),
         (_alignment('mean-vector', spins), spins),
