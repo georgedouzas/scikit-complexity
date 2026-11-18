@@ -13,7 +13,6 @@ clears the tumour.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import KirschnerPanettaSystem
@@ -22,7 +21,9 @@ SYSTEM = 'kirschner_panetta'
 
 solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(KirschnerPanettaSystem(alpha_a=0.02), dt=5.0, solver=solver, observers=[observer])
+trajectory = (
+    KirschnerPanettaSystem(alpha_a=0.02).set_params(solver=solver).prepare().simulate(dt=5.0, observers=[observer])
+)
 
 # %%
 # Oscillations and clearance
@@ -32,7 +33,7 @@ trajectory = simulate(KirschnerPanettaSystem(alpha_a=0.02), dt=5.0, solver=solve
 # factors, `u1 = u2 = 1.1`, the tumour should fall below one cell and stay there.
 
 untreated = trajectory
-treated = simulate(KirschnerPanettaSystem(alpha_a=0.02, u1=1.1, u2=1.1), dt=5.0, solver=solver)
+treated = KirschnerPanettaSystem(alpha_a=0.02, u1=1.1, u2=1.1).set_params(solver=solver).prepare().simulate(dt=5.0)
 fig, (cycles, therapy) = plt.subplots(1, 2, figsize=(10, 4))
 cycles.semilogy(untreated.times, untreated.get_values('site.A'), label='tumour')
 cycles.semilogy(untreated.times, untreated.get_values('site.E'), label='effector cells')

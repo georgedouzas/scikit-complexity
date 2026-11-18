@@ -13,7 +13,6 @@ twelve thousand cells, far below the carrying capacity of a billion.
 import matplotlib.pyplot as plt
 from scipy.optimize import fsolve
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import TCRGeneTherapySystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'tcr_gene_therapy'
 
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(TCRGeneTherapySystem(), observers=[observer])
+trajectory = TCRGeneTherapySystem().prepare().simulate(observers=[observer])
 
 # %%
 # Spiral into the dormant state

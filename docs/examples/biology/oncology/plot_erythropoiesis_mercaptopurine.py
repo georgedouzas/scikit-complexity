@@ -13,14 +13,13 @@ red cells and the quiescent cells fall, all settling over a few years at new ste
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import ErythropoiesisMercaptopurineSystem
 
 SYSTEM = 'erythropoiesis_mercaptopurine'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(ErythropoiesisMercaptopurineSystem(U=500.0), observers=[observer])
+trajectory = ErythropoiesisMercaptopurineSystem(U=500.0).prepare().simulate(observers=[observer])
 
 # %%
 # Volume and cell counts at steady state
@@ -32,7 +31,7 @@ trajectory = simulate(ErythropoiesisMercaptopurineSystem(U=500.0), observers=[ob
 levels = np.array([0.0, 158.0, 300.0, 500.0, 750.0, 1000.0])
 volumes, cells = [], []
 for level in levels:
-    trajectory = simulate(ErythropoiesisMercaptopurineSystem(U=level), dt=20.0, until=8000)
+    trajectory = ErythropoiesisMercaptopurineSystem(U=level).prepare().simulate(dt=20.0, until=8000)
     volumes.append(trajectory.get_values('patient.MCV')[-1])
     cells.append(trajectory.get_values('patient.L')[-1])
 fig, (course, steady) = plt.subplots(1, 2, figsize=(10, 4))

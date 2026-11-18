@@ -2,7 +2,6 @@
 
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.systems.biology.oncology import LQRadiosensitizerSystem, RadiotherapyCompetitionSystem
 
@@ -11,7 +10,7 @@ PRECISE = ScipyODESolver(rtol=1e-10, atol=1e-12)
 
 def _run(system, until, dt):
     """Return the trajectory of a system integrated tightly."""
-    return simulate(system, dt=dt, random_state=0, solver=PRECISE, until=until)
+    return system.set_params(solver=PRECISE).prepare().simulate(dt=dt, random_state=0, until=until)
 
 
 def test_lq_radiosensitizer_fraction_survival():
@@ -38,9 +37,9 @@ def test_lq_radiosensitizer_regrows_at_the_inhibited_rate():
 
 def test_radiotherapy_competition_lets_normal_cells_survive():
     """Test that the tumour excludes the normal cells without radiation and that irradiation lets them coexist."""
-    untreated = simulate(RadiotherapyCompetitionSystem(a2=0.0, epsilon=0.0), dt=20.0, until=3000.0)
+    untreated = RadiotherapyCompetitionSystem(a2=0.0, epsilon=0.0).prepare().simulate(dt=20.0, until=3000.0)
     assert untreated.get_values('tissue.N')[-1] < 1e-3
     assert abs(untreated.get_values('tissue.A')[-1] - 1.0) < 1e-3
-    treated = simulate(RadiotherapyCompetitionSystem(), dt=20.0, until=2000.0)
+    treated = RadiotherapyCompetitionSystem().prepare().simulate(dt=20.0, until=2000.0)
     assert treated.get_values('tissue.N')[-1] > 0.05
     assert treated.get_values('tissue.A')[-1] < 0.8

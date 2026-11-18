@@ -12,14 +12,13 @@ and a constant drug infusion ends the bursts by clearing the tumour in one of it
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import DelayedRestingHuntingChemotherapySystem
 
 SYSTEM = 'delayed_resting_hunting_chemotherapy'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(DelayedRestingHuntingChemotherapySystem(u=0.03), observers=[observer], until=1000)
+trajectory = DelayedRestingHuntingChemotherapySystem(u=0.03).prepare().simulate(observers=[observer], until=1000)
 
 # %%
 # Oscillations and clearance
@@ -27,7 +26,7 @@ trajectory = simulate(DelayedRestingHuntingChemotherapySystem(u=0.03), observers
 # Untreated, the tumour and the hunting cells should keep oscillating out of phase, with the tumour repeatedly nearly
 # cleared and regrowing. With the infusion, the drug should finish the tumour off in its first deep trough.
 
-untreated = simulate(DelayedRestingHuntingChemotherapySystem(), until=1000)
+untreated = DelayedRestingHuntingChemotherapySystem().prepare().simulate(until=1000)
 treated = trajectory
 fig, (tumour, phase) = plt.subplots(1, 2, figsize=(10, 4))
 tumour.plot(untreated.times, untreated.get_values('patient.A'), label='untreated')

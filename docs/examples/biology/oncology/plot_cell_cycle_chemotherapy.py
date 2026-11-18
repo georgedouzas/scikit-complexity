@@ -13,14 +13,13 @@ compartment of the cell cycle decay after an initial redistribution of the cells
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import CellCycleChemotherapySystem
 
 SYSTEM = 'cell_cycle_chemotherapy'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(CellCycleChemotherapySystem(u1=0.6, u2=0.3), observers=[observer])
+trajectory = CellCycleChemotherapySystem(u1=0.6, u2=0.3).prepare().simulate(observers=[observer])
 
 # %%
 # The kill threshold
@@ -33,7 +32,7 @@ l1, l2, l3, u2 = 0.197, 0.395, 0.107, 0.3
 kills = np.linspace(0.0, 0.8, 9)
 rates, eigenvalues = [], []
 for u1 in kills:
-    trajectory = simulate(CellCycleChemotherapySystem(u1=u1, u2=u2), dt=2.0, until=300)
+    trajectory = CellCycleChemotherapySystem(u1=u1, u2=u2).prepare().simulate(dt=2.0, until=300)
     total = np.log(
         trajectory.get_values('tumour.A1') + trajectory.get_values('tumour.A2') + trajectory.get_values('tumour.A3'),
     )

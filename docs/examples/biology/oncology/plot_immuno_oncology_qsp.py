@@ -33,8 +33,8 @@ BOUNDS = {
 FITTED = {'growth': (0.005, 0.1), 'kill': (1e-11, 5e-10)}
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(ImmunoOncologyQspSystem(), observers=[observer])
-untreated = simulate(ImmunoOncologyQspSystem(dose=0.0))
+trajectory = ImmunoOncologyQspSystem().prepare().simulate(observers=[observer])
+untreated = ImmunoOncologyQspSystem(dose=0.0).prepare().simulate()
 
 # %%
 # Treatment and the antibody
