@@ -6,6 +6,7 @@ The module covers the Koch curve, the Cantor set, and the Sierpiński triangle a
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -13,12 +14,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.base import BaseComponent
 from ....core.components.interactions import Interaction
 from ....core.components.spaces import BaseSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
 from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 from ...general.rewriting import (
     AffineSpec,
     GeometrySpec,
@@ -152,10 +156,15 @@ class KochCurveSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.fractals import KochCurveSystem
-        >>> simulate(KochCurveSystem(), until=3).get_values('koch.F').tolist()
+        >>> KochCurveSystem().prepare().simulate(until=3).get_values('koch.F').tolist()
         [1.0, 4.0, 16.0, 64.0]
     """
 
@@ -165,12 +174,20 @@ class KochCurveSystem(BaseSystem):
     until = 5
     dt = 1
 
-    def __init__(self, angle: float = 60.0, *, label: str = 'system') -> None:
-        super().__init__(label)
+    def __init__(
+        self,
+        angle: float = 60.0,
+        *,
+        label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
+    ) -> None:
+        super().__init__(label, solver=solver, backend=backend)
         self.angle = angle
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         bend = RewritingInteraction('bend', target='koch', laws=[ProductionLaw('F', 'F+F--F+F')])
         word = WordElement(
             'koch',
@@ -179,7 +196,7 @@ class KochCurveSystem(BaseSystem):
             geometry=GeometrySpec(angle=self.angle, step=1.0, contraction=1 / 3),
             bounds=(-0.03, -0.05, 1.03, 0.35),
         )
-        return CompositeSystem(self.label, elements=[word], interactions=[bend])
+        self.system_ = System(self.label, elements=[word], interactions=[bend])
 
 
 class CantorSetSystem(BaseSystem):
@@ -197,14 +214,19 @@ class CantorSetSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The ratio is not between 0 and 1/2.
 
     Examples:
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.fractals import CantorSetSystem
-        >>> simulate(CantorSetSystem(), until=3).get_values('cantor.size').tolist()
+        >>> CantorSetSystem().prepare().simulate(until=3).get_values('cantor.size').tolist()
         [1.0, 2.0, 4.0, 8.0]
     """
 
@@ -214,16 +236,23 @@ class CantorSetSystem(BaseSystem):
     until = 8
     dt = 1
 
-    def __init__(self, ratio: float = 1 / 3, *, label: str = 'system') -> None:
-        super().__init__(label)
+    def __init__(
+        self,
+        ratio: float = 1 / 3,
+        *,
+        label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
+    ) -> None:
+        super().__init__(label, solver=solver, backend=backend)
         self.ratio = ratio
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Raise an error for a ratio outside of `(0, 1/2)`, then check the components.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters.
 
         Args:
             context:
-                The space a nested system inherits from the system that holds it, or `None`.
+                The observables to compile with the problem, or `None` for none.
 
         Raises:
             ValidationError:
@@ -233,13 +262,10 @@ class CantorSetSystem(BaseSystem):
         if not 0 < self.ratio < LARGEST_RATIO:
             error_msg = f'ratio = {self.ratio!r} must lie between 0 and 1/2.'
             raise ValidationError(error_msg)
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
         interval = PrototileSpec('interval', [(0.0, 0.0), (1.0, 0.0)])
         cantor = PatchElement('cantor', prototiles=[interval], bounds=(-0.03, -0.1, 1.03, 0.1))
         removal = CantorInteraction('removal', target='cantor', ratio=self.ratio)
-        return CompositeSystem(self.label, elements=[cantor], interactions=[removal])
+        self.system_ = System(self.label, elements=[cantor], interactions=[removal])
 
 
 class SierpinskiSubstitutionSystem(BaseSystem):
@@ -263,14 +289,19 @@ class SierpinskiSubstitutionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The shape is unknown.
 
     Examples:
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.fractals import SierpinskiSubstitutionSystem
-        >>> simulate(SierpinskiSubstitutionSystem(), until=2).get_values('sierpinski.size').tolist()
+        >>> SierpinskiSubstitutionSystem().prepare().simulate(until=2).get_values('sierpinski.size').tolist()
         [1.0, 3.0, 9.0]
     """
 
@@ -280,14 +311,23 @@ class SierpinskiSubstitutionSystem(BaseSystem):
     until = 6
     dt = 1
 
-    def __init__(self, shape: str = 'triangle', *, filled: bool = True, label: str = 'system') -> None:
-        super().__init__(label)
+    def __init__(
+        self,
+        shape: str = 'triangle',
+        *,
+        filled: bool = True,
+        label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
+    ) -> None:
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.filled = filled
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         prototile, _ = SierpinskiInteraction._get_sierpinski_tiles(self.shape)
         sierpinski = PatchElement('sierpinski', prototiles=[prototile], filled=self.filled)
         copies = SierpinskiInteraction('copies', target='sierpinski', shape=self.shape)
-        return CompositeSystem(self.label, elements=[sierpinski], interactions=[copies])
+        self.system_ = System(self.label, elements=[sierpinski], interactions=[copies])

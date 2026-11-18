@@ -14,7 +14,6 @@ import networkx as nx
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.networks import RandomGraphEnsemblesSystem
 
@@ -36,7 +35,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-trajectory = simulate(RandomGraphEnsemblesSystem(), observers=[observer], random_state=0)
+trajectory = RandomGraphEnsemblesSystem().prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Giant component and small worlds
@@ -60,7 +59,7 @@ ring = nx.watts_strogatz_graph(300, 6, 0.0)
 paths, clustering = [], []
 for share in shares:
     system = RandomGraphEnsemblesSystem(n_nodes=300, ensemble='watts_strogatz', mean_degree=6, rewiring=share, steps=20)
-    graph = simulate(system, until=20).get_network(-1).get_graph()
+    graph = system.prepare().simulate(until=20).get_network(-1).get_graph()
     graph = graph.subgraph(max(nx.connected_components(graph), key=len))
     paths.append(nx.average_shortest_path_length(graph) / nx.average_shortest_path_length(ring))
     clustering.append(nx.average_clustering(graph) / nx.average_clustering(ring))

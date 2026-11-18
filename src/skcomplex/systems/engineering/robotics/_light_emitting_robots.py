@@ -7,7 +7,7 @@ The light is sensed with a delay or a prediction.
 # License: MIT
 
 import math
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
 from typing import Annotated, cast
 
@@ -16,13 +16,14 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element, Period
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.spaces import ContinuousSpace
+from ....core.components.laws import UpdateLaw
+from ....core.components.spaces import BaseSpace, ContinuousSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver, SystemView
-from ....core.specs import RoleSpec, StateSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
@@ -53,6 +54,15 @@ class LightEmittingRobotElement(Element):
         speed:
             The speed the robot moves at.
 
+        values:
+            Further values by name, such as the position `x` and `y` of every robot.
+
+        size:
+            The number of robots, or `None` for one.
+
+        space:
+            The arena, a continuous space whose axes `x` and `y` place the robots, or `None` for none.
+
     Examples:
         >>> from skcomplex.systems.engineering.robotics import LightEmittingRobotElement
         >>> LightEmittingRobotElement('robot', phi=1.0).phi
@@ -65,11 +75,14 @@ class LightEmittingRobotElement(Element):
         self,
         label: str,
         *,
-        phi: Annotated[float, StateSpec(role='direction')] = 0.0,
-        light: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        speed: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        phi: Annotated[float, Period(2 * math.pi)] = 0.0,
+        light: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        speed: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.phi = phi
         self.light = light
         self.speed = speed
@@ -132,13 +145,13 @@ class SensoryDelayInteraction(Interaction):
 
     draws = True
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         I0: float = 5.0,
         r0: float = 1.0,
         V0: float = 1.0,
@@ -159,18 +172,11 @@ class SensoryDelayInteraction(Interaction):
         self.step = step
         self.side = side
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule of the motion of the robots.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rule of the motion.
-        """
-        return [RuleLaw(self._move)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rule of the motion of the robots, once per step for the whole arena."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context, self._move)]
 
     def _move(self, system: SystemView) -> None:
         """Measure the light of the others, set the speeds, and move the robots.
@@ -318,12 +324,14 @@ class LightEmittingRobotsSystem(BaseSystem):
         super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         positions = rng.uniform(0.0, self.side, (self.n_robots, 2))
-        robots = GroupElement(
+        arena = ContinuousSpace(extent=(self.side, self.side), boundary='periodic')
+        robots = LightEmittingRobotElement(
             'robots',
-            element=LightEmittingRobotElement,
+            phi=rng.uniform(0.0, 2 * np.pi, self.n_robots),
+            speed=self.V0,
+            values={'x': positions[:, 0], 'y': positions[:, 1]},
             size=self.n_robots,
-            values={'phi': rng.uniform(0.0, 2 * np.pi, self.n_robots), 'speed': self.V0},
-            location=[tuple(map(float, point)) for point in positions],
+            space=arena,
         )
         motion = SensoryDelayInteraction(
             'motion',
@@ -341,5 +349,5 @@ class LightEmittingRobotsSystem(BaseSystem):
             self.label,
             elements=[robots],
             interactions=[motion],
-            space=ContinuousSpace(extent=(self.side, self.side), boundary='periodic'),
+            space=arena,
         )

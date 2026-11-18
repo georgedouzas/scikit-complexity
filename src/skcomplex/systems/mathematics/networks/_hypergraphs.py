@@ -6,6 +6,7 @@ The module covers the size-biased random walk across hyperedges, and the simplic
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -15,13 +16,17 @@ import xgi
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import HyperedgeInteraction, MapInteraction, TopologyInteraction
-from ....core.components.laws import BaseLaw, RateLaw, UpdateLaw
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction, MapInteraction, TopologyInteraction
+from ....core.components.laws import RateLaw, UpdateLaw
 from ....core.components.laws.utils import neighbors, total
-from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import Role, VisualSpec
+from ....core.systems import BaseSystem, System
 from ..common.networks import VertexElement
 
 
@@ -34,6 +39,9 @@ class SimplexElement(Element):
 
         age:
             The number of steps since the triangle joined.
+
+        space:
+            The network whose hyperedges hold one triangle each, or `None` for one triangle.
 
     Attributes:
         default_visual_:
@@ -49,9 +57,10 @@ class SimplexElement(Element):
         self,
         label: str,
         *,
-        age: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        age: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space, on='hyperedges' if space is not None else None)
         self.age = age
 
 
@@ -70,6 +79,9 @@ class WalkerDensityElement(Element):
         D:
             The total weight of the moves out of the node, the sum of `(|e| - 1)^2` over its hyperedges `e`.
 
+        space:
+            The network whose nodes hold one member each, or `None` for one node.
+
     Attributes:
         default_visual_:
             How the node is drawn by default, the `visual` of its class.
@@ -86,52 +98,46 @@ class WalkerDensityElement(Element):
         self,
         label: str,
         *,
-        p: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.0,
-        D: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        p: Annotated[object, RealSet.closed(0, 1)] = 0.0,
+        D: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.p = p
         self.D = D
 
 
-class SimplexAgeingInteraction(HyperedgeInteraction):
+class SimplexAgeingInteraction(Interaction):
     """Ageing of every triangle of a simplicial complex by one per step.
 
     Args:
         label:
             The label of the interaction, unique among the components of its system.
 
-        nodes:
-            The path of the group on the nodes.
-
-        triangles:
+        target:
             The path of the group on the triangles.
 
     Examples:
         >>> from skcomplex.systems.mathematics.networks import SimplexAgeingInteraction
-        >>> SimplexAgeingInteraction('ageing', nodes='nodes', triangles='triangles').size
-        3
+        >>> SimplexAgeingInteraction('ageing').target
+        'triangles'
     """
 
     law_classes = (UpdateLaw,)
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        nodes: Annotated[str, RoleSpec()],
-        triangles: Annotated[str, RoleSpec()],
-    ) -> None:
-        super().__init__(label, size=3)
-        self.nodes = nodes
-        self.triangles = triangles
+    def __init__(self, label: str, *, target: Role = 'triangles') -> None:
+        super().__init__(label)
+        self.target = target
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the ageing of the triangle."""
-        return [UpdateLaw(s.hyperedge.age, s.hyperedge.age + 1)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the ageing of every triangle."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            triangles = context.target
+            self.laws_: list[BaseComponent] = [UpdateLaw(triangles.age, triangles.age + 1)]
 
 
-class SizeBiasedMoveInteraction(HyperedgeInteraction):
+class SizeBiasedMoveInteraction(Interaction):
     """Moves of a random walker across a hyperedge.
 
     The walker moves to every other member with weight `|e| - 1`.
@@ -144,27 +150,35 @@ class SizeBiasedMoveInteraction(HyperedgeInteraction):
         label:
             The label of the interaction, unique among the components of its system.
 
-        target:
+        among:
             The path of the group of walker densities on the nodes.
+
+        along:
+            `'hyperedges'`, the hyperedges the walker moves across.
 
     Examples:
         >>> from skcomplex.systems.mathematics.networks import SizeBiasedMoveInteraction
-        >>> SizeBiasedMoveInteraction('moves', target='nodes').target
+        >>> SizeBiasedMoveInteraction('moves', among='nodes').among
         'nodes'
     """
 
     law_classes = (RateLaw,)
 
-    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
-        super().__init__(label)
-        self.target = target
+    def __init__(self, label: str, *, among: Role = 'nodes', along: str = 'hyperedges') -> None:
+        super().__init__(label, among=among, along=along)
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the flow into and out of the focal member across one hyperedge."""
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the flow into and out of the focal member across one hyperedge."""
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        s = context
         weight = len(s.others)
         member = s.member
         inflow = total(s.members.p / s.members.D, over=s.members) - member.p / member.D
-        return [RateLaw(member.p, weight * inflow - weight**2 * member.p / member.D)]
+        self.laws_: list[BaseComponent] = [
+            RateLaw(member.p.diff(s.t), weight * inflow - weight**2 * member.p / member.D),
+        ]
 
 
 class HypergraphRandomWalkSystem(BaseSystem):
@@ -191,11 +205,17 @@ class HypergraphRandomWalkSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> import xgi
         >>> from skcomplex.systems.mathematics.networks import HypergraphRandomWalkSystem
         >>> system = HypergraphRandomWalkSystem(xgi.Hypergraph([[0, 1, 2], [2, 3]])).prepare().system_
-        >>> system.elements[0].values['D'].tolist()
+        >>> system.elements[0].D.tolist()
         [4.0, 4.0, 5.0, 1.0]
     """
 
@@ -212,17 +232,17 @@ class HypergraphRandomWalkSystem(BaseSystem):
         source: int = 0,
         seed: int = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.hypergraph = hypergraph
         self.source = source
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the size-biased random walk on a hypergraph.
-
-        The walk `p_j' = sum_i p_i T_ij - p_j` starts from one node.
-        """
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the size-biased random walk `p_j' = sum_i p_i T_ij - p_j` from one node."""
+        super()._prepare(context)
         hypergraph = self.hypergraph
         if hypergraph is None:
             hypergraph = xgi.fast_random_hypergraph(30, [0.1, 0.01, 0.001, 0.0005], seed=self.seed)
@@ -233,18 +253,8 @@ class HypergraphRandomWalkSystem(BaseSystem):
             weights[list(hyperedge)] += (len(hyperedge) - 1) ** 2
         probabilities = np.zeros(prepared.size_)
         probabilities[self.source] = 1.0
-        nodes = GroupElement(
-            'nodes',
-            element=WalkerDensityElement,
-            space=space,
-            values={'p': probabilities, 'D': np.maximum(weights, 1.0)},
-            on='sites',
-        )
-        return CompositeSystem(
-            self.label,
-            elements=[nodes],
-            interactions=[SizeBiasedMoveInteraction('moves', target='nodes')],
-        )
+        nodes = WalkerDensityElement('nodes', p=probabilities, D=np.maximum(weights, 1.0), space=space)
+        self.system_ = System(self.label, elements=[nodes], interactions=[SizeBiasedMoveInteraction('moves')])
 
 
 class GrowingSimplicialComplexSystem(BaseSystem):
@@ -259,16 +269,19 @@ class GrowingSimplicialComplexSystem(BaseSystem):
     `triangles`, and the arrival `growth`.
 
     Args:
-        n_nodes:
-            The number of nodes the complex holds room for.
-
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.networks import GrowingSimplicialComplexSystem
-        >>> simulate(GrowingSimplicialComplexSystem(13), until=10, random_state=0).get_network(-1).hyperedges.shape
+        >>> trajectory = GrowingSimplicialComplexSystem().prepare().simulate(until=10, random_state=0)
+        >>> trajectory.get_network(-1).hyperedges.shape
         (11, 3)
     """
 
@@ -279,12 +292,12 @@ class GrowingSimplicialComplexSystem(BaseSystem):
 
     def __init__(
         self,
-        n_nodes: int = 303,
         *,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
-        self.n_nodes = n_nodes
+        super().__init__(label, solver=solver, backend=backend)
 
     @staticmethod
     def _get_bookkeeping() -> list[MapInteraction]:
@@ -297,33 +310,18 @@ class GrowingSimplicialComplexSystem(BaseSystem):
             MapInteraction('degree', target='nodes', state='degree', function=lambda s: neighbors(1)),
         ]
 
-    def _build_system(self) -> CompositeSystem:
-        """Return a simplicial complex that grows by gluing one triangle per step.
-
-        Every triangle is glued along an edge drawn uniformly.
-        """
-        nodes = GroupElement(
-            'nodes',
-            element=VertexElement,
-            on='sites',
-            variable=True,
-            capacity=self.n_nodes,
-            values={'age': 1.0},
-        )
-        links = GroupElement('links', element=Element, on='edges', variable=True, capacity=2 * self.n_nodes)
-        triangles = GroupElement(
-            'triangles',
-            element=SimplexElement,
-            on='hyperedges',
-            variable=True,
-            capacity=self.n_nodes,
-        )
-        growth = TopologyInteraction('growth', action='add-node', hyperedge=3)
-        ageing = SimplexAgeingInteraction('triangle_ageing', nodes='nodes', triangles='triangles')
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to a simplicial complex that grows by gluing one triangle per step along an edge."""
+        super()._prepare(context)
+        space = NetworkSpace(nx.complete_graph(3), hyperedges=[[0, 1, 2]])
+        nodes = VertexElement('nodes', age=1.0, space=space)
+        links = Element('links', space=space, on='edges')
+        triangles = SimplexElement('triangles', space=space)
+        growth = TopologyInteraction('growth', action='add-node', hyperedge=3, values={'age': 0.0})
+        ageing = SimplexAgeingInteraction('triangle_ageing')
+        self.system_ = System(
             self.label,
             elements=[nodes, links, triangles],
             interactions=[growth, ageing, *self._get_bookkeeping()],
-            space=NetworkSpace(nx.complete_graph(3), hyperedges=[[0, 1, 2]]),
-            time=DiscreteTime(),
+            space=space,
         )

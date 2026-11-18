@@ -13,6 +13,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.analysis import loops
+from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, RuleLaw, TopologyRequestSpec, TransitionLaw, UpdateLaw
@@ -643,6 +644,15 @@ def test_run_grows_a_network_from_one_node_in_one_continuous_run():
     assert sizes == list(range(1, 501))
     assert nx.is_tree(grown)
     assert max(degree for _, degree in grown.degree()) >= 15
+
+
+def test_run_grows_a_network_and_keeps_recording_its_observables():
+    """Test that a network that grows past the rows of its groups keeps every observable of the run once."""
+    nodes = Element('nodes', values={'k': 0.0}, space=NetworkSpace(nx.empty_graph(1)))
+    system = System(elements=[nodes], interactions=[AttachmentInteraction('attach')]).prepare()
+    largest = Observable('largest', group='nodes', variable='k', reduce='max')
+    trajectory = system.simulate(until=20, random_state=0, observables=[largest])
+    assert trajectory.get_values('largest').tolist() == [0.0] * 21
 
 
 class _AgingElement(Element):

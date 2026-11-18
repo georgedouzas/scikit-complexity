@@ -13,13 +13,13 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.base import BaseComponent
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, Role, StateSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
@@ -41,6 +41,9 @@ class RoadElement(Element):
         slowdown:
             The probability of random braking.
 
+        space:
+            The lattice of the cells of the road, or `None` for one cell.
+
     Examples:
         >>> from skcomplex.systems.engineering.traffic import RoadElement
         >>> RoadElement('cell').slowdown
@@ -51,10 +54,11 @@ class RoadElement(Element):
         self,
         label: str,
         *,
-        velocity: Annotated[float, StateSpec(domain=ZZ)] = -1,
-        slowdown: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        velocity: Annotated[float, ZZ] = -1,
+        slowdown: Annotated[float, RealSet.closed_open(0, oo)] = 0.3,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.velocity = velocity
         self.slowdown = slowdown
 
@@ -155,7 +159,7 @@ class NagelSchreckenbergSystem(BaseSystem):
     Examples:
         >>> from skcomplex.systems.engineering.traffic import NagelSchreckenbergSystem
         >>> system = NagelSchreckenbergSystem(100, density=0.1).prepare().system_
-        >>> int((system.elements[0].values['velocity'] >= 0).sum())
+        >>> int((system.elements[0].velocity >= 0).sum())
         10
     """
 
@@ -190,13 +194,7 @@ class NagelSchreckenbergSystem(BaseSystem):
         rng = np.random.default_rng(self.random_state)
         velocity = np.full(self.length, -1.0)
         velocity[rng.choice(self.length, size=round(self.density * self.length), replace=False)] = 0.0
-        road = GroupElement(
-            'road',
-            element=RoadElement,
-            space=LatticeSpace(self.length),
-            values={'velocity': velocity, 'slowdown': self.slowdown},
-            on='sites',
-        )
+        road = RoadElement('road', velocity=velocity, slowdown=self.slowdown, space=LatticeSpace(self.length))
         self.system_ = System(
             self.label,
             elements=[road],

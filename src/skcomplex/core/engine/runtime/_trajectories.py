@@ -333,9 +333,8 @@ class Trajectory:
                 The path is not a rewritten element of the system.
 
         Examples:
-            >>> from skcomplex.core.engine.runtime import simulate
             >>> from skcomplex.systems.mathematics.fractals import CantorSetSystem
-            >>> trajectory = simulate(CantorSetSystem(), until=4, random_state=0)
+            >>> trajectory = CantorSetSystem().prepare().simulate(until=4, random_state=0)
             >>> trajectory.get_structure('cantor', 2).parts
             4
         """

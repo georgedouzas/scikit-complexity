@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.fractals import SierpinskiSubstitutionSystem
 
@@ -28,7 +27,7 @@ blueprint = rrb.Blueprint(
 )
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(SierpinskiSubstitutionSystem(), until=6, observers=[observer])
+trajectory = SierpinskiSubstitutionSystem().prepare().simulate(until=6, observers=[observer])
 
 # %%
 # Area and box-counting dimension
@@ -38,7 +37,7 @@ trajectory = simulate(SierpinskiSubstitutionSystem(), until=6, observers=[observ
 # touches should fall as `s^-D` with the similarity dimension `D = log 3 / log 2`, about 1.585, and the carpet's with
 # `D = log 8 / log 3`, about 1.893.
 
-carpet = simulate(SierpinskiSubstitutionSystem(shape='carpet'), until=4)
+carpet = SierpinskiSubstitutionSystem(shape='carpet').prepare().simulate(until=4)
 generations = trajectory.times
 gasket_area = trajectory.get_values('sierpinski.area') / trajectory.get_values('sierpinski.area')[0]
 carpet_area = carpet.get_values('sierpinski.area')

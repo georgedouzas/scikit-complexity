@@ -4,15 +4,15 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import lyapunov
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.systems import System
 from skcomplex.systems.mathematics.dynamical_systems import (
     FiniteTimeBlowUpSystem,
     HyperchaoticRosslerSystem,
     IkedaSystem,
     LangfordSystem,
     LorenzElement,
+    LorenzInteraction,
     LorenzSystem,
     NoseHooverSystem,
     RosslerSystem,
@@ -38,7 +38,7 @@ def test_finite_time_blow_up_follows_the_hyperbola():
 
 def test_lorenz_attractor_is_bounded_and_visits_both_lobes():
     """Test that the Lorenz system stays bounded for 50 time units and visits both lobes of its attractor."""
-    trajectory = simulate(LorenzSystem(), random_state=0)
+    trajectory = LorenzSystem().prepare().simulate(random_state=0)
     x, z = trajectory.get_values('lorenz.x'), trajectory.get_values('lorenz.z')
     assert np.abs(x).max() < 30
     assert z.max() < 60
@@ -102,16 +102,16 @@ def test_rossler_runs_on_the_backend_it_is_given():
 
 def test_lorenz_element_settles_on_a_fixed_point_below_the_first_bifurcation():
     """Test that the Lorenz flow with `rho < 1` decays to the origin."""
-    system = CompositeSystem(elements=[LorenzElement('lorenz', rho=0.5)])
-    trajectory = simulate(system, until=30.0, dt=1.0)
+    system = System(elements=[LorenzElement('lorenz', rho=0.5)], interactions=[LorenzInteraction('flow')])
+    trajectory = system.prepare().simulate(until=30.0, dt=1.0)
     final = [trajectory.get_values(f'lorenz.{name}')[-1] for name in 'xyz']
     np.testing.assert_allclose(final, 0.0, atol=1e-3)
 
 
 def test_lorenz_element_reaches_the_convection_fixed_point():
     """Test that the Lorenz flow with `1 < rho < 24.74` settles on `x = y = sqrt(beta (rho - 1))`, `z = rho - 1`."""
-    system = CompositeSystem(elements=[LorenzElement('lorenz', rho=10.0)])
-    trajectory = simulate(system, until=60.0, dt=1.0)
+    system = System(elements=[LorenzElement('lorenz', rho=10.0)], interactions=[LorenzInteraction('flow')])
+    trajectory = system.prepare().simulate(until=60.0, dt=1.0)
     beta = 8 / 3
     np.testing.assert_allclose(trajectory.get_values('lorenz.x')[-1], np.sqrt(beta * 9.0), rtol=1e-3)
     np.testing.assert_allclose(trajectory.get_values('lorenz.z')[-1], 9.0, rtol=1e-3)

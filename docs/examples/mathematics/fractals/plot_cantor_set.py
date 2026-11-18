@@ -15,7 +15,6 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.fractals import CantorSetSystem
 
@@ -33,7 +32,7 @@ blueprint = rrb.Blueprint(
 )
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(CantorSetSystem(), until=8, observers=[observer])
+trajectory = CantorSetSystem().prepare().simulate(until=8, observers=[observer])
 stack = np.zeros((490, 729, 3), dtype=np.uint8)
 for generation in range(7):
     for (start, _), (end, _) in trajectory.get_structure('cantor', generation).get_segments():

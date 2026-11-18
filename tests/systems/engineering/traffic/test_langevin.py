@@ -8,7 +8,7 @@ def test_langevin_traffic_follows_desired_speed_with_density_dependent_noise() -
     gamma, D1, density = 3.0, 0.05, 0.5
     system = LangevinTrafficSystem(50, 100.0, gamma=gamma, D1=D1).prepare().system_
     trajectory = system.simulate(until=200, dt=1.0, random_state=0)
-    speeds = trajectory.get_values('cars.v')[50:]
+    speeds = trajectory.get_values("cars.x'")[50:]
     assert abs(speeds.mean() - (1 - density)) < 0.02
     assert abs(speeds.var() / (D1 * density / gamma) - 1) < 0.2
 

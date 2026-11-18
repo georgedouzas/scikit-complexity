@@ -275,14 +275,18 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         """Return the state, derivative, lag, or delay a function of time stands for."""
         operator = value.operator()
         if isinstance(operator, FDerivativeOperator) and operator.function().name() in symbols:
-            return derivative(symbols[operator.function().name()], len(operator.parameter_set()))
-        name = str(getattr(operator, 'name', lambda: '')())
-        if name not in symbols or len(value.operands()) != 1:
+            state = derivative(symbols[operator.function().name()], len(operator.parameter_set()))
+        else:
+            name = str(getattr(operator, 'name', lambda: '')())
+            if name not in symbols:
+                return None
+            state = symbols[name]
+        if len(value.operands()) != 1:
             return None
         shift = SR(time - value.operands()[0]).simplify_full()
         if shift.is_zero():
-            return symbols[name]
-        return (lag if discrete else delayed)(symbols[name], shift)
+            return state
+        return (lag if discrete else delayed)(state, shift)
 
     @staticmethod
     def _get_translated(value: object, time: Expression, symbols: Mapping[str, Expression], discrete: bool) -> object:
