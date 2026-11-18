@@ -109,7 +109,7 @@ class FitnessVertexElement(VertexElement):
         *,
         age: float = 0.0,
         degree: float = 0.0,
-        fitness: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        fitness: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
         space: BaseSpace | None = None,
     ) -> None:
         super().__init__(label, age=age, degree=degree, space=space)
@@ -147,9 +147,9 @@ class SimilarityVertexElement(VertexElement):
         self,
         label: str,
         *,
-        age: float = 0.0,
+        age: object = 0.0,
         degree: float = 0.0,
-        angle: float = 0.0,
+        angle: object = 0.0,
         space: BaseSpace | None = None,
     ) -> None:
         super().__init__(label, age=age, degree=degree, space=space)

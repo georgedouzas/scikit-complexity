@@ -17,11 +17,10 @@ from sage.all__sagemath_symbolics import ZZ, Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.laws.utils import total
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, StateSpec
 from ....core.systems import BaseSystem, System
 from ...general.agents import ChoiceInteraction
 
@@ -47,6 +46,9 @@ class DilutedNeuronElement(Element):
         beta:
             The inverse temperature `β`.
 
+        size:
+            The number of neurons, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.computer_science.neural_networks import DilutedNeuronElement
         >>> DilutedNeuronElement('neuron').beta
@@ -57,11 +59,12 @@ class DilutedNeuronElement(Element):
         self,
         label: str,
         *,
-        spin: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
-        pattern: Annotated[float, ParameterSpec()] = 1.0,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.06,
+        spin: Annotated[object, ZZ] = 1.0,
+        pattern: object = 1.0,
+        beta: Annotated[float, RealSet.closed_open(0, oo)] = 0.06,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.spin = spin
         self.pattern = pattern
         self.beta = beta
@@ -112,7 +115,7 @@ class DilutedHopfieldSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.computer_science.neural_networks import DilutedHopfieldSystem
-        >>> DilutedHopfieldSystem(200, connectivity=10).prepare().system_.elements[0].prepare().size_
+        >>> DilutedHopfieldSystem(200, connectivity=10).prepare().system_.elements[0].size
         200
     """
 
@@ -172,15 +175,12 @@ class DilutedHopfieldSystem(BaseSystem):
         n_patterns = max(1, round(self.load * self.connectivity))
         patterns = rng.choice([-1.0, 1.0], size=(n_patterns, self.n_neurons))
         spins = np.where(rng.random(self.n_neurons) < (1 + self.overlap) / 2, patterns[0], -patterns[0])
-        neurons = GroupElement(
+        neurons = DilutedNeuronElement(
             'neurons',
-            element=DilutedNeuronElement,
+            spin=spins,
+            pattern=patterns[0],
+            beta=self.temperature_scale / self.connectivity,
             size=self.n_neurons,
-            values={
-                'spin': spins,
-                'pattern': patterns[0],
-                'beta': self.temperature_scale / self.connectivity,
-            },
         )
         glauber = ChoiceInteraction(
             'glauber',

@@ -52,7 +52,7 @@ the thread caps for parallel test runs. The new API is built beside the old one 
 - [x] 4.15 Close the smaller gaps found by the physics wave: `Quantity` in `Annotated`, values kept in the order given, starting derivatives per member of a group or field, local rules that read values no law changes, vector parameters of interactions and tensor states, the class drawing of plain elements, `RateLaw` on a second derivative of a vector, prime names in frames and sections, `stability(kind='dispersion')` on a `System`, reductions `over=` a new namespace, readable equations without internal symbols, the event locator of PopulationPollution, and the crash on jump resets of vector components. Verify with a test of each.
 - [x] 4.16 Add `Period` in `Annotated`, so periodic values wrap and the analyses read them as phases or headings, give the generic bases `allowed=` and quantities for their states, move `LorenzElement` into the module of `LorenzSystem`, write the sections of `Quantity` and `EquationInteraction`, and move the doctests and tests that still call the free `simulate` on migrated systems to the method form. Verify with the double pendulum wrapping, the Kuramoto alignment unchanged, a negative stock rejected, and the convention check.
 - [x] 4.17 Close the gaps found by the economics and biology waves: `Member` in `Annotated`, agents placed by their value `node` on a network, a constraint law that applies to every member of a group, hyperedge groups with a rank, and parameters shaped by the members of a group. Verify with tests of each and with the labour, credit, commons, discovery, and oligopoly systems on the new API.
-- [ ] 4.18 Write flows as one labelled `RateLaw` whose target maps stocks to signs, let an `ObjectiveLaw` name its controls, implement the one-off `Interaction(label, roles=..., laws=...)`, move a point that has a starting velocity and no law at that velocity, record one frame for a static system, run transfers in discrete time with a draw per edge, declare traceless symmetric tensors, and bind neighbour interactions of quantum operators to plain elements. Verify with the stock-flow and loops tests, the optimal-control systems, the ideal gas, a static system, TASEP, the nematics, and the quantum spin chains.
+- [x] 4.18 Write flows as one labelled `RateLaw` whose target maps stocks to signs, let an `ObjectiveLaw` name its controls, implement the one-off `Interaction(label, roles=..., laws=...)`, move a point that has a starting velocity and no law at that velocity, record one frame for a static system, run transfers in discrete time with a draw per edge, declare traceless symmetric tensors, and bind neighbour interactions of quantum operators to plain elements. Verify with the stock-flow and loops tests, the optimal-control systems, the ideal gas, a static system, TASEP, the nematics, and the quantum spin chains.
 
 ## 5. Systems migrate field by field
 
@@ -69,14 +69,14 @@ Each task rewrites the systems of its fields on the new API: elements as data wi
   - [x] 5.2.2 Companion states `x_d1` replaced by `x'`, and ports rewritten as interactions between node elements.
   - [x] 5.2.3 The shared bases of `general` with their subclasses, and the reactions, agents, matching, kinetics, gradients, mechanics, and rewriting recipes.
   - [x] 5.2.4 Stock-flow flows as one labelled `RateLaw` whose target maps stocks to signs, with the loops analysis and the flow matrix.
-  - [ ] 5.2.5 The remaining old parts of engineering: process, control, robot, and driver elements with laws of their own.
+  - [x] 5.2.5 The remaining old parts of engineering: process, control, robot, and driver elements with laws of their own.
 - [ ] 5.3 Wave 1: `mathematics`.
   - [x] 5.3.1 Maps, flows, normal forms, ensembles, stochastic processes, fractals, walks, fractional dynamics, and the agent systems.
   - [x] 5.3.2 The logistic map family with the experiments, and the static and cascading networks.
-  - [ ] 5.3.3 The growing networks, now that groups grow with no capacity, and the hypergraph systems.
+  - [x] 5.3.3 The growing networks, now that groups grow with no capacity, and the hypergraph systems.
 - [ ] 5.4 Wave 1: `computer_science`.
   - [x] 5.4.1 Automata, evolutionary computation, and neural networks on the new base, with local rules as `UpdateLaw`.
-  - [ ] 5.4.2 The remaining agent rules of DNA computation, genetic algorithms, Hopfield, and the perceptron as `UpdateLaw` rules.
+  - [x] 5.4.2 The remaining agent rules of DNA computation, genetic algorithms, Hopfield, and the perceptron as `UpdateLaw` rules.
 - [ ] 5.5 Wave 2: `biology`.
   - [x] 5.5.1 Ecology, neuroscience, physiology, systems biology, oncology, and collective decisions on the new base.
   - [x] 5.5.2 The modules the first pass left and the agent modules on the new base, with identical runs.
@@ -89,6 +89,7 @@ Each task rewrites the systems of its fields on the new API: elements as data wi
   - [x] 5.7.1 Every social system on the new base with identical results, interactions setting `laws_`, and plain elements.
   - [ ] 5.7.2 The remaining old parts: the agent recipes' groups, symbolic groupings, pair potentials, position vectors, and the groups of growing networks.
 - [x] 5.8 Rewrite the experiment functions in `src/skcomplex/core/experiments` to clone, set parameters, prepare, and simulate, preparing once when only initial or random states vary. Verify with tests that an ensemble prepares once and a sweep leaves the user's system unchanged.
+- [ ] 5.9 Replace the last old parts left by the waves, so phase 6 deletes nothing still in use: the inline `RateInteraction`, `MapInteraction`, `TopologyInteraction`, and `SamplingInteraction` spots with the one-off `Interaction`, `TransferLaw`, `Source`, `Sink`, and `BoundaryLaw` with labelled flows, `ConservationInteraction`, and the gaps found: noise on `x'`, a law reading an observable on a plain value, a fixed hyperedge size, a subshift in `Annotated` for the automaton analysis, role domains of system rules, the Cayley drawing of plain elements, `reduce='count'` over grown groups, the Elman units and the reservoir lags. Verify with `rg` finding none of the old classes in `src/skcomplex/systems` and the tests of every field.
 
 ## 6. The old API goes
 

@@ -1201,7 +1201,7 @@ class RecorderInteraction(Interaction):
             CompositeSystem(elements=[MarketElement('m')], interactions=[CobwebInteraction('c', target='m')]),
             FormKind.DISCRETE,
         ),
-        (CompositeSystem(elements=[PopulationElement('a')]), FormKind.ODE),
+        (CompositeSystem(elements=[PopulationElement('a')]), FormKind.STATIC),
     ],
 )
 def test_compiler_infers_form(system, form):

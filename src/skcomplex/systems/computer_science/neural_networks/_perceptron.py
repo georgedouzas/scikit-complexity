@@ -18,16 +18,16 @@ from pysat.solvers import Solver
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.enums import ElementKind
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec, RoleSpec, StateSpec
+from ....core.specs import BaseSpec, RoleSpec
 from ....core.systems import BaseSystem, System
 
 SENSES = ('at-least', 'at-most')
@@ -159,7 +159,7 @@ class SatisfiabilityInteraction(Interaction):
 
     reports: ClassVar[tuple[str, ...]] = ('satisfiable', 'revealed')
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw,)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (UpdateLaw,)
 
     def __init__(
         self,
@@ -203,6 +203,8 @@ class SatisfiabilityInteraction(Interaction):
                 error_msg = f'The constraint {constraint!r} of {self.label!r} is no ClauseSpec or CardinalitySpec.'
                 raise ValidationError(error_msg)
             constraint._check()
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseLaw] = [UpdateLaw(context, self._decide, phase=self.phase)]
 
     def _add(self, constraint: ClauseSpec | CardinalitySpec, solver: Solver, pool: IDPool) -> None:
         """Add one constraint to the solver.
@@ -221,7 +223,7 @@ class SatisfiabilityInteraction(Interaction):
 
         The solution is a satisfying assignment, set when one exists.
         """
-        agents = system.get_agents(self._get_role('target'))
+        agents = system.get_agents(self.target)
         if 'solver' not in system.storage:
             system.storage.update(
                 solver=Solver(name=self.solver),
@@ -243,19 +245,6 @@ class SatisfiabilityInteraction(Interaction):
         system.report('satisfiable', float(satisfiable))
         system.report('revealed', float(following))
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule of one step.
-
-        Args:
-            namespace:
-                The namespace of the symbols the laws can use, which the rule does not read.
-
-        Returns:
-            laws:
-                The rule that reveals and decides constraints.
-        """
-        return [RuleLaw(self._decide, phase=self.phase)]
-
 
 class BinaryWeightElement(Element):
     """Weight of a binary perceptron.
@@ -269,6 +258,9 @@ class BinaryWeightElement(Element):
         active:
             Whether the weight is `+1`.
 
+        size:
+            The number of weights, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.computer_science.neural_networks import BinaryWeightElement
         >>> BinaryWeightElement('weight', active=1.0).active
@@ -278,9 +270,10 @@ class BinaryWeightElement(Element):
     def __init__(
         self,
         label: str,
-        active: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+        active: Annotated[object, FiniteEnumeratedSet([0, 1])] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.active = active
 
 
@@ -359,6 +352,6 @@ class PerceptronSatisfiabilitySystem(BaseSystem):
             CardinalitySpec(tuple((indices * pattern).tolist()), (self.n_weights + 1) // 2, 'at-least')
             for pattern in patterns
         ]
-        weights = GroupElement('weights', element=BinaryWeightElement, size=self.n_weights)
+        weights = BinaryWeightElement('weights', size=self.n_weights)
         decide = SatisfiabilityInteraction('decide', target='weights', state='active', constraints=constraints)
         self.system_ = System(self.label, elements=[weights], interactions=[decide])

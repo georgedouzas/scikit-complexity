@@ -75,7 +75,7 @@ class LightEmittingRobotElement(Element):
         self,
         label: str,
         *,
-        phi: Annotated[float, Period(2 * math.pi)] = 0.0,
+        phi: Annotated[object, Period(2 * math.pi)] = 0.0,
         light: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
         speed: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
         values: Mapping[str, object] | None = None,

@@ -1,5 +1,6 @@
 """Test the `_cayley` module of `skcomplex.systems.computer_science.common.automata`."""
 
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -9,15 +10,15 @@ from sage.all__sagemath_symbolics import ZZ, matrix
 from sage.groups.matrix_gps.finitely_generated import MatrixGroup
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import LocalRuleLaw, TableSpec, TotalisticSpec
-from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import TableSpec, TotalisticSpec, UpdateLaw
+from skcomplex.core.components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace
 from skcomplex.core.engine.problems import FrameSpec
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.errors import SpaceError, SpaceTooLargeError, ValidationError
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 from skcomplex.systems.computer_science.common.automata import (
     CayleySpace,
     CayleyVisual,
@@ -31,6 +32,8 @@ GRIGORCHUK = 'a = (1, 1)(1, 2), b = (a, c), c = (a, d), d = (1, b)'
 MAJORITY = TotalisticSpec({3: 1, 4: 1, 5: 1})
 FREE_MEMORY = MemoryNeighborhood(('1', 'a', 'a^-1', 'b', 'b^-1'))
 SYMMETRIC = PermutationGroup([[(1, 2)], [(1, 2, 3)]])
+COPY = {'rule': TableSpec({(1,): 1}), 'neighborhood': MemoryNeighborhood(('a',))}
+PARITY = {'rule': TotalisticSpec({1: 1, 3: 1}), 'neighborhood': MemoryNeighborhood(('1', 'a', 'b'))}
 
 
 def _grigorchuk():
@@ -47,42 +50,46 @@ def _cyclic_presentation(order):
 
 
 class CellElement(Element):
-    """Cell that takes the majority value of itself and its generators and their inverses."""
+    """Binary cells on the sites of a space."""
 
     def __init__(
         self,
         label: str,
         *,
-        alive: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
+        alive: Annotated[object, FiniteEnumeratedSet([0, 1])] = 0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.alive = alive
 
-    def _get_laws(self, s):
-        """Return the majority rule."""
-        return [LocalRuleLaw(s.alive, FREE_MEMORY, MAJORITY)]
 
+class LocalRuleInteraction(Interaction):
+    """Local rule of the cells, a table or a totalistic rule over a memory set."""
 
-class CopyElement(Element):
-    """Cell that copies the value at the generator `a`."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        alive: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
-    ) -> None:
+    def __init__(self, label: str, *, target: Role = 'cells', rule=MAJORITY, neighborhood=FREE_MEMORY) -> None:
         super().__init__(label)
-        self.alive = alive
+        self.target = target
+        self.rule = rule
+        self.neighborhood = neighborhood
 
-    def _get_laws(self, s):
-        """Return the copy of the cell at `g a`."""
-        return [LocalRuleLaw(s.alive, MemoryNeighborhood(('a',)), TableSpec({(1,): 1}))]
+    def _prepare(self, context=None):
+        """Set the local rule of every cell."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [UpdateLaw(context.target.alive, self.rule, neighborhood=self.neighborhood)]
+
+
+def _cells(space, cells, **rule):
+    """Return a system of binary cells on a space with a local rule."""
+    return System(
+        elements=[CellElement('cells', alive=cells, space=space)],
+        interactions=[LocalRuleInteraction('rule', **rule)],
+    )
 
 
 def _run(system, until):
     """Return the trajectory of a system."""
-    return simulate(system, until=until, dt=1, random_state=0)
+    return system.prepare().simulate(until=until, dt=1, random_state=0)
 
 
 def test_cayley_space_checks_its_group_and_ball():
@@ -179,9 +186,7 @@ def test_local_rule_free_group_majority():
     """Test that every interior cell of a ball of radius 6 of the free group takes the majority of its five cells."""
     space = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=6).prepare()
     cells = (np.random.default_rng(0).random(space.size_) < 0.5).astype(float)
-    system = CompositeSystem(
-        elements=[GroupElement('cells', element=CellElement, space=space, values={'alive': cells}, on='sites')],
-    )
+    system = _cells(space, cells)
     alive = _run(system, 1).get_values('cells.alive')
     table = space._get_index_table(FREE_MEMORY)
     interior = (table < space.size_).all(axis=1)
@@ -196,9 +201,7 @@ def test_local_rule_keeps_the_orientation_of_the_memory():
     sites = {word: site for site, word in enumerate(space.words_)}
     cells = np.zeros(space.size_)
     cells[sites['b']] = 1.0
-    system = CompositeSystem(
-        elements=[GroupElement('cells', element=CopyElement, space=space, values={'alive': cells}, on='sites')],
-    )
+    system = _cells(space, cells, **COPY)
     alive = _run(system, 1).get_values('cells.alive')[1]
     assert alive[sites['b*a^-1']] == 1
     assert alive[sites['a^-1*b']] == 0
@@ -208,9 +211,7 @@ def test_local_rule_runs_on_a_ball_of_an_automaton_group():
     """Test that a rule on a ball of the Grigorchuk group of radius 4 steps on its 40 sites."""
     space = CayleySpace(_grigorchuk(), ball=4).prepare()
     cells = (np.random.default_rng(1).random(space.size_) < 0.5).astype(float)
-    system = CompositeSystem(
-        elements=[GroupElement('cells', element=CopyElement, space=space, values={'alive': cells}, on='sites')],
-    )
+    system = _cells(space, cells, **COPY)
     assert space.level_ > 0
     assert _run(system, 50).get_values('cells.alive').shape == (51, 40)
 
@@ -219,9 +220,7 @@ def test_local_rule_runs_on_a_level_quotient():
     """Test that the copy rule on the level-2 quotient of the Grigorchuk group is a permutation of the 8 cells."""
     space = CayleySpace(_grigorchuk().PermGroupOnLevel(2)).prepare()
     cells = np.arange(space.size_) % 2.0
-    system = CompositeSystem(
-        elements=[GroupElement('cells', element=CopyElement, space=space, values={'alive': cells}, on='sites')],
-    )
+    system = _cells(space, cells, **COPY)
     alive = _run(system, 3).get_values('cells.alive')
     assert space.size_ == 8
     assert (alive.sum(axis=1) == cells.sum()).all()
@@ -284,23 +283,6 @@ def test_translation_table_rejects_other_neighborhoods_spaces_and_large_tables(m
         space._get_translation_table(StateTranslationNeighborhood())
 
 
-class ParityElement(Element):
-    """Cell that takes the parity of itself and the cells at its generators."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        alive: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
-    ) -> None:
-        super().__init__(label)
-        self.alive = alive
-
-    def _get_laws(self, s):
-        """Return the parity rule."""
-        return [LocalRuleLaw(s.alive, MemoryNeighborhood(('1', 'a', 'b')), TotalisticSpec({1: 1, 3: 1}))]
-
-
 class Logs:
     """Recording stand-in that keeps the entity paths, archetypes, and static flags it receives."""
 
@@ -317,12 +299,7 @@ def _trajectory():
     space = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=3).prepare()
     cells = np.zeros(space.size_)
     cells[0] = 1.0
-    return simulate(
-        CompositeSystem(
-            elements=[GroupElement('cells', element=ParityElement, space=space, values={'alive': cells}, on='sites')],
-        ),
-        until=2,
-    )
+    return _cells(space, cells, **PARITY).prepare().simulate(until=2)
 
 
 def test_cayley_visual_logs_nodes_on_rings_and_edges_once():
@@ -344,10 +321,9 @@ def test_cayley_visual_logs_nodes_on_rings_and_edges_once():
 
 
 def test_cayley_visual_views_are_graph_views():
-    """Test that a group on a group space defaults to the Cayley visual, whose view is a graph view of its state."""
+    """Test that the Cayley visual of cells on a group space views their state as a graph view."""
     trajectory = _trajectory()
     problem = trajectory.problem
     views = CayleyVisual(path=problem.elements[0].path).prepare(problem).views_
     assert [(type(view).__name__, str(view.origin)) for view in views] == [('GraphView', 'cells/alive')]
-    assert problem.elements[0].visual.kind is CayleyVisual
     assert RerunObserver(blueprint='default').prepare(problem).blueprint_ is not None

@@ -264,7 +264,7 @@ class SwarmRobotElement(Element):
         self,
         label: str,
         *,
-        heading: Annotated[float, Period(2 * math.pi)] = 0.0,
+        heading: Annotated[object, Period(2 * math.pi)] = 0.0,
         connections: Annotated[float, NN] = 0.0,
         illuminated: Annotated[float, FiniteEnumeratedSet([0, 1])] = 1.0,
         speed: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
