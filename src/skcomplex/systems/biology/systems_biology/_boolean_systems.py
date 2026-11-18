@@ -13,14 +13,17 @@ import scipy.sparse
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import total, uniform, where
-from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.specs import RoleSpec
+from ....core.systems import BaseSystem, System
+from ....core.types import Array
 from ..common.networks import BooleanFunctionInteraction, BooleanNodeElement
 from .types import Rule
 
@@ -81,6 +84,9 @@ class MajorityNodeElement(Element):
         eta:
             The probability that the node takes the state opposite to the majority.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.biology.systems_biology import MajorityNodeElement
         >>> MajorityNodeElement('node', eta=0.1).eta
@@ -91,10 +97,11 @@ class MajorityNodeElement(Element):
         self,
         label: str,
         *,
-        sigma: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([-1, 1]))] = 1.0,
-        eta: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.0,
+        sigma: Annotated[float | Array, FiniteEnumeratedSet([-1, 1])] = 1.0,
+        eta: Annotated[float | Array, RealSet.closed(0, 1)] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.sigma = sigma
         self.eta = eta
 
@@ -169,6 +176,12 @@ class ThreeGeneBooleanNetworkSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.systems_biology import ThreeGeneBooleanNetworkSystem
         >>> ThreeGeneBooleanNetworkSystem().prepare().system_.interactions[2].table
@@ -195,7 +208,7 @@ class ThreeGeneBooleanNetworkSystem(BaseSystem):
         rules: dict[str, tuple[tuple[str, ...], Rule]],
         active: Sequence[str],
         knockouts: Sequence[str] = (),
-    ) -> CompositeSystem:
+    ) -> System:
         """Return the labelled Boolean network of rules.
 
         The active nodes are on and the knocked-out nodes kept off.
@@ -218,24 +231,29 @@ class ThreeGeneBooleanNetworkSystem(BaseSystem):
             )
             for name, (inputs, rule) in rules.items()
         ]
-        return CompositeSystem(label, elements=nodes, interactions=functions)
+        return System(label, elements=nodes, interactions=functions)
 
     def __init__(
         self,
         x: Sequence[int] = (1, 0, 0),
         *,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the three-gene Boolean network of Raman.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the three-gene Boolean network of Raman.
 
-        The network is updated synchronously.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         active = [name for name, value in zip(THREE_GENE_RULES, self.x, strict=True) if value]
-        return ThreeGeneBooleanNetworkSystem._get_rule_network(self.label, THREE_GENE_RULES, active)
+        self.system_ = ThreeGeneBooleanNetworkSystem._get_rule_network(self.label, THREE_GENE_RULES, active)
 
 
 class MammalianCellCycleSystem(BaseSystem):
@@ -257,6 +275,12 @@ class MammalianCellCycleSystem(BaseSystem):
 
         label:
             The label of the system, which names it when it is nested in another one.
+
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
 
     Raises:
         ValidationError:
@@ -280,17 +304,22 @@ class MammalianCellCycleSystem(BaseSystem):
         *,
         knockouts: Sequence[str] = (),
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.active = active
         self.knockouts = knockouts
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the Boolean system of the mammalian cell cycle.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the Boolean system of the mammalian cell cycle.
 
-        The system is the one of Faure et al.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        return ThreeGeneBooleanNetworkSystem._get_rule_network(
+        super()._prepare(context)
+        self.system_ = ThreeGeneBooleanNetworkSystem._get_rule_network(
             self.label,
             CELL_CYCLE_RULES,
             self.active,
@@ -319,6 +348,12 @@ class BooleanRepressilatorSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The delay is negative.
@@ -341,13 +376,21 @@ class BooleanRepressilatorSystem(BaseSystem):
         *,
         delay: int = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.delay = delay
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the Boolean repressilator."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the Boolean repressilator.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         if self.delay < 0:
             error_msg = f'The delay must be a nonnegative number of steps, not {self.delay}.'
             raise ValidationError(error_msg)
@@ -371,7 +414,7 @@ class BooleanRepressilatorSystem(BaseSystem):
             functions.append(
                 BooleanFunctionInteraction(f'repression_{target}', target=target, inputs=[chain[-1]], table=(1, 0)),
             )
-        return CompositeSystem(self.label, elements=[*genes, *relays], interactions=functions)
+        self.system_ = System(self.label, elements=[*genes, *relays], interactions=functions)
 
 
 class NoisyBooleanNetworkSystem(BaseSystem):
@@ -401,13 +444,19 @@ class NoisyBooleanNetworkSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The number of inputs is even.
 
     Examples:
         >>> from skcomplex.systems.biology.systems_biology import NoisyBooleanNetworkSystem
-        >>> NoisyBooleanNetworkSystem(10).prepare().system_.elements[0].prepare().size_
+        >>> NoisyBooleanNetworkSystem(10).prepare().system_.elements[0].size
         10
     """
 
@@ -425,15 +474,23 @@ class NoisyBooleanNetworkSystem(BaseSystem):
         eta: float = 0.1,
         seed: int | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.k = k
         self.eta = eta
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the Boolean network of Huepe and Aldana-González."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the Boolean network of Huepe and Aldana-González.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         if self.k % 2 == 0:
             error_msg = f'The number of inputs must be odd so that the majority is defined, not {self.k}.'
             raise ValidationError(error_msg)
@@ -441,11 +498,6 @@ class NoisyBooleanNetworkSystem(BaseSystem):
         inputs = np.zeros((self.n, self.n))
         for node in range(self.n):
             inputs[node, rng.choice(np.delete(np.arange(self.n), node), size=self.k, replace=False)] = 1.0
-        nodes = GroupElement(
-            'nodes',
-            element=MajorityNodeElement,
-            size=self.n,
-            values={'sigma': np.ones(self.n), 'eta': self.eta},
-        )
+        nodes = MajorityNodeElement('nodes', sigma=np.ones(self.n), eta=self.eta, size=self.n)
         majority = NoisyMajorityInteraction('majority', nodes='nodes', inputs=scipy.sparse.csr_array(inputs))
-        return CompositeSystem(self.label, elements=[nodes], interactions=[majority], time=DiscreteTime())
+        self.system_ = System(self.label, elements=[nodes], interactions=[majority])
