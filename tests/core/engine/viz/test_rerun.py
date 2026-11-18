@@ -357,12 +357,11 @@ def _agent_logs(monkeypatch, tmp_path, system, until=2):
         return original(self, path, archetype, *args, **kwargs)
 
     monkeypatch.setattr(rr.RecordingStream, 'log', log)
-    simulate(
-        system,
-        until=until,
-        observers=[RerunObserver('agents', save_path=tmp_path / 'agents.rrd')],
-        random_state=0,
-    )
+    observer = RerunObserver('agents', save_path=tmp_path / 'agents.rrd')
+    if isinstance(system, System):
+        system.prepare().simulate(until, observers=[observer], random_state=0)
+    else:
+        simulate(system, until=until, observers=[observer], random_state=0)
     return logged
 
 

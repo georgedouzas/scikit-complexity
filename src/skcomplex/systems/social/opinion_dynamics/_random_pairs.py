@@ -54,9 +54,9 @@ class MeetingsInteraction(Interaction):
         """Set the encounters of every step as the rule of the system."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self._meet, phase=self.phase)]
+            self.laws_: list[BaseComponent] = [UpdateLaw(context, self._run_meetings, phase=self.phase)]
 
-    def _meet(self, system: SystemView) -> None:
+    def _run_meetings(self, system: SystemView) -> None:
         """Act on every group of one step in random order."""
         groups = self._get_groups(system)
         for index in system.rng.permutation(len(groups)):

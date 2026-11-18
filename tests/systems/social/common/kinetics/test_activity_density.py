@@ -6,9 +6,8 @@ from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
+from skcomplex.core.systems import System
 from skcomplex.systems.general.elements import NonnegativeElement
 from skcomplex.systems.social.common.kinetics import ActivityDensityElement
 
@@ -36,4 +35,4 @@ def test_activity_density_group_has_one_member_per_class():
 def test_activity_density_rejects_a_negative_value():
     """Test that a run rejects a negative value."""
     with pytest.raises(ValidationError):
-        simulate(CompositeSystem(elements=[ActivityDensityElement('a', x=-1.0)]), until=1, dt=1.0)
+        System(elements=[ActivityDensityElement('a', x=-1.0)]).prepare().simulate(until=1, dt=1.0)

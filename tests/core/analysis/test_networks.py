@@ -5,7 +5,6 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import NetworkMeasuresResult, network_measures
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.systems.mathematics.networks import NetworkDiffusionSystem
 from skcomplex.systems.social.segregation import SchellingSystem
@@ -18,7 +17,7 @@ def _network(kind: str, source: object, **settings: object) -> NetworkMeasuresRe
 
 def _schelling_contacts() -> nx.Graph:
     """Return the network of neighbouring residents of a relaxed Schelling system, with their groups."""
-    trajectory = simulate(SchellingSystem(width=30, height=30, random_state=0), until=100, random_state=0)
+    trajectory = SchellingSystem(width=30, height=30, random_state=0).prepare().simulate(until=100, random_state=0)
     residents = trajectory.get_agents('residents', -1)
     cells = {tuple(int(item) for item in place): index for index, place in enumerate(residents.locations)}
     group = next(iter(residents.values.values()))
