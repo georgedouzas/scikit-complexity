@@ -291,22 +291,6 @@ class OptimalImmunotherapyElement(Element):
         self.w2 = w2
 
 
-def _get_chemotherapy_cost(s: SimpleNamespace) -> Expression:
-    """Return the running cost of the chemotherapy, `A + w u^2 / 2`.
-
-    It sums the tumour and the squared dose.
-    """
-    patient = s.patient
-    cost: Expression = patient.A + patient.w * patient.u**2 / 2
-    return cost
-
-
-def _get_tumour(s: SimpleNamespace) -> Expression:
-    """Return the tumour cells left at the end of the chemotherapy, `A(T)`."""
-    tumour: Expression = s.patient.A
-    return tumour
-
-
 def _get_tumour_share(s: SimpleNamespace) -> Expression:
     """Return the tumour cells as a share of the tumour and normal cells.
 
@@ -379,6 +363,22 @@ class OptimalChemotherapySystem(BaseSystem):
         self.N = N
         self.w = w
 
+    @staticmethod
+    def _get_chemotherapy_cost(s: SimpleNamespace) -> Expression:
+        """Return the running cost of the chemotherapy, `A + w u^2 / 2`.
+
+        It sums the tumour and the squared dose.
+        """
+        patient = s.patient
+        cost: Expression = patient.A + patient.w * patient.u**2 / 2
+        return cost
+
+    @staticmethod
+    def _get_tumour(s: SimpleNamespace) -> Expression:
+        """Return the tumour cells left at the end of the chemotherapy, `A(T)`."""
+        tumour: Expression = s.patient.A
+        return tumour
+
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of a patient under the chemotherapy.
 
@@ -390,24 +390,8 @@ class OptimalChemotherapySystem(BaseSystem):
         self.system_ = System(
             self.label,
             elements=[OptimalChemotherapyElement('patient', E=self.E, A=self.A, N=self.N, w=self.w)],
-            solver=PontryaginSolver(objective=_get_chemotherapy_cost, terminal=_get_tumour),
+            solver=PontryaginSolver(objective=self._get_chemotherapy_cost, terminal=self._get_tumour),
         )
-
-
-def _get_immunotherapy_cost(s: SimpleNamespace) -> Expression:
-    """Return the running cost of the immunotherapy.
-
-    It sums the tumour and the squared doses of both therapies.
-    """
-    site = s.site
-    cost: Expression = site.y + site.w1 * site.u1**2 / 2 + site.w2 * site.u2**2 / 2
-    return cost
-
-
-def _get_tumour_site(s: SimpleNamespace) -> Expression:
-    """Return the tumour cells left at the end of the immunotherapy, `y(T)`."""
-    tumour: Expression = s.site.y
-    return tumour
 
 
 def _get_immune_ratio(s: SimpleNamespace) -> Expression:
@@ -483,6 +467,22 @@ class OptimalImmunotherapySystem(BaseSystem):
         self.w1 = w1
         self.w2 = w2
 
+    @staticmethod
+    def _get_immunotherapy_cost(s: SimpleNamespace) -> Expression:
+        """Return the running cost of the immunotherapy.
+
+        It sums the tumour and the squared doses of both therapies.
+        """
+        site = s.site
+        cost: Expression = site.y + site.w1 * site.u1**2 / 2 + site.w2 * site.u2**2 / 2
+        return cost
+
+    @staticmethod
+    def _get_tumour_site(s: SimpleNamespace) -> Expression:
+        """Return the tumour cells left at the end of the immunotherapy, `y(T)`."""
+        tumour: Expression = s.site.y
+        return tumour
+
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of a tumour under the adoptive therapy and IL-2 injection.
 
@@ -546,5 +546,5 @@ class OptimalImmunotherapySystem(BaseSystem):
             self.label,
             elements=[site],
             interactions=interactions,
-            solver=PontryaginSolver(objective=_get_immunotherapy_cost, terminal=_get_tumour_site, nodes=1001),
+            solver=PontryaginSolver(objective=self._get_immunotherapy_cost, terminal=self._get_tumour_site, nodes=1001),
         )
