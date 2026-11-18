@@ -578,7 +578,7 @@ class _StateInference:
 
     @staticmethod
     def _get_past_arrays(name: str, values: object, lags: int) -> dict[str, object]:
-        """Return the past values of a value of many members, each the value of its member before the start."""
+        """Return the past values of many members, each its value before the start."""
         return {f'{name}_lag{index}': values for index in range(1, lags + 1)}
 
     def _get_declared_elements(

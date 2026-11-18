@@ -4,13 +4,14 @@
 # License: MIT
 
 import copy
+import inspect
 from collections.abc import Mapping
 
 import numpy as np
 import numpy.typing as npt
 from sklearn.base import clone
 
-from ..components.elements import DeclaredElement, Element, GroupElement
+from ..components.elements import BaseElement, DeclaredElement, Element, GroupElement
 from ..components.laws import (
     BoundaryLaw,
     ConstraintLaw,
@@ -28,7 +29,7 @@ from ..engine.problems import BaseProblemSpec
 from ..engine.runtime import Trajectory, simulate
 from ..enums import VariableKind
 from ..errors import ValidationError
-from ..specs import VariableSpec
+from ..specs import ParameterSpec, StateSpec, VariableSpec
 from ..systems import BaseSystem, System
 from ._runs import _check_source
 from ._utils import build_system, get_problem
@@ -151,7 +152,7 @@ def _member_values(
 
 
 def _replicate(
-    system: CompositeSystem,
+    system: CompositeSystem | System,
     size: int,
     values: Mapping[str, npt.ArrayLike] | None = None,
 ) -> CompositeSystem:
@@ -166,7 +167,8 @@ def _replicate(
 
     Args:
         system:
-            The system of single elements and their interactions, without child systems.
+            The system of single elements and their interactions, without child systems. A `System` replicates as
+            `_replicate_prepared` does, into the composite the engine compiles.
 
         size:
             The number of members of every group.
@@ -183,6 +185,8 @@ def _replicate(
             The system has child systems, groups, fields, or agents, a path is not a state or parameter of an element,
             or its values do not have one row per member.
     """
+    if isinstance(system, System):
+        return _replicate_prepared(system, size, values)._get_composite()
     _check_plain(system)
     by_label = _member_values(values or {}, system, size)
     groups = [
@@ -201,6 +205,37 @@ def _replicate(
         space=system.space,
         time=system.time,
     )
+
+
+def _declares(element: Element) -> bool:
+    """Return whether an element declares its states and parameters."""
+    specs = type(element)._get_specs().values()
+    return isinstance(element, DeclaredElement) or any(isinstance(spec, StateSpec | ParameterSpec) for spec in specs)
+
+
+def _get_value_names(element: Element) -> set[str]:
+    """Return the names of the values of a single element.
+
+    They are its value arguments and the entries of `values`.
+    """
+    if _declares(element):
+        return set(_value_names(element))
+    return set(element._get_hints()) | set(element.values or {})
+
+
+def _get_members(element: Element, size: int, values: Mapping[str, object]) -> BaseElement:
+    """Return `size` members of a single element.
+
+    The given values hold one value per member. A plain element whose class takes `size` becomes an element of many
+    members, with the per-member values as its arguments or entries of `values`. Any other element, such as one that
+    declares its states, becomes a group of members of its class.
+    """
+    if 'size' not in inspect.signature(type(element)).parameters or _declares(element):
+        settings = {**_member_settings(element), **values}
+        return GroupElement(element.label, element=type(element), size=size, values=settings)
+    arguments = {name: value for name, value in values.items() if name in element._get_hints()}
+    entries = {name: value for name, value in values.items() if name not in arguments}
+    return clone(element).set_params(size=size, values={**(element.values or {}), **entries}, **arguments)
 
 
 def _replicate_prepared(system: System, size: int, values: Mapping[str, npt.ArrayLike] | None = None) -> System:
@@ -238,7 +273,7 @@ def _replicate_prepared(system: System, size: int, values: Mapping[str, npt.Arra
             'systems or elements of many members. Build the ensemble as an element with `size=` instead.'
         )
         raise ValidationError(error_msg)
-    names = {element.label: set(element.values or {}) for element in system.elements}
+    names = {element.label: _get_value_names(element) for element in system.elements}
     by_label: dict[str, dict[str, object]] = {label: {} for label in names}
     for path, value in (values or {}).items():
         label, _, name = path.partition('.')
@@ -251,10 +286,7 @@ def _replicate_prepared(system: System, size: int, values: Mapping[str, npt.Arra
             error_msg = f'The values of {path} have shape {array.shape}, but they need one row per member, {size} rows.'
             raise ValidationError(error_msg)
         by_label[label][name] = array
-    elements = [
-        clone(element).set_params(size=size, values={**(element.values or {}), **by_label[element.label]})
-        for element in system.elements
-    ]
+    elements = [_get_members(element, size, by_label[element.label]) for element in system.elements]
     return System(
         system.label,
         elements=elements,

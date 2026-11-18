@@ -178,10 +178,10 @@ class BinaryCollisionsInteraction(Interaction):
             system:
                 The system.
         """
-        agents = system.get_agents(self.target)
+        agents = system.get_agents(self.target, FlockerView)
         size = np.asarray(system.dimensions, dtype=float)
-        positions = np.array([(agent.x, agent.y) for agent in agents], dtype=float)
-        headings = np.array([agent.theta for agent in agents], dtype=float)
+        positions = np.array([(agent.x, agent.y) for agent in agents], dtype=np.float64)
+        headings = np.array([agent.theta for agent in agents], dtype=np.float64)
         speed, lam, sigma, d0 = (system.get_parameter(name) for name in ('speed', 'lam', 'sigma', 'd0'))
         substeps = max(1, round(system.get_parameter('substeps')))
         tau, rng = 1.0 / substeps, system.rng

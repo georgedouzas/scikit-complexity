@@ -38,11 +38,6 @@ class LinkOscillatorElement(PhaseOscillatorElement):
     visual = VisualSpec('cell', {'state': 'theta'})
 
 
-def _get_order_of(expression: Expression, over: SimpleNamespace) -> Expression:
-    """Return the modulus of the mean unit vector of the angles of an expression over a group."""
-    return sqrt(mean(cos(expression), over=over) ** 2 + mean(sin(expression), over=over) ** 2)
-
-
 class NodeCouplingInteraction(Interaction):
     """Coupling of the phases on the nodes of a cell complex through its links.
 
@@ -77,6 +72,11 @@ class NodeCouplingInteraction(Interaction):
         self.links = links
         self.K = K
 
+    @staticmethod
+    def _get_order_of(expression: Expression, over: SimpleNamespace) -> Expression:
+        """Return the modulus of the mean unit vector of the angles of an expression over a group."""
+        return sqrt(mean(cos(expression), over=over) ** 2 + mean(sin(expression), over=over) ** 2)
+
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Set the rate of the node phases.
 
@@ -87,7 +87,7 @@ class NodeCouplingInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             nodes, links = context.nodes, context.links
-            order = _get_order_of(codifferential(links.theta), nodes)
+            order = NodeCouplingInteraction._get_order_of(codifferential(links.theta), nodes)
             rate = context.K * order * codifferential(sin(exterior_derivative(nodes.theta)))
             self.laws_ = [RateLaw(nodes.theta.diff(context.t), rate)]
 
@@ -139,6 +139,11 @@ class LinkCouplingInteraction(Interaction):
         self.triangles = triangles
         self.K = K
 
+    @staticmethod
+    def _get_order_of(expression: Expression, over: SimpleNamespace) -> Expression:
+        """Return the modulus of the mean unit vector of the angles of an expression over a group."""
+        return sqrt(mean(cos(expression), over=over) ** 2 + mean(sin(expression), over=over) ** 2)
+
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Set the rate of the link phases.
 
@@ -151,12 +156,12 @@ class LinkCouplingInteraction(Interaction):
             links, nodes = context.links, context.nodes
             down = exterior_derivative(sin(codifferential(links.theta)))
             up = codifferential(sin(exterior_derivative(links.theta)))
-            node_order = _get_order_of(nodes.theta, nodes)
+            node_order = LinkCouplingInteraction._get_order_of(nodes.theta, nodes)
             if self.triangles is None:
                 rate = context.K * (node_order * down - up)
             else:
-                order_down = _get_order_of(codifferential(links.theta), nodes)
-                order_up = _get_order_of(exterior_derivative(links.theta), context.triangles)
+                order_down = LinkCouplingInteraction._get_order_of(codifferential(links.theta), nodes)
+                order_up = LinkCouplingInteraction._get_order_of(exterior_derivative(links.theta), context.triangles)
                 rate = context.K * (node_order * order_up * down - order_down * up)
             self.laws_ = [RateLaw(links.theta.diff(context.t), rate)]
 

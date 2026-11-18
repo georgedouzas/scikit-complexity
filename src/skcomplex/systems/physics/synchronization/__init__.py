@@ -27,6 +27,7 @@ from ._hypergraphs import HypergraphKuramotoSystem, SimplexCouplingInteraction
 from ._kuramoto import (
     DelayedCouplingInteraction,
     DelayedKuramotoSystem,
+    KuramotoCouplingInteraction,
     KuramotoSakaguchiChimeraSystem,
     KuramotoSystem,
     NonlocalRingChimeraSystem,
@@ -70,6 +71,7 @@ __all__: list[str] = [
     'HeterogeneousGlobalCouplingSystem',
     'HypergraphKuramotoSystem',
     'IntegrateAndFireOscillatorElement',
+    'KuramotoCouplingInteraction',
     'KuramotoOnNetworksSystem',
     'KuramotoSakaguchiChimeraSystem',
     'KuramotoSystem',

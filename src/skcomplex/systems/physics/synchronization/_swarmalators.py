@@ -194,6 +194,7 @@ class SwarmalatorsSystem(BaseSystem):
     references = ("O'Keeffe, Ceron, and Petersen 2017", 'te Vrugt and Wittkowski 2024')
     until = 100.0
     dt = 1.0
+
     def __init__(
         self,
         n_units: int = 100,
