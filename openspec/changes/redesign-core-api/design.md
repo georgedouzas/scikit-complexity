@@ -258,6 +258,12 @@ Two kinds of model need forms that the table above does not name yet.
   their bounds come from the allowed values in `Annotated` on the element, as optimal control needs. A cost paid at
   the end of the run goes in `terminal=`, `ObjectiveLaw(running, controls=[s.u], terminal=final)`, the Bolza form.
 
+- Boundaries and corrections after a step. A value corrected after each continuous step, such as a wall reflecting
+  `x` to `abs(x)` or a bound clipping a stock, is an `UpdateLaw(x, abs(x))` beside the rate laws, applied once per step.
+  No law kind is added for it.
+- Roles that bind several elements, such as the reactants of a reaction, are typed `tuple[Role, ...]`, and the states
+  an interaction acts on are a plain `tuple[str, ...]` argument. Both follow from the type hint, so `RoleSpec` goes.
+
 A field law first becomes a recipe of the seven kinds and the core reductions where it can, such as Bak-Sneppen as an
 `UpdateLaw` on the site where `argmin` falls, so it needs no engine code. A law that truly needs numerics of its own,
 such as the Lindblad equation, finite volumes, Cayley graphs, or rewriting, moves with that support: the field package
