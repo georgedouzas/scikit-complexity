@@ -392,25 +392,23 @@ class Compilation:
     def is_static(self) -> bool:
         """Return whether the system is static.
 
-        It is static by its time, by an objective law, by constraint laws alone, or by having no laws and no states at
-        all.
+        It is static by its time, by an objective law, by constraint laws alone, or by having no laws at all.
 
-        A system with no laws, no states, and no time of its own, such as
-        `System(elements=[Element('ball', values={'x': 1.0})])`, changes nothing, so it is static. A system whose laws
+        A system with no laws and no time of its own, such as `System(elements=[Element('ball', values={'x': 1.0})])`
+        or disks placed in a square, changes nothing, so it is static and records one frame. A system whose laws
         are all constraints and that has no time of its own, such as the best responses of the firms of a Cournot game,
         is solved once, so it is static too.
 
         Returns:
             static:
-                Whether the system has static time, an objective law, constraint laws alone, or no laws, no states,
-                and no time.
+                Whether the system has static time, an objective law, constraint laws alone, or no laws and no time.
         """
         if isinstance(self.system.time, StaticTime):
             return True
         census = self.census
         if census is None:
             return False
-        unchanged = self.layout is not None and not self.layout.states and not self.layout.agents
+        unchanged = self.layout is not None and not self.layout.agents
         if not census.records and unchanged and self.system.time is None:
             return True
         if (
