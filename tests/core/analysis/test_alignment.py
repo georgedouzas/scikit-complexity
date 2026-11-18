@@ -164,8 +164,8 @@ def test_alignment_of_velocities_along_a_line():
     [(SwarmalatorsSystem, 'units.theta'), (KuramotoSystem, 'oscillators.theta')],
 )
 def test_alignment_reads_phases(system, state):
-    """Test that particles and series with the role phase give the synchrony of their phases, not their observables."""
-    trajectory = simulate(system(), until=1.0, random_state=0)
+    """Test that particles and series of periodic values give the synchrony of their angles, not their observables."""
+    trajectory = system().prepare().simulate(until=1.0, random_state=0)
     expected = np.abs(np.exp(1j * trajectory.get_values(state)).mean(axis=1))
     assert _alignment('mean-vector', trajectory).order == pytest.approx(expected, abs=1e-12)
 

@@ -271,20 +271,20 @@ def test_series_leave_out_variable_groups(system):
     np.testing.assert_array_equal(series.values, trajectory.get_values('species.x'))
 
 
-def test_sites_are_read_as_series_and_not_as_particles():
-    """Test that oscillators on fixed sites give no particle snapshots, and their sites are no series."""
+def test_places_are_positions_and_periodic_values_headings():
+    """Test that oscillators placed in a space are particles whose periodic phases are read as their headings."""
     trajectory = NonlocalRingChimeraSystem(n_oscillators=20, R=3).prepare().simulate(until=0.5, random_state=0)
-    assert trajectory.problem.elements[0].roles == {'x': 'site', 'theta': 'phase'}
-    with pytest.raises(AnalysisError, match='no agent group'):
-        _read_snapshots(trajectory)
+    assert trajectory.problem.elements[0].roles == {'theta': 'direction', 'x': 'position'}
+    snapshots = _read_snapshots(trajectory)
+    np.testing.assert_array_equal(snapshots.directions, trajectory.get_values('ring.theta'))
 
 
-def test_snapshots_of_phases():
-    """Test that a state with the role phase gives the phases of the snapshots, not a direction or another state."""
+def test_snapshots_of_headings():
+    """Test that the periodic value of moving particles gives the headings of the snapshots, not another state."""
     trajectory = SwarmalatorsSystem().prepare().simulate(until=0.5, random_state=0)
     snapshots = _read_snapshots(trajectory)
-    np.testing.assert_array_equal(snapshots.phases, trajectory.get_values('units.theta'))
-    assert snapshots.directions is None
+    np.testing.assert_array_equal(snapshots.directions, trajectory.get_values('units.theta'))
+    assert snapshots.phases is None
     assert 'theta' not in snapshots.states
 
 

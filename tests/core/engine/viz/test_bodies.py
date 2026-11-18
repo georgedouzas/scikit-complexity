@@ -60,7 +60,7 @@ def _points(archetype, field):
 
 def test_bodies_visual_draws_double_pendulum():
     """Test that bobs, a rod strip from the pivot, a fading trail of the lower bob, and the angles are logged."""
-    problem, frames = _frames(DoublePendulumSystem().prepare().system_, steps=20, dt=0.01)
+    problem, frames = _frames(DoublePendulumSystem().prepare()._get_composite(), steps=20, dt=0.01)
     logs = Logs()
     visual = BodiesVisual(bobs, pivot=(0.0, 0.0), rods=True, traced=[1], path=problem.elements[0].path, recording=logs)
     visual.prepare(problem)
