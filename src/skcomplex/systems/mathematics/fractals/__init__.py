@@ -21,7 +21,6 @@ from ._substitution import (
     CantorInteraction,
     CantorSetSystem,
     KochCurveSystem,
-    KochInteraction,
     SierpinskiInteraction,
     SierpinskiSubstitutionSystem,
 )
@@ -36,7 +35,6 @@ __all__: list[str] = [
     'InverseJuliaSystem',
     'JuliaSystem',
     'KochCurveSystem',
-    'KochInteraction',
     'MandelbrotSystem',
     'QuadraticMapElement',
     'QuadraticMapInteraction',

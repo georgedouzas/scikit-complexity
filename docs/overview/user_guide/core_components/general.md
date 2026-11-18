@@ -1949,9 +1949,8 @@ message
 The message says that the word would reach 5 symbols at generation 3, above its maximum size 4. The fix is a larger
 `max_size` or fewer generations.
 
-**A field realization.** The Thue-Morse word of computer science is the `MorseInteraction` of
-`skcomplex.systems.computer_science.automata`, and the Koch curve of mathematics the `KochInteraction` of
-`skcomplex.systems.mathematics.fractals`.
+**A field realization.** The `MorseSubshiftSystem` of computer science rewrites a Thue-Morse word, and the
+`KochCurveSystem` of mathematics a Koch curve, both with a `RewritingInteraction`.
 
 See its [API entry][skcomplex.systems.general.rewriting].
 

@@ -25,6 +25,7 @@ from ...general.rewriting import (
     PatchElement,
     ProductionLaw,
     PrototileSpec,
+    RewritingInteraction,
     SubstitutionLaw,
     WordElement,
 )
@@ -76,35 +77,6 @@ class CantorInteraction(Interaction):
                 ('interval', AffineSpec(scale=context.ratio, translation=(1 - context.ratio, 0))),
             ]
             self.laws_: list[BaseComponent] = [SubstitutionLaw('interval', pieces)]
-
-
-class KochInteraction(Interaction):
-    """Production `F → F+F--F+F` of the Koch curve, which replaces every segment of a word by four.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        target:
-            The path of the word.
-
-    Examples:
-        >>> from skcomplex.systems.mathematics.fractals import KochInteraction
-        >>> KochInteraction('bend', target='koch').target
-        'koch'
-    """
-
-    law_classes = (ProductionLaw,)
-
-    def __init__(self, label: str, *, target: Role) -> None:
-        super().__init__(label)
-        self.target = target
-
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the production of the Koch curve."""
-        super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [ProductionLaw('F', 'F+F--F+F')]
 
 
 class SierpinskiInteraction(Interaction):
@@ -199,6 +171,7 @@ class KochCurveSystem(BaseSystem):
 
     def _build_system(self) -> CompositeSystem:
         """Return the components of the system built from its model parameters."""
+        bend = RewritingInteraction('bend', target='koch', laws=[ProductionLaw('F', 'F+F--F+F')])
         word = WordElement(
             'koch',
             axiom='F',
@@ -206,7 +179,7 @@ class KochCurveSystem(BaseSystem):
             geometry=GeometrySpec(angle=self.angle, step=1.0, contraction=1 / 3),
             bounds=(-0.03, -0.05, 1.03, 0.35),
         )
-        return CompositeSystem(self.label, elements=[word], interactions=[KochInteraction('bend', target='koch')])
+        return CompositeSystem(self.label, elements=[word], interactions=[bend])
 
 
 class CantorSetSystem(BaseSystem):

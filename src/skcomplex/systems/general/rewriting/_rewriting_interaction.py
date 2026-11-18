@@ -1,4 +1,4 @@
-"""Define the interaction that rewrites a word or a patch by given productions or substitutions."""
+"""Define the interaction that rewrites words and patches by given rules."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,11 +18,14 @@ from ._substitution import SubstitutionLaw
 
 
 class RewritingInteraction(Interaction):
-    """An interaction that rewrites a word or a patch by the productions or substitutions it is given.
+    """An interaction that rewrites a word or a patch by the rules it is given.
 
     At every step each symbol of a word is replaced by the successor of its `ProductionLaw`, and each tile of a patch by
-    the pieces of its `SubstitutionLaw`, all at once. Rules that read parameters of their own, such as the ratio of a
-    Cantor set, are written as a subclass of `Interaction` whose `_prepare` sets them in `laws_`.
+    the pieces of its `SubstitutionLaw`, all at once.
+
+    Unlike a subclass of `Interaction` that sets its rules in `_prepare`, it takes fixed rules. Choose it when the rules
+    read no parameters of their own, as the algae of Lindenmayer, and write a subclass for rules that do, such as the
+    ratio of a Cantor set.
 
     It appears in many fields. The productions of an L-system grow a plant in biology, a substitution builds a fractal
     in mathematics, and the Thue-Morse word of computer science doubles at every step.
@@ -62,7 +65,7 @@ class RewritingInteraction(Interaction):
         self.laws = laws
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Raise an error for a law that rewrites nothing, and set the laws for the namespace of the target.
+        """Raise an error for a law that rewrites nothing, and set the laws of a binding.
 
         Args:
             context:

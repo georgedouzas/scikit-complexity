@@ -310,11 +310,11 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
 
     @staticmethod
     def _get_symbolic[ValueT](value: ValueT, time: Expression) -> ValueT:
-        """Return a value with every state `x(t)` read as its symbol `x` and its derivatives as `derivative(x, k)`.
+        """Return a value with every state `x(t)` read as its symbol `x`.
 
-        Sage differentiates by symbols only, so a recipe that differentiates a function of the states, such as the
-        gradient of a potential or the Euler-Lagrange equations of a Lagrangian, reads it in symbols first. A value
-        is an expression, a vector, a tuple, or a namespace of them.
+        A derivative `x.diff(t, k)` becomes `derivative(x, k)`. Sage differentiates by symbols only, so a recipe that
+        differentiates a function of the states, such as the gradient of a potential or the Euler-Lagrange equations of
+        a Lagrangian, reads it in symbols first. A value is an expression, a vector, a tuple, or a namespace of them.
         """
         symbolic: object = value
         if isinstance(value, SimpleNamespace):
@@ -332,7 +332,7 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
 
     @staticmethod
     def _collect_states(value: object, time: Expression, symbols: dict[str, Expression]) -> None:
-        """Add the symbol of every state `x(t)` a value reads, or of a derivative of it, by name."""
+        """Add the symbol of every state a value reads as a function of time, by name."""
         if isinstance(value, FreeModuleElement | list | tuple):
             for item in value:
                 BaseInteraction._collect_states(item, time, symbols)

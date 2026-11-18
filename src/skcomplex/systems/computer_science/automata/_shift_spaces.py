@@ -28,7 +28,7 @@ from ....core.errors import ParameterError
 from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
-from ...general.rewriting import ProductionLaw, WordElement
+from ...general.rewriting import ProductionLaw, RewritingInteraction, WordElement
 from ._binary_cell import BinaryCellElement
 
 OUTSIDE = -1.0
@@ -69,38 +69,6 @@ class DigitCellElement(Element):
     ) -> None:
         super().__init__(label, space=space)
         self.digit = digit
-
-
-class MorseInteraction(Interaction):
-    """Thue-Morse substitution `0 → 01`, `1 → 10` of a word.
-
-    From the axiom `0`, generation `n` is the word `a_n = T(0) T(1) ... T(2^n - 1)` of the Thue-Morse sequence, whose
-    term `T(k)` is the parity of the number of ones in the binary expansion of `k`.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        target:
-            The path of the word.
-
-    Examples:
-        >>> from skcomplex.systems.computer_science.automata import MorseInteraction
-        >>> MorseInteraction('doubling', target='morse').target
-        'morse'
-    """
-
-    law_classes = (ProductionLaw,)
-
-    def __init__(self, label: str, *, target: Role) -> None:
-        super().__init__(label)
-        self.target = target
-
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the productions of the Thue-Morse substitution."""
-        super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [ProductionLaw('0', '01'), ProductionLaw('1', '10')]
 
 
 class TernaryCellElement(Element):
@@ -595,7 +563,13 @@ class MorseSubshiftSystem(BaseSystem):
         self.system_ = System(
             self.label,
             elements=[WordElement('morse', axiom=self.axiom, alphabet='01')],
-            interactions=[MorseInteraction('doubling', target='morse')],
+            interactions=[
+                RewritingInteraction(
+                    'doubling',
+                    target='morse',
+                    laws=[ProductionLaw('0', '01'), ProductionLaw('1', '10')],
+                ),
+            ],
         )
 
 

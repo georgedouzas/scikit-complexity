@@ -181,7 +181,10 @@ class EulerLagrangeInteraction(Interaction):
         return self._get_symbolic(function(functional), time)
 
     def _get_symbolic_lagrangian(self, namespace: SimpleNamespace) -> Expression:
-        """Return the Lagrangian in the symbols of the states, with the velocity of `q` as `derivative(q, 1)`."""
+        """Return the Lagrangian in the symbols of the states.
+
+        The velocity of a coordinate `q` is `derivative(q, 1)`.
+        """
         return SR(self._get_in_states(self._get_lagrangian, namespace))
 
     def _get_equations(self, namespace: SimpleNamespace) -> list[BaseComponent]:

@@ -15,7 +15,6 @@ from skcomplex.systems.general.rewriting import GeometryVisual
 from skcomplex.systems.mathematics.fractals import (
     CantorSetSystem,
     KochCurveSystem,
-    KochInteraction,
     SierpinskiInteraction,
     SierpinskiSubstitutionSystem,
 )
@@ -132,12 +131,6 @@ def test_filled_and_outlined_visuals(tmp_path):
         simulate(SierpinskiSubstitutionSystem(filled=filled), until=3, observers=[observer])
         assert observer.logged_frames_ == 4
     assert repr(GeometryVisual()) == 'GeometryVisual()'
-
-
-def test_koch_interaction_replaces_a_segment_by_four():
-    """Test that the Koch substitution replaces a segment by four turned segments."""
-    interaction = KochInteraction('bend', target='koch').prepare(SimpleNamespace(target=None))
-    assert interaction.laws_[0].successor == 'F+F--F+F'
 
 
 def test_sierpinski_carpet_keeps_eight_pieces():

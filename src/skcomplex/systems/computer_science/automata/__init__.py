@@ -72,7 +72,6 @@ from ._shift_spaces import (
     DigitCellElement,
     GapShiftInteraction,
     GapSubshiftSystem,
-    MorseInteraction,
     MorseSubshiftSystem,
     TernaryCellElement,
 )
@@ -134,7 +133,6 @@ __all__: list[str] = [
     'LigationInteraction',
     'LinearRingAutomatonSystem',
     'MajorityRuleInteraction',
-    'MorseInteraction',
     'MorseSubshiftSystem',
     'MullerAutomatonSystem',
     'MullerRuleInteraction',

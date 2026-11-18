@@ -131,7 +131,7 @@ class RewritingCompiler(BaseCompiler):
 
     @staticmethod
     def _get_bound(path: str, scope: str, interaction: BaseInteraction, rewritten: Collection[str]) -> dict[str, str]:
-        """Return the path of the word or patch every role of an interaction binds, by role.
+        """Return the path of the word or patch each role of an interaction binds.
 
         Raises:
             IncompatibleLawsError:
@@ -159,7 +159,7 @@ class RewritingCompiler(BaseCompiler):
         bound: Mapping[str, str],
         namespaces: Mapping[str, SimpleNamespace],
     ) -> list[Production]:
-        """Return the checked productions or substitutions an interaction sets for the words and patches it binds."""
+        """Return the checked productions or substitutions an interaction sets."""
         roles = {name: namespaces[target] for name, target in bound.items()}
         namespace = SimpleNamespace(**roles, **vars(namespaces[path]))
         laws = list(interaction._get_prepared_laws(namespace))
