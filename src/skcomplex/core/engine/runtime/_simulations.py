@@ -454,6 +454,8 @@ class Simulation(BaseConfig[None, float]):
         if tree is None:
             raise error
         observables = self.observables or tuple(item for path, item in self.problem_.observables if not path)
+        attached = {item.label for item in getattr(tree, 'observables', ())}
+        observables = tuple(item for item in observables if item.label not in attached)
         compiler = self._get_compiler().set_params(observables=observables).prepare(tree)
         problem = compiler.run({}).problem_
         self.state_ = problem.states.get_relaid(self.state_, self.problem_.states, problem.initial_state)
