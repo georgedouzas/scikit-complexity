@@ -9,8 +9,8 @@ from scipy.integrate import solve_ivp
 from scipy.optimize import brentq
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import ConnectionInteraction, CrossingInteraction
-from skcomplex.core.components.laws import ConstraintLaw, NoiseLaw, RateLaw, RuleLaw
+from skcomplex.core.components.interactions import ConnectionInteraction, CrossingInteraction, Interaction
+from skcomplex.core.components.laws import ConstraintLaw, NoiseLaw, RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import derivative
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
@@ -18,7 +18,8 @@ from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import AlgebraicStateError, SolverError, ValidationError
-from skcomplex.core.specs import ConnectorSpec, ParameterSpec, StateSpec
+from skcomplex.core.specs import ConnectorSpec, ParameterSpec, Role, StateSpec
+from skcomplex.core.systems import System
 
 PIN = ConnectorSpec('pin', potential='v', flow='i')
 ELECTRICAL = ConnectorSpec('electrical', potential='v', flow='i')
@@ -628,3 +629,52 @@ def test_noise_law_reads_a_symbolic_solution():
     system = CompositeSystem(elements=[VectorWatcherElement('watch', x=1.0)])
     trajectory = simulate(system, until=0.5, dt=0.1, random_state=0)
     assert np.allclose(trajectory.get_values('watch.x').ravel(), 1.0)
+
+
+class SquareInteraction(Interaction):
+    """Constraint `y = a x^2` of every point of a group."""
+
+    def __init__(self, label: str, *, target: Role = 'points', a: float = 2.0) -> None:
+        super().__init__(label)
+        self.target = target
+        self.a = a
+
+    def _prepare(self, context):
+        """Set the constraint of every point."""
+        super()._prepare(context)
+        self.laws_ = [ConstraintLaw(context.target.y == context.a * context.target.x**2, target=context.target.y)]
+
+
+class ShiftInteraction(Interaction):
+    """Step `x <- x + 1` of every point, or the growth `x' = x` with `rate=True`."""
+
+    def __init__(self, label: str, *, target: Role = 'points', rate: bool = False) -> None:
+        super().__init__(label)
+        self.target = target
+        self.rate = rate
+
+    def _prepare(self, context):
+        """Set the step or the growth of every point."""
+        super()._prepare(context)
+        x = context.target.x
+        self.laws_ = [RateLaw(x.diff(context.t), x) if self.rate else UpdateLaw(x, x + 1)]
+
+
+@pytest.mark.parametrize(
+    ('rate', 'expected'),
+    [(False, 2 * np.array([3.0, 4.0, 5.0]) ** 2), (True, 2 * (np.exp(2.0) * np.array([1.0, 2.0, 3.0])) ** 2)],
+)
+def test_constraint_of_a_group_holds_for_every_member(rate, expected):
+    """Test that a constraint of an interaction on a group holds for every point, in a map and in a DAE."""
+    points = Element('points', values={'x': np.array([1.0, 2.0, 3.0]), 'y': 0.0}, size=3)
+    system = System(elements=[points], interactions=[SquareInteraction('square'), ShiftInteraction('shift', rate=rate)])
+    trajectory = system.prepare().simulate(until=2.0)
+    np.testing.assert_allclose(trajectory.get_values('points.y')[-1], expected, rtol=1e-5)
+
+
+def test_constraint_of_a_group_holds_for_every_member_of_a_static_system():
+    """Test that a static system solves the constraint of every point."""
+    points = Element('points', values={'x': np.array([1.0, 2.0, 3.0]), 'y': 0.0}, size=3)
+    system = System(elements=[points], interactions=[SquareInteraction('square')]).prepare()
+    assert system.form_ == 'static solution'
+    np.testing.assert_allclose(system.simulate(until=1.0).get_values('points.y')[-1], [2.0, 8.0, 18.0])

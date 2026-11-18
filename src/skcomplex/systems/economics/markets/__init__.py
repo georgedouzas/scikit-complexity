@@ -26,6 +26,8 @@ from ._inventory import CarDealershipElement, CarDealerSystem
 from ._labour import EmployerElement, JobseekerElement, LabourMarketSystem, hire
 from ._oligopoly import (
     CournotBestResponseElement,
+    CournotBestResponseInteraction,
+    IndifferenceInteraction,
     OligopolyEquilibriaSystem,
     PricePointElement,
     PricingFirmElement,
@@ -72,6 +74,7 @@ __all__: list[str] = [
     'ConsumerElement',
     'CournotAdjustmentInteraction',
     'CournotBestResponseElement',
+    'CournotBestResponseInteraction',
     'CournotDuopolySystem',
     'CustomerElement',
     'DoubleAuctionSystem',
@@ -90,6 +93,7 @@ __all__: list[str] = [
     'HeuristicPricingInteraction',
     'HeuristicTraderElement',
     'HouseholdDemandSystem',
+    'IndifferenceInteraction',
     'JobseekerElement',
     'LabourMarketSystem',
     'MarketElement',

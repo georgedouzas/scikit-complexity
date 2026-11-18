@@ -520,6 +520,19 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
                 solutions.update(solved)
         return solutions, numeric
 
+    @staticmethod
+    def _get_member_groups(relations: Sequence[_RelationSpec]) -> tuple[str | None, tuple[str, ...]]:
+        """Return the group and the aligned groups the solved laws are evaluated over, member by member.
+
+        A constraint of an interaction on a group, such as `y == a x^2` for every point of a group, holds for every
+        member, so its solution reads the values of each member in its own row.
+        """
+        groups = list(dict.fromkeys(relation.spec.group for relation in relations if relation.spec.group is not None))
+        aligned = dict.fromkeys(item for relation in relations for item in relation.spec.aligned)
+        if not groups:
+            return None, ()
+        return groups[0], tuple(dict.fromkeys([*groups[1:], *aligned]))
+
     def _run(self, inputs: Sequence[tuple[KernelSpec, list[BaseLaw | _RelationSpec]]] | None) -> None:
         """Set `lowered_`, the specs without their relations and a spec of unknowns.
 
@@ -547,7 +560,8 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
         }
         owner = ', '.join(dict.fromkeys(relation.spec.owner for relation in relations))
         rows = max((relation.spec.rows for relation in relations), default=1)
-        merged = KernelSpec(owner, SimpleNamespace(), references, rows)
+        group, aligned = self._get_member_groups(relations)
+        merged = KernelSpec(owner, SimpleNamespace(), references, rows, group=group, aligned=aligned)
         laws: list[BaseLaw] = []
         for item, state in self.unknowns.items():
             value = self._get_value_of(SR(solutions.get(item, item)), time)
