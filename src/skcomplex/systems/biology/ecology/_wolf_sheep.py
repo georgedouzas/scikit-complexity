@@ -386,7 +386,7 @@ class WolfSheepSystem(BaseSystem):
         if isinstance(animal, SheepView | WolfView):
             animal.energy -= 1.0
 
-    def _eat(self, animal: AgentViewProtocol, system: SystemViewProtocol, *, food: str, removed: bool) -> None:
+    def _feed(self, animal: AgentViewProtocol, system: SystemViewProtocol, *, food: str, removed: bool) -> None:
         """Let an animal eat one item of its food in its cell, drawn at random among several.
 
         A sheep eats the grass of its cell when it is grown, which then has to grow again, and a wolf eats a sheep of
@@ -416,7 +416,7 @@ class WolfSheepSystem(BaseSystem):
 
         An animal wanders at a unit cost of energy, eats in its cell, and lives.
         """
-        eat = partial(self._eat, food=food, removed=removed)
+        eat = partial(self._feed, food=food, removed=removed)
         eating = Interaction(
             f'{group}_eating',
             roles={'target': group},

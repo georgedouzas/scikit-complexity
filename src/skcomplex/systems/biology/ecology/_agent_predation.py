@@ -260,14 +260,14 @@ class AgentBasedLotkaVolterraSystem(BaseSystem):
         return float(predator.death) if isinstance(predator, PredatorView) else 0.0
 
     @staticmethod
-    def _digest(predator: AgentViewProtocol, system: SystemViewProtocol) -> None:
+    def _clear_meals(predator: AgentViewProtocol, system: SystemViewProtocol) -> None:
         """Clear the meals of a predator, which starts its next step hungry."""
         del system
         if isinstance(predator, PredatorView):
             predator.meals = 0.0
 
     @staticmethod
-    def _eat(predator: AgentViewProtocol, system: SystemViewProtocol, *, prey: str) -> None:
+    def _feed(predator: AgentViewProtocol, system: SystemViewProtocol, *, prey: str) -> None:
         """Let a predator eat one prey of its cell, drawn at random among several, which dies."""
         groups = set(system.get_groups(prey))
         found = [other for other in predator.get_agents_here() if other.group in groups]
@@ -298,7 +298,7 @@ class AgentBasedLotkaVolterraSystem(BaseSystem):
 
         A predator walks, eats a prey of its cell, breeds after it, dies, and digests.
         """
-        eat = partial(self._eat, prey=prey)
+        eat = partial(self._feed, prey=prey)
         return [
             MovementInteraction(f'{group}_walk', target=group, schedule='member'),
             Interaction(f'{group}_eating', roles={'target': group}, laws=lambda s: [UpdateLaw(s.target, eat)]),
@@ -307,7 +307,7 @@ class AgentBasedLotkaVolterraSystem(BaseSystem):
             Interaction(
                 f'{group}_digestion',
                 roles={'target': group},
-                laws=lambda s: [UpdateLaw(s.target, self._digest)],
+                laws=lambda s: [UpdateLaw(s.target, self._clear_meals)],
             ),
         ]
 

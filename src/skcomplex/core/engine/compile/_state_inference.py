@@ -217,7 +217,7 @@ class _StateInference:
         declared: DeclaredVariableSpec,
         member: object,
     ) -> DeclaredVariableSpec:
-        """Return the declaration of a value given per member, whose default is the default of the element class.
+        """Return the declaration of a value given per member, with the class default.
 
         A member that the laws add to a group, such as a new species or a new edge, takes the default of the argument
         of the class, as a new instance of the class would, and not the value of the first member. A value without a
