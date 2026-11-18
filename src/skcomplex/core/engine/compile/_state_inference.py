@@ -30,10 +30,10 @@ from ...components.laws import (
 from ...components.laws.utils import derivative, lag
 from ...components.spaces import CellComplexSpace, ContinuousSpace, LatticeSpace, NetworkSpace
 from ...components.systems import CompositeSystem
-from ...enums import TopologyKind
+from ...enums import TopologyKind, VariableKind
 from ...errors import ValidationError
-from ...specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from .._utils import bound_labels
+from ...specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from .._utils import bound_labels, declarations_of
 from ._compilation import Compilation
 
 RESERVED = ('label', 'visual', 'size', 'space', 'values', 'on')
@@ -506,24 +506,20 @@ class _StateInference:
 
     @staticmethod
     def _get_agent_groups(compilation: Compilation) -> set[str]:
-        """Return the paths of the groups whose members run agent rules.
+        """Return the paths of the groups whose members are agents.
 
-        A rule of the whole system, such as `UpdateLaw(s, react)`, may change every member of the groups its
-        interaction binds, so these groups are agents too.
+        Their members run agent rules, or a rule of the whole system, such as `UpdateLaw(s, clear)`, reads them
+        through the roles of its interaction, such as the traders a market clears.
         """
         census = Compilation._get_required(compilation.census, 'census')
         nodes = {node.path: node for node in Compilation._get_required(compilation.nodes, 'nodes')}
         groups: set[str] = set()
         for record in census.records:
             node = nodes.get(record.path)
-            if not isinstance(record.law, RuleLaw) or node is None or not isinstance(node.component, BaseComponent):
+            if not isinstance(record.law, RuleLaw) or node is None:
                 continue
-            roles = (
-                [record.law.members]
-                if record.law.members is not None
-                else [name for name, spec in node.component._get_specs().items() if isinstance(spec, RoleSpec)]
-            )
-            for role in roles:
+            members = record.law.members
+            for role in declarations_of(node.component, VariableKind.ROLE) if members is None else (members,):
                 groups.update(f'{node.scope}{label}' for label in bound_labels(getattr(node.component, role, None)))
         return groups
 
@@ -580,7 +576,8 @@ class _StateInference:
         position, also when no law changes it, and the value an update law adds to a position at every step, as `v` in
         `x <- x + v`, is its velocity. An element on the edges or hyperedges of a network is a group with one member on
         each. The probe that finds the orders reads no starting values of derivatives or past values. The element keeps
-        the drawing of its class, except a drawing of agents for members that run no agent rules.
+        the drawing of its class, except a drawing of agents for members that run no agent rules, and the view of its
+        agents.
         """
         values = self._get_values(element)
         starting = {} if probing else self._get_starting(element, values)
@@ -618,9 +615,10 @@ class _StateInference:
                     )
         visual = element._get_visual()
         drawing = None if visual == VisualSpec() or (visual.kind == 'agents' and not agents) else visual
+        view = element._get_view()
         if count is None:
-            return [DeclaredElement(element.label, variables=variables, drawing=drawing)]
-        values = {'variables': variables, 'drawing': drawing, **arrays}
+            return [DeclaredElement(element.label, variables=variables, drawing=drawing, view=view)]
+        values = {'variables': variables, 'drawing': drawing, 'view': view, **arrays}
         if network:
             nodes = GroupElement(
                 element.label,

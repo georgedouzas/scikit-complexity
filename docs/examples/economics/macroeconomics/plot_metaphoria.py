@@ -17,7 +17,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.macroeconomics import MetaphoriaSystem
 
@@ -40,7 +39,7 @@ blueprint = rrb.Blueprint(
 )
 system = MetaphoriaSystem(n_people=100, mode='hunter_gatherer', random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(system, until=250, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=250, observers=[observer], random_state=0)
 
 # %%
 # Hunter-gatherers against a monetary economy
@@ -53,9 +52,9 @@ trajectory = simulate(system, until=250, observers=[observer], random_state=0)
 # included, should sum to zero.
 
 monetary = MetaphoriaSystem(n_people=100, mode='monetary', random_state=0)
-scarce = simulate(monetary, until=150, random_state=0)
+scarce = monetary.prepare().simulate(until=150, random_state=0)
 rich = MetaphoriaSystem(n_people=100, mode='monetary', max_food=50.0, max_resistance=0.0, random_state=0)
-abundant = simulate(rich, until=150, random_state=0)
+abundant = rich.prepare().simulate(until=150, random_state=0)
 holders = [abundant.get_agents(group, 150).values for group in ('people', 'businesses', 'bank')]
 net_money = sum(np.sum(values['money']) for values in holders)
 

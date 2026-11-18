@@ -41,7 +41,7 @@ from skcomplex.core.components.spaces import (
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from skcomplex.core.engine.runtime import ConservationObserver, simulate
-from skcomplex.core.engine.solvers import ETDRK4Solver, IMEXEulerSolver, RK4Solver, SSPRKSolver
+from skcomplex.core.engine.solvers import AgentView, ETDRK4Solver, IMEXEulerSolver, RK4Solver, SSPRKSolver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import Role, StateSpec, VisualSpec
 from skcomplex.core.systems import System
@@ -1092,3 +1092,48 @@ def test_get_declared_accepts_an_array_for_a_hint_of_several_types():
     system = System(elements=[Charges('charges', q=np.array([1.0, -2.0, 0.5]), size=3)]).prepare()
     assert system.parameters_ == ('charges.q[i]',)
     assert system.simulate(until=0).get_values('charges.q')[0] == pytest.approx([1.0, -2.0, 0.5])
+
+
+class CountedView(AgentView):
+    """View of a counter, with its count as an attribute."""
+
+    count: float
+
+
+class CounterElement(Element):
+    """Counters whose agents are seen through `CountedView`."""
+
+    def __init__(self, label: str, *, count: float = 0.0, size: int | None = None) -> None:
+        super().__init__(label, size=size)
+        self.count = count
+
+    @classmethod
+    def _get_view(cls) -> type[CountedView]:
+        """Return the view of the counters."""
+        return CountedView
+
+
+class TallyInteraction(Interaction):
+    """Rule of the whole system that raises the count of every counter."""
+
+    def __init__(self, label: str, *, target: Role = 'counters') -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context=None):
+        """Set the tally as a rule of the system."""
+        super()._prepare(context)
+        self.laws_ = [UpdateLaw(context, self.tally)]
+
+    def tally(self, system):
+        """Raise the count of every counter by one."""
+        for counter in system.get_agents('target', CountedView):
+            counter.count += 1
+
+
+def test_a_rule_of_the_system_reads_the_typed_agents_of_a_group_it_binds():
+    """Test that a group read only by a rule of the system is agents, seen through the view of its element class."""
+    counters = CounterElement('counters', count=np.array([0.0, 5.0]), size=2)
+    system = System(elements=[counters], interactions=[TallyInteraction('tally')]).prepare()
+    trajectory = system.simulate(until=3, random_state=0)
+    assert trajectory.get_agents('counters', 3).values['count'].tolist() == [3.0, 8.0]

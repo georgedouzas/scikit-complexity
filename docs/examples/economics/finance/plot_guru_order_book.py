@@ -14,15 +14,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import kurtosis
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.finance import GuruOrderBookSystem
 
 SYSTEM = 'guru_order_book'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulate(GuruOrderBookSystem(), observers=[observer])
-trajectory = simulate(GuruOrderBookSystem(), until=1000)
+GuruOrderBookSystem().prepare().simulate(observers=[observer])
+trajectory = GuruOrderBookSystem().prepare().simulate(until=1000)
 
 # %%
 # Coordination and fat tails

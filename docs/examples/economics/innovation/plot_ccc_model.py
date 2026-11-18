@@ -13,14 +13,13 @@ composition and then reorganises in bursts, the punctuated equilibria of combina
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.innovation import CccModelSystem
 
 SYSTEM = 'ccc_model'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(CccModelSystem(), observers=[observer])
+trajectory = CccModelSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Punctuated equilibria

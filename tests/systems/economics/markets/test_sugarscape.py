@@ -1,18 +1,16 @@
 """Test the `_sugarscape` module of `skcomplex.systems.economics.markets`."""
 
 from skcomplex.core.analysis import distribution
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.economics.markets import SugarscapeSystem
 
 
 def test_sugarscape_carrying_capacity_and_inequality():
     """The population falls to a stable carrying capacity and the wealth becomes unequal."""
     system = SugarscapeSystem(30, 30, n_foragers=200).prepare().system_
-    trajectory = simulate(
-        system,
+    trajectory = system.prepare().simulate(
         until=80,
         random_state=0,
-        observables=SugarscapeSystem().get_run_settings()['observables'],
+        observables=SugarscapeSystem().prepare().observables_,
     )
     population, inequality = trajectory.get_values('population'), trajectory.get_values('gini')
     initial = distribution(trajectory.get_agents('foragers', 0).values['sugar'], kind='gini')

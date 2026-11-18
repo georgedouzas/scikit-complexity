@@ -19,7 +19,7 @@ def test_bouchaud_mezard_exchange_conserves_and_equalizes_wealth():
         BouchaudMezardWealthSystem(20, sigma=0.0, wealth=wealth).prepare().system_,
         1.0,
         dt=0.1,
-        observables=BouchaudMezardWealthSystem().get_run_settings()['observables'],
+        observables=BouchaudMezardWealthSystem().prepare().observables_,
     )
     final = trajectory.get_values('agents.W')[-1]
     assert final.sum() == pytest.approx(20.0)
@@ -28,7 +28,7 @@ def test_bouchaud_mezard_exchange_conserves_and_equalizes_wealth():
         BouchaudMezardWealthSystem(20).prepare().system_,
         1.0,
         dt=0.1,
-        observables=BouchaudMezardWealthSystem().get_run_settings()['observables'],
+        observables=BouchaudMezardWealthSystem().prepare().observables_,
     ).get_values('agents.W')
     assert np.all(noisy > 0)
 
@@ -37,10 +37,10 @@ def test_bouchaud_mezard_exchanges_with_the_mean():
     """Test that the agents exchange with the group mean as with the complete-graph Laplacian, conserving wealth."""
     wealth = np.random.default_rng(0).uniform(0.5, 1.5, 50)
     built = BouchaudMezardWealthSystem(50, sigma=0.0, wealth=wealth).prepare().system_
-    observables = BouchaudMezardWealthSystem().get_run_settings()['observables']
+    observables = BouchaudMezardWealthSystem().prepare().observables_
     mean_field = PassCompiler(observables=observables).prepare(built).run().problem_
     built = BouchaudMezardWealthSystem(50, graph=nx.complete_graph(50), sigma=0.0, wealth=wealth).prepare().system_
-    observables = BouchaudMezardWealthSystem().get_run_settings()['observables']
+    observables = BouchaudMezardWealthSystem().prepare().observables_
     complete = PassCompiler(observables=observables).prepare(built).run().problem_
     exchange = mean_field.drift(0.0, mean_field.initial_state, mean_field.initial_parameters)
     np.testing.assert_allclose(

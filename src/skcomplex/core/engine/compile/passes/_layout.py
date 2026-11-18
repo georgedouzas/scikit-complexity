@@ -516,6 +516,17 @@ class LayoutPass(BasePass):
         return members
 
     @staticmethod
+    def _get_plain_value_of(component: object, variable: str) -> object:
+        """Return the value of a variable of a component that is no group, or its default.
+
+        An interaction gives the value it declares, such as the entries of a square matrix of weights.
+        """
+        declared = component._get_declared() if isinstance(component, BaseInteraction) else {}
+        if variable in declared:
+            return declared[variable].value
+        return getattr(component, variable) if hasattr(component, variable) else default_of(component, variable)
+
+    @staticmethod
     def _get_value_of(node: _NodeSpec, variable: str) -> object:
         """Return the value of a variable of a component.
 
@@ -534,7 +545,7 @@ class LayoutPass(BasePass):
         """
         component = node.component
         if not isinstance(component, GroupElement):
-            return getattr(component, variable) if hasattr(component, variable) else default_of(component, variable)
+            return LayoutPass._get_plain_value_of(component, variable)
         values = component.values_
         default = default_of(node.component_type, variable)
         if variable not in values:

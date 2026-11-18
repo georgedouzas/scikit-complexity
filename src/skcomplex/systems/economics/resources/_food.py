@@ -6,7 +6,7 @@ It is set against the requirement of its growing population.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -18,9 +18,11 @@ from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction, TransferInteraction
 from ....core.components.laws import BaseLaw, RateLaw, Sink, Source
 from ....core.components.laws.utils import series
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 
 INPUT_EFFECT = ((0.0, 0.25, 0.5, 0.75, 1.0, 1.5), (0.3, 0.45, 0.58, 0.68, 0.75, 0.8))
 LEARNING_EFFECT = ((0.0, 0.25, 0.5, 0.75, 1.0), (0.0, 0.4, 0.7, 0.9, 1.0))
@@ -267,12 +269,11 @@ class PartialAdjustmentInteraction(RateInteraction):
 
     Examples:
         >>> from skcomplex.systems.general.elements import NonnegativeElement
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.economics.resources import PartialAdjustmentInteraction
         >>> relaxation = PartialAdjustmentInteraction('relaxation', target='stock', goal=10.0, time=0.5)
-        >>> system = CompositeSystem(elements=[NonnegativeElement('stock')], interactions=[relaxation])
-        >>> trajectory = simulate(system, until=5.0, dt=0.01)
+        >>> system = System(elements=[NonnegativeElement('stock')], interactions=[relaxation])
+        >>> trajectory = system.prepare().simulate(until=5.0, dt=0.01)
         >>> round(float(trajectory.get_values('stock.x')[-1]), 3)
         10.0
     """
@@ -393,6 +394,12 @@ class FoodSecuritySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.resources import FoodSecuritySystem
         >>> FoodSecuritySystem(subsidy=0.0).prepare().system_.elements[0].subsidy
@@ -426,16 +433,19 @@ class FoodSecuritySystem(BaseSystem):
         training_target: float = 0.0,
         intensity_target: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.subsidy = subsidy
         self.bio_target = bio_target
         self.research = research
         self.training_target = training_target
         self.intensity_target = intensity_target
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         sector = RiceSectorElement(
             'rice',
             subsidy=self.subsidy,
@@ -488,4 +498,4 @@ class FoodSecuritySystem(BaseSystem):
                 time=lambda s: s.target.implementation_time,
             ),
         ]
-        return CompositeSystem(self.label, elements=[sector], interactions=[*transfers, *relaxations])
+        self.system_ = System(self.label, elements=[sector], interactions=[*transfers, *relaxations])

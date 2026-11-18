@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import distribution
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.finance import MultiplicativeProcessSystem
 
@@ -25,7 +24,7 @@ N_FIRMS, MU, SIGMA, FLOOR, STEPS = 2000, 1.0, 0.2, 0.3, 250
 
 system = MultiplicativeProcessSystem(n_firms=N_FIRMS, mu=MU, sigma=SIGMA, c=FLOOR)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, until=STEPS, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=STEPS, observers=[observer], random_state=0)
 
 # %%
 # Pareto tail of the relative sizes

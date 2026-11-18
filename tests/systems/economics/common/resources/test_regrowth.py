@@ -1,40 +1,19 @@
 """Test the `_regrowth` module of `skcomplex.systems.economics.common.resources`."""
 
-from typing import Annotated
-
 import numpy as np
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.components.elements import Element
+from skcomplex.core.systems import System
 from skcomplex.core.types import AnyArray
 from skcomplex.systems.economics.common.resources import RegrowthInteraction
 
 
-class StockElement(Element):
-    """Stock `level` of a resource that grows back by `growth` a step up to `capacity`."""
-
-    def __init__(
-        self,
-        label: str,
-        level: Annotated[float, StateSpec()] = 0.0,
-        capacity: Annotated[float, StateSpec()] = 4.0,
-        growth: Annotated[float, ParameterSpec()] = 1.5,
-    ) -> None:
-        super().__init__(label)
-        self.level = level
-        self.capacity = capacity
-        self.growth = growth
-
-
 def _levels(*, relative: bool) -> AnyArray:
     """Return the levels of two stocks over three steps of regrowth, one row per frame."""
-    stocks = GroupElement('stocks', element=StockElement, size=2, values={'level': [0.0, 3.0]})
+    stocks = Element('stocks', values={'level': [0.0, 3.0], 'capacity': 4.0, 'growth': 1.5}, size=2)
     regrowth = RegrowthInteraction('regrowth', target='stocks', state='level', growth='growth', relative=relative)
-    system = CompositeSystem(elements=[stocks], interactions=[regrowth], time=DiscreteTime())
-    trajectory = simulate(system, until=3, random_state=0)
+    system = System(elements=[stocks], interactions=[regrowth])
+    trajectory = system.prepare().simulate(until=3, random_state=0)
     return np.array([trajectory.get_agents('stocks', frame).values['level'] for frame in range(4)])
 
 

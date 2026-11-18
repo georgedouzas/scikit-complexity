@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.markets import CarDealerSystem
 
@@ -28,7 +27,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(CarDealerSystem(), observers=[observer])
+trajectory = CarDealerSystem().prepare().simulate(observers=[observer])
 
 # %%
 # The flows and the delays
@@ -51,7 +50,7 @@ for label, settings in {
     'perception 2, response 3': {'perception_delay': 2.0},
     'perception 5, response 6': {'response_delay': 6.0},
 }.items():
-    scenario = simulate(CarDealerSystem(**settings))
+    scenario = CarDealerSystem(**settings).prepare().simulate()
     delays.plot(times, scenario.get_values('dealer.inventory'), label=label)
 delays.set_xlabel('days')
 delays.set_ylabel('cars')

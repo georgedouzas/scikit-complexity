@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.resources import HilsaFisherySystem
 
@@ -34,7 +33,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(HilsaFisherySystem(), observers=[observer])
+trajectory = HilsaFisherySystem().prepare().simulate(observers=[observer])
 
 # %%
 # Management scenarios
@@ -51,7 +50,7 @@ scenarios = {
     'adult catch 0.9': {'adult_harvest': 0.9},
 }
 for name, changes in scenarios.items():
-    scenario = trajectory if not changes else simulate(HilsaFisherySystem(**changes))
+    scenario = trajectory if not changes else HilsaFisherySystem(**changes).prepare().simulate()
     times = np.asarray(scenario.times) / 12
     stock.plot(times, scenario.get_values('hilsa.adult_weight'), label=name)
     catch.plot(times, scenario.get_values('hilsa.adult_catch') * 0.82e3, label=name)

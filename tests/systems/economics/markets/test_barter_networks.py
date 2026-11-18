@@ -13,7 +13,7 @@ def _barter(topology):
     system = (
         WilhiteTradeNetworksSystem(100, topology=topology, n_groups=5, shortcuts=3, random_state=1).prepare().system_
     )
-    return _run_observed(system, 30, WilhiteTradeNetworksSystem().get_run_settings()['observables'])
+    return _run_observed(system, 30, WilhiteTradeNetworksSystem().prepare().observables_)
 
 
 def test_wilhite_trade_networks_small_world_converges_with_few_searches():

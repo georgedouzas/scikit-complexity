@@ -20,7 +20,6 @@ from scipy import stats
 
 from skcomplex.core.analysis import distribution
 from skcomplex.core.components import Observable
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.finance import BouchaudMezardWealthSystem
 
@@ -35,7 +34,7 @@ def gini(wealth: np.ndarray) -> float:
 
 system = BouchaudMezardWealthSystem(n_agents=N_AGENTS, J=J, sigma=SIGMA)
 observables = [
-    *system.get_run_settings()['observables'],
+    *system.prepare().observables_,
     Observable('gini', group='agents', variable='W', reduce=gini),
 ]
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
@@ -46,7 +45,13 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=20)
-trajectory = simulate(system, until=UNTIL, dt=DT, observables=observables, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(
+    until=UNTIL,
+    dt=DT,
+    observables=observables,
+    observers=[observer],
+    random_state=0,
+)
 
 # %%
 # Stationary distribution

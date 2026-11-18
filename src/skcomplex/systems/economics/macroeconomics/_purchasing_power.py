@@ -17,8 +17,10 @@ from ....core.components import Observable
 from ....core.components.elements import DeclaredElement
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import step
-from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 
 SECTORS = 3
 A_MATRIX = ((-1.0, 0.3, 0.2), (0.2, -0.8, 0.3), (0.1, 0.4, -0.6))
@@ -214,6 +216,12 @@ class CategorizedPurchasingPowerSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.macroeconomics import CategorizedPurchasingPowerSystem
         >>> CategorizedPurchasingPowerSystem(feedback=False).prepare().system_.elements[0].feedback
@@ -233,7 +241,7 @@ class CategorizedPurchasingPowerSystem(BaseSystem):
         return values[index]
 
     @staticmethod
-    def _get_observables(system: CompositeSystem) -> list[Observable]:
+    def _get_observables(system: System) -> list[Observable]:
         """Return the index and the input of every sector."""
         economy = system.elements[0]
         if not isinstance(economy, PurchasingPowerElement):
@@ -259,8 +267,10 @@ class CategorizedPurchasingPowerSystem(BaseSystem):
         C: Sequence[Sequence[float]] = C_MATRIX,
         D: Sequence[Sequence[float]] = D_MATRIX,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.policy = policy
         self.policy_time = policy_time
         self.feedback = feedback
@@ -269,8 +279,9 @@ class CategorizedPurchasingPowerSystem(BaseSystem):
         self.C = C
         self.D = D
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         variables = {
             name: DeclaredVariableSpec(float(value), ParameterSpec())
             for i in range(SECTORS)
@@ -285,13 +296,5 @@ class CategorizedPurchasingPowerSystem(BaseSystem):
             D=self.D,
             feedback=self.feedback,
         )
-        return CompositeSystem(self.label, elements=[economy])
-
-    def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings.
-
-        The observables of the components are built from the model parameters.
-        """
-        settings = super().get_run_settings()
-        settings['observables'] = CategorizedPurchasingPowerSystem._get_observables(self._get_pass_parameters())
-        return settings
+        self.system_ = System(self.label, elements=[economy])
+        self.observables_ = tuple(CategorizedPurchasingPowerSystem._get_observables(self.system_))

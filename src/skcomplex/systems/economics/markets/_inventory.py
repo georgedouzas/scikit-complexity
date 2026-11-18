@@ -6,6 +6,7 @@ The delays are of perception, response, and delivery.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -13,12 +14,13 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element
+from ....core.components.elements import Element, Quantity
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.laws.utils import distributed_delay, maximum, minimum, step
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 
 
 class CarDealershipElement(Element):
@@ -68,14 +70,14 @@ class CarDealershipElement(Element):
         self,
         label: str,
         *,
-        inventory: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='cars')] = 200.0,
-        demand: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
-        demand_step: Annotated[float, ParameterSpec()] = 2.0,
-        step_time: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 25.0,
-        coverage: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
-        perception_delay: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
-        response_delay: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
-        delivery_delay: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
+        inventory: Annotated[float, RealSet.closed_open(0, oo), Quantity('cars')] = 200.0,
+        demand: Annotated[float, RealSet.closed_open(0, oo)] = 20.0,
+        demand_step: float = 2.0,
+        step_time: Annotated[float, RealSet.closed_open(0, oo)] = 25.0,
+        coverage: Annotated[float, RealSet.open(0, oo)] = 10.0,
+        perception_delay: Annotated[float, RealSet.open(0, oo)] = 5.0,
+        response_delay: Annotated[float, RealSet.open(0, oo)] = 3.0,
+        delivery_delay: Annotated[float, RealSet.open(0, oo)] = 5.0,
     ) -> None:
         super().__init__(label)
         self.inventory = inventory
@@ -162,6 +164,12 @@ class CarDealerSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.markets import CarDealerSystem
         >>> CarDealerSystem(response_delay=6.0).prepare().system_.elements[0].response_delay
@@ -196,8 +204,10 @@ class CarDealerSystem(BaseSystem):
         response_delay: float = 3.0,
         delivery_delay: float = 5.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.inventory = inventory
         self.demand = demand
         self.demand_step = demand_step
@@ -213,8 +223,9 @@ class CarDealerSystem(BaseSystem):
         dealer = CarDealerSystem._get_dealer(s)
         return distributed_delay(_get_orders(dealer), order=3, time=dealer.delivery_delay)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         dealer = CarDealershipElement(
             'dealer',
             inventory=self.inventory,
@@ -243,4 +254,4 @@ class CarDealerSystem(BaseSystem):
                 ),
             ],
         )
-        return CompositeSystem(self.label, elements=[dealer], interactions=[cars])
+        self.system_ = System(self.label, elements=[dealer], interactions=[cars])

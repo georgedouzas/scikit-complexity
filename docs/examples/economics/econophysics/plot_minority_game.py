@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.econophysics import MinorityGameSystem
 
@@ -36,7 +35,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
 system = MinorityGameSystem(n_agents=N, memory=4, random_state=0)
-trajectory = simulate(system, until=ROUNDS, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=ROUNDS, observers=[observer], random_state=0)
 
 # %%
 # Volatility against alpha
@@ -49,10 +48,13 @@ trajectory = simulate(system, until=ROUNDS, observers=[observer], random_state=0
 
 def volatility(memory, **options):
     """Return `sigma^2 / N` of the attendance after the transient."""
-    run = simulate(
-        MinorityGameSystem(n_agents=N, memory=memory, random_state=0, **options),
-        until=ROUNDS,
-        random_state=0,
+    run = (
+        MinorityGameSystem(n_agents=N, memory=memory, random_state=0, **options)
+        .prepare()
+        .simulate(
+            until=ROUNDS,
+            random_state=0,
+        )
     )
     attendance = run.get_values('game.attendance')
     return attendance[TRANSIENT:].var() / N

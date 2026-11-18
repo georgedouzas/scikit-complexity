@@ -3,13 +3,12 @@
 import numpy as np
 
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.economics.finance import GaugeArbitrageMarketSystem
 
 
 def test_market_conserves_the_good_and_the_gauss_law():
     """Test that the total good stays within 1e-10 relative error, and the Gauss residual below 1e-8."""
-    trajectory = simulate(GaugeArbitrageMarketSystem())
+    trajectory = GaugeArbitrageMarketSystem().prepare().simulate()
     total = trajectory.get_values('total_good')
     assert np.abs(total - total[0]).max() / total[0] < 1e-10
     assert trajectory.get_values('gauss_residual').max() < 1e-8
@@ -17,7 +16,7 @@ def test_market_conserves_the_good_and_the_gauss_law():
 
 def test_market_moves_the_good_and_the_exchange_rates():
     """Test that the good spreads out and the potentials leave their initial value."""
-    trajectory = simulate(GaugeArbitrageMarketSystem())
+    trajectory = GaugeArbitrageMarketSystem().prepare().simulate()
     density = trajectory.get_values('sites.rho')
     assert density[-1].std() < density[0].std()
     assert np.abs(trajectory.get_values('links.A')[-1]).max() > 0.01

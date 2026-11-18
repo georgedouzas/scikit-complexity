@@ -6,6 +6,7 @@ It is a supply chain of four echelons with delays.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from itertools import pairwise
 from types import SimpleNamespace
 from typing import Annotated
@@ -18,8 +19,10 @@ from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction, TransferInteraction
 from ....core.components.laws import BaseLaw, RateLaw, Sink, Source
 from ....core.components.laws.utils import distributed_delay, maximum, minimum, step
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.systems import BaseSystem, System
 
 ECHELONS = ('retailer', 'wholesaler', 'distributor', 'factory')
 
@@ -574,6 +577,12 @@ class BeerGameSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.markets import BeerGameSystem
         >>> [element.label for element in BeerGameSystem().prepare().system_.elements]
@@ -614,8 +623,10 @@ class BeerGameSystem(BaseSystem):
         shipping_delay: float = 2.0,
         production_delay: float = 3.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.inventory = inventory
         self.demand = demand
         self.demand_step = demand_step
@@ -693,8 +704,9 @@ class BeerGameSystem(BaseSystem):
             rate=lambda s: BreweryInteraction._get_orders(s.target) - BreweryInteraction._get_completions(s.target),
         )
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         throughput = self.demand * self.dispatch_time
         echelons: list[EchelonElement] = []
         for label in ECHELONS:
@@ -731,4 +743,4 @@ class BeerGameSystem(BaseSystem):
         ]
         customers = [*self._get_customer_rates(), RetailDemandInteraction('customers', retailer='retailer')]
         brewery = [self._get_brewery_rate(), BreweryInteraction('brewery', factory='factory')]
-        return CompositeSystem(self.label, elements=echelons, interactions=[*links, *customers, *brewery])
+        self.system_ = System(self.label, elements=echelons, interactions=[*links, *customers, *brewery])

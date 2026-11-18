@@ -6,7 +6,7 @@ Foragers live on a landscape of regrowing sugar.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Annotated
 
@@ -19,12 +19,13 @@ from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink
-from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.spaces import LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
-from ....core.engine.solvers import AgentView
+from ....core.engine.backends import BaseBackend
+from ....core.engine.compile import PhaseSpec
+from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver
 from ....core.specs import BaseSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ...general.agents import BirthDeathInteraction, MovementInteraction
 from ..common.resources import RegrowthInteraction
@@ -209,6 +210,12 @@ class SugarscapeSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.markets import SugarscapeSystem
         >>> [group.size for group in SugarscapeSystem(10, 10, n_foragers=20).prepare().system_.elements]
@@ -295,8 +302,10 @@ class SugarscapeSystem(BaseSystem):
         growback: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.width = width
         self.height = height
         self.n_foragers = n_foragers
@@ -356,8 +365,9 @@ class SugarscapeSystem(BaseSystem):
             ),
         ]
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         capacity = self._get_landscape(self.width, self.height).ravel()
         cells = [(x, y) for x in range(self.width) for y in range(self.height)]
@@ -381,7 +391,7 @@ class SugarscapeSystem(BaseSystem):
             variable=True,
             location=[cells[index] for index in occupied],
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[patches, foragers],
             interactions=[
@@ -389,5 +399,5 @@ class SugarscapeSystem(BaseSystem):
                 RegrowthInteraction('growback', target='patches', state='sugar', growth='growback', phase='growth'),
             ],
             space=LatticeSpace((self.width, self.height), boundary='fixed', metric='manhattan'),
-            time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('foraging'), PhaseSpec('growth')])),
+            solver=MesaSolver(phases=[PhaseSpec('foraging'), PhaseSpec('growth')]),
         )

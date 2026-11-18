@@ -6,6 +6,7 @@ The quota is set from a noisy measurement of the stock.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -17,8 +18,10 @@ from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import both, normal, where
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 
 
 class MeasuredFisheryElement(Element):
@@ -166,9 +169,15 @@ class FisheryMeasurementErrorsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.resources import FisheryMeasurementErrorsSystem
-        >>> FisheryMeasurementErrorsSystem(10).prepare().system_.elements[0].prepare().size_
+        >>> FisheryMeasurementErrorsSystem(10).prepare().system_.elements[0].size
         10
     """
 
@@ -194,8 +203,10 @@ class FisheryMeasurementErrorsSystem(BaseSystem):
         step: float = 0.01,
         restocking: bool = False,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_fisheries = n_fisheries
         self.x = x
         self.r0 = r0
@@ -205,8 +216,9 @@ class FisheryMeasurementErrorsSystem(BaseSystem):
         self.step = step
         self.restocking = restocking
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         fisheries = GroupElement(
             'fisheries',
             element=MeasuredFisheryElement,
@@ -221,4 +233,4 @@ class FisheryMeasurementErrorsSystem(BaseSystem):
                 'restocking': float(self.restocking),
             },
         )
-        return CompositeSystem(self.label, elements=[fisheries])
+        self.system_ = System(self.label, elements=[fisheries])

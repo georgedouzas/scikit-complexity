@@ -8,13 +8,15 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import Element, FieldElement
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.specs import Role, StateSpec
+from skcomplex.core.systems import System
 
 from ..conftest import PhaseElement, QuadraticElement
 
@@ -88,3 +90,32 @@ def test_complex_parameter_per_site_is_read_and_updated():
     grid.set_params(values={'c': np.full((4, 4), 2j)})
     trajectory = simulate(CompositeSystem(elements=[grid]), until=1, dt=1)
     assert np.allclose(trajectory.get_lattice('grid.z')[1], 2j)
+
+
+class SpreadInteraction(Interaction):
+    """Rule of the system that spreads a value of a group through a square matrix of weights."""
+
+    def __init__(self, label: str, *, target: Role = 'nodes', weights=None) -> None:
+        super().__init__(label)
+        self.target = target
+        self.weights = weights
+
+    def _prepare(self, context=None):
+        """Set the spread as a rule of the system."""
+        super()._prepare(context)
+        self.laws_ = [UpdateLaw(context, self.spread)]
+
+    def spread(self, system):
+        """Set every value to the weighted sum of the values."""
+        nodes = system.get_agents('target')
+        values = np.asarray(self.weights) @ np.array([node.x for node in nodes])
+        for node, value in zip(nodes, values, strict=True):
+            node.x = float(value)
+
+
+def test_a_square_matrix_of_an_interaction_is_laid_out_as_its_entries():
+    """Test that a square matrix setting of an interaction, such as weights, is laid out as its entries."""
+    nodes = Element('nodes', values={'x': [1.0, 2.0]}, size=2)
+    spread = SpreadInteraction('spread', weights=[[0.0, 1.0], [1.0, 0.0]])
+    trajectory = System(elements=[nodes], interactions=[spread]).prepare().simulate(until=1, random_state=0)
+    assert trajectory.get_agents('nodes', 1).values['x'].tolist() == [2.0, 1.0]
