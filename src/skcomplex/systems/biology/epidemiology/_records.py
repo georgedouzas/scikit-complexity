@@ -19,17 +19,16 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import uniform, where
+from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import RoleSpec, StateSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
 
 class PathogenElement(Element):
-    """Pathogen whose strength is drawn anew every season.
-
-    The strength is drawn uniformly from zero to one.
+    """Pathogen whose strength `StrainDrawInteraction` draws anew every season.
 
     Args:
         label:
@@ -44,31 +43,50 @@ class PathogenElement(Element):
         0.0
     """
 
-    draws = True
-
-    law_classes = (UpdateLaw,)
-
     def __init__(
         self,
         label: str,
         *,
-        eta: Annotated[float, StateSpec(domain=RealSet.closed_open(0, 1))] = 0.0,
+        eta: Annotated[object, RealSet.closed_open(0, 1)] = 0.0,
     ) -> None:
         super().__init__(label)
         self.eta = eta
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the strength of the next season, a uniform draw.
+
+class StrainDrawInteraction(Interaction):
+    """Draw of the strength of the strain of every season, uniform from zero to one.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the pathogen.
+
+    Examples:
+        >>> from skcomplex.systems.biology.epidemiology import StrainDrawInteraction
+        >>> StrainDrawInteraction('strain', target='pathogen').target
+        'pathogen'
+    """
+
+    draws = True
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the strength of the next season, a uniform draw.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the pathogen.
         """
-        return [UpdateLaw(s.eta, uniform('eta'))]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseLaw] = [UpdateLaw(context.target.eta, uniform('eta'))]
 
 
 class ResidentElement(Element):
@@ -137,29 +155,26 @@ class ResistanceInfectionInteraction(Interaction):
         self,
         label: str,
         *,
-        residents: Annotated[str, RoleSpec()],
-        pathogen: Annotated[str, RoleSpec()],
+        residents: Role,
+        pathogen: Role,
     ) -> None:
         super().__init__(label)
         self.residents = residents
         self.pathogen = pathogen
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the infection and the immunity of the residents below the strain.
-
-        They are the residents whose resistance is below the strength of the strain.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the infection and the immunity of the residents whose resistance is below the strength of the strain.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the residents and the pathogen.
         """
-        resident, strength = s.residents, s.pathogen.eta
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        resident, strength = context.residents, context.pathogen.eta
         susceptible = strength > resident.R
-        return [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(resident.R, where(susceptible, 1, resident.R)),
             UpdateLaw(resident.infected, where(susceptible, 1, 0)),
         ]
@@ -231,5 +246,8 @@ class RecordDynamicsEpidemicSystem(BaseSystem):
         self.system_ = System(
             self.label,
             elements=[residents, PathogenElement('pathogen')],
-            interactions=[ResistanceInfectionInteraction('infection', residents='residents', pathogen='pathogen')],
+            interactions=[
+                StrainDrawInteraction('strain', target='pathogen'),
+                ResistanceInfectionInteraction('infection', residents='residents', pathogen='pathogen'),
+            ],
         )
