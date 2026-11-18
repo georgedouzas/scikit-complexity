@@ -420,6 +420,23 @@ def test_interaction_rewires_the_edges_of_a_network():
     assert discordant[-1] < discordant[0] / 4
 
 
+def test_interaction_along_edges_removes_the_edges_whose_ends_disagree():
+    """Test that a one-off interaction along edges removes every edge between disagreeing voters in one step."""
+    graph = nx.cycle_graph(6)
+    opinions = np.array([0.0, 0.0, 1.0, 1.0, 1.0, 0.0])
+    voters = Element('voters', values={'opinion': opinions}, space=NetworkSpace(graph))
+    pruning = Interaction(
+        'pruning',
+        among='voters',
+        along=True,
+        laws=lambda s: [UpdateLaw(TopologyRequestSpec('remove-edge'), (s.source.opinion - s.target.opinion) ** 2)],
+    )
+    trajectory = System(elements=[voters], interactions=[pruning]).prepare().simulate(until=1, random_state=0)
+    network = trajectory.get_network(-1)
+    kept = {tuple(sorted((int(a), int(b)))) for a, b in zip(network.sources, network.targets, strict=True)}
+    assert kept == {(0, 1), (2, 3), (3, 4), (0, 5)}
+
+
 class GravityInteraction(Interaction):
     """Gravity on the element of its target, `x'' = -g`."""
 
