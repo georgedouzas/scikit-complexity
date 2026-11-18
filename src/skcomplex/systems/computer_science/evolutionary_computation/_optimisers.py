@@ -6,7 +6,7 @@
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import Annotated, ClassVar, cast
+from typing import ClassVar, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -28,9 +28,8 @@ from ....core.components.spaces import BaseSpace, LatticeSpace, RadiusNeighborho
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.enums import ElementKind
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec, Role, RoleSpec
+from ....core.specs import BaseSpec, Role
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
@@ -191,7 +190,7 @@ class OptimizationInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec(elements=(ElementKind.GROUP, ElementKind.VARIABLE_GROUP), states=('state',))],
+        target: Role,
         state: str,
         objective: Callable[[Array], npt.ArrayLike],
         bounds: tuple[npt.ArrayLike, npt.ArrayLike],

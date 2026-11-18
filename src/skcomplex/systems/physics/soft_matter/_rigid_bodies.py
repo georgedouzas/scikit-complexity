@@ -22,7 +22,7 @@ from ....core.components import Observable
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, Period
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BoundaryLaw, NoiseLaw, RateLaw
+from ....core.components.laws import NoiseLaw, RateLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace, ContinuousSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver
@@ -133,7 +133,7 @@ class AnisotropicDiffusionInteraction(Interaction):
         0.5
     """
 
-    law_classes = (BoundaryLaw, NoiseLaw, RateLaw)
+    law_classes = (UpdateLaw, NoiseLaw, RateLaw)
 
     def __init__(
         self,
@@ -175,7 +175,7 @@ class AnisotropicDiffusionInteraction(Interaction):
                     laws.append(NoiseLaw(coordinate, sqrt(2 * s.D_perp) * projector, process=f'translation_{j}'))
                     laws.append(NoiseLaw(coordinate, sqrt(2 * s.D_par) * component * other, process=f'translation_{j}'))
                     laws.append(NoiseLaw(component, sqrt(2 * s.D_r) * projector, process=f'rotation_{j}'))
-                laws.append(BoundaryLaw(component, component / length))
+                laws.append(UpdateLaw(component, component / length))
             coupling = s.D_c / sqrt(s.D_par)
             for j, other in enumerate(axis):
                 laws.append(NoiseLaw(s.target.psi, sqrt(2) * coupling * other, process=f'translation_{j}'))

@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 
 from .....core.components.interactions import SamplingInteraction
 from .....core.components.spaces import BaseNeighborhood
-from .....core.specs import ParameterSpec, RoleSpec
+from .....core.specs import ParameterSpec, Role
 
 
 class ThermalSamplingInteraction(SamplingInteraction):
@@ -73,7 +73,7 @@ class ThermalSamplingInteraction(SamplingInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         state: str,
         energy: Callable[[SimpleNamespace], object],
         move: str | Callable[..., object] = 'flip',

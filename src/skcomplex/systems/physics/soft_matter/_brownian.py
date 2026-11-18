@@ -16,7 +16,7 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BoundaryLaw, NoiseLaw, RateLaw
+from ....core.components.laws import NoiseLaw, RateLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -79,7 +79,7 @@ class WallMobilityInteraction(Interaction):
         1.0
     """
 
-    law_classes = (RateLaw, NoiseLaw, BoundaryLaw)
+    law_classes = (RateLaw, NoiseLaw, UpdateLaw)
 
     def __init__(
         self,
@@ -112,7 +112,7 @@ class WallMobilityInteraction(Interaction):
             self.laws_ = [
                 RateLaw(z.diff(t), -s.drift * z * abs(z) / (z**2 + s.a**2)),
                 NoiseLaw(z, sqrt(2 * s.D0) * z / sqrt(z**2 + s.a**2), convention=self.convention),
-                BoundaryLaw(z, abs(z)),
+                UpdateLaw(z, abs(z)),
             ]
 
 

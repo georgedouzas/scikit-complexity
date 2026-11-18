@@ -205,7 +205,7 @@ class LennardJonesFluidSystem(BaseSystem):
         velocities = rng.normal(0, np.sqrt(self.temperature or 1.0), (self.n_particles, 2))
         velocities -= velocities.mean(axis=0)
         interactions: list[BaseInteraction] = [
-            LennardJonesInteraction('lj', first='fluid', second='fluid', cutoff=self.cutoff, divisor='m', period=size),
+            LennardJonesInteraction('lj', target='fluid', cutoff=self.cutoff, divisor='m'),
         ]
         if self.temperature is not None:
             interactions.append(

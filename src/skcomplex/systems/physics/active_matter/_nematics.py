@@ -178,8 +178,7 @@ class ActiveCurrentInteraction(Interaction):
             field = context.target
             active = tensor_divergence(field.Q)
             flux = [
-                -self.D * item - self.current * other
-                for item, other in zip(gradient(field.rho), active, strict=True)
+                -self.D * item - self.current * other for item, other in zip(gradient(field.rho), active, strict=True)
             ]
             self.laws_ = [RateLaw(field.rho, -divergence(flux))]
 

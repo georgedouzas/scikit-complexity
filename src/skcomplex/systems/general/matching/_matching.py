@@ -8,7 +8,7 @@ import itertools
 import math
 from collections.abc import Callable, MutableMapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import ClassVar
 
 import numpy as np
 
@@ -18,9 +18,8 @@ from ....core.components.laws import BaseLaw, PartnerSpec, UpdateLaw
 from ....core.components.laws.utils import pairs, transfer
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, Pairing, SystemViewProtocol
-from ....core.enums import ElementKind
 from ....core.errors import ValidationError
-from ....core.specs import RoleSpec
+from ....core.specs import Role
 from ._batch_matching_spec import BatchMatchingSpec
 from ._continuous_matching_spec import ContinuousMatchingSpec
 from ._iterative_matching_spec import IterativeMatchingSpec
@@ -142,8 +141,8 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         self,
         label: str,
         *,
-        requesters: Annotated[str, RoleSpec(elements=(ElementKind.GROUP, ElementKind.VARIABLE_GROUP))],
-        providers: Annotated[str, RoleSpec(elements=(ElementKind.GROUP, ElementKind.VARIABLE_GROUP))],
+        requesters: Role,
+        providers: Role,
         rule: MatchingRule | Pairing = RandomSearchSpec(),
         reserve: str | tuple[str, str] = 'reserve',
         quantity: str | tuple[str, str] = 'quantity',

@@ -34,7 +34,7 @@ def _pair(interaction, distance, solver):
 )
 def test_soft_spheres_repel_inside_contact(solver):
     """Test that overlapping soft spheres move apart and stop interacting beyond contact."""
-    soft = SoftSphereInteraction('soft', first='pair', second='pair', cutoff=1.0, k=50.0, order=2)
+    soft = SoftSphereInteraction('soft', target='pair', cutoff=1.0, k=50.0, order=2)
     trajectory = _pair(soft, 0.8, solver).prepare().simulate(until=1)
     separation = np.linalg.norm(trajectory.get_values('pair.x')[:, 1] - trajectory.get_values('pair.x')[:, 0], axis=1)
     assert separation[-1] > 1.0

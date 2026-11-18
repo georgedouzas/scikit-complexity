@@ -312,12 +312,7 @@ class LammpsSolver(ExternalSolver):
         for item in pairs:
             cutoff = float(self._get_parameter(problem, p, item.path, 'cutoff')[0])
             largest = max(largest, cutoff)
-            first, second = sorted(
-                (
-                    self.atom_numbers_[self._get_role_path(item, item.interaction._get_role('first'))],
-                    self.atom_numbers_[self._get_role_path(item, item.interaction._get_role('second'))],
-                ),
-            )
+            first, second = sorted(self.atom_numbers_[path] for path in self._get_pair_paths(item))
             native = self._get_native(self.pairs or {}, item.interaction)
             if native is not None:
                 style, coefficients_of = native
@@ -629,10 +624,27 @@ class LammpsSolver(ExternalSolver):
             return 1.0
         return float(LammpsSolver._get_parameter(problem, p, element.path, divisors.pop())[0])
 
+    def _is_potential(self, item: _CompiledInteractionSpec) -> bool:
+        """Return whether an interaction is a pair coupling through a pair potential.
+
+        It is a `PairInteraction` with a potential, or an interaction of a class `pairs` gives a native pair style, such
+        as a Lennard-Jones force written as a reduction over the neighbours within a radius.
+        """
+        paired = isinstance(item.interaction, PairInteraction) and item.interaction.potential is not None
+        return paired or self._get_native(self.pairs or {}, item.interaction) is not None
+
     @staticmethod
-    def _is_potential(item: _CompiledInteractionSpec) -> bool:
-        """Return whether an interaction is a pair coupling through a pair potential."""
-        return isinstance(item.interaction, PairInteraction) and item.interaction.potential is not None
+    def _get_pair_paths(item: _CompiledInteractionSpec) -> tuple[str, str]:
+        """Return the paths of the two groups of a pair interaction.
+
+        An interaction of one role, such as `target`, pairs the members of its one group.
+        """
+        if isinstance(item.interaction, PairInteraction):
+            roles = [item.interaction._get_role(name) for name in ('first', 'second')]
+        else:
+            roles = [next(iter(item.roles))] * 2
+        first, second = (LammpsSolver._get_role_path(item, role) for role in roles)
+        return first, second
 
     @staticmethod
     def _find_position(element: CompiledElementSpec) -> str | None:

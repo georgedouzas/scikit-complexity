@@ -19,7 +19,7 @@ from ....core.components import Observable
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BoundaryLaw, ConstraintLaw, RateLaw
+from ....core.components.laws import ConstraintLaw, RateLaw, UpdateLaw
 from ....core.components.laws.utils import clip
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
@@ -181,7 +181,7 @@ class PIDInteraction(Interaction):
         40.0
     """
 
-    law_classes = (RateLaw, BoundaryLaw)
+    law_classes = (RateLaw, UpdateLaw)
 
     def __init__(
         self,
@@ -221,7 +221,7 @@ class PIDInteraction(Interaction):
             output -= s.kd * measured.diff(s.t)
         self.laws_: list[BaseComponent] = [
             RateLaw(value.diff(s.t), error),
-            BoundaryLaw(getattr(s.plant, self.control), clip(output, *(self.limits or (None, None)))),
+            UpdateLaw(getattr(s.plant, self.control), clip(output, *(self.limits or (None, None)))),
         ]
 
 
@@ -260,8 +260,6 @@ class StateFeedbackInteraction(Interaction):
         (1.0, 1.7)
     """
 
-    law_classes = (BoundaryLaw,)
-
     def __init__(
         self,
         label: str,
@@ -288,7 +286,7 @@ class StateFeedbackInteraction(Interaction):
         read = [getattr(plant, name.rstrip("'")).diff(t, name.count("'")) for name in self.states]
         feedback = -sum((float(gain) * value for value, gain in zip(read, self.gain, strict=True)), 0)
         self.laws_: list[BaseComponent] = [
-            BoundaryLaw(getattr(plant, self.control), clip(feedback, *(self.limits or (None, None)))),
+            UpdateLaw(getattr(plant, self.control), clip(feedback, *(self.limits or (None, None)))),
         ]
 
 

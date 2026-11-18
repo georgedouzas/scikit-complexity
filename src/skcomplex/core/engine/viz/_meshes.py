@@ -109,7 +109,7 @@ class MeshVisual(BaseVisual):
             if self.states is not None and state not in self.states:
                 continue
             values = np.ravel(frame.get_value(name))
-            path = f'{element.path}/{state}'
+            path = BaseVisual._get_state_path(element.path, state)
             if not np.iscomplexobj(values):
                 self._log_mesh(recording, path, mesh, values, self._get_colors(values, self.low, self.high))
                 continue
@@ -163,7 +163,7 @@ class MeshVisual(BaseVisual):
         for state, name in element.states.items():
             if self.states is not None and state not in self.states:
                 continue
-            path = f'{element.path}/{state}'
+            path = BaseVisual._get_state_path(element.path, state)
             if problem.states.get_entry(name).is_complex:
                 views += [
                     rrb.Spatial3DView(origin=f'{path}/{part}', name=f'{state} {part}')

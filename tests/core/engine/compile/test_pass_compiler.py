@@ -1883,8 +1883,9 @@ def test_compiler_flattens_the_system_once(monkeypatch):
         calls.append(args[0])
         return flatten(*args, **kwargs)
 
+    system = LotkaVolterraSystem().prepare().system_
     monkeypatch.setattr(FlattenPass, '_flatten_system', staticmethod(counted))
-    PassCompiler(backend=NumpyBackend()).prepare(LotkaVolterraSystem().prepare().system_).run()
+    PassCompiler(backend=NumpyBackend()).prepare(system).run()
     assert len(calls) == 1
 
 

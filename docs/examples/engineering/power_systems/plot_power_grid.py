@@ -21,7 +21,7 @@ SYSTEM = 'power_grid'
 
 frequencies = rrb.TimeSeriesView(
     origin='/',
-    contents=[f'/node_{node}/phi_d1' for node in range(8)],
+    contents=[f"/node_{node}/phi\\'" for node in range(8)],
     name='frequency deviations',
     axis_x=rrb.TimeAxis(
         view_range=rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite()),

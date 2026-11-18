@@ -116,7 +116,7 @@ class SpeedAdaptationInteraction(Interaction):
         laws: list[BaseComponent] = [RateLaw(value.diff(t), (self._get_goal(s) - value) / self._get_time(s))]
         noise = self._get_noise(s)
         if noise is not None:
-            laws.append(NoiseLaw(position, noise, order=order + 1))
+            laws.append(NoiseLaw(position.diff(t, order + 1), noise))
         self.laws_ = laws
 
     @staticmethod

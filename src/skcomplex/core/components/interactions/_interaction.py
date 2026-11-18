@@ -130,6 +130,14 @@ class Interaction(BaseInteraction):
             declared['among'] = DeclaredVariableSpec(self.among, RoleSpec())
         return declared
 
+    @classmethod
+    def _get_state_arguments(cls, role: RoleSpec) -> tuple[str, ...]:
+        """Return the arguments that name the states a role reads.
+
+        The mapping `roles` of bindings names none.
+        """
+        return tuple(name for name in super()._get_state_arguments(role) if name != 'roles')
+
     def _get_binding(self, role: str) -> object:
         """Return what a role binds, from `roles` or from the argument of its name.
 

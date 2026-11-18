@@ -141,7 +141,7 @@ class PotentialEnergyInteraction(GradientInteraction):
         *,
         target: Role,
         potential: Callable[[SimpleNamespace], object] | None = None,
-        states: str | Sequence[str] = 'x',
+        states: str | tuple[str, ...] = 'x',
         divisor: str = 'm',
     ) -> None:
         super().__init__(label, target=target, states=states, potential=potential, divisor=divisor, order=2)

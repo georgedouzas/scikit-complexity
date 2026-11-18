@@ -19,9 +19,9 @@ from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import categorical, uniform, where
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.enums import ElementKind, ScheduleKind
+from ....core.enums import ScheduleKind
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec, RoleSpec
+from ....core.specs import BaseSpec, Role
 
 RULES = ('logit', 'metropolis', 'fermi', 'best')
 FORMS = ('symbolic', 'agent')
@@ -135,7 +135,7 @@ class ChoiceInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state',))],
+        target: Role,
         state: str,
         options: Sequence[float],
         utility: Callable[..., float | Expression],

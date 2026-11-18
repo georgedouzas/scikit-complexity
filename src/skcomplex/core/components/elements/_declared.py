@@ -9,7 +9,7 @@ from dataclasses import replace
 from typing import Self
 
 from ...errors import ValidationError
-from ...specs import DeclaredVariableSpec, StateSpec, VisualSpec
+from ...specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..spaces import BaseSpace
 from ._element import Element
 
@@ -158,13 +158,20 @@ class DeclaredElement(Element):
 
         Raises:
             ValidationError:
-                A name is not an identifier or is an argument of the constructor.
+                A name is not an identifier or is an argument of the constructor, or a variable is declared with a
+                spec of a role, which only interactions take.
         """
         super()._prepare(context)
         arguments = inspect.signature(type(self)).parameters
-        for name in self._get_declared():
+        for name, item in self._get_declared().items():
             if not name.isidentifier() or name in arguments:
                 error_msg = f'Element {self.label!r} declares {name!r}. Use an identifier that no argument takes.'
+                raise ValidationError(error_msg)
+            if not isinstance(item.spec, StateSpec | ParameterSpec):
+                error_msg = (
+                    f'Element {self.label!r} declares {name!r} with {item.spec!r}. An element declares a variable with '
+                    'a StateSpec or a ParameterSpec, and a role belongs to an interaction.'
+                )
                 raise ValidationError(error_msg)
 
     def get_value(self, name: str) -> object:

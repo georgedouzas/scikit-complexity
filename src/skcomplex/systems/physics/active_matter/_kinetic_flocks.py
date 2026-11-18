@@ -9,7 +9,6 @@ The theory runs over position and orientation.
 import math
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
@@ -20,7 +19,7 @@ from ....core.components.laws.utils import coordinate
 from ....core.components.spaces import AxisSpec, LatticeSpace, PhaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver
-from ....core.specs import RoleSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ...general.kinetics import EncounterInteraction
 from ..common.fields import AdvectionInteraction, PhaseSpaceDensityElement
@@ -70,8 +69,8 @@ class AngularAlignmentInteraction(EncounterInteraction):
         self,
         label: str,
         *,
-        candidate: Annotated[str, RoleSpec()],
-        field: Annotated[str, RoleSpec()],
+        candidate: Role,
+        field: Role,
         angles: int = 32,
         frequency: float = 1.0,
         noise: float = 0.5,
@@ -160,7 +159,7 @@ class AngularDiffusionInteraction(EncounterInteraction):
         self,
         label: str,
         *,
-        candidate: Annotated[str, RoleSpec()],
+        candidate: Role,
         angles: int = 32,
         tumbling: float = 1.0,
         noise: float = 0.5,

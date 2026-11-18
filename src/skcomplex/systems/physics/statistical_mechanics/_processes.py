@@ -195,7 +195,7 @@ class ParallelHopInteraction(Interaction):
         self.boundary = boundary
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the occupations after the hops of one step.
+        """Set the flow `hops` of the particles to the next site in one step.
 
         A particle leaves a site when it hops, and enters the next site with the draw of the site it left.
 
@@ -206,12 +206,9 @@ class ParallelHopInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             occupied = context.target.occupied
-            ahead = shift_member(occupied, 1, boundary=self.boundary, fill=1.0)
-            behind = shift_member(occupied, -1, boundary=self.boundary)
-            hop = bernoulli('hop', context.p)
-            leaves = occupied * (1 - ahead) * hop
-            arrives = behind * (1 - occupied) * shift_member(hop, -1, boundary=self.boundary)
-            self.laws_ = [UpdateLaw(occupied, occupied - leaves + arrives, increment=True)]
+            ahead = shift_member(occupied, 1, boundary=self.boundary)
+            leaves = occupied * (1 - ahead) * bernoulli('hop', context.p)
+            self.laws_ = [UpdateLaw({occupied: -1, ahead: 1}, leaves, increment=True, label=self.label)]
 
 
 class LaneEntryInteraction(Interaction):

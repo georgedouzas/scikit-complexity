@@ -9,7 +9,6 @@ Phases on the nodes and links of a clique complex are coupled by order parameter
 from collections.abc import Mapping, Sequence
 from functools import partial
 from types import SimpleNamespace
-from typing import Annotated
 
 import networkx as nx
 import numpy as np
@@ -25,7 +24,7 @@ from ....core.components.spaces import BaseSpace, CellComplexSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import Role, RoleSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 from ..common.oscillators import LinkElement, PhaseOscillatorElement, PhaseRotationInteraction
 
@@ -130,7 +129,7 @@ class LinkCouplingInteraction(Interaction):
         *,
         links: Role,
         nodes: Role,
-        triangles: Annotated[str | None, RoleSpec(optional=True)] = None,
+        triangles: Role | None = None,
         K: float = 1.0,
     ) -> None:
         super().__init__(label)

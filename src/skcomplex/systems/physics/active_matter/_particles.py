@@ -269,10 +269,10 @@ class InertialPropulsionInteraction(Interaction):
             x, theta = s.target.x, s.target.theta
             heading = vector(SR, [cos(theta), sin(theta)])
             self.laws_ = [
-                RateLaw(x, (s.speed * heading - x.diff(t)) / s.mass, order=2),
-                NoiseLaw(x, sqrt(2 * s.D_t) / s.mass, order=2),
+                RateLaw(x.diff(t, 2), (s.speed * heading - x.diff(t)) / s.mass),
+                NoiseLaw(x.diff(t, 2), sqrt(2 * s.D_t) / s.mass),
                 RateLaw(theta.diff(t, 2), -theta.diff(t) / s.moment),
-                NoiseLaw(theta, sqrt(2 * s.D_r) / s.moment, order=2),
+                NoiseLaw(theta.diff(t, 2), sqrt(2 * s.D_r) / s.moment),
             ]
 
 
