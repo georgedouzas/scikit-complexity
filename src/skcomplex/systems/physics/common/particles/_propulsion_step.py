@@ -13,11 +13,13 @@ from sage.all__sagemath_symbolics import SR, cos, oo, sin, vector
 from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
-from .....core.components.interactions import MapInteraction
-from .....core.specs import ParameterSpec, RoleSpec
+from .....core.components.interactions import Interaction
+from .....core.components.laws import UpdateLaw
+from .....core.components.spaces import BaseSpace
+from .....core.specs import Role
 
 
-class PropulsionStepInteraction(MapInteraction):
+class PropulsionStepInteraction(Interaction):
     """Step `x(t + 1) = x + speed (cos theta, sin theta)` of a position in the plane.
 
     The step is along a heading, in discrete time.
@@ -44,9 +46,9 @@ class PropulsionStepInteraction(MapInteraction):
         >>> from types import SimpleNamespace
         >>> from sage.all__sagemath_symbolics import var, vector
         >>> from skcomplex.systems.physics.common.particles import PropulsionStepInteraction
-        >>> step = PropulsionStepInteraction('propulsion', target='flock').prepare()
         >>> target = SimpleNamespace(x=vector([var('x1'), var('x2')]), theta=var('theta'))
-        >>> [law.value for law in step.run(SimpleNamespace(target=target, speed=var('v'))).laws_]
+        >>> step = PropulsionStepInteraction('propulsion', target='flock')
+        >>> [law.value for law in step.prepare(SimpleNamespace(target=target, speed=var('v'), t=var('t'))).laws_]
         [(v*cos(theta) + x1, v*sin(theta) + x2)]
     """
 
@@ -54,14 +56,29 @@ class PropulsionStepInteraction(MapInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        speed: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        target: Role,
+        speed: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
         state: str = 'x',
         heading: str = 'theta',
     ) -> None:
-        super().__init__(label, target=target, state=state, function=self._step, mode='increment')
+        super().__init__(label)
+        self.target = target
         self.speed = speed
+        self.state = state
         self.heading = heading
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the step of the position along the heading.
+
+        Args:
+            context:
+                The space the interaction inherits from its system, or the namespace of the target, the time `t`,
+                and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            position = getattr(context.target, self.state)
+            self.laws_ = [UpdateLaw(position, position + self._step(context), increment=True)]
 
     def _step(self, namespace: SimpleNamespace) -> FreeModuleElement:
         """Return the step `speed (cos theta, sin theta)`."""

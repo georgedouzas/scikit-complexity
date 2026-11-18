@@ -16,7 +16,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import RateInteraction, TransferInteraction
+from ....core.components.interactions import Interaction, RateInteraction, TransferInteraction
 from ....core.components.laws import BaseLaw, RateLaw, Sink, Source
 from ....core.components.laws.utils import distributed_delay, maximum, minimum, step
 from ....core.engine.backends import BaseBackend
@@ -677,17 +677,15 @@ class BeerGameSystem(BaseSystem):
         They are the demand that reaches the retailer and its expectation.
         """
         return [
-            RateInteraction(
+            Interaction(
                 'retailer_backlog',
-                target='retailer',
-                state='backlog',
-                rate=lambda s: _get_demand(s.target, s.t),
+                roles={'target': 'retailer'},
+                laws=lambda s: [RateLaw(s.target.backlog, _get_demand(s.target, s.t))],
             ),
-            RateInteraction(
+            Interaction(
                 'retailer_expected',
-                target='retailer',
-                state='expected',
-                rate=lambda s: s.target.theta * _get_demand(s.target, s.t),
+                roles={'target': 'retailer'},
+                laws=lambda s: [RateLaw(s.target.expected, s.target.theta * _get_demand(s.target, s.t))],
             ),
         ]
 
@@ -697,11 +695,15 @@ class BeerGameSystem(BaseSystem):
 
         It is its orders less the brews completed.
         """
-        return RateInteraction(
+        return Interaction(
             'factory_supply_line',
-            target='factory',
-            state='supply_line',
-            rate=lambda s: BreweryInteraction._get_orders(s.target) - BreweryInteraction._get_completions(s.target),
+            roles={'target': 'factory'},
+            laws=lambda s: [
+                RateLaw(
+                    s.target.supply_line,
+                    BreweryInteraction._get_orders(s.target) - BreweryInteraction._get_completions(s.target),
+                ),
+            ],
         )
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:

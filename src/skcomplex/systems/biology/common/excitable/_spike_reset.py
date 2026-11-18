@@ -6,17 +6,15 @@ A spike reset is a crossing that resets the potential of a neuron when it reache
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable
 from types import SimpleNamespace
-from typing import Annotated
 
-from sage.all__sagemath_symbolics import Expression
+from .....core.components.interactions import Interaction
+from .....core.components.laws import BaseLaw, EventLaw
+from .....core.components.spaces import BaseSpace
+from .....core.specs import Role
 
-from .....core.components.interactions import CrossingInteraction
-from .....core.specs import ParameterSpec, RoleSpec
 
-
-class SpikeResetInteraction(CrossingInteraction):
+class SpikeResetInteraction(Interaction):
     """Spike of a neuron that resets its potential when it crosses a threshold upwards.
 
     When the potential `v` rises through `threshold`, it is set to `after`, and the state `kicked`, such as a recovery
@@ -49,50 +47,52 @@ class SpikeResetInteraction(CrossingInteraction):
             The direction is not -1, 0, or 1, or the guard or a new value is not a function.
 
     Examples:
-        >>> from skcomplex.systems.general.elements import NonnegativeElement
-        >>> from skcomplex.core.components.interactions import RateInteraction
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.systems import System
+        >>> from skcomplex.systems.biology.common.pharmacokinetics import DosingInteraction
         >>> from skcomplex.systems.biology.neuroscience import SpikeResetInteraction
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> drive = RateInteraction('drive', target='neuron', state='x', rate=1.0)
+        >>> drive = DosingInteraction('drive', target='neuron', state='x', dose=1.0)
         >>> spike = SpikeResetInteraction('spike', target='neuron', state='x', threshold=1.0, after=0.0)
-        >>> system = CompositeSystem(elements=[NonnegativeElement('neuron')], interactions=[drive, spike])
-        >>> trajectory = simulate(system, until=2.1, dt=0.25)
+        >>> system = System(elements=[Element('neuron', values={'x': 0.0})], interactions=[drive, spike])
+        >>> trajectory = system.prepare().simulate(until=2.1, dt=0.25)
         >>> [round(event.time, 6) for event in trajectory.events]
         [1.0, 2.0]
     """
+
+    law_classes = (EventLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         state: str = 'v',
-        threshold: Annotated[float, ParameterSpec()] = 1.0,
-        after: Annotated[float, ParameterSpec()] = 0.0,
+        threshold: float = 1.0,
+        after: float = 0.0,
         kicked: str | None = None,
-        kick: Annotated[float, ParameterSpec()] = 0.0,
+        kick: float = 0.0,
     ) -> None:
-        super().__init__(
-            label,
-            target=target,
-            guard=self._get_guard,
-            reset=self._get_resets(state, kicked),
-            direction=1,
-        )
+        super().__init__(label)
+        self.target = target
         self.state = state
         self.threshold = threshold
         self.after = after
         self.kicked = kicked
         self.kick = kick
 
-    def _get_guard(self, s: SimpleNamespace) -> Expression:
-        """Return the potential above the threshold."""
-        return getattr(s.target, self.state) - s.threshold
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the spike, an event when the potential rises through the threshold.
 
-    def _get_resets(self, state: str, kicked: str | None) -> dict[str, Callable[[SimpleNamespace], object]]:
-        """Return the new value of the potential and of the kicked state after a spike."""
-        resets: dict[str, Callable[[SimpleNamespace], object]] = {state: lambda s: s.after}
-        if kicked is not None:
-            resets[kicked] = lambda s: getattr(s.target, kicked) + s.kick
-        return resets
+        Args:
+            context:
+                The namespace of the neuron, the threshold, the potential after a spike, and the kick.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            neuron = context.target
+            potential = getattr(neuron, self.state)
+            reset = {potential: context.after}
+            if self.kicked is not None:
+                kicked = getattr(neuron, self.kicked)
+                reset[kicked] = kicked + context.kick
+            self.laws_: list[BaseLaw] = [EventLaw(potential - context.threshold, reset, 1, label=self.label)]

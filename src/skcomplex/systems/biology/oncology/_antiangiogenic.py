@@ -13,7 +13,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import RateInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import logistic, pulse_train
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, ScipyODESolver
@@ -251,11 +252,10 @@ class HahnfeldtSystem(BaseSystem):
             start=self.start,
         )
         interactions = [
-            RateInteraction(
+            Interaction(
                 'tumour_growth',
-                target='tumour',
-                state='A',
-                rate=lambda s: -s.target.lambda1 * s.target.A * log(s.target.A / s.target.Vb),
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.A, -s.target.lambda1 * s.target.A * log(s.target.A / s.target.Vb))],
             ),
             ReactionInteraction(
                 'vessel_loss',
@@ -263,7 +263,11 @@ class HahnfeldtSystem(BaseSystem):
                 reactants={'Vb': 1},
                 propensity=lambda s: s.target.lambda2 * s.target.Vb,
             ),
-            RateInteraction('stimulation', target='tumour', state='Vb', rate=lambda s: s.target.xi_s * s.target.A),
+            Interaction(
+                'stimulation',
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.Vb, s.target.xi_s * s.target.A)],
+            ),
             ReactionInteraction(
                 'inhibition',
                 target='tumour',

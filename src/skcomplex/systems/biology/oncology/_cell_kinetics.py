@@ -12,7 +12,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import RateInteraction
+from ....core.components.interactions import Interaction, RateInteraction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import delayed
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -386,17 +387,19 @@ class CellCycleChemotherapySystem(BaseSystem):
                     reactants={'A2': 1},
                     propensity=lambda s: s.target.l2 * s.target.A2,
                 ),
-                RateInteraction(
+                Interaction(
                     'dormant_daughters',
-                    target='tumour',
-                    state='A0',
-                    rate=lambda s: s.target.b0 * 2 * (1 - s.target.u) * s.target.l2 * s.target.A2,
+                    roles={'target': 'tumour'},
+                    laws=lambda s: [
+                        RateLaw(s.target.A0, s.target.b0 * 2 * (1 - s.target.u) * s.target.l2 * s.target.A2),
+                    ],
                 ),
-                RateInteraction(
+                Interaction(
                     'cycling_daughters',
-                    target='tumour',
-                    state='A1',
-                    rate=lambda s: s.target.b1 * 2 * (1 - s.target.u) * s.target.l2 * s.target.A2,
+                    roles={'target': 'tumour'},
+                    laws=lambda s: [
+                        RateLaw(s.target.A1, s.target.b1 * 2 * (1 - s.target.u) * s.target.l2 * s.target.A2),
+                    ],
                 ),
             ]
             self.system_ = System(
@@ -592,11 +595,10 @@ class ErythropoiesisMercaptopurineSystem(BaseSystem):
                 reactants={'P': 1},
                 propensity=lambda s: s.target.a0 * s.target.U * s.target.P,
             ),
-            RateInteraction(
+            Interaction(
                 'senescence',
-                target='patient',
-                state='L',
-                rate=lambda s: -s.target.d1 * delayed(s.target.L, s.target.lifespan),
+                roles={'target': 'patient'},
+                laws=lambda s: [RateLaw(s.target.L, -s.target.d1 * delayed(s.target.L, s.target.lifespan))],
             ),
             RateInteraction(
                 'new_volume',

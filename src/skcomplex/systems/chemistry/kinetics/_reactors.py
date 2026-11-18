@@ -19,7 +19,7 @@ from ....core.components.laws.utils import pulse_train
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, Role
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction
 from ._mass_exchange import MassExchangeInteraction
@@ -152,11 +152,11 @@ class ElectrodeKineticsInteraction(Interaction):
         label: str,
         *,
         target: Role,
-        C: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
-        kappa: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        current: Annotated[float, ParameterSpec()] = 5.0,
+        C: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        alpha: Annotated[float, RealSet.open(0, oo)] = 0.5,
+        tau: Annotated[float, RealSet.open(0, oo)] = 10.0,
+        kappa: Annotated[float, RealSet.closed_open(0, oo)] = 0.05,
+        current: float = 5.0,
         period: float = 10.0,
         width: float = 2.0,
     ) -> None:

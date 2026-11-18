@@ -12,7 +12,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import RateInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -192,7 +193,7 @@ class DrugToxicitySystem(BaseSystem):
                 reactants={'c': 1},
                 propensity=lambda s: s.target.k * s.target.c,
             ),
-            RateInteraction('toxicity', target='patient', state='T', rate=lambda s: s.target.c),
+            Interaction('toxicity', roles={'target': 'patient'}, laws=lambda s: [RateLaw(s.target.T, s.target.c)]),
             ReactionInteraction(
                 'toxicity_recovery',
                 target='patient',

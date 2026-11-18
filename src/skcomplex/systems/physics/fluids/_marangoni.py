@@ -9,7 +9,6 @@ The module holds the order-parameter equation of a layer with a free, thermocapi
 import math
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
@@ -20,7 +19,7 @@ from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, ETDRK4Solver
-from ....core.specs import ParameterSpec, RoleSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ...general.gradients import GradientInteraction
 
@@ -78,9 +77,9 @@ class ThermocapillaryInteraction(GradientInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        r: Annotated[float, ParameterSpec()] = 0.1,
-        g: Annotated[float, ParameterSpec()] = 1.0,
+        target: Role,
+        r: float = 0.1,
+        g: float = 1.0,
     ) -> None:
         super().__init__(label, target=target, states='u', variational=True)
         self.r = r

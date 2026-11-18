@@ -6,7 +6,6 @@ It is a reservoir of leaky tanh units driven by an input.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import functools
 from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
@@ -19,7 +18,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import MapInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import total
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -195,10 +195,9 @@ class EchoStateNetworkSystem(BaseSystem):
             frequency=self.frequency,
             size=self.n_units,
         )
-        reservoir = MapInteraction(
+        reservoir = Interaction(
             'reservoir',
-            target='units',
-            state='r',
-            function=functools.partial(self._get_leaky_tanh, weights=weights),
+            roles={'target': 'units'},
+            laws=lambda s: [UpdateLaw(s.target.r, self._get_leaky_tanh(s, weights=weights))],
         )
         self.system_ = System(self.label, elements=[units], interactions=[reservoir])

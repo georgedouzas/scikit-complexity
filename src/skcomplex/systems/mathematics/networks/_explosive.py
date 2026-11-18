@@ -16,7 +16,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import MapInteraction, TopologyInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import TopologyRequestSpec, UpdateLaw
 from ....core.components.laws.utils import components
 from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
@@ -132,12 +133,16 @@ class ExplosivePercolationSystem(BaseSystem):
         nodes = ClusterNodeElement('nodes', space=space)
         links = Element('links', space=space, on='edges')
         interactions = [
-            MapInteraction(
+            Interaction(
                 'size',
-                target='nodes',
-                state='cluster_size',
-                function=lambda s: components(1, reduce='size'),
+                roles={'target': 'nodes'},
+                laws=lambda s: [UpdateLaw(s.target.cluster_size, components(1, reduce='size'))],
             ),
-            TopologyInteraction('linking', action='add-edge', candidates=self.candidates, score=self._get_product),
+            Interaction(
+                'linking',
+                laws=[
+                    UpdateLaw(TopologyRequestSpec('add-edge', candidates=self.candidates, score=self._get_product), 1),
+                ],
+            ),
         ]
         self.system_ = System(self.label, elements=[nodes, links], interactions=interactions, space=space)

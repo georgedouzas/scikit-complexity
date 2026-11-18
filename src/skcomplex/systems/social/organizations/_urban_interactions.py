@@ -17,7 +17,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction, TopologyInteraction
+from ....core.components.interactions import Interaction, MapInteraction, TopologyInteraction
+from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import draw, logistic, neighbors
 from ....core.components.spaces import NetworkSpace
 from ....core.engine.backends import BaseBackend
@@ -231,12 +232,15 @@ class UrbanScalingInteractionsSystem(BaseSystem):
             toward=closeness,
         )
         ageing = MapInteraction('ageing', target='residents', state='age', function=lambda s: 1, mode='increment')
-        degree = MapInteraction('degree', target='residents', state='degree', function=lambda s: neighbors(1))
-        meetings = MapInteraction(
+        degree = Interaction(
+            'degree',
+            roles={'target': 'residents'},
+            laws=lambda s: [UpdateLaw(s.target.degree, neighbors(1))],
+        )
+        meetings = Interaction(
             'meetings',
-            target='residents',
-            state='meetings',
-            function=lambda s: draw('meet', 'binom', n=s.target.degree, p=self.meeting),
+            roles={'target': 'residents'},
+            laws=lambda s: [UpdateLaw(s.target.meetings, draw('meet', 'binom', n=s.target.degree, p=self.meeting))],
         )
         self.system_ = System(
             self.label,

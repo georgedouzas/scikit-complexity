@@ -255,7 +255,8 @@ Two kinds of model need forms that the table above does not name yet.
   its source. The loops analysis and the flow matrix read these maps, and the trajectory records each flow by its label.
   No law kind is added and no sign is guessed.
 - Controls. An `ObjectiveLaw` names the values it chooses over time, `ObjectiveLaw(cost, controls=[s.plant.u])`, and
-  their bounds come from the allowed values in `Annotated` on the element, as optimal control needs.
+  their bounds come from the allowed values in `Annotated` on the element, as optimal control needs. A cost paid at
+  the end of the run goes in `terminal=`, `ObjectiveLaw(running, controls=[s.u], terminal=final)`, the Bolza form.
 
 A field law first becomes a recipe of the seven kinds and the core reductions where it can, such as Bak-Sneppen as an
 `UpdateLaw` on the site where `argmin` falls, so it needs no engine code. A law that truly needs numerics of its own,

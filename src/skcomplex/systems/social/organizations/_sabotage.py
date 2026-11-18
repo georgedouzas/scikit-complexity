@@ -13,7 +13,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction
+from ....core.components.interactions import Interaction, MapInteraction
+from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import LatticeSpace
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.backends import BaseBackend
@@ -422,13 +423,15 @@ class InsiderSabotageSystem(BaseSystem):
                 values=self._hire,
                 schedule='member',
             ),
-            MapInteraction(
+            Interaction(
                 'risk',
-                target='employees',
-                state='risk',
-                function=self._sum_risk,
-                schedule='member',
-                form='agent',
+                roles={'target': 'employees'},
+                laws=lambda s: [
+                    UpdateLaw(
+                        s.target,
+                        lambda agent, system: setattr(agent, 'risk', float(self._sum_risk(agent, system))),
+                    ),
+                ],
             ),
         ]
         self.system_ = System(

@@ -15,7 +15,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import RateInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, PontryaginSolver
 from ....core.specs import ParameterSpec, StateSpec
@@ -493,7 +494,11 @@ class OptimalImmunotherapySystem(BaseSystem):
         super()._prepare(context)
         site = OptimalImmunotherapyElement('site', x=self.x, y=self.y, alpha_a=self.alpha_a, w1=self.w1, w2=self.w2)
         interactions = [
-            RateInteraction('stimulation', target='site', state='x', rate=lambda s: s.target.alpha_a * s.target.y),
+            Interaction(
+                'stimulation',
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.x, s.target.alpha_a * s.target.y)],
+            ),
             ReactionInteraction(
                 'effector_death',
                 target='site',
@@ -510,11 +515,10 @@ class OptimalImmunotherapySystem(BaseSystem):
                 km=1.0,
                 modifiers={'x': 1},
             ),
-            RateInteraction(
+            Interaction(
                 'tumour_growth',
-                target='site',
-                state='y',
-                rate=lambda s: s.target.r1 * s.target.y * (1 - s.target.b * s.target.y),
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.y, s.target.r1 * s.target.y * (1 - s.target.b * s.target.y))],
             ),
             MichaelisMentenInteraction(
                 'kill',

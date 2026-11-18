@@ -15,7 +15,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
@@ -326,14 +327,16 @@ class StochasticSchellingSystem(BaseSystem):
             side=self.side,
             phase=PHASE,
         )
-        block = MapInteraction(
+        block = Interaction(
             'block',
-            target='dwellers',
-            state='block',
-            function=moves.get_block,
-            schedule='member',
-            form='agent',
-            phase=PHASE,
+            roles={'target': 'dwellers'},
+            laws=lambda s: [
+                UpdateLaw(
+                    s.target,
+                    lambda agent, system: setattr(agent, 'block', float(moves.get_block(agent, system))),
+                    phase=PHASE,
+                ),
+            ],
         )
         self.system_ = System(
             self.label,

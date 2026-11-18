@@ -74,7 +74,7 @@ from ._stigmergy import (
     StigmergicPreyElement,
 )
 from ._succession import MangroveSuccessionSystem, PioneerGrowthInteraction, StandElement, SuccessionalGrowthInteraction
-from ._wolf_sheep import GrassElement, SheepElement, WolfElement, WolfSheepSystem
+from ._wolf_sheep import GrassElement, GrassRegrowthInteraction, SheepElement, WolfElement, WolfSheepSystem
 
 __all__: list[str] = [
     'AbundanceElement',
@@ -100,6 +100,7 @@ __all__: list[str] = [
     'GeneralizedLotkaVolterraInteraction',
     'GeneralizedLotkaVolterraSystem',
     'GrassElement',
+    'GrassRegrowthInteraction',
     'GrazingInteraction',
     'HabitatPatchElement',
     'HerdingInteraction',

@@ -16,7 +16,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import MapInteraction, TopologyInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import TopologyRequestSpec, UpdateLaw
 from ....core.components.laws.utils import neighbors
 from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
@@ -131,18 +132,24 @@ class DavidsenEbelBornholdtSystem(BaseSystem):
         super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         graph = nx.gnm_random_graph(self.n_nodes, self.n_nodes if self.links is None else self.links, seed=rng)
-        closure = TopologyInteraction('closure', target='nodes', action='close-triangle', one=True)
-        replacement = TopologyInteraction(
+        closure = Interaction(
+            'closure',
+            roles={'target': 'nodes'},
+            laws=lambda s: [UpdateLaw(TopologyRequestSpec('close-triangle', one=True), 1)],
+        )
+        replacement = Interaction(
             'turnover',
-            target='nodes',
-            action='replace-node',
-            one=True,
-            probability=self.turnover,
+            roles={'target': 'nodes'},
+            laws=lambda s: [UpdateLaw(TopologyRequestSpec('replace-node', one=True), self.turnover)],
         )
         space = NetworkSpace(graph)
         nodes = ClosingNodeElement('nodes', space=space)
         edges = Element('links', space=space, on='edges')
-        degree = MapInteraction('degree', target='nodes', state='degree', function=lambda s: neighbors(1))
+        degree = Interaction(
+            'degree',
+            roles={'target': 'nodes'},
+            laws=lambda s: [UpdateLaw(s.target.degree, neighbors(1))],
+        )
         self.system_ = System(
             self.label,
             elements=[nodes, edges],

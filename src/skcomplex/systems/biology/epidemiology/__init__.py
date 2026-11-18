@@ -33,7 +33,13 @@ from ._factories import (
 )
 from ._networks import DegreeClassElement, HeterogeneousMeanFieldSISSystem, MetapopulationSystem
 from ._outbreaks import HeterogeneousMeanFieldSIRSystem, ImmunizingDegreeClassElement
-from ._records import PathogenElement, RecordDynamicsEpidemicSystem, ResidentElement, ResistanceInfectionInteraction
+from ._records import (
+    PathogenElement,
+    RecordDynamicsEpidemicSystem,
+    ResidentElement,
+    ResistanceInfectionInteraction,
+    StrainDrawInteraction,
+)
 from ._recurrent import DelayedSIRSSystem, EpidemicCenterElement
 from ._vaccination import SIRVaccinationSystem
 
@@ -76,6 +82,7 @@ __all__: list[str] = [
     'SIRVaccinationSystem',
     'SISSystem',
     'SpreadingInteraction',
+    'StrainDrawInteraction',
     'TravellerElement',
     'WalkerElement',
     'WattsMayConcurrencySystem',

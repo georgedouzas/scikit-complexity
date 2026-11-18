@@ -7,8 +7,7 @@ Its species arise by speciation and vanish by drift.
 # License: MIT
 
 
-from collections.abc import Sequence
-from types import SimpleNamespace
+from collections.abc import Mapping, Sequence
 from typing import Annotated
 
 import numpy as np
@@ -16,11 +15,11 @@ from sage.all__sagemath_symbolics import NN
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import BaseLaw
+from ....core.components.elements import Element
+from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import AnyArray
 from ...general.agents import EvolutionInteraction
@@ -45,43 +44,39 @@ class OrganismElement(Element):
         species:
             The label of the species.
 
+        values:
+            Further values by name, or `None` for none.
+
+        size:
+            The number of individuals, or `None` for one.
+
+        space:
+            The space of the individuals, or `None` for none.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.biology.ecology import OrganismElement
-        >>> GroupElement('community', element=OrganismElement, size=10, values={'species': 0.0}).size
+        >>> OrganismElement('community', species=0.0, size=10).size
         10
     """
 
     visual = VisualSpec('agents', {'color_by': 'species'})
 
-    law_classes = ()
-
     def __init__(
         self,
         label: str,
         *,
-        species: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        species: Annotated[object, NN] = 0.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.species = species
 
     @classmethod
     def _get_view(cls) -> type[OrganismView]:
         """Return the view of an organism, `OrganismView`."""
         return OrganismView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return no laws, since the replacement moves every individual.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return []
 
 
 class NeutralReplacementInteraction(EvolutionInteraction):
@@ -113,8 +108,8 @@ class NeutralReplacementInteraction(EvolutionInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        mutation: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.01,
+        target: Role,
+        mutation: Annotated[float, RealSet.closed(0, 1)] = 0.01,
     ) -> None:
         super().__init__(
             label,
@@ -207,7 +202,7 @@ class NeutralBiodiversitySystem(BaseSystem):
         self.system_ = System(
             self.label,
             elements=[
-                GroupElement('community', element=OrganismElement, size=self.individuals, values={'species': labels}),
+                OrganismElement('community', species=labels, size=self.individuals),
             ],
             interactions=[NeutralReplacementInteraction('replacement', target='community', mutation=self.nu)],
         )

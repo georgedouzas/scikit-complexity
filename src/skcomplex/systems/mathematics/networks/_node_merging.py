@@ -16,7 +16,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import MapInteraction, TopologyInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import TopologyRequestSpec, UpdateLaw
 from ....core.components.laws.utils import neighbors
 from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
@@ -124,12 +125,20 @@ class NodeMergingSystem(BaseSystem):
         """Set `system_` to the node-merging network of Kim and coauthors, whose merging builds hubs."""
         super()._prepare(context)
         graph = nx.random_labeled_tree(self.n_nodes, seed=np.random.default_rng(self.random_state))
-        merging = TopologyInteraction('merging', target='nodes', action='contract-edge', one=True)
-        arrival = TopologyInteraction('arrival', action='add-node', edges=self.edges)
+        merging = Interaction(
+            'merging',
+            roles={'target': 'nodes'},
+            laws=lambda s: [UpdateLaw(TopologyRequestSpec('contract-edge', one=True), 1)],
+        )
+        arrival = Interaction('arrival', laws=[UpdateLaw(TopologyRequestSpec('add-node', edges=self.edges), 1)])
         space = NetworkSpace(graph)
         nodes = MergingNodeElement('nodes', space=space)
         edges = Element('links', space=space, on='edges')
-        degree = MapInteraction('degree', target='nodes', state='degree', function=lambda s: neighbors(1))
+        degree = Interaction(
+            'degree',
+            roles={'target': 'nodes'},
+            laws=lambda s: [UpdateLaw(s.target.degree, neighbors(1))],
+        )
         self.system_ = System(
             self.label,
             elements=[nodes, edges],

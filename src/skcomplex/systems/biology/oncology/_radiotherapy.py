@@ -13,7 +13,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import CrossingInteraction, RateInteraction
+from ....core.components.interactions import CrossingInteraction, Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import periodic_guard, pulse_train
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -418,11 +419,10 @@ class RadiotherapyCompetitionSystem(BaseSystem):
             width=self.width,
         )
         interactions = [
-            RateInteraction(
+            Interaction(
                 'normal_growth',
-                target='tissue',
-                state='N',
-                rate=lambda s: s.target.r1 * s.target.N * (1 - s.target.b1 * s.target.N),
+                roles={'target': 'tissue'},
+                laws=lambda s: [RateLaw(s.target.N, s.target.r1 * s.target.N * (1 - s.target.b1 * s.target.N))],
             ),
             ReactionInteraction(
                 'normal_competition',
@@ -437,11 +437,10 @@ class RadiotherapyCompetitionSystem(BaseSystem):
                 reactants={'N': 1},
                 propensity=lambda s: s.target.epsilon * s.target.N,
             ),
-            RateInteraction(
+            Interaction(
                 'tumour_growth',
-                target='tissue',
-                state='A',
-                rate=lambda s: s.target.r2 * s.target.A * (1 - s.target.b2 * s.target.A),
+                roles={'target': 'tissue'},
+                laws=lambda s: [RateLaw(s.target.A, s.target.r2 * s.target.A * (1 - s.target.b2 * s.target.A))],
             ),
             ReactionInteraction(
                 'tumour_competition',
@@ -610,11 +609,12 @@ class LQRadiosensitizerSystem(BaseSystem):
             fractions=self.fractions,
         )
         interactions = [
-            RateInteraction(
+            Interaction(
                 'growth',
-                target='tumour',
-                state='A1',
-                rate=lambda s: s.target.r * s.target.A1 * exp(-s.target.a_gamma * s.target.u_tot),
+                roles={'target': 'tumour'},
+                laws=lambda s: [
+                    RateLaw(s.target.A1, s.target.r * s.target.A1 * exp(-s.target.a_gamma * s.target.u_tot)),
+                ],
             ),
             ReactionInteraction(
                 'damaged_division',

@@ -12,7 +12,6 @@ billion cells within weeks.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import SirnaTGFBetaSystem
@@ -21,7 +20,7 @@ SYSTEM = 'sirna_tgf_beta'
 
 system = SirnaTGFBetaSystem().prepare().system_
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, dt=1.0, observers=[observer], until=200)
+trajectory = system.prepare().simulate(dt=1.0, observers=[observer], until=200)
 
 # %%
 # Immune escape and its reversal
@@ -39,7 +38,7 @@ arms = {
 }
 fig, (tumour, cytokine) = plt.subplots(1, 2, figsize=(10, 4))
 for name, arm in arms.items():
-    trajectory = simulate(arm, dt=1.0, solver=solver, until=200)
+    trajectory = arm.set_params(solver=solver).prepare().simulate(dt=1.0, until=200)
     tumour.semilogy(trajectory.times, trajectory.get_values('site.A').clip(1.0), label=name)
     cytokine.semilogy(trajectory.times, trajectory.get_values('site.C2').clip(1e-3), label=name)
 tumour.set_xlabel('time (days)')

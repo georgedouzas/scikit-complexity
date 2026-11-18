@@ -16,7 +16,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import RateInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import delayed, pulse
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, ScipyODESolver
@@ -746,17 +747,20 @@ class StemCellDifferentiationSystem(BaseSystem):
                 products={'NSq': 1},
                 propensity=lambda s: s.target.k21 * (1 - s.target.NPr / (s.target.NPr + s.target.NPinf)) * s.target.NPr,
             ),
-            RateInteraction(
+            Interaction(
                 'normal_renewal',
-                target='tissue',
-                state='NPr',
-                rate=lambda s: self._get_normal_renewal(s.target) * s.target.NPr,
+                roles={'target': 'tissue'},
+                laws=lambda s: [RateLaw(s.target.NPr, self._get_normal_renewal(s.target) * s.target.NPr)],
             ),
-            RateInteraction(
+            Interaction(
                 'normal_progenitor_death',
-                target='tissue',
-                state='NPr',
-                rate=lambda s: -self._get_therapy_deaths(s, self.therapy, self.start, self.duration)[0] * s.target.NPr,
+                roles={'target': 'tissue'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.NPr,
+                        -self._get_therapy_deaths(s, self.therapy, self.start, self.duration)[0] * s.target.NPr,
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'mutation',
@@ -772,13 +776,17 @@ class StemCellDifferentiationSystem(BaseSystem):
                 products={'NBs': 1},
                 propensity=lambda s: s.target.k23 * s.target.NPr,
             ),
-            RateInteraction(
+            Interaction(
                 'normal_basal_death',
-                target='tissue',
-                state='NBs',
-                rate=lambda s: -s.target.d3
-                * self._get_therapy_deaths(s, self.therapy, self.start, self.duration)[1]
-                * s.target.NBs,
+                roles={'target': 'tissue'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.NBs,
+                        -s.target.d3
+                        * self._get_therapy_deaths(s, self.therapy, self.start, self.duration)[1]
+                        * s.target.NBs,
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'normal_differentiation',
@@ -787,11 +795,12 @@ class StemCellDifferentiationSystem(BaseSystem):
                 products={'ND': 1},
                 propensity=lambda s: s.target.k34 * s.target.NBs,
             ),
-            RateInteraction(
+            Interaction(
                 'normal_basal_growth',
-                target='tissue',
-                state='NBs',
-                rate=lambda s: s.target.r2 * (1 - s.target.NBs / s.target.Nbmax) * s.target.NBs,
+                roles={'target': 'tissue'},
+                laws=lambda s: [
+                    RateLaw(s.target.NBs, s.target.r2 * (1 - s.target.NBs / s.target.Nbmax) * s.target.NBs),
+                ],
             ),
             ReactionInteraction(
                 'normal_death',
@@ -819,19 +828,24 @@ class StemCellDifferentiationSystem(BaseSystem):
                 products={'ASq': 1},
                 propensity=lambda s: s.target.k65 * (1 - s.target.APr / (s.target.APr + s.target.APinf)) * s.target.APr,
             ),
-            RateInteraction(
+            Interaction(
                 'malignant_renewal',
-                target='tissue',
-                state='APr',
-                rate=lambda s: s.target.r3 * (1 - s.target.APr / s.target.APmax) * s.target.APr,
+                roles={'target': 'tissue'},
+                laws=lambda s: [
+                    RateLaw(s.target.APr, s.target.r3 * (1 - s.target.APr / s.target.APmax) * s.target.APr),
+                ],
             ),
-            RateInteraction(
+            Interaction(
                 'malignant_progenitor_death',
-                target='tissue',
-                state='APr',
-                rate=lambda s: -s.target.d6
-                * self._get_therapy_deaths(s, self.therapy, self.start, self.duration)[1]
-                * s.target.APr,
+                roles={'target': 'tissue'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.APr,
+                        -s.target.d6
+                        * self._get_therapy_deaths(s, self.therapy, self.start, self.duration)[1]
+                        * s.target.APr,
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'malignant_commitment',
@@ -840,13 +854,17 @@ class StemCellDifferentiationSystem(BaseSystem):
                 products={'ABs': 1},
                 propensity=lambda s: s.target.k67 * s.target.APr,
             ),
-            RateInteraction(
+            Interaction(
                 'malignant_basal_death',
-                target='tissue',
-                state='ABs',
-                rate=lambda s: -s.target.d7
-                * self._get_therapy_deaths(s, self.therapy, self.start, self.duration)[1]
-                * s.target.ABs,
+                roles={'target': 'tissue'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.ABs,
+                        -s.target.d7
+                        * self._get_therapy_deaths(s, self.therapy, self.start, self.duration)[1]
+                        * s.target.ABs,
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'malignant_differentiation',
@@ -855,11 +873,12 @@ class StemCellDifferentiationSystem(BaseSystem):
                 products={'AD': 1},
                 propensity=lambda s: s.target.k78 * s.target.ABs,
             ),
-            RateInteraction(
+            Interaction(
                 'malignant_basal_growth',
-                target='tissue',
-                state='ABs',
-                rate=lambda s: s.target.r4 * (1 - s.target.ABs / s.target.Abmax) * s.target.ABs,
+                roles={'target': 'tissue'},
+                laws=lambda s: [
+                    RateLaw(s.target.ABs, s.target.r4 * (1 - s.target.ABs / s.target.Abmax) * s.target.ABs),
+                ],
             ),
             ReactionInteraction(
                 'malignant_death',
@@ -947,13 +966,17 @@ class BoneMarrowBloodLeukaemiaSystem(BaseSystem):
         super()._prepare(context)
         patient = BoneMarrowBloodElement('patient', m1=self.m1, m3=self.m3, tau1=self.tau1, tau2=self.tau2)
         interactions = [
-            RateInteraction(
+            Interaction(
                 'marrow_growth',
-                target='patient',
-                state='NBM',
-                rate=lambda s: s.target.r1
-                * s.target.NBM
-                * log((s.target.b1 + s.target.b2) / (s.target.theta1 + s.target.NBM)),
+                roles={'target': 'patient'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.NBM,
+                        s.target.r1
+                        * s.target.NBM
+                        * log((s.target.b1 + s.target.b2) / (s.target.theta1 + s.target.NBM)),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'mutation',
@@ -969,23 +992,31 @@ class BoneMarrowBloodLeukaemiaSystem(BaseSystem):
                 products={'AS': 1},
                 propensity=lambda s: s.target.m3 * s.target.NBM,
             ),
-            RateInteraction(
+            Interaction(
                 'release',
-                target='patient',
-                state='NBM',
-                rate=lambda s: -s.target.m2
-                * s.target.NBM
-                * exp(-s.target.r2 * s.target.APB)
-                / (s.target.theta2 + s.target.NPB),
+                roles={'target': 'patient'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.NBM,
+                        -s.target.m2
+                        * s.target.NBM
+                        * exp(-s.target.r2 * s.target.APB)
+                        / (s.target.theta2 + s.target.NPB),
+                    ),
+                ],
             ),
-            RateInteraction(
+            Interaction(
                 'arrival',
-                target='patient',
-                state='NPB',
-                rate=lambda s: s.target.m2
-                * delayed(s.target.NBM, s.target.tau1)
-                * exp(-s.target.alpha1 * s.target.tau1 - s.target.r2 * delayed(s.target.APB, s.target.tau1))
-                / (s.target.theta2 + delayed(s.target.NPB, s.target.tau1)),
+                roles={'target': 'patient'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.NPB,
+                        s.target.m2
+                        * delayed(s.target.NBM, s.target.tau1)
+                        * exp(-s.target.alpha1 * s.target.tau1 - s.target.r2 * delayed(s.target.APB, s.target.tau1))
+                        / (s.target.theta2 + delayed(s.target.NPB, s.target.tau1)),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'marrow_competition',
@@ -1007,11 +1038,15 @@ class BoneMarrowBloodLeukaemiaSystem(BaseSystem):
                 reactants={'NPB': 1},
                 propensity=lambda s: s.target.d1 * s.target.NPB,
             ),
-            RateInteraction(
+            Interaction(
                 'leukaemic_growth',
-                target='patient',
-                state='ABM',
-                rate=lambda s: s.target.r3 * s.target.ABM * log(s.target.b3 / (s.target.theta3 + s.target.ABM)),
+                roles={'target': 'patient'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.ABM,
+                        s.target.r3 * s.target.ABM * log(s.target.b3 / (s.target.theta3 + s.target.ABM)),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'leukaemic_release',
@@ -1020,13 +1055,17 @@ class BoneMarrowBloodLeukaemiaSystem(BaseSystem):
                 products={'APB': 1},
                 propensity=lambda s: s.target.m4 * s.target.ABM,
             ),
-            RateInteraction(
+            Interaction(
                 'conversion_arrival',
-                target='patient',
-                state='ABM',
-                rate=lambda s: s.target.m5
-                * exp(-s.target.alpha2 * s.target.tau2 - s.target.r4 * delayed(s.target.APB, s.target.tau2))
-                * delayed(s.target.AS, s.target.tau2),
+                roles={'target': 'patient'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.ABM,
+                        s.target.m5
+                        * exp(-s.target.alpha2 * s.target.tau2 - s.target.r4 * delayed(s.target.APB, s.target.tau2))
+                        * delayed(s.target.AS, s.target.tau2),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'leukaemic_death',
@@ -1034,17 +1073,15 @@ class BoneMarrowBloodLeukaemiaSystem(BaseSystem):
                 reactants={'APB': 1},
                 propensity=lambda s: s.target.d2 * s.target.APB,
             ),
-            RateInteraction(
+            Interaction(
                 'stem_growth',
-                target='patient',
-                state='AS',
-                rate=lambda s: s.target.r5 * s.target.AS * (1 - s.target.b4 * s.target.AS),
+                roles={'target': 'patient'},
+                laws=lambda s: [RateLaw(s.target.AS, s.target.r5 * s.target.AS * (1 - s.target.b4 * s.target.AS))],
             ),
-            RateInteraction(
+            Interaction(
                 'conversion',
-                target='patient',
-                state='AS',
-                rate=lambda s: -s.target.m5 * exp(-s.target.r4 * s.target.APB) * s.target.AS,
+                roles={'target': 'patient'},
+                laws=lambda s: [RateLaw(s.target.AS, -s.target.m5 * exp(-s.target.r4 * s.target.APB) * s.target.AS)],
             ),
         ]
         self.system_ = System(
@@ -1158,11 +1195,15 @@ class LeukaemiaStemCellsSystem(BaseSystem):
             d4=self.d4,
         )
         interactions = [
-            RateInteraction(
+            Interaction(
                 'normal_renewal',
-                target='niche',
-                state='NS',
-                rate=lambda s: s.target.r1 * s.target.NS * exp(-s.target.beta1 * (s.target.NS + s.target.AS)),
+                roles={'target': 'niche'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.NS,
+                        s.target.r1 * s.target.NS * exp(-s.target.beta1 * (s.target.NS + s.target.AS)),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'normal_differentiation',
@@ -1180,27 +1221,33 @@ class LeukaemiaStemCellsSystem(BaseSystem):
                 reactants={'NS': 1},
                 propensity=lambda s: s.target.d1 * s.target.NS,
             ),
-            RateInteraction(
+            Interaction(
                 'normal_division',
-                target='niche',
-                state='NPr',
-                rate=lambda s: s.target.r2
-                * exp(-s.target.beta2 * (s.target.NPr + s.target.ND + s.target.AD))
-                * s.target.NS
-                * exp(-s.target.beta1 * (s.target.NS + s.target.AS)),
+                roles={'target': 'niche'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.NPr,
+                        s.target.r2
+                        * exp(-s.target.beta2 * (s.target.NPr + s.target.ND + s.target.AD))
+                        * s.target.NS
+                        * exp(-s.target.beta1 * (s.target.NS + s.target.AS)),
+                    ),
+                ],
             ),
-            RateInteraction(
+            Interaction(
                 'progenitor_growth',
-                target='niche',
-                state='NPr',
-                rate=lambda s: s.target.r3 * s.target.NPr,
+                roles={'target': 'niche'},
+                laws=lambda s: [RateLaw(s.target.NPr, s.target.r3 * s.target.NPr)],
             ),
-            RateInteraction('progenitor_loss', target='niche', state='NPr', rate=lambda s: -s.target.d2 * s.target.NPr),
-            RateInteraction(
+            Interaction(
+                'progenitor_loss',
+                roles={'target': 'niche'},
+                laws=lambda s: [RateLaw(s.target.NPr, -s.target.d2 * s.target.NPr)],
+            ),
+            Interaction(
                 'maturation',
-                target='niche',
-                state='ND',
-                rate=lambda s: s.target.m2 * s.target.d2 * s.target.NPr,
+                roles={'target': 'niche'},
+                laws=lambda s: [RateLaw(s.target.ND, s.target.m2 * s.target.d2 * s.target.NPr)],
             ),
             ReactionInteraction(
                 'differentiated_death',
@@ -1208,11 +1255,15 @@ class LeukaemiaStemCellsSystem(BaseSystem):
                 reactants={'ND': 1},
                 propensity=lambda s: s.target.d3 * s.target.ND,
             ),
-            RateInteraction(
+            Interaction(
                 'leukaemic_renewal',
-                target='niche',
-                state='AS',
-                rate=lambda s: s.target.r4 * s.target.AS * exp(-s.target.beta1 * (s.target.NS + s.target.AS)),
+                roles={'target': 'niche'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.AS,
+                        s.target.r4 * s.target.AS * exp(-s.target.beta1 * (s.target.NS + s.target.AS)),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'leukaemic_differentiation',
@@ -1230,14 +1281,18 @@ class LeukaemiaStemCellsSystem(BaseSystem):
                 reactants={'AS': 1},
                 propensity=lambda s: s.target.d4 * s.target.AS,
             ),
-            RateInteraction(
+            Interaction(
                 'leukaemic_division',
-                target='niche',
-                state='AD',
-                rate=lambda s: s.target.r5
-                * exp(-s.target.beta2 * (s.target.NPr + s.target.ND + s.target.AD))
-                * s.target.AS
-                * exp(-s.target.beta1 * (s.target.NS + s.target.AS)),
+                roles={'target': 'niche'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.AD,
+                        s.target.r5
+                        * exp(-s.target.beta2 * (s.target.NPr + s.target.ND + s.target.AD))
+                        * s.target.AS
+                        * exp(-s.target.beta1 * (s.target.NS + s.target.AS)),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'leukaemic_progeny_death',

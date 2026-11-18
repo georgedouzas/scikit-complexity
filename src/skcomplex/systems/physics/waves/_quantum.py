@@ -19,13 +19,13 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import BaseInteraction, Interaction
-from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import laplacian, local_operator
 from ....core.components.spaces import BaseSpace, LatticeSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, ETDRK4Solver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, Role, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 from ..common.quantum import DissipatorLaw, GeneratorLaw, HilbertSpec
 
@@ -60,7 +60,7 @@ class SiteElement(Element):
     def __init__(
         self,
         label: str,
-        psi: Annotated[object, StateSpec(domain=CC)] = 0,
+        psi: Annotated[object, CC] = 0,
         *,
         hilbert: HilbertSpec | None = None,
     ) -> None:
@@ -180,26 +180,26 @@ class LatticeHamiltonianInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        D: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        target: Role,
+        D: Annotated[float, RealSet.open(0, oo)] = 0.5,
     ) -> None:
         super().__init__(label)
         self.target = target
         self.D = D
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the Hamiltonian of the particle.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the Hamiltonian of the particle.
 
         Args:
-            s:
-                The namespace of the interaction.
-
-        Returns:
-            laws:
-                The Hamiltonian.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        psi = s.target.psi
-        return [GeneratorLaw(-s.D * local_operator(psi, 'laplacian') + local_operator(psi, 'potential'))]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            psi = context.target.psi
+            self.laws_ = [
+                GeneratorLaw(-context.D * local_operator(psi, 'laplacian') + local_operator(psi, 'potential')),
+            ]
 
 
 class PositionDephasingInteraction(Interaction):
@@ -230,8 +230,8 @@ class PositionDephasingInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        target: Role,
+        gamma: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
         n_sites: int = 1,
     ) -> None:
         super().__init__(label)
@@ -239,18 +239,19 @@ class PositionDephasingInteraction(Interaction):
         self.gamma = gamma
         self.n_sites = n_sites
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the dissipators of the site projectors.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the dissipators of the site projectors.
 
         Args:
-            s:
-                The namespace of the interaction.
-
-        Returns:
-            laws:
-                The dissipators.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        return [DissipatorLaw(local_operator(s.target.psi, f'site_{site}'), s.gamma) for site in range(self.n_sites)]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            psi = context.target.psi
+            self.laws_ = [
+                DissipatorLaw(local_operator(psi, f'site_{site}'), context.gamma) for site in range(self.n_sites)
+            ]
 
 
 class SchrodingerSystem(BaseSystem):

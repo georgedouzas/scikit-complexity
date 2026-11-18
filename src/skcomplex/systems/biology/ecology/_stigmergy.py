@@ -15,8 +15,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element, FieldElement, GroupElement
-from ....core.components.interactions import MapInteraction, TransferInteraction
-from ....core.components.laws import Source
+from ....core.components.interactions import Interaction, MapInteraction, TransferInteraction
+from ....core.components.laws import Source, UpdateLaw
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
@@ -693,13 +693,15 @@ class StigmergicPredatorPreySystem(BaseSystem):
             self._get_growth(system, label, 'age'),
             self._get_growth(system, label, 'hunger'),
             BirthDeathInteraction(f'{label}_starvation', target=group, death=self._starves, schedule='member'),
-            MapInteraction(
+            Interaction(
                 f'{label}_experience',
-                target=group,
-                state='experience',
-                function=sense,
-                form='agent',
-                schedule='member',
+                roles={'target': group},
+                laws=lambda s: [
+                    UpdateLaw(
+                        s.target,
+                        lambda agent, system: setattr(agent, 'experience', float(sense(agent, system))),
+                    ),
+                ],
             ),
             MovementInteraction(
                 f'{label}_foraging',
@@ -720,21 +722,33 @@ class StigmergicPredatorPreySystem(BaseSystem):
                 form='agent',
                 schedule='member',
             ),
-            MapInteraction(
+            Interaction(
                 f'{label}_happiness',
-                target=group,
-                state='happiness',
-                function=partial(self._get_happiness, mark=element.happiness_mark),
-                form='agent',
-                schedule='member',
+                roles={'target': group},
+                laws=lambda s: [
+                    UpdateLaw(
+                        s.target,
+                        lambda agent, system: setattr(
+                            agent,
+                            'happiness',
+                            float(partial(self._get_happiness, mark=element.happiness_mark)(agent, system)),
+                        ),
+                    ),
+                ],
             ),
-            MapInteraction(
+            Interaction(
                 f'{label}_distress',
-                target=group,
-                state='distress',
-                function=partial(self._get_distress, mark=element.distress_mark),
-                form='agent',
-                schedule='member',
+                roles={'target': group},
+                laws=lambda s: [
+                    UpdateLaw(
+                        s.target,
+                        lambda agent, system: setattr(
+                            agent,
+                            'distress',
+                            float(partial(self._get_distress, mark=element.distress_mark)(agent, system)),
+                        ),
+                    ),
+                ],
             ),
             TransferInteraction(
                 f'{label}_marking',
