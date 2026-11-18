@@ -9,13 +9,14 @@ from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import fields as dataclass_fields
 from dataclasses import is_dataclass, replace
 from types import SimpleNamespace
-from typing import ClassVar
+from typing import ClassVar, cast
 
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import CC, RR, SR, ZZ, Expression, function, vector
 from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.symbolic.function import SymbolicFunction
 from sage.symbolic.operators import FDerivativeOperator
 from sklearn.base import clone
 
@@ -306,6 +307,46 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
             return state
         operands = [BaseInteraction._get_translated(item, time, symbols, discrete) for item in value.operands()]
         return value.operator()(*operands)
+
+    @staticmethod
+    def _get_symbolic[ValueT](value: ValueT, time: Expression) -> ValueT:
+        """Return a value with every state `x(t)` read as its symbol `x` and its derivatives as `derivative(x, k)`.
+
+        Sage differentiates by symbols only, so a recipe that differentiates a function of the states, such as the
+        gradient of a potential or the Euler-Lagrange equations of a Lagrangian, reads it in symbols first. A value
+        is an expression, a vector, a tuple, or a namespace of them.
+        """
+        symbolic: object = value
+        if isinstance(value, SimpleNamespace):
+            symbolic = SimpleNamespace(
+                **{name: BaseInteraction._get_symbolic(item, time) for name, item in vars(value).items()},
+            )
+        elif isinstance(value, tuple):
+            symbolic = tuple(BaseInteraction._get_symbolic(item, time) for item in value)
+        else:
+            symbols: dict[str, Expression] = {}
+            BaseInteraction._collect_states(value, time, symbols)
+            if symbols:
+                symbolic = BaseInteraction._get_translated(value, time, symbols, discrete=False)
+        return cast('ValueT', symbolic)
+
+    @staticmethod
+    def _collect_states(value: object, time: Expression, symbols: dict[str, Expression]) -> None:
+        """Add the symbol of every state `x(t)` a value reads, or of a derivative of it, by name."""
+        if isinstance(value, FreeModuleElement | list | tuple):
+            for item in value:
+                BaseInteraction._collect_states(item, time, symbols)
+            return
+        if not isinstance(value, Expression) or value.operator() is None:
+            return
+        operator = value.operator()
+        if isinstance(operator, FDerivativeOperator):
+            operator = operator.function()
+        if isinstance(operator, SymbolicFunction) and value.operands() == [time]:
+            symbols[operator.name()] = SR.var(operator.name())
+            return
+        for item in value.operands():
+            BaseInteraction._collect_states(item, time, symbols)
 
     @staticmethod
     def _get_translated_spec[SpecT: BaseSpec](

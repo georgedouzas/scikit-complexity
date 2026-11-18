@@ -20,7 +20,6 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import EventLaw, RateLaw
-from ....core.components.laws.utils import derivative
 from ....core.components.spaces import BaseSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.backends import BaseBackend
@@ -535,7 +534,7 @@ class DoublePendulumInteraction(EulerLagrangeInteraction):
                 The Lagrangian.
         """
         p = namespace.target
-        w1, w2 = derivative(p.theta1, 1), derivative(p.theta2, 1)
+        w1, w2 = p.theta1.diff(namespace.t), p.theta2.diff(namespace.t)
         kinetic = (p.m1 + p.m2) * p.l1**2 * w1**2 / 2 + p.m2 * p.l2**2 * w2**2 / 2
         kinetic += p.m2 * p.l1 * p.l2 * w1 * w2 * cos(p.theta1 - p.theta2)
         return kinetic + (p.m1 + p.m2) * p.g * p.l1 * cos(p.theta1) + p.m2 * p.g * p.l2 * cos(p.theta2)

@@ -24,15 +24,16 @@ class EulerLagrangeInteraction(Interaction):
     """An interaction that moves coordinates by the equations of a Lagrangian.
 
     A Lagrangian `L` is the kinetic minus the potential energy of a mechanical system. The interaction gives the
-    equations of motion `d/dt dL/dq' - dL/dq = Q - dR/dq'` for the coordinates `q`, states of order 2, with the
-    dissipation function `R` and the generalized forces `Q`. It returns one equation per coordinate, and the compiler
-    solves them together for the accelerations, so a Lagrangian with a mass matrix, such as that of a double pendulum,
-    needs no inversion by hand. Equations of one coordinate from several interactions add, so a spring between two
+    equations of motion `d/dt dL/dq' - dL/dq = Q - dR/dq'` for the coordinates `q`, with the dissipation function `R`
+    and the generalized forces `Q`. It returns one equation per coordinate, and the compiler solves them together for
+    the accelerations, so a Lagrangian with a mass matrix, such as that of a double pendulum, needs no inversion by
+    hand. Equations of one coordinate from several interactions add, so a spring between two
     pendulums is an interaction of its own whose Lagrangian holds only the coupling energy.
 
     A Lagrangian, dissipation, or forcing function takes a namespace with the roles, the time `t`, and the parameters a
-    subclass declares. The coordinates are the states of every role that binds one element or group, `target` by
-    default, and every component of a vector state is a coordinate.
+    subclass declares, and writes the velocity of a coordinate `q` as `q.diff(t)`. The coordinates are the states of
+    every role that binds one element or group, `target` by default, and every component of a vector state is a
+    coordinate.
 
     Unlike `HamiltonianInteraction`, which needs canonical momenta, it takes the energy in coordinates and velocities.
     Choose it when the energy is easier to write than the forces, as for linked bodies.
@@ -48,7 +49,7 @@ class EulerLagrangeInteraction(Interaction):
             The path of the element or group whose states are the coordinates.
 
         states:
-            The name of the state of order 2 that is a coordinate, or the names of several states.
+            The name of the state that is a coordinate, or the names of several states.
 
         lagrangian:
             A function of the namespace that returns the Lagrangian.
@@ -64,27 +65,18 @@ class EulerLagrangeInteraction(Interaction):
             A state is not a name, or a function is not callable.
 
     Examples:
-        >>> from typing import Annotated
         >>> from sage.all__sagemath_symbolics import cos
         >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.general.mechanics import EulerLagrangeInteraction
-        >>> from skcomplex.core.components.laws.utils import derivative
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> class AngleElement(Element):
-        ...     def __init__(self, label, q: Annotated[float, StateSpec(order=2)] = 0.1, q_d1: float = 0.0):
-        ...         super().__init__(label)
-        ...         self.q = q
-        ...         self.q_d1 = q_d1
         >>> swing = EulerLagrangeInteraction(
         ...     'swing',
         ...     target='bob',
         ...     states='q',
-        ...     lagrangian=lambda s: derivative(s.target.q, 1) ** 2 / 2 + cos(s.target.q),
+        ...     lagrangian=lambda s: s.target.q.diff(s.t) ** 2 / 2 + cos(s.target.q),
         ... )
-        >>> system = CompositeSystem(elements=[AngleElement('bob')], interactions=[swing])
-        >>> trajectory = simulate(system, until=3.2, dt=0.01)
+        >>> system = System(elements=[Element('bob', values={'q': 0.1})], interactions=[swing])
+        >>> trajectory = system.prepare().simulate(until=3.2, dt=0.01)
         >>> round(float(trajectory.get_values('bob.q')[-1]), 2)
         -0.1
     """
@@ -117,7 +109,8 @@ class EulerLagrangeInteraction(Interaction):
 
         Args:
             context:
-                The space the interaction inherits from its system.
+                The space the interaction inherits from its system, or the namespace of the elements it binds, whose
+                Euler-Lagrange equations it sets in `laws_`.
 
         Raises:
             ValidationError:
@@ -133,6 +126,8 @@ class EulerLagrangeInteraction(Interaction):
             if value is not None and not callable(value):
                 error_msg = f'The {name} of {self.label!r} is {value!r}. Give a function of the namespace.'
                 raise ValidationError(error_msg)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = self._get_equations(context)
 
     def _get_lagrangian(self, namespace: SimpleNamespace) -> object:
         """Return the Lagrangian.
@@ -162,32 +157,49 @@ class EulerLagrangeInteraction(Interaction):
         """Return the generalized force of every coordinate, zero without a forcing."""
         if self.forcing is None:
             return [SR(0)] * count
-        forces = self.forcing(namespace)
+        forces = self._get_in_states(self.forcing, namespace)
         forces = list(forces) if isinstance(forces, FreeModuleElement | list | tuple) else [forces]
         if len(forces) != count:
             error_msg = f'The forcing of {self.label!r} returns {len(forces)} forces for {count} coordinates.'
             raise ValidationError(error_msg)
         return [SR(force) for force in forces]
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
+    def _get_in_states(self, function: Callable[[SimpleNamespace], object], namespace: SimpleNamespace) -> object:
+        """Return a function of the namespace read in the symbols of the states.
+
+        The velocity of a coordinate `q` is `derivative(q, 1)`. The namespace holds the states as symbols or as
+        functions of the time `t`.
+        """
+        time = getattr(namespace, 't', SR.var('t'))
+        functions: dict[str, Expression] = {}
+        functional = SimpleNamespace(
+            **{
+                name: self._get_functional(item, time, functions) if isinstance(item, SimpleNamespace | tuple) else item
+                for name, item in vars(namespace).items()
+            },
+        )
+        return self._get_symbolic(function(functional), time)
+
+    def _get_symbolic_lagrangian(self, namespace: SimpleNamespace) -> Expression:
+        """Return the Lagrangian in the symbols of the states, with the velocity of `q` as `derivative(q, 1)`."""
+        return SR(self._get_in_states(self._get_lagrangian, namespace))
+
+    def _get_equations(self, namespace: SimpleNamespace) -> list[BaseComponent]:
         """Return the Euler-Lagrange equation of every coordinate.
 
-        Args:
-            namespace:
-                The namespace of the symbols the laws can use, with the namespaces of the roles.
-
-        Returns:
-            laws:
-                The equation laws of the coordinates.
+        The equations are written in the symbols of the states, with derivatives as `derivative(q, k)`.
         """
-        coordinates = self._get_coordinates(namespace)
+        time = SR(namespace.t)
+        symbolic = self._get_symbolic(namespace, time)
+        coordinates = self._get_coordinates(symbolic)
         velocities = {derivative(q, 1): SR.var(f'_velocity_{index}') for index, q in enumerate(coordinates)}
         back = {symbol: item for item, symbol in velocities.items()}
         slots = list(velocities.values())
-        lagrangian = SR(self._get_lagrangian(namespace)).subs(velocities)
-        dissipation = SR(0 if self.dissipation is None else self.dissipation(namespace)).subs(velocities)
+        lagrangian = self._get_symbolic_lagrangian(namespace).subs(velocities)
+        dissipation = SR(
+            0 if self.dissipation is None else self._get_in_states(self.dissipation, namespace),
+        ).subs(velocities)
         forces = self._get_forces(namespace, len(coordinates))
-        time = SR(namespace.t)
         laws: list[BaseComponent] = []
         for q, slot, force in zip(coordinates, slots, forces, strict=True):
             momentum = lagrangian.diff(slot)
