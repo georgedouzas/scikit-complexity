@@ -3,7 +3,7 @@
 import networkx as nx
 import numpy as np
 
-from skcomplex.core.engine.runtime import Trajectory, simulate
+from skcomplex.core.engine.runtime import Trajectory
 from skcomplex.systems.mathematics.networks import NodeMergingSystem
 
 
@@ -18,7 +18,7 @@ def _graph(trajectory: Trajectory, frame: int) -> nx.Graph:
 
 def test_node_merging_builds_hubs_at_a_fixed_size():
     """Test that merging keeps the size and lets the largest degree exceed ten times the mean and a random graph."""
-    trajectory = simulate(NodeMergingSystem(500), until=10000, random_state=0)
+    trajectory = NodeMergingSystem(500).prepare().simulate(until=10000, random_state=0)
     graph = _graph(trajectory, -1)
     degrees = np.array([degree for _, degree in graph.degree()])
     random = nx.gnm_random_graph(500, graph.number_of_edges(), seed=0)

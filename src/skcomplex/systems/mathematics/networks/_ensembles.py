@@ -19,17 +19,15 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.base import BaseComponent
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction, MapInteraction, TopologyInteraction
 from ....core.components.laws import TopologyRequestSpec, UpdateLaw
 from ....core.components.laws.utils import components, maximum, mod, neighbors, where
-from ....core.components.spaces import AdjacencyNeighborhood, BaseSpace, DiscreteTime, LayerSpec, NetworkSpace
-from ....core.components.systems import BaseSystem as OldBaseSystem
-from ....core.components.systems import CompositeSystem
+from ....core.components.spaces import AdjacencyNeighborhood, BaseSpace, LayerSpec, NetworkSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, Role, StateSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ..common.networks import NetworkNodeElement
 from ..common.networks._regulated_node import ACTIVITY_VISUAL
@@ -130,6 +128,9 @@ class EnsembleNodeElement(Element):
         rate:
             The probability that the node adds an edge to a random node in a step.
 
+        space:
+            The network whose nodes hold one member each, or `None` for one node.
+
     Examples:
         >>> from skcomplex.systems.mathematics.networks import EnsembleNodeElement
         >>> EnsembleNodeElement('nodes', rate=0.1).rate
@@ -142,10 +143,11 @@ class EnsembleNodeElement(Element):
         self,
         label: str,
         *,
-        degree: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        degree: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        rate: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.degree = degree
         self.rate = rate
 
@@ -315,7 +317,7 @@ class NetworkAttackSystem(BaseSystem):
         self.system_ = System(self.label, elements=[FailingElement('nodes', space=space)], interactions=[removal])
 
 
-class RandomGraphEnsemblesSystem(OldBaseSystem):
+class RandomGraphEnsemblesSystem(BaseSystem):
     """The construction of an Erdős-Rényi or a Watts-Strogatz random graph.
 
     The graph is built one step of new edges at a time.
@@ -346,15 +348,20 @@ class RandomGraphEnsemblesSystem(OldBaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The ensemble is unknown.
 
     Examples:
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.networks import RandomGraphEnsemblesSystem
-        >>> system = RandomGraphEnsemblesSystem(40, ensemble='watts_strogatz', steps=5).prepare().system_
-        >>> trajectory = simulate(system, until=5, random_state=0)
+        >>> system = RandomGraphEnsemblesSystem(40, ensemble='watts_strogatz', steps=5).prepare()
+        >>> trajectory = system.simulate(until=5, random_state=0)
         >>> int(trajectory.get_network(-1).sources.size)
         80
     """
@@ -373,8 +380,10 @@ class RandomGraphEnsemblesSystem(OldBaseSystem):
         rewiring: float = 0.2,
         steps: int = 100,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_nodes = n_nodes
         self.ensemble = ensemble
         self.mean_degree = mean_degree
@@ -387,55 +396,51 @@ class RandomGraphEnsemblesSystem(OldBaseSystem):
         return MapInteraction('degree', target='nodes', state='degree', function=lambda s: neighbors(1))
 
     @staticmethod
-    def _get_variable_network(space: NetworkSpace, capacity: int, **values: object) -> list[GroupElement]:
-        """Return the variable groups on the nodes and the edges of a network."""
-        nodes = GroupElement(
-            'nodes',
-            element=EnsembleNodeElement,
-            on='sites',
-            variable=True,
-            capacity=space.prepare().size_,
-            values=values,
-        )
-        links = GroupElement('links', element=Element, on='edges', variable=True, capacity=capacity)
-        return [nodes, links]
+    def _get_variable_network(space: NetworkSpace, rate: float = 0.0) -> list[Element]:
+        """Return the groups on the nodes and the edges of a network, which grow and shrink with it."""
+        return [EnsembleNodeElement('nodes', rate=rate, space=space), Element('links', space=space, on='edges')]
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+
+        Raises:
+            ValidationError:
+                The ensemble is unknown.
+        """
+        super()._prepare(context)
         if self.ensemble not in ENSEMBLES:
             error_msg = f'Unknown ensemble {self.ensemble!r}. Use one of {", ".join(ENSEMBLES)}.'
             raise ValidationError(error_msg)
         if self.ensemble == 'erdos_renyi':
             space = NetworkSpace(nx.empty_graph(self.n_nodes))
             rate = self.mean_degree / 2 / self.steps
-            groups = RandomGraphEnsemblesSystem._get_variable_network(
-                space,
-                int(np.ceil(1.5 * self.mean_degree * self.n_nodes / 2)) + 10,
-                rate=rate,
-            )
+            groups = RandomGraphEnsemblesSystem._get_variable_network(space, rate)
             linking = TopologyInteraction(
                 'linking',
                 target='nodes',
                 action='add-edge',
                 probability=lambda s: s.source.rate,
             )
-            return CompositeSystem(
+            self.system_ = System(
                 self.label,
                 elements=groups,
                 interactions=[RandomGraphEnsemblesSystem._get_degree(), linking],
                 space=space,
-                time=DiscreteTime(),
             )
+            return
         space = NetworkSpace(nx.watts_strogatz_graph(self.n_nodes, int(self.mean_degree), 0.0))
         rate = 1 - (1 - self.rewiring) ** (1 / self.steps)
-        groups = RandomGraphEnsemblesSystem._get_variable_network(space, space.graph.number_of_edges())
+        groups = RandomGraphEnsemblesSystem._get_variable_network(space)
         rewiring = TopologyInteraction('rewiring', target='nodes', action='rewire', probability=rate)
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=groups,
             interactions=[RandomGraphEnsemblesSystem._get_degree(), rewiring],
             space=space,
-            time=DiscreteTime(),
         )
 
 

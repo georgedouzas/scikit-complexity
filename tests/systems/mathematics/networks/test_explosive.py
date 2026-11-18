@@ -4,7 +4,6 @@ import numpy as np
 import pytest
 from scipy.optimize import brentq
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.mathematics.networks import ExplosivePercolationSystem
 
 N_NODES = 2000
@@ -13,7 +12,7 @@ N_NODES = 2000
 def _largest(candidates: int) -> np.ndarray:
     """Return the share of nodes in the largest component after every edge added to isolated nodes."""
     system = ExplosivePercolationSystem(N_NODES, candidates=candidates)
-    trajectory = simulate(system, until=int(0.96 * N_NODES), random_state=0)
+    trajectory = system.prepare().simulate(until=int(0.96 * N_NODES), random_state=0)
     return trajectory.get_values('nodes.cluster_size').max(axis=1) / N_NODES
 
 

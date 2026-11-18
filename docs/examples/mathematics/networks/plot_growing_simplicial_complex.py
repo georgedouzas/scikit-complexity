@@ -15,7 +15,6 @@ import numpy as np
 import rerun.blueprint as rrb
 
 from skcomplex.core.analysis import distribution
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.networks import GrowingSimplicialComplexSystem
 
@@ -37,14 +36,14 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-trajectory = simulate(GrowingSimplicialComplexSystem(), dt=2.0, observers=[observer], random_state=0)
+trajectory = GrowingSimplicialComplexSystem().prepare().simulate(dt=2.0, observers=[observer], random_state=0)
 
 # %%
 # Degree tail
 # -----------
 # The degrees should follow `P(k) ~ k^-3`, so the share of nodes of degree at least `k` should fall as `k^-2`.
 
-run = simulate(GrowingSimplicialComplexSystem(n_nodes=3003), until=3000, dt=3000.0, random_state=0)
+run = GrowingSimplicialComplexSystem().prepare().simulate(until=3000, dt=3000.0, random_state=0)
 snapshot = run.get_network(-1)
 degrees = np.bincount(np.concatenate([snapshot.sources, snapshot.targets]))
 ccdf = distribution(degrees, kind='ccdf')

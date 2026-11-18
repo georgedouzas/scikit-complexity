@@ -831,8 +831,8 @@ class Percolation(Interaction):
 def test_get_declared_gives_the_signed_links_of_triadic_percolation():
     """Test that signed links on the edges, regulated along the hyperedges, run triadic percolation step for step."""
     ready = TriadicPercolationSystem(500, p=0.5).prepare().system_
-    expected = simulate(ready, until=10, random_state=0).get_values('nodes.active')
-    space, signs = ready.elements[0].space, ready.elements[1].values['sign']
+    expected = ready.simulate(until=10, random_state=0).get_values('nodes.active')
+    space, signs = ready.elements[0].space, ready.elements[1].sign
     nodes = Element('nodes', values={'active': 1}, space=space)
     links = Element('links', values={'active': 1, 'sign': signs}, space=space, on='edges')
     phases = PhasesScheduleSpec((PhaseSpec('regulation'), PhaseSpec('percolation')))
