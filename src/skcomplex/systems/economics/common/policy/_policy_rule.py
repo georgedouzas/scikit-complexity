@@ -6,13 +6,14 @@ They are single actors whose rules read observables and set the parameters of ot
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from types import SimpleNamespace
 from typing import ClassVar
 
 from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
-from .....core.components.laws import BaseLaw, RuleLaw
+from .....core.components.laws import BaseLaw, UpdateLaw
+from .....core.components.spaces import BaseSpace
 from .....core.components.types import SystemViewProtocol
 from .....core.errors import ValidationError
 
@@ -43,7 +44,7 @@ class PolicyRuleInteraction[SystemT: SystemViewProtocol](Interaction):
         True
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw,)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (UpdateLaw,)
 
     def __init__(
         self,
@@ -56,18 +57,11 @@ class PolicyRuleInteraction[SystemT: SystemViewProtocol](Interaction):
         self.rule = rule
         self.phase = phase
 
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
-        """Return the rule of the feedback in its phase.
-
-        Args:
-            namespace:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the interaction.
-        """
-        return [RuleLaw(self.act, phase=self.phase)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rule of the feedback in its phase, a rule of the whole system."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context, self.act, phase=self.phase)]
 
     def act(self, system: SystemT) -> None:
         """Read the system and set parameters.

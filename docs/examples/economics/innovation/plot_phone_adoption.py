@@ -16,7 +16,6 @@ that could already afford one.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.innovation import PhoneAdoptionSystem
 
@@ -24,8 +23,8 @@ SYSTEM = 'phone_adoption'
 THRESHOLD, YEARS = 1.2, 50
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-system_system = PhoneAdoptionSystem(random_state=0)
-trajectory = simulate(system_system, until=18, observers=[observer], random_state=0)
+system = PhoneAdoptionSystem(random_state=0)
+trajectory = system.prepare().simulate(until=18, observers=[observer], random_state=0)
 
 # %%
 # Adoption against affordability
@@ -34,8 +33,8 @@ trajectory = simulate(system_system, until=18, observers=[observer], random_stat
 # a phone should rise along an S-curve below the share that can afford one, starting with the upper class, and the lag
 # should be longest for the lower class, whose quarter the phones reach last.
 
-system_system = PhoneAdoptionSystem(random_state=0)
-trajectory = simulate(system_system, until=YEARS, random_state=0)
+system = PhoneAdoptionSystem(random_state=0)
+trajectory = system.prepare().simulate(until=YEARS, random_state=0)
 frames = range(len(trajectory.times))
 households = [trajectory.get_agents('households', frame).values for frame in frames]
 classes = households[0]['social_class']

@@ -7,17 +7,20 @@ Their production functions catalyse each other.
 # License: MIT
 
 import math
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 
 import networkx as nx
 from sage.all__sagemath_symbolics import Expression
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import TopologyInteraction
 from ....core.components.laws.utils import count, where
 from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 
 
 class TapCatalysisSystem(BaseSystem):
@@ -54,6 +57,12 @@ class TapCatalysisSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.innovation import TapCatalysisSystem
         >>> [element.label for element in TapCatalysisSystem(goods=50).prepare().system_.elements]
@@ -74,8 +83,10 @@ class TapCatalysisSystem(BaseSystem):
         goods: int = 1250,
         pc: float = 0.0044,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.m0 = m0
         self.parents = parents
         self.alpha = alpha
@@ -96,8 +107,9 @@ class TapCatalysisSystem(BaseSystem):
 
         return rate
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         growth = [
             TopologyInteraction(
                 f'order_{order}',
@@ -112,7 +124,7 @@ class TapCatalysisSystem(BaseSystem):
             for order in range(1, self.parents + 1)
         ]
         links = int(3 * self.pc * self.goods * self.goods) + self.goods
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[
                 GroupElement('goods', element=Element, on='sites', variable=True, capacity=self.goods),
