@@ -6,17 +6,21 @@ The immunity lasts a fixed period.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import NN, Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import lag, where
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 
 MAX_RECOVERY = 12
 
@@ -98,6 +102,12 @@ class DelayedSIRSSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import DelayedSIRSSystem
         >>> DelayedSIRSSystem().prepare().system_.elements[0].x
@@ -119,8 +129,10 @@ class DelayedSIRSSystem(BaseSystem):
         recovery: int = 6,
         e: float = 0.005,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.first = first
         self.second = second
         self.a = a
@@ -148,9 +160,15 @@ class DelayedSIRSSystem(BaseSystem):
         infected: Expression = home.a * (home.x + away.e * away.x) * (1 - self._get_infected_or_immune(home))
         return infected
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of two cities."""
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of two cities.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[
                 EpidemicCenterElement('first', x=self.first, a=self.a, recovery=self.recovery, e=self.e),
