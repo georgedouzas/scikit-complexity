@@ -273,42 +273,35 @@ class CensusPass(BasePass):
                 records += CensusPass._get_records_of(block, elements, observer, declarations, agents)
             except SkcomplexError as error:
                 errors.append((block.node.path, error))
-        scopes = CensusPass._get_continuous_scopes(records)
-        records = [
-            replace(record, law=CensusPass._get_corrected(record.law, record.owner, scopes)) for record in records
-        ]
+        flowing = CensusPass._get_flowing(records)
+        records = [replace(record, law=CensusPass._get_corrected(record.law, record.owner, flowing)) for record in records]
         return _CensusSpec(system, records, errors, declarations.agents)
 
     @staticmethod
-    def _get_continuous_scopes(records: Sequence[_CensusRecordSpec]) -> frozenset[str]:
-        """Return the paths of the systems whose own elements change by rate or noise laws.
-
-        The top system is the empty path.
-        """
+    def _get_flowing(records: Sequence[_CensusRecordSpec]) -> frozenset[str]:
+        """Return the paths of the elements and groups whose states rate or noise laws change."""
         return frozenset(
-            record.owner.rpartition('/')[0]
-            for record in records
-            if KernelsPass._get_kind_of(record.law) in (RateLaw, NoiseLaw)
+            record.owner for record in records if KernelsPass._get_kind_of(record.law) in (RateLaw, NoiseLaw)
         )
 
     @staticmethod
-    def _get_corrected(law: BaseLaw, path: str, scopes: frozenset[str]) -> BaseLaw:
-        """Return an update law beside rate or noise laws as a correction after each continuous step.
+    def _get_corrected(law: BaseLaw, owner: str, flowing: frozenset[str]) -> BaseLaw:
+        """Return an update law of an element that flows as a correction after each continuous step.
 
         A value corrected after every step of the solver, such as a wall reflecting `x` to `abs(x)` with
-        `UpdateLaw(x, abs(x))`, is an update law of a state in a system that flows in continuous time. An update law of
-        a system that steps, or one that adds to other updates, reads neighbours, or runs in an order or a phase, stays
-        an update law.
+        `UpdateLaw(x, abs(x))` or a controller setting the input of a plant, is an update law of an element whose states
+        rate or noise laws change. An update law of an element that only steps, such as a counter, or one that adds to
+        other updates, reads neighbours, or runs in an order or a phase, stays an update law.
 
         Args:
             law:
                 The law.
 
-            path:
+            owner:
                 The path of the element or group whose state the law changes.
 
-            scopes:
-                The paths of the systems that flow in continuous time.
+            flowing:
+                The paths of the elements and groups whose states rate or noise laws change.
 
         Returns:
             law:
@@ -317,9 +310,9 @@ class CensusPass(BasePass):
         if not isinstance(law, UpdateLaw) or not isinstance(law.target, Expression | FreeModuleElement):
             return law
         plain = not law.increment and law.source is None and law.order is None and law.phase is None
-        if not plain or law.neighborhood is not None or path.rpartition('/')[0] not in scopes:
+        if not plain or law.neighborhood is not None or owner not in flowing:
             return law
-        return BoundaryLaw(law.target, law.value, label=law.label).prepare(path)
+        return BoundaryLaw(law.target, law.value, label=law.label).prepare(owner)
 
     @staticmethod
     def _get_renewal_group(spec: KernelSpec, law: RenewalLaw) -> str:

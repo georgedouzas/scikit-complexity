@@ -29,13 +29,13 @@ class CollectPass(BasePass):
         compilation = self.compilation_
         specs = Compilation._get_required(compilation.specs, 'specs')
         census = Compilation._get_required(compilation.census, 'census')
-        scopes = CensusPass._get_continuous_scopes(census.records)
+        flowing = CensusPass._get_flowing(census.records)
         agents = {node.path for node in Compilation._get_required(compilation.nodes, 'nodes') if node.is_agent}
         declared = []
         for spec, block in specs:
             laws = CensusPass._get_declared_laws(spec, CensusPass._get_component_of(block.node))
             corrected = [
-                CensusPass._get_corrected(law, CensusPass._get_law_owner(spec, law, agents), scopes) for law in laws
+                CensusPass._get_corrected(law, CensusPass._get_law_owner(spec, law, agents), flowing) for law in laws
             ]
             declared.append((spec, corrected, block))
         compilation.collected = [
