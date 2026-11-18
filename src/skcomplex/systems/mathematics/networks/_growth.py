@@ -472,7 +472,7 @@ class VertexCopyingSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.mathematics.networks import VertexCopyingSystem
-        >>> VertexCopyingSystem().prepare().system_.interactions[0].edges
+        >>> VertexCopyingSystem().prepare().system_.interactions[0].laws[0].target.edges
         3
     """
 
