@@ -22,7 +22,7 @@ from ._duopoly import CournotAdjustmentInteraction, CournotDuopolySystem, Duopol
 from ._fair_food import ConsumerElement, FairFoodSystem
 from ._fair_food_program import FairFoodMarketInteraction, FairFoodProgramSystem, ProgramMemberElement
 from ._goods_traders import GoodsTraderElement, GoodsTradersSystem
-from ._household_demand import BudgetHouseholdElement, HouseholdDemandSystem
+from ._household_demand import BudgetHouseholdElement, HouseholdDemandInteraction, HouseholdDemandSystem
 from ._inventory import CarDealershipElement, CarDealerSystem
 from ._labour import EmployerElement, JobOffersInteraction, JobseekerElement, LabourMarketSystem, hire
 from ._oligopoly import (
@@ -93,6 +93,7 @@ __all__: list[str] = [
     'GoodsTradersSystem',
     'HeuristicPricingInteraction',
     'HeuristicTraderElement',
+    'HouseholdDemandInteraction',
     'HouseholdDemandSystem',
     'IndifferenceInteraction',
     'JobOffersInteraction',
