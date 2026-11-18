@@ -929,6 +929,10 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         """Return the layer of the network the laws run along, or `None` for its graph."""
         return None
 
+    def _get_grouping(self) -> tuple[str, int, str] | None:
+        """Return the kind, size, and reduction of the groups the laws run on, or `None`."""
+        return None
+
     def _check_space(self, space: BaseSpace | None) -> None:
         """Raise an error for a variant the space of the system cannot run.
 

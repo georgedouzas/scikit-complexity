@@ -11,14 +11,14 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import NN, Expression, oo
+from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
-from ....core.components.interactions import GroupingInteraction, Interaction
+from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import count, total
 from ....core.components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace
@@ -416,49 +416,44 @@ class PrisonersDilemmaInteraction(Interaction):
         return following
 
 
-class PublicGoodsInteraction(GroupingInteraction):
+class PublicGoodsInteraction(Interaction):
     """Play of the public goods game in the groups of a player and its neighbours.
 
-    The groups hold a player and its four neighbours, and the play sets the payoffs. It is a symbolic
-    `GroupingInteraction` of the von Neumann neighbourhoods of a lattice, a cooperator at 1 and a defector at 0. Every
-    player joins five groups, the one centred on itself and those centred on its four neighbours. In each group a
-    cooperator pays 1, and the pot multiplied by `synergy` is shared by the members, so the payoff of a player is the
+    The groups hold a player and its four neighbours, and the play sets the payoffs, a cooperator at 1 and a defector at
+    0. Every player joins five groups, the one centred on itself and those centred on its four neighbours. In each group
+    a cooperator pays 1, and the pot multiplied by `synergy` is shared by the members, so the payoff of a player is the
     sum of its shares minus its contributions. The synergy is a parameter of the players.
 
     Args:
         label:
             The label of the interaction.
 
-        target:
+        among:
             The path of the players on the lattice.
+
+        along:
+            The groups of the play, `'neighborhoods'` for every player with the players around it.
 
         phase:
             The phase of the step the play runs in, or `None` for the default phase.
 
     Examples:
         >>> from skcomplex.systems.social.cooperation import PublicGoodsInteraction
-        >>> PublicGoodsInteraction('play', target='players').write
-        'payoff'
+        >>> PublicGoodsInteraction('play', among='players').along
+        'neighborhoods'
     """
 
-    def __init__(self, label: str, *, target: Role, phase: str | None = None) -> None:
-        super().__init__(
-            label,
-            target=target,
-            groups='neighborhood',
-            form='symbolic',
-            write='payoff',
-            function=self._get_share,
-            phase=phase,
-        )
+    def __init__(self, label: str, *, among: Role, along: str = 'neighborhoods', phase: str | None = None) -> None:
+        super().__init__(label, among=among, along=along)
+        self.phase = phase
 
-    def _get_share(self, group: SimpleNamespace) -> Expression:
-        """Return the share of the pot of a group for its member.
-
-        The contribution of the member is subtracted.
-        """
-        pot = group.member.synergy * total(group.members.strategy, over=group.members)
-        return pot / count(over=group.members) - group.member.strategy
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the payoff of every player to its share of the pot of a group, less its contribution."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            pot = context.member.synergy * total(context.members.strategy, over=context.members)
+            share = pot / count(over=context.members) - context.member.strategy
+            self.laws_ = [UpdateLaw(context.member.payoff, share, phase=self.phase)]
 
 
 class SpatialPrisonersDilemmaSystem(BaseSystem):
@@ -647,7 +642,7 @@ class PublicGoodsGameSystem(BaseSystem):
         self.system_ = System(
             self.label,
             elements=[players],
-            interactions=[PublicGoodsInteraction('play', target='players', phase='play'), imitation],
+            interactions=[PublicGoodsInteraction('play', among='players', phase='play'), imitation],
         )
 
 

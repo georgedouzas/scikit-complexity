@@ -20,6 +20,7 @@ from ._local_rule import LocalRuleInteraction
 from ._map import MapInteraction
 from ._neighbor import NeighborInteraction
 from ._pair import PairInteraction
+from ._random_partition import RandomPartition
 from ._rate import RateInteraction
 from ._sampling import SamplingInteraction
 from ._topology import TopologyInteraction
@@ -42,6 +43,7 @@ __all__: list[str] = [
     'MapInteraction',
     'NeighborInteraction',
     'PairInteraction',
+    'RandomPartition',
     'RateInteraction',
     'SamplingInteraction',
     'TopologyInteraction',
