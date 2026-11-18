@@ -116,7 +116,7 @@ class LinearQuadraticSurvivalInteraction(Interaction):
         self.target = target
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the laws of the target.
+        """Set the equations of the Lea-Catcheside factor, the survival, and the biologically effective dose.
 
         Args:
             context:

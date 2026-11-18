@@ -4,7 +4,12 @@ They cover delayed feedback, excitable tissue, the circulation, cell exchange, r
 """
 
 from ._adaptivity import AdaptiveResponderElement, AdaptiveResponseCostsSystem
-from ._cardiac import AlievPanfilovElement, AlievPanfilovSystem, BarkleySystem
+from ._cardiac import (
+    AlievPanfilovElement,
+    AlievPanfilovInteraction,
+    AlievPanfilovSystem,
+    BarkleySystem,
+)
 from ._cellular_potts import (
     CellAdhesionInteraction,
     CellularPottsSystem,
@@ -47,6 +52,7 @@ __all__: list[str] = [
     'AdaptiveResponderElement',
     'AdaptiveResponseCostsSystem',
     'AlievPanfilovElement',
+    'AlievPanfilovInteraction',
     'AlievPanfilovSystem',
     'BarkleySystem',
     'BranchingVesselElement',
