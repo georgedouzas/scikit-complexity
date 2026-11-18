@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.collective_behaviour import AntColonyOptimizationSystem
 
@@ -23,7 +22,7 @@ SYSTEM = 'ant_colony_optimization'
 
 system = AntColonyOptimizationSystem(cut=50).prepare().system_
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, observers=[observer], random_state=0, until=100)
+trajectory = system.prepare().simulate(observers=[observer], random_state=0, until=100)
 
 # %%
 # Convergence and healing

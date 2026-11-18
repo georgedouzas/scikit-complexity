@@ -46,6 +46,7 @@ from ._early_stage import (
 from ._elementary_flux_modes import ElementaryFluxModesSystem
 from ._fates import (
     BristleLateralInhibitionSystem,
+    EllipticUmbilicInteraction,
     FateLandscapeElement,
     LateralInhibitionInteraction,
     ProneuralCellElement,
@@ -108,6 +109,7 @@ __all__: list[str] = [
     'EarlyStageFoldingIntermediateSystem',
     'ElementaryFluxModesSystem',
     'EllipsePath',
+    'EllipticUmbilicInteraction',
     'EnsembleReplayInteraction',
     'EnzymeAdaptationCircuitSystem',
     'EnzymeNodeElement',

@@ -22,7 +22,7 @@ from ._fully_connected_spins import (
     GlauberFlipInteraction,
     SherringtonKirkpatrickSystem,
 )
-from ._gases import FreeFlightInteraction, GasMoleculeElement, IdealGasSystem, LennardJonesFluidSystem
+from ._gases import GasMoleculeElement, IdealGasSystem, LennardJonesFluidSystem
 from ._graph_spins import GraphIsingSystem
 from ._kinetic_temperature import KineticTemperatureResult, kinetic_temperature
 from ._master_equations import (
@@ -100,7 +100,6 @@ __all__: list[str] = [
     'ExclusionHopsInteraction',
     'ExclusionSiteElement',
     'FireSpreadInteraction',
-    'FreeFlightInteraction',
     'FullyConnectedSpinElement',
     'GasMoleculeElement',
     'GlauberFlipInteraction',

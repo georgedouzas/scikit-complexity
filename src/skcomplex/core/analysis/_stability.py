@@ -19,7 +19,7 @@ from ..components.interactions import BaseInteraction
 from ..components.laws import RateLaw
 from ..components.spaces import LatticeSpace
 from ..components.systems import CompositeSystem
-from ..engine._utils import bound_labels, components_of, declarations_of, default_of, symbol
+from ..engine._utils import binding_of, bound_labels, components_of, declarations_of, default_of, symbol
 from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import BaseProblemSpec, ProblemSpec
 from ..engine.problems._dynamics_spec import _DynamicsSpec
@@ -491,8 +491,8 @@ def _bound_interactions(system: CompositeSystem, field: FieldElement) -> list[Ba
     for interaction in system.interactions:
         labels = [
             label
-            for name in declarations_of(type(interaction), VariableKind.ROLE)
-            for label in bound_labels(getattr(interaction, name) or ())
+            for name in declarations_of(interaction, VariableKind.ROLE)
+            for label in bound_labels(binding_of(interaction, name) or ())
         ]
         if not labels or any(label != field.label for label in labels):
             error_msg = f'The interaction {interaction.label} binds a component other than the field {field.label}.'
@@ -559,8 +559,7 @@ def _linearised_rates(
     for interaction in interactions:
         own = {name: getattr(interaction, name) for name in declarations_of(interaction, VariableKind.PARAMETER)}
         roles = {
-            name: SimpleNamespace(**names, **parameters)
-            for name in declarations_of(type(interaction), VariableKind.ROLE)
+            name: SimpleNamespace(**names, **parameters) for name in declarations_of(interaction, VariableKind.ROLE)
         }
         for law in interaction._get_prepared_laws(SimpleNamespace(**roles, **own, t=time)):
             _add_rate(rates, names, law, field.label)

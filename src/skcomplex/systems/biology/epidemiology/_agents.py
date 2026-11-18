@@ -7,6 +7,7 @@ The individuals walk on grids and travel on networks.
 # License: MIT
 
 import math
+from collections.abc import Sequence
 from typing import Annotated
 
 import networkx as nx
@@ -14,13 +15,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import TransitionInteraction
 from ....core.components.spaces import LatticeSpace, NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.engine.solvers import AgentView, SystemView
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver, SystemView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ...general.agents import MovementInteraction
 
 SUSCEPTIBLE, EXPOSED, INFECTED, RECOVERED, DEAD = 0.0, 1.0, 2.0, 3.0, 4.0
@@ -309,6 +312,12 @@ class AgentBasedSIRSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import AgentBasedSIRSystem
         >>> system = AgentBasedSIRSystem(people=100, infected=3, random_state=0).prepare().system_
@@ -346,8 +355,10 @@ class AgentBasedSIRSystem(BaseSystem):
         lockdown_d: float = 0.1,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.width = width
         self.height = height
         self.people = people
@@ -504,8 +515,14 @@ class AgentBasedSIRSystem(BaseSystem):
             )
         return transitions
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of people who walk on a grid and infect those in their cell."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of people who walk on a grid and infect those in their cell.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         cells = rng.integers(0, [self.width, self.height], size=(self.people, 2))
         group = GroupElement(
@@ -532,7 +549,7 @@ class AgentBasedSIRSystem(BaseSystem):
             accept=self._get_person_step,
         )
         space = LatticeSpace((self.width, self.height), boundary='fixed', metric='manhattan')
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[group],
             interactions=[walk, *self._get_person_transitions(self.incubation)],
@@ -578,6 +595,12 @@ class RandomWalkerEpidemicsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import RandomWalkerEpidemicsSystem
         >>> float(RandomWalkerEpidemicsSystem(walkers=50).prepare().system_.elements[0].values['health'].sum())
@@ -609,8 +632,10 @@ class RandomWalkerEpidemicsSystem(BaseSystem):
         graph: object = None,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.width = width
         self.height = height
         self.walkers = walkers
@@ -641,11 +666,14 @@ class RandomWalkerEpidemicsSystem(BaseSystem):
         """
         return float(other.infection) if isinstance(other, WalkerView) and other.health == SICK else 0.0
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of random walkers among whom a sick walker starts an epidemic.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of random walkers among whom a sick walker starts an epidemic.
 
-        The epidemic is deadly.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         if self.graph is None:
             cells = rng.integers(0, [self.width, self.height], size=(self.walkers, 2))
@@ -698,7 +726,7 @@ class RandomWalkerEpidemicsSystem(BaseSystem):
                 form='agent',
             ),
         ]
-        return CompositeSystem(self.label, elements=[group], interactions=interactions, space=space)
+        self.system_ = System(self.label, elements=[group], interactions=interactions, space=space)
 
 
 class NetworkSIRSystem(BaseSystem):
@@ -731,10 +759,16 @@ class NetworkSIRSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.systems.biology.epidemiology import NetworkSIRSystem
-        >>> NetworkSIRSystem(nx.cycle_graph(5), residents=3).prepare().system_.elements[0].prepare().size_
+        >>> NetworkSIRSystem(nx.cycle_graph(5), residents=3).prepare().system_.elements[0].size
         15
     """
 
@@ -753,8 +787,10 @@ class NetworkSIRSystem(BaseSystem):
         m: float = 0.05,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.graph = graph
         self.residents = residents
         self.tau = tau
@@ -779,8 +815,14 @@ class NetworkSIRSystem(BaseSystem):
         """
         return float(other.tau) if isinstance(other, TravellerView) and other.health == INFECTED else 0.0
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of SIR epidemics in cities at the nodes of a network."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of SIR epidemics in cities at the nodes of a network.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         graph = self.graph
         rng = np.random.default_rng(self.random_state)
         graph = nx.barabasi_albert_graph(20, 2, seed=0) if graph is None else graph
@@ -820,7 +862,7 @@ class NetworkSIRSystem(BaseSystem):
             form='agent',
         )
         travel = MovementInteraction('travel', target='travellers', accept=self._get_traveller_step)
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[group],
             interactions=[infection, recovery, travel],

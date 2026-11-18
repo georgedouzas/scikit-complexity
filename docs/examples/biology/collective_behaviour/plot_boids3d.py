@@ -12,17 +12,16 @@ while it keeps its spread in depth, so the third dimension stays in use.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.collective_behaviour import Boids3dSystem
 
 SYSTEM = 'boids3d'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(
-    Boids3dSystem(n_boids=100, cohesion=0.0, separation=0.0, random_state=0),
-    observers=[observer],
-    random_state=0,
+trajectory = (
+    Boids3dSystem(n_boids=100, cohesion=0.0, separation=0.0, random_state=0)
+    .prepare()
+    .simulate(observers=[observer], random_state=0)
 )
 
 # %%

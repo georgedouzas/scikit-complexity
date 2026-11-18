@@ -16,7 +16,6 @@ position across the strip, down, and height, across.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import ForestSizeStructureSystem
@@ -26,7 +25,7 @@ POSITIONS, HEIGHTS = 40, 100
 
 system = ForestSizeStructureSystem(positions=POSITIONS, heights=HEIGHTS).prepare().system_
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='forest/x', interval=1)
-trajectory = simulate(system, dt=5.0, solver=RK4Solver(dt=0.1), observers=[observer], until=200)
+trajectory = system.set_params(solver=RK4Solver(dt=0.1)).prepare().simulate(dt=5.0, observers=[observer], until=200)
 
 # %%
 # Edges deplete small trees

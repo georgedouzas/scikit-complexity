@@ -11,14 +11,13 @@ steps.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.systems_biology import BooleanRepressilatorSystem
 
 SYSTEM = 'boolean_repressilator'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(BooleanRepressilatorSystem(x=(1, 0, 0)), observers=[observer])
+trajectory = BooleanRepressilatorSystem(x=(1, 0, 0)).prepare().simulate(observers=[observer])
 
 # %%
 # Delayed repression
@@ -28,7 +27,7 @@ trajectory = simulate(BooleanRepressilatorSystem(x=(1, 0, 0)), observers=[observ
 
 fig, axes = plt.subplots(3, 1, figsize=(8, 5), sharex=True)
 for ax, delay in zip(axes, (0, 1, 2), strict=False):
-    trajectory = simulate(BooleanRepressilatorSystem(x=(1, 0, 0), delay=delay), until=48)
+    trajectory = BooleanRepressilatorSystem(x=(1, 0, 0), delay=delay).prepare().simulate(until=48)
     for offset, name in enumerate(('LacI', 'TetR', 'cI')):
         ax.step(trajectory.times, trajectory.get_values(f'{name}.x') + 1.5 * offset, where='post', label=name)
     ax.set_yticks([0.5, 2.0, 3.5], ['LacI', 'TetR', 'cI'])

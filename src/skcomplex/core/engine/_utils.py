@@ -156,6 +156,34 @@ def bound_labels(value: object) -> list[str]:
     return [label for label in labels if isinstance(label, str)]
 
 
+def binding_of(component: object, role: str) -> object:
+    """Return what a role of a component binds, such as the label of an element.
+
+    An interaction reads it from its argument of the same name, such as `target='ball'`, or from `roles`, such as
+    `roles={'target': 'ball'}`.
+
+    Args:
+        component:
+            The component, usually an interaction.
+
+        role:
+            The name of the role.
+
+    Returns:
+        binding:
+            The label, labels, or entries the role binds, or `None` when it binds nothing.
+
+    Examples:
+        >>> from skcomplex.core.components.interactions import Interaction
+        >>> from skcomplex.core.engine._utils import binding_of
+        >>> binding_of(Interaction('gravity', roles={'target': 'ball'}), 'target')
+        'ball'
+    """
+    if isinstance(component, BaseInteraction):
+        return component._get_binding(role)
+    return getattr(component, role, None)
+
+
 def _variable_of(spec: StateSpec | ParameterSpec | RoleSpec) -> VariableSpec:
     """Return the declaration of a spec."""
     if isinstance(spec, RoleSpec):

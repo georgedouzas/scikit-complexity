@@ -30,3 +30,21 @@ def test_prepare_rejects_no_targets():
     """An objective with no state to vary raises an error."""
     with pytest.raises(ValidationError, match='names the states'):
         ObjectiveLaw(var('x') ** 2, []).prepare()
+
+
+def test_get_targets_reads_the_controls():
+    """An objective with controls steers them over a run, so they are its targets."""
+    x, u = var('x u')
+    law = ObjectiveLaw(x**2 + u**2, controls=[u], terminal=x)
+    assert law.prepare().targets_ == (u,)
+    assert law._get_law_requirements().time[0].__name__ == 'ContinuousTime'
+
+
+@pytest.mark.parametrize(
+    ('arguments', 'match'),
+    [({'targets': var('x'), 'controls': [var('u')]}, 'not both'), ({'targets': var('x'), 'terminal': 1}, 'controls')],
+)
+def test_prepare_rejects_targets_with_controls_or_a_terminal_cost(arguments, match):
+    """An objective takes targets or controls, and a terminal cost only with controls."""
+    with pytest.raises(ValidationError, match=match):
+        ObjectiveLaw(var('x') ** 2, **arguments).prepare()

@@ -8,8 +8,10 @@ COBRApy and StrainDesign run their analyses.
 
 from collections.abc import Sequence
 
-from ....core.components.spaces import StaticTime
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components import Observable
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 from ..common.metabolism import load_network
 
 
@@ -29,14 +31,19 @@ class MetabolicPerturbationsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         MissingExtraError:
             The extra is not installed.
 
     Examples:
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.biology.systems_biology import MetabolicPerturbationsSystem
-        >>> trajectory = simulate(MetabolicPerturbationsSystem(genes=('b4025',)), until=0.0)
+        >>> trajectory = MetabolicPerturbationsSystem(genes=('b4025',)).prepare().simulate(until=0.0)
         >>> round(float(trajectory.get_values('cell.objective_0')[0]), 3)
         0.863
     """
@@ -51,12 +58,20 @@ class MetabolicPerturbationsSystem(BaseSystem):
         genes: Sequence[str] = (),
         *,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.genes = genes
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the E. coli core system with some genes knocked out."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the E. coli core system with some genes knocked out.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         element = load_network('textbook', 'cell', needed_by='metabolic_perturbations')
         element.set_params(**{element.get_gene_name(gene): 0.0 for gene in self.genes})
-        return CompositeSystem(self.label, elements=[element], time=StaticTime())
+        self.system_ = System(self.label, elements=[element])

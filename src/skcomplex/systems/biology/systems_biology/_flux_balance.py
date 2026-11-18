@@ -6,9 +6,13 @@ The Escherichia coli core system needs the extra.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.components.spaces import StaticTime
-from ....core.components.systems import BaseSystem, CompositeSystem
+from collections.abc import Sequence
+
+from ....core.components import Observable
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
+from ....core.systems import BaseSystem, System
 from ..common.metabolism import ToyNetworkElement, load_network
 
 NETWORKS = ('toy', 'ecoli')
@@ -38,6 +42,12 @@ class FluxBalanceSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The network is unknown.
@@ -46,9 +56,8 @@ class FluxBalanceSystem(BaseSystem):
             The E. coli core system needs the extra, which is not installed.
 
     Examples:
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.biology.systems_biology import FluxBalanceSystem
-        >>> trajectory = simulate(FluxBalanceSystem(), until=0.0)
+        >>> trajectory = FluxBalanceSystem().prepare().simulate(until=0.0)
         >>> round(float(trajectory.get_values('cell.v_vbio')[0]), 6)
         50.0
     """
@@ -65,25 +74,33 @@ class FluxBalanceSystem(BaseSystem):
         oxygen: float = 1000.0,
         parsimonious: bool = False,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.network = network
         self.oxygen = oxygen
         self.parsimonious = parsimonious
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of flux balance analysis of a metabolic network."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of flux balance analysis of a metabolic network.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         if self.network not in NETWORKS:
             error_msg = f'Unknown network {self.network!r}. Use one of {", ".join(NETWORKS)}.'
             raise ValidationError(error_msg)
         if self.network == 'toy':
-            return CompositeSystem(
+            self.system_ = System(
                 self.label,
                 elements=[ToyNetworkElement('cell', parsimonious=self.parsimonious)],
-                time=StaticTime(),
             )
+            return
         element = load_network('textbook', 'cell', needed_by='flux_balance')
         element.parsimonious = self.parsimonious
         identifier = f'lower_{element._get_identifier(OXYGEN_EXCHANGE)}'
         element.set_params(**{identifier: -float(self.oxygen)})
-        return CompositeSystem(self.label, elements=[element], time=StaticTime())
+        self.system_ = System(self.label, elements=[element])

@@ -6,7 +6,7 @@ The module holds the Bak-Sneppen system of punctuated equilibrium.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -15,13 +15,23 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import minimum, neighbors, uniform, where
-from ....core.components.spaces import AdjacencyNeighborhood, LatticeNeighborhood, LatticeSpace, NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.backends import NumbaBackend
-from ....core.specs import StateSpec, VisualSpec
+from ....core.components.spaces import (
+    AdjacencyNeighborhood,
+    BaseSpace,
+    LatticeNeighborhood,
+    LatticeSpace,
+    NetworkSpace,
+)
+from ....core.engine.backends import BaseBackend, NumbaBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import Role, VisualSpec
+from ....core.systems import BaseSystem, System
+from ....core.types import Array
 
 SPECIES_NEIGHBORHOODS: dict[str, LatticeNeighborhood | AdjacencyNeighborhood] = {
     'ring': LatticeNeighborhood(((-1,), (1,))),
@@ -30,9 +40,39 @@ SPECIES_NEIGHBORHOODS: dict[str, LatticeNeighborhood | AdjacencyNeighborhood] = 
 
 
 class SpeciesElement(Element):
-    """Species of the Bak-Sneppen system, with a fitness in the unit interval.
+    """Species with a fitness in the unit interval, one per site of a space.
 
-    The fitness depends on the neighbours of the species.
+    Args:
+        label:
+            The label of the species.
+
+        fitness:
+            The initial fitness, one per species or shared.
+
+        space:
+            The ring or the graph whose sites hold one species each, or `None` for one species.
+
+    Examples:
+        >>> from skcomplex.systems.biology.evolution import SpeciesElement
+        >>> SpeciesElement('species', fitness=0.2).fitness
+        0.2
+    """
+
+    visual = VisualSpec('image', {'states': ('fitness',), 'low': 0.0, 'high': 1.0, 'history': 256})
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        fitness: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.5,
+        space: BaseSpace | None = None,
+    ) -> None:
+        super().__init__(label, space=space)
+        self.fitness = fitness
+
+
+class ExtinctionInteraction(Interaction):
+    """Extinctions of the Bak-Sneppen system, which renew the least fit species and its neighbours.
 
     Every step is one extinction. The least fit species of the group and its neighbours take new fitnesses, drawn
     uniformly from the unit interval, and every other species keeps its fitness. A species renews when the smallest
@@ -42,49 +82,41 @@ class SpeciesElement(Element):
 
     Args:
         label:
-            The label of the species or the lattice group.
+            The label of the interaction.
 
-        fitness:
-            The initial fitness.
+        target:
+            The path of the species, whose value is `fitness`.
 
         neighbors:
             `'ring'` for the two neighbours on a ring or `'graph'` for the neighbours of a node.
 
     Examples:
-        >>> from skcomplex.systems.biology.evolution import SpeciesElement
-        >>> SpeciesElement('species').neighbors
+        >>> from skcomplex.systems.biology.evolution import ExtinctionInteraction
+        >>> ExtinctionInteraction('extinction', target='species').neighbors
         'ring'
     """
 
-    visual = VisualSpec('image', {'states': ('fitness',), 'low': 0.0, 'high': 1.0, 'history': 256})
     law_classes = (UpdateLaw,)
     draws = True
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        fitness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        neighbors: str = 'ring',
-    ) -> None:
+    def __init__(self, label: str, *, target: Role, neighbors: str = 'ring') -> None:
         super().__init__(label)
-        self.fitness = fitness
+        self.target = target
         self.neighbors = neighbors
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the update that renews the least fit species and its neighbours.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the update that renews the least fit species and its neighbours.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        around = neighbors(s.other.fitness, over=SPECIES_NEIGHBORHOODS[self.neighbors], reduce='min')
-        renewed = minimum(s.fitness, around) == minimum(s.fitness)
-        return [UpdateLaw(s.fitness, where(renewed, uniform('fitness'), s.fitness), label='extinction')]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            fitness = context.target.fitness
+            around = neighbors(context.target.other.fitness, over=SPECIES_NEIGHBORHOODS[self.neighbors], reduce='min')
+            renewed = minimum(fitness, around) == minimum(fitness)
+            self.laws_ = [UpdateLaw(fitness, where(renewed, uniform('fitness'), fitness), label='extinction')]
 
 
 class BakSneppenSystem(BaseSystem):
@@ -109,9 +141,15 @@ class BakSneppenSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.evolution import BakSneppenSystem
-        >>> BakSneppenSystem(50).prepare().system_.elements[0].values['neighbors']
+        >>> BakSneppenSystem(50).prepare().system_.interactions[0].neighbors
         'ring'
     """
 
@@ -120,7 +158,6 @@ class BakSneppenSystem(BaseSystem):
     references = ('Bak and Sneppen 1993', 'Gros 2015', 'Jensen 2023')
     until = 400_000
     dt = 2_000
-    backend = NumbaBackend()
 
     def __init__(
         self,
@@ -129,25 +166,29 @@ class BakSneppenSystem(BaseSystem):
         graph: nx.Graph | None = None,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.size = size
         self.graph = graph
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the Bak-Sneppen system."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the Bak-Sneppen system.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         space = (LatticeSpace(self.size) if self.graph is None else NetworkSpace(self.graph)).prepare()
         count = int(space.size_ or 0)
         fitness = np.random.default_rng(self.random_state).random(count)
-        species = GroupElement(
-            'species',
-            element=SpeciesElement,
-            space=space,
-            values={
-                'fitness': fitness,
-                'neighbors': 'ring' if self.graph is None else 'graph',
-            },
-            on='sites',
+        species = SpeciesElement('species', fitness=fitness, space=space)
+        extinction = ExtinctionInteraction(
+            'extinction',
+            target='species',
+            neighbors='ring' if self.graph is None else 'graph',
         )
-        return CompositeSystem(self.label, elements=[species])
+        self.system_ = System(self.label, elements=[species], interactions=[extinction], backend=NumbaBackend())

@@ -14,7 +14,6 @@ size, the hubs fastest.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.epidemiology import HeterogeneousMeanFieldSIRSystem
 
@@ -24,11 +23,10 @@ degrees = np.arange(3, 31, dtype=float)
 probabilities = degrees**-2.5 / np.sum(degrees**-2.5)
 first, second = np.sum(degrees * probabilities), np.sum(degrees**2 * probabilities)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(
-    HeterogeneousMeanFieldSIRSystem(k_max=30, beta=2.5 * first / second),
-    until=40,
-    dt=0.5,
-    observers=[observer],
+trajectory = (
+    HeterogeneousMeanFieldSIRSystem(k_max=30, beta=2.5 * first / second)
+    .prepare()
+    .simulate(until=40, dt=0.5, observers=[observer])
 )
 
 # %%
@@ -41,11 +39,10 @@ trajectory = simulate(
 
 rates = np.linspace(0.2, 3.0, 15) * first / second
 final_sizes = [
-    simulate(
-        HeterogeneousMeanFieldSIRSystem(k_max=30, beta=rate, infected=1e-6),
-        until=300,
-        dt=1.0,
-    ).get_values(
+    HeterogeneousMeanFieldSIRSystem(k_max=30, beta=rate, infected=1e-6)
+    .prepare()
+    .simulate(until=300, dt=1.0)
+    .get_values(
         'recovered',
     )[-1]
     for rate in rates

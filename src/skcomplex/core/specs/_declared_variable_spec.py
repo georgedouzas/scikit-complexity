@@ -1,4 +1,4 @@
-"""Define the spec of a variable an element declares from data."""
+"""Define the spec of a variable a component declares from data."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -8,14 +8,15 @@ from dataclasses import dataclass
 from ..errors import ValidationError
 from ._base_spec import BaseSpec
 from ._parameter_spec import ParameterSpec
+from ._role_spec import RoleSpec
 from ._state_spec import StateSpec
 
 
 @dataclass(frozen=True)
 class DeclaredVariableSpec(BaseSpec):
-    """A spec of a state or parameter that an element takes as data.
+    """A spec of a state, parameter, or role that a component takes as data.
 
-    It holds the initial value of the variable.
+    It holds the initial value of the variable, or the label a role binds.
 
     Args:
         value:
@@ -26,7 +27,7 @@ class DeclaredVariableSpec(BaseSpec):
 
     Raises:
         ValidationError:
-            The spec is neither a `StateSpec` nor a `ParameterSpec`, raised when its owner checks it.
+            The spec is no `StateSpec`, `ParameterSpec`, or `RoleSpec`, raised when its owner checks it.
 
     Examples:
         >>> from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
@@ -35,16 +36,18 @@ class DeclaredVariableSpec(BaseSpec):
     """
 
     value: object
-    spec: StateSpec | ParameterSpec
+    spec: StateSpec | ParameterSpec | RoleSpec
 
     def _check(self) -> None:
-        """Raise an error for a spec that declares neither a state nor a parameter.
+        """Raise an error for a spec that declares no state, parameter, or role.
 
         Raises:
             ValidationError:
-                The spec is neither a `StateSpec` nor a `ParameterSpec`.
+                The spec is no `StateSpec`, `ParameterSpec`, or `RoleSpec`.
         """
-        if not isinstance(self.spec, StateSpec | ParameterSpec):
-            error_msg = f'A declared variable takes a StateSpec or a ParameterSpec, but its spec is {self.spec!r}.'
+        if not isinstance(self.spec, StateSpec | ParameterSpec | RoleSpec):
+            error_msg = (
+                f'A declared variable takes a StateSpec, a ParameterSpec, or a RoleSpec, but its spec is {self.spec!r}.'
+            )
             raise ValidationError(error_msg)
         self.spec._check()

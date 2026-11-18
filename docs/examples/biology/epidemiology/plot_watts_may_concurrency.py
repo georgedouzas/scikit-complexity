@@ -12,14 +12,13 @@ partners, so the same partner and infection rates spread the epidemic faster.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.epidemiology import WattsMayConcurrencySystem
 
 SYSTEM = 'watts_may_concurrency'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(WattsMayConcurrencySystem(tau=3.0), observers=[observer])
+trajectory = WattsMayConcurrencySystem(tau=3.0).prepare().simulate(observers=[observer])
 
 # %%
 # Longer partnerships spread faster
@@ -29,7 +28,7 @@ trajectory = simulate(WattsMayConcurrencySystem(tau=3.0), observers=[observer])
 
 fig, ax = plt.subplots(figsize=(7, 4.5))
 for tau in (0.25, 1.0, 3.0):
-    run = simulate(WattsMayConcurrencySystem(tau=tau))
+    run = WattsMayConcurrencySystem(tau=tau).prepare().simulate()
     ax.plot(run.times, run.get_values('population.I'), label=f'tau = {tau}')
 ax.set_xlabel('time (years)')
 ax.set_ylabel('infectious fraction I')

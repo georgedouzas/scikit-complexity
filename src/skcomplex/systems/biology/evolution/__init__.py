@@ -11,12 +11,13 @@ from ._assembly import (
     PolymerElement,
     PolymerJoiningInteraction,
 )
-from ._coevolution import BakSneppenSystem, SpeciesElement
-from ._drift import AlleleFrequencyElement, KimuraDiffusionSystem
+from ._coevolution import BakSneppenSystem, ExtinctionInteraction, SpeciesElement
+from ._drift import AlleleFrequencyElement, KimuraDiffusionSystem, KimuraDriftInteraction
 from ._finite_populations import (
     AdaptiveClimbingInteraction,
     AdaptiveClimbingSystem,
     ClimberElement,
+    ClimbingInteraction,
     IndividualElement,
     MoranProcessSystem,
     MoranStepInteraction,
@@ -72,6 +73,7 @@ __all__: list[str] = [
     'CatalysisInteraction',
     'ChemicalElement',
     'ClimberElement',
+    'ClimbingInteraction',
     'CoevolutionaryClimbingInteraction',
     'CoevolvingSpeciesElement',
     'CompetingSpeciesElement',
@@ -81,11 +83,13 @@ __all__: list[str] = [
     'CyclicSpeciesElement',
     'DependencyFieldInteraction',
     'EigenQuasispeciesSystem',
+    'ExtinctionInteraction',
     'GenotypeClassElement',
     'HypercyclesSystem',
     'IndividualElement',
     'JainKrishnaSystem',
     'KimuraDiffusionSystem',
+    'KimuraDriftInteraction',
     'LocusElement',
     'MasterSequenceElement',
     'MoleculeElement',

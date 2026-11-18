@@ -76,9 +76,10 @@ class RewritingInteraction(Interaction):
                 A law is neither a production nor a substitution.
         """
         super()._prepare(context)
-        wrong = [law for law in self.laws if not isinstance(law, ProductionLaw | SubstitutionLaw)]
+        laws = list(self.laws) if isinstance(self.laws, list | tuple) else []
+        wrong = [law for law in laws if not isinstance(law, ProductionLaw | SubstitutionLaw)]
         if wrong:
             error_msg = f'{self.label!r} rewrites by {wrong[0]!r}. Give ProductionLaw or SubstitutionLaw laws.'
             raise RewritingError(error_msg)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = list(self.laws)
+            self.laws_: list[BaseComponent] = laws

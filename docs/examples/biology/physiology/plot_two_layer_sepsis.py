@@ -15,14 +15,13 @@ import math
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.physiology import TwoLayerSepsisSystem
 
 SYSTEM = 'two_layer_sepsis'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(TwoLayerSepsisSystem(), observers=[observer])
+trajectory = TwoLayerSepsisSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Healthy and pathological states
@@ -33,7 +32,7 @@ trajectory = simulate(TwoLayerSepsisSystem(), observers=[observer])
 betas = np.linspace(0.2, 0.6, 5) * math.pi
 spreads = []
 for beta in betas:
-    run = simulate(TwoLayerSepsisSystem(beta=beta))
+    run = TwoLayerSepsisSystem(beta=beta).prepare().simulate()
     phases = np.unwrap(run.get_values('cells.phi'), axis=0)
     spreads.append(((phases[-1] - phases[-51]) / 50)[:20].std())
 fig, ax = plt.subplots(figsize=(7, 4.5))

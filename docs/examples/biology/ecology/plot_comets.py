@@ -14,7 +14,6 @@ diffusion coefficients, inoculum, and step of 0.1 h, for the first 14 h.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import IMEXEulerSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import CometsSystem
@@ -26,12 +25,10 @@ INTERVAL = 4
 INOCULUM_PER_LEVEL = 3.0
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=INTERVAL)
-trajectory = simulate(
-    CometsSystem(shape=SHAPE),
-    until=14.0,
-    dt=STEP,
-    solver=IMEXEulerSolver(dt=STEP),
-    observers=[observer],
+trajectory = (
+    CometsSystem(shape=SHAPE, solver=IMEXEulerSolver(dt=STEP))
+    .prepare()
+    .simulate(until=14.0, dt=STEP, observers=[observer])
 )
 
 # %%

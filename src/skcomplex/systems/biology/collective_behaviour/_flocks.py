@@ -13,17 +13,16 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
-from ....core import systems
 from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction, MapInteraction, PairInteraction
 from ....core.components.laws import RateLaw
 from ....core.components.spaces import BaseSpace, ContinuousSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver, SystemView
 from ....core.specs import ParameterSpec, Role, RoleSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ...general.agents import MovementInteraction
 from ...general.elements import PointElement
@@ -601,9 +600,15 @@ class BoidsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.collective_behaviour import BoidsSystem
-        >>> BoidsSystem(10).prepare().system_.elements[0].prepare().size_
+        >>> BoidsSystem(10).prepare().system_.elements[0].size
         10
     """
 
@@ -624,8 +629,10 @@ class BoidsSystem(BaseSystem):
         alignment: float = 0.1,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_boids = n_boids
         self.size = size
         self.radius = radius
@@ -634,11 +641,14 @@ class BoidsSystem(BaseSystem):
         self.alignment = alignment
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of Reynolds' boids in two dimensions.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of Reynolds' boids in two dimensions.
 
-        The boids are birds that flock by local rules without a leader.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         headings = rng.uniform(0.0, 2 * math.pi, self.n_boids)
         flock = GroupElement(
@@ -658,7 +668,7 @@ class BoidsSystem(BaseSystem):
             location=[tuple(point) for point in rng.uniform(0.0, self.size, (self.n_boids, 2))],
         )
         interactions = [FlockingInteraction('flocking', target='flock'), FlightInteraction('flight', target='flock')]
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[flock],
             interactions=interactions,
@@ -698,6 +708,12 @@ class Boids3dSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.collective_behaviour import Boids3dSystem
         >>> Boids3dSystem(10).prepare().system_.space.extent
@@ -721,8 +737,10 @@ class Boids3dSystem(BaseSystem):
         alignment: float = 0.1,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_boids = n_boids
         self.size = size
         self.radius = radius
@@ -731,11 +749,14 @@ class Boids3dSystem(BaseSystem):
         self.alignment = alignment
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of Boids in three dimensions.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of Boids in three dimensions.
 
-        The boids are birds that flock by local rules in a periodic cube.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         headings = rng.normal(size=(self.n_boids, 3))
         flock = GroupElement(
@@ -755,7 +776,7 @@ class Boids3dSystem(BaseSystem):
             HeadingInteraction('heading', target='flock'),
             SpatialFlightInteraction('flight', target='flock'),
         ]
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[flock],
             interactions=interactions,
@@ -763,7 +784,7 @@ class Boids3dSystem(BaseSystem):
         )
 
 
-class BirdSwarmSystem(systems.BaseSystem):
+class BirdSwarmSystem(BaseSystem):
     """A swarm of self-propelled birds held together by a pair potential.
 
     The potential attracts far and repels near.
@@ -866,4 +887,4 @@ class BirdSwarmSystem(systems.BaseSystem):
             l_r=self.l_r,
         )
         flight = SelfPropulsionInteraction('flight', target='birds', alpha=self.alpha, beta=self.beta)
-        self.system_ = systems.System(self.label, elements=[birds], interactions=[potential, flight], space=plane)
+        self.system_ = System(self.label, elements=[birds], interactions=[potential, flight], space=plane)

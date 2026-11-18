@@ -6,6 +6,7 @@ They cover quenched mean field, adaptive rewiring, and activity-driven temporal 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -14,14 +15,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import TopologyInteraction, TransitionInteraction
 from ....core.components.laws.utils import neighbors
-from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.spaces import NetworkSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ...general.dynamics import NetworkDynamicalSystem
 from ...general.dynamics.types import Equations
 from ..common.networks import HostElement, SpreadingInteraction
@@ -211,6 +213,12 @@ class AdaptiveSISSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import AdaptiveSISSystem
         >>> [component.label for component in AdaptiveSISSystem(n=20).prepare().system_.elements]
@@ -234,8 +242,10 @@ class AdaptiveSISSystem(BaseSystem):
         infected: float = 0.2,
         seed: int | None = 1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.k = k
         self.beta = beta
@@ -278,8 +288,14 @@ class AdaptiveSISSystem(BaseSystem):
         """Return an Erdős-Rényi network of `n` nodes with mean degree `k`."""
         return NetworkSpace(nx.gnp_random_graph(n, k / (n - 1), seed=seed))
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the SIS epidemic on a network."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the SIS epidemic on a network.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         space = self._get_random_network(self.n, self.k, self.seed)
         initial = (np.random.default_rng(self.seed).random(self.n) < self.infected).astype(float)
         hosts = GroupElement(
@@ -301,7 +317,7 @@ class AdaptiveSISSystem(BaseSystem):
             capacity=edges,
         )
         spreading = SpreadingInteraction('spreading', target='hosts', state='i', beta=self.beta, gamma=self.gamma)
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[hosts, contacts],
             interactions=[spreading, self._get_rewiring('source'), self._get_rewiring('target')],
@@ -346,6 +362,12 @@ class ActivityDrivenEpidemicsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import ActivityDrivenEpidemicsSystem
         >>> float(ActivityDrivenEpidemicsSystem(n=10, seed=0).prepare().system_.elements[0].values['a'].min()) >= 0.01
@@ -370,8 +392,10 @@ class ActivityDrivenEpidemicsSystem(BaseSystem):
         infected: float = 0.05,
         seed: int | None = 1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.m = m
         self.exponent = exponent
@@ -401,11 +425,14 @@ class ActivityDrivenEpidemicsSystem(BaseSystem):
         probability: Expression = s.target.mu
         return probability
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of SIS spreading on an activity-driven temporal network.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of SIS spreading on an activity-driven temporal network.
 
-        The edges of the network last one step.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         rng = np.random.default_rng(self.seed)
         activities = np.minimum(self.least * (1 - rng.random(self.n)) ** (-1 / (self.exponent - 1)), 1.0)
         initial = (rng.random(self.n) < self.infected).astype(float)
@@ -427,7 +454,7 @@ class ActivityDrivenEpidemicsSystem(BaseSystem):
             variable=True,
             capacity=2 * self.m * self.n,
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[hosts, contacts],
             interactions=[
@@ -456,5 +483,4 @@ class ActivityDrivenEpidemicsSystem(BaseSystem):
                     probability=self._get_recovery,
                 ),
             ],
-            time=DiscreteTime(),
         )

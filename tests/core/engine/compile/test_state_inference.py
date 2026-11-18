@@ -262,6 +262,17 @@ def test_get_declared_starts_a_derivative_from_a_value():
     assert trajectory.get_values('ball.x')[-1] == pytest.approx(10.0 + 3.0 - 9.81 / 2)
 
 
+def test_get_declared_moves_a_value_with_a_starting_velocity_and_no_law():
+    """Test that a point given the velocity `x'` and no law moves at that velocity, as Newton's first law says."""
+    ball = Element('ball', values={'x': 1.0, "x'": 3.0})
+    system = System(elements=[ball]).prepare()
+    assert system.states_ == ('ball.x', "ball.x'")
+    assert system.equations_ == {'ball.x': "ball.x'", "ball.x'": '0'}
+    trajectory = system.simulate(until=2.0, dt=1.0)
+    assert trajectory.get_values('ball.x').tolist() == pytest.approx([1.0, 4.0, 7.0])
+    assert trajectory.get_values("ball.x'").tolist() == pytest.approx([3.0, 3.0, 3.0])
+
+
 def test_get_declared_starts_past_values_from_values():
     """Test that values named with past indices start the lags, and a missing one is the value itself."""
     economy = Element('economy', values={'y': 1.0, 'y[-2]': 0.5})

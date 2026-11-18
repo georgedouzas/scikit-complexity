@@ -3,7 +3,6 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.experiments import sweep
 from skcomplex.systems.biology.common.metabolism import flux_variability
 from skcomplex.systems.biology.systems_biology import FluxBalanceSystem
@@ -11,7 +10,7 @@ from skcomplex.systems.biology.systems_biology import FluxBalanceSystem
 
 def test_flux_balance_reaches_the_growth_of_raman():
     """Test that the default toy network grows at 50, as Raman Eq. 8.9 gives."""
-    trajectory = simulate(FluxBalanceSystem())
+    trajectory = FluxBalanceSystem().prepare().simulate()
     assert float(trajectory.get_values('cell.v_vbio')[0]) == pytest.approx(50, abs=1e-9)
     assert float(trajectory.get_values('cell.v_v6')[0]) == pytest.approx(1000)
 
@@ -36,7 +35,7 @@ def test_flux_balance_variability_gives_the_ranges_of_raman():
 
 def test_flux_balance_parsimonious_uses_the_smallest_total():
     """Test that the parsimonious solution reaches the same growth with the smallest total flux."""
-    trajectory = simulate(FluxBalanceSystem(parsimonious=True))
+    trajectory = FluxBalanceSystem(parsimonious=True).prepare().simulate()
     assert float(trajectory.get_values('cell.objective_0')[0]) == pytest.approx(50)
     assert float(trajectory.get_values('cell.objective_1')[0]) == pytest.approx(3950)
 

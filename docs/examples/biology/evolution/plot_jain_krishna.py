@@ -15,14 +15,13 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.evolution import JainKrishnaSystem
 
 SYSTEM = 'jain_krishna'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(JainKrishnaSystem(), observers=[observer], random_state=1, until=1490)
+trajectory = JainKrishnaSystem().prepare().simulate(observers=[observer], random_state=1, until=1490)
 
 # %%
 # The rise of the autocatalytic set

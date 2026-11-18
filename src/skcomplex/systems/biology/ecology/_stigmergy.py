@@ -4,7 +4,7 @@
 # License: MIT
 
 import itertools
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from functools import partial
 from typing import Annotated, ClassVar
 
@@ -13,14 +13,17 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element, FieldElement, GroupElement
 from ....core.components.interactions import MapInteraction, TransferInteraction
 from ....core.components.laws import Source
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.systems import CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.engine.solvers import AgentView
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ...general.agents import BirthDeathInteraction, MovementInteraction
 from ..common.stigmergy import EvaporationInteraction
 
@@ -424,6 +427,12 @@ class StigmergicPredatorPreySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.ecology import StigmergicPredatorPreySystem
         >>> system = StigmergicPredatorPreySystem(10, 10, plants=20, prey=10, predators=5).prepare().system_
@@ -449,8 +458,10 @@ class StigmergicPredatorPreySystem(BaseSystem):
         decay: float = 0.2,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.width = width
         self.height = height
         self.plants = plants
@@ -762,8 +773,14 @@ class StigmergicPredatorPreySystem(BaseSystem):
         bounds = np.cumsum([0, *counts])
         return [cells[start:end] for start, end in itertools.pairwise(bounds)]
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of plants, prey, and predators on a grid."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of plants, prey, and predators on a grid.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         plant_cells, prey_cells, predator_cells = self._get_random_cells(
             rng,
@@ -812,7 +829,7 @@ class StigmergicPredatorPreySystem(BaseSystem):
             EvaporationInteraction(f'evaporation_{mark}', target='marks', state=mark, evaporation='decay')
             for mark in EMOTIONS
         ]
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             systems=[life, CompositeSystem('ground', elements=[marks], interactions=evaporations)],
             interactions=[

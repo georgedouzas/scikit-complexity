@@ -15,7 +15,6 @@ variational inference fits them.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.experiments import calibrate
 from skcomplex.systems.biology.epidemiology import DifferentiableCovidAbmSystem
@@ -24,7 +23,7 @@ SYSTEM = 'differentiable_covid_abm'
 BETAS = {'beta_household': 0.9, 'beta_school': 0.6, 'beta_company': 0.3}
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(DifferentiableCovidAbmSystem(), observers=[observer], random_state=0)
+trajectory = DifferentiableCovidAbmSystem().prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Daily infections of children and adults
@@ -50,7 +49,7 @@ plt.show()
 # transmissions, with the trade-off between households and the other places that Quera-Bofarull et al. find.
 
 times = np.arange(31.0)
-runs = [simulate(DifferentiableCovidAbmSystem(), random_state=seed) for seed in range(20)]
+runs = [DifferentiableCovidAbmSystem().prepare().simulate(random_state=seed) for seed in range(20)]
 paths = ('cases.children', 'cases.adults')
 data = {path: (times, np.mean([run.get_values(path) for run in runs], axis=0)) for path in paths}
 posterior = calibrate(

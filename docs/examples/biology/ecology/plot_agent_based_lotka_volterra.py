@@ -13,18 +13,16 @@ cycles irregular.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import AgentBasedLotkaVolterraSystem
 
 SYSTEM = 'agent_based_lotka_volterra'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(
-    AgentBasedLotkaVolterraSystem(prey=300, predators=60, random_state=0),
-    dt=1,
-    observers=[observer],
-    random_state=0,
+trajectory = (
+    AgentBasedLotkaVolterraSystem(prey=300, predators=60, random_state=0)
+    .prepare()
+    .simulate(dt=1, observers=[observer], random_state=0)
 )
 
 # %%

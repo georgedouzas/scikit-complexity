@@ -13,14 +13,15 @@ that chase each other, and each keeps about a third of the lattice.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.evolution import RockPaperScissorsSystem
 
 SYSTEM = 'rock_paper_scissors'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(RockPaperScissorsSystem(shape=(60, 60), random_state=0), observers=[observer], random_state=0)
+trajectory = (
+    RockPaperScissorsSystem(shape=(60, 60), random_state=0).prepare().simulate(observers=[observer], random_state=0)
+)
 
 # %%
 # Coexistence of the three strategies

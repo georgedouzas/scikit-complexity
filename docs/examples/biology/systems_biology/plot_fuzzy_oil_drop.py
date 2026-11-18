@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import chain_shape
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.systems_biology import (
     BackboneGeometry,
@@ -27,7 +26,7 @@ from skcomplex.systems.biology.systems_biology import (
 SYSTEM = 'fuzzy_oil_drop'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(FuzzyOilDropSystem(), observers=[observer], random_state=0)
+trajectory = FuzzyOilDropSystem().prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Distributions of one system
@@ -63,7 +62,7 @@ plt.show()
 # the chain somewhat more compact: the radius of gyration falls from 19.7 Å to 17.4 Å, far from the 7.3 Å of the first
 # NMR system.
 
-folded = simulate(FuzzyOilDropSystem(dynamics='folding'), until=200, random_state=0)
+folded = FuzzyOilDropSystem(dynamics='folding').prepare().simulate(until=200, random_state=0)
 geometry = BackboneGeometry(structure).prepare()
 angles = folded.get_lattice('chain.angle').astype(float)[:, 0]
 chains = np.array([geometry.run(row).read_effective_atoms() for row in angles[::20]])

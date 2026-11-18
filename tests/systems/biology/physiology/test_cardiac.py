@@ -2,18 +2,18 @@
 
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.systems.biology.physiology import AlievPanfilovSystem, BarkleySystem
 
 
 def test_aliev_panfilov_sustains_a_spiral():
     """Test that the broken wave in the Aliev-Panfilov tissue keeps the tissue active, as a re-entrant spiral."""
-    trajectory = simulate(
-        AlievPanfilovSystem((50, 50)).prepare().system_,
-        until=400,
-        dt=50.0,
-        solver=RK4Solver(dt=0.05),
+    trajectory = (
+        AlievPanfilovSystem((50, 50))
+        .prepare()
+        .system_.set_params(solver=RK4Solver(dt=0.05))
+        .prepare()
+        .simulate(until=400, dt=50.0)
     )
     excited = (trajectory.get_values('tissue.u') > 0.5).mean(axis=1)
     assert np.all(excited[1:] > 0.05)

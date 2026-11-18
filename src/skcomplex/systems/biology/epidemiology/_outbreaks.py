@@ -6,6 +6,7 @@ The outbreaks spread on networks of heterogeneous degree.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -16,8 +17,10 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction, TransferInteraction
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 
 
 class ImmunizingDegreeClassElement(Element):
@@ -135,9 +138,15 @@ class HeterogeneousMeanFieldSIRSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import HeterogeneousMeanFieldSIRSystem
-        >>> HeterogeneousMeanFieldSIRSystem(k_min=2, k_max=5).prepare().system_.elements[0].prepare().size_
+        >>> HeterogeneousMeanFieldSIRSystem(k_min=2, k_max=5).prepare().system_.elements[0].size
         4
     """
 
@@ -165,8 +174,10 @@ class HeterogeneousMeanFieldSIRSystem(BaseSystem):
         mu: float = 1.0,
         infected: float = 1e-4,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.exponent = exponent
         self.k_min = k_min
         self.k_max = k_max
@@ -200,8 +211,14 @@ class HeterogeneousMeanFieldSIRSystem(BaseSystem):
         """Return the recovery `mu i_k` of a degree class."""
         return namespace.source.mu * namespace.source.i
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the SIR epidemic on an uncorrelated power-law network."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the SIR epidemic on an uncorrelated power-law network.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         degrees = np.arange(self.k_min, self.k_max + 1, dtype=float)
         weights = degrees**-self.exponent / np.sum(degrees**-self.exponent)
         classes = GroupElement(
@@ -250,4 +267,4 @@ class HeterogeneousMeanFieldSIRSystem(BaseSystem):
                 amount=self._get_recovery,
             ),
         ]
-        return CompositeSystem(self.label, elements=[classes], interactions=interactions)
+        self.system_ = System(self.label, elements=[classes], interactions=interactions)

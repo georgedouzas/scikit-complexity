@@ -616,9 +616,9 @@ See its [API entry][skcomplex.systems.general.dynamics].
 
 ## FlowInteraction
 
-A `FlowInteraction` moves an amount per unit of time from one stock of an element to another. It sets two rate terms
-that share its label, `RateLaw(leaves, -f, label=label)` and `RateLaw(enters, f, label=label)`, so what leaves one
-stock enters the other and the trajectory records the flow `f` under its label. The amount reads the values of the
+A `FlowInteraction` moves an amount per unit of time from one stock of an element to another. It sets one rate law
+whose target maps the stock it leaves to `-1` and the stock it enters to `+1`, `RateLaw({leaves: -1, enters: +1}, f,
+label=label)`, so what leaves one stock enters the other and the trajectory records the flow `f` under its label. The amount reads the values of the
 element from `s.target` and the time from `s.t`. Here people die at a rate of 0.05 and are counted among the dead.
 
 ```python

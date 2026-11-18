@@ -4,10 +4,15 @@
 # License: MIT
 
 
+from collections.abc import Sequence
+
+from ....core.components import Observable
 from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
-from ....core.engine.solvers import CoSimulationSolver, RK4Solver
+from ....core.components.systems import CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, CoSimulationSolver, RK4Solver
 from ....core.errors import ValidationError
+from ....core.systems import BaseSystem, System
 from ..common.metabolism import BiomassElement, ExchangeInteraction, GrowthInteraction, SubstrateElement, load_network
 
 APPROACHES = ('static', 'direct')
@@ -50,6 +55,12 @@ class DynamicFBASystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The approach is unknown.
@@ -79,8 +90,10 @@ class DynamicFBASystem(BaseSystem):
         km: float = 0.015,
         interval: float = SYNCHRONISATION,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.approach = approach
         self.biomass = biomass
         self.glucose = glucose
@@ -88,28 +101,14 @@ class DynamicFBASystem(BaseSystem):
         self.km = km
         self.interval = interval
 
-    def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a batch culture of the E. coli core system.
 
-        They hold the solver of the approach and the synchronisation interval.
-
-        Returns:
-            settings:
-                The tuned run settings by name.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        settings = super().get_run_settings()
-        settings['solver'] = (
-            CoSimulationSolver(sync_dt=self.interval, solvers={'culture': RK4Solver(dt=ODE_STEP)})
-            if self.approach == 'static'
-            else RK4Solver(dt=ODE_STEP)
-        )
-        return settings
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of a batch culture of the E. coli core system.
-
-        It needs the extra `metabolism`.
-        """
+        super()._prepare(context)
         if self.approach not in APPROACHES:
             error_msg = f'Unknown approach {self.approach!r}. Use one of {", ".join(APPROACHES)}.'
             raise ValidationError(error_msg)
@@ -133,12 +132,19 @@ class DynamicFBASystem(BaseSystem):
             GrowthInteraction('growth', cell=cell_path, biomass=biomass_path, reaction=GROWTH),
         ]
         if static:
-            return CompositeSystem(
+            self.system_ = System(
                 self.label,
                 systems=[
                     CompositeSystem('fba', elements=[cell], time=DiscreteTime()),
                     CompositeSystem('culture', elements=amounts),
                 ],
                 interactions=interactions,
+                solver=CoSimulationSolver(sync_dt=self.interval, solvers={'culture': RK4Solver(dt=ODE_STEP)}),
             )
-        return CompositeSystem(self.label, elements=[cell, *amounts], interactions=interactions)
+            return
+        self.system_ = System(
+            self.label,
+            elements=[cell, *amounts],
+            interactions=interactions,
+            solver=RK4Solver(dt=ODE_STEP),
+        )

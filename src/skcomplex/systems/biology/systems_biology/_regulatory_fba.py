@@ -10,13 +10,16 @@ from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
+from ....core.components import Observable
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import ContinuousTime, DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import CoSimulationSolver, RK4Solver
+from ....core.components.systems import CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, CoSimulationSolver, RK4Solver
 from ....core.specs import RoleSpec
+from ....core.systems import BaseSystem, System
 from ..common.metabolism import (
     BiomassElement,
     ExchangeInteraction,
@@ -129,6 +132,12 @@ class RegulatoryFBASystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         MissingExtraError:
             The extra is not installed.
@@ -144,7 +153,6 @@ class RegulatoryFBASystem(BaseSystem):
     references = ('Raman 2021', 'Covert et al. 2001')
     until = 8.0
     dt = SYNCHRONISATION
-    solver = CoSimulationSolver(sync_dt=SYNCHRONISATION, solvers={'culture': RK4Solver(dt=ODE_STEP)})
 
     def __init__(
         self,
@@ -157,8 +165,10 @@ class RegulatoryFBASystem(BaseSystem):
         acetate_vmax: float = 10.0,
         km: float = 0.015,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.biomass = biomass
         self.glucose = glucose
         self.acetate = acetate
@@ -167,11 +177,14 @@ class RegulatoryFBASystem(BaseSystem):
         self.acetate_vmax = acetate_vmax
         self.km = km
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of a batch culture with Boolean catabolite repression.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a batch culture with Boolean catabolite repression.
 
-        The culture grows on glucose and acetate.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         cell = load_network('textbook', 'cell', needed_by='regulatory_fba')
         cell.parsimonious, cell.infeasible = True, 'zero'
         identifier = cell._get_identifier(ACETATE_EXCHANGE)
@@ -188,7 +201,7 @@ class RegulatoryFBASystem(BaseSystem):
             )
             for position in range(1, self.lag + 1)
         ]
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             systems=[
                 CompositeSystem('control', elements=[cell, *nodes], time=DiscreteTime()),
@@ -237,4 +250,5 @@ class RegulatoryFBASystem(BaseSystem):
                 ),
                 GrowthInteraction('growth', cell='control/cell', biomass='culture/biomass', reaction=GROWTH),
             ],
+            solver=CoSimulationSolver(sync_dt=SYNCHRONISATION, solvers={'culture': RK4Solver(dt=ODE_STEP)}),
         )

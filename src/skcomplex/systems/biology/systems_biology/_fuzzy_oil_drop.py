@@ -22,13 +22,15 @@ from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import ArrayUpdateLaw, BaseLaw
-from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
+from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend
 from ....core.engine.problems import BaseProblemSpec, CompiledElementSpec, FrameSpec
 from ....core.engine.runtime import Trajectory
+from ....core.engine.solvers import BaseSolver
 from ....core.engine.viz import PointsVisual
 from ....core.errors import AnalysisError, ValidationError
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ..._extras import import_extra
 from ..common.sequences import RowScoreSpec, SequenceSamplingInteraction
@@ -141,6 +143,9 @@ class ChainCoordinateElement(Element):
         x:
             The coordinate in ångström.
 
+        space:
+            The lattice of the atoms and their coordinates, or `None` for one coordinate.
+
     Examples:
         >>> from skcomplex.systems.biology.systems_biology import ChainCoordinateElement
         >>> ChainCoordinateElement('site').x
@@ -149,8 +154,8 @@ class ChainCoordinateElement(Element):
 
     visual = VisualSpec(BackboneVisual, {'position': 'x'})
 
-    def __init__(self, label: str, x: Annotated[float, StateSpec()] = 0.0) -> None:
-        super().__init__(label)
+    def __init__(self, label: str, x: float | Array = 0.0, space: BaseSpace | None = None) -> None:
+        super().__init__(label, space=space)
         self.x = x
 
 
@@ -513,6 +518,12 @@ class FuzzyOilDropSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         MissingExtraError:
             The extra `structures` is not installed.
@@ -573,26 +584,20 @@ class FuzzyOilDropSystem(BaseSystem):
         width: float = 60.0,
         temperature: float = 0.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.entry = entry
         self.dynamics = dynamics
         self.proposals = proposals
         self.width = width
         self.temperature = temperature
 
-    def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings.
-
-        They hold the relative distance and the environment factor of the chain.
-
-        Returns:
-            settings:
-                The tuned run settings by name.
-        """
+    def _get_observables(self) -> tuple[Observable, ...]:
+        """Return the relative distance and the environment factor of the chain."""
         state = ANGLE_STATE if self.dynamics == 'folding' else COORDINATE_STATE
-        settings = super().get_run_settings()
-        settings['observables'] = [
+        return (
             Observable(
                 'RD',
                 function=partial(FuzzyOilDropSystem._read_observed_value, 'relative-distance', self.entry, state),
@@ -601,8 +606,7 @@ class FuzzyOilDropSystem(BaseSystem):
                 'K',
                 function=partial(FuzzyOilDropSystem._read_observed_value, 'environment-factor', self.entry, state),
             ),
-        ]
-        return settings
+        )
 
     @staticmethod
     def _rotate_dihedral(width: float, row: Array, rng: np.random.Generator) -> Array:
@@ -632,32 +636,37 @@ class FuzzyOilDropSystem(BaseSystem):
         positions = geometry.run(row).read_effective_atoms()
         return FuzzyOilDropSystem._read_value(structure, 'relative-distance', positions) + self._read_clashes(positions)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the fuzzy oil drop of a protein."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the fuzzy oil drop of a protein.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         import_extra('Bio.PDB', 'fuzzy_oil_drop', 'structures')
         if self.dynamics not in DYNAMICS:
             error_msg = f'Unknown dynamics {self.dynamics!r}. Use one of {", ".join(DYNAMICS)}.'
             raise ValidationError(error_msg)
+        self.observables_ = self._get_observables()
         structure = read_structure(self.entry)
         if self.dynamics == 'replay':
             ensemble = structure.effective_atoms
-            return CompositeSystem(
+            self.system_ = System(
                 self.label,
                 elements=[
-                    GroupElement(
+                    ChainCoordinateElement(
                         'chain',
-                        element=ChainCoordinateElement,
+                        x=ensemble[0],
                         space=LatticeSpace((ensemble.shape[1], COORDINATES), boundary='fixed'),
-                        values={'x': ensemble[0]},
-                        on='sites',
                     ),
                 ],
                 interactions=[EnsembleReplayInteraction('replay', target='chain', state='x', ensemble=ensemble)],
-                time=DiscreteTime(),
             )
+            return
         angles = np.full(BackboneGeometry(structure).prepare().angles_.size, EXTENDED_PHI)
         angles[angles.size // 2 :] = EXTENDED_PSI
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[
                 GroupElement(
@@ -678,5 +687,4 @@ class FuzzyOilDropSystem(BaseSystem):
                     intensity=float('inf') if self.temperature == 0 else 1 / self.temperature,
                 ),
             ],
-            time=DiscreteTime(),
         )

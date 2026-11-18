@@ -102,7 +102,7 @@ def test_default_blueprint_of_moran_process_shows_trait_statistics_and_histogram
 
     monkeypatch.setattr(rr.RecordingStream, 'log', log)
     observer = RerunObserver('moran', save_path=tmp_path / 'moran.rrd')
-    simulate(MoranProcessSystem().prepare().system_, until=10, observers=[observer], random_state=0)
+    MoranProcessSystem().prepare().simulate(until=10, observers=[observer], random_state=0)
     assert 'population/trait/mean' in logged
     assert 'population/fitness/mean' in logged
 

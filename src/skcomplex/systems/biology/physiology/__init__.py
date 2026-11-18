@@ -4,7 +4,12 @@ They cover delayed feedback, excitable tissue, the circulation, cell exchange, r
 """
 
 from ._adaptivity import AdaptiveResponderElement, AdaptiveResponseCostsSystem
-from ._cardiac import AlievPanfilovElement, AlievPanfilovSystem, BarkleySystem
+from ._cardiac import (
+    AlievPanfilovElement,
+    AlievPanfilovInteraction,
+    AlievPanfilovSystem,
+    BarkleySystem,
+)
 from ._cellular_potts import (
     CellAdhesionInteraction,
     CellularPottsSystem,
@@ -12,21 +17,31 @@ from ._cellular_potts import (
     RegionScoreSpec,
     TissueSiteElement,
 )
-from ._chemotaxis import ChemotacticTissueElement, HyperbolicChemotaxisSystem
+from ._chemotaxis import (
+    ChemotacticTissueElement,
+    HyperbolicChemotaxisInteraction,
+    HyperbolicChemotaxisSystem,
+)
 from ._circulation import CardiovascularSystem, ChamberElement, ResistiveFlowInteraction
 from ._disease import (
     AdaptivePhaseCouplingInteraction,
     CellOscillatorElement,
+    CellRotationInteraction,
     CytokineLinkElement,
     LayerCouplingInteraction,
     TwoLayerSepsisSystem,
 )
-from ._distribution_networks import BranchingVesselElement, WestBrownEnquistSystem
+from ._distribution_networks import (
+    BranchingVesselElement,
+    VesselSizingInteraction,
+    WestBrownEnquistSystem,
+)
 from ._exchange import (
     ClosedContourCellExchangeSystem,
     ContourCellElement,
     ContourUptakeInteraction,
     ExchangingCellElement,
+    MetabolismInteraction,
     NanotubeGapJunctionExchangeSystem,
 )
 from ._pharmacokinetics import TwoCompartmentElement, TwoCompartmentPharmacokineticsSystem
@@ -47,12 +62,14 @@ __all__: list[str] = [
     'AdaptiveResponderElement',
     'AdaptiveResponseCostsSystem',
     'AlievPanfilovElement',
+    'AlievPanfilovInteraction',
     'AlievPanfilovSystem',
     'BarkleySystem',
     'BranchingVesselElement',
     'CardiovascularSystem',
     'CellAdhesionInteraction',
     'CellOscillatorElement',
+    'CellRotationInteraction',
     'CellularPottsSystem',
     'ChamberElement',
     'ChemotacticTissueElement',
@@ -69,11 +86,13 @@ __all__: list[str] = [
     'FlowAdaptationInteraction',
     'GlucoseControlElement',
     'GlucoseDualHormoneControlSystem',
+    'HyperbolicChemotaxisInteraction',
     'HyperbolicChemotaxisSystem',
     'LayerCouplingInteraction',
     'MackeyGlassElement',
     'MackeyGlassInteraction',
     'MackeyGlassSystem',
+    'MetabolismInteraction',
     'NanotubeGapJunctionExchangeSystem',
     'RegionSamplingInteraction',
     'RegionScoreSpec',
@@ -84,5 +103,6 @@ __all__: list[str] = [
     'TwoCompartmentPharmacokineticsSystem',
     'TwoLayerSepsisSystem',
     'VesselSegmentElement',
+    'VesselSizingInteraction',
     'WestBrownEnquistSystem',
 ]

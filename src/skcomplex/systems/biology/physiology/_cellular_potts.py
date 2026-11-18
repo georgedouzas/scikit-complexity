@@ -23,21 +23,22 @@ from sage.sets.real_set import RealSet
 from scipy.spatial import Voronoi
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.interactions import SamplingInteraction
 from ....core.components.laws import ArrayUpdateLaw, BaseLaw
 from ....core.components.spaces import (
     AdjacencyNeighborhood,
     BaseNeighborhood,
     BaseSpace,
-    DiscreteTime,
     LatticeSpace,
     NetworkSpace,
     RadiusNeighborhood,
 )
-from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec, ParameterSpec, RoleSpec, StateSpec
+from ....core.specs import BaseSpec, ParameterSpec, RoleSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array, Indices
 
 MATRIX_AXES = 2
@@ -199,6 +200,9 @@ class TissueSiteElement(Element):
         cell:
             The initial label of the cell that covers the site, from 0.
 
+        space:
+            The lattice or network whose sites hold one site each, or `None` for one site.
+
     Attributes:
         default_visual_:
             How the site is drawn by default, the `visual` of its class.
@@ -213,9 +217,10 @@ class TissueSiteElement(Element):
         self,
         label: str,
         *,
-        cell: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        cell: Annotated[float | Array, NN] = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.cell = cell
 
 
@@ -253,7 +258,7 @@ class RegionSamplingInteraction(SamplingInteraction):
         >>> regions = np.kron(np.arange(4).reshape(2, 2), np.ones((4, 4)))
         >>> space = LatticeSpace((8, 8))
         >>> sites = GroupElement('sites', element=SiteElement, space=space, on='sites', values={'region': regions})
-        >>> system = CompositeSystem(elements=[sites], interactions=[copies], time=DiscreteTime())
+        >>> system = CompositeSystem(elements=[sites], interactions=[copies])
         >>> final = simulate(system, until=20, random_state=0).states[-1]
         >>> sorted(np.unique(final).tolist())
         [0.0, 1.0, 2.0, 3.0]
@@ -639,6 +644,12 @@ class CellularPottsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The lattice is unknown, or the shape is not a multiple of the cell shape.
@@ -710,7 +721,7 @@ class CellularPottsSystem(BaseSystem):
         return float(np.abs(areas - target_area).mean() / target_area)
 
     @staticmethod
-    def _get_cellular_potts_observables(system: CompositeSystem) -> list[Observable]:
+    def _get_cellular_potts_observables(system: System) -> list[Observable]:
         """Return the share of homotypic contacts and the deviation of the areas.
 
         The deviation is that of the areas from their target.
@@ -751,8 +762,10 @@ class CellularPottsSystem(BaseSystem):
         hits: int = 1,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.lattice = lattice
         self.cell_shape = cell_shape
@@ -763,19 +776,6 @@ class CellularPottsSystem(BaseSystem):
         self.target_perimeter = target_perimeter
         self.hits = hits
         self.random_state = random_state
-
-    def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings, with the observables of the built components.
-
-        The observables are the homotypic contacts and the deviation of the areas.
-
-        Returns:
-            settings:
-                The tuned run settings by name.
-        """
-        settings = super().get_run_settings()
-        settings['observables'] = CellularPottsSystem._get_cellular_potts_observables(self._build_system())
-        return settings
 
     @staticmethod
     def _get_disordered_lattice(shape: tuple[int, int], rng: np.random.Generator) -> nx.Graph:
@@ -808,8 +808,14 @@ class CellularPottsSystem(BaseSystem):
             data['weight'] = data.pop('length') / mean
         return graph
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the cellular Potts model of a confluent tissue."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the cellular Potts model of a confluent tissue.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         rows, columns = (int(size) for size in self.shape)
         height, width = (int(size) for size in self.cell_shape)
         if self.lattice not in LATTICES:
@@ -834,13 +840,7 @@ class CellularPottsSystem(BaseSystem):
             y, x = np.indices((rows, columns)).reshape(2, -1).astype(float)
             space = LatticeSpace((rows, columns), geometry=self.lattice)
         cells = (y // height).astype(int) * (columns // width) + (x // width).astype(int)
-        tissue = GroupElement(
-            'tissue',
-            element=TissueSiteElement,
-            space=space,
-            values={'cell': cells.astype(float)},
-            on='sites',
-        )
+        tissue = TissueSiteElement('tissue', cell=cells.astype(float), space=space)
         sampling = CellAdhesionInteraction(
             'adhesion',
             target='tissue',
@@ -853,4 +853,5 @@ class CellularPottsSystem(BaseSystem):
             target_perimeter=self.target_perimeter,
             hits=self.hits,
         )
-        return CompositeSystem(self.label, elements=[tissue], interactions=[sampling], time=DiscreteTime())
+        self.system_ = System(self.label, elements=[tissue], interactions=[sampling])
+        self.observables_ = tuple(CellularPottsSystem._get_cellular_potts_observables(self.system_))

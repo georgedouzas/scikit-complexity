@@ -2,14 +2,13 @@
 
 import pytest
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.common.metabolism import cobra_measures
 from skcomplex.systems.biology.systems_biology import MetabolicPerturbationsSystem
 
 
 def test_essential_gene_stops_growth():
     """Test that knocking out `gapA` leaves no growth."""
-    trajectory = simulate(MetabolicPerturbationsSystem(genes=('b1779',)))
+    trajectory = MetabolicPerturbationsSystem(genes=('b1779',)).prepare().simulate()
     assert float(trajectory.get_values('cell.objective_0')[0]) == pytest.approx(0.0, abs=1e-6)
 
 

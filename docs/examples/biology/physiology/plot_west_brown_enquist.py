@@ -12,14 +12,13 @@ number of capillaries, the metabolic rate, grows as the blood volume, the mass, 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.physiology import WestBrownEnquistSystem
 
 SYSTEM = 'west_brown_enquist'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(WestBrownEnquistSystem(), until=1.0, observers=[observer])
+trajectory = WestBrownEnquistSystem().prepare().simulate(until=1.0, observers=[observer])
 
 # %%
 # Kleiber's law
@@ -29,7 +28,7 @@ trajectory = simulate(WestBrownEnquistSystem(), until=1.0, observers=[observer])
 depths = [2, 3, 4, 5, 6]
 volumes, capillaries = [], []
 for depth in depths:
-    run = simulate(WestBrownEnquistSystem(depth=depth), until=1.0)
+    run = WestBrownEnquistSystem(depth=depth).prepare().simulate(until=1.0)
     volumes.append(run.get_values('blood_volume')[-1])
     capillaries.append(run.get_values('capillaries')[-1])
 exponents = np.diff(np.log(capillaries)) / np.diff(np.log(volumes))
