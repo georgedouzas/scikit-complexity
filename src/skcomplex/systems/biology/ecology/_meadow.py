@@ -229,7 +229,7 @@ class GrazingInteraction(Interaction):
         """
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = [UpdateLaw(context, self.graze)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(context, self.feed)]
 
     def feed(self, system: SystemViewProtocol) -> None:
         """Let every cow eat its bite of the grass of the patch in its cell, or what grass is left.
