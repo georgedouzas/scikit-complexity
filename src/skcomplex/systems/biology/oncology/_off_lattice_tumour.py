@@ -4,6 +4,7 @@
 # License: MIT
 
 import math
+from collections.abc import Sequence
 from typing import Annotated, cast
 
 import numpy as np
@@ -16,11 +17,12 @@ from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.spaces import ContinuousSpace, DelaunayNeighborhood, DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.spaces import ContinuousSpace, DelaunayNeighborhood
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.engine.solvers import AgentView
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.systems import BaseSystem, System
 
 BINARY = FiniteEnumeratedSet([0, 1])
 HOURS_PER_DAY = 24.0
@@ -280,6 +282,12 @@ class OffLatticeTumourGrowthSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import OffLatticeTumourGrowthSystem
         >>> OffLatticeTumourGrowthSystem(side=6).prepare().system_.space.extent
@@ -305,8 +313,10 @@ class OffLatticeTumourGrowthSystem(BaseSystem):
         lam: float = 0.2,
         initial_radius: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.side = side
         self.g_age1 = g_age1
         self.g_age2 = g_age2
@@ -317,8 +327,14 @@ class OffLatticeTumourGrowthSystem(BaseSystem):
         self.lam = lam
         self.initial_radius = initial_radius
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the cells on a hexagonal layout with a cancer cluster at the centre."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the cells on a hexagonal layout with a cancer cluster at the centre.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         side = float(self.side)
         rows, columns = np.arange(0.5, side, ROW_SPACING), np.arange(0.5, side - 0.5)
         positions = np.asarray(
@@ -342,10 +358,9 @@ class OffLatticeTumourGrowthSystem(BaseSystem):
             location=[tuple(item) for item in positions],
             variable=True,
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[cells],
             interactions=[TumourGrowthInteraction('growth', target='cells')],
             space=ContinuousSpace(extent=(side, side), boundary='open'),
-            time=DiscreteTime(),
         )
