@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.markets import WilhiteTradeNetworksSystem
 
@@ -39,7 +38,7 @@ blueprint = rrb.Blueprint(
 )
 system = WilhiteTradeNetworksSystem(n_agents=200, topology='small_world', n_groups=10, shortcuts=5, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(system, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Prices against searches
@@ -53,7 +52,7 @@ trajectory = simulate(system, observers=[observer], random_state=0)
 fig, ax = plt.subplots(figsize=(7, 4.5))
 for topology in ('isolated', 'linked', 'small_world', 'complete'):
     network = WilhiteTradeNetworksSystem(n_agents=200, topology=topology, n_groups=10, shortcuts=5, random_state=0)
-    run = simulate(network, until=40, random_state=0)
+    run = network.prepare().simulate(until=40, random_state=0)
     trajectory = run
     searches = np.concatenate([[0.0], np.cumsum(trajectory.get_values('barter.searches')[1:])])
     ax.loglog(searches[1:], trajectory.get_values('dispersion')[1:], label=topology)

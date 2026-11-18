@@ -13,14 +13,13 @@ price falls when traders see only their neighbours and rises when they see the w
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.markets import ToyTraderSystem
 
 SYSTEM = 'toy_trader'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulate(ToyTraderSystem(), observers=[observer])
+ToyTraderSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Market sight and evolution
@@ -37,7 +36,7 @@ scenarios = {
 }
 fig, (price, gini) = plt.subplots(1, 2, figsize=(10, 4))
 for name, settings in scenarios.items():
-    trajectory = simulate(ToyTraderSystem(**settings))
+    trajectory = ToyTraderSystem(**settings).prepare().simulate()
     times = np.asarray(trajectory.times)
     price.plot(times, trajectory.get_values('market.average_price'), label=name)
     gini.plot(times, trajectory.get_values('market.money_gini'), label=name)

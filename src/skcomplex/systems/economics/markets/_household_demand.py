@@ -18,9 +18,11 @@ from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
 DEMANDS = ('cobb-douglas', 'elasticity')
@@ -216,9 +218,15 @@ class HouseholdDemandSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.markets import HouseholdDemandSystem
-        >>> HouseholdDemandSystem(10).prepare().system_.elements[0].prepare().size_
+        >>> HouseholdDemandSystem(10).prepare().system_.elements[0].size
         10
     """
 
@@ -245,8 +253,10 @@ class HouseholdDemandSystem(BaseSystem):
         change: float = 0.1,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_households = n_households
         self.demand = demand
         self.shares = shares
@@ -272,8 +282,9 @@ class HouseholdDemandSystem(BaseSystem):
         quintiles = np.minimum((np.argsort(np.argsort(budgets)) * 5) // len(budgets), 4)
         return np.asarray(means, dtype=float)[quintiles] + deviation * rng.normal(size=len(budgets))
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         budgets = self._get_budgets(self.n_households, self.minimum, rng)
         alphas = np.clip(self._draw_by_quintile(budgets, self.shares, self.share_deviation, rng), 0.0, 1.0)
@@ -298,4 +309,4 @@ class HouseholdDemandSystem(BaseSystem):
                 'kind': self.demand,
             },
         )
-        return CompositeSystem(self.label, elements=[households])
+        self.system_ = System(self.label, elements=[households])
