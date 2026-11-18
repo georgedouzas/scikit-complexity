@@ -42,6 +42,10 @@ class DeclaredElement(Element):
             How the element is drawn in place of the `visual` of its class, such as the drawing of the class of a
             plain element the system declares it from, or `None` for the `visual` of its class.
 
+        view:
+            The class of the views of the element's agents in place of the one of its class, such as the view of the
+            class of a plain element the system declares it from, or `None` for the one of its class.
+
     Attributes:
         default_visual_:
             How the element is drawn by default, the `visual` of its class.
@@ -86,10 +90,12 @@ class DeclaredElement(Element):
         *,
         variables: Mapping[str, DeclaredVariableSpec] | None = None,
         drawing: VisualSpec | None = None,
+        view: type | None = None,
     ) -> None:
         super().__init__(label)
         self.variables = variables
         self.drawing = drawing
+        self.view = view
 
     def _get_visual(self) -> VisualSpec:
         """Return how the element is drawn, its `drawing` or the `visual` of its class."""
