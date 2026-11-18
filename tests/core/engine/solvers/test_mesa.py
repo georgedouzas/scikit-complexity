@@ -45,6 +45,8 @@ from skcomplex.systems.general.agents import MovementInteraction
 
 from ....conftest import QueueElement, _queue_run
 
+TOWNS = ['Bree', 'Dale', 'Esgaroth']
+
 SEEN: list[object] = []
 UNDECLARED: list[bool] = []
 LOG: list[tuple[str, int]] = []
@@ -873,6 +875,60 @@ def test_reference_to_a_group_the_system_lacks_names_no_member():
     system = CompositeSystem(elements=[GroupElement('accounts', element=AccountElement, size=2)])
     snapshot = simulate(system, until=1, random_state=0).get_agents('accounts', 1)
     assert snapshot.values['seen'].tolist() == [-1.0, -1.0]
+
+
+class Budding(Interaction):
+    """Interaction whose rule gives the first agent a child at the cell `(3, 4)`."""
+
+    def __init__(self, label: str, *, target: Role = 'cells') -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context):
+        """Set the rule of the agents."""
+        super()._prepare(context)
+        self.laws_ = [UpdateLaw(context.target, self.bud)]
+
+    def bud(self, agent, system):
+        """Create a child at the cell `(3, 4)` while the agent is alone."""
+        if system.count('target') == 1:
+            agent.create(None, (3, 4), mass=1.0)
+
+
+def test_created_agent_takes_the_coordinates_of_its_location():
+    """Test that an agent created at a cell without its positions takes the coordinates of that cell."""
+    cells = Element('cells', values={'x': 0, 'y': 1, 'mass': 2.0}, size=1, space=LatticeSpace((5, 5)))
+    system = System(elements=[cells], interactions=[Budding('budding')]).prepare()
+    snapshot = system.simulate(until=1, random_state=0).get_agents('cells', 1)
+    assert snapshot.values['x'].tolist() == [0, 3]
+    assert snapshot.values['y'].tolist() == [1, 4]
+
+
+class Hop(Interaction):
+    """Interaction whose rule moves every walker to the next node of a ring of named towns."""
+
+    def __init__(self, label: str, *, target: Role = 'walkers') -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context):
+        """Set the rule of the walkers."""
+        super()._prepare(context)
+        self.laws_ = [UpdateLaw(context.target, self.hop)]
+
+    def hop(self, agent, system):
+        """Move to the next town by changing the value `node`."""
+        agent.node = TOWNS[(TOWNS.index(agent.node) + 1) % len(TOWNS)]
+
+
+def test_agents_on_a_network_start_at_the_node_their_value_gives_and_move_by_changing_it():
+    """Test that more walkers than towns start at the towns their values `node` name and hop along the ring."""
+    ring = NetworkSpace(nx.cycle_graph(TOWNS))
+    walkers = Element('walkers', values={'node': ['Bree', 'Bree', 'Dale', 'Esgaroth']}, size=4, space=ring)
+    trajectory = System(elements=[walkers], interactions=[Hop('hop')], space=ring).prepare().simulate(until=1)
+    assert trajectory.get_agents('walkers', 0).locations.tolist() == ['Bree', 'Bree', 'Dale', 'Esgaroth']
+    assert trajectory.get_agents('walkers', 1).locations.tolist() == ['Dale', 'Dale', 'Esgaroth', 'Bree']
+    assert trajectory.get_agents('walkers', 1).values['node'].tolist() == ['Dale', 'Dale', 'Esgaroth', 'Bree']
 
 
 def test_reference_beyond_the_referenced_group_raises():

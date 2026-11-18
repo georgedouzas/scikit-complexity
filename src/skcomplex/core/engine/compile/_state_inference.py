@@ -146,10 +146,11 @@ class _StateInference:
     def _get_axes(element: Element, agents: bool = False) -> tuple[str, ...]:
         """Return the axes of the continuous space of an element, or none.
 
-        The agents of a lattice also have the axes of its cells, such as `x` and `y`, which place them.
+        The agents of a lattice also have the axes of its cells, such as `x` and `y`, and the agents of a network its
+        axis `node`, which place them.
         """
         space = element.space
-        if isinstance(space, ContinuousSpace) or (agents and isinstance(space, LatticeSpace)):
+        if isinstance(space, ContinuousSpace) or (agents and isinstance(space, LatticeSpace | NetworkSpace)):
             return space.prepare().axes_
         return ()
 
@@ -180,6 +181,21 @@ class _StateInference:
             )
             raise ValidationError(error_msg)
         return array[0]
+
+    @staticmethod
+    def _get_class_default(element: Element, name: str, member: object) -> object:
+        """Return the default of a value given per member, which a member added later takes.
+
+        It is the default of the argument of the element class, such as `money: float = 0.0`, or the value of the
+        first member when the class gives none.
+        """
+        parameter = inspect.signature(type(element)).parameters.get(name)
+        if parameter is None or parameter.default is inspect.Parameter.empty:
+            return member
+        default: object = parameter.default
+        if np.ndim(np.asarray(default, dtype=object)) or np.ndim(np.asarray(member, dtype=object)):
+            return member
+        return default
 
     @staticmethod
     def _is_plain(component: BaseComponent) -> bool:
@@ -553,8 +569,8 @@ class _StateInference:
     def _get_agent_groups(compilation: Compilation) -> set[str]:
         """Return the paths of the groups whose members are agents.
 
-        Their members run agent rules, or a rule of the whole system, such as `UpdateLaw(s, clear)`, reads them
-        through the roles of its interaction, such as the traders a market clears.
+        Their members run agent rules, or a rule reads them through the roles of its interaction, such as the traders a
+        market clears with `UpdateLaw(s, clear)` or the balls an urn draws from with `UpdateLaw(s.target, draw)`.
         """
         census = Compilation._get_required(compilation.census, 'census')
         nodes = {node.path: node for node in Compilation._get_required(compilation.nodes, 'nodes')}
@@ -563,8 +579,7 @@ class _StateInference:
             node = nodes.get(record.path)
             if not isinstance(record.law, RuleLaw) or node is None:
                 continue
-            members = record.law.members
-            for role in declarations_of(node.component, VariableKind.ROLE) if members is None else (members,):
+            for role in declarations_of(node.component, VariableKind.ROLE):
                 groups.update(f'{node.scope}{label}' for label in bound_labels(getattr(node.component, role, None)))
         return groups
 
@@ -598,6 +613,21 @@ class _StateInference:
             discretization=discretization,
             boundary=boundary,
         )
+
+    @staticmethod
+    def _get_group_part(element: Element, count: int | None, agents: bool) -> str | None:
+        """Return the part of the space a group of members sits on, `'sites'` or none.
+
+        The members of a group in a continuous space, or one per node of a network, sit on its sites. Agents of a
+        network and another number of members, such as the balls in the urns of its nodes, sit on no part and are
+        placed by their value `node`.
+        """
+        space = element.space
+        if space is None or isinstance(space, LatticeSpace):
+            return None
+        if isinstance(space, NetworkSpace) and (agents or count != space.graph.number_of_nodes()):
+            return None
+        return 'sites'
 
     @staticmethod
     def _get_past_arrays(name: str, values: object, lags: int) -> dict[str, object]:
@@ -655,6 +685,9 @@ class _StateInference:
                 role='position' if name in axes else 'velocity' if name in velocities else None,
                 moving=any(axis in values for axis in axes),
             )
+            if member is not value and name not in axes:
+                default = self._get_class_default(element, name, variables[name].value)
+                variables[name] = DeclaredVariableSpec(default, variables[name].spec)
             tensor = element._get_shape_of(member)[2]
             if np.ndim(np.asarray(value, dtype=object)) > 0:
                 arrays[name] = element._get_matrix_entries(value, tensor)
@@ -700,12 +733,14 @@ class _StateInference:
             return [group]
         if isinstance(element.space, LatticeSpace | NetworkSpace) and element.size is None:
             return [self._get_field(element.label, element.space, values)]
+        part = self._get_group_part(element, count, agents)
+        off_nodes = part is None and isinstance(element.space, NetworkSpace) and not agents
         group = GroupElement(
             element.label,
             element=DeclaredElement,
             size=count,
-            space=element.space,
-            on=None if element.space is None or isinstance(element.space, LatticeSpace) else 'sites',
+            space=None if off_nodes else element.space,
+            on=part,
             values=values,
             variable=agents,
         )

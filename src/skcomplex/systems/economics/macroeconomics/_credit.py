@@ -10,17 +10,16 @@ from collections.abc import Callable, Sequence
 from typing import Annotated, ClassVar
 
 import numpy as np
-from sage.all__sagemath_symbolics import ZZ, oo
+from sage.all__sagemath_symbolics import oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element, Member
 from ....core.components.interactions import MapInteraction
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
 from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
-from ....core.specs import ParameterSpec, StateSpec
 from ....core.systems import BaseSystem, System
 from ...general.matching import MatchingInteraction, MatchSpec, PartnerSwitchSpec
 
@@ -74,7 +73,7 @@ class FirmElement(Element):
             The interest rate of the loan, zero without a loan.
 
         partner:
-            The id of the bank of the firm, `-1` before its first loan.
+            The bank of the firm among the banks, `-1` before its first loan.
 
         gross_return:
             The return on the capital of the last step.
@@ -97,10 +96,12 @@ class FirmElement(Element):
         entry:
             The net worth of an entrant.
 
+        size:
+            The number of firms, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.macroeconomics import FirmElement
-        >>> GroupElement('firms', element=FirmElement, size=10, values={'net_worth': 5.0}).size
+        >>> FirmElement('firms', net_worth=5.0, size=10).size
         10
     """
 
@@ -108,21 +109,22 @@ class FirmElement(Element):
         self,
         label: str,
         *,
-        net_worth: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        demand: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        bid: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        loan: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        rate: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        partner: Annotated[float, StateSpec(domain=ZZ, reference='banks')] = -1,
-        gross_return: Annotated[float, StateSpec()] = 0.0,
-        injected: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        defaulted: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
-        leverage: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        mean_return: Annotated[float, ParameterSpec()] = 0.03,
-        volatility: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        entry: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        net_worth: Annotated[object, RealSet.closed_open(0, oo)] = 10.0,
+        demand: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        bid: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        loan: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        rate: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        partner: Annotated[object, Member('banks')] = -1,
+        gross_return: object = 0.0,
+        injected: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        defaulted: Annotated[object, FiniteEnumeratedSet([0, 1])] = 0,
+        leverage: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        mean_return: object = 0.03,
+        volatility: Annotated[object, RealSet.closed_open(0, oo)] = 0.3,
+        entry: Annotated[object, RealSet.open(0, oo)] = 10.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.net_worth = net_worth
         self.demand = demand
         self.bid = bid
@@ -236,7 +238,7 @@ class LenderElement(Element):
     Its rate falls with its equity. The bank asks the rate `alpha * equity ** -alpha` of Delli Gatti et al. (2010), so
     better capitalised banks lend cheaper, and it offers loans up to `equity / capital_ratio`. The maps of its
     settlement read the firms bound to their role `sources`, whose interest and defaults reach the bank they name in
-    their reference state `partner`.
+    their value `partner`.
 
     Args:
         label:
@@ -263,10 +265,12 @@ class LenderElement(Element):
         capital_ratio:
             The smallest ratio of equity to loans.
 
+        size:
+            The number of banks, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.macroeconomics import LenderElement
-        >>> GroupElement('banks', element=LenderElement, size=5, values={'equity': 100.0}).size
+        >>> LenderElement('banks', equity=100.0, size=5).size
         5
     """
 
@@ -274,15 +278,16 @@ class LenderElement(Element):
         self,
         label: str,
         *,
-        equity: Annotated[float, StateSpec()] = 100.0,
-        ask: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        supply: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        lent: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        losses: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
-        capital_ratio: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
+        equity: object = 100.0,
+        ask: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        supply: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        lent: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        losses: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        alpha: Annotated[object, RealSet.open(0, oo)] = 0.1,
+        capital_ratio: Annotated[object, RealSet.open(0, oo)] = 0.1,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.equity = equity
         self.ask = ask
         self.supply = supply
@@ -584,27 +589,21 @@ class CreditNetworksSystem(BaseSystem):
         """Set the system of the components built from the model parameters."""
         super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
-        lenders = GroupElement(
+        lenders = LenderElement(
             'banks',
-            element=LenderElement,
+            equity=self.equity * rng.uniform(0.5, 1.5, self.banks),
+            alpha=self.alpha,
+            capital_ratio=self.capital_ratio,
             size=self.banks,
-            values={
-                'equity': self.equity * rng.uniform(0.5, 1.5, self.banks),
-                'alpha': self.alpha,
-                'capital_ratio': self.capital_ratio,
-            },
         )
-        borrowers = GroupElement(
+        borrowers = FirmElement(
             'firms',
-            element=FirmElement,
+            net_worth=self.net_worth,
+            leverage=self.leverage,
+            mean_return=self.mean_return,
+            volatility=self.volatility,
+            entry=self.net_worth,
             size=self.firms,
-            values={
-                'net_worth': self.net_worth,
-                'leverage': self.leverage,
-                'mean_return': self.mean_return,
-                'volatility': self.volatility,
-                'entry': self.net_worth,
-            },
         )
         market = CreditMarketInteraction(
             'credit',

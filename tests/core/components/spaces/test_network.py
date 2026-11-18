@@ -231,3 +231,8 @@ def test_network_space_without_hyperedges_has_an_empty_incidence():
     assert space.hyperedges_ == ()
     assert space.incidence_.shape == (3, 0)
     assert space.memberships_ == ((), (), ())
+
+
+def test_network_names_its_one_axis_node():
+    """Test that a network has the one axis `node`, the value that places an agent at a node."""
+    assert NetworkSpace(nx.path_graph(3)).prepare().axes_ == ('node',)

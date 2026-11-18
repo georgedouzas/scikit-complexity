@@ -23,8 +23,10 @@ from ._metaphoria import (
     EstateInteraction,
     FoodMarketInteraction,
     LabourMarketInteraction,
+    LivingInteraction,
     MetaphoriaSystem,
     PlotElement,
+    ProductionInteraction,
     SettlerElement,
 )
 from ._monetary import (
@@ -63,6 +65,7 @@ __all__: list[str] = [
     'LabourMarketInteraction',
     'LenderElement',
     'LendingInteraction',
+    'LivingInteraction',
     'Mark0EconomyInteraction',
     'Mark0FirmElement',
     'Mark0System',
@@ -73,6 +76,7 @@ __all__: list[str] = [
     'OptimalConsumptionSystem',
     'PlotElement',
     'PolicySwitchInteraction',
+    'ProductionInteraction',
     'PurchasingPowerElement',
     'ReserveBankElement',
     'SettlerElement',

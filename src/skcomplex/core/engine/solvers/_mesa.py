@@ -1494,13 +1494,21 @@ class MesaSolver(ExternalSolver):
         )
         vars(agent)['view_'] = self._view_classes[agent_class](agent, self)
         self.members_[int(agent.unique_id)] = agent
-        defaults = self._get_agent_type(spec)
+        element = spec.element
+        defaults = element.get_declaring_element() if isinstance(element, GroupElement) else type(element)
+        positions = self._positions[spec.path]
+        missing = [name for name in positions if name not in values]
         for name in spec.states:
+            if name in missing:
+                continue
             value = values[name] if name in values else self._get_shared_default(defaults, name)
             setattr(agent, name, value)
-        positions = self._positions[spec.path]
-        place = self._get_place_of(agent, positions) if positions and location is None else location
+        place = self._get_place_of(agent, positions) if positions and location is None and not missing else location
         self._place(agent, place)
+        if missing:
+            for name, coordinate in zip(positions, self._get_coordinates_of(agent), strict=True):
+                if name in missing:
+                    setattr(agent, name, coordinate)
         if positions:
             self._set_positions(agent, positions)
         self._recount(agent, 1)
@@ -1517,7 +1525,7 @@ class MesaSolver(ExternalSolver):
         for index in range(spec.size):
             values = {name: self._get_member_of(spec, name, value, index) for name, value in spec.values.items()}
             location = None if group is None else self._get_cell_key(group._get_member_location(index, spec.size))
-            if location is None and spec.size <= len(network_nodes):
+            if location is None and not self._positions[spec.path] and spec.size <= len(network_nodes):
                 location = network_nodes[index]
             self._create_agent(spec.path, location, values)
 
@@ -1747,7 +1755,7 @@ class MesaSolver(ExternalSolver):
         They are named after the axes of its space and inferred as positions, such as `x` and `y` of an agent on a
         plane or on the cells of a lattice, and only a group that has one for every axis is placed by them.
         """
-        if not isinstance(space, ContinuousSpace | LatticeSpace):
+        if not isinstance(space, ContinuousSpace | LatticeSpace | NetworkSpace):
             return ()
         axes = space.prepare().axes_
         element = spec.element
@@ -1763,9 +1771,12 @@ class MesaSolver(ExternalSolver):
     def _get_place_of(self, agent: mesa.Agent, positions: Sequence[str]) -> object:
         """Return the place the values of an agent named after the axes give.
 
-        On a lattice it is the cell of the rounded coordinates, wrapped around a periodic lattice.
+        On a lattice it is the cell of the rounded coordinates, wrapped around a periodic lattice, and on a network the
+        node the value `node` names.
         """
         space = self.problem_.agent_space
+        if isinstance(space, NetworkSpace):
+            return self._get_cell_key(getattr(agent, positions[0]))
         point = np.asarray([float(getattr(agent, name)) for name in positions])
         if isinstance(space, ContinuousSpace):
             return point % np.asarray(space.extent_) if space.periodic_ else point
@@ -1773,18 +1784,28 @@ class MesaSolver(ExternalSolver):
         cell = np.rint(point).astype(int)
         return tuple(int(item) for item in (cell % np.asarray(space.shape_) if space.periodic_ else cell))
 
+    def _get_coordinates_of(self, agent: mesa.Agent) -> list[object]:
+        """Return the coordinates of the location of an agent, one per axis of its space.
+
+        On a network the one coordinate is the node itself, such as `3` or `'Paris'`.
+        """
+        location = self._get_location_of(agent)
+        if isinstance(self.problem_.agent_space, NetworkSpace):
+            return [location]
+        return np.ravel(np.asarray(location, dtype=float)).tolist()
+
     def _set_positions(self, agent: mesa.Agent, positions: Sequence[str]) -> None:
         """Set the values of an agent named after the axes to its location.
 
         The counts of the values are kept.
         """
-        location = np.ravel(np.asarray(self._get_location_of(agent), dtype=float))
-        for name, coordinate in zip(positions, location, strict=True):
+        for name, coordinate in zip(positions, self._get_coordinates_of(agent), strict=True):
             value = getattr(agent, name)
-            if float(value) == coordinate:
+            if value == coordinate:
                 continue
             self._recount(agent, -1, (name,))
-            setattr(agent, name, type(value)(coordinate) if isinstance(value, int | float) else coordinate)
+            numeric = isinstance(value, int | float) and isinstance(coordinate, int | float)
+            setattr(agent, name, type(value)(coordinate) if numeric else coordinate)
             self._recount(agent, 1, (name,))
 
     def _observe(self) -> None:
@@ -2084,9 +2105,9 @@ class MesaSolver(ExternalSolver):
         return AgentSnapshotSpec(ids, values, np.asarray(locations) if has_locations else None, spec.roles)
 
     @staticmethod
-    def _get_shared_default(element_type: type, name: str) -> object:
-        """Return the default of a state of an element type."""
-        return default_of(element_type, name)
+    def _get_shared_default(element: type | BaseElement, name: str) -> object:
+        """Return the default of a state of an element type, or the value a group shares among its members."""
+        return default_of(element, name)
 
     @staticmethod
     def _get_state_property(name: str) -> property:

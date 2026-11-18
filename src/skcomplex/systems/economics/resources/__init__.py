@@ -9,6 +9,7 @@ from ._commons import (
     HerderElement,
     PastureElement,
     QuotaRegulatorInteraction,
+    RegrassingInteraction,
     TragedyOfTheCommonsSystem,
 )
 from ._crop_livestock import CropLivestockHouseholdSystem
@@ -46,6 +47,7 @@ __all__: list[str] = [
     'PastureElement',
     'PlantationElement',
     'QuotaRegulatorInteraction',
+    'RegrassingInteraction',
     'RiceBalanceElement',
     'RiceFoodBalanceSystem',
     'RiceSectorElement',
