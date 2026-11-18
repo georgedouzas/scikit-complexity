@@ -18,7 +18,6 @@ import networkx as nx
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.neuroscience import KinouchiCopelliSystem
 
@@ -33,11 +32,10 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(
-    KinouchiCopelliSystem(graph=graph, sigma=1.0, stimulus=0.002, excited=0.0),
-    until=280,
-    observers=[observer],
-    random_state=0,
+trajectory = (
+    KinouchiCopelliSystem(graph=graph, sigma=1.0, stimulus=0.002, excited=0.0)
+    .prepare()
+    .simulate(until=280, observers=[observer], random_state=0)
 )
 
 # %%
@@ -55,7 +53,9 @@ responses = {}
 for sigma in sigmas:
     responses[sigma] = []
     for rate in rates:
-        run = simulate(KinouchiCopelliSystem(graph=graph, sigma=sigma, stimulus=rate), until=600, random_state=0)
+        run = (
+            KinouchiCopelliSystem(graph=graph, sigma=sigma, stimulus=rate).prepare().simulate(until=600, random_state=0)
+        )
         responses[sigma].append((run.get_values('neurons.phase')[100:] == 1).mean())
 
 
