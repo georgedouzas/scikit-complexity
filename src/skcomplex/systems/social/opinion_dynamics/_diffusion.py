@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -14,14 +14,16 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction, TransitionInteraction
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ...general.agents import MovementInteraction
@@ -49,9 +51,8 @@ class BelieverElement(Element):
 
     It holds the weights it gives to four levels of caring about an issue. The levels are not caring at all, caring
     less, caring a bit, and caring passionately. An agent cares at the level of its largest weight. In
-    `InfluentialsSystem`, a `MapInteraction` of the vector of weights adds every step `learning` times the influence of
-    every neighbour to the weight of the level the neighbour cares at, a tie broken at random, and a second one sets the
-    level of caring.
+    `InfluentialsSystem`, an agent rule adds every step `learning` times the influence of every neighbour to the weight
+    of the level the neighbour cares at, a tie broken at random, and a second one sets the level of caring.
 
     Args:
         label:
@@ -69,11 +70,16 @@ class BelieverElement(Element):
         learning:
             The increment per neighbour and step.
 
+        values:
+            Further values by name, such as the cell `x` and `y` of every member.
+
         size:
             The number of members, or `None` for one.
 
+        space:
+            The grid whose axes `x` and `y` place the members, or `None` for none.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.opinion_dynamics import BelieverElement
         >>> group = BelieverElement('people', belief=[1.0, 0.0, 0.0, 0.0], size=4)
         >>> group.label, type(group).__name__, group.size
@@ -82,19 +88,19 @@ class BelieverElement(Element):
 
     visual = VisualSpec('agents', {'color_by': 'caring', 'color_range': (0.0, 3.0)})
 
-    draws = True
-
     def __init__(
         self,
         label: str,
         *,
-        belief: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
-        caring: Annotated[object, StateSpec(domain=NN)] = 0.0,
-        influence: Annotated[object, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
-        learning: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        belief: npt.ArrayLike = 0.0,
+        caring: Annotated[object, NN] = 0.0,
+        influence: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        learning: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        values: Mapping[str, object] | None = None,
         size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, size=size)
+        super().__init__(label, values=values, size=size, space=space)
         self.belief = belief
         self.caring = caring
         self.influence = influence
@@ -136,11 +142,16 @@ class AdopterElement(Element):
         reach:
             The distance within which other agents form an agent's social circle.
 
+        values:
+            Further values by name, such as the position `x` and `y` of every member.
+
         size:
             The number of members, or `None` for one.
 
+        space:
+            The plane whose axes `x` and `y` place the members, or `None` for none.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.opinion_dynamics import AdopterElement
         >>> group = AdopterElement('people', threshold=50.0, size=10)
         >>> group.label, type(group).__name__, group.size
@@ -153,12 +164,14 @@ class AdopterElement(Element):
         self,
         label: str,
         *,
-        adopted: Annotated[object, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        threshold: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 50.0,
-        reach: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 15.0,
+        adopted: Annotated[object, FiniteEnumeratedSet([0, 1])] = 0.0,
+        threshold: Annotated[object, RealSet.closed_open(0, oo)] = 50.0,
+        reach: Annotated[object, RealSet.open(0, oo)] = 15.0,
+        values: Mapping[str, object] | None = None,
         size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, size=size)
+        super().__init__(label, values=values, size=size, space=space)
         self.adopted = adopted
         self.threshold = threshold
         self.reach = reach
@@ -172,7 +185,7 @@ class AdopterElement(Element):
         return AdopterView
 
 
-class AdoptionInteraction(TransitionInteraction):
+class AdoptionInteraction(Interaction):
     """Synchronous adoption of the threshold system.
 
     Every agent adopts for good from its social circle. In the infection mode an agent adopts once anyone in its social
@@ -203,26 +216,19 @@ class AdoptionInteraction(TransitionInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         mode: str = 'infection',
     ) -> None:
-        super().__init__(
-            label,
-            target=target,
-            state='adopted',
-            source=0.0,
-            destination=1.0,
-            condition=self._adopts,
-            form='agent',
-        )
+        super().__init__(label)
+        self.target = target
         self.mode = mode
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Raise an error for an unknown mode.
+        """Set the adoptions of every step as the rule of the system.
 
         Args:
             context:
-                The space the interaction inherits from its system.
+                The space the interaction inherits from its system, or the namespace of the adopters.
 
         Raises:
             ValidationError:
@@ -232,6 +238,20 @@ class AdoptionInteraction(TransitionInteraction):
         if self.mode not in MODES:
             error_msg = f'Unknown adoption mode {self.mode!r}. Use one of {", ".join(MODES)}.'
             raise ValidationError(error_msg)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context, self.adopt)]
+
+    def adopt(self, system: SystemViewProtocol) -> None:
+        """Let every agent that has not adopted adopt, from the adoptions at the start of the step.
+
+        Args:
+            system:
+                The system view of the adoptions.
+        """
+        agents = [agent for agent in system.get_agents('target') if isinstance(agent, AdopterView)]
+        adopting = [agent for agent in agents if float(agent.adopted) == 0.0 and self._adopts(agent, system)]
+        for agent in adopting:
+            agent.adopted = 1.0
 
     def _adopts(self, agent: AdopterView, system: SystemViewProtocol) -> bool:
         """Return whether an agent adopts from the adopters in its social circle.
@@ -329,9 +349,15 @@ class InfluentialsSystem(BaseSystem):
         return belief
 
     @staticmethod
-    def _get_care(agent: BelieverView, system: SystemViewProtocol) -> float:
-        """Return the level an agent cares at, the index of its largest weight."""
-        return float(np.argmax(agent.belief))
+    def _update_belief(agent: BelieverView, system: SystemViewProtocol) -> None:
+        """Add to the weights of an agent the influence of every neighbour."""
+        agent.belief = InfluentialsSystem._learn(agent, system)
+
+    @staticmethod
+    def _update_care(agent: BelieverView, system: SystemViewProtocol) -> None:
+        """Set the level an agent cares at, the index of its largest weight."""
+        del system
+        agent.caring = float(np.argmax(agent.belief))
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set `system_` to the components built from the model parameters."""
@@ -344,35 +370,28 @@ class InfluentialsSystem(BaseSystem):
         belief[chosen, PASSIONATE] = belief[chosen].max(axis=1) + 1
         weights = np.ones(size)
         weights[chosen] = self.influence
-        people = GroupElement(
+        space = LatticeSpace((self.width, self.height), boundary='periodic', capacity=1)
+        x, y = np.array([(column, row) for column in range(self.width) for row in range(self.height)]).T
+        people = BelieverElement(
             'people',
-            element=BelieverElement,
+            belief=belief,
+            caring=belief.argmax(axis=1).astype(float),
+            influence=weights,
+            values={'x': x, 'y': y},
             size=size,
-            values={'belief': belief, 'caring': belief.argmax(axis=1).astype(float), 'influence': weights},
-            location=[(column, row) for column in range(self.width) for row in range(self.height)],
+            space=space,
         )
-        learning = MapInteraction(
+        learning = Interaction(
             'learning',
-            target='people',
-            state='belief',
-            function=self._learn,
-            schedule='member',
-            form='agent',
+            roles={'target': 'people'},
+            laws=lambda s: [UpdateLaw(s.target, self._update_belief)],
         )
-        caring = MapInteraction(
+        caring = Interaction(
             'caring',
-            target='people',
-            state='caring',
-            function=self._get_care,
-            schedule='member',
-            form='agent',
+            roles={'target': 'people'},
+            laws=lambda s: [UpdateLaw(s.target, self._update_care)],
         )
-        self.system_ = System(
-            self.label,
-            elements=[people],
-            interactions=[learning, caring],
-            space=LatticeSpace((self.width, self.height), boundary='periodic', capacity=1),
-        )
+        self.system_ = System(self.label, elements=[people], interactions=[learning, caring], space=space)
 
 
 class ThresholdAdoptionSystem(BaseSystem):
@@ -468,12 +487,16 @@ class ThresholdAdoptionSystem(BaseSystem):
         innovators = np.argsort(drawn)[: max(1, round(INNOVATORS * self.n_agents))]
         adopted = np.zeros(self.n_agents)
         adopted[innovators] = 1.0
-        people = GroupElement(
+        space = ContinuousSpace(extent=(self.size, self.size), boundary='periodic')
+        x, y = rng.uniform(0, self.size, (self.n_agents, 2)).T
+        people = AdopterElement(
             'people',
-            element=AdopterElement,
+            adopted=adopted,
+            threshold=drawn,
+            reach=self.reach,
+            values={'x': x, 'y': y},
             size=self.n_agents,
-            values={'adopted': adopted, 'threshold': drawn, 'reach': self.reach},
-            location=rng.uniform(0, self.size, (self.n_agents, 2)),
+            space=space,
         )
         self.system_ = System(
             self.label,
@@ -487,5 +510,5 @@ class ThresholdAdoptionSystem(BaseSystem):
                 ),
                 AdoptionInteraction('adoption', target='people', mode=self.mode),
             ],
-            space=ContinuousSpace(extent=(self.size, self.size), boundary='periodic'),
+            space=space,
         )

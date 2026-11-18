@@ -9,13 +9,12 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.components import Observable
-from skcomplex.core.components.elements import Element, FieldElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import ConservationInteraction
 from skcomplex.core.components.laws.utils import coordinate, moment
-from skcomplex.core.components.spaces import AxisSpec, FiniteVolumeSpec, LatticeSpace
+from skcomplex.core.components.spaces import AxisSpec, BaseSpace, FiniteVolumeSpec, LatticeSpace
 from skcomplex.core.engine.solvers import RK4Solver, SSPRKSolver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec
 from skcomplex.core.systems import System
 from skcomplex.systems.social.cooperation import (
     NonlinearPairwiseGroupConflictSystem,
@@ -34,16 +33,17 @@ class AmountElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        x: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.x = x
 
 
-def _simplex(size: int = SIZE) -> SimplexSpace:
-    """Return the 2-simplex of three frequencies at one position."""
+def _simplex(size: int = SIZE, position: LatticeSpace | None = None) -> SimplexSpace:
+    """Return the 2-simplex of three frequencies at one position, the lattice of one site by default."""
     axes = [AxisSpec('x', size, 0.0, 1.0), AxisSpec('y', size, 0.0, 1.0)]
-    return SimplexSpace(LatticeSpace((1,)), axes).prepare()
+    return SimplexSpace(LatticeSpace((1,)) if position is None else position, axes).prepare()
 
 
 def replicator_drift(_: SimpleNamespace) -> list[object]:
@@ -100,7 +100,7 @@ def test_moment_over_a_simplex_weights_every_cell_by_its_volume() -> None:
     """Integrate a uniform density of two over the 2-simplex to one."""
     space = _simplex()
     start = 2.0 * (space.volumes_ > 0)
-    groups = FieldElement('groups', element=AmountElement, space=space, values={'x': start})
+    groups = AmountElement('groups', x=start, space=space)
     observables = [Observable('total', total, group='groups')]
     trajectory = System(elements=[groups]).prepare().simulate(until=0.1, dt=0.1, observables=observables)
     values = np.asarray(trajectory.get_values('total'), dtype=float)
@@ -110,16 +110,9 @@ def test_moment_over_a_simplex_weights_every_cell_by_its_volume() -> None:
 @pytest.mark.parametrize('solver', [RK4Solver(dt=0.01), SSPRKSolver()], ids=['rk4', 'ssprk'])
 def test_replicator_flow_on_a_simplex_conserves_the_density(solver: object) -> None:
     """Keep the total of a uniform density on the simplex within 1e-10 and the empty cells at zero."""
-    space = _simplex()
+    space = _simplex(position=LatticeSpace((1,), discretization='finite-volume', scheme=FiniteVolumeSpec(limiter=None)))
     start = 2.0 * (space.volumes_ > 0)
-    groups = FieldElement(
-        'groups',
-        element=AmountElement,
-        space=space,
-        values={'x': start},
-        discretization='finite-volume',
-        scheme=FiniteVolumeSpec(limiter=None),
-    )
+    groups = AmountElement('groups', x=start, space=space)
     flow = ConservationInteraction(
         'flow',
         target='groups',

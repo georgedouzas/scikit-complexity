@@ -6,7 +6,7 @@ The utility of their densities drives the moves.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Annotated
 
 import numpy as np
@@ -14,15 +14,15 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
-from ....core.components.spaces import LatticeSpace
+from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
 from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ...general.agents import MovementInteraction
 
@@ -66,25 +66,36 @@ class DwellerElement(Element):
         intercept:
             The intercept `b` of the utility.
 
+        values:
+            Further values by name, such as the cell `x` and `y` of every member.
+
+        size:
+            The number of members, or `None` for one.
+
+        space:
+            The grid whose axes `x` and `y` place the members, or `None` for none.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.segregation import DwellerElement
-        >>> group = GroupElement('dwellers', element=DwellerElement, size=10, values={'beta': 3.0})
-        >>> group.label, group.element.__name__, group.size
-        ('dwellers', 'DwellerElement', 10)
+        >>> group = DwellerElement('dwellers', beta=3.0, size=10)
+        >>> group.label, group.size
+        ('dwellers', 10)
     """
 
     def __init__(
         self,
         label: str,
         *,
-        block: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
-        altruism: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        slope: Annotated[float, ParameterSpec()] = -4.0 / 3.0,
-        intercept: Annotated[float, ParameterSpec()] = 1.0,
+        block: Annotated[object, NN] = 0.0,
+        beta: Annotated[object, RealSet.closed_open(0, oo)] = 3.0,
+        altruism: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
+        slope: object = -4.0 / 3.0,
+        intercept: object = 1.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.block = block
         self.beta = beta
         self.altruism = altruism
@@ -108,7 +119,7 @@ class BlockMovesInteraction(MovementInteraction):
     `1 / (1 + exp(beta * dU))`, where `dU = (1 - altruism) * (u(rho_f') - u(rho_i)) + altruism * dU_global` and
     `dU_global` is the change of `M * sum_q rho_q u(rho_q)` over the blocks of `M` cells. The densities are the counts
     of the block states of the group. In `StochasticSchellingSystem`, a phase of visits draws as many agents with
-    replacement as there are agents every step, and a `MapInteraction` sets the block of an agent after its move.
+    replacement as there are agents every step, and the rule `set_block` sets the block of an agent after its move.
 
     Args:
         label:
@@ -142,7 +153,7 @@ class BlockMovesInteraction(MovementInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         width: int = 20,
         height: int = 20,
         side: int = 5,
@@ -209,6 +220,19 @@ class BlockMovesInteraction(MovementInteraction):
         """
         return float(BlockMovesInteraction._get_block(agent.location, self.side, self.width // self.side))
 
+    def set_block(self, agent: AgentViewProtocol, system: SystemViewProtocol) -> None:
+        """Set the block of an agent to the block that holds its cell.
+
+        Args:
+            agent:
+                The dweller.
+
+            system:
+                The system view.
+        """
+        if isinstance(agent, DwellerView):
+            agent.block = self.get_block(agent, system)
+
     @staticmethod
     def _get_block(location: object, side: int, columns: int) -> int:
         """Return the index of the block that holds a cell."""
@@ -260,7 +284,7 @@ class StochasticSchellingSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.social.segregation import StochasticSchellingSystem
-        >>> StochasticSchellingSystem(8, 8, side=4, random_state=0).prepare().system_.elements[0].prepare().size_
+        >>> StochasticSchellingSystem(8, 8, side=4, random_state=0).prepare().system_.elements[0].size
         32
     """
 
@@ -306,18 +330,18 @@ class StochasticSchellingSystem(BaseSystem):
         blocks = [
             BlockMovesInteraction._get_block(location, self.side, self.width // self.side) for location in locations
         ]
-        dwellers = GroupElement(
+        space = LatticeSpace((self.width, self.height), boundary='fixed', capacity=1)
+        x, y = np.array(locations).T
+        dwellers = DwellerElement(
             'dwellers',
-            element=DwellerElement,
+            block=np.array(blocks, dtype=float),
+            beta=self.beta,
+            altruism=self.altruism,
+            slope=self.slope,
+            intercept=self.intercept,
+            values={'x': x, 'y': y},
             size=size,
-            values={
-                'block': np.array(blocks, dtype=float),
-                'beta': self.beta,
-                'altruism': self.altruism,
-                'slope': self.slope,
-                'intercept': self.intercept,
-            },
-            location=locations,
+            space=space,
         )
         moves = BlockMovesInteraction(
             'moves',
@@ -330,18 +354,12 @@ class StochasticSchellingSystem(BaseSystem):
         block = Interaction(
             'block',
             roles={'target': 'dwellers'},
-            laws=lambda s: [
-                UpdateLaw(
-                    s.target,
-                    lambda agent, system: setattr(agent, 'block', float(moves.get_block(agent, system))),
-                    phase=PHASE,
-                ),
-            ],
+            laws=lambda s: [UpdateLaw(s.target, moves.set_block, phase=PHASE)],
         )
         self.system_ = System(
             self.label,
             elements=[dwellers],
             interactions=[moves, block],
-            space=LatticeSpace((self.width, self.height), boundary='fixed', capacity=1),
+            space=space,
             solver=MesaSolver(phases=[PhaseSpec(PHASE, activation='visits', groups=('dwellers',))]),
         )

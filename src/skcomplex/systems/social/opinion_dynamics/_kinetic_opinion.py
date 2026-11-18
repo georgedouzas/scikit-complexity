@@ -21,7 +21,7 @@ from ....core.components.laws.utils import moment
 from ....core.components.spaces import LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, RoleSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ...general.kinetics import EncounterInteraction
 from ..common.kinetics import ActivityDensityElement
@@ -168,13 +168,13 @@ class OpinionEncountersInteraction(EncounterInteraction):
         self,
         label: str,
         *,
-        candidate: Annotated[str, RoleSpec()],
-        field: Annotated[str, RoleSpec()],
-        levels: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 7,
-        confidence: Annotated[int, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2,
-        eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        persuasion: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        repulsion: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        candidate: Role,
+        field: Role,
+        levels: Annotated[int, RealSet.open(0, oo)] = 7,
+        confidence: Annotated[int, RealSet.closed_open(0, oo)] = 2,
+        eta: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        persuasion: Annotated[float, RealSet.closed_open(0, oo)] = 0.3,
+        repulsion: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
     ) -> None:
         super().__init__(label, candidate=candidate, field=field, rate=self._get_rate, kernel=self._get_kernel)
         self.levels = levels
