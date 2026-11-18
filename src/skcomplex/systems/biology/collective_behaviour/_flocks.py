@@ -4,6 +4,7 @@
 # License: MIT
 
 import math
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated, cast
 
@@ -12,13 +13,17 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
+from ....core import systems
+from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction, PairInteraction, RateInteraction
-from ....core.components.spaces import ContinuousSpace
+from ....core.components.interactions import Interaction, MapInteraction, PairInteraction
+from ....core.components.laws import RateLaw
+from ....core.components.spaces import BaseSpace, ContinuousSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.specs import ParameterSpec, Role, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ...general.agents import MovementInteraction
 from ...general.elements import PointElement
@@ -458,6 +463,7 @@ class MorsePotentialInteraction(PairInteraction):
             position=position,
             potential=self._get_pair_energy,
             period=period,
+            order=2,
         )
         self.C_a = C_a
         self.l_a = l_a
@@ -470,12 +476,8 @@ class MorsePotentialInteraction(PairInteraction):
         return s.C_r * exp(-r / s.l_r) - s.C_a * exp(-r / s.l_a)
 
 
-class SelfPropulsionInteraction(RateInteraction):
-    """Rayleigh self-propulsion, `v' = (alpha - beta |v|²) v`.
-
-    It drives points to the speed `sqrt(alpha / beta)`.
-
-    It is a rate on the position `x`, a state of order 2, whose velocity `v` is the first derivative `x_d1`.
+class SelfPropulsionInteraction(Interaction):
+    """Rayleigh self-propulsion, `x'' = (alpha - beta |x'|²) x'`, which drives points to the speed `sqrt(alpha / beta)`.
 
     Args:
         label:
@@ -496,31 +498,34 @@ class SelfPropulsionInteraction(RateInteraction):
         1.5
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        target: Role,
+        alpha: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        beta: Annotated[float, RealSet.open(0, oo)] = 0.5,
     ) -> None:
-        super().__init__(label, target=target, state='x')
+        super().__init__(label)
+        self.target = target
         self.alpha = alpha
         self.beta = beta
 
-    def _get_rate(self, namespace: SimpleNamespace) -> object:
-        """Return the velocity change `(alpha - beta |v|²) v`.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the propulsion of the velocity of the target.
 
         Args:
-            namespace:
-                The namespace of the symbols the rate can use, with the namespace of the target.
-
-        Returns:
-            rate:
-                The change of the velocity.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        velocity = namespace.target.x_d1
-        return (namespace.alpha - namespace.beta * velocity.dot_product(velocity)) * velocity
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s, t = context, context.t
+            x = s.target.x
+            velocity = x.diff(t)
+            self.laws_ = [RateLaw(x.diff(t, 2), (s.alpha - s.beta * velocity.dot_product(velocity)) * velocity)]
 
 
 class SpatialFlightInteraction(MovementInteraction):
@@ -758,14 +763,14 @@ class Boids3dSystem(BaseSystem):
         )
 
 
-class BirdSwarmSystem(BaseSystem):
+class BirdSwarmSystem(systems.BaseSystem):
     """A swarm of self-propelled birds held together by a pair potential.
 
     The potential attracts far and repels near.
 
     Every bird is driven to the speed `sqrt(alpha / beta)` and feels the Morse-type potential of every other bird, so
     the swarm stays together and organizes into a flock or a rotating mill. The system has the positions `birds.x` and
-    the velocities `birds.x_d1`.
+    the velocities `birds.x'`.
 
     Args:
         n_birds:
@@ -795,9 +800,15 @@ class BirdSwarmSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.collective_behaviour import BirdSwarmSystem
-        >>> BirdSwarmSystem(5).prepare().system_.elements[0].prepare().size_
+        >>> BirdSwarmSystem(5).prepare().system_.elements[0].size
         5
     """
 
@@ -819,8 +830,10 @@ class BirdSwarmSystem(BaseSystem):
         l_r: float = 0.5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_birds = n_birds
         self.alpha = alpha
         self.beta = beta
@@ -830,19 +843,18 @@ class BirdSwarmSystem(BaseSystem):
         self.l_r = l_r
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of a swarm of self-propelled birds.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the birds at random places and velocities held together by a pair potential.
 
-        A pair potential holds the birds together.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         positions, velocities = rng.uniform(-3.0, 3.0, (self.n_birds, 2)), rng.normal(0.0, 1.0, (self.n_birds, 2))
-        birds = GroupElement(
-            'birds',
-            element=PointElement,
-            size=self.n_birds,
-            values={'x': positions, 'x_d1': velocities},
-        )
+        plane = ContinuousSpace(n_dim=2)
+        birds = PointElement('birds', x=positions, values={"x'": velocities}, size=self.n_birds, space=plane)
         potential = MorsePotentialInteraction(
             'flocking',
             first='birds',
@@ -854,9 +866,4 @@ class BirdSwarmSystem(BaseSystem):
             l_r=self.l_r,
         )
         flight = SelfPropulsionInteraction('flight', target='birds', alpha=self.alpha, beta=self.beta)
-        return CompositeSystem(
-            self.label,
-            elements=[birds],
-            interactions=[potential, flight],
-            space=ContinuousSpace(n_dim=2),
-        )
+        self.system_ = systems.System(self.label, elements=[birds], interactions=[potential, flight], space=plane)

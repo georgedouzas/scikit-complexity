@@ -31,12 +31,13 @@ from skcomplex.systems.physics.common.particles import (
     LAMMPS_FIXES,
     ConstantForceInteraction,
     DampingInteraction,
-    HarmonicPotentialInteraction,
     LangevinThermostatInteraction,
     LennardJonesInteraction,
-    MassPointElement,
 )
 from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem
+from skcomplex.systems.physics.waves import HarmonicPotentialInteraction
+
+from ....conftest import BodyElement
 
 CUTOFF = 2.5
 
@@ -119,7 +120,7 @@ def _lennard_jones_gas(n=100, interactions=(), space=None):
     """Return a Lennard-Jones gas on a lattice with random velocities, in an open plane or a given space."""
     velocities = np.random.default_rng(0).normal(0, 0.5, (n, 2))
     return CompositeSystem(
-        elements=[GroupElement('gas', element=MassPointElement, size=n, values={'x': _lattice(n), 'x_d1': velocities})],
+        elements=[GroupElement('gas', element=BodyElement, size=n, values={'x': _lattice(n), 'x_d1': velocities})],
         interactions=[LennardJonesInteraction('lj', first='gas', second='gas', cutoff=CUTOFF), *interactions],
         space=space or ContinuousSpace(n_dim=2),
     )
@@ -168,7 +169,7 @@ def test_lammps_rejects_population_system():
 def test_lammps_rejects_pair_energy_without_lepton_form():
     """Test that a pair energy with a function Lepton does not know is reported as unsupported."""
     system = CompositeSystem(
-        elements=[GroupElement('gas', element=MassPointElement, size=4, values={'x': _lattice(4)})],
+        elements=[GroupElement('gas', element=BodyElement, size=4, values={'x': _lattice(4)})],
         interactions=[PairInteraction('hyperbolic', 'gas', 'gas', cutoff=1.0, potential=_hyperbolic)],
         space=ContinuousSpace(n_dim=2),
     )
@@ -179,7 +180,7 @@ def test_lammps_rejects_pair_energy_without_lepton_form():
 def test_lammps_rejects_groups_with_different_masses():
     """Test that a group whose members have different values of the divisor is reported as unsupported."""
     system = CompositeSystem(
-        elements=[GroupElement('gas', element=MassPointElement, size=2, values={'x': _lattice(2), 'm': [1.0, 2.0]})],
+        elements=[GroupElement('gas', element=BodyElement, size=2, values={'x': _lattice(2), 'm': [1.0, 2.0]})],
         interactions=[LennardJonesInteraction('lj', first='gas', second='gas', cutoff=CUTOFF, divisor='m')],
         space=ContinuousSpace(n_dim=2),
     )
@@ -193,7 +194,7 @@ def test_lammps_custom_pair_energy_matches_native_forces():
         elements=[
             GroupElement(
                 'gas',
-                element=MassPointElement,
+                element=BodyElement,
                 size=100,
                 values={'x': _lattice(100) + np.random.default_rng(1).normal(0, 0.05, (100, 2))},
             ),
@@ -212,7 +213,7 @@ def test_lammps_conditional_pair_energy_matches_native_forces():
         elements=[
             GroupElement(
                 'gas',
-                element=MassPointElement,
+                element=BodyElement,
                 size=100,
                 values={'x': _lattice(100) + np.random.default_rng(1).normal(0, 0.1, (100, 2))},
             ),
@@ -307,7 +308,7 @@ def test_lammps_runs_10000_atoms_in_real_time():
         elements=[
             GroupElement(
                 'gas',
-                element=MassPointElement,
+                element=BodyElement,
                 size=n,
                 values={'x': _lattice(n), 'x_d1': np.random.default_rng(0).normal(0, 1, (n, 2))},
             ),

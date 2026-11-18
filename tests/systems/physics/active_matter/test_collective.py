@@ -3,11 +3,9 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver, LammpsSolver, VelocityVerletSolver
+from skcomplex.core.systems import System
 from skcomplex.systems.general.elements import PointElement
 from skcomplex.systems.physics.active_matter import (
     CuckerSmaleFlockingSystem,
@@ -19,12 +17,13 @@ from skcomplex.systems.physics.active_matter._collective import SoftSphereIntera
 from skcomplex.systems.physics.common.particles import LAMMPS_FIXES, LAMMPS_PAIRS
 
 
-def _pair(interaction, distance):
+def _pair(interaction, distance, solver):
     """Return a system of two particles at a distance with one pair interaction."""
-    return CompositeSystem(
-        elements=[GroupElement('pair', element=PointElement, size=2, values={'x': [[0.0, 0.0], [distance, 0.0]]})],
+    return System(
+        elements=[PointElement('pair', x=np.array([[0.0, 0.0], [distance, 0.0]]), size=2)],
         interactions=[interaction],
         space=ContinuousSpace(n_dim=2),
+        solver=solver,
     )
 
 
@@ -35,8 +34,8 @@ def _pair(interaction, distance):
 )
 def test_soft_spheres_repel_inside_contact(solver):
     """Test that overlapping soft spheres move apart and stop interacting beyond contact."""
-    system = _pair(SoftSphereInteraction('soft', first='pair', second='pair', cutoff=1.0, k=50.0), 0.8)
-    trajectory = simulate(system, until=1, solver=solver)
+    soft = SoftSphereInteraction('soft', first='pair', second='pair', cutoff=1.0, k=50.0, order=2)
+    trajectory = _pair(soft, 0.8, solver).prepare().simulate(until=1)
     separation = np.linalg.norm(trajectory.get_values('pair.x')[:, 1] - trajectory.get_values('pair.x')[:, 0], axis=1)
     assert separation[-1] > 1.0
     assert np.allclose(np.diff(separation[-3:]), np.diff(separation[-3:])[0])
@@ -74,8 +73,8 @@ def test_living_crystals_form_only_with_phoretic_attraction():
 
 def test_cucker_smale_flock_aligns_and_keeps_momentum():
     """Test that Cucker-Smale velocities converge to their conserved mean."""
-    trajectory = simulate(CuckerSmaleFlockingSystem(), dt=1.0, random_state=0)
-    velocities = trajectory.get_values('birds.x_d1')
+    trajectory = CuckerSmaleFlockingSystem().prepare().simulate(dt=1.0, random_state=0)
+    velocities = trajectory.get_values("birds.x'")
     assert np.allclose(velocities[-1].mean(axis=0), velocities[0].mean(axis=0), atol=1e-6)
     assert velocities[-1].std(axis=0).max() < 1e-2 * velocities[0].std(axis=0).min()
 

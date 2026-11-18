@@ -9,7 +9,8 @@ import numpy as np
 import numpy.typing as npt
 import pytest
 import qutip
-from sage.all__sagemath_symbolics import CC, pi
+from sage.all__sagemath_symbolics import CC, oo, pi
+from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction, WienerProcessSpec
@@ -55,6 +56,25 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         for item in items:
             if marker in item.keywords:
                 item.add_marker(pytest.mark.skip(reason=reason))
+
+
+class BodyElement(Element):
+    """Body with a declared vector position of order 2, its velocity `x_d1`, and its mass `m`."""
+
+    visual = VisualSpec('points', {'position': 'x'})
+
+    def __init__(
+        self,
+        label: str,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, order=2, role='position')] = 0.0,
+        x_d1: npt.ArrayLike = 0.0,
+        *,
+        m: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.x_d1 = x_d1
+        self.m = m
 
 
 class NodeElement(Element):

@@ -67,7 +67,7 @@ def test_signature_analysis_of_agents():
 
 def test_signature_analysis_of_agents_without_motion():
     """Test that agents without velocities or headings give nearest-neighbour distances against the Poisson law."""
-    signature = _signatures(simulate(DiffusionLimitedAggregationSystem(), until=3, random_state=0))[0]
+    signature = _signatures(DiffusionLimitedAggregationSystem().prepare().simulate(until=3, random_state=0))[0]
     assert signature.title in {'Nearest-neighbour distances', 'Agents present'}
 
 

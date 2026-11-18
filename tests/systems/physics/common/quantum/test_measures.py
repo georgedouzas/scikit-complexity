@@ -58,14 +58,12 @@ def test_spectrum_rejects_bad_requests():
 
 def test_ground_state_is_stationary():
     """Test that a run from the ground state keeps every expectation constant."""
-    system = QuantumHeisenbergSystem(n_sites=6, initial='ground').prepare().system_
-    ground = _operator('ground-state', system)
+    system = QuantumHeisenbergSystem(n_sites=6, initial='ground').prepare()
+    ground = _operator('ground-state', system.system_)
     energy, state = ground.energy, ground.state
     assert state.shape == (64,)
-    settings = QuantumHeisenbergSystem(n_sites=6, initial='ground').get_run_settings()
-    initial = settings['initial_state']
-    assert initial == {'system.state': 'ground'}
-    trajectory = simulate(system, until=3.0, dt=0.5, observables=settings['observables'], initial_state=initial)
+    assert system.initial_state_ == {'system.state': 'ground'}
+    trajectory = system.simulate(until=3.0, dt=0.5)
     assert np.ptp(trajectory.get_values('energy')) < 1e-8
     assert np.ptp(trajectory.get_values('sz'), axis=0).max() < 1e-8
     assert trajectory.get_values('energy')[0] == pytest.approx(energy)
@@ -84,9 +82,9 @@ def test_entanglement_entropy_of_a_singlet_is_log_two():
 
 def test_purity_of_pure_and_dephased_runs():
     """Test that purity is 1 for closed runs and falls under dephasing."""
-    closed = simulate(QuantumHeisenbergSystem(n_sites=4).prepare().system_, until=1.0, dt=0.5)
+    closed = QuantumHeisenbergSystem(n_sites=4).prepare().simulate(until=1.0, dt=0.5)
     assert np.allclose(_operator('purity', closed).purity, 1)
-    opened = simulate(QuantumHeisenbergSystem(n_sites=4, gamma=0.5).prepare().system_, until=2.0, dt=0.5)
+    opened = QuantumHeisenbergSystem(n_sites=4, gamma=0.5).prepare().simulate(until=2.0, dt=0.5)
     assert np.all(np.diff(_operator('purity', opened).purity) <= 1e-10)
     assert _operator('purity', opened).purity[-1] < 1
     rabbits = simulate(CompositeSystem(elements=[PopulationElement('rabbits')]), until=1.0, dt=1.0)

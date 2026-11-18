@@ -5,14 +5,13 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.soft_matter import HydrodynamicallyCoupledTrapsSystem
 
 
 def _free_steps(tensor, root='cholesky', separation=3.0):
     """Return the steps of both spheres while the traps are off, one row per step."""
     system = HydrodynamicallyCoupledTrapsSystem(separation=separation, tensor=tensor, root=root)
-    trajectory = simulate(system, until=10000, random_state=0)
+    trajectory = system.prepare().simulate(until=10000, random_state=0)
     steps = trajectory.times[:-1] * 5e-3
     free = (steps % 0.4) >= 0.3 - 1e-9
     return np.diff(trajectory.get_values('spheres.x'), axis=0)[free]
@@ -39,6 +38,6 @@ def test_free_draining_spheres_move_independently():
 def test_traps_hold_the_spheres_while_on():
     """Test that the spheres stay near their trap centres with the variance `kT / k` of the traps."""
     system = HydrodynamicallyCoupledTrapsSystem(off_time=0.0)
-    positions = simulate(system, until=10000, random_state=0).get_values('spheres.x')
+    positions = system.prepare().simulate(until=10000, random_state=0).get_values('spheres.x')
     assert positions[:, 0].mean(axis=0) == pytest.approx([-1.5, 0.0], abs=0.05)
     assert positions[:, 0].var(axis=0) == pytest.approx(np.full(2, 4.1e-3 / 0.2), rel=0.25)

@@ -6,6 +6,7 @@ The module holds the quantum Heisenberg XXZ chain with a field and dephasing.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -19,9 +20,11 @@ from ....core.components.interactions import BaseInteraction, Interaction, Neigh
 from ....core.components.laws import BaseLaw
 from ....core.components.laws.utils import local_operator
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ..common.quantum import DissipatorLaw, GeneratorLaw, HilbertSpec
 
 MIN_SPIN_DIMENSION = 2
@@ -309,10 +312,16 @@ class QuantumHeisenbergSystem(BaseSystem):
         initial:
             `'flip'` for one flipped spin at site `n_sites // 2`, `'neel'` for alternating spins, `'domain_wall'` for
             the left half up and the right half down, or `'ground'` for the ground state, which the tuned run settings
-            give as `initial_state={'<label>.state': 'ground'}`.
+            start from as `initial_state={'<label>.state': 'ground'}`.
 
         label:
             The label of the system, which names it when it is nested in another one.
+
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
 
     Raises:
         ValidationError:
@@ -345,8 +354,10 @@ class QuantumHeisenbergSystem(BaseSystem):
         boundary: str = 'periodic',
         initial: str = 'flip',
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_sites = n_sites
         self.J = J
         self.delta = delta
@@ -364,21 +375,18 @@ class QuantumHeisenbergSystem(BaseSystem):
             return ['down' if site == n_sites // 2 else 'up' for site in range(n_sites)]
         return ['up' if site < n_sites // 2 else 'down' for site in range(n_sites)]
 
-    def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the chain of spins with the exchange, the field, and the dephasing.
 
-        The initial state `'ground'` starts from the ground state.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+
+        Raises:
+            ValidationError:
+                The boundary or the initial state is unknown.
         """
-        settings = super().get_run_settings()
-        if self.initial == 'ground':
-            settings['initial_state'] = {f'{self.label}.state': 'ground'}
-        return settings
-
-    def _build_system(self) -> CompositeSystem:
-        """Return a chain of spins one half with the XXZ Hamiltonian.
-
-        The chain has a field and optional dephasing.
-        """
+        super()._prepare(context)
         if self.boundary not in BOUNDARIES or self.initial not in INITIAL_STATES:
             error_msg = (
                 f'Unknown boundary {self.boundary!r} or initial state {self.initial!r}. Use a boundary of '
@@ -394,4 +402,6 @@ class QuantumHeisenbergSystem(BaseSystem):
         ]
         if self.gamma > 0:
             interactions.append(DephasingInteraction('dephasing', target='chain', gamma=self.gamma))
-        return CompositeSystem(self.label, elements=[chain], interactions=interactions)
+        self.system_ = System(self.label, elements=[chain], interactions=interactions)
+        if self.initial == 'ground':
+            self.initial_state_ = {f'{self.label}.state': 'ground'}

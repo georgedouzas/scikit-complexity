@@ -26,16 +26,14 @@ from skcomplex.systems.biology.epidemiology import RecoveryInteraction
 from skcomplex.systems.economics.finance import AssetElement, GeometricBrownianMotionInteraction
 from skcomplex.systems.economics.markets import CobwebInteraction, MarketElement
 from skcomplex.systems.mathematics.fractals import KochCurveSystem
-from skcomplex.systems.physics.active_matter import CuckerSmaleFlockingSystem
 from skcomplex.systems.physics.common.particles import (
     ConstantForceInteraction,
-    HarmonicPotentialInteraction,
-    MassPointElement,
 )
 from skcomplex.systems.physics.common.quantum import QuantumCompiler
-from skcomplex.systems.physics.statistical_mechanics import QuantumHeisenbergSystem
+from skcomplex.systems.physics.statistical_mechanics import LennardJonesFluidSystem, QuantumHeisenbergSystem
+from skcomplex.systems.physics.waves import HarmonicPotentialInteraction
 
-from ...conftest import CallableGrowthInteraction, HoldingElement
+from ...conftest import BodyElement, CallableGrowthInteraction, HoldingElement
 
 
 class AmountElement(Element):
@@ -113,7 +111,7 @@ def test_equations_of_discrete_map_gives_next_value():
 def test_equations_of_group_with_numeric_derivatives_raises_error():
     """A group of order two whose forces are computed numerically has no symbolic equations."""
     with pytest.raises(AnalysisError, match='computed numerically'):
-        symbolic(CuckerSmaleFlockingSystem().prepare().system_)
+        symbolic(LennardJonesFluidSystem(16).prepare().system_)
 
 
 def test_equations_of_jump_process_raises_error():
@@ -128,7 +126,7 @@ def test_equations_of_jump_process_raises_error():
 
 def test_solve_symbolically_free_particle():
     """Test that a free particle moves linearly with two integration constants."""
-    system = CompositeSystem(elements=[MassPointElement('p')], space=ContinuousSpace(n_dim=1))
+    system = CompositeSystem(elements=[BodyElement('p')], space=ContinuousSpace(n_dim=1))
     solution = symbolic(system, kind='solve').solutions['p.x[0]']
     t = PassCompiler().prepare(system).run().problem_.time
     slope, start = solution.rhs().diff(t), solution.rhs().subs({t: 0})
@@ -141,12 +139,12 @@ def test_solve_symbolically_free_particle():
 def test_solve_symbolically_constant_acceleration():
     """Test that a constant force gives `F * t**2 / (2 * m)` from rest."""
     system = CompositeSystem(
-        elements=[MassPointElement('p')],
+        elements=[BodyElement('p')],
         interactions=[ConstantForceInteraction('push', target='p', F=3.0)],
         space=ContinuousSpace(n_dim=1),
     )
     problem = PassCompiler().prepare(system).run().problem_
-    (F,) = problem.symbols['push.F']
+    F = problem.symbols['push.F']
     m = problem.symbols['p.m']
     solution = symbolic(system, kind='solve', use_initial_state=True).solutions['p.x[0]']
     assert (solution.rhs() - F * problem.time**2 / (2 * m)).simplify_full() == 0
@@ -155,13 +153,13 @@ def test_solve_symbolically_constant_acceleration():
 def test_solve_symbolically_harmonic_oscillator():
     """Test that an oscillator from its initial state oscillates with frequency `sqrt(k / m)`."""
     system = CompositeSystem(
-        elements=[MassPointElement('p', x=1.0, x_d1=0.0)],
+        elements=[BodyElement('p', x=1.0, x_d1=0.0)],
         interactions=[HarmonicPotentialInteraction('trap', target='p')],
         space=ContinuousSpace(n_dim=1),
     )
     problem = PassCompiler().prepare(system).run().problem_
     k, m, t = problem.symbols['trap.k'], problem.symbols['p.m'], problem.time
-    (center,) = problem.symbols['trap.center']
+    center = problem.symbols['trap.center']
     solution = symbolic(system, kind='solve', use_initial_state=True).solutions['p.x[0]'].rhs().subs({center: 0})
     expected = cos(sqrt(k / m) * t)
     values = {k: 2.0, m: 0.5}
@@ -195,7 +193,7 @@ def test_sage_expression_compiles_like_number():
     """Test that a constant force given as a Sage expression simulates like the same force given as a number."""
     force = SR(2) * SR(1.5)
     system = CompositeSystem(
-        elements=[MassPointElement('p')],
+        elements=[BodyElement('p')],
         interactions=[ConstantForceInteraction('push', target='p', F=float(force))],
         space=ContinuousSpace(n_dim=1),
     )
@@ -217,7 +215,7 @@ def test_sage_expression_compiles_like_number():
             return [RateLaw(s.target.x, [force])]
 
     sage_system = CompositeSystem(
-        elements=[MassPointElement('p')],
+        elements=[BodyElement('p')],
         interactions=[SageForceInteraction('push', target='p')],
         space=ContinuousSpace(n_dim=1),
     )

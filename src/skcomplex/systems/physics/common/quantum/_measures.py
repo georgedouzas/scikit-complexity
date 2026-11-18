@@ -16,6 +16,7 @@ import numpy.typing as npt
 import qutip
 import scipy.sparse as sp
 
+from .....core import systems
 from .....core.analysis.types import Source
 from .....core.components.systems import BaseSystem, CompositeSystem
 from .....core.engine.problems import BaseProblemSpec, OperatorProblemSpec, RunStateSpec
@@ -250,7 +251,9 @@ def _is_changed(value: object, default: object) -> bool:
 
 
 def _composite(source: Source) -> Source:
-    """Return the prepared composite of a ready-made system, or another source as it is."""
+    """Return the prepared composite of a ready-made system or a `System`, or another source as it is."""
+    if isinstance(source, systems.BaseSystem):
+        return source._get_composite()
     if isinstance(source, BaseSystem) and not isinstance(source, CompositeSystem):
         return source.prepare().system_
     return source

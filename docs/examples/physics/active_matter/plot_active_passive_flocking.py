@@ -18,16 +18,14 @@ import matplotlib.pyplot as plt
 import rerun.blueprint as rrb
 
 from skcomplex.core.engine.backends import NumbaBackend
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.active_matter import ActivePassiveFlockingSystem
 
 SYSTEM = 'active_passive_flocking'
-SETTINGS = {'backend': NumbaBackend(), 'random_state': 0}
 
 
-system = ActivePassiveFlockingSystem()
-size = system.prepare().system_.space.extent[0]
+system = ActivePassiveFlockingSystem(backend=NumbaBackend()).prepare()
+size = system.system_.space.extent[0]
 box = rrb.Spatial2DView(
     origin='/',
     name='agents',
@@ -41,7 +39,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-trajectory = simulate(system, backend=NumbaBackend(), observers=[observer], random_state=0)
+trajectory = system.simulate(observers=[observer], random_state=0)
 
 # %%
 # Snapshot and mean distances
@@ -62,7 +60,7 @@ snapshot.set_ylim(0.0, size)
 snapshot.set_aspect('equal')
 snapshot.set_title('Agents after 50 time units')
 snapshot.legend(loc='upper right')
-without = simulate(ActivePassiveFlockingSystem(alpha=0.0), **SETTINGS)
+without = ActivePassiveFlockingSystem(alpha=0.0, backend=NumbaBackend()).prepare().simulate(random_state=0)
 distance.plot(trajectory.times, trajectory.get_values('active_distance'), color='tab:red', label='active, flocking on')
 distance.plot(
     trajectory.times,

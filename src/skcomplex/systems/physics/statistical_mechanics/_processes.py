@@ -18,7 +18,7 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction, TransferInteraction
-from ....core.components.laws import BaseLaw, RuleLaw, Sink, Source, UpdateLaw
+from ....core.components.laws import Sink, Source, UpdateLaw
 from ....core.components.laws.utils import bernoulli
 from ....core.components.spaces import BaseSpace, DiscreteTime, LatticeSpace, RadiusNeighborhood
 from ....core.components.systems import BaseSystem as OldBaseSystem
@@ -347,9 +347,9 @@ class WalkerView(AgentView):
 
 
 class WalkerElement(Element):
-    """Random walker of diffusion-limited aggregation.
+    """Random walkers of diffusion-limited aggregation at the cells `(x, y)`.
 
-    The walker sticks when it reaches a stuck walker.
+    A `StickingWalkInteraction` moves the walkers and sticks them to the aggregate.
 
     Args:
         label:
@@ -357,6 +357,18 @@ class WalkerElement(Element):
 
         stuck:
             Whether the walker belongs to the aggregate.
+
+        x:
+            The first coordinate of the cell of the walker.
+
+        y:
+            The second coordinate of the cell of the walker.
+
+        size:
+            The number of walkers, or `None` for one.
+
+        space:
+            The grid of the walkers, or `None` for none.
 
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import WalkerElement
@@ -366,36 +378,63 @@ class WalkerElement(Element):
 
     visual = VisualSpec('agents', {'color_by': 'stuck', 'color_range': (0.0, 1.0)})
 
-    draws = True
-
-    law_classes = (RuleLaw,)
-
     def __init__(
         self,
         label: str,
         *,
-        stuck: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+        stuck: Annotated[object, FiniteEnumeratedSet([0, 1])] = 0.0,
+        x: object = 0,
+        y: object = 0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size, space=space)
         self.stuck = stuck
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the walk-and-stick rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.walk)]
+        self.x = x
+        self.y = y
 
     @classmethod
     def _get_view(cls) -> type:
         """Return the class of the views of the element's agents."""
         return WalkerView
+
+
+class StickingWalkInteraction(Interaction):
+    """Random walk of walkers that stick when they reach the aggregate.
+
+    Every free walker joins the aggregate when a stuck walker is on a neighbouring cell, and otherwise steps to a
+    random neighbouring cell. It is a particle of soot that joins a cluster, a metal ion that deposits on an electrode,
+    or a bacterium that settles on a colony.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the walkers.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics import StickingWalkInteraction
+        >>> StickingWalkInteraction('walk', target='walkers').target
+        'walkers'
+    """
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the walk of the walkers.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [UpdateLaw(context.target, self.walk)]
 
     def walk(self, agent: WalkerView, system: SystemView) -> None:
         """Stick next to the aggregate, or step to a random neighbouring cell.
@@ -795,7 +834,7 @@ class TASEPSystem(OldBaseSystem):
         return CompositeSystem(self.label, elements=[lane], interactions=[hops, entry, leaving], time=DiscreteTime())
 
 
-class DiffusionLimitedAggregationSystem(OldBaseSystem):
+class DiffusionLimitedAggregationSystem(BaseSystem):
     """Diffusion-limited aggregation on a periodic grid.
 
     Random walkers stick to a seed at the center.
@@ -816,9 +855,15 @@ class DiffusionLimitedAggregationSystem(OldBaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import DiffusionLimitedAggregationSystem
-        >>> DiffusionLimitedAggregationSystem(10, size=11).prepare().system_.elements[0].prepare().size_
+        >>> DiffusionLimitedAggregationSystem(10, size=11).prepare().system_.elements[0].size
         10
     """
 
@@ -835,29 +880,38 @@ class DiffusionLimitedAggregationSystem(OldBaseSystem):
         size: int = 41,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_walkers = n_walkers
         self.size = size
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the walkers at random cells around a seed at the center.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         middle = self.size // 2
         cells = rng.integers(0, self.size, (self.n_walkers, 2))
         cells[0] = middle
         stuck = np.zeros(self.n_walkers)
         stuck[0] = 1.0
-        walkers = GroupElement(
+        walkers = WalkerElement(
             'walkers',
-            element=WalkerElement,
+            stuck=stuck,
+            x=cells[:, 0],
+            y=cells[:, 1],
             size=self.n_walkers,
-            values={'stuck': stuck},
-            location=[tuple(map(int, cell)) for cell in cells],
+            space=LatticeSpace((self.size, self.size), boundary='periodic', metric='manhattan'),
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[walkers],
-            space=LatticeSpace((self.size, self.size), boundary='periodic', metric='manhattan'),
+            interactions=[StickingWalkInteraction('walk', target='walkers')],
         )

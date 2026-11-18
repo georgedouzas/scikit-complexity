@@ -8,26 +8,23 @@ The module holds the nonreciprocal Cahn-Hilliard equations.
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 
-from ....core.components.elements import Element, FieldElement
-from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import laplacian
-from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import Role
+from ....core.systems import BaseSystem, System
 
 
 class NonreciprocalMixtureElement(Element):
-    """Site of two conserved fields coupled nonreciprocally.
-
-    The fields are a demixing field `phi` and a diffusing field `psi`.
-
-    The fields follow `phi_t = laplacian(-phi + phi^3 - kappa laplacian(phi) + (chi + alpha) psi)` and
-    `psi_t = laplacian(D psi + (chi - alpha) phi)`. The reciprocal coupling `chi` derives from a free energy, and the
-    nonreciprocal coupling `alpha` does not, so above a threshold the demixed domains travel.
+    """Site of a mixture with a demixing field `phi` and a diffusing field `psi`.
 
     Args:
         label:
@@ -38,6 +35,43 @@ class NonreciprocalMixtureElement(Element):
 
         psi:
             The initial diffusing field.
+
+        space:
+            The lattice whose sites hold one site each, or `None` for one site.
+
+    Examples:
+        >>> from skcomplex.systems.physics.pattern_formation import NonreciprocalMixtureElement
+        >>> NonreciprocalMixtureElement('site', phi=0.1).phi
+        0.1
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        phi: object = 0.0,
+        psi: object = 0.0,
+        space: BaseSpace | None = None,
+    ) -> None:
+        super().__init__(label, space=space)
+        self.phi = phi
+        self.psi = psi
+
+
+class NonreciprocalCahnHilliardInteraction(Interaction):
+    """Cross-diffusion of two conserved fields that couples them nonreciprocally.
+
+    The fields follow `phi_t = laplacian(-phi + phi^3 - kappa laplacian(phi) + (chi + alpha) psi)` and
+    `psi_t = laplacian(D psi + (chi - alpha) phi)`. The reciprocal coupling `chi` derives from a free energy, and the
+    nonreciprocal coupling `alpha` does not, so above a threshold the demixed domains travel. It is a mixture of active
+    colloids, two chemical species that chase each other, or predator and prey that diffuse.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the mixture.
 
         chi:
             The reciprocal coupling.
@@ -51,13 +85,9 @@ class NonreciprocalMixtureElement(Element):
         kappa:
             The stiffness of the interfaces of `phi`.
 
-    Attributes:
-        default_visual_:
-            How the site is drawn by default, the `visual` of its class.
-
     Examples:
-        >>> from skcomplex.systems.physics.pattern_formation import NonreciprocalMixtureElement
-        >>> NonreciprocalMixtureElement('site').alpha
+        >>> from skcomplex.systems.physics.pattern_formation import NonreciprocalCahnHilliardInteraction
+        >>> NonreciprocalCahnHilliardInteraction('coupling', target='mixture').alpha
         0.3
     """
 
@@ -67,38 +97,35 @@ class NonreciprocalMixtureElement(Element):
         self,
         label: str,
         *,
-        phi: Annotated[float, StateSpec()] = 0.0,
-        psi: Annotated[float, StateSpec()] = 0.0,
-        chi: Annotated[float, ParameterSpec()] = 0.0,
-        alpha: Annotated[float, ParameterSpec()] = 0.3,
-        D: Annotated[float, ParameterSpec()] = 0.1,
-        kappa: Annotated[float, ParameterSpec()] = 1.0,
+        target: Role,
+        chi: float = 0.0,
+        alpha: float = 0.3,
+        D: float = 0.1,
+        kappa: float = 1.0,
     ) -> None:
         super().__init__(label)
-        self.phi = phi
-        self.psi = psi
+        self.target = target
         self.chi = chi
         self.alpha = alpha
         self.D = D
         self.kappa = kappa
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the conserved rates of both fields.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the conserved rates of both fields of the target.
 
         Args:
-            namespace:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rates of `phi` and `psi`.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        s = namespace
-        potential = -s.phi + s.phi**3 - s.kappa * laplacian(s.phi) + (s.chi + s.alpha) * s.psi
-        return [
-            RateLaw(s.phi, laplacian(potential)),
-            RateLaw(s.psi, laplacian(s.D * s.psi + (s.chi - s.alpha) * s.phi)),
-        ]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s, t = context, context.t
+            phi, psi = s.target.phi, s.target.psi
+            potential = -phi + phi**3 - s.kappa * laplacian(phi) + (s.chi + s.alpha) * psi
+            self.laws_ = [
+                RateLaw(phi.diff(t), laplacian(potential)),
+                RateLaw(psi.diff(t), laplacian(s.D * psi + (s.chi - s.alpha) * phi)),
+            ]
 
 
 class NonreciprocalCahnHilliardSystem(BaseSystem):
@@ -138,9 +165,15 @@ class NonreciprocalCahnHilliardSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.pattern_formation import NonreciprocalCahnHilliardSystem
-        >>> NonreciprocalCahnHilliardSystem((16,), alpha=0.5).prepare().system_.elements[0].values['alpha']
+        >>> NonreciprocalCahnHilliardSystem((16,), alpha=0.5).prepare().system_.interactions[0].alpha
         0.5
     """
 
@@ -161,8 +194,10 @@ class NonreciprocalCahnHilliardSystem(BaseSystem):
         kappa: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.length = length
         self.chi = chi
@@ -171,23 +206,26 @@ class NonreciprocalCahnHilliardSystem(BaseSystem):
         self.kappa = kappa
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the nonreciprocal Cahn-Hilliard equations.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the mixture with small random fields around the mixed state.
 
-        A demixing field is coupled to a diffusing one.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         shape = tuple(self.shape)
         rng = np.random.default_rng(self.random_state)
-        values = {
-            'phi': 0.01 * rng.uniform(-1.0, 1.0, shape),
-            'psi': 0.01 * rng.uniform(-1.0, 1.0, shape),
-            'chi': self.chi,
-            'alpha': self.alpha,
-            'D': self.D,
-            'kappa': self.kappa,
-        }
+        phi = 0.01 * rng.uniform(-1.0, 1.0, shape)
+        psi = 0.01 * rng.uniform(-1.0, 1.0, shape)
         space = LatticeSpace(shape, spacing=self.length / shape[0])
-        return CompositeSystem(
-            self.label,
-            elements=[FieldElement('mixture', element=NonreciprocalMixtureElement, space=space, values=values)],
+        coupling = NonreciprocalCahnHilliardInteraction(
+            'coupling',
+            target='mixture',
+            chi=self.chi,
+            alpha=self.alpha,
+            D=self.D,
+            kappa=self.kappa,
         )
+        mixture = NonreciprocalMixtureElement('mixture', phi=phi.ravel(), psi=psi.ravel(), space=space)
+        self.system_ = System(self.label, elements=[mixture], interactions=[coupling])

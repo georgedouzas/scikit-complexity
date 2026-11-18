@@ -15,17 +15,16 @@ The view shows 50 birds, which end up crossing the plane together.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.active_matter import CuckerSmaleFlockingSystem
 
 SYSTEM = 'cucker_smale_flocking'
 
-system = CuckerSmaleFlockingSystem(random_state=0)
-observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = RK4Solver(dt=0.05)
-trajectory = simulate(system, solver=solver, dt=0.1, observers=[observer], random_state=0)
+system = CuckerSmaleFlockingSystem(random_state=0, solver=solver).prepare()
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+trajectory = system.simulate(dt=0.1, observers=[observer], random_state=0)
 
 # %%
 # Unconditional flocking
@@ -37,7 +36,8 @@ trajectory = simulate(system, solver=solver, dt=0.1, observers=[observer], rando
 
 fig, ax = plt.subplots(figsize=(7, 4))
 for beta, color in ((0.25, 'tab:blue'), (1.5, 'tab:orange')):
-    run = simulate(CuckerSmaleFlockingSystem(beta=beta, random_state=1), until=60, solver=solver, random_state=1)
+    flock = CuckerSmaleFlockingSystem(beta=beta, random_state=1, solver=solver).prepare()
+    run = flock.simulate(until=60, random_state=1)
     velocities = run.get_values('birds.x_d1')
     spread = np.sqrt(np.mean(np.sum((velocities - velocities.mean(axis=1, keepdims=True)) ** 2, axis=-1), axis=1))
     ax.semilogy(run.times, spread, color=color, label=f'beta = {beta}')

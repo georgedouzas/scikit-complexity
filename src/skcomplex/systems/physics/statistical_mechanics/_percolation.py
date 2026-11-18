@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from typing import Annotated
 
 import numpy as np
@@ -10,10 +11,13 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.spaces import ContinuousSpace, StaticTime
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.spaces import BaseSpace, ContinuousSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.specs import VisualSpec
+from ....core.systems import BaseSystem, System
 
 
 class DiskElement(Element):
@@ -29,6 +33,12 @@ class DiskElement(Element):
         radius:
             The radius of the disk, which it is drawn with.
 
+        size:
+            The number of disks, or `None` for one.
+
+        space:
+            The plane of the disks, or `None` for none.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import DiskElement
         >>> DiskElement('disk', x=(1.0, 2.0)).x
@@ -40,10 +50,13 @@ class DiskElement(Element):
     def __init__(
         self,
         label: str,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
-        radius: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        x: npt.ArrayLike = 0.0,
+        radius: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        *,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size, space=space)
         self.x = x
         self.radius = radius
 
@@ -73,6 +86,12 @@ class ContinuumPercolationSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import ContinuumPercolationSystem
         >>> ContinuumPercolationSystem(1.0, side=10.0).prepare().system_.elements[0].size
@@ -91,21 +110,25 @@ class ContinuumPercolationSystem(BaseSystem):
         radius: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.filling = filling
         self.side = side
         self.radius = radius
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the disks at uniform positions in the square.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         size = round(self.filling * self.side**2 / (np.pi * self.radius**2))
         positions = np.random.default_rng(self.random_state).uniform(0.0, self.side, (size, 2))
-        disks = GroupElement('disks', element=DiskElement, size=size, values={'x': positions, 'radius': self.radius})
-        return CompositeSystem(
-            self.label,
-            elements=[disks],
-            space=ContinuousSpace(extent=[self.side, self.side]),
-            time=StaticTime(),
-        )
+        square = ContinuousSpace(extent=[self.side, self.side])
+        disks = DiskElement('disks', x=positions, radius=self.radius, size=size, space=square)
+        self.system_ = System(self.label, elements=[disks], space=square)
