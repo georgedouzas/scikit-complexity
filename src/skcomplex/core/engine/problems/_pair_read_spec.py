@@ -34,6 +34,10 @@ class _PairReadSpec(BaseSpec):
         position:
             The place among the other members of a set of current neighbours of the reader, for an `'other'` read of
             a reduction over neighbour hyperedges, or `None` for a reduction over single neighbours.
+
+        axis:
+            The axis of the space a scalar position read by its minimum image runs along, such as 1 for `y` in a
+            plane, or `None` for a component of a vector position.
     """
 
     read: _ReadSpec
@@ -41,3 +45,4 @@ class _PairReadSpec(BaseSpec):
     image: bool = False
     table: Indices | None = field(default=None, compare=False)
     position: int | None = None
+    axis: int | None = None

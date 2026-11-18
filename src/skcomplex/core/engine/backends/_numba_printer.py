@@ -948,15 +948,18 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
             )
             return [f'{INDENT}_ip{index}_, _ix{index}_, _ie{index}_ = {call}']
         assert isinstance(search, MetricSearch)
-        entry = search.positions
-        start, columns = f'_L{2 * self._get_slot(entry)}_', entry.columns
+        placed = search.positions if isinstance(search.positions, tuple) else (search.positions,)
+        columns = sum(entry.columns for entry in placed)
         periods = search.periods if search.periods is not None else (1.0,) * columns
         periodic = search.periods is not None
+        views = [
+            f'x[_L{2 * self._get_slot(entry)}_ : _L{2 * self._get_slot(entry)}_ + {reduction.size} * {entry.columns}]'
+            f'.reshape(({reduction.size}, {entry.columns}))'
+            for entry in placed
+        ]
+        positions = views[0] if len(views) == 1 else f'np.hstack(({", ".join(views)}))'
         lines = [
-            (
-                f'{INDENT}_pos{index}_ = x[{start} : {start} + {reduction.size} * {columns}]'
-                f'.reshape(({reduction.size}, {columns}))'
-            ),
+            f'{INDENT}_pos{index}_ = {positions}',
             f'{INDENT}_per{index}_ = np.array([{", ".join(repr(float(item)) for item in periods)}])',
         ]
         neighbourhood = search.neighbourhood
@@ -1016,7 +1019,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         search = reduction.search
         assert isinstance(search, MetricSearch)
         assert search.periods is not None
-        period = repr(float(search.periods[read.column]))
+        period = repr(float(search.periods[read.column if pair.axis is None else pair.axis]))
         own = f'{vector}[{start} + _i_ * {read.stride} + {read.column}]'
         del index
         return f'{own} - (({own} - {value}) - {period} * np.rint(({own} - {value}) / {period}))'

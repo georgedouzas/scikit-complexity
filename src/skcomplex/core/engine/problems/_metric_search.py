@@ -31,7 +31,8 @@ class MetricSearch(BaseSearch):
             The radius, nearest, cone, or Delaunay neighbourhood.
 
         positions:
-            The entry of the position state of the members.
+            The entry of the vector position state of the members, or the entries of their scalar positions along
+            every axis of the space, such as `x` and `y` of walkers in a plane.
 
         periods:
             The sides of a periodic box, or `None` for distances without minimum images.
@@ -49,7 +50,7 @@ class MetricSearch(BaseSearch):
     def __init__(
         self,
         neighbourhood: RadiusNeighborhood | NearestNeighborhood | DelaunayNeighborhood,
-        positions: EntrySpec,
+        positions: EntrySpec | tuple[EntrySpec, ...],
         periods: tuple[float, ...] | None = None,
         direction: _DirectionSpec | None = None,
     ) -> None:
@@ -57,6 +58,23 @@ class MetricSearch(BaseSearch):
         self.positions = positions
         self.periods = periods
         self.direction = direction
+
+    def get_positions(self, x: Array) -> Array:
+        """Return the positions of the members, one row of components per member.
+
+        Positions along every axis of the space are stacked as the columns of the rows.
+
+        Args:
+            x:
+                The state vector.
+
+        Returns:
+            positions:
+                One row of position components per member.
+        """
+        if isinstance(self.positions, tuple):
+            return np.column_stack([entry.get_view(x) for entry in self.positions])
+        return self.positions.get_view(x)
 
     def get_wrapped(self, x: Array) -> Array:
         """Return the positions of the members, wrapped into a periodic box.
@@ -69,7 +87,7 @@ class MetricSearch(BaseSearch):
             positions:
                 One row of position components per member.
         """
-        positions = self.positions.get_view(x)
+        positions = self.get_positions(x)
         if self.periods is None:
             return positions
         periods = np.asarray(self.periods)
@@ -95,7 +113,7 @@ class MetricSearch(BaseSearch):
             differences:
                 One row of components per pair, `x_reader - x_other` wrapped.
         """
-        positions = self.positions.get_view(x)
+        positions = self.get_positions(x)
         difference = positions[readers] - positions[others]
         if self.periods is None:
             return difference

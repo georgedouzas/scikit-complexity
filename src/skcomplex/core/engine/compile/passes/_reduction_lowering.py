@@ -971,8 +971,8 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         read = _ReadSpec(reference.is_state, indices, entry, reference.column, entry.columns)
         if reference.source is ReadKind.MEMBER:
             return _PairReadSpec(read, 'reader')
-        image = getattr(search, 'periods', None) is not None and entry == getattr(search, 'positions', None)
-        return _PairReadSpec(read, 'other', image)
+        image, axis = self._get_image(search, entry)
+        return _PairReadSpec(read, 'other', image, axis=axis)
 
     def _get_cell_place(self, item: Expression, spec: KernelSpec) -> tuple[int, CellComplexSpace] | None:
         """Return the degree and the cell complex of a symbol.
@@ -1396,6 +1396,20 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         self._add_reference(spec, compiled.symbol, ReferenceSpec(compiled.entry, False, 0, ReadKind.REDUCED))
         return compiled.symbol
 
+    @staticmethod
+    def _get_image(search: object, entry: EntrySpec) -> tuple[bool, int | None]:
+        """Return whether a periodic search reads an entry by its minimum image, and the axis of a scalar position.
+
+        A vector position is read by its minimum image component by component, and a scalar position, such as `y` of
+        walkers in a plane, along its axis.
+        """
+        positions = getattr(search, 'positions', None)
+        if getattr(search, 'periods', None) is None:
+            return False, None
+        if isinstance(positions, tuple):
+            return (True, positions.index(entry)) if entry in positions else (False, None)
+        return entry == positions, None
+
     def _get_hyperedge_search(
         self,
         reduction: _HyperedgeReductionSpec,
@@ -1485,6 +1499,6 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         if item in sources:
             return _PairReadSpec(read, 'reader')
         if tables is None:
-            image = getattr(search, 'periods', None) is not None and entry == getattr(search, 'positions', None)
-            return _PairReadSpec(read, 'other', image, position=positions[item])
+            image, axis = self._get_image(search, entry)
+            return _PairReadSpec(read, 'other', image, position=positions[item], axis=axis)
         return _PairReadSpec(read, 'other', table=tables[positions[item]])
