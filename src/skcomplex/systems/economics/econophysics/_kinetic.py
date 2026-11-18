@@ -6,6 +6,7 @@ The exchange has a saving propensity or a debt limit.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import oo
@@ -14,10 +15,11 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import TransferInteraction
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
-from ....core.engine.solvers import AgentView
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import AgentView, BaseSolver
 from ....core.specs import ParameterSpec, StateSpec
+from ....core.systems import BaseSystem, System
 
 
 class SavingTraderView(AgentView):
@@ -212,6 +214,12 @@ class KineticWealthExchangeSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValueError:
             Both a saving propensity and a debt limit are given, or the saving propensity is not below 1.
@@ -237,16 +245,19 @@ class KineticWealthExchangeSystem(BaseSystem):
         wealth: float = 1.0,
         amount: float = 0.1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_agents = n_agents
         self.saving = saving
         self.debt = debt
         self.wealth = wealth
         self.amount = amount
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         if self.debt is not None and self.saving:
             error_msg = 'Give either a saving propensity or a debt limit, not both.'
             raise ValueError(error_msg)
@@ -264,7 +275,7 @@ class KineticWealthExchangeSystem(BaseSystem):
                 amount=self.amount,
             )
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[
                 GroupElement(

@@ -17,7 +17,6 @@ import rerun.blueprint as rrb
 
 from skcomplex.core.analysis import distribution
 from skcomplex.core.components import Observable
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.econophysics import BoltzmannWealthSystem
 
@@ -40,7 +39,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(system, until=STEPS, observables=observables, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=STEPS, observables=observables, observers=[observer], random_state=0)
 
 # %%
 # Stationary distribution of wealth

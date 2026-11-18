@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from types import SimpleNamespace
 from typing import Annotated, ClassVar
@@ -12,14 +12,17 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, ZZ
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.compile import PhaseSpec, PhasesScheduleSpec
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import BaseSpec, RoleSpec, StateSpec
+from ....core.components.laws import UpdateLaw
+from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.compile import PhaseSpec
+from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
+from ....core.specs import BaseSpec, Role
+from ....core.systems import BaseSystem, System
 from ....core.types import IntArray
 from ...general.agents import ChoiceInteraction, EvolutionInteraction
 from ..common.learning import PayoffLearningInteraction
@@ -89,10 +92,12 @@ class MinorityPlayerElement(Element):
         wealth:
             The net number of times the agent was in the minority.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.econophysics import MinorityPlayerElement
-        >>> GroupElement('players', element=MinorityPlayerElement, size=11, values={'first': 3, 'second': 5}).size
+        >>> MinorityPlayerElement('players', first=3, second=5, size=11).size
         11
     """
 
@@ -100,15 +105,16 @@ class MinorityPlayerElement(Element):
         self,
         label: str,
         *,
-        first: Annotated[float, StateSpec(domain=NN)] = 0,
-        second: Annotated[float, StateSpec(domain=NN)] = 1,
-        first_score: Annotated[float, StateSpec()] = 0.0,
-        second_score: Annotated[float, StateSpec()] = 0.0,
-        strategy: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        action: Annotated[float, StateSpec(domain=ZZ)] = 0.0,
-        wealth: Annotated[float, StateSpec()] = 0.0,
+        first: Annotated[object, NN] = 0.0,
+        second: Annotated[object, NN] = 1.0,
+        first_score: object = 0.0,
+        second_score: object = 0.0,
+        strategy: Annotated[object, FiniteEnumeratedSet([0, 1])] = 0.0,
+        action: Annotated[object, ZZ] = 0.0,
+        wealth: object = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.first = first
         self.second = second
         self.first_score = first_score
@@ -178,7 +184,7 @@ class MinorityGameInteraction(Interaction):
         4
     """
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     reports: ClassVar[tuple[str, ...]] = ('attendance', 'history')
 
@@ -186,7 +192,7 @@ class MinorityGameInteraction(Interaction):
         self,
         label: str,
         *,
-        players: Annotated[str, RoleSpec()],
+        players: Role,
         memory: int = 3,
         phase: str | None = None,
     ) -> None:
@@ -195,18 +201,11 @@ class MinorityGameInteraction(Interaction):
         self.memory = memory
         self.phase = phase
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule of a round.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.play, phase=self.phase)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rules of the system as the laws."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context, self.play, phase=self.phase)]
 
     def _get_table(self, code: float, system: SystemView) -> IntArray:
         """Return the table of a strategy, cached for the run in the state of the game."""
@@ -303,6 +302,12 @@ class MinorityGameSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValueError:
             The number of agents is even.
@@ -328,8 +333,10 @@ class MinorityGameSystem(BaseSystem):
         fraction: float = 0.1,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_agents = n_agents
         self.memory = memory
         self.evolutionary = evolutionary
@@ -337,18 +344,14 @@ class MinorityGameSystem(BaseSystem):
         self.fraction = fraction
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the components of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         if self.n_agents % 2 == 0:
             error_msg = f'The minority game needs an odd number of agents, got {self.n_agents}.'
             raise ValueError(error_msg)
         codes = np.random.default_rng(self.random_state).integers(MAX_SEED, size=(2, self.n_agents)).astype(float)
-        players = GroupElement(
-            'players',
-            element=MinorityPlayerElement,
-            size=self.n_agents,
-            values={'first': codes[0], 'second': codes[1]},
-        )
+        players = MinorityPlayerElement('players', first=codes[0], second=codes[1], size=self.n_agents)
         choice = ChoiceInteraction(
             'choice',
             target='players',
@@ -383,11 +386,9 @@ class MinorityGameSystem(BaseSystem):
             reset={'first_score': 0.0, 'second_score': 0.0, 'wealth': 0.0},
             phase='score',
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[players],
             interactions=[choice, game, scoring, *([evolution] if self.evolutionary else [])],
-            time=DiscreteTime(
-                schedule=PhasesScheduleSpec([PhaseSpec('choose'), PhaseSpec('play'), PhaseSpec('score')]),
-            ),
+            solver=MesaSolver(phases=[PhaseSpec('choose'), PhaseSpec('play'), PhaseSpec('score')]),
         )
