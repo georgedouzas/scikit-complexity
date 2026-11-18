@@ -15,20 +15,21 @@ from sage.all__sagemath_symbolics import Expression
 from sage.sets.real_set import RealSet
 
 from .....core.components.base import BaseComponent
-from .....core.components.interactions import MapInteraction
-from .....core.components.laws import BaseLaw, RuleLaw, UpdateLaw
+from .....core.components.interactions import Interaction
+from .....core.components.laws import BaseLaw, UpdateLaw
 from .....core.components.laws.utils import where
 from .....core.components.spaces import BaseSpace
 from .....core.components.types import AgentViewProtocol, SystemViewProtocol
-from .....core.enums import ElementKind
 from .....core.errors import ValidationError
-from .....core.specs import ParameterSpec, RoleSpec
+from .....core.specs import Role
 from .....core.types import Array
 
 RULES = ('average', 'cumulative')
+FORMS = ('symbolic', 'agent')
+SCHEDULES = ('synchronous', 'sequential', 'random-sequential', 'member')
 
 
-class PayoffLearningInteraction(MapInteraction):
+class PayoffLearningInteraction(Interaction):
     """Payoff learning of the scores of options.
 
     Economics names it reinforcement learning of payoffs, as in fictitious play and the attractions of
@@ -106,56 +107,60 @@ class PayoffLearningInteraction(MapInteraction):
         'shop'
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw, UpdateLaw)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('scores', 'chosen'))],
+        target: Role,
         scores: str | Sequence[str],
         payoff: Callable[..., float | Expression],
-        rate: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.1,
+        rate: Annotated[float, RealSet.closed(0, 1)] = 0.1,
         rule: str = 'average',
         form: str = 'symbolic',
         phase: str | None = None,
         chosen: str | None = None,
         schedule: str = 'synchronous',
     ) -> None:
-        first = scores if isinstance(scores, str) else next(iter(scores), '')
-        super().__init__(
-            label,
-            target=target,
-            state=first,
-            function=self._get_scores,
-            form=form,
-            phase=phase,
-            schedule=schedule,
-        )
+        super().__init__(label)
+        self.target = target
         self.scores = scores
         self.payoff = payoff
         self.rate = rate
         self.rule = rule
         self.chosen = chosen
+        self.form = form
+        self.phase = phase
+        self.schedule = schedule
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Raise an error for an unknown variant, no scores, or an uncallable payoff.
+        """Set the update of the scores, or the rule of the agents, as the laws.
 
         Args:
             context:
-                The space the interaction inherits from its system.
+                The space the interaction inherits from its system, or the namespace of the members it binds.
 
         Raises:
             ValidationError:
-                The type declares states, the form, the rule, or the schedule is unknown, the symbolic form runs member
-                by member, there are no scores, or the payoff is not callable.
+                The form, the rule, or the schedule is unknown, the symbolic form runs member by member, there are no
+                scores, or the payoff is not callable.
         """
         super()._prepare(context)
+        self._check()
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = self._get_learning_laws(context)
+
+    def _check(self) -> None:
+        """Raise an error for an unknown variant, no scores, or an uncallable payoff."""
+        if self.form not in FORMS:
+            error_msg = f'Unknown form {self.form!r} of {self.label!r}. Use one of {FORMS}.'
+            raise ValidationError(error_msg)
+        if self.schedule not in SCHEDULES:
+            error_msg = f'Unknown schedule {self.schedule!r} of {self.label!r}. Use one of {SCHEDULES}.'
+            raise ValidationError(error_msg)
         if self.rule not in RULES:
             error_msg = f'Unknown rule {self.rule!r} of {self.label!r}. Use one of {RULES}.'
-            raise ValidationError(error_msg)
-        if self.form == 'symbolic' and self.schedule != 'synchronous':
-            error_msg = f'The schedule {self.schedule!r} of {self.label!r} runs agent rules. Use `form="agent"`.'
             raise ValidationError(error_msg)
         if self.form == 'symbolic' and self.schedule != 'synchronous':
             error_msg = f'The schedule {self.schedule!r} of {self.label!r} runs agent rules. Use `form="agent"`.'
@@ -184,16 +189,12 @@ class PayoffLearningInteraction(MapInteraction):
         """
         old = self._read_scores(agent)
         options = range(len(old)) if self.chosen is None else [int(getattr(agent, self.chosen))]
-        rate = 1.0 if self.rule == 'cumulative' else self._get_parameter_value('rate', system)
+        rate = 1.0 if self.rule == 'cumulative' else self.rate
         change = np.zeros_like(old)
         for k in options:
             payoff = float(self.payoff(agent, system, k))
             change[k] = payoff if self.rule == 'cumulative' else rate * (payoff - old[k])
         return old + change
-
-    def _get_value(self, agent: AgentViewProtocol, system: SystemViewProtocol) -> Array:
-        """Return the new scores of an agent, the next value of the map."""
-        return self._get_scores(agent, system)
 
     def _set_value(self, agent: AgentViewProtocol, value: object) -> None:
         """Set the scores of an agent."""
@@ -204,29 +205,43 @@ class PayoffLearningInteraction(MapInteraction):
         for name, score in zip(self.scores, scores, strict=True):
             setattr(agent, name, float(score))
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
-        """Return the update of every score towards its payoff, or the agent-form rule.
+    def _update_member(self, agent: AgentViewProtocol, system: SystemViewProtocol) -> None:
+        """Move the scores of one agent, in its own activation."""
+        if agent.alive:
+            self._set_value(agent, self._get_scores(agent, system))
+
+    def update(self, system: SystemViewProtocol) -> None:
+        """Move the scores of every agent by the schedule.
+
+        Under `'synchronous'` every agent reads the scores at the start of the rule, and otherwise the agents move one
+        after the other, in their order or in a new random order.
 
         Args:
-            namespace:
-                The namespace of the symbols the laws can use, with `namespace.target` and `namespace.rate`.
-
-        Returns:
-            laws:
-                The update laws of the scores, or the rule that reinforces the scores of the agents.
+            system:
+                The system view of the learning.
         """
+        agents = list(system.get_agents('target'))
+        if self.schedule == 'synchronous':
+            values = [self._get_scores(agent, system) for agent in agents]
+            for agent, value in zip(agents, values, strict=True):
+                self._set_value(agent, value)
+            return
+        order = system.rng.permutation(len(agents)) if self.schedule == 'random-sequential' else range(len(agents))
+        for index in order:
+            self._update_member(agents[int(index)], system)
+
+    def _get_learning_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
+        """Return the update of every score towards its payoff, or the rule of the agent form."""
+        if self.form == 'agent' and self.schedule == 'member':
+            return [UpdateLaw(namespace.target, self._update_member, phase=self.phase)]
         if self.form == 'agent':
-            return super()._get_laws(namespace)
+            return [UpdateLaw(namespace, self.update, phase=self.phase)]
         laws: list[BaseComponent] = []
         for index, name in enumerate(self.scores):
-            score = getattr(self._get_member(namespace, 'target'), name)
+            score = getattr(namespace.target, name)
             payoff = self.payoff(namespace, index)
-            change = (
-                payoff
-                if self.rule == 'cumulative'
-                else self._get_parameter_symbol('rate', namespace) * (payoff - score)
-            )
+            change = payoff if self.rule == 'cumulative' else namespace.rate * (payoff - score)
             if self.chosen is not None:
-                change = where(getattr(self._get_member(namespace, 'target'), self.chosen) == index, change, 0)
+                change = where(getattr(namespace.target, self.chosen) == index, change, 0)
             laws.append(UpdateLaw(score, score + change))
         return laws
