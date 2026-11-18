@@ -16,7 +16,6 @@ segregation that nobody's utility asks for.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.segregation import StochasticSchellingSystem
 
@@ -24,11 +23,10 @@ SYSTEM = 'stochastic_schelling'
 BLOCKS, CELLS, STEPS = 16, 25, 150
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(
-    StochasticSchellingSystem(beta=4.0, random_state=0),
-    until=STEPS,
-    observers=[observer],
-    random_state=0,
+trajectory = (
+    StochasticSchellingSystem(beta=4.0, random_state=0)
+    .prepare()
+    .simulate(until=STEPS, observers=[observer], random_state=0)
 )
 
 # %%
@@ -48,7 +46,9 @@ def densities(trajectory, frame):
 
 def final_densities(beta, seed):
     """Return the block densities after a run."""
-    trajectory = simulate(StochasticSchellingSystem(beta=beta, random_state=seed), until=STEPS, random_state=seed)
+    trajectory = (
+        StochasticSchellingSystem(beta=beta, random_state=seed).prepare().simulate(until=STEPS, random_state=seed)
+    )
     return densities(trajectory, STEPS)
 
 
