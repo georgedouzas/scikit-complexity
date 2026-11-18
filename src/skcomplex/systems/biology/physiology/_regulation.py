@@ -17,7 +17,7 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
-from ....core.components.laws.utils import delayed, hill, pulse
+from ....core.components.laws.utils import hill, pulse
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -682,4 +682,4 @@ class SteerableFeedbackLoopSystem(DynamicalSystem):
 
     def _get_receptor(self, s: SimpleNamespace) -> Expression:
         """Return `receptor` from the namespace of an equation."""
-        return 1 / (1 + (delayed(s.target.x, s.target.tau) / self._get_sensitivity(s)) ** s.target.n)
+        return 1 / (1 + (s.target.x(t=s.t - s.target.tau) / self._get_sensitivity(s)) ** s.target.n)

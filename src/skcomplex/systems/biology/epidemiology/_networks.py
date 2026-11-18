@@ -16,14 +16,14 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import CouplingInteraction, Interaction
-from ....core.components.laws import RateLaw
-from ....core.components.laws.utils import laplacian
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components.laws.utils import laplacian, total
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, StateSpec
 from ....core.systems import BaseSystem, System
+from ....core.types import Array
 from ...general.dynamics import NetworkDynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -52,12 +52,12 @@ class DegreeClassElement(Element):
         P:
             The probability `P(k)` of the degree.
 
+        size:
+            The number of degree classes, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.biology.epidemiology import DegreeClassElement
-        >>> GroupElement(
-        ...     'network', element=DegreeClassElement, size=2, values={'k': [1.0, 2.0], 'P': [0.5, 0.5]}
-        ... ).size
+        >>> DegreeClassElement('network', k=[1.0, 2.0], P=[0.5, 0.5], size=2).size
         2
     """
 
@@ -65,12 +65,13 @@ class DegreeClassElement(Element):
         self,
         label: str,
         *,
-        rho: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        lam: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        P: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        rho: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.01,
+        lam: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.2,
+        k: Annotated[float | Array, RealSet.open(0, oo)] = 1.0,
+        P: Annotated[float | Array, RealSet.closed_open(0, oo)] = 1.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.rho = rho
         self.lam = lam
         self.k = k
@@ -160,6 +161,15 @@ class HeterogeneousMeanFieldSISSystem(BaseSystem):
         member = namespace.member
         return member.lam * member.k * (1 - member.rho) * namespace.other.rho
 
+    @staticmethod
+    def _get_infection_laws(s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the infection of every degree class by every class, weighted by the share of the ends of edges."""
+        pair = SimpleNamespace(member=s.target, other=s.target.other)
+        infection = HeterogeneousMeanFieldSISSystem._get_infection(pair)
+        weight = HeterogeneousMeanFieldSISSystem._get_edge_weight(pair)
+        mean = total(weight * infection, over=s.target.other) / total(weight, over=s.target.other)
+        return [RateLaw(s.target.rho, mean)]
+
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of the SIS epidemic on a network with power-law degrees.
 
@@ -170,29 +180,14 @@ class HeterogeneousMeanFieldSISSystem(BaseSystem):
         super()._prepare(context)
         degrees = np.arange(self.k_min, self.k_max + 1, dtype=float)
         weights = degrees**-self.exponent / np.sum(degrees**-self.exponent)
-        classes = GroupElement(
-            'network',
-            element=DegreeClassElement,
-            size=len(degrees),
-            values={'rho': self.rho, 'lam': self.lam, 'k': degrees, 'P': weights},
-        )
+        classes = DegreeClassElement('network', rho=self.rho, lam=self.lam, k=degrees, P=weights, size=len(degrees))
         interactions = [
             Interaction(
                 'recovery',
                 roles={'target': 'network'},
                 laws=lambda s: [RateLaw(s.target.rho, self._get_recovery(s))],
             ),
-            CouplingInteraction(
-                'infection',
-                target='network',
-                read='rho',
-                write='rho',
-                function=self._get_infection,
-                reduce='normalized-mean',
-                mode='group',
-                weights=self._get_edge_weight,
-                include_self=True,
-            ),
+            Interaction('infection', roles={'target': 'network'}, laws=self._get_infection_laws),
         ]
         self.system_ = System(self.label, elements=[classes], interactions=interactions)
 

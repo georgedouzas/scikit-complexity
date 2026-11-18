@@ -7,18 +7,20 @@ The elements excite their neighbours with a transmission probability.
 # License: MIT
 
 from collections.abc import Sequence
+from functools import partial
 from types import SimpleNamespace
 from typing import Annotated
 
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import NN, Expression, exp, oo
+from sage.all__sagemath_symbolics import NN, SR, exp, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import TransitionInteraction
-from ....core.components.laws.utils import neighbors, where
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.laws.utils import neighbors, uniform, where
 from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -159,32 +161,37 @@ class KinouchiCopelliSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _get_excitation(s: SimpleNamespace) -> Expression:
-        """Return the probability that a quiescent element is excited in a step.
+    def _get_excitation(s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the excitation of a quiescent element in a step.
 
         The stimulus or an excited neighbour excites it.
         """
+        phase = s.target.phase
         excited = neighbors(where(s.target.other.phase == EXCITED, 1, 0))
-        probability: Expression = 1 - exp(-s.target.stimulus) * (1 - s.target.p) ** excited
-        return probability
+        probability = 1 - exp(-s.target.stimulus) * (1 - s.target.p) ** excited
+        moves = uniform('transition_excitation') < probability
+        return [UpdateLaw(phase, where(phase == 0, where(moves, EXCITED, 0), phase), source=0)]
 
     @staticmethod
-    def _get_cycle(n_states: int) -> list[TransitionInteraction]:
+    def _get_cycle(n_states: int) -> list[Interaction]:
         """Return the moves of an excited or refractory element to the next state.
 
         The element moves to the next state of its cycle, and the last state moves to rest.
         """
         return [
-            TransitionInteraction(
+            Interaction(
                 f'cycle_{phase}',
-                target='neurons',
-                state='phase',
-                source=phase,
-                destination=(phase + 1) % n_states,
-                condition=lambda s: 1,
+                roles={'target': 'neurons'},
+                laws=partial(KinouchiCopelliSystem._get_move, source=phase, destination=(phase + 1) % n_states),
             )
             for phase in range(EXCITED, n_states)
         ]
+
+    @staticmethod
+    def _get_move(s: SimpleNamespace, *, source: int, destination: int) -> list[BaseLaw]:
+        """Return the move of an element from one state of its cycle to the next."""
+        phase = s.target.phase
+        return [UpdateLaw(phase, where(phase == source, where(SR(1), destination, source), phase), source=source)]
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of the Kinouchi-Copelli network of excitable elements.
@@ -211,14 +218,7 @@ class KinouchiCopelliSystem(BaseSystem):
             stimulus=self.stimulus,
             space=NetworkSpace(graph),
         )
-        excitation = TransitionInteraction(
-            'excitation',
-            target='neurons',
-            state='phase',
-            source=0,
-            destination=EXCITED,
-            probability=self._get_excitation,
-        )
+        excitation = Interaction('excitation', roles={'target': 'neurons'}, laws=self._get_excitation)
         self.system_ = System(
             self.label,
             elements=[neurons],

@@ -15,14 +15,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.spaces import NetworkSpace
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver, SystemView
-from ....core.specs import RoleSpec, StateSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
+from ....core.types import Array, IntArray
 
 SUSCEPTIBLE, INFECTED, RECOVERED = 0.0, 1.0, 2.0
 
@@ -36,6 +37,7 @@ class CommuterView(AgentView):
     home: float
     work: float
     health: float
+    node: int
 
 
 class CommuterElement(Element):
@@ -59,6 +61,15 @@ class CommuterElement(Element):
         health:
             The health state.
 
+        node:
+            The location the person is at, a node of the network of locations.
+
+        size:
+            The number of people, or `None` for one.
+
+        space:
+            The network of locations, or `None` for none.
+
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import CommuterElement
         >>> CommuterElement('person', home=3.0, work=12.0).work
@@ -71,14 +82,18 @@ class CommuterElement(Element):
         self,
         label: str,
         *,
-        home: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        work: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        health: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        home: Annotated[float | Array, NN] = 0.0,
+        work: Annotated[float | Array, NN] = 0.0,
+        health: Annotated[float | Array, NN] = 0.0,
+        node: int | IntArray = 0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size, space=space)
         self.home = home
         self.work = work
         self.health = health
+        self.node = node
 
     @classmethod
     def _get_view(cls) -> type[CommuterView]:
@@ -118,13 +133,13 @@ class ColocationInteraction(Interaction):
 
     draws = True
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        people: Annotated[str, RoleSpec()],
+        people: Role,
         p: float = 0.05,
         gamma: float = 0.1,
         closed: bool = False,
@@ -135,18 +150,17 @@ class ColocationInteraction(Interaction):
         self.gamma = gamma
         self.closed = closed
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule of a half day.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rule of a half day.
 
         Args:
-            s:
+            context:
                 The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
         """
-        return [RuleLaw(self.visit)]
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self.visit)]
 
     def visit(self, system: SystemView) -> None:
         """Move every person to the location of the half day, then infect and recover.
@@ -165,7 +179,7 @@ class ColocationInteraction(Interaction):
         recovery = (health == INFECTED) & (draws < self.gamma)
         health = np.where(infection, INFECTED, np.where(recovery, RECOVERED, health))
         for person, place, state in zip(people, places, health, strict=True):
-            person.move_to(int(place))
+            person.node = int(place)
             person.health = float(state)
 
 
@@ -270,12 +284,15 @@ class EpisimsCitySystem(BaseSystem):
         graph.add_edges_from(zip(homes.tolist(), works.tolist(), strict=True))
         health = np.zeros(self.people)
         health[rng.choice(self.people, size=self.infected, replace=False)] = 1.0
-        group = GroupElement(
+        space = NetworkSpace(graph)
+        group = CommuterElement(
             'people',
-            element=CommuterElement,
+            home=homes.astype(float),
+            work=works.astype(float),
+            health=health,
+            node=homes,
             size=self.people,
-            values={'home': homes.astype(float), 'work': works.astype(float), 'health': health},
-            location=homes.tolist(),
+            space=space,
         )
         contacts = ColocationInteraction('contacts', people='people', p=self.p, gamma=self.gamma, closed=self.closed)
-        self.system_ = System(self.label, elements=[group], interactions=[contacts], space=NetworkSpace(graph))
+        self.system_ = System(self.label, elements=[group], interactions=[contacts], space=space)

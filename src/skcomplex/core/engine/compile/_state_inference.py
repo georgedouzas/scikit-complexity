@@ -42,7 +42,7 @@ from ...components.spaces import CellComplexSpace, ContinuousSpace, LatticeSpace
 from ...components.systems import CompositeSystem
 from ...enums import TopologyKind, VariableKind
 from ...errors import ValidationError
-from ...specs import DeclaredVariableSpec, MatrixGroupSpec, ParameterSpec, StateSpec, SubshiftSpec, VisualSpec
+from ...specs import BaseSpec, DeclaredVariableSpec, MatrixGroupSpec, ParameterSpec, StateSpec, SubshiftSpec, VisualSpec
 from .._utils import binding_of, bound_labels, declarations_of
 from ..problems._bilinear_law import BilinearLaw
 from ._compilation import Compilation
@@ -87,7 +87,8 @@ class _StateInference:
 
         The values keep the order in which they are given, the arguments of the class first and then the entries of
         `values`, so the states and parameters come out in that order. The starting values of derivatives and past
-        values, such as `"x'"` or `'y[-1]'`, are left out.
+        values, such as `"x'"` or `'y[-1]'`, are left out, and so are the arguments that hold a spec, such as the
+        structure a chain of angles is drawn from, which are settings of the element.
         """
         given = {name: value for name, value in (element.values or {}).items() if not STARTING.fullmatch(name)}
         for name in given:
@@ -99,7 +100,11 @@ class _StateInference:
                 )
                 raise ValidationError(error_msg)
         params = element.get_params(deep=False)
-        arguments = {name: params[name] for name in element._get_hints() if name in params and name not in RESERVED}
+        arguments = {
+            name: params[name]
+            for name in element._get_hints()
+            if name in params and name not in RESERVED and not isinstance(params[name], BaseSpec)
+        }
         return arguments | given
 
     @staticmethod
@@ -204,6 +209,27 @@ class _StateInference:
             )
             raise ValidationError(error_msg)
         return array[0]
+
+    @staticmethod
+    def _get_new_member_default(
+        element: Element,
+        name: str,
+        declared: DeclaredVariableSpec,
+        member: object,
+    ) -> DeclaredVariableSpec:
+        """Return the declaration of a value given per member, whose default is the default of the element class.
+
+        A member that the laws add to a group, such as a new species or a new edge, takes the default of the argument
+        of the class, as a new instance of the class would, and not the value of the first member. A value without a
+        default of its class keeps the value of the first member.
+        """
+        parameter = inspect.signature(type(element)).parameters.get(name)
+        if parameter is None or parameter.default is inspect.Parameter.empty:
+            return declared
+        default = parameter.default
+        if np.ndim(np.asarray(default, dtype=object)) != np.ndim(np.asarray(member, dtype=object)):
+            return declared
+        return DeclaredVariableSpec(default, declared.spec)
 
     @staticmethod
     def _is_plain(component: BaseComponent) -> bool:
@@ -858,6 +884,7 @@ class _StateInference:
             annotation = element._get_hints().get(name, inspect.Parameter.empty)
             tensor = None if self._get_symmetry(annotation) else element._get_shape_of(member)[2]
             if np.ndim(np.asarray(value, dtype=object)) > 0:
+                variables[name] = self._get_new_member_default(element, name, variables[name], member)
                 arrays[name] = element._get_matrix_entries(value, tensor)
                 arrays |= self._get_past_arrays(name, arrays[name], 0 if count is None or probing else lags(name))
             for index, given in starting.get(name, {}).items():

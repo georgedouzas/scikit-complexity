@@ -18,11 +18,9 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import where
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, ScipyODESolver
 from ....core.errors import ParameterError
-from ....core.specs import ParameterSpec, StateSpec
 from ....core.systems import BaseSystem, System
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
@@ -563,38 +561,30 @@ class ChemovirotherapyTumourElement(Element):
         u1:
             The infusion rate of the drug.
 
-        infusion:
-            The form of the infusion, `'constant'`, `'exponential'`, or `'periodic'`.
-
-    Raises:
-        ParameterError:
-            The infusion is not one of the known forms.
-
     Examples:
         >>> from skcomplex.systems.biology.oncology import ChemovirotherapyTumourElement
-        >>> ChemovirotherapyTumourElement('tumour', infusion='periodic').infusion
-        'periodic'
+        >>> ChemovirotherapyTumourElement('tumour', u1=5.0).u1
+        5.0
     """
 
     def __init__(
         self,
         label: str,
         *,
-        AU: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        AV: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        V: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        U: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.206,
-        b: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1e-06,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
-        a1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005,
-        a2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5115,
-        a3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.006,
-        beta_v: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
-        d_u: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 4.16,
-        u1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        infusion: str = 'constant',
+        AU: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        AV: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        V: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        U: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        r1: Annotated[float, RealSet.closed_open(0, oo)] = 0.206,
+        b: Annotated[float, RealSet.open(0, oo)] = 1e-06,
+        alpha: Annotated[float, RealSet.closed_open(0, oo)] = 0.001,
+        a1: Annotated[float, RealSet.closed_open(0, oo)] = 0.005,
+        a2: Annotated[float, RealSet.closed_open(0, oo)] = 0.5115,
+        a3: Annotated[float, RealSet.closed_open(0, oo)] = 0.006,
+        beta_v: Annotated[float, RealSet.closed_open(0, oo)] = 10.0,
+        d1: Annotated[float, RealSet.closed_open(0, oo)] = 0.001,
+        d_u: Annotated[float, RealSet.open(0, oo)] = 4.16,
+        u1: Annotated[float, RealSet.closed_open(0, oo)] = 10.0,
     ) -> None:
         super().__init__(label)
         self.AU = AU
@@ -611,23 +601,6 @@ class ChemovirotherapyTumourElement(Element):
         self.d1 = d1
         self.d_u = d_u
         self.u1 = u1
-        self.infusion = infusion
-
-    def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Raise an error for an unknown infusion.
-
-        Args:
-            context:
-                The space the element inherits from its system, which an element does not read.
-
-        Raises:
-            ParameterError:
-                The infusion is not one of the known forms.
-        """
-        super()._prepare(context)
-        if self.infusion not in INFUSIONS:
-            error_msg = f'The infusion must be one of {INFUSIONS}, got {self.infusion!r}.'
-            raise ParameterError(error_msg)
 
 
 class ClonalTumourElement(Element):
@@ -1431,8 +1404,8 @@ class ChemovirotherapySystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.biology.oncology import ChemovirotherapySystem
-        >>> ChemovirotherapySystem(infusion='exponential').prepare().system_.elements[0].infusion
-        'exponential'
+        >>> ChemovirotherapySystem(infusion='exponential').prepare().system_.elements[0].u1
+        10.0
     """
 
     field = 'biology/oncology'
@@ -1480,14 +1453,10 @@ class ChemovirotherapySystem(BaseSystem):
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
-        tumour = ChemovirotherapyTumourElement(
-            'tumour',
-            AU=self.AU,
-            V=self.V,
-            U=self.U,
-            u1=self.u1,
-            infusion=self.infusion,
-        )
+        if self.infusion not in INFUSIONS:
+            error_msg = f'The infusion must be one of {INFUSIONS}, got {self.infusion!r}.'
+            raise ParameterError(error_msg)
+        tumour = ChemovirotherapyTumourElement('tumour', AU=self.AU, V=self.V, U=self.U, u1=self.u1)
         interactions = [
             Interaction(
                 'tumour_growth',

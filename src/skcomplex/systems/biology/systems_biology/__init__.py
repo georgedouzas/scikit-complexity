@@ -75,7 +75,7 @@ from ._min_proteins import MinProteinSkeletonSystem
 from ._networks import (
     BiochemicalSystemsTheorySystem,
     GeneralizedMassActionInteraction,
-    GlycolysisElement,
+    GlycolysisInteraction,
     GlycolysisOscillationsSystem,
     GoodwinOscillatorSystem,
     PhosphorylationLoopElement,
@@ -125,7 +125,7 @@ __all__: list[str] = [
     'GeneralizedLogicalNetworkSystem',
     'GeneralizedMassActionInteraction',
     'GlucoseSensorInteraction',
-    'GlycolysisElement',
+    'GlycolysisInteraction',
     'GlycolysisOscillationsSystem',
     'GoodwinOscillatorSystem',
     'HormoneCascadeAmplifierSystem',

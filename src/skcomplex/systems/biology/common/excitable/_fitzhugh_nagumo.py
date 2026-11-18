@@ -16,7 +16,7 @@ from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, RateLaw
 from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
-from .....core.specs import ParameterSpec, RoleSpec
+from .....core.specs import Role
 
 
 class FitzHughNagumoInteraction(Interaction):
@@ -57,23 +57,13 @@ class FitzHughNagumoInteraction(Interaction):
             A state name is not a name, or the fast and the slow state are the same.
 
     Examples:
-        >>> from typing import Annotated
         >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.biology.common.excitable import FitzHughNagumoInteraction
-        >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> class CellElement(Element):
-        ...     def __init__(
-        ...         self, label, *, v: Annotated[float, StateSpec()] = -1.2,
-        ...         w: Annotated[float, StateSpec()] = -0.6,
-        ...     ):
-        ...         super().__init__(label)
-        ...         self.v = v
-        ...         self.w = w
         >>> kinetics = FitzHughNagumoInteraction('kinetics', target='cell', I=0.5)
-        >>> system = CompositeSystem(elements=[CellElement('cell')], interactions=[kinetics])
-        >>> trajectory = simulate(system, until=100.0, dt=0.1)
+        >>> cell = Element('cell', values={'v': -1.2, 'w': -0.6})
+        >>> system = System(elements=[cell], interactions=[kinetics]).prepare()
+        >>> trajectory = system.simulate(100.0, dt=0.1)
         >>> bool(trajectory.get_values('cell.v').max() > 1.5)
         True
     """
@@ -84,13 +74,13 @@ class FitzHughNagumoInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         fast: str = 'v',
         slow: str = 'w',
-        a: Annotated[float, ParameterSpec()] = 0.7,
-        b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
-        epsilon: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.08,
-        I: Annotated[float, ParameterSpec()] = 0.0,
+        a: float = 0.7,
+        b: Annotated[float, RealSet.closed_open(0, oo)] = 0.8,
+        epsilon: Annotated[float, RealSet.open(0, oo)] = 0.08,
+        I: float = 0.0,
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -102,11 +92,11 @@ class FitzHughNagumoInteraction(Interaction):
         self.I = I
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Raise an error for state names that are not names or that coincide.
+        """Set the cubic fast kinetics and the slow linear recovery.
 
         Args:
             context:
-                The space the interaction inherits from its system.
+                The namespace of the target.
 
         Raises:
             ValidationError:
@@ -117,17 +107,9 @@ class FitzHughNagumoInteraction(Interaction):
         if not all(isinstance(name, str) and name.isidentifier() for name in names) or self.fast == self.slow:
             error_msg = f'{self.label!r} reads the states {names!r}. Give two different names of states.'
             raise ValidationError(error_msg)
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the cubic fast kinetics and the slow linear recovery.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use, with the namespace of the target.
-
-        Returns:
-            laws:
-                The rate laws of the fast and the slow state.
-        """
-        v, w = getattr(s.target, self.fast), getattr(s.target, self.slow)
-        return [RateLaw(v, v - v**3 / 3 - w + s.I), RateLaw(w, s.epsilon * (v + s.a - s.b * w))]
+        if isinstance(context, SimpleNamespace):
+            v, w, t = getattr(context.target, self.fast), getattr(context.target, self.slow), context.t
+            self.laws_: list[BaseLaw] = [
+                RateLaw(v.diff(t), v - v**3 / 3 - w + context.I),
+                RateLaw(w.diff(t), context.epsilon * (v + context.a - context.b * w)),
+            ]

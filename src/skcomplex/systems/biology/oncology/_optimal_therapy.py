@@ -16,15 +16,14 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import RateLaw
+from ....core.components.laws import ObjectiveLaw, RateLaw
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, PontryaginSolver
-from ....core.specs import ParameterSpec, StateSpec
 from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction
 from ..common.kinetics import MichaelisMentenInteraction
 from ..common.pharmacokinetics import DosingInteraction
-from ._tumour_immune_chemotherapy import TumourImmuneChemotherapyElement
+from ._tumour_immune_chemotherapy import TumourImmuneChemotherapyElement, TumourImmuneChemotherapyInteraction
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 MAX_DOSE = 1.0
@@ -140,8 +139,8 @@ class OptimalChemotherapyElement(TumourImmuneChemotherapyElement):
         a2: float = 0.3,
         a3: float = 0.1,
         k: float = 1.0,
-        u: Annotated[float, ParameterSpec(adaptive=True, bounds=(0.0, MAX_DOSE))] = 0.0,
-        w: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
+        u: Annotated[float, RealSet.closed(0.0, MAX_DOSE)] = 0.0,
+        w: Annotated[float, RealSet.open(0, oo)] = 0.1,
     ) -> None:
         super().__init__(
             label,
@@ -252,24 +251,24 @@ class OptimalImmunotherapyElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        y: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        z: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        u1: Annotated[float, ParameterSpec(adaptive=True, bounds=(0.0, MAX_DOSE))] = 0.0,
-        u2: Annotated[float, ParameterSpec(adaptive=True, bounds=(0.0, MAX_DOSE))] = 0.0,
-        alpha_a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005,
-        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.03,
-        rho1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1245,
-        r1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.18,
-        b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0001,
-        c1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        rho2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.025,
-        alpha3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
-        du: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
-        a1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        a2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.5,
-        w1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        w2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        x: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        y: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        z: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        u1: Annotated[float, RealSet.closed(0.0, MAX_DOSE)] = 0.0,
+        u2: Annotated[float, RealSet.closed(0.0, MAX_DOSE)] = 0.0,
+        alpha_a: Annotated[float, RealSet.closed_open(0, oo)] = 0.005,
+        d1: Annotated[float, RealSet.closed_open(0, oo)] = 0.03,
+        rho1: Annotated[float, RealSet.closed_open(0, oo)] = 0.1245,
+        r1: Annotated[float, RealSet.open(0, oo)] = 0.18,
+        b: Annotated[float, RealSet.closed_open(0, oo)] = 0.0001,
+        c1: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        rho2: Annotated[float, RealSet.closed_open(0, oo)] = 0.025,
+        alpha3: Annotated[float, RealSet.open(0, oo)] = 0.01,
+        du: Annotated[float, RealSet.open(0, oo)] = 10.0,
+        a1: Annotated[float, RealSet.closed_open(0, oo)] = 0.05,
+        a2: Annotated[float, RealSet.closed_open(0, oo)] = 3.5,
+        w1: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        w2: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
         super().__init__(label)
         self.x = x
@@ -388,10 +387,18 @@ class OptimalChemotherapySystem(BaseSystem):
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
+        cost = Interaction(
+            'cost',
+            roles={'patient': 'patient'},
+            laws=lambda s: [
+                ObjectiveLaw(self._get_chemotherapy_cost(s), controls=[s.patient.u], terminal=self._get_tumour(s)),
+            ],
+        )
         self.system_ = System(
             self.label,
             elements=[OptimalChemotherapyElement('patient', E=self.E, A=self.A, N=self.N, w=self.w)],
-            solver=PontryaginSolver(objective=self._get_chemotherapy_cost, terminal=self._get_tumour),
+            interactions=[TumourImmuneChemotherapyInteraction('dynamics', target='patient'), cost],
+            solver=PontryaginSolver(),
         )
 
 
@@ -546,9 +553,20 @@ class OptimalImmunotherapySystem(BaseSystem):
                 propensity=lambda s: s.target.du * s.target.z,
             ),
         ]
+        cost = Interaction(
+            'cost',
+            roles={'site': 'site'},
+            laws=lambda s: [
+                ObjectiveLaw(
+                    self._get_immunotherapy_cost(s),
+                    controls=[s.site.u1, s.site.u2],
+                    terminal=self._get_tumour_site(s),
+                ),
+            ],
+        )
         self.system_ = System(
             self.label,
             elements=[site],
-            interactions=interactions,
-            solver=PontryaginSolver(objective=self._get_immunotherapy_cost, terminal=self._get_tumour_site, nodes=1001),
+            interactions=[*interactions, cost],
+            solver=PontryaginSolver(nodes=1001),
         )

@@ -12,9 +12,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import Interaction, RateInteraction
+from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
-from ....core.components.laws.utils import delayed
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -598,31 +597,36 @@ class ErythropoiesisMercaptopurineSystem(BaseSystem):
             Interaction(
                 'senescence',
                 roles={'target': 'patient'},
-                laws=lambda s: [RateLaw(s.target.L, -s.target.d1 * delayed(s.target.L, s.target.lifespan))],
+                laws=lambda s: [RateLaw(s.target.L, -s.target.d1 * s.target.L(t=s.t - s.target.lifespan))],
             ),
-            RateInteraction(
+            Interaction(
                 'new_volume',
-                target='patient',
-                state='MCV',
-                rate=lambda s: (s.target.g1 * s.target.U + s.target.MCV0) * s.target.r1 * s.target.Q,
-                divisor='L',
+                roles={'target': 'patient'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.MCV,
+                        (s.target.g1 * s.target.U + s.target.MCV0) * s.target.r1 * s.target.Q / s.target.L,
+                    ),
+                ],
             ),
-            RateInteraction(
+            Interaction(
                 'senescent_volume',
-                target='patient',
-                state='MCV',
-                rate=lambda s: -0.85
-                * delayed(s.target.MCV, s.target.lifespan)
-                * s.target.d1
-                * delayed(s.target.L, s.target.lifespan),
-                divisor='L',
+                roles={'target': 'patient'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.MCV,
+                        -0.85
+                        * s.target.MCV(t=s.t - s.target.lifespan)
+                        * s.target.d1
+                        * s.target.L(t=s.t - s.target.lifespan)
+                        / s.target.L,
+                    ),
+                ],
             ),
-            RateInteraction(
+            Interaction(
                 'random_volume',
-                target='patient',
-                state='MCV',
-                rate=lambda s: -0.15 * s.target.MCV * s.target.d1 * s.target.L,
-                divisor='L',
+                roles={'target': 'patient'},
+                laws=lambda s: [RateLaw(s.target.MCV, -0.15 * s.target.MCV * s.target.d1 * s.target.L / s.target.L)],
             ),
         ]
         self.system_ = System(self.label, elements=[patient], interactions=interactions)

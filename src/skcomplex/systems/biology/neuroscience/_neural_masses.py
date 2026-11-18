@@ -21,7 +21,7 @@ from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.specs import ParameterSpec, Role, StateSpec
 from ....core.systems import BaseSystem, System
 
 FIELDS = ('r', 's')
@@ -151,9 +151,9 @@ class SynapticDriveInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        source: Annotated[str, RoleSpec()],
-        J: Annotated[float, ParameterSpec()] = 1.0,
+        target: Role,
+        source: Role,
+        J: float = 1.0,
         field: str = 'r',
     ) -> None:
         super().__init__(label)
@@ -215,9 +215,9 @@ class ThetaForcingInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        I0: Annotated[float, ParameterSpec()] = 10.0,
-        nu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
+        target: Role,
+        I0: float = 10.0,
+        nu: Annotated[float, RealSet.closed_open(0, oo)] = 5.0,
     ) -> None:
         super().__init__(label)
         self.target = target

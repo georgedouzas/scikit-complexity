@@ -1,6 +1,7 @@
 """Test the `_state_inference` module of `skcomplex.core.engine.compile`."""
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -44,7 +45,7 @@ from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from skcomplex.core.engine.runtime import ConservationObserver, simulate
 from skcomplex.core.engine.solvers import AgentView, ETDRK4Solver, IMEXEulerSolver, RK4Solver, SSPRKSolver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import Role, StateSpec, VisualSpec
+from skcomplex.core.specs import BaseSpec, Role, StateSpec, VisualSpec
 from skcomplex.core.systems import System
 from skcomplex.systems.mathematics.networks import TriadicPercolationSystem
 
@@ -326,6 +327,30 @@ def test_get_declared_reads_a_delay():
     """A state read a delay before the current time follows the delay equation."""
     system = System(elements=[Particle('ball', x=1.0)], interactions=[Feedback('feedback')]).prepare()
     assert system.equations_ == {'ball.x': '-ball.x(t - feedback.tau)'}
+    values = system.simulate(until=2.0, dt=1.0).get_values('ball.x')
+    assert values == pytest.approx([1.0, 0.0, -0.5], abs=1e-6)
+
+
+class ElementDelayFeedback(Interaction):
+    """Interaction of a delayed negative feedback whose delay is a value of the element."""
+
+    def __init__(self, label: str, *, target: Role = 'ball') -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the decay delayed by the value `tau` of the target as the law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x, t = context.target.x, context.t
+            self.laws_ = [RateLaw(x, -x(t=t - context.target.tau))]
+
+
+def test_get_declared_reads_a_delay_that_is_a_value_of_an_element():
+    """A delay may be a value of an element, such as the incubation period of a population."""
+    ball = Element('ball', values={'x': 1.0, 'tau': 1.0})
+    system = System(elements=[ball], interactions=[ElementDelayFeedback('feedback')]).prepare()
+    assert system.equations_ == {'ball.x': '-ball.x(t - ball.tau)'}
     values = system.simulate(until=2.0, dt=1.0).get_values('ball.x')
     assert values == pytest.approx([1.0, 0.0, -0.5], abs=1e-6)
 
@@ -630,6 +655,44 @@ def test_get_declared_records_the_values_of_a_growing_network():
     recorded = system.simulate(until=4, dt=1, random_state=0).get_values('nodes.k')
     assert [int(np.count_nonzero(~np.isnan(frame))) for frame in recorded] == [5, 6, 7, 8, 9]
     assert recorded[:, :5] == pytest.approx(np.tile(degrees, (5, 1)))
+
+
+class SpeciesElement(Element):
+    """Species with an abundance whose default is that of a new species."""
+
+    def __init__(self, label: str, *, x: float | np.ndarray = 0.5, space: NetworkSpace | None = None) -> None:
+        super().__init__(label, space=space)
+        self.x = x
+
+
+def test_get_declared_gives_new_members_the_default_of_their_class():
+    """Test that a member added to a group takes the default of its class, not the value of the first member."""
+    nodes = SpeciesElement('nodes', x=np.array([2.0, 3.0, 4.0]), space=NetworkSpace(nx.path_graph(3)))
+    system = System(elements=[nodes], interactions=[Growth('growth')]).prepare()
+    recorded = system.simulate(until=2, dt=1, random_state=0).get_values('nodes.x')
+    assert recorded[-1][:5] == pytest.approx([2.0, 3.0, 4.0, 0.5, 0.5])
+
+
+@dataclass(frozen=True)
+class OutlineSpec(BaseSpec):
+    """Spec of the outline a cell is drawn with."""
+
+    sides: int = 6
+
+
+class OutlinedCellElement(Element):
+    """Cell with a size and the outline it is drawn with."""
+
+    def __init__(self, label: str, *, size_: float = 1.0, outline: OutlineSpec | None = None) -> None:
+        super().__init__(label)
+        self.size_ = size_
+        self.outline = outline
+
+
+def test_get_declared_reads_a_spec_argument_as_a_setting():
+    """Test that an argument that holds a spec, such as the outline a cell is drawn with, is no value of the element."""
+    system = System(elements=[OutlinedCellElement('cell', outline=OutlineSpec())]).prepare()
+    assert system.parameters_ == ('cell.size_',)
 
 
 class Count(Interaction):

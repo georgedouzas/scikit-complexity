@@ -18,10 +18,11 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import total, uniform, where
+from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import RoleSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ..common.networks import BooleanFunctionInteraction, BooleanNodeElement
@@ -138,28 +139,27 @@ class NoisyMajorityInteraction(Interaction):
         self,
         label: str,
         *,
-        nodes: Annotated[str, RoleSpec()],
+        nodes: Role,
         inputs: Sequence[Sequence[float]] | scipy.sparse.sparray = ((0.0,),),
     ) -> None:
         super().__init__(label)
         self.nodes = nodes
         self.inputs = inputs
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the noisy majority update.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the noisy majority update.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the group of nodes.
         """
-        node = s.nodes
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        node = context.nodes
         weights = self.inputs if scipy.sparse.issparse(self.inputs) else np.asarray(self.inputs, dtype=float)
         majority = where(total(node.sigma, weights=weights) > 0, 1, -1)
-        return [UpdateLaw(node.sigma, where(uniform('flip') < node.eta, -majority, majority))]
+        self.laws_: list[BaseLaw] = [UpdateLaw(node.sigma, where(uniform('flip') < node.eta, -majority, majority))]
 
 
 class ThreeGeneBooleanNetworkSystem(BaseSystem):

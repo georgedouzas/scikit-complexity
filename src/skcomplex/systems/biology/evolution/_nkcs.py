@@ -15,10 +15,11 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver, SystemView
-from ....core.specs import RoleSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
@@ -125,13 +126,13 @@ class CoevolutionaryClimbingInteraction(Interaction):
 
     draws = True
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        species: Annotated[str, RoleSpec()],
+        species: Role,
         n: int = 12,
         k: int = 2,
         c: int = 1,
@@ -146,18 +147,17 @@ class CoevolutionaryClimbingInteraction(Interaction):
         self.s = s
         self.seed = seed
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the climbing rule.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the climbing rule.
 
         Args:
-            s:
+            context:
                 The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
         """
-        return [RuleLaw(self.climb)]
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self.climb)]
 
     def climb(self, system: SystemView) -> None:
         """Let every species in turn try one point mutation, and update the fitness of all.

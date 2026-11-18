@@ -7,13 +7,16 @@ from skcomplex.systems.biology.oncology import (
     OptimalChemotherapySystem,
     OptimalImmunotherapySystem,
     TumourImmuneChemotherapyElement,
+    TumourImmuneChemotherapyInteraction,
 )
 
 
 def test_optimal_chemotherapy_shrinks_the_tumour():
     """Test that the optimal infusion ends with a smaller tumour than no treatment, starting at the largest dose."""
     treated = OptimalChemotherapySystem().prepare().simulate()
-    untreated = System(elements=[TumourImmuneChemotherapyElement('patient')]).prepare().simulate(until=30.0, dt=0.25)
+    dynamics = TumourImmuneChemotherapyInteraction('dynamics', target='patient')
+    untreated = System(elements=[TumourImmuneChemotherapyElement('patient')], interactions=[dynamics])
+    untreated = untreated.prepare().simulate(until=30.0, dt=0.25)
     assert treated.get_values('patient.u')[0] == pytest.approx(1.0)
     assert treated.get_values('patient.A')[-1] < 0.5 * untreated.get_values('patient.A')[-1]
 
