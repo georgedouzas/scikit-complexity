@@ -15,13 +15,15 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.base import BaseComponent
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
@@ -33,10 +35,7 @@ FOOD_ELASTICITIES = (-0.6, -0.6, -0.5, -0.4, -0.3)
 class BudgetHouseholdElement(Element):
     """Household with a budget that buys a good at a rising price.
 
-    The price rises by a share every step. With the demand `'cobb-douglas'` the household maximizes
-    `A^alpha B^(1 - alpha)` against a composite good `B` of price 1, so it buys `A = alpha m / p` and spends the share
-    `alpha` of its budget `m` on the good. With the demand `'elasticity'` it spends the budget share `alpha` at the
-    initial price `p0` and its demand changes with its own-price elasticity, `A = (alpha m / p0) (p / p0)^elasticity`.
+    `HouseholdDemandInteraction` raises the price and sets the demand, the expenditure, and the utility.
 
     Args:
         label:
@@ -69,38 +68,31 @@ class BudgetHouseholdElement(Element):
         initial_price:
             The price at the start.
 
-        kind:
-            The demand, `'cobb-douglas'` or `'elasticity'`.
-
-    Raises:
-        ValidationError:
-            The demand is unknown, raised by `prepare`.
+        size:
+            The number of members, or `None` for one.
 
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.markets import BudgetHouseholdElement
-        >>> GroupElement('households', element=BudgetHouseholdElement, size=2, values={'budget': [50.0, 150.0]}).size
+        >>> BudgetHouseholdElement('households', budget=[50.0, 150.0], size=2).size
         2
     """
-
-    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        demand: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        expenditure: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        utility: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        price: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
-        budget: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 100.0,
-        alpha: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.1,
-        elasticity: Annotated[float, StateSpec()] = -1.0,
-        change: Annotated[float, ParameterSpec(domain=RealSet.open(-1, oo))] = 0.1,
-        initial_price: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        kind: str = 'cobb-douglas',
+        demand: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        expenditure: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        utility: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        price: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        budget: Annotated[object, RealSet.open(0, oo)] = 100.0,
+        alpha: Annotated[object, RealSet.closed(0, 1)] = 0.1,
+        elasticity: object = -1.0,
+        change: Annotated[object, RealSet.open(-1, oo)] = 0.1,
+        initial_price: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.demand = demand
         self.expenditure = expenditure
         self.utility = utility
@@ -110,23 +102,43 @@ class BudgetHouseholdElement(Element):
         self.elasticity = elasticity
         self.change = change
         self.initial_price = initial_price
+
+
+class HouseholdDemandInteraction(Interaction):
+    """Demand of households for a good whose price rises by a share every step.
+
+    With the demand `'cobb-douglas'` the household maximizes `A^alpha B^(1 - alpha)` against a composite good `B` of
+    price 1, so it buys `A = alpha m / p` and spends the share `alpha` of its budget `m` on the good. With the demand
+    `'elasticity'` it spends the budget share `alpha` at the initial price `p0` and its demand changes with its
+    own-price elasticity, `A = (alpha m / p0) (p / p0)^elasticity`. The demand, the expenditure, and the utility are at
+    the new price.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of households.
+
+        kind:
+            The demand, `'cobb-douglas'` or `'elasticity'`.
+
+    Raises:
+        ValidationError:
+            The demand is unknown, raised by `prepare`.
+
+    Examples:
+        >>> from skcomplex.systems.economics.markets import HouseholdDemandInteraction
+        >>> HouseholdDemandInteraction('demand', target='households', kind='elasticity').kind
+        'elasticity'
+    """
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role, kind: str = 'cobb-douglas') -> None:
+        super().__init__(label)
+        self.target = target
         self.kind = kind
-
-    def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Raise an error for an unknown demand.
-
-        Args:
-            context:
-                The space the element inherits from its system, which an element does not read.
-
-        Raises:
-            ValidationError:
-                The demand is unknown.
-        """
-        super()._prepare(context)
-        if self.kind not in DEMANDS:
-            error_msg = f'The demand of {self.label!r} is {self.kind!r}. Use one of {DEMANDS}.'
-            raise ValidationError(error_msg)
 
     def get_demand(self, s: SimpleNamespace, price: Expression) -> Expression:
         """Return the demand of the household at a price.
@@ -146,23 +158,28 @@ class BudgetHouseholdElement(Element):
             return s.alpha * s.budget / price
         return s.alpha * s.budget / s.initial_price * (price / s.initial_price) ** s.elasticity
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rise of the price and the demand, expenditure, and utility.
-
-        The demand, expenditure, and utility are at the new price.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rise of the price and the demand, expenditure, and utility at the new price as the laws.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
+            context:
+                The space the interaction inherits from its system, or the namespace of the households.
 
-        Returns:
-            laws:
-                The laws of the element.
+        Raises:
+            ValidationError:
+                The demand is unknown.
         """
+        super()._prepare(context)
+        if self.kind not in DEMANDS:
+            error_msg = f'The demand of {self.label!r} is {self.kind!r}. Use one of {DEMANDS}.'
+            raise ValidationError(error_msg)
+        if not isinstance(context, SimpleNamespace):
+            return
+        s = context.target
         price = s.price * (1 + s.change)
         demand = self.get_demand(s, price)
         rest = s.budget - price * demand
-        return [
+        self.laws_: list[BaseComponent] = [
             UpdateLaw(s.price, price),
             UpdateLaw(s.demand, demand),
             UpdateLaw(s.expenditure, price * demand),
@@ -294,19 +311,16 @@ class HouseholdDemandSystem(BaseSystem):
             else -1.0
         )
         quantities = alphas * budgets
-        households = GroupElement(
+        households = BudgetHouseholdElement(
             'households',
-            element=BudgetHouseholdElement,
+            budget=budgets,
+            alpha=alphas,
+            elasticity=slopes,
+            demand=quantities,
+            expenditure=quantities,
+            utility=quantities**alphas * (budgets - quantities) ** (1 - alphas),
+            change=self.change,
             size=self.n_households,
-            values={
-                'budget': budgets,
-                'alpha': alphas,
-                'elasticity': slopes,
-                'demand': quantities,
-                'expenditure': quantities,
-                'utility': quantities**alphas * (budgets - quantities) ** (1 - alphas),
-                'change': self.change,
-                'kind': self.demand,
-            },
         )
-        self.system_ = System(self.label, elements=[households])
+        demand = HouseholdDemandInteraction('demand', target='households', kind=self.demand)
+        self.system_ = System(self.label, elements=[households], interactions=[demand])

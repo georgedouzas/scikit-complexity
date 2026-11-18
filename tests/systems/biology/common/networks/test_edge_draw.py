@@ -3,10 +3,9 @@
 import networkx as nx
 import numpy as np
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.spaces import NetworkSpace
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.common.networks import EdgeDrawInteraction, WeightedEdgeElement
 
 
@@ -14,17 +13,11 @@ def _weights(noise, fresh, until=3):
     """Return the weights of the edges of a cycle at every step, under a draw with some noise."""
     graph = nx.cycle_graph(6, create_using=nx.DiGraph)
     space = NetworkSpace(graph)
-    nodes = GroupElement('nodes', element=Element, space=space, on='sites')
-    edges = GroupElement(
-        'edges',
-        element=WeightedEdgeElement,
-        space=space,
-        on='edges',
-        values={'w': np.full(6, 5.0), 'fresh': fresh},
-    )
-    draw = EdgeDrawInteraction('draw', target='nodes', edges='edges', noise=noise)
-    system = CompositeSystem(elements=[nodes, edges], interactions=[draw], time=DiscreteTime())
-    trajectory = simulate(system, random_state=0, until=until)
+    nodes = Element('nodes', space=space)
+    edges = WeightedEdgeElement('edges', w=np.full(6, 5.0), fresh=fresh, space=space, on='edges')
+    draw = EdgeDrawInteraction('draw', among='nodes', noise=noise)
+    system = System(elements=[nodes, edges], interactions=[draw]).prepare()
+    trajectory = system.simulate(until, random_state=0)
     return np.asarray(trajectory.get_values('edges.w'))
 
 

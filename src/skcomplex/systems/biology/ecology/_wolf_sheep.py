@@ -5,6 +5,7 @@
 
 
 from collections.abc import Mapping, Sequence
+from functools import partial
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -14,8 +15,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import Interaction, TransferInteraction
-from ....core.components.laws import BaseLaw, Sink, Source, UpdateLaw
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
@@ -379,43 +380,50 @@ class WolfSheepSystem(BaseSystem):
         """Return the probability `reproduction` that an animal gives birth in a step."""
         return float(animal.reproduction) if isinstance(animal, SheepView | WolfView) else 0.0
 
+    @staticmethod
+    def _pay_cost(animal: AgentViewProtocol, system: SystemViewProtocol) -> None:
+        """Take the unit of energy a step costs an animal."""
+        if isinstance(animal, SheepView | WolfView):
+            animal.energy -= 1.0
+
+    def _feed(self, animal: AgentViewProtocol, system: SystemViewProtocol, *, food: str, removed: bool) -> None:
+        """Let an animal eat one item of its food in its cell, drawn at random among several.
+
+        A sheep eats the grass of its cell when it is grown, which then has to grow again, and a wolf eats a sheep of
+        its cell, which dies.
+        """
+        groups = set(system.get_groups(food))
+        found = [other for other in animal.get_agents_here() if other.group in groups]
+        if len(found) > 1:
+            found = [found[int(index)] for index in system.rng.permutation(len(found))[:1]]
+        for item in found:
+            if not (animal.alive and item.alive) or (not removed and not self._is_grown(item, animal, system)):
+                continue
+            if isinstance(animal, SheepView | WolfView):
+                animal.energy += self._get_gain(item, animal, system)
+            if removed:
+                item.remove()
+            elif isinstance(item, GrassView):
+                item.grown -= 1.0
+
     def _get_animal(
         self,
         group: str,
         food: str,
         removed: bool,
-    ) -> list[MovementInteraction | TransferInteraction | BirthDeathInteraction]:
+    ) -> list[MovementInteraction | Interaction | BirthDeathInteraction]:
         """Return the member interactions of an animal.
 
         An animal wanders at a unit cost of energy, eats in its cell, and lives.
         """
-        cost = TransferInteraction(
-            f'{group}_cost',
-            source=group,
-            target=group,
-            state='energy',
-            into=Sink(),
-            amount=1.0,
-            form='agent',
-        )
-        eating = TransferInteraction(
+        eat = partial(self._feed, food=food, removed=removed)
+        eating = Interaction(
             f'{group}_eating',
-            source=food,
-            target=group,
-            state=Source(),
-            into='energy',
-            amount=self._get_gain,
-            legs=() if removed else (('grown', Sink(), 1.0),),
-            guard=None if removed else self._is_grown,
-            pairing='cell',
-            form='agent',
-            schedule='member',
-            actor='target',
-            partners=1,
-            remove='source' if removed else None,
+            roles={'target': group},
+            laws=lambda s: [UpdateLaw(s.target, eat)],
         )
         return [
-            MovementInteraction(f'{group}_walk', target=group, cost=cost, schedule='member'),
+            MovementInteraction(f'{group}_walk', target=group, cost=self._pay_cost, schedule='member'),
             eating,
             BirthDeathInteraction(
                 f'{group}_life',

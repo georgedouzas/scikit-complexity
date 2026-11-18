@@ -19,7 +19,7 @@ from ....core.components.laws.utils import total
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import Role, RoleSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
@@ -199,27 +199,27 @@ class LateralInhibitionInteraction(Interaction):
         self,
         label: str,
         *,
-        cells: Annotated[str, RoleSpec()],
+        cells: Role,
         kernel: Sequence[Sequence[float]] = ((0.0,),),
     ) -> None:
         super().__init__(label)
         self.cells = cells
         self.kernel = kernel
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the relaxation of every cell towards the fate its inhibition allows.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the relaxation of every cell towards the fate its inhibition allows.
 
         Args:
-            s:
+            context:
                 The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
         """
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        s = context
         cell = s.cells
         inhibition = total(self._get_sigmoid(cell.a - 1 / 2, cell.width), weights=np.asarray(self.kernel, dtype=float))
-        return [RateLaw(cell.a, self._get_sigmoid(cell.a - inhibition, cell.width) - cell.a)]
+        self.laws_: list[BaseLaw] = [RateLaw(cell.a, self._get_sigmoid(cell.a - inhibition, cell.width) - cell.a)]
 
     def _get_sigmoid(self, u: Expression, width: Expression) -> Expression:
         """Return the logistic sigmoid `1 / (1 + exp(-u / width))`."""

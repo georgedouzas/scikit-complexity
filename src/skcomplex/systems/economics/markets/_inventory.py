@@ -14,9 +14,10 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, Quantity
-from ....core.components.interactions import TransferInteraction
-from ....core.components.laws import Sink, Source
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import distributed_delay, maximum, minimum, step
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -29,8 +30,8 @@ class CarDealershipElement(Element):
     Its orders close the gap to a desired coverage. Sales are the demand, stepping up at `step_time`, limited by the
     inventory. The dealer perceives sales through a first-order smoothing, desires `coverage` days of perceived sales,
     and orders the perceived sales plus the gap to the desired inventory over the response delay, never negative. Orders
-    arrive through a third-order delay. The dealership holds the inventory and the parameters, and a transfer within it
-    of the system moves the cars.
+    arrive through a third-order delay. The dealership holds the inventory and the parameters, and the flows of
+    deliveries and sales of the system move the cars.
 
     Args:
         label:
@@ -189,8 +190,8 @@ class CarDealerSystem(BaseSystem):
 
     @staticmethod
     def _get_dealer(s: SimpleNamespace) -> SimpleNamespace:
-        """Return the symbols of the dealership a transfer moves cars of, with the time."""
-        return SimpleNamespace(t=s.t, **vars(s.source))
+        """Return the symbols of the dealership the flows move cars of, with the time."""
+        return SimpleNamespace(t=s.t, **vars(s.target))
 
     def __init__(
         self,
@@ -218,10 +219,14 @@ class CarDealerSystem(BaseSystem):
         self.delivery_delay = delivery_delay
 
     @staticmethod
-    def _get_deliveries(s: SimpleNamespace) -> Expression:
-        """Return the deliveries of the dealership, its orders through a third-order delay."""
+    def _get_flows(s: SimpleNamespace) -> list[BaseComponent]:
+        """Return the deliveries into the lot, the orders through a third-order delay, and the sales out of it."""
         dealer = CarDealerSystem._get_dealer(s)
-        return distributed_delay(_get_orders(dealer), order=3, time=dealer.delivery_delay)
+        deliveries = distributed_delay(_get_orders(dealer), order=3, time=dealer.delivery_delay)
+        return [
+            RateLaw({s.target.inventory: +1}, deliveries, label='deliveries'),
+            RateLaw({s.target.inventory: -1}, _get_sales(dealer), label='sales'),
+        ]
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of the components built from the model parameters."""
@@ -237,21 +242,5 @@ class CarDealerSystem(BaseSystem):
             response_delay=self.response_delay,
             delivery_delay=self.delivery_delay,
         )
-        cars = TransferInteraction(
-            'cars',
-            source='dealer',
-            target='dealer',
-            state=Source('factory'),
-            into='inventory',
-            amount=self._get_deliveries,
-            flow='deliveries',
-            legs=[
-                (
-                    'inventory',
-                    Sink('customers'),
-                    lambda s: _get_sales(CarDealerSystem._get_dealer(s)),
-                    'sales',
-                ),
-            ],
-        )
+        cars = Interaction('cars', roles={'target': 'dealer'}, laws=self._get_flows)
         self.system_ = System(self.label, elements=[dealer], interactions=[cars])

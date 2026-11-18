@@ -63,7 +63,7 @@ class Interaction(BaseInteraction):
 
         among:
             The group whose members sit at the ends of the edges, such as `'people'`, or `None` to bind elements by
-            their roles only. A subclass annotates it as a role.
+            their roles only. A subclass annotates it as a role, and a rule written without a class binds it as one.
 
         along:
             `True` for the edges of the network the group lives on, the name of a layer of a network with several, such
@@ -126,7 +126,7 @@ class Interaction(BaseInteraction):
         declared = dict(super()._get_declared())
         for name, binding in (self.roles or {}).items():
             declared[name] = DeclaredVariableSpec(binding, RoleSpec())
-        if self.among is not None and 'among' not in declared:
+        if self.among is not None and 'among' not in declared and 'among' not in self._get_specs():
             declared['among'] = DeclaredVariableSpec(self.among, RoleSpec())
         return declared
 

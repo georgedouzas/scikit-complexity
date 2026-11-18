@@ -9,19 +9,19 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, cos, oo, sin
+from sage.all__sagemath_symbolics import SR, Expression, cos, oo, sin
 from sage.sets.real_set import RealSet
 from scipy import stats
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import CouplingInteraction, Interaction
+from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import logistic, mean
-from ....core.components.types import Target
+from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.specs import Role, Roles
 from ....core.systems import BaseSystem, System
 from ..common.excitable import ThetaNeuronElement, ThetaNeuronInteraction
 from ._leaky_integration import LeakyIntegrationInteraction
@@ -107,9 +107,9 @@ class PolyhomeostaticNeuronElement(Element):
 
 
 class RateUnitElement(Element):
-    """Neural unit of a competitive network, `tau x' = x (I - x)`.
+    """Neural unit of a competitive network, whose activity grows with its input and saturates.
 
-    Its activity grows with its input and saturates.
+    A `SaturatingGrowthInteraction` grows it as `tau x' = x (I - x)`.
 
     Args:
         label:
@@ -130,33 +130,55 @@ class RateUnitElement(Element):
         1.2
     """
 
-    law_classes = (RateLaw,)
-
     def __init__(
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        I: Annotated[float, ParameterSpec()] = 1.0,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        x: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        I: float = 1.0,
+        tau: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
         super().__init__(label)
         self.x = x
         self.I = I
         self.tau = tau
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the self-limited growth of the activity.
+
+class SaturatingGrowthInteraction(Interaction):
+    """Self-limited growth of the activity of a neural unit, `tau x' = x (I - x)`.
+
+    The input `I` and the time constant `tau` are values of the unit, a `RateUnitElement`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the unit.
+
+    Examples:
+        >>> from skcomplex.systems.biology.neuroscience import SaturatingGrowthInteraction
+        >>> SaturatingGrowthInteraction('growth', target='unit').target
+        'unit'
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the self-limited growth of the activity.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the unit.
         """
-        return [RateLaw(s.x, s.x * (s.I - s.x) / s.tau)]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context.target
+            self.laws_: list[BaseLaw] = [RateLaw(s.x, s.x * (s.I - s.x) / s.tau)]
 
 
 class WilsonCowanElement(Element):
@@ -267,20 +289,19 @@ class WilsonCowanElement(Element):
         self.tau_i = tau_i
 
 
-class MutualInhibitionInteraction(CouplingInteraction):
+class MutualInhibitionInteraction(Interaction):
     """Inhibition of every unit by the summed activity of all the other units.
 
     The inhibition is `-beta x_i sum_{j != i} x_j / tau_i`.
 
-    It is the coupling of the units to each other, as separate elements or as the members of a group, with the term
-    `-beta x_i x_j / tau_i` of every other unit `j`.
+    It is the coupling of separate units to each other, with the term `-beta x_i x_j / tau_i` of every other unit `j`.
 
     Args:
         label:
             The label of the interaction.
 
         units:
-            The paths of the units, an element set, or the path of a group of units.
+            The paths of the units.
 
         beta:
             The strength of the inhibition.
@@ -291,22 +312,36 @@ class MutualInhibitionInteraction(CouplingInteraction):
         2.0
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        units: Annotated[str | Sequence[str], RoleSpec()],
-        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        units: Roles,
+        beta: Annotated[float, RealSet.closed_open(0, oo)] = 2.0,
     ) -> None:
-        super().__init__(label, target=units, function=self._get_inhibition, mode='group')
+        super().__init__(label)
         self.units = units
         self.beta = beta
 
-    @staticmethod
-    def _get_inhibition(namespace: SimpleNamespace) -> Target:
-        """Return the inhibition of the unit by one other unit, `-beta x_i x_j / tau_i`."""
-        member = namespace.member
-        return -namespace.beta * member.x * namespace.other.x / member.tau
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the inhibition of every unit by the other units, term by term.
+
+        Args:
+            context:
+                The namespace of the units.
+        """
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        laws: list[BaseLaw] = []
+        for unit in context.units:
+            parts = [
+                SR(1) * (-context.beta * unit.x * other.x / unit.tau) for other in context.units if other is not unit
+            ]
+            laws.append(RateLaw(unit.x, sum(parts[1:], parts[0])))
+        self.laws_ = laws
 
 
 class PulseCouplingInteraction(Interaction):
@@ -343,8 +378,8 @@ class PulseCouplingInteraction(Interaction):
         self,
         label: str,
         *,
-        neurons: Annotated[str, RoleSpec()],
-        kappa: Annotated[float, ParameterSpec()] = 1.0,
+        neurons: Role,
+        kappa: float = 1.0,
         n: int = 2,
     ) -> None:
         super().__init__(label)
@@ -352,21 +387,21 @@ class PulseCouplingInteraction(Interaction):
         self.kappa = kappa
         self.n = n
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the current of the mean pulse into every neuron.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the current of the mean pulse into every neuron.
 
         Args:
-            s:
+            context:
                 The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
         """
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        s = context
         theta = s.neurons.theta
         normalization = 2**self.n * math.factorial(self.n) ** 2 / math.factorial(2 * self.n)
         pulses = mean(normalization * (1 - cos(theta)) ** self.n)
-        return [RateLaw(theta, (1 + cos(theta)) * s.kappa * pulses)]
+        self.laws_: list[BaseLaw] = [RateLaw(theta, (1 + cos(theta)) * s.kappa * pulses)]
 
 
 class WilsonCowanSystem(BaseSystem):
@@ -660,8 +695,8 @@ class WinnersTakeAllSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.biology.neuroscience import WinnersTakeAllSystem
-        >>> len(WinnersTakeAllSystem((1.0, 2.0, 3.0)).prepare().system_.interactions)
-        1
+        >>> [interaction.label for interaction in WinnersTakeAllSystem((1.0, 2.0)).prepare().system_.interactions]
+        ['growth_unit_0', 'growth_unit_1', 'inhibition']
     """
 
     field = 'biology/neuroscience'
@@ -698,8 +733,9 @@ class WinnersTakeAllSystem(BaseSystem):
         units = [
             RateUnitElement(f'unit_{index}', x=self.x, I=value, tau=self.tau) for index, value in enumerate(self.inputs)
         ]
+        growth = [SaturatingGrowthInteraction(f'growth_{unit.label}', target=unit.label) for unit in units]
         inhibition = MutualInhibitionInteraction('inhibition', units=[unit.label for unit in units], beta=self.beta)
-        self.system_ = System(self.label, elements=units, interactions=[inhibition])
+        self.system_ = System(self.label, elements=units, interactions=[*growth, inhibition])
 
 
 class PolyhomeostaticNeuronSystem(BaseSystem):

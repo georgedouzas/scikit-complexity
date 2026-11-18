@@ -9,20 +9,19 @@ from typing import Annotated
 
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, oo, tanh
+from sage.all__sagemath_symbolics import SR, Expression, oo, tanh
 from sage.sets.real_set import RealSet
 from scipy.ndimage import convolve
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import CouplingInteraction, Interaction, RateInteraction
-from ....core.components.laws import RateLaw
-from ....core.components.laws.utils import delayed, logistic
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components.laws.utils import logistic, maximum
 from ....core.components.spaces import BaseSpace, LatticeSpace
-from ....core.components.types import Target
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, Role, RoleSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ..common.excitable import SpikeResetInteraction
@@ -158,7 +157,7 @@ class TermanWangElement(Element):
     """Relaxation oscillators of Terman and Wang, one per site of a LEGION lattice.
 
     The parameters `m`, `W`, `theta_x`, and `kappa` belong to the coupling of a lattice of oscillators, a
-    `CouplingInteraction` that adds `W m (sum_k m_k H(x_k - theta_x))` over the four nearest sites, where `H` is a
+    coupling along its bonds that adds `W m (sum_k m_k H(x_k - theta_x))` over the four nearest sites, where `H` is a
     smooth step of width `kappa` and `m` marks the stimulated sites, so only stimulated neighbours excite each other.
 
     Args:
@@ -274,7 +273,7 @@ class TermanWangInteraction(Interaction):
             ]
 
 
-class DelayedSynapseInteraction(RateInteraction):
+class DelayedSynapseInteraction(Interaction):
     """Synapse that adds the delayed presynaptic trace to the postsynaptic potential.
 
     The trace is the one from a transmission delay ago.
@@ -304,35 +303,37 @@ class DelayedSynapseInteraction(RateInteraction):
         1.5
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        source: Annotated[str, RoleSpec()],
-        target: Annotated[str, RoleSpec()],
-        J: Annotated[float, ParameterSpec()] = 0.5,
-        D: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.5,
+        source: Role,
+        target: Role,
+        J: float = 0.5,
+        D: Annotated[float, RealSet.open(0, oo)] = 1.5,
     ) -> None:
-        super().__init__(label, target=target, state='v')
+        super().__init__(label)
         self.source = source
+        self.target = target
         self.J = J
         self.D = D
 
-    def _get_rate(self, namespace: SimpleNamespace) -> Expression:
-        """Return the delayed synaptic input `J s_source(t - D)`.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the delayed synaptic input `J s_source(t - D)` of the postsynaptic potential.
 
         Args:
-            namespace:
-                The namespace of the symbols the rate can use, with the namespaces of the source and the target.
-
-        Returns:
-            rate:
-                The rate of the postsynaptic potential.
+            context:
+                The namespace of the source and the target.
         """
-        return namespace.J * delayed(namespace.source.s, namespace.D)
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            delayed = context.source.s(t=context.t - context.D)
+            self.laws_: list[BaseLaw] = [RateLaw(context.target.v, context.J * delayed)]
 
 
-class GlobalInhibitionInteraction(CouplingInteraction):
+class GlobalInhibitionInteraction(Interaction):
     """Inhibition of every oscillator of a lattice by a global inhibitor.
 
     The inhibition acts once the inhibitor exceeds its threshold.
@@ -362,35 +363,38 @@ class GlobalInhibitionInteraction(CouplingInteraction):
         1.5
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        oscillators: Annotated[str, RoleSpec()],
-        inhibitor: Annotated[str, RoleSpec()],
-        W_z: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.5,
-        theta_z: Annotated[float, ParameterSpec()] = 0.1,
+        oscillators: Role,
+        inhibitor: Role,
+        W_z: Annotated[float, RealSet.closed_open(0, oo)] = 1.5,
+        theta_z: float = 0.1,
     ) -> None:
-        super().__init__(
-            label,
-            target=oscillators,
-            source=inhibitor,
-            write='x',
-            function=self._get_inhibition,
-            mode='group',
-        )
+        super().__init__(label)
         self.oscillators = oscillators
         self.inhibitor = inhibitor
         self.W_z = W_z
         self.theta_z = theta_z
 
-    @staticmethod
-    def _get_inhibition(namespace: SimpleNamespace) -> Target:
-        """Return the inhibition `-W_z H(z - theta_z)` of an oscillator."""
-        return -namespace.W_z * logistic(namespace.other.z - namespace.theta_z, 0, namespace.member.kappa)
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the inhibition `-W_z H(z - theta_z)` of every oscillator.
+
+        Args:
+            context:
+                The namespace of the oscillators and the inhibitor.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            member, hub = context.oscillators, context.inhibitor
+            inhibition = -context.W_z * logistic(hub.z - context.theta_z, 0, member.kappa)
+            self.laws_: list[BaseLaw] = [RateLaw(member.x, inhibition)]
 
 
-class InhibitorDriveInteraction(CouplingInteraction):
+class InhibitorDriveInteraction(Interaction):
     """Drive of a global inhibitor by the largest activity of the lattice oscillators.
 
     The activity is `m H(x - theta_x)`.
@@ -411,34 +415,35 @@ class InhibitorDriveInteraction(CouplingInteraction):
 
     Examples:
         >>> from skcomplex.systems.biology.neuroscience import InhibitorDriveInteraction
-        >>> InhibitorDriveInteraction('drive', inhibitor='z', oscillators='grid').reduce
-        'max'
+        >>> InhibitorDriveInteraction('drive', inhibitor='z', oscillators='grid').oscillators
+        'grid'
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        inhibitor: Annotated[str, RoleSpec()],
-        oscillators: Annotated[str, RoleSpec()],
+        inhibitor: Role,
+        oscillators: Role,
     ) -> None:
-        super().__init__(
-            label,
-            target=inhibitor,
-            source=oscillators,
-            write='z',
-            function=self._get_drive,
-            reduce='max',
-            mode='group',
-        )
+        super().__init__(label)
         self.inhibitor = inhibitor
         self.oscillators = oscillators
 
-    @staticmethod
-    def _get_drive(namespace: SimpleNamespace) -> Target:
-        """Return the drive `phi m H(x - theta_x)` of the inhibitor by one oscillator."""
-        other = namespace.other
-        return namespace.member.phi * other.m * logistic(other.x - other.theta_x, 0, other.kappa)
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the drive `phi max_j m_j H(x_j - theta_x)` of the inhibitor.
+
+        Args:
+            context:
+                The namespace of the inhibitor and the oscillators.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            hub, other = context.inhibitor, context.oscillators
+            drive = hub.phi * other.m * logistic(other.x - other.theta_x, 0, other.kappa) * SR(1)
+            self.laws_: list[BaseLaw] = [RateLaw(hub.z, maximum(drive, over=other))]
 
 
 class DelayedLIFNetworkSystem(BaseSystem):
@@ -655,6 +660,15 @@ class LegionSystem(BaseSystem):
         return excitation
 
     @staticmethod
+    def _get_exchange(s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the excitation of the two oscillators at the ends of a bond, each by the other."""
+        get_excitation = LegionSystem._get_excitation
+        return [
+            RateLaw(s.target.x, get_excitation(SimpleNamespace(member=s.target, other=s.source))),
+            RateLaw(s.source.x, get_excitation(SimpleNamespace(member=s.source, other=s.target))),
+        ]
+
+    @staticmethod
     def _link_weights(stimulus: Array, total: float) -> Array:
         """Return the weight of each link into every site.
 
@@ -683,13 +697,7 @@ class LegionSystem(BaseSystem):
             epsilon=self.epsilon,
             space=LatticeSpace(marks.shape, boundary={'x': ('fixed', SILENT), 'y': 'zero-flux'}),
         )
-        excitation = CouplingInteraction(
-            'excitation',
-            target='oscillators',
-            read='x',
-            write='x',
-            function=self._get_excitation,
-        )
+        excitation = Interaction('excitation', roles={'nodes': 'oscillators'}, laws=self._get_exchange, along=True)
         drive = InhibitorDriveInteraction('drive', inhibitor='inhibitor', oscillators='oscillators')
         inhibition = GlobalInhibitionInteraction(
             'inhibition',

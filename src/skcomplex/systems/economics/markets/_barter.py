@@ -7,7 +7,6 @@ The barter is in an Edgeworth box and among prisoners with Red Cross parcels.
 # License: MIT
 
 from collections.abc import Sequence
-from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -16,12 +15,11 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import BaseLaw
+from ....core.components.elements import Element
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
 from ....core.engine.solvers import BaseSolver, MesaSolver
-from ....core.specs import StateSpec, VisualSpec
+from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ..common.exchange import ExchangeInteraction, cobb_douglas
 
@@ -94,43 +92,32 @@ class BartererElement(Element):
         cigarettes_weight:
             The Cobb-Douglas weight of cigarettes.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.economics.markets import BartererElement
-        >>> GroupElement('barterers', element=BartererElement, size=2, values={'chocolate': [8.0, 2.0]}).size
+        >>> BartererElement('barterers', chocolate=[8.0, 2.0], size=2).size
         2
     """
 
     visual = VisualSpec('agents', {'color_by': 'chocolate_weight', 'color_range': (0.0, 1.0)})
 
-    law_classes = ()
-
     def __init__(
         self,
         label: str,
         *,
-        chocolate: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-        cigarettes: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-        chocolate_weight: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        cigarettes_weight: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        chocolate: Annotated[object, RealSet.closed_open(0, oo)] = 5.0,
+        cigarettes: Annotated[object, RealSet.closed_open(0, oo)] = 5.0,
+        chocolate_weight: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
+        cigarettes_weight: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.chocolate = chocolate
         self.cigarettes = cigarettes
         self.chocolate_weight = chocolate_weight
         self.cigarettes_weight = cigarettes_weight
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return no laws, since the exchange moves the goods.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return []
 
 
 def _get_utility(agent: object) -> float:
@@ -241,12 +228,12 @@ class BarterSystem(BaseSystem):
                 'cigarettes': rng.uniform(min(self.cigarettes), max(self.cigarettes), self.n_barterers),
             }
             shares = rng.uniform(min(self.weights), max(self.weights), self.n_barterers)
-        barterers = GroupElement(
+        barterers = BartererElement(
             'barterers',
-            element=BartererElement,
+            chocolate_weight=shares,
+            cigarettes_weight=1 - shares,
+            **holdings,
             size=self.n_barterers,
-            values={'chocolate_weight': shares, 'cigarettes_weight': 1 - shares, **holdings},
-            variable=True,
         )
         self.system_ = System(
             self.label,
@@ -254,7 +241,6 @@ class BarterSystem(BaseSystem):
             interactions=[
                 ExchangeInteraction(
                     'exchange',
-                    source='barterers',
                     target='barterers',
                     goods=GOODS,
                     quantity=self.quantity,

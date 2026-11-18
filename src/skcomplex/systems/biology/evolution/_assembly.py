@@ -14,16 +14,17 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RateLaw, RuleLaw
+from ....core.components.laws import BaseLaw, RateLaw, UpdateLaw
 from ....core.components.laws.utils import shift_member
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver, SystemView
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
+from ....core.types import Array
 
 MODES = ('undirected', 'directed')
 
@@ -33,9 +34,10 @@ class AssemblyLevelElement(Element):
 
     They are discovered from the objects one assembly step below them.
 
-    In a group ordered by assembly index, the objects of index `a + 1` grow as `dN_{a+1}/dt = k (N_a)^alpha`, Eq. (3)
-    of Sharma et al. (2022), where the first member reads the constant pool `N_0` of building blocks. The selectivity
-    `alpha = 1` reuses every object built before, and `alpha < 1` only a subset, the signature of selection.
+    In a group ordered by assembly index, an `AssemblyDiscoveryInteraction` grows the objects of index `a + 1` as
+    `dN_{a+1}/dt = k (N_a)^alpha`, Eq. (3) of Sharma et al. (2022), where the first member reads the constant pool
+    `N_0` of building blocks. The selectivity `alpha = 1` reuses every object built before, and `alpha < 1` only a
+    subset, the signature of selection.
 
     Args:
         label:
@@ -50,8 +52,8 @@ class AssemblyLevelElement(Element):
         alpha:
             The selectivity of reuse.
 
-        N0:
-            The constant number of building blocks below the first level.
+        size:
+            The number of levels, or `None` for one.
 
     Examples:
         >>> from skcomplex.systems.biology.evolution import AssemblyLevelElement
@@ -59,36 +61,62 @@ class AssemblyLevelElement(Element):
         0.5
     """
 
-    law_classes = (RateLaw,)
-
     def __init__(
         self,
         label: str,
         *,
-        N: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 1.0,
-        N0: float = 1.0,
+        N: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.0,
+        k: Annotated[float | Array, RealSet.closed_open(0, oo)] = 1.0,
+        alpha: Annotated[float | Array, RealSet.closed(0, 1)] = 1.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.N = N
         self.k = k
         self.alpha = alpha
+
+
+class AssemblyDiscoveryInteraction(Interaction):
+    """Discovery of the objects of every assembly level from the level below, `dN_{a+1}/dt = k (N_a)^alpha`.
+
+    The rate `k` and the selectivity `alpha` are values of the levels, an `AssemblyLevelElement`, and the first level
+    is discovered from the pool of building blocks `N0`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of levels, ordered by assembly index.
+
+        N0:
+            The number of building blocks below the first level.
+
+    Examples:
+        >>> from skcomplex.systems.biology.evolution import AssemblyDiscoveryInteraction
+        >>> AssemblyDiscoveryInteraction('discovery', target='levels').N0
+        1.0
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role, N0: float = 1.0) -> None:
+        super().__init__(label)
+        self.target = target
         self.N0 = N0
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the discovery of the objects of this level from the level below.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the discovery of the objects of every level from the level below.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the group of levels.
         """
-        below = shift_member(s.N, -1, boundary='fixed', fill=self.N0)
-        return [RateLaw(s.N, s.k * below**s.alpha)]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context.target
+            below = shift_member(s.N, -1, boundary='fixed', fill=self.N0)
+            self.laws_: list[BaseLaw] = [RateLaw(s.N, s.k * below**s.alpha)]
 
 
 class PolymerView(AgentView):
@@ -114,6 +142,9 @@ class PolymerElement(Element):
         born:
             The step at which the polymer was made.
 
+        size:
+            The number of polymers, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.biology.evolution import PolymerElement
         >>> PolymerElement('polymer', length=3.0).length
@@ -124,10 +155,11 @@ class PolymerElement(Element):
         self,
         label: str,
         *,
-        length: Annotated[float, StateSpec(domain=NN)] = 1.0,
-        born: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        length: Annotated[float | Array, NN] = 1.0,
+        born: Annotated[float | Array, NN] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.length = length
         self.born = born
 
@@ -168,19 +200,19 @@ class PolymerJoiningInteraction(Interaction):
 
     draws = True
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
-    def __init__(self, label: str, *, polymers: Annotated[str, RoleSpec()], mode: str = 'undirected') -> None:
+    def __init__(self, label: str, *, polymers: Role, mode: str = 'undirected') -> None:
         super().__init__(label)
         self.polymers = polymers
         self.mode = mode
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Check the mode.
+        """Set the joining, a rule of the whole system.
 
         Args:
             context:
-                The space the interaction inherits from its system.
+                The namespace of the system.
 
         Raises:
             ValidationError:
@@ -190,19 +222,8 @@ class PolymerJoiningInteraction(Interaction):
         if self.mode not in MODES:
             error_msg = f'The mode must be one of {", ".join(MODES)}, not {self.mode!r}.'
             raise ValidationError(error_msg)
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the joining rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.join)]
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseLaw] = [UpdateLaw(context, self.join)]
 
     def join(self, system: SystemView) -> None:
         """Join two polymers and add the product to the pool.
@@ -286,13 +307,9 @@ class AssemblyGrowthSystem(BaseSystem):
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
-        group = GroupElement(
-            'levels',
-            element=AssemblyLevelElement,
-            size=self.levels,
-            values={'k': self.k, 'alpha': self.alpha},
-        )
-        self.system_ = System(self.label, elements=[group])
+        group = AssemblyLevelElement('levels', k=self.k, alpha=self.alpha, size=self.levels)
+        discovery = AssemblyDiscoveryInteraction('discovery', target='levels')
+        self.system_ = System(self.label, elements=[group], interactions=[discovery])
 
 
 class PolymerAssemblyPoolSystem(BaseSystem):
@@ -308,9 +325,6 @@ class PolymerAssemblyPoolSystem(BaseSystem):
     Args:
         mode:
             `'undirected'` or `'directed'`.
-
-        capacity:
-            The largest number of polymers the pool holds.
 
         label:
             The label of the system, which names it when it is nested in another one.
@@ -336,14 +350,12 @@ class PolymerAssemblyPoolSystem(BaseSystem):
         self,
         mode: str = 'undirected',
         *,
-        capacity: int = 2000,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
     ) -> None:
         super().__init__(label, solver=solver, backend=backend)
         self.mode = mode
-        self.capacity = capacity
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set an assembly pool of linear polymers grown from one monomer.
@@ -353,7 +365,7 @@ class PolymerAssemblyPoolSystem(BaseSystem):
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
-        pool = GroupElement('pool', element=PolymerElement, size=1, variable=True, capacity=self.capacity)
+        pool = PolymerElement('pool', size=1)
         self.system_ = System(
             self.label,
             elements=[pool],

@@ -14,14 +14,14 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.base import BaseComponent
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import ConstraintLaw
 from ....core.components.laws.utils import neighbors
 from ....core.components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import Role, StateSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 
 
@@ -33,25 +33,39 @@ class CityResidentElement(Element):
             The label of the resident or the group.
 
         x:
-            The position.
+            The position along the first axis of the city.
+
+        y:
+            The position along the second axis of the city.
 
         contacts:
             The initial guess of the sum of the interactions with the others, which the equation replaces.
 
+        size:
+            The number of residents, or `None` for one.
+
+        space:
+            The plane of the city, whose axes `x` and `y` place the residents, or `None` for none.
+
     Examples:
         >>> from skcomplex.systems.social.organizations import CityResidentElement
-        >>> CityResidentElement('resident', x=(1.0, 2.0)).x
-        (1.0, 2.0)
+        >>> CityResidentElement('resident', x=1.0, y=2.0).y
+        2.0
     """
 
     def __init__(
         self,
         label: str,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
-        contacts: Annotated[float, StateSpec()] = 0.0,
+        *,
+        x: npt.ArrayLike = 0.0,
+        y: npt.ArrayLike = 0.0,
+        contacts: npt.ArrayLike = 0.0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size, space=space)
         self.x = x
+        self.y = y
         self.contacts = contacts
 
 
@@ -98,7 +112,7 @@ class GravityContactInteraction(Interaction):
         """Set the equation of the contacts of a resident."""
         super()._prepare(s)
         if isinstance(s, SimpleNamespace):
-            dx, dy = s.target.other.x[0] - s.target.x[0], s.target.other.x[1] - s.target.x[1]
+            dx, dy = s.target.other.x - s.target.x, s.target.other.y - s.target.y
             contacts = neighbors((dx**2 + dy**2) ** (-s.gamma / 2), over=RadiusNeighborhood(self.reach))
             self.laws_: list[BaseComponent] = [ConstraintLaw(s.target.contacts == contacts, target=s.target.contacts)]
 
@@ -109,7 +123,8 @@ class GravityUrbanScalingSystem(BaseSystem):
     Each resident interacts with the others as `r^-gamma`. The disc has the area `N^alpha`, so the total interaction of
     a city grows as `N^(2 - alpha gamma / 2)` for `gamma < 2`, which with the population dimension `D_P = 2 / alpha` is
     the exponent `2 - gamma / D_P` of Ribeiro and Netto (2024 §4). A `sweep` varies `population` and fits the exponent
-    with `scaling(kind='power')`. The system has the states `residents.x` and `residents.contacts` and the observable
+    with `scaling(kind='power')`. The system has the positions `residents.x` and `residents.y`, the states
+    `residents.contacts`, and the observable
     `total_contacts` of the catalog, which a run passes in `observables`.
 
     Args:
@@ -170,12 +185,13 @@ class GravityUrbanScalingSystem(BaseSystem):
         distances = radius * np.sqrt(rng.uniform(size=self.population))
         angles = rng.uniform(0.0, 2 * np.pi, self.population)
         positions = radius + distances[:, None] * np.column_stack([np.cos(angles), np.sin(angles)])
-        residents = GroupElement(
+        space = ContinuousSpace(extent=[2.0 * radius, 2.0 * radius])
+        residents = CityResidentElement(
             'residents',
-            element=CityResidentElement,
+            x=positions[:, 0],
+            y=positions[:, 1],
             size=self.population,
-            values={'x': positions},
+            space=space,
         )
         contact = GravityContactInteraction('contact', target='residents', reach=2.0 * radius, gamma=self.gamma)
-        space = ContinuousSpace(extent=[2.0 * radius, 2.0 * radius])
         self.system_ = System(self.label, elements=[residents], interactions=[contact], space=space)

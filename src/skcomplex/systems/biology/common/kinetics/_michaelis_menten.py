@@ -8,13 +8,11 @@ Their propensity saturates in the amount of their substrate.
 
 from collections.abc import Callable
 from types import SimpleNamespace
-from typing import Annotated
 
 from sage.all__sagemath_symbolics import SR, Expression
 
 from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
-from .....core.specs import RoleSpec
 from ....general.reactions import ReactionInteraction
 from ....general.reactions.types import Stoichiometry
 
@@ -81,13 +79,13 @@ class MichaelisMentenInteraction(ReactionInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str | None, RoleSpec()] = None,
-        reactants: Annotated[Stoichiometry | None, RoleSpec(variadic=True)] = None,
-        products: Annotated[Stoichiometry | None, RoleSpec(variadic=True)] = None,
+        target: str | None = None,
+        reactants: Stoichiometry | None = None,
+        products: Stoichiometry | None = None,
         substrate: str | Callable[[SimpleNamespace], object] = 'x',
         vmax: Callable[[SimpleNamespace], object] | float = 1.0,
         km: Callable[[SimpleNamespace], object] | float = 1.0,
-        modifiers: Annotated[Stoichiometry | None, RoleSpec(variadic=True)] = None,
+        modifiers: Stoichiometry | None = None,
         mode: str = 'rate',
     ) -> None:
         super().__init__(label, target=target, reactants=reactants, products=products, modifiers=modifiers, mode=mode)

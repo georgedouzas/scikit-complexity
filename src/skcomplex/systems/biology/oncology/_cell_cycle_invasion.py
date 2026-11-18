@@ -17,9 +17,10 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.laws.utils import shift_member
+from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import RoleSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
@@ -161,13 +162,17 @@ class CellCycleInvasionInteraction(Interaction):
 
     law_classes = (JumpLaw,)
 
-    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()], offsets: tuple[int, ...]) -> None:
+    def __init__(self, label: str, *, target: Role, offsets: tuple[int, ...]) -> None:
         super().__init__(label)
         self.target = target
         self.offsets = offsets
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the jumps of the cell cycle, the divisions, and the moves of every site."""
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the jumps of the cell cycle, the divisions, and the moves of every site."""
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        namespace = context
         s = namespace.target
         cells = (s.g1, s.es, s.sg2m)
         opens = (s.open_0, s.open_1, s.open_2, s.open_3, s.open_4, s.open_5)
@@ -186,7 +191,7 @@ class CellCycleInvasionInteraction(Interaction):
             for cell, rate in zip(cells, (s.Mr, s.My, s.Mg), strict=True):
                 moved = shift_member(cell, offset, boundary='fixed')
                 laws.append(JumpLaw(rate / NEIGHBOURS * cell * vacant, {cell: -1, moved: 1}))
-        return laws
+        self.laws_: list[BaseLaw] = laws
 
 
 class CellCycleInvasionSystem(BaseSystem):

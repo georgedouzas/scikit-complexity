@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -11,13 +11,13 @@ import numpy as np
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.spaces import ContinuousSpace
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.spaces import BaseSpace, ContinuousSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver, SystemView
-from ....core.specs import RoleSpec, StateSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
@@ -47,6 +47,15 @@ class HerdedSheepElement(Element):
         hy:
             The second component of the heading of the last move.
 
+        values:
+            Further values by name, such as the coordinates `x` and `y` of the sheep, or `None`.
+
+        size:
+            The number of sheep, or `None` for one.
+
+        space:
+            The pasture the sheep move on, whose axes `x` and `y` place them, or `None`.
+
     Examples:
         >>> from skcomplex.systems.biology.collective_behaviour import HerdedSheepElement
         >>> HerdedSheepElement('sheep', hx=1.0).hx
@@ -59,10 +68,13 @@ class HerdedSheepElement(Element):
         self,
         label: str,
         *,
-        hx: Annotated[float, StateSpec()] = 0.0,
-        hy: Annotated[float, StateSpec()] = 0.0,
+        hx: float | Array = 0.0,
+        hy: float | Array = 0.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.hx = hx
         self.hy = hy
 
@@ -93,6 +105,15 @@ class ShepherdElement(Element):
         driving:
             1 while the shepherd drives the flock and 0 while it collects a stray sheep.
 
+        values:
+            Further values by name, such as the coordinates `x` and `y` of the shepherd, or `None`.
+
+        size:
+            The number of shepherds, or `None` for one.
+
+        space:
+            The pasture the shepherds move on, whose axes `x` and `y` place them, or `None`.
+
     Examples:
         >>> from skcomplex.systems.biology.collective_behaviour import ShepherdElement
         >>> ShepherdElement('dog').driving
@@ -105,9 +126,12 @@ class ShepherdElement(Element):
         self,
         label: str,
         *,
-        driving: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+        driving: Annotated[float | Array, FiniteEnumeratedSet([0, 1])] = 0.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.driving = driving
 
     @classmethod
@@ -172,14 +196,14 @@ class ShepherdingInteraction(Interaction):
 
     draws = True
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        sheep: Annotated[str, RoleSpec()],
-        shepherds: Annotated[str, RoleSpec()],
+        sheep: Role,
+        shepherds: Role,
         goal: Sequence[float] = (0.0, 0.0),
         ra: float = 2.0,
         rs: float = 65.0,
@@ -201,18 +225,17 @@ class ShepherdingInteraction(Interaction):
         self.delta_s = delta_s
         self.graze = graze
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the herding rule.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the herding rule.
 
         Args:
-            s:
+            context:
                 The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
         """
-        return [RuleLaw(self.herd)]
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self.herd)]
 
     def herd(self, system: SystemView) -> None:
         """Move every sheep and every shepherd from the positions at the start of the step.
@@ -362,17 +385,18 @@ class ShepherdingSystem(BaseSystem):
         super()._prepare(context)
         rng = np.random.default_rng(self.seed)
         positions = rng.uniform(0.4 * self.size, 0.7 * self.size, (self.n_sheep, 2))
-        sheep = GroupElement(
+        space = ContinuousSpace(extent=(self.size, self.size))
+        sheep = HerdedSheepElement(
             'sheep',
-            element=HerdedSheepElement,
+            values={'x': positions[:, 0], 'y': positions[:, 1]},
             size=self.n_sheep,
-            location=[tuple(map(float, position)) for position in positions],
+            space=space,
         )
-        dogs = GroupElement(
+        dogs = ShepherdElement(
             'shepherds',
-            element=ShepherdElement,
+            values={'x': [0.9 * self.size], 'y': [0.9 * self.size]},
             size=1,
-            location=[(0.9 * self.size, 0.9 * self.size)],
+            space=space,
         )
         herding = ShepherdingInteraction(
             'herding',
@@ -385,5 +409,5 @@ class ShepherdingSystem(BaseSystem):
             self.label,
             elements=[sheep, dogs],
             interactions=[herding],
-            space=ContinuousSpace(extent=(self.size, self.size)),
+            space=space,
         )

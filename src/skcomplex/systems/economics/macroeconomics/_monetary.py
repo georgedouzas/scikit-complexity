@@ -11,9 +11,11 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, Quantity
-from ....core.components.interactions import MapInteraction, TransferInteraction
-from ....core.components.laws import Sink, Source
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw, UpdateLaw
+from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.specs import Role
@@ -154,12 +156,12 @@ class MonetaryBankElement(Element):
         self.credit = credit
 
 
-class CircuitInteraction(TransferInteraction):
+class CircuitInteraction(Interaction):
     """Circuit of money between households, firms, and a bank, one period per step.
 
-    The flows of a period are the legs of one transfer between the deposits of the sectors, consumption, wages,
-    interest, dividends, and profits, lending from the environment, and repayments to it, each reading the parameters
-    of the sectors. Every leg is named by its flow, so the reporters `<label>.<flow>` record it.
+    The flows of a period between the deposits of the sectors are consumption, wages, interest, dividends, and profits,
+    lending from the environment, and repayments to it, each reading the parameters of the sectors. Every flow is
+    labelled, so the trajectory records it.
 
     Args:
         label:
@@ -180,51 +182,33 @@ class CircuitInteraction(TransferInteraction):
         'bank'
     """
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        households: Role,
-        firms: Role,
-        bank: Role,
-    ) -> None:
-        super().__init__(
-            label,
-            source=households,
-            target=firms,
-            state='households.deposits',
-            into='firms.deposits',
-            amount=lambda s: CircuitInteraction._get_consumption(s.households, s.firms),
-            flow='consumption',
-            legs=[
-                ('firms.deposits', 'households.deposits', lambda s: s.firms.wage_share * s.firms.sales, 'wages'),
-                ('firms.deposits', 'bank.deposits', lambda s: s.bank.interest * s.firms.loans, 'interest'),
-                ('bank.deposits', 'households.deposits', lambda s: s.bank.payout * s.bank.deposits, 'dividends'),
-                (
-                    'firms.deposits',
-                    'households.deposits',
-                    lambda s: s.firms.distribution * s.firms.deposits,
-                    'profits',
-                ),
-                (
-                    Source('lending'),
-                    'firms.deposits',
-                    lambda s: CircuitInteraction._get_lending(s.firms, s.bank),
-                    'lending',
-                ),
-                ('firms.deposits', Sink('repayment'), lambda s: s.firms.repayment * s.firms.loans, 'repayments'),
-            ],
-        )
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, households: Role, firms: Role, bank: Role) -> None:
+        super().__init__(label)
         self.households = households
         self.firms = firms
         self.bank = bank
 
-    def _get_holders(self, namespace: SimpleNamespace) -> list[tuple[SimpleNamespace, SimpleNamespace]]:
-        """Return the households and the firms, the first pair of the circuit.
-
-        The other legs name their roles.
-        """
-        return [(namespace.households, namespace.firms)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the flows of a period between the deposits of the sectors as the laws."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            households, firms, bank = context.households, context.firms, context.bank
+            flows = [
+                (
+                    {households.deposits: -1, firms.deposits: +1},
+                    self._get_consumption(households, firms),
+                    'consumption',
+                ),
+                ({firms.deposits: -1, households.deposits: +1}, firms.wage_share * firms.sales, 'wages'),
+                ({firms.deposits: -1, bank.deposits: +1}, bank.interest * firms.loans, 'interest'),
+                ({bank.deposits: -1, households.deposits: +1}, bank.payout * bank.deposits, 'dividends'),
+                ({firms.deposits: -1, households.deposits: +1}, firms.distribution * firms.deposits, 'profits'),
+                ({firms.deposits: +1}, self._get_lending(firms, bank), 'lending'),
+                ({firms.deposits: -1}, firms.repayment * firms.loans, 'repayments'),
+            ]
+            self.laws_: list[BaseComponent] = [RateLaw(target, amount, label=flow) for target, amount, flow in flows]
 
     @staticmethod
     def _get_consumption(households: SimpleNamespace, firms: SimpleNamespace) -> Expression:
@@ -251,12 +235,12 @@ class StockFlowConsistentEconomySystem(BaseSystem):
     repayment destroys it, the only flows with the environment, so the total money changes exactly by lending minus
     repayment, in the spirit of the systems of Godley and Lavoie (2007) and the balance sheets of Caiani et al. (2016).
     Loans approach `credit * sales / repayment` and sales settle where the stocks stop growing. The circuit moves the
-    money of a period, and the maps `loans` and `sales` set the loans and the sales of the firms.
+    money of a period, and the interactions `loans` and `sales` set the loans and the sales of the firms.
 
     The system has the deposits `households.deposits`, `firms.deposits`, and `bank.deposits`, the loans `firms.loans`,
     the sales `firms.sales`, the flows `circuit.consumption`, `circuit.wages`, `circuit.interest`, `circuit.dividends`,
-    `circuit.profits`, `circuit.lending`, and `circuit.repayments`, the maps `loans` and `sales`, and the net money
-    created `__boundary.money`.
+    and `circuit.profits` between the sectors, the flows `firms.lending` and `firms.repayments` with the environment,
+    and the net money created `__boundary.money`.
 
     Args:
         household_deposits:
@@ -355,18 +339,23 @@ class StockFlowConsistentEconomySystem(BaseSystem):
         self.repayment = repayment
 
     @staticmethod
-    def _get_next_loans(s: SimpleNamespace) -> Expression:
+    def _get_next_loans(s: SimpleNamespace) -> list[BaseComponent]:
         """Return the loans of the firms after a period.
 
         The new loans are added and the repayments taken.
         """
-        firms, bank = s.target, s.sources[0]
-        return firms.loans + CircuitInteraction._get_lending(firms, bank) - firms.repayment * firms.loans
+        firms, bank = s.target, s.bank
+        return [
+            UpdateLaw(
+                firms.loans,
+                firms.loans + CircuitInteraction._get_lending(firms, bank) - firms.repayment * firms.loans,
+            ),
+        ]
 
     @staticmethod
-    def _get_next_sales(s: SimpleNamespace) -> Expression:
+    def _get_next_sales(s: SimpleNamespace) -> list[BaseComponent]:
         """Return the sales of the firms of a period, the consumption of the households."""
-        return CircuitInteraction._get_consumption(s.sources[0], s.target)
+        return [UpdateLaw(s.target.sales, CircuitInteraction._get_consumption(s.households, s.target))]
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of the components built from the model parameters."""
@@ -399,13 +388,7 @@ class StockFlowConsistentEconomySystem(BaseSystem):
             ],
             interactions=[
                 CircuitInteraction('circuit', households='households', firms='firms', bank='bank'),
-                MapInteraction('loans', target='firms', state='loans', function=self._get_next_loans, sources=['bank']),
-                MapInteraction(
-                    'sales',
-                    target='firms',
-                    state='sales',
-                    function=self._get_next_sales,
-                    sources=['households'],
-                ),
+                Interaction('loans', roles={'target': 'firms', 'bank': 'bank'}, laws=self._get_next_loans),
+                Interaction('sales', roles={'target': 'firms', 'households': 'households'}, laws=self._get_next_sales),
             ],
         )

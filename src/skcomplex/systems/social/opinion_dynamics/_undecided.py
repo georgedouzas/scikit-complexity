@@ -17,8 +17,10 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, Quantity
-from ....core.components.interactions import MapInteraction, TransferInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw, UpdateLaw
 from ....core.components.spaces import NetworkSpace
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.backends import BaseBackend
@@ -222,6 +224,15 @@ class ThreeStateOpinionSystem(BaseSystem):
             return -1.0
         return 1.0 if draw < against + support else 0.0
 
+    @staticmethod
+    def _vote(system: SystemViewProtocol) -> None:
+        """Let every voter redraw its opinion, one after the other in a new random order."""
+        voters = list(system.get_agents('target'))
+        for index in system.rng.permutation(len(voters)):
+            voter = voters[int(index)]
+            if voter.alive and isinstance(voter, UndecidedView):
+                voter.opinion = ThreeStateOpinionSystem._redraw(voter, system)
+
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set `system_` to the components built from the model parameters."""
         super()._prepare(context)
@@ -233,14 +244,7 @@ class ThreeStateOpinionSystem(BaseSystem):
             sensitivity=self.sensitivity,
             size=self.n_agents,
         )
-        redraw = MapInteraction(
-            'redraw',
-            target='voters',
-            state='opinion',
-            function=self._redraw,
-            schedule='random-sequential',
-            form='agent',
-        )
+        redraw = Interaction('redraw', roles={'target': 'voters'}, laws=lambda s: [UpdateLaw(s, self._vote)])
         self.system_ = System(self.label, elements=[voters], interactions=[redraw], space=NetworkSpace(graph))
 
 
@@ -327,22 +331,49 @@ class UndecidedFlowsSystem(BaseSystem):
     @staticmethod
     def _get_joining_against(s: SimpleNamespace) -> Expression:
         """Return the flow of undecided agents against, `omega C`."""
-        return s.source.omega * s.source.undecided
+        return s.target.omega * s.target.undecided
 
     @staticmethod
     def _get_joining_support(s: SimpleNamespace) -> Expression:
         """Return the flow of undecided agents for, `omega C`."""
-        return s.source.omega * s.source.undecided
+        return s.target.omega * s.target.undecided
 
     @staticmethod
     def _get_doubting_against(s: SimpleNamespace) -> Expression:
         """Return the flow of agents against into the undecided, `gamma A C^drive`."""
-        return s.source.gamma * s.source.against * s.source.undecided**s.source.drive
+        return s.target.gamma * s.target.against * s.target.undecided**s.target.drive
 
     @staticmethod
     def _get_doubting_support(s: SimpleNamespace) -> Expression:
         """Return the flow of agents for into the undecided, `eta B C^drive`."""
-        return s.source.eta * s.source.support * s.source.undecided**s.source.drive
+        return s.target.eta * s.target.support * s.target.undecided**s.target.drive
+
+    @staticmethod
+    def _get_flows(s: SimpleNamespace) -> list[BaseComponent]:
+        """Return the flows of undecided agents to both sides and back."""
+        undecided, against, support = s.target.undecided, s.target.against, s.target.support
+        return [
+            RateLaw(
+                {undecided: -1, against: +1},
+                UndecidedFlowsSystem._get_joining_against(s),
+                label='joining_against',
+            ),
+            RateLaw(
+                {undecided: -1, support: +1},
+                UndecidedFlowsSystem._get_joining_support(s),
+                label='joining_support',
+            ),
+            RateLaw(
+                {against: -1, undecided: +1},
+                UndecidedFlowsSystem._get_doubting_against(s),
+                label='doubting_against',
+            ),
+            RateLaw(
+                {support: -1, undecided: +1},
+                UndecidedFlowsSystem._get_doubting_support(s),
+                label='doubting_support',
+            ),
+        ]
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set `system_` to the components built from the model parameters."""
@@ -355,18 +386,5 @@ class UndecidedFlowsSystem(BaseSystem):
             eta=self.eta,
             drive=1.0 if self.driven else 0.0,
         )
-        flows = TransferInteraction(
-            'flows',
-            source='population',
-            target='population',
-            state='undecided',
-            into='against',
-            amount=self._get_joining_against,
-            flow='joining_against',
-            legs=[
-                ('undecided', 'support', self._get_joining_support, 'joining_support'),
-                ('against', 'undecided', self._get_doubting_against, 'doubting_against'),
-                ('support', 'undecided', self._get_doubting_support, 'doubting_support'),
-            ],
-        )
+        flows = Interaction('flows', roles={'target': 'population'}, laws=self._get_flows)
         self.system_ = System(self.label, elements=[population], interactions=[flows])

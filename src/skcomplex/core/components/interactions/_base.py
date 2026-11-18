@@ -33,6 +33,7 @@ from ..laws.utils._fractional import fractional_of
 from ..spaces import BaseSpace, ContinuousSpace
 from ..types import AgentViewProtocol, SystemViewProtocol
 from ._interaction_requirement_spec import _InteractionRequirementSpec
+from ._wiener_process_spec import WienerProcessSpec
 
 GRID_CANDIDATES = ('neighbors', 'cell', 'local')
 RATE_DOMAINS = (DomainKind.REAL, DomainKind.INTEGER, DomainKind.COMPLEX, DomainKind.VECTOR)
@@ -167,7 +168,8 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         list or an array of numbers is a vector parameter of its length, such as the stiffness of a trap along each
         axis, and a square matrix of numbers a matrix parameter. The allowed values of an argument come from
         `Annotated`, as for the values of an element, such as `k: Annotated[float, RealSet.open(0, oo)] = 1.0` for a
-        positive rate. The parameters keep the order of the arguments.
+        positive rate. An argument whose value is a `WienerProcessSpec` binds those processes, as the market noise
+        that drives the prices of several assets does. The parameters keep the order of the arguments.
         """
         if not self._is_preparing_laws():
             return {}
@@ -177,6 +179,9 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         declared = {}
         for name in inspect.signature(type(self)).parameters:
             value = params.get(name)
+            if isinstance(value, WienerProcessSpec) and name not in specs:
+                declared[name] = DeclaredVariableSpec(value, RoleSpec(noise=True))
+                continue
             if name in specs or name == 'label' or not self._is_numeric(value):
                 continue
             vector, n_dim, tensor = self._get_shape_of(value)
@@ -302,6 +307,7 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         shift = SR(time - value.operands()[0]).simplify_full()
         if shift.is_zero():
             return state
+        shift = SR(BaseInteraction._get_translated(shift, time, symbols, discrete))
         return (lag if discrete else delayed)(state, shift)
 
     @staticmethod

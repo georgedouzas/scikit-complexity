@@ -11,12 +11,12 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, GroupElement
+from ....core.components.elements import Element
 from ....core.components.spaces import LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver, SystemView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
 from ...general.agents import MovementInteraction
 
@@ -46,12 +46,14 @@ class ResidentElement(Element):
         threshold:
             The smallest share of neighbours of the same kind that keeps a resident in place.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.segregation import ResidentElement
-        >>> group = GroupElement('residents', element=ResidentElement, size=10, values={'kind': 1.0})
-        >>> group.label, group.element.__name__, group.size
-        ('residents', 'ResidentElement', 10)
+        >>> group = ResidentElement('residents', kind=1.0, size=10)
+        >>> group.label, group.size
+        ('residents', 10)
     """
 
     visual = VisualSpec('agents', {'color_by': 'kind', 'color_range': (0.0, 1.0)})
@@ -60,10 +62,11 @@ class ResidentElement(Element):
         self,
         label: str,
         *,
-        kind: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        threshold: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        kind: Annotated[object, NN] = 0.0,
+        threshold: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.kind = kind
         self.threshold = threshold
 
@@ -111,8 +114,8 @@ class RelocationInteraction(MovementInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        probability: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 1.0,
+        target: Role,
+        probability: Annotated[float, RealSet.closed(0, 1)] = 1.0,
         choices: int | None = None,
         phase: str | None = None,
     ) -> None:
@@ -214,7 +217,7 @@ class SchellingSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.social.segregation import SchellingSystem
-        >>> SchellingSystem(10, 10, density=0.5).prepare().system_.elements[0].prepare().size_
+        >>> SchellingSystem(10, 10, density=0.5).prepare().system_.elements[0].size
         50
     """
 
@@ -254,12 +257,7 @@ class SchellingSystem(BaseSystem):
         rng = np.random.default_rng(self.random_state)
         size = int(self.width * self.height * self.density)
         kinds = (rng.random(size) < self.minority).astype(float)
-        residents = GroupElement(
-            'residents',
-            element=ResidentElement,
-            size=size,
-            values={'kind': kinds, 'threshold': self.threshold},
-        )
+        residents = ResidentElement('residents', kind=kinds, threshold=self.threshold, size=size)
         self.system_ = System(
             self.label,
             elements=[residents],

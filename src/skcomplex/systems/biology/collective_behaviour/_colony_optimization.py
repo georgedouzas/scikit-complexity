@@ -19,10 +19,11 @@ from scipy.spatial import Delaunay
 from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver, SystemView
-from ....core.specs import RoleSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
@@ -143,7 +144,7 @@ class ColonySearchInteraction(Interaction):
 
     draws = True
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     reports: ClassVar[tuple[str, ...]] = ('shortest',)
 
@@ -151,7 +152,7 @@ class ColonySearchInteraction(Interaction):
         self,
         label: str,
         *,
-        segments: Annotated[str, RoleSpec()],
+        segments: Role,
         edges: Sequence[tuple[int, int]] = (),
         lengths: Sequence[float] = (),
         start: int = 0,
@@ -178,18 +179,17 @@ class ColonySearchInteraction(Interaction):
         self.Q = Q
         self.cut = cut
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule of a round.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rule of a round.
 
         Args:
-            s:
+            context:
                 The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
         """
-        return [RuleLaw(self.search)]
+        super()._prepare(context)
+        if not isinstance(context, SimpleNamespace):
+            return
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self.search)]
 
     def search(self, system: SystemView) -> None:
         """Run one round of ants and update the pheromone.

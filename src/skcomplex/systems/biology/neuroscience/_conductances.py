@@ -7,12 +7,13 @@ from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import Expression, exp, oo
+from sage.all__sagemath_symbolics import SR, Expression, exp, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import CrossingInteraction, RateInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, EventLaw, RateLaw
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -225,17 +226,16 @@ class HodgkinHuxleySystem(BaseSystem):
             'h': (0.07 * exp(-(v + 65) / 20), 1 / (1 + exp(-(v + 35) / 10))),
         }
 
-    def _get_gate_kinetics(self, gate: str) -> Callable[[SimpleNamespace], Expression]:
+    def _get_gate_kinetics(self, gate: str) -> Callable[[SimpleNamespace], list[BaseLaw]]:
         """Return the rate `alpha(v) (1 - x) - beta(v) x` of a gate `x`.
 
         The rate is a function of the namespace of the neuron.
         """
 
-        def kinetics(s: SimpleNamespace) -> Expression:
+        def kinetics(s: SimpleNamespace) -> list[BaseLaw]:
             opening, closing = self._get_gate_rates(s.target.v)[gate]
             x = getattr(s.target, gate)
-            rate: Expression = opening * (1 - x) - closing * x
-            return rate
+            return [RateLaw(x, opening * (1 - x) - closing * x)]
 
         return kinetics
 
@@ -271,33 +271,42 @@ class HodgkinHuxleySystem(BaseSystem):
                 ),
             ],
             interactions=[
-                RateInteraction('applied_current', target='neuron', state='v', rate=lambda s: s.target.I, divisor='C'),
-                RateInteraction(
+                Interaction(
+                    'applied_current',
+                    roles={'target': 'neuron'},
+                    laws=lambda s: [RateLaw(s.target.v, s.target.I / s.target.C)],
+                ),
+                Interaction(
                     'sodium_current',
-                    target='neuron',
-                    state='v',
-                    rate=lambda s: -s.target.g_na * s.target.m**3 * s.target.h * (s.target.v - s.target.e_na),
-                    divisor='C',
+                    roles={'target': 'neuron'},
+                    laws=lambda s: [
+                        RateLaw(
+                            s.target.v,
+                            -s.target.g_na * s.target.m**3 * s.target.h * (s.target.v - s.target.e_na) / s.target.C,
+                        ),
+                    ],
                 ),
-                RateInteraction(
+                Interaction(
                     'potassium_current',
-                    target='neuron',
-                    state='v',
-                    rate=lambda s: -s.target.g_k * s.target.n**4 * (s.target.v - s.target.e_k),
-                    divisor='C',
+                    roles={'target': 'neuron'},
+                    laws=lambda s: [
+                        RateLaw(s.target.v, -s.target.g_k * s.target.n**4 * (s.target.v - s.target.e_k) / s.target.C),
+                    ],
                 ),
-                RateInteraction(
+                Interaction(
                     'leak_current',
-                    target='neuron',
-                    state='v',
-                    rate=lambda s: -s.target.g_l * (s.target.v - s.target.e_l),
-                    divisor='C',
+                    roles={'target': 'neuron'},
+                    laws=lambda s: [RateLaw(s.target.v, -s.target.g_l * (s.target.v - s.target.e_l) / s.target.C)],
                 ),
                 *[
-                    RateInteraction(f'{gate}_gating', target='neuron', state=gate, rate=self._get_gate_kinetics(gate))
+                    Interaction(f'{gate}_gating', roles={'target': 'neuron'}, laws=self._get_gate_kinetics(gate))
                     for gate in ('n', 'm', 'h')
                 ],
-                CrossingInteraction('spike', target='neuron', guard=lambda s: s.target.v, direction=1),
+                Interaction(
+                    'spike',
+                    roles={'target': 'neuron'},
+                    laws=lambda s: [EventLaw(SR(s.target.v), None, 1, False, label='spike')],
+                ),
             ],
         )
 

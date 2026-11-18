@@ -1,45 +1,49 @@
 """Test the `_shops` module of `skcomplex.systems.economics.markets`."""
 
-from typing import Annotated, ClassVar
+from typing import ClassVar
 
 import numpy as np
 import pytest
 
 from skcomplex.core.components import Observable
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import RuleLaw
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.types import AgentViewProtocol, SystemViewProtocol
 from skcomplex.core.engine.compile import PhaseSpec
 from skcomplex.core.engine.runtime import Trajectory
 from skcomplex.core.engine.solvers import MesaSolver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
 from skcomplex.systems.economics.common.policy import PolicyRuleInteraction
 from skcomplex.systems.economics.markets import PriceAdjustmentInteraction, ShopsSystem
 
 
 class ShopElement(Element):
-    """Shop whose price grows by a drift and noise, slowed by the interest rate."""
+    """Shop with a price and the drift of its price."""
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        price: Annotated[float, StateSpec()] = 1.0,
-        drift: Annotated[float, ParameterSpec()] = 0.03,
-    ) -> None:
-        super().__init__(label)
+    def __init__(self, label: str, *, price: float = 1.0, drift: float = 0.03, size: int | None = None) -> None:
+        super().__init__(label, size=size)
         self.price = price
         self.drift = drift
 
-    def _get_laws(self, s):
-        """Return the pricing rule."""
-        return [RuleLaw(self.inflate)]
+
+class InflationInteraction(Interaction):
+    """Pricing of shops whose price grows by a drift and noise, slowed by the interest rate."""
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context=None):
+        """Set the pricing of every shop as its rule."""
+        super()._prepare(context)
+        self.laws_ = [UpdateLaw(context.target, self.inflate)]
 
     def inflate(self, agent, system):
         """Raise the price."""
-        agent.price *= 1 + system.get_parameter('drift') + system.rng.normal(0, 0.02) - system.parameters['bank.rate']
+        agent.price *= 1 + agent.drift + system.rng.normal(0, 0.02) - system.parameters['bank.rate']
 
 
 class CentralBankInteraction(PolicyRuleInteraction):
@@ -52,8 +56,8 @@ class CentralBankInteraction(PolicyRuleInteraction):
         label: str,
         *,
         phase: str | None = None,
-        rate: Annotated[float, ParameterSpec()] = 0.0,
-        target: Annotated[float, ParameterSpec()] = 0.02,
+        rate: float = 0.0,
+        target: float = 0.02,
     ) -> None:
         super().__init__(label, phase=phase)
         self.rate = rate
@@ -76,10 +80,11 @@ class QuoteElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec()] = 1.0,
-        goal: Annotated[float, StateSpec()] = 2.0,
+        x: object = 1.0,
+        goal: object = 2.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.x = x
         self.goal = goal
 
@@ -98,8 +103,8 @@ def _crowded(agent: AgentViewProtocol, system: SystemViewProtocol) -> float:
 def test_interest_rate_rule():
     """The interest rate changes only at steps where inflation exceeds the target."""
     system = System(
-        elements=[GroupElement('shops', element=ShopElement, size=20)],
-        interactions=[CentralBankInteraction('bank', phase='policy')],
+        elements=[ShopElement('shops', size=20)],
+        interactions=[InflationInteraction('pricing', target='shops'), CentralBankInteraction('bank', phase='policy')],
         solver=MesaSolver(phases=[PhaseSpec('policy')]),
     )
     observables = [Observable('price_level', group='shops', variable='price')]
@@ -149,7 +154,7 @@ def test_price_adjustment_steps_additively_and_stops_at_a_zero_signal():
 
 def test_price_adjustment_agent_form_steps_every_agent_within_its_bound():
     """Test that the agent form steps every agent by its own step and keeps it above its lower bound."""
-    quotes = GroupElement('quotes', element=QuoteElement, size=2, values={'x': [1.0, 4.0], 'goal': [0.0, 8.0]})
+    quotes = QuoteElement('quotes', x=[1.0, 4.0], goal=[0.0, 8.0], size=2)
     search = PriceAdjustmentInteraction(
         'search',
         target='quotes',
@@ -170,7 +175,7 @@ def test_price_adjustment_agent_form_steps_every_agent_within_its_bound():
 )
 def test_price_adjustment_agent_schedules_read_the_states_set_before(schedule, expected):
     """Test that sequential and member steps read the quotes earlier agents set, while synchronous steps do not."""
-    quotes = GroupElement('quotes', element=QuoteElement, size=2, values={'x': [1.0, 1.0]})
+    quotes = QuoteElement('quotes', x=[1.0, 1.0], size=2)
     search = PriceAdjustmentInteraction(
         'search',
         target='quotes',

@@ -15,8 +15,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element, Quantity
-from ....core.components.interactions import TransferInteraction
-from ....core.components.laws import Sink, Source
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import clip, series
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -298,22 +298,6 @@ class FisheryCapitalSystem(BaseSystem):
     until = 100.0
     dt = 1.0
 
-    @staticmethod
-    def _get_capital(label: str, holder: str) -> TransferInteraction:
-        """Return the depreciation of the capital of a holder.
-
-        It is reported as `<holder>.depreciation`.
-        """
-        return TransferInteraction(
-            label,
-            source=holder,
-            target=holder,
-            state='capital',
-            into=Sink('scrap'),
-            amount=lambda s: s.source.capital / s.source.lifetime,
-            flow='depreciation',
-        )
-
     def __init__(
         self,
         resource: float = 1000.0,
@@ -357,30 +341,38 @@ class FisheryCapitalSystem(BaseSystem):
             yield_table=tuple(float(value) for value in self.yield_table),
         )
         yields, regenerations, prices = fishery.yield_table, fishery.regeneration_table, fishery.price_table
-        fish = TransferInteraction(
+        fish = Interaction(
             'fish',
-            source='fishery',
-            target='fishery',
-            state=Source('spawning'),
-            into='resource',
-            amount=lambda s: s.source.resource * series(s.source.resource, RESOURCE_LEVELS, regenerations),
-            flow='regeneration',
-            legs=[('resource', Sink('market'), lambda s: OilEconomySystem._harvest(s.source, yields), 'harvest')],
+            roles={'target': 'fishery'},
+            laws=lambda s: [
+                RateLaw(
+                    {s.target.resource: +1},
+                    s.target.resource * series(s.target.resource, RESOURCE_LEVELS, regenerations),
+                    label='regeneration',
+                ),
+                RateLaw({s.target.resource: -1}, OilEconomySystem._harvest(s.target, yields), label='harvest'),
+            ],
         )
-        investment = TransferInteraction(
+        investment = Interaction(
             'investment',
-            source='fishery',
-            target='fishery',
-            state=Source('investors'),
-            into='capital',
-            amount=lambda s: OilEconomySystem._get_investment(
-                s.source,
-                self._get_fish_revenue(s.source, yields, prices),
-            ),
-            flow='investment',
+            roles={'target': 'fishery'},
+            laws=lambda s: [
+                RateLaw(
+                    {s.target.capital: +1},
+                    OilEconomySystem._get_investment(s.target, self._get_fish_revenue(s.target, yields, prices)),
+                    label='investment',
+                ),
+            ],
+        )
+        depreciation = Interaction(
+            'depreciation',
+            roles={'target': 'fishery'},
+            laws=lambda s: [
+                RateLaw({s.target.capital: -1}, s.target.capital / s.target.lifetime, label='depreciation'),
+            ],
         )
         self.system_ = System(
             self.label,
             elements=[fishery],
-            interactions=[fish, investment, FisheryCapitalSystem._get_capital('depreciation', 'fishery')],
+            interactions=[fish, investment, depreciation],
         )

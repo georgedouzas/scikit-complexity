@@ -238,28 +238,20 @@ class RegionSamplingInteraction(SamplingInteraction):
     `SamplingInteraction`, with the move `'copy'`.
 
     Examples:
-        >>> from typing import Annotated
         >>> import numpy as np
-        >>> from skcomplex.core.components.elements import Element, GroupElement
-        >>> from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.components.spaces import LatticeSpace
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.biology.physiology import RegionSamplingInteraction, RegionScoreSpec
-        >>> class SiteElement(Element):
-        ...     def __init__(self, label, region: Annotated[float, StateSpec()] = 0.0):
-        ...         super().__init__(label)
-        ...         self.region = region
         >>> contact = lambda first, second: np.ones(np.broadcast(first, second).shape)
         >>> area = lambda labels: (1.0, 16.0)
         >>> copies = RegionSamplingInteraction(
         ...     'copies', target='sites', state='region', objective=RegionScoreSpec(contact, area), move='copy'
         ... )
         >>> regions = np.kron(np.arange(4).reshape(2, 2), np.ones((4, 4)))
-        >>> space = LatticeSpace((8, 8))
-        >>> sites = GroupElement('sites', element=SiteElement, space=space, on='sites', values={'region': regions})
-        >>> system = CompositeSystem(elements=[sites], interactions=[copies])
-        >>> final = simulate(system, until=20, random_state=0).states[-1]
+        >>> sites = Element('sites', values={'region': regions}, space=LatticeSpace((8, 8)))
+        >>> system = System(elements=[sites], interactions=[copies]).prepare()
+        >>> final = system.simulate(20, random_state=0).states[-1]
         >>> sorted(np.unique(final).tolist())
         [0.0, 1.0, 2.0, 3.0]
     """

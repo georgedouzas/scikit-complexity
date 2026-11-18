@@ -3,16 +3,14 @@
 from collections.abc import Callable, Mapping, Sequence
 
 from skcomplex.core.components import Observable
-from skcomplex.core.components.systems import BaseSystem as OldBaseSystem
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import Trajectory, simulate
+from skcomplex.core.engine.runtime import Trajectory
 from skcomplex.core.engine.solvers import BaseSolver
 from skcomplex.core.systems import BaseSystem
 from skcomplex.core.types import AnyArray
 
 
 def _simulate(
-    system: BaseSystem | OldBaseSystem,
+    system: BaseSystem,
     solver: BaseSolver | None = None,
     *,
     until: float | None,
@@ -22,23 +20,12 @@ def _simulate(
     invariants: Mapping[str, float] | None = None,
     random_state: int | None = None,
 ) -> Trajectory:
-    """Return the trajectory of a system, prepared and simulated with a solver if given when it has the new base."""
-    if isinstance(system, BaseSystem):
-        if solver is not None:
-            system.set_params(solver=solver)
-        return system.prepare().simulate(
-            until,
-            dt=dt,
-            observables=observables,
-            schedule=schedule,
-            invariants=invariants,
-            random_state=random_state,
-        )
-    return simulate(
-        system,
-        until=until,
+    """Return the trajectory of a system, prepared and simulated with a solver if given."""
+    if solver is not None:
+        system.set_params(solver=solver)
+    return system.prepare().simulate(
+        until,
         dt=dt,
-        solver=solver,
         observables=observables,
         schedule=schedule,
         invariants=invariants,
@@ -47,7 +34,7 @@ def _simulate(
 
 
 def _run(
-    system: BaseSystem | OldBaseSystem,
+    system: BaseSystem,
     until: float,
     dt: float | None = None,
     observables: Sequence[Observable] = (),
@@ -62,7 +49,7 @@ def _agents(trajectory: Trajectory, group: str, frame: int) -> Mapping[str, AnyA
 
 
 def _run_observed(
-    system: CompositeSystem,
+    system: BaseSystem,
     until: float,
     observables: Sequence[Observable] = (),
     invariants: Mapping[str, float] | None = None,

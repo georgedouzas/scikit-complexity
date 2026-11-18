@@ -74,6 +74,7 @@ from ._hormone_therapy import (
     ContinuousAndrogenSuppressionSystem,
     IdetaIntermittentAndrogenSystem,
     IntermittentSuppressionElement,
+    PiecewiseLinearAndrogenInteraction,
     PiecewiseLinearIASSystem,
     PiecewiseLinearProstateElement,
     ProstateAndrogenReceptorSystem,
@@ -130,7 +131,7 @@ from ._stem_cells import (
     StemCellDifferentiationElement,
     StemCellDifferentiationSystem,
 )
-from ._tumour_immune_chemotherapy import TumourImmuneChemotherapyElement
+from ._tumour_immune_chemotherapy import TumourImmuneChemotherapyElement, TumourImmuneChemotherapyInteraction
 
 __all__: list[str] = [
     'AndrogenReceptorProstateElement',
@@ -203,6 +204,7 @@ __all__: list[str] = [
     'OptimalChemotherapySystem',
     'OptimalImmunotherapyElement',
     'OptimalImmunotherapySystem',
+    'PiecewiseLinearAndrogenInteraction',
     'PiecewiseLinearIASSystem',
     'PiecewiseLinearProstateElement',
     'PowerLawGrowthInteraction',
@@ -231,6 +233,7 @@ __all__: list[str] = [
     'TumourCellElement',
     'TumourGrowthInteraction',
     'TumourImmuneChemotherapyElement',
+    'TumourImmuneChemotherapyInteraction',
     'TumourImmuneSuppressionSystem',
     'VaccinatedTumourElement',
     'VascularCorePeripherySystem',

@@ -18,8 +18,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import Interaction, MapInteraction
-from ....core.components.laws import UpdateLaw
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import total
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -267,20 +267,20 @@ class EigenQuasispeciesSystem(BaseSystem):
         master = s.target
         return master.x * (1 - master.u) / self._get_mean_fitness(master)
 
-    def _replicate_mutants(self, s: SimpleNamespace, *, first: bool, last: bool) -> Expression:
-        """Return the next share of a class of mutants.
+    def _replicate_mutants(self, s: SimpleNamespace, *, first: bool, last: bool) -> list[BaseLaw]:
+        """Return the update of the share of a class of mutants.
 
         The share is `(u W_{k-1} x_{k-1} + kept (1 - sigma) x_k) / <W>`.
 
         The sources are the class one mutation closer to the master sequence and the master sequence. The fitness of the
         source is 1 for the first class, whose source is the master sequence, and the last class keeps its own mutants.
         """
-        source, master = s.sources
+        source, master = s.source, s.master
         u, sigma = master.u, master.sigma
         source_fitness = 1 if first else 1 - sigma
         kept = 1 if last else 1 - u
         gained = u * source_fitness * source.x + kept * (1 - sigma) * s.target.x
-        return gained / self._get_mean_fitness(master)
+        return [UpdateLaw(s.target.x, gained / self._get_mean_fitness(master))]
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of shares of a population around a master sequence.
@@ -301,12 +301,10 @@ class EigenQuasispeciesSystem(BaseSystem):
             laws=lambda s: [UpdateLaw(s.target.x, self._replicate_master(s))],
         )
         mutations = [
-            MapInteraction(
+            Interaction(
                 f'mutation_{target}',
-                target=target,
-                state='x',
-                function=partial(self._replicate_mutants, first=source == 'master', last=target == labels[-1]),
-                sources=(source, 'master'),
+                roles={'target': target, 'source': source, 'master': 'master'},
+                laws=partial(self._replicate_mutants, first=source == 'master', last=target == labels[-1]),
             )
             for source, target in itertools.pairwise(labels)
         ]

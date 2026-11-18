@@ -1671,12 +1671,13 @@ class PassCompiler(BaseCompiler):
         issue.
         """
         states = declarations_of(node.component_type, VariableKind.STATE)
-        if NeighborhoodKernel._get_position_state(states) is None:
+        placed = NeighborhoodKernel._get_axis_states(record.space, states) is not None
+        if NeighborhoodKernel._get_position_state(states) is None and not placed:
             message = (
-                f'The {name} reduces over {over!r}, which measures distances between positions, but '
-                f'{record.owner} declares no vector position state.'
+                f'The {name} reduces over {over!r}, which measures distances between positions, but the members of '
+                f'{record.owner} have no position.'
             )
-            fix = "Declare the position with `StateSpec(vector=True, role='position')`."
+            fix = 'Give the members a value named after every axis of the space, such as `x` and `y`.'
             return IssueSpec('law-domain', record.path, message, fix)
         if isinstance(over, RadiusNeighborhood) and over.metric != 'euclidean':
             message = (

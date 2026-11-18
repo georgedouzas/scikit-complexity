@@ -16,8 +16,8 @@ def test_heterogeneous_mean_field_threshold():
     threshold = (degrees @ weights) / (degrees**2 @ weights)
     classes = HeterogeneousMeanFieldSISSystem(lam=0.5 * threshold).prepare().system_.elements[0]
     assert classes.size == degrees.size
-    np.testing.assert_allclose(classes.values['k'], degrees)
-    np.testing.assert_allclose(classes.values['P'], weights)
+    np.testing.assert_allclose(classes.k, degrees)
+    np.testing.assert_allclose(classes.P, weights)
     below = _run_until(HeterogeneousMeanFieldSISSystem(lam=0.5 * threshold), 100, dt=1.0)
     above = _run_until(HeterogeneousMeanFieldSISSystem(lam=2 * threshold), 100, dt=1.0)
     assert below.get_values('network.rho')[-1].max() < 1e-6
