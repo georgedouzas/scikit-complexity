@@ -6,7 +6,8 @@ Firms post wage offers and unemployed workers accept the best one.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -14,11 +15,15 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
+from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, Member
-from ....core.components.interactions import MapInteraction, TransitionInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
+from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
 from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ...general.matching import MatchingInteraction, MatchSpec, StableMatchingSpec
 
@@ -101,28 +106,6 @@ class EmployerElement(Element):
         It holds its vacancy and the parameters of its offers.
         """
         return EmployerView
-
-    @staticmethod
-    def get_posting() -> tuple[tuple[str, Callable[[EmployerView, SystemView], float]], ...]:
-        """Return the states a firm sets in the phase of offers, in their order.
-
-        The firm withdraws its last vacancy and posts a new one at the vacancy rate, with a uniform wage offer and the
-        step of posting.
-
-        Returns:
-            posting:
-                The name of every state and the function of its value, of the firm and the system view.
-        """
-        return (
-            ('demand', lambda agent, system: float(system.rng.random() < agent.vacancy_rate)),
-            (
-                'bid',
-                lambda agent, system: (
-                    float(system.rng.uniform(agent.low_wage, agent.high_wage)) if agent.demand else agent.bid
-                ),
-            ),
-            ('posted', lambda agent, system: system.time if agent.demand else agent.posted),
-        )
 
 
 class JobseekerView(AgentView):
@@ -231,47 +214,79 @@ class JobseekerElement(Element):
         """
         return JobseekerView
 
-    @staticmethod
-    def get_search() -> tuple[tuple[str, Callable[[JobseekerView, SystemView], float]], ...]:
-        """Return the states a worker sets in the phase of offers before the separations.
 
-        They come in their order. A worker unemployed at the start of the step searches, with a reservation wage that
-        falls with the duration of its search.
+class JobOffersInteraction(Interaction):
+    """Phase of offers of the labour market, before the firms meet the workers.
 
-        Returns:
-            search:
-                The name of every state and the function of its value, of the worker and the system view.
+    Every firm withdraws its last vacancy and posts a new one at the vacancy rate, with a wage offer drawn uniformly
+    from `low_wage` to `high_wage` and the step of posting. Every worker unemployed at the start of the step searches,
+    with a reservation wage `reservation (1 - decline)^d` that falls with the duration `d` of its search. Every employed
+    worker then loses its job at the separation rate, a worker without a job earns no wage, and the duration of a
+    search grows while the worker searches.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        firms:
+            The path of the group of firms.
+
+        workers:
+            The path of the group of workers.
+
+        phase:
+            The phase the offers run in.
+
+    Examples:
+        >>> from skcomplex.systems.economics.markets import JobOffersInteraction
+        >>> JobOffersInteraction('offers', firms='firms', workers='workers').phase
+        'offers'
+    """
+
+    law_classes = (UpdateLaw,)
+    draws = True
+
+    def __init__(self, label: str, *, firms: Role, workers: Role, phase: str | None = 'offers') -> None:
+        super().__init__(label)
+        self.firms = firms
+        self.workers = workers
+        self.phase = phase
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the offers of every step as the rule of the system."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [UpdateLaw(context, self.offer, phase=self.phase)]
+
+    def offer(self, system: SystemView) -> None:
+        """Post the vacancies of the firms, then set the search, the separations, and the spells of the workers.
+
+        Every step of the phase runs for every firm or worker before the next one.
+
+        Args:
+            system:
+                The system view of the offers.
         """
-        return (
-            ('supply', lambda agent, system: float(agent.employer < 0)),
-            (
-                'ask',
-                lambda agent, system: (
-                    agent.reservation * (1 - agent.decline) ** agent.duration if agent.supply else agent.ask
-                ),
-            ),
-        )
-
-    @staticmethod
-    def get_spell() -> tuple[tuple[str, Callable[[JobseekerView, SystemView], float]], ...]:
-        """Return the states a worker sets in the phase of offers after the separations.
-
-        They come in their order. A worker who lost its job earns no wage, and the duration of a search grows while the
-        worker searches.
-
-        Returns:
-            spell:
-                The name of every state and the function of its value, of the worker and the system view.
-        """
-        return (
-            ('wage', lambda agent, system: 0.0 if agent.employer < 0 else agent.wage),
-            (
-                'duration',
-                lambda agent, system: (
-                    agent.duration + 1 if agent.supply else 0.0 if agent.employer < 0 else agent.duration
-                ),
-            ),
-        )
+        firms = system.get_agents('firms', EmployerView)
+        for firm in firms:
+            firm.demand = float(system.rng.random() < firm.vacancy_rate)
+        for firm in firms:
+            firm.bid = float(system.rng.uniform(firm.low_wage, firm.high_wage)) if firm.demand else firm.bid
+        for firm in firms:
+            firm.posted = float(system.time if firm.demand else firm.posted)
+        workers = system.get_agents('workers', JobseekerView)
+        for worker in workers:
+            worker.supply = float(worker.employer < 0)
+        for worker in workers:
+            worker.ask = worker.reservation * (1 - worker.decline) ** worker.duration if worker.supply else worker.ask
+        for worker in workers:
+            if worker.employer >= 0 and system.rng.random() < worker.separation:
+                worker.employer = -1.0
+        for worker in workers:
+            worker.wage = 0.0 if worker.employer < 0 else worker.wage
+        for worker in workers:
+            searching = worker.duration + 1 if worker.supply else 0.0 if worker.employer < 0 else worker.duration
+            worker.duration = float(searching)
 
 
 def hire(trade: MatchSpec, system: SystemView) -> None:
@@ -424,32 +439,6 @@ class LabourMarketSystem(BaseSystem):
             decline=self.decline,
             size=self.n_workers,
         )
-        offers = [
-            MapInteraction(f'{group}_{name}', target=group, state=name, function=function, form='agent', phase='offers')
-            for group, steps in (('firms', EmployerElement.get_posting()), ('workers', JobseekerElement.get_search()))
-            for name, function in steps
-        ]
-        losses = TransitionInteraction(
-            'workers_separation',
-            target='workers',
-            state='employer',
-            source=lambda value: value >= 0,
-            destination=-1.0,
-            probability=lambda agent, system: agent.separation,
-            form='agent',
-            phase='offers',
-        )
-        spells = [
-            MapInteraction(
-                f'workers_{name}',
-                target='workers',
-                state=name,
-                function=function,
-                form='agent',
-                phase='offers',
-            )
-            for name, function in JobseekerElement.get_spell()
-        ]
         market = MatchingInteraction(
             'labour',
             requesters='firms',
@@ -464,9 +453,7 @@ class LabourMarketSystem(BaseSystem):
             self.label,
             elements=[firms, workers],
             interactions=[
-                *offers,
-                losses,
-                *spells,
+                JobOffersInteraction('offers', firms='firms', workers='workers'),
                 market,
             ],
             solver=MesaSolver(phases=[PhaseSpec('offers'), PhaseSpec('matching')]),

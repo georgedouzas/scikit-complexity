@@ -24,7 +24,7 @@ from ._fair_food_program import FairFoodMarketInteraction, FairFoodProgramSystem
 from ._goods_traders import GoodsTraderElement, GoodsTradersSystem
 from ._household_demand import BudgetHouseholdElement, HouseholdDemandSystem
 from ._inventory import CarDealershipElement, CarDealerSystem
-from ._labour import EmployerElement, JobseekerElement, LabourMarketSystem, hire
+from ._labour import EmployerElement, JobOffersInteraction, JobseekerElement, LabourMarketSystem, hire
 from ._oligopoly import (
     CournotBestResponseElement,
     CournotBestResponseInteraction,
@@ -95,6 +95,7 @@ __all__: list[str] = [
     'HeuristicTraderElement',
     'HouseholdDemandSystem',
     'IndifferenceInteraction',
+    'JobOffersInteraction',
     'JobseekerElement',
     'LabourMarketSystem',
     'MarketElement',
