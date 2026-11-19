@@ -17,9 +17,10 @@ from ..engine.runtime import Trajectory
 from ..engine.runtime._simulations import Simulation
 from ..enums import DataKind
 from ..errors import AnalysisError
+from ..systems import System
 from ..types import Array
 from ._analysis_tags import AnalysisTags
-from ._base import _check_choice, _check_settings, _composite, _read_series
+from ._base import _check_choice, _check_settings, _composite, _get_system, _read_series
 from .types import Source
 
 MIN_SIZES = 2
@@ -55,7 +56,7 @@ class LargeDeviationsResult:
             The increments of `'block'`.
 
         system:
-            The system or its compiled problem of `'cloning'`.
+            The `System`, the one a ready-made system builds, or the compiled problem of `'cloning'`.
 
         samples:
             The samples at every size of `'histogram'`.
@@ -91,7 +92,7 @@ class LargeDeviationsResult:
 
     rates: Array | None = None
     increments: Array | None = None
-    system: CompositeSystem | ProblemSpec | None = None
+    system: System | ProblemSpec | None = None
     samples: dict[int, Array] | None = None
     observations: Array | None = None
     tilts: Array | None = None
@@ -224,7 +225,8 @@ def large_deviations(
         >>> large_deviations([-1.0, 1.0], kind='reweight', log_weights=[0.0, 0.0]).mean
         0.0
     """
-    source = _composite(source)
+    given = _get_system(source)
+    source = _composite(given)
     _check_choice('large_deviations', 'kind', kind, KINDS)
     _check_settings(
         large_deviations,
@@ -273,7 +275,7 @@ def large_deviations(
     grid = np.atleast_1d(np.asarray(tilts, dtype=float))
     rates: Array | None = None
     increments: Array | None = None
-    system: CompositeSystem | ProblemSpec | None = None
+    system: System | ProblemSpec | None = None
     effective_population: Array | None = None
     if kind == 'tilted':
         rates = np.asarray(source, dtype=float)
@@ -302,7 +304,7 @@ def large_deviations(
         ]
         scgf = np.asarray([value for value, _ in estimates])
         effective_population = np.asarray([effective for _, effective in estimates])
-        system = source
+        system = given if isinstance(given, System) else source
     points: Array | None = None
     rate_function: Array | None = None
     if values is not None:

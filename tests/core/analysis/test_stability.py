@@ -159,6 +159,7 @@ def test_dispersion_relation_finds_the_turing_band():
     assert relation.band.min() == pytest.approx(low, abs=step)
     assert relation.band.max() == pytest.approx(high, abs=step)
     assert relation.growth_rates[relation.magnitudes == 0] < 0
+    assert isinstance(relation.system, System)
 
 
 def test_dispersion_relation_of_finite_differences_and_below_threshold():

@@ -508,38 +508,36 @@ The quotient on level 3 has 128 elements.
 This section asks whether an automaton is injective or surjective, finds a pattern that no configuration reaches, and
 inverts a reversible rule. The analysis `automaton` of `skcomplex.core.analysis` decides these properties on finite
 universes, where they are decidable: periodic configurations on a torus or a finite quotient, and patterns on windows.
-It does not decide them on infinite groups. A cellular automaton is a `CompositeSystem` with a
-[`LocalRuleInteraction`](../core_components/interactions.md#localruleinteraction), and the analysis reads the system.
+It does not decide them on infinite groups. A cellular automaton is a `System` of cells on a space with one
+interaction that sets an `UpdateLaw` with a rule and a neighbourhood, and the analysis reads the system.
 The first system is the Game of Life on a torus of 6 by 6 cells, whose rule a
 [`RadiusNeighborhood`](../core_components/spaces.md#radiusneighborhood) of the eight surrounding cells reads.
 
 ```python
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import var
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.analysis import automaton
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import LocalRuleInteraction
-from skcomplex.core.components.laws import LocalRuleLaw
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import OuterTotalisticSpec, TableSpec, UpdateLaw
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace, RadiusNeighborhood
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
-from skcomplex.core.components.laws import OuterTotalisticSpec, TableSpec
+from skcomplex.core.systems import System
 
 
 class CellElement(Element):
-    def __init__(self, label, alive: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0):
-        super().__init__(label)
+    def __init__(self, label, alive: Annotated[int, FiniteEnumeratedSet([0, 1])] = 0, space=None):
+        super().__init__(label, space=space)
         self.alive = alive
 
 
 def cellular_automaton(space, neighborhood, rule):
-    cells = GroupElement('cells', element=CellElement, space=space, on='sites')
-    interaction = LocalRuleInteraction('rule', target='cells', state='alive', rule=rule, neighborhood=neighborhood)
-    return CompositeSystem(elements=[cells], interactions=[interaction])
+    def laws(s):
+        return [UpdateLaw(s.target.alive, rule, neighborhood=neighborhood)]
+
+    interaction = Interaction('rule', roles={'target': 'cells'}, laws=laws)
+    return System(elements=[CellElement('cells', space=space)], interactions=[interaction])
 
 
 life_rule = OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1})
@@ -562,27 +560,21 @@ reversible, so the kind `'inverse'` finds its inverse, and the kind `'compose'` 
 ring = LatticeSpace(8)
 shift = cellular_automaton(ring, LatticeNeighborhood(((1,),)), TableSpec({(1,): 1}))
 back = automaton(shift, kind='inverse').inverse
-composition = automaton(shift, kind='compose', second=back).composition.interactions[0]
-law = LocalRuleLaw(var('alive'), composition.neighborhood, composition.rule).prepare()
-law.run({'space': ring, 'alive': [1, 0, 1, 1, 0, 0, 0, 1]}).value_.tolist()
+composition = automaton(shift, kind='compose', second=back).composition
+start = {'cells.alive': [1, 0, 1, 1, 0, 0, 0, 1]}
+composition.prepare().simulate(until=1, initial_state=start).get_values('cells.alive')[-1].astype(int).tolist()
 ```
 
-The composition returns the configuration `[1, 0, 1, 1, 0, 0, 0, 1]` unchanged, so it is the identity. The `run` of a
-`LocalRuleLaw` is one step of the map on configurations. So several steps are a loop over that `run` or a `simulate`
-of the system, and the two give the same configuration.
+The composition returns the configuration `[1, 0, 1, 1, 0, 0, 0, 1]` unchanged after one step, so it is the identity.
+The inverse and the composition are systems like the shift, so `prepare` and `simulate` run them, and two steps of the
+shift move every cell two sites back.
 
 ```python continuation
-step = LocalRuleLaw(var('alive'), shift.interactions[0].neighborhood, shift.interactions[0].rule).prepare()
-cells = [1, 0, 1, 1, 0, 0, 0, 0]
-for _ in range(2):
-    cells = step.run({'space': ring, 'alive': cells}).value_
-start = GroupElement('cells', element=CellElement, space=ring, values={'alive': [1, 0, 1, 1, 0, 0, 0, 0]}, on='sites')
-started = CompositeSystem(elements=[start], interactions=shift.interactions)
-frames = simulate(started, until=2, dt=1).get_values('cells.alive')
-cells.tolist() == frames[-1].astype(int).tolist()
+frames = shift.prepare().simulate(until=2, initial_state={'cells.alive': [1, 0, 1, 1, 0, 0, 0, 0]})
+frames.get_values('cells.alive')[-1].astype(int).tolist()
 ```
 
-The block returns `True`. The kinds of `automaton` decide these properties.
+The block returns `[1, 1, 0, 0, 0, 0, 1, 0]`. The kinds of `automaton` decide these properties.
 
 - `'injective'` and `'surjective'`, which agree on a finite universe, enumerate the configurations of small universes
   and solve a SAT encoding with PySAT on larger ones.

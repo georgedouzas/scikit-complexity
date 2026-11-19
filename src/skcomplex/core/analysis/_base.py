@@ -11,6 +11,7 @@ from functools import partial
 import networkx as nx
 import numpy as np
 import numpy.typing as npt
+from sklearn.base import clone
 
 from .. import systems
 from ..components import Tags
@@ -207,6 +208,26 @@ def _is_changed(value: object, default: object) -> bool:
         return not np.array_equal(np.asarray(value, dtype=object), np.asarray(default, dtype=object))
     except (TypeError, ValueError):
         return value is not default
+
+
+def _get_system(source: Source) -> Source:
+    """Return the `System` a ready-made system builds, or another source as is.
+
+    A copy of the ready-made system builds it, so the source is left unprepared.
+
+    Args:
+        source:
+            The source of an analysis.
+
+    Returns:
+        source:
+            The `System` of the components of a ready-made system, or the source itself.
+    """
+    if isinstance(source, systems.BaseSystem) and not isinstance(source, systems.System):
+        built = clone(source)
+        built._prepare(None)
+        return built.system_
+    return source
 
 
 def _composite(source: Source) -> Source:

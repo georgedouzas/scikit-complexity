@@ -11,11 +11,10 @@ import numpy as np
 import numpy.typing as npt
 
 from ..components.laws import BaseLaw, CallSpec, UpdateLaw
-from ..components.spaces import DiscreteTime
-from ..components.systems import CompositeSystem
 from ..engine._utils import vector
 from ..enums import DataKind
 from ..errors import AnalysisError
+from ..systems import System
 from ..types import Array
 from ._analysis_tags import AnalysisTags
 from ._base import _read_samples
@@ -166,8 +165,8 @@ class ReservoirResult:
             The series of every run, the names of the variables, and the step.
 
         system:
-            The system of one surrogate element under discrete time, one step per sample, whose states are the
-            variables and then the memory of the reservoir.
+            The `System` of one surrogate element and one interaction whose update law steps in discrete time, one
+            step per sample, and whose states are the variables and then the memory of the reservoir.
 
         labels:
             The variables the surrogate was fitted to.
@@ -197,7 +196,7 @@ class ReservoirResult:
     """
 
     samples: _SamplesSpec
-    system: CompositeSystem
+    system: System
     labels: list[str]
     states: list[str]
     last_state: Array
@@ -234,8 +233,9 @@ def reservoir(
     false, and a ridge regression from its features to the increments of the variables over one sample is fitted on the
     training samples. A next-generation reservoir takes as features the variables at `delay` consecutive samples and
     their monomials of degree `order`. An echo state network takes the activities of `units` leaky tanh units with
-    random recurrent weights. The fitted system runs under discrete time, one step per sample, and starts at the last
-    sample of the last run with the memory the runs left, so a run of the system is the autonomous forecast.
+    random recurrent weights. The fitted `System` is an update law that steps once per sample, and starts at the last
+    sample of the last run with the memory the runs left, so `result.system.prepare().simulate(until=n)` is the
+    autonomous forecast of `n` samples.
 
     It appears in many fields. It learns a model of a chaotic flow, of a power demand, or of a speech signal from series
     alone.
@@ -349,7 +349,6 @@ def reservoir(
         label,
         dict(zip(states, map(float, last_state), strict=True)),
         _reservoir_laws(states, step),
-        DiscreteTime(),
     )
     current = last_state
     rows = []
@@ -436,7 +435,7 @@ def _reservoir_laws(names: Sequence[str], step: _ReservoirStep) -> Callable[[Sim
 
     def laws(s: SimpleNamespace) -> list[BaseLaw]:
         """Return the update law."""
-        symbols = _symbols_of(s, names)
+        symbols = _symbols_of(s.target, names)
         return [UpdateLaw(vector(symbols), CallSpec(step.evaluate, tuple(symbols)))]
 
     return laws

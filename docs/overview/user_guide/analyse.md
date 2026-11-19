@@ -297,31 +297,31 @@ Two more surrogates learn other forms. A decaying spiral shows them, since it is
 import numpy as np
 
 from skcomplex.core.analysis import mode_decomposition, reservoir, sparse_identification
-from skcomplex.core.engine.runtime import simulate
 
 times = np.arange(0.0, 10.0, 0.01)
 spiral = np.exp(-0.1 * times)[:, None] * np.column_stack([np.cos(times), np.sin(times)])
 decomposition = mode_decomposition(spiral, variables=['x', 'y'], dt=0.01)
-surrogate_run = simulate(decomposition.system, until=1.0, dt=0.1)
+surrogate_run = decomposition.system.prepare().simulate(until=1.0, dt=0.1)
 sparse = sparse_identification(spiral, variables=['x', 'y'], degree=1, threshold=0.05, horizon=50, dt=0.01)
 echo = reservoir(spiral, variables=['x', 'y'], horizon=50)
 (
     np.sort(decomposition.eigenvalues.imag).round(3).tolist(),
     len(surrogate_run.times),
     sparse.coefficients.round(2).tolist(),
-    type(echo.system.time).__name__,
+    echo.system.prepare().form_,
     echo.forecast.shape,
 )
 ```
 
 The decomposition finds the frequencies -1.0 and 1.0 of the spiral, and its surrogate runs for 11 frames. Sparse
-identification finds `dx/dt = -0.1 x - y` and `dy/dt = x - 0.1 y`. The reservoir runs under discrete time and
-forecasts 50 samples of both variables.
+identification finds `dx/dt = -0.1 x - y` and `dy/dt = x - 0.1 y`. The reservoir prepares as a discrete map, since
+its law is an update, and forecasts 50 samples of both variables.
 
 `mode_decomposition`, `sparse_identification`, and `reservoir` take one or more trajectories or arrays sampled at a
 uniform step `dt`. Their results hold these fields:
 
-- `system`, a `CompositeSystem` of one surrogate [element](glossary.md#element), which `simulate` runs like a hand-written system,
+- `system`, a `System` of one surrogate [element](glossary.md#element) and the interaction that holds its laws, which
+  `system.prepare().simulate(...)` runs like a hand-written system,
 - `training_error` and `validation_error`, the relative errors of the fit on the training samples and on the end of
   every series held out by `validation`,
 - `forecast`, the variables over `horizon` samples after the last one.
@@ -329,18 +329,18 @@ uniform step `dt`. Their results hold these fields:
 The three differ in what they fit:
 
 - `mode_decomposition` fits dynamic mode decomposition with PyDMD. It sets the continuous eigenvalues
-  `ln(mu) / dt` in `eigenvalues`, the modes, their amplitudes, and a surrogate under continuous time with the matrix
-  rate law `dg/dt = L g`. A scikit-learn transformer passed as `dictionary`, such as `PolynomialFeatures(2)`, lifts the
+  `ln(mu) / dt` in `eigenvalues`, the modes, their amplitudes, and a surrogate whose matrix rate law `dg/dt = L g`
+  flows in continuous time. A scikit-learn transformer passed as `dictionary`, such as `PolynomialFeatures(2)`, lifts the
   variables to [observables](glossary.md#observable) first, which is extended DMD. With `inputs`, the names of the variables that are control
   inputs, it fits dynamic mode decomposition with control, `g(t + dt) = A g(t) + B u(t)`, with the `DMDc` of PyDMD. It
-  then sets `operator` and `input_matrix`, and its surrogate takes every input as a bounded adaptive parameter, which
-  a `schedule` of `simulate` drives. The system `koopman_model_predictive_control` uses these matrices to predict.
+  then sets `operator` and `input_matrix`, and its surrogate takes every input as a parameter whose allowed values are
+  its range in the samples, which a `schedule` of `simulate` drives. The system `koopman_model_predictive_control` uses these matrices to predict.
 - `sparse_identification` fits sparse identification of nonlinear dynamics with PySINDy. It sets the monomials of
-  the variables in `features`, their coefficients in `coefficients`, and a surrogate under continuous time with one
-  symbolic rate law per variable.
+  the variables in `features`, their coefficients in `coefficients`, and a surrogate with one symbolic rate law per
+  variable.
 - `reservoir` fits a next-generation reservoir or an echo state network from ReservoirPy, with a ridge readout
   of the increments over one sample. It works on standardized variables unless `standardize` is false. Its surrogate
-  runs under discrete time, one step per sample, holds the memory of the reservoir as states, and starts at the last
+  is an update law that steps once per sample, holds the memory of the reservoir as states, and starts at the last
   sample. So a run of `system` is the autonomous forecast.
 
 ## Kinds of data

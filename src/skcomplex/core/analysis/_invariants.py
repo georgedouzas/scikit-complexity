@@ -17,8 +17,9 @@ from ..engine.problems import ProblemSpec
 from ..engine.problems._dynamics_spec import _DynamicsSpec
 from ..enums import DataKind
 from ..errors import AnalysisError
+from ..systems import System
 from ._analysis_tags import AnalysisTags
-from ._base import _composite, _read_system
+from ._base import _get_system, _read_system
 from ._stability import StabilityResult
 from .types import Source
 
@@ -35,7 +36,7 @@ class InvariantsResult:
             The compiled problem.
 
         system:
-            The system.
+            The `System` whose expressions were checked, the one a ready-made system builds.
 
         dynamics:
             The first-order equations of the system, with the values of its parameters.
@@ -55,7 +56,7 @@ class InvariantsResult:
     """
 
     problem: ProblemSpec
-    system: CompositeSystem
+    system: System
     dynamics: _DynamicsSpec
     namespace: SimpleNamespace
     rates: dict[str, Expression]
@@ -124,16 +125,16 @@ def invariants(
         >>> result.rates['position']
         p_mass
     """
-    source = _composite(source)
     _check_inputs(expressions, samples)
-    system = _read_system(source)
-    if not isinstance(system, CompositeSystem):
+    system = _get_system(source)
+    declared = _read_system(system)
+    if not isinstance(system, System) or not isinstance(declared, CompositeSystem):
         error_msg = (
-            f'Invariants are derived from the interactions of a system, not from {type(system).__name__}. Give the '
+            f'Invariants are derived from the interactions of a system, not from {type(declared).__name__}. Give the '
             'system.'
         )
         raise AnalysisError(error_msg)
-    dynamics = StabilityResult._get_dynamics_of(system)
+    dynamics = StabilityResult._get_dynamics_of(declared)
     namespace = ObservableEvaluator._get_namespace_of(dynamics.problem)
     rng = np.random.default_rng(random_state)
     rates, conserved, methods = {}, {}, {}

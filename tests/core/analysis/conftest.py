@@ -6,7 +6,6 @@ from scipy import sparse
 from scipy.sparse import csgraph
 
 from skcomplex.core.analysis import ModeDecompositionResult, ReservoirResult, SparseIdentificationResult
-from skcomplex.core.engine.runtime import simulate
 
 ISING_SIZES = (16, 32, 64)
 ISING_TEMPERATURES = (2.15, 2.20, 2.25, 2.30, 2.35, 2.40, 2.45)
@@ -66,5 +65,5 @@ def _last_values(
     dt: float,
 ) -> list[float]:
     """Return the last values of states of the surrogate of an analysis."""
-    trajectory = simulate(analysis.system, until=until, dt=dt)
+    trajectory = analysis.system.prepare().simulate(until=until, dt=dt)
     return [float(np.ravel(trajectory.get_values(f'surrogate.{state}'))[-1]) for state in states]
