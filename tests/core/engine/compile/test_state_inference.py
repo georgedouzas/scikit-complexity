@@ -634,6 +634,17 @@ def test_get_declared_places_one_walker_in_a_space_without_sites():
     assert system.parameters_ == ('walker.m[i]',)
 
 
+@pytest.mark.parametrize(('boundary', 'end'), [('periodic', 0.25), ('reflecting', 1.0)])
+def test_get_declared_keeps_one_walker_with_a_vector_position_of_one_component_in_the_box(boundary, end):
+    """Test that the position `[0.25]` of one walker on a line is a vector of one component the boundary acts on."""
+    space = ContinuousSpace((1.0,), boundary=boundary)
+    drift = Interaction('drift', roles={'target': 'walker'}, laws=lambda s: [RateLaw(s.target.x, 1.0)])
+    walker = Element('walker', values={'x': [0.25]}, space=space)
+    system = System(elements=[walker], interactions=[drift], space=space).prepare()
+    assert system.states_ == ('walker.x[i, 0]',)
+    assert system.simulate(until=1.0, dt=0.5).get_values('walker.x').ravel()[-1] == pytest.approx(end, abs=1e-3)
+
+
 class Growth(Interaction):
     """Interaction that adds one node joined to one other node at every step."""
 

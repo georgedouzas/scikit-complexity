@@ -237,6 +237,22 @@ class _StateInference:
         return ()
 
     @staticmethod
+    def _is_single(element: Element) -> bool:
+        """Return whether an element is one member whose values are its own, also when they are arrays.
+
+        Such an element has no size and lies in no space or in a space without sites, such as a ball in the plane or
+        a walker on a line, whose position `[0.25]` is a vector of one component and not one value per member.
+        """
+        space = element.space
+        no_sites = space is None or not space._has_sites()
+        return element.size is None and no_sites and _StateInference._get_link(element) is None
+
+    @staticmethod
+    def _get_rows(element: Element, value: object) -> object:
+        """Return the values of the members of an element, one row for the single member of a single element."""
+        return [value] if _StateInference._is_single(element) else value
+
+    @staticmethod
     def _get_member_value(element: Element, name: str, value: object, count: int | None) -> object:
         """Return the value of one member, checking an array holds one per member.
 
@@ -247,7 +263,7 @@ class _StateInference:
         cell of a plate.
         """
         array = np.asarray(value, dtype=object)
-        if count is None or array.ndim == 0:
+        if count is None or array.ndim == 0 or _StateInference._is_single(element):
             return value
         space = element.space
         if isinstance(space, LatticeSpace) and element.size is None and len(space.prepare().shape_) > 1:
@@ -1119,18 +1135,20 @@ class _StateInference:
             tensor = None if self._get_symmetry(annotation) else element._get_shape_of(member)[2]
             if count is not None and np.ndim(np.asarray(value, dtype=object)) > 0:
                 variables[name] = self._get_new_member_default(element, name, variables[name], member)
-                arrays[name] = element._get_matrix_entries(value, tensor)
+                arrays[name] = self._get_rows(element, element._get_matrix_entries(value, tensor))
                 arrays |= self._get_past_arrays(name, arrays[name], 0 if count is None or probing else lags(name))
             for index, given in starting.get(name, {}).items():
                 if count is not None and np.ndim(np.asarray(given, dtype=object)) > 0:
-                    arrays[f'{name}_lag{index}' if lags(name) else f'{name}_d{index}'] = element._get_matrix_entries(
-                        given,
-                        tensor,
+                    arrays[f'{name}_lag{index}' if lags(name) else f'{name}_d{index}'] = self._get_rows(
+                        element,
+                        element._get_matrix_entries(given, tensor),
                     )
         if not probing:
             variables |= self._get_rule_derivative_specs(element, derivatives, count, axes)
             arrays |= {
-                name: given for name, (_, _, given) in derivatives.items() if np.ndim(np.asarray(given, dtype=object))
+                name: self._get_rows(element, given)
+                for name, (_, _, given) in derivatives.items()
+                if np.ndim(np.asarray(given, dtype=object))
             }
         visual = element._get_visual()
         drawing = None if visual == VisualSpec() or (visual.kind == 'agents' and not agents) else visual
