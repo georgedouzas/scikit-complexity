@@ -1137,7 +1137,7 @@ class CensusPass(BasePass):
 
     @staticmethod
     def _get_sampled(spec: KernelSpec, law: BaseLaw, solver: object) -> BaseLaw:
-        """Return the objective of members a Metropolis solver moves as a Monte Carlo sweep.
+        """Return the objective of members a Metropolis solver moves, as a sweep.
 
         The objective is the local objective of a member, such as its energy over the temperature, and the moves, the
         rule, the schedule, and the neighbourhood are the settings of the solver, so the sweep accepts a move with the
