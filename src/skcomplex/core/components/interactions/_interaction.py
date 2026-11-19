@@ -233,7 +233,7 @@ class Interaction(BaseInteraction):
         return int(self.along[-1]) if isinstance(self.along, tuple) and self._runs_on_hyperedges() else None
 
     def _get_within(self) -> RadiusNeighborhood | None:
-        """Return the neighbourhood whose pairs of members the laws run for, or `None` for no pairs."""
+        """Return the neighbourhood of the pairs the laws run for, or `None` for no pairs."""
         return self.within
 
     def _get_layer(self) -> str | None:

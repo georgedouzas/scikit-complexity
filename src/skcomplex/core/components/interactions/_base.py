@@ -992,7 +992,7 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         return None
 
     def _get_within(self) -> BaseNeighborhood | None:
-        """Return the neighbourhood whose pairs of members the laws run for, or `None` for no pairs."""
+        """Return the neighbourhood of the pairs the laws run for, or `None` for no pairs."""
         return None
 
     def _get_grouping(self) -> tuple[str, int, str] | None:
