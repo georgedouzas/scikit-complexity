@@ -1,11 +1,12 @@
 # Defining elements
 
-This page writes the element and interaction classes of a system of your own. A class declares its states,
-parameters, and [roles](../glossary.md#role) as arguments of its `__init__`, and returns its
-[laws](../glossary.md#law) from `_get_laws`. A state is a number that changes as the system runs, a parameter is a
-number that stays fixed during a run, and a role is a slot of an interaction that names the element it acts on.
+This page writes the element and interaction classes of a system of your own. An element class is a plain Python
+class whose arguments are its values. An interaction class names its [roles](../glossary.md#role) and parameters as
+arguments of its `__init__`, and its `_prepare` sets its [laws](../glossary.md#law) in `laws_`. A value that some law
+changes is a state, a value that no law changes is a parameter, and a role is a slot of an interaction that names the
+element it acts on.
 
-Here a deer population is a subclass of [`Element`](../core_components/elements.md#element) with one nonnegative state
+Here a deer population is a subclass of [`Element`](../core_components/elements.md#element) with one nonnegative value
 `n`, and births are a subclass of [`Interaction`](../core_components/interactions.md#interaction) that adds the rate
 `rate * n` through a [`RateLaw`](../core_components/laws.md#ratelaw).
 
@@ -19,219 +20,196 @@ from sklearn.base import clone
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 
 
-class SpeciesElement(Element):
-    def __init__(self, label, *, n: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0):
+class Species(Element):
+    def __init__(self, label, *, n: Annotated[float, RealSet.closed_open(0, oo)] = 10.0):
         super().__init__(label)
         self.n = n
 
 
-class BirthInteraction(Interaction):
-    def __init__(
-        self,
-        label,
-        *,
-        target: Annotated[str, RoleSpec()],
-        rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-    ):
+class Birth(Interaction):
+    def __init__(self, label, *, target: Role, rate: Annotated[float, RealSet.closed_open(0, oo)] = 0.5):
         super().__init__(label)
         self.target = target
         self.rate = rate
 
-    def _get_laws(self, s):
-        return [RateLaw(s.target.n, s.rate * s.target.n)]
+    def _prepare(self, s):
+        super()._prepare(s)
+        n = s.target.n
+        self.laws_ = [RateLaw(n.diff(s.t), s.rate * n)]
 
 
-deer = SpeciesElement('deer', n=40.0)
-birth = BirthInteraction('birth', target='deer', rate=0.2)
+deer = Species('deer', n=40.0)
+birth = Birth('birth', target='deer', rate=0.2)
 deer.n, clone(birth).rate
 ```
 
 The deer start at 40.0, and the clone of the births keeps the rate 0.2. Every element class derives from `Element`,
-and every interaction class from `Interaction`. Both, like laws and systems, derive from `BaseComponent`, which is a
-scikit-learn estimator. A class annotates each variable with `typing.Annotated` and a spec from
-`skcomplex.core.specs`. The class follows these rules.
+and every interaction class from `Interaction`. Both, like systems, derive from `BaseComponent`, which is a
+scikit-learn estimator. The classes follow these rules.
 
-- `StateSpec` marks a state, `ParameterSpec` a parameter, and `RoleSpec` a role of an interaction. The default of the
-  argument is the initial value of a state or the default of a parameter. A role has no default.
 - The constructor takes the label first and every other argument by keyword. It stores each value unmodified under its
   own name.
-- The domain of a state or a parameter is a Sage set, such as `RR`, `ZZ`, `CC`, `RealSet.closed_open(0, oo)`, or
-  `FiniteEnumeratedSet(['S', 'I', 'R'])`. An interaction that sets its laws in `_prepare` takes the allowed values of
-  an argument from `Annotated` alone, as the values of an element do, such as
-  `rate: Annotated[float, RealSet.closed_open(0, oo)] = 0.5`, and preparing a system with a rate outside them raises
-  an error that names it.
-- `_get_laws(s)` returns the laws of the class, and returns none by default.
+- An argument typed `Role` is a role of an interaction, and has no default unless the element it names is fixed.
+- The kind of a value comes from its type hint or its value: `float` is real, `int` an integer, `bool` a boolean, and
+  `str` a category. Its allowed values are written in `Annotated` only where they are needed, as a Sage set such as
+  `RealSet.closed_open(0, oo)` or a Python set of labels.
+- `_prepare(s)` calls the method of its parent first and then sets `laws_`.
 - `get_params`, `set_params`, `clone`, and `repr` follow the scikit-learn estimator contract, so every component clones
   with its values.
 
-Inside `_get_laws`, `s` is the namespace of symbols. `s.rate` is the symbol of the parameter, and `s.target.n` is the
-symbol of the state of the element bound to the role `target`. Parameters stay symbols, so the `schedule` of
-`simulate` can change them during a run without compiling again.
+Inside `_prepare`, `s` is the namespace of symbols. `s.rate` is the symbol of the parameter, `s.target.n` is the
+symbol of the value of the element bound to the role `target`, and `s.t` is the time. A value is a function of time,
+so `n.diff(s.t)` is its derivative. Preparing a system with a value outside its allowed values raises an error that
+names it.
+
+```python continuation
+from skcomplex.core.errors import ValidationError
+
+herd = System(elements=[deer], interactions=[birth]).prepare()
+try:
+    System(elements=[deer], interactions=[Birth('birth', target='deer', rate=-1.0)]).prepare()
+except ValidationError as error:
+    message = str(error)
+herd.states_, herd.parameters_, message
+```
+
+The count `deer.n` is the state, since the births change it, and the rate `birth.rate` is a parameter. A negative rate
+raises "birth.rate = -1.0 is not in its domain [0, +oo)." Parameters stay symbols, so the `schedule` of `simulate` can
+change them during a run without compiling again.
 
 ## Constructor settings
 
-This section adds a setting to a class, an argument that is neither a state, a parameter, nor a role. It is an
-argument of `__init__` without a spec, such as a switch between two sets of laws, a radius, or a layer. Here a switch
-turns the births into random events of a [`JumpLaw`](../core_components/laws.md#jumplaw).
+This section adds a setting to a class, an argument that is neither a value, a parameter of a law, nor a role, such as
+a switch between two sets of laws, a radius, or a layer. Here a switch turns the births into random events of a
+[`JumpLaw`](../core_components/laws.md#jumplaw).
 
 ```python continuation
 from skcomplex.core.components.laws import JumpLaw
 
 
-class SwitchedBirthInteraction(BirthInteraction):
+class SwitchedBirth(Birth):
     def __init__(self, label, *, target, rate=0.5, stochastic=False):
         super().__init__(label, target=target, rate=rate)
         self.stochastic = stochastic
 
-    def _get_laws(self, s):
+    def _prepare(self, s):
+        super()._prepare(s)
         if self.stochastic:
-            return [JumpLaw(s.rate * s.target.n, {s.target.n: 1})]
-        return super()._get_laws(s)
+            n = s.target.n
+            self.laws_ = [JumpLaw(s.rate * n, {n: 1})]
 
 
-clone(SwitchedBirthInteraction('birth', target='deer', stochastic=True))
+clone(SwitchedBirth('birth', target='deer', stochastic=True))
 ```
 
-The clone shows `SwitchedBirthInteraction(label='birth', stochastic=True, target='deer')`, so `get_params` sees the
-setting beside the role. A setting follows these rules.
+The clone shows `SwitchedBirth(label='birth', stochastic=True, target='deer')`, so `get_params` sees the setting
+beside the role. A setting follows these rules.
 
 - The setting is a keyword-only argument with a default.
 - `__init__` stores it unmodified under its own name, like every other argument.
 - A subclass that adds a setting repeats the arguments of its base in its own `__init__`, so that `get_params` sees them
-  all. An argument repeated without its annotation keeps the spec of the base.
+  all. An argument repeated without its annotation keeps the annotation of the base.
+- A setting that changes the laws changes the problem too. With `stochastic=True` the system is a jump process, solved
+  by Gillespie's method.
 
-## States and parameters from data
+## Values from data
 
-This section builds an element whose variables come from data, such as a fitted surrogate or a metabolic network.
-Such an element cannot name its variables in its signature.
-[`DeclaredElement`](../core_components/elements.md#declaredelement) takes them in one argument, `variables`, instead.
-Here two states `a` and `b` decay at the rate `k`.
-
-```python continuation
-from skcomplex.core.components.elements import DeclaredElement
-from skcomplex.core.components.spaces import ContinuousTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import DeclaredVariableSpec
-
-
-class DecayElement(DeclaredElement):
-    def _get_laws(self, s):
-        return [RateLaw(getattr(s, name), -s.k * getattr(s, name)) for name in ('a', 'b')]
-
-
-declared = {
-    'a': DeclaredVariableSpec(1.0, StateSpec()),
-    'b': DeclaredVariableSpec(2.0, StateSpec()),
-    'k': DeclaredVariableSpec(0.5, ParameterSpec()),
-}
-decay = DecayElement('decay', variables=declared)
-faster = clone(decay).set_params(k=1.0)
-decay.get_value('k'), faster.get_value('k')
-```
-
-The element keeps the rate 0.5, and its clone takes the rate 1.0 under the name of the declared variable. A
-[`CompositeSystem`](../core_components/systems.md#compositesystem) in
-[`ContinuousTime`](../core_components/spaces.md#continuoustime) runs the element like any other.
+This section builds an element whose values come from data, such as a fitted surrogate or a metabolic network. Such an
+element cannot name its values in a signature, so a plain `Element` takes them in one argument, `values`. Here two
+values `a` and `b` decay at the rate `k` of an interaction that reads them by name.
 
 ```python continuation
-system = CompositeSystem(elements=[decay], time=ContinuousTime())
-simulate(system, until=1.0, dt=0.1).get_values('decay.b')[-1]
+class Decay(Interaction):
+    def __init__(self, label, *, target: Role, names=('a', 'b'), k=0.5):
+        super().__init__(label)
+        self.target = target
+        self.names = names
+        self.k = k
+
+    def _prepare(self, s):
+        super()._prepare(s)
+        values = [getattr(s.target, name) for name in self.names]
+        self.laws_ = [RateLaw(x.diff(s.t), -s.k * x) for x in values]
+
+
+data = {'a': 1.0, 'b': 2.0}
+decay = System(elements=[Element('decay', values=data)], interactions=[Decay('decay_rate', target='decay')])
+faster = clone(decay).set_params(decay_rate__k=1.0)
+decay.get_params()['decay_rate__k'], faster.get_params()['decay_rate__k']
 ```
 
-The state `b` falls from 2.0 to 1.213 at time 1, which is `2 exp(-0.5)`. Declared variables follow these rules.
+The system keeps the rate 0.5, and its clone takes the rate 1.0 under the nested name `decay_rate__k`. The system runs
+like any other.
 
-- `variables` maps every name to a `DeclaredVariableSpec`, which holds the initial value and a `StateSpec` or a
-  `ParameterSpec`. The compiler treats a declared variable as it treats an annotated argument.
-- A law reads a declared variable from its namespace, and `get_value` reads its value from the element.
-- `set_params` takes the name of a declared variable and changes its value, and `clone` copies the variables.
-- A group or a field takes the element class and gives `variables` in its `values`, next to the values per member.
-- A subclass that derives its variables from other arguments overrides `_declare_variables`.
+```python continuation
+round(float(decay.prepare().simulate(until=1.0, dt=0.1).get_values('decay.b')[-1]), 3)
+```
+
+The value `b` falls from 2.0 to 1.213 at time 1, which is `2 exp(-0.5)`. Values given as data follow these rules.
+
+- `values` maps every name to its starting value, and the values keep the order in which they are given.
+- A law reads a value from its namespace by name, such as `getattr(s.target, 'b')`.
+- `set_params` changes a value with the nested name `<element>__values`, and `clone` copies the values.
+- `size=N` gives one value per member as an array, and `space=` one per site of a space.
 
 ## Writing laws
 
-This section prepares and runs a law on its own, to see what it changes, what it reads, and what value it returns. A
-law says how the states it targets change. Every law class derives from
-[`BaseLaw`](../core_components/laws.md#baselaw).
-
-```python
-from sage.all__sagemath_symbolics import var
-
-from skcomplex.core.components.laws import BaseLaw, RateLaw
-
-x, k = var('x k')
-law = RateLaw(x, -k * x).prepare('decay')
-issubclass(RateLaw, BaseLaw), law.targets_, sorted(map(str, law.reads_)), law.owner_
-```
-
-The law is a `BaseLaw`, targets `x`, reads `k` and `x`, and belongs to `decay`.
+This section looks at what the laws of a system change. A law says how the values it targets change, and the
+interaction that sets it in `laws_` binds it to its elements. After `prepare`, `equations_` gives one readable
+equation per state, summed over the laws.
 
 ```python continuation
-law.run({'x': 2.0, 'k': 0.5}).value_
+decay.equations_
 ```
 
-At `x = 2` and `k = 0.5` its value is -1.0. A law takes the states it changes and the expressions it reads as arguments
-of its `__init__`, and an optional `label` by keyword. It has two main public methods.
+The equations read `'-decay.a*decay_rate.k'` for `decay.a` and `'-decay.b*decay_rate.k'` for `decay.b`. A law takes
+the values it changes and the expressions it reads as arguments, and an optional `label` by keyword. It has no
+parameters of its own and no methods to call, since it is the mathematics an interaction states.
 
-- `prepare(owner)` validates the arguments, such as a value that is a NumPy array instead of an expression. It sets
-  `targets_`, the states the law changes, `reads_`, the symbols it reads, and `owner_`, the path of the element or
-  interaction that returns it.
-- `run(values)` sets `value_`, the value of the law at the values of the symbols it reads, given by name.
+Each kind of law implies a kind of time. Rates such as `RateLaw` flow in continuous time, updates such as
+[`UpdateLaw`](../core_components/laws.md#updatelaw) step in discrete time, and objectives and constraints alone are
+static. `prepare` infers the time from the kinds present and raises an error that lists kinds that do not combine.
 
-Every law states what it requires of a system, such as continuous time for `RateLaw` and discrete time for
-[`UpdateLaw`](../core_components/laws.md#updatelaw). Validation reports a system whose laws require different times.
+A law of one value, such as `RateLaw`, takes the value as its first argument. A local rule that updates several values
+together takes a tuple of them, and laws that name their values in other arguments, such as the changes of a
+`JumpLaw`, change the values they name.
 
-A law of one state, such as `RateLaw`, takes the state as its first argument. A law that updates several states
-together, such as [`LocalRuleLaw`](../core_components/laws.md#localrulelaw), takes a tuple of them. Laws that name their states in other values, such as the
-increments of a `JumpLaw`, change the states they name.
-
-A system is defined by its elements, its interactions, and the laws they return from `_get_laws(s)`, and by nothing
-else. Two kinds of value stay outside it.
+A system is defined by its elements, its interactions, and the laws they set in `laws_`, and by nothing else. Two kinds
+of value stay outside it.
 
 - A value that only names an expression is a Python expression in the laws, such as `leverage = s.debt / s.equity`. A
   function of the namespace shares it between laws.
-- What a run records or checks is an argument of the run. `simulate(system, observables=[...])` records named values,
-  and `simulate(system, invariants={name: tolerance})` checks that the observables it names stay constant.
+- What a run records or checks is an argument of the run. `system.simulate(observables=[...])` records named values,
+  and `system.simulate(invariants={name: tolerance})` checks that the observables it names stay constant.
 
 A law can also be a Python function of time and the current values, which covers rules that have no closed form. The
-values are keyed by dotted state and parameter name. Here a cull removes one deer a year while the herd holds more than
-50.
+values are keyed by dotted name. Here a cull removes one deer a year while the herd holds more than 50.
 
 ```python
-from typing import Annotated
-
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import RoleSpec, StateSpec
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 
 
-class PopulationElement(Element):
-    def __init__(self, label, *, n: Annotated[float, StateSpec()] = 1.0):
-        super().__init__(label)
-        self.n = n
-
-
-class CullInteraction(Interaction):
-    def __init__(self, label, *, target: Annotated[str, RoleSpec()]):
+class Cull(Interaction):
+    def __init__(self, label, *, target: Role):
         super().__init__(label)
         self.target = target
 
-    def _get_laws(self, s):
+    def _prepare(self, s):
+        super()._prepare(s)
         name = f'{self.target}.n'
-        return [RateLaw(s.target.n, lambda t, values: -1.0 if values[name] > 50 else 0.0)]
+        self.laws_ = [RateLaw(s.target.n.diff(s.t), lambda t, values: -1.0 if values[name] > 50 else 0.0)]
 
 
-culled = CompositeSystem(
-    elements=[PopulationElement('deer', n=60.0)],
-    interactions=[CullInteraction('cull', target='deer')],
-)
-round(float(simulate(culled, until=20, dt=1.0).get_values('deer.n')[-1]))
+culled = System(elements=[Element('deer', values={'n': 60.0})], interactions=[Cull('cull', target='deer')])
+round(float(culled.prepare().simulate(until=20, dt=1.0).get_values('deer.n')[-1]))
 ```
 
 The herd falls from 60 to 50 and stays there, since the cull stops at 50.
@@ -240,110 +218,117 @@ The herd falls from 60 to 50 and stays there, since the cull stops at 50.
 
 This section writes laws as Python functions, for rules that have no symbolic form. Every law whose value the engine
 evaluates numerically takes a function, and `CallSpec` sets how the function is called. Here a tank fills at a rate
-proportional to its level, and a [`EventLaw`](../core_components/laws.md#crossinglaw) resets the level to 1.0 when
-it crosses 2.0 upward. One tank sits at the top of the system and one inside a nested system `plant`.
+proportional to its level, and an [`EventLaw`](../core_components/laws.md#eventlaw) resets the level to 1.0 when it
+crosses 2.0 upward. One tank sits at the top of the system and one inside a nested system `plant`.
 
 ```python
-from typing import Annotated
-
 import numpy as np
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import EventLaw, JumpLaw, RateLaw, UpdateLaw
-from skcomplex.core.components.laws.utils import reduction
-from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
-from skcomplex.core.components.laws import CallSpec
 from skcomplex.core.components import Observable
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import CallSpec, EventLaw, JumpLaw, RateLaw, UpdateLaw
+from skcomplex.core.components.laws.utils import reduction
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 
 
-class TankElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        level: Annotated[float, StateSpec()] = 1.0,
-        rate: Annotated[float, ParameterSpec()] = 0.5,
-    ):
+class Fill(Interaction):
+    def __init__(self, label, *, target: Role, rate=0.5):
         super().__init__(label)
-        self.level = level
+        self.target = target
         self.rate = rate
 
-    def _get_laws(self, s):
-        grow = CallSpec(lambda t, values: values['rate'] * values['level'], relative=True)
-        full = CallSpec(lambda t, values: values['level'] - 2.0, relative=True)
-        return [RateLaw(s.level, grow), EventLaw(full, {s.level: lambda t, values: 1.0}, direction=1)]
+    def _prepare(self, s):
+        super()._prepare(s)
+        grow = CallSpec(lambda t, values: values['rate'] * values['target.level'], relative=True)
+        full = CallSpec(lambda t, values: values['target.level'] - 2.0, relative=True)
+        level = s.target.level
+        self.laws_ = [RateLaw(level.diff(s.t), grow), EventLaw(full, {level: lambda t, values: 1.0}, direction=1)]
 
 
-tanks = CompositeSystem(elements=[TankElement('a')], systems=[CompositeSystem('plant', elements=[TankElement('b')])])
-trajectory = simulate(tanks, until=2, dt=0.01)
-len(trajectory.events) > 0, trajectory.get_values('a.level')[-1] == trajectory.get_values('plant/b.level')[-1]
+plant = System('plant', elements=[Element('b', values={'level': 1.0})], interactions=[Fill('fill', target='b')])
+tanks = System(elements=[Element('a', values={'level': 1.0})], interactions=[Fill('fill', target='a')], systems=[plant])
+trajectory = tanks.prepare().simulate(until=2, dt=0.01)
+len(trajectory.events), trajectory.get_values('a.level')[-1] == trajectory.get_values('plant/b.level')[-1]
 ```
 
-The run records crossing events, one per tank, and the two tanks end at the same level, so one class works at either
-place. A function runs in Python, so on the Numba [backend](../glossary.md#backend) the laws of its kind fall back to
-Python with a `BackendWarning`. This table lists the laws that take a function, and the form the function takes.
+The run records two crossing events, one per tank, and the two tanks end at the same level, so one class works at
+either place. A function runs in Python, so on the Numba [backend](../glossary.md#backend) the laws of its kind fall
+back to Python with a `BackendWarning`. This table lists the laws that take a function, and the form the function
+takes.
 
 | Law | Argument | Function |
 | --- | --- | --- |
-| `RateLaw`, `NoiseLaw`, `UpdateLaw`, `BoundaryLaw` | `value` | `f(t, values)` or `CallSpec` |
+| `RateLaw`, `NoiseLaw`, `UpdateLaw` | `value` | `f(t, values)` or `CallSpec` |
 | `JumpLaw` | `rate`, and each value of `changes` | `f(t, values)` or `CallSpec` |
 | `JumpLaw` on a clock of waiting times | `waiting` | `f(rng, size=, t=, **values)` |
 | `EventLaw` | `guard`, and each value of `reset` | `f(t, values)` or `CallSpec(f, relative=True)` |
 | `FiniteVolumeSpec` | `speed` | `f(t, values)`, which gives the wave speed of the Rusanov flux |
-| `TransitionLaw` | `matrix` | `f(t, values)` or `CallSpec(f, relative=True)` |
 | `reduction(function, expression)` | `function` | `f(array)` of the values of the members |
 | `Observable` | `function` | `f(t, values)` |
 
 `CallSpec(f, (s.x, s.k))` calls `f(t, x, k)` once per member of a group. Three options change that.
 
-- `relative=True` calls `f(t, values)` with the names of the component of the law, such as `x` for a state of the
-  element and `target.x` for a state of the element bound to the role `target`. One element class then works under any
-  label and inside any system, as the tanks `a` and `plant/b` above show.
+- `relative=True` calls `f(t, values)` with the names of the interaction of the law, such as `rate` for its own
+  parameter and `target.level` for a value of the element bound to the role `target`. One interaction class then works
+  under any label and inside any system, as the tanks `a` and `plant/b` above show.
 - `random=True` passes the random stream of the run as the keyword `rng`, so one seed repeats the run.
 - `vectorized=True` calls the function once per evaluation with one array per argument, instead of once per member.
 
 `arguments=None` calls `f(t, values)` with the dotted names, like a plain function, and takes the options `random` and
 `vectorized`.
 
-A random function draws from `rng`, so two runs with the same seed agree. Here a walker in
-[`DiscreteTime`](../core_components/spaces.md#discretetime) adds a normal step to its level on every step.
+A random function draws from `rng`, so two runs with the same seed agree. Here a walker adds a normal step to its
+level on every step of discrete time, which its `UpdateLaw` implies.
 
 ```python continuation
-class WalkerElement(TankElement):
-    def _get_laws(self, s):
-        return [UpdateLaw(s.level, CallSpec(lambda t, level, rng: level + rng.normal(), (s.level,), random=True))]
+class Walk(Interaction):
+    def __init__(self, label, *, target: Role):
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, s):
+        super()._prepare(s)
+        level = s.target.level
+        self.laws_ = [UpdateLaw(level, CallSpec(lambda t, level, rng: level + rng.normal(), (level,), random=True))]
 
 
 def walk(seed):
-    system = CompositeSystem(elements=[WalkerElement('a')], time=DiscreteTime())
-    return simulate(system, until=5, random_state=seed).get_values('a.level')
+    system = System(elements=[Element('a', values={'level': 1.0})], interactions=[Walk('walk', target='a')])
+    return system.prepare().simulate(until=5, random_state=seed).get_values('a.level')
 
 
 np.array_equal(walk(1), walk(1))
 ```
 
 The two runs with the seed 1 are equal. A vectorized function takes the arrays of a whole group at once, and
-`reduction` applies a function of an array to the values of the members. Here a
-[`GroupElement`](../core_components/elements.md#groupelement) of three tanks runs once with each.
+`reduction` applies a function of an array to the values of the members. Here an element of three tanks, given with
+`size=3`, runs once with each.
 
 ```python continuation
-class HerdElement(TankElement):
-    def _get_laws(self, s):
-        return [RateLaw(s.level, CallSpec(lambda t, level, rate: rate * level, (s.level, s.rate), vectorized=True))]
+class Herd(Interaction):
+    def __init__(self, label, *, target: Role, rate=0.5, median=False):
+        super().__init__(label)
+        self.target = target
+        self.rate = rate
+        self.median = median
 
-
-class MedianElement(TankElement):
-    def _get_laws(self, s):
-        return [RateLaw(s.level, reduction(np.median, s.level) - s.level)]
+    def _prepare(self, s):
+        super()._prepare(s)
+        level = s.target.level
+        if self.median:
+            value = reduction(np.median, level) - level
+        else:
+            value = CallSpec(lambda t, level, rate: rate * level, (level, s.rate), vectorized=True)
+        self.laws_ = [RateLaw(level.diff(s.t), value)]
 
 
 shapes = []
-for element in (HerdElement, MedianElement):
-    herd = CompositeSystem(elements=[GroupElement('herd', element=element, size=3, values={'level': [1.0, 2.0, 4.0]})])
-    shapes.append(simulate(herd, until=1, dt=0.01).get_values('herd.level').shape)
+for median in (False, True):
+    herd = Element('herd', values={'level': [1.0, 2.0, 4.0]}, size=3)
+    system = System(elements=[herd], interactions=[Herd('herding', target='herd', median=median)])
+    shapes.append(system.prepare().simulate(until=1, dt=0.01).get_values('herd.level').shape)
 shapes
 ```
 
@@ -351,12 +336,20 @@ Both runs return 101 frames of the three members. The change of a jump can be a 
 the level.
 
 ```python continuation
-class DoublerElement(TankElement):
-    def _get_laws(self, s):
-        return [JumpLaw(s.rate, {s.level: CallSpec(lambda t, values: values['level'], relative=True)})]
+class Double(Interaction):
+    def __init__(self, label, *, target: Role, rate=0.5):
+        super().__init__(label)
+        self.target = target
+        self.rate = rate
+
+    def _prepare(self, s):
+        super()._prepare(s)
+        doubled = CallSpec(lambda t, values: values['target.level'], relative=True)
+        self.laws_ = [JumpLaw(s.rate, {s.target.level: doubled})]
 
 
-doubling = simulate(CompositeSystem(elements=[DoublerElement('a')]), until=10, random_state=0)
+doubler = System(elements=[Element('a', values={'level': 1.0})], interactions=[Double('double', target='a')])
+doubling = doubler.prepare().simulate(until=10, random_state=0)
 float(np.log2(doubling.get_values('a.level')[-1])).is_integer()
 ```
 
@@ -365,25 +358,26 @@ values too. The run records it at every frame. The function lives at module leve
 
 ```python continuation
 def total_level(t, values):
-    return values['a.level'] + values['a.rate']
+    return values['a.level'] + values['fill.rate']
 
 
 observables = [Observable('sum', function=total_level)]
-observed = simulate(CompositeSystem(elements=[TankElement('a')]), until=1, dt=0.5, observables=observables)
+tank = System(elements=[Element('a', values={'level': 1.0})], interactions=[Fill('fill', target='a')])
+observed = tank.prepare().simulate(until=1, dt=0.5, observables=observables)
 observed.get_values('sum').shape
 ```
 
 The observable holds three values, one per frame at the times 0, 0.5, and 1. Some laws need symbols by nature, and
 each says so when given a function.
 
-- [`ConstraintLaw`](../core_components/laws.md#equationlaw) is solved symbolically, so a function goes in a `RateLaw` of
-  the highest derivative.
+- [`ConstraintLaw`](../core_components/laws.md#constraintlaw) is solved symbolically, so a function goes in a `RateLaw`
+  of the highest derivative.
 - `GeneratorLaw` and `DissipatorLaw` of the [quantum package](quantum_systems.md) build quantum operators from
   symbols.
 - A conservation law `RateLaw(u, -divergence(flux))` on a finite-volume field takes the derivative of its flux, for the
   wave speeds and for the critical points of the Godunov flux, so a function goes in the `speed` of the
-  [`FiniteVolumeSpec`](../core_components/elements.md#fieldelement) of the field.
-- A crossing, a matrix, and a jump change read no delays.
+  `FiniteVolumeSpec` of the field.
+- A crossing and a jump change read no delays.
 - A reset of a renewal stays symbolic, because it shares its draws with the waiting time.
 
 ## Symbolic expressions
@@ -400,37 +394,33 @@ from sage.sets.real_set import RealSet
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import where
-from skcomplex.core.specs import ParameterSpec, RoleSpec
+from skcomplex.core.specs import Role
 
 
-class CrowdingInteraction(Interaction):
-    def __init__(
-        self,
-        label,
-        *,
-        target: Annotated[str, RoleSpec()],
-        capacity: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
-    ):
+class Crowding(Interaction):
+    def __init__(self, label, *, target: Role, capacity: Annotated[float, RealSet.open(0, oo)] = 100.0):
         super().__init__(label)
         self.target = target
         self.capacity = capacity
 
-    def _get_laws(self, s):
+    def _prepare(self, s):
+        super()._prepare(s)
         n = s.target.n
-        return [RateLaw(n, where(n > s.capacity, -sqrt(n - s.capacity), 0.1 * n * exp(-n / s.capacity)))]
+        crowded = where(n > s.capacity, -sqrt(n - s.capacity), 0.1 * n * exp(-n / s.capacity))
+        self.laws_ = [RateLaw(n.diff(s.t), crowded)]
 
 
-CrowdingInteraction('crowding', target='deer')
+Crowding('crowding', target='deer')
 ```
 
 The interaction builds with the default capacity 100.0, and its representation lists only the label and the role.
-The symbols in `s` are Sage symbols that carry the domains of their variables, vector states are Sage vectors, and
+The symbols in `s` are Sage symbols that carry the allowed values of their values, vector values are Sage vectors, and
 mathematical functions come from Sage. Sage has no condition-based piecewise expression or symbolic remainder. So
 `skcomplex.core.components.laws.utils` adds `where`, `either`, `both`, and `mod`, which every backend lowers, LAMMPS
 included.
 
-Systems written with SymPy move to Sage as the table below shows. A SymPy expression in a law raises a `ValidationError`, and
-`expression._sage_()` converts one that is already built.
+Systems written with SymPy move to Sage as the table below shows. A SymPy expression in a law raises a
+`ValidationError`, and `expression._sage_()` converts one that is already built.
 
 | SymPy | Sage and `skcomplex` |
 | --- | --- |
@@ -443,152 +433,158 @@ Systems written with SymPy move to Sage as the table below shows. A SymPy expres
 | `sympy.diff(f, x)` and `f.subs(x, y)` | `f.diff(x)` and `f.subs({x: y})` |
 | `sympy.Eq(a, b)`, `.lhs`, and `.rhs` | `a == b`, `.lhs()`, and `.rhs()` |
 
-## State domains
+## Value domains
 
-This section gives a state labels or angles instead of plain numbers. Besides real, nonnegative, and integer values,
-a state takes the labels of a finite alphabet, a `FiniteEnumeratedSet`, or angles, a state with
-`StateSpec(period=2 * pi)`.
+This section gives a value labels or angles instead of plain numbers. Besides real, nonnegative, and integer values, a
+value takes the labels of a finite set, written as its allowed values in `Annotated`, or angles, written with
+[`Period`](../core_components/elements.md#period).
 
 ```python
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import pi
-from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from skcomplex.core.components.elements import Element
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.elements import Element, Period
 
-HEALTH = FiniteEnumeratedSet(['susceptible', 'infected', 'recovered'])
+HEALTH = {'susceptible', 'infected', 'recovered'}
 
 
-class PersonElement(Element):
-    def __init__(self, label, *, health: Annotated[str, StateSpec(domain=HEALTH)] = 'susceptible'):
+class Person(Element):
+    def __init__(self, label, *, health: Annotated[str, HEALTH] = 'susceptible'):
         super().__init__(label)
         self.health = health
 
 
-class RotorElement(Element):
-    def __init__(self, label, *, theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0):
+class Rotor(Element):
+    def __init__(self, label, *, theta: Annotated[float, Period(2 * pi)] = 0.0):
         super().__init__(label)
         self.theta = theta
 
 
-PersonElement('ada').health, RotorElement('rotor').theta
+Person('ada').health, Rotor('rotor').theta
 ```
 
-The person starts as `'susceptible'` and the rotor at the angle 0.0. Values are stored as floats. Labels are stored as their index, and angles are wrapped into one turn after every frame.
-Trajectories return labels, so `trajectory.get_values('ada.health')` gives the names of the health states over time.
+The person starts as `'susceptible'` and the rotor at the angle 0.0. Values are stored as floats. Labels are stored as
+their index, and angles are wrapped into one turn after every step. Trajectories return labels, so
+`trajectory.get_values('ada.health')` gives the names of the health states over time.
 
-## Complex states
+## Complex values
 
-This section gives a state complex values, such as the amplitude of an oscillation, with the domain `CC`. Here the
-amplitude turns around the unit circle at the angular frequency 2.
+This section gives a value complex numbers, such as the amplitude of an oscillation. A value given as a complex
+number is complex. Here the amplitude turns around the unit circle at the angular frequency 2.
 
 ```python
-from typing import Annotated
-
 import numpy as np
-from sage.all__sagemath_symbolics import CC, I
+from sage.all__sagemath_symbolics import I
 
 from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 
 
-class PhaseElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        z: Annotated[complex, StateSpec(domain=CC)] = 1.0,
-        omega: Annotated[float, ParameterSpec()] = 2.0,
-    ):
+class Rotation(Interaction):
+    def __init__(self, label, *, target: Role, omega=2.0):
         super().__init__(label)
-        self.z = z
+        self.target = target
         self.omega = omega
 
-    def _get_laws(self, s):
-        return [RateLaw(s.z, I * s.omega * s.z)]
+    def _prepare(self, s):
+        super()._prepare(s)
+        z = s.target.z
+        self.laws_ = [RateLaw(z.diff(s.t), I * s.omega * z)]
 
 
-z = simulate(CompositeSystem(elements=[PhaseElement('osc')]), until=10, dt=0.5).get_values('osc.z')
+phase = System(elements=[Element('osc', values={'z': 1.0 + 0j})], interactions=[Rotation('rotation', target='osc')])
+z = phase.prepare().simulate(until=10, dt=0.5).get_values('osc.z')
 z.dtype == np.complex128, bool(np.allclose(np.abs(z), 1.0, atol=1e-4))
 ```
 
-The trajectory is a complex array, and the modulus stays 1 to within `1e-4` over the run. A state or parameter of the domain `CC` takes complex values. Its laws use the imaginary unit `I`, arithmetic, the
-elementary functions over the complex plane, and `real_part`, `imag_part`, `conjugate`, `abs`, and `arg`.
+The trajectory is a complex array, and the modulus stays 1 to within `1e-4` over the run. The laws of a complex value
+use the imaginary unit `I`, arithmetic, the elementary functions over the complex plane, and `real_part`,
+`imag_part`, `conjugate`, `abs`, and `arg`.
 
 - The compiler writes every complex law as the laws of its real and imaginary parts, which every solver, stepper, and
   backend runs as a real system.
-- A real state takes only real values, so `abs(z)` or `real_part(z)` turns a complex value into one.
+- A real value takes only real numbers, so `abs(z)` or `real_part(z)` turns a complex value into one.
 - A condition compares the modulus or a part, since complex values have no order.
 - Trajectories and frames return complex arrays. Their `.real`, `.imag`, `np.abs`, and `np.angle` are the real views
   that the analyses take.
-- Agent states stay real, and the LAMMPS solver raises an error naming a complex state.
+- Agent values stay real, and the LAMMPS solver raises an error naming a complex value.
 
 ## Equations of any order
 
 This section writes an equation of motion as it reads, with second or higher derivatives. Newton's second law for a
-pendulum, `m l θ'' = -m g sin θ`, is an `ConstraintLaw` on a state of order 2.
+pendulum, `m l θ'' = -m g sin θ`, is a [`ConstraintLaw`](../core_components/laws.md#constraintlaw) on the second
+derivative `theta.diff(t, 2)`.
 
 ```python
-from typing import Annotated
-
-from sage.all__sagemath_symbolics import pi, sin
+from sage.all__sagemath_symbolics import sin
 
 from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import ConstraintLaw
-from skcomplex.core.components.laws.utils import derivative
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 
 
-class PendulumElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        theta: Annotated[float, StateSpec(period=2 * pi, order=2)] = 0.5,
-        theta_d1: float = 0.0,
-        m: Annotated[float, ParameterSpec()] = 1.0,
-        g: Annotated[float, ParameterSpec()] = 9.81,
-        l: Annotated[float, ParameterSpec()] = 1.0,
-    ):
+class Gravity(Interaction):
+    def __init__(self, label, *, target: Role, g=9.81, l=1.0):
         super().__init__(label)
-        self.theta = theta
-        self.theta_d1 = theta_d1
-        self.m = m
+        self.target = target
         self.g = g
         self.l = l
 
-    def _get_laws(self, s):
-        return [ConstraintLaw(s.m * s.l * derivative(s.theta, 2) == -s.m * s.g * sin(s.theta))]
+    def _prepare(self, s):
+        super()._prepare(s)
+        theta, m = s.target.theta, s.target.m
+        self.laws_ = [ConstraintLaw(m * s.l * theta.diff(s.t, 2) == -m * s.g * sin(theta))]
 
 
-bob = PendulumElement('bob', theta_d1=0.5)
-list(bob.get_params()), bob.theta_d1
+bob = Element('bob', values={'theta': 0.5, "theta'": 0.5, 'm': 1.0})
+pendulum = System(elements=[bob], interactions=[Gravity('gravity', target='bob')]).prepare()
+pendulum.states_, pendulum.parameters_
 ```
 
-The parameters list `g`, `l`, `label`, `m`, `theta`, and `theta_d1`, and the pendulum starts with the angular velocity
-0.5. Laws give the highest time derivative of a state, and a state declares how high that is with `StateSpec(order=k)`.
-The angular velocity is the companion state `theta_d1`, and the compiler reduces the equation to first order for the
-solvers.
+The states are `bob.theta` and its angular velocity `bob.theta'`, and the parameters are `bob.m`, `gravity.g`, and
+`gravity.l`. The pendulum starts with the angular velocity 0.5. Laws give the highest time derivative of a value, and
+the compiler reads the order of every state from them and reduces the equation to first order for the solvers.
 
-- A companion is a constructor argument without a spec, named `<state>_d<j>`. Its value is the initial value of the
-  derivative of order `j`, so `PendulumElement('bob', theta_d1=0.5)` starts the pendulum with an angular velocity.
-- `StateSpec(initial=...)` gives the initial values of the derivatives instead, for a type without companion arguments.
-- On a state of order `k`, rate and noise laws contribute to the `k`-th derivative and add up. So separate interactions
-  supply separate forces, voltages, or growth terms. `RateLaw(s.target.x, -s.k * s.target.x / s.target.m)` from a
-  spring and `RateLaw(s.target.x, -s.c * derivative(s.target.x, 1) / s.target.m)` from a damper superpose.
-- `derivative(x, j)` reads the companion `x_d<j>` below the state's order. An `ConstraintLaw` may contain the derivative
-  of the state's own order, linearly. The compiler solves all equations of a system jointly for those derivatives,
-  which couples, for example, the two angles of a double pendulum.
-- Any order works the same way, such as Sprott's chaotic jerk equation `x''' = -A x'' - x' + |x| - 1` on a state of
-  order 3.
-- Difference equations keep past values with `StateSpec(lags=m)`. `lag(x, j)` reads the value `j` steps before the
-  current one, and an update law gives the next value. So `UpdateLaw(s.x, s.x + lag(s.x, 1))` with one lag is the
-  Fibonacci recurrence.
+```python continuation
+pendulum.equations_
+```
+
+The equations read `"bob.theta'"` for `bob.theta` and `'-gravity.g*sin(bob.theta)/gravity.l'` for `bob.theta'`.
+
+- A derivative is named with primes, such as `"theta'"` and `"theta''"`, in the values, in `initial_state`, and in
+  trajectories. Its starting value defaults to zero, so `values={"theta'": 0.5}` starts the pendulum with an angular
+  velocity.
+- Rate and noise laws on the same derivative add up. So separate interactions supply separate forces, voltages, or
+  growth terms. `RateLaw(x.diff(t, 2), -k * x / m)` from a spring and `RateLaw(x.diff(t, 2), -c * x.diff(t) / m)` from
+  a damper superpose.
+- A law reads a lower derivative as `x.diff(t)`. A `ConstraintLaw` may contain the highest derivative linearly. The
+  compiler solves all equations of a system jointly for those derivatives, which couples, for example, the two angles
+  of a double pendulum.
+- Any order works the same way, such as Sprott's chaotic jerk equation `x''' = -A x'' - x' + |x| - 1` with the third
+  derivative `x.diff(t, 3)`.
+- Difference equations read past values as `x(t=t - j)`, the value `j` steps before the current one, and an update law
+  gives the next value. Past values are named with an index, such as `'x[-1]'`. So
+  `UpdateLaw(x, x + x(t=t - 1))` with `values={'x': 1, 'x[-1]': 0}` is the Fibonacci recurrence.
+
+```python continuation
+from skcomplex.core.components.laws import UpdateLaw
+
+fibonacci = Interaction(
+    'fibonacci',
+    roles={'target': 'fib'},
+    laws=lambda s: [UpdateLaw(s.target.x, s.target.x + s.target.x(t=s.t - 1))],
+)
+numbers = System(elements=[Element('fib', values={'x': 1, 'x[-1]': 0})], interactions=[fibonacci]).prepare()
+numbers.simulate(until=6).get_values('fib.x').tolist()
+```
+
+The recurrence gives 1, 1, 2, 3, 5, 8, and 13.
 
 `symbolic(system)` of `skcomplex.core.analysis` returns these equations in the order they were written.
 `symbolic(system, kind='solve', use_initial_state=True)` takes the initial values of every derivative and returns a
