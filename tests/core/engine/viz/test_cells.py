@@ -5,18 +5,16 @@ from typing import Annotated
 import networkx as nx
 import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import pi
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace, NetworkSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.components.elements import Element, Period
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.spaces import BaseSpace, CellComplexSpace, LatticeSpace, NetworkSpace
 from skcomplex.core.engine.problems import FrameSpec
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import CellVisual, RerunObserver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.specs import VisualSpec
+from skcomplex.core.systems import System
 
 SIDE = 32
 SEGMENTS = 2 * SIDE * SIDE
@@ -26,16 +24,23 @@ COLOR_CHANNELS = 3
 class AngleElement(Element):
     """Cell with an angle `theta`."""
 
-    def __init__(self, label, *, theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0):
-        super().__init__(label)
+    def __init__(
+        self,
+        label,
+        *,
+        theta: Annotated[float, Period(2 * np.pi)] = 0.0,
+        space: BaseSpace | None = None,
+        on: str | None = None,
+    ):
+        super().__init__(label, space=space, on=on)
         self.theta = theta
 
 
 class ValueElement(Element):
     """Cell with a real value `u`."""
 
-    def __init__(self, label, *, u: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
+    def __init__(self, label, *, u: float = 0.0, space: BaseSpace | None = None, on: str | None = None):
+        super().__init__(label, space=space, on=on)
         self.u = u
 
 
@@ -53,18 +58,16 @@ class RecordingStub:
 
 def _system(space, element=AngleElement, part='edges', values=None):
     """Return a system of a group on a part of a complex, one of whose states grows at a constant rate."""
-    group = GroupElement('cells', element=element, space=space, on=part, values=values or {})
+    group = element('cells', space=space, on=None if part == 'sites' else part, **(values or {}))
     state = 'theta' if element is AngleElement else 'u'
-    return CompositeSystem(
-        elements=[group],
-        interactions=[RateInteraction('rate', target='cells', state=state, rate=0.1)],
-    )
+    rate = Interaction('rate', roles={'target': 'cells'}, laws=lambda s: [RateLaw(getattr(s.target, state), 0.1)])
+    return System(elements=[group], interactions=[rate])
 
 
 def _logged(system, visual, until=2.0):
     """Return what a visual logs for every frame of a run of a system."""
     recording = RecordingStub()
-    trajectory = simulate(system, until=until, dt=1.0)
+    trajectory = system.prepare().simulate(until=until, dt=1.0)
     problem = trajectory.problem
     visual.set_params(path='cells', recording=recording).prepare(problem)
     for step, time in enumerate(trajectory.times):
@@ -99,7 +102,7 @@ def test_recording_of_a_run_with_the_cell_visual_is_saved(tmp_path):
     space = CellComplexSpace(LatticeSpace((SIDE, SIDE))).prepare()
     path = tmp_path / 'run.rrd'
     observer = RerunObserver('cells', save_path=path, visuals={'cells': VisualSpec('cell')})
-    simulate(_system(space), until=2.0, dt=1.0, observers=[observer])
+    _system(space).prepare().simulate(until=2.0, dt=1.0, observers=[observer])
     assert path.stat().st_size > 0
 
 
@@ -150,7 +153,7 @@ def test_hyperedge_group_on_a_network_logs_polygons():
 def test_views_show_the_state_of_the_group():
     """Test that the visual sets one 2D view of its state."""
     space = CellComplexSpace(LatticeSpace((3, 3))).prepare()
-    visual = CellVisual(path='cells').prepare(PassCompiler().prepare(_system(space)).run().problem_)
+    visual = CellVisual(path='cells').prepare(_system(space).prepare()._problem)
     assert [type(view).__name__ for view in visual.views_] == ['Spatial2DView']
 
 
@@ -159,7 +162,7 @@ def test_prepare_rejects_a_plane_that_is_not_two_axes_of_the_lattice(plane):
     """Test that a plane of a repeated or a missing axis raises an error."""
     space = CellComplexSpace(LatticeSpace((3, 3))).prepare()
     with pytest.raises(ValidationError, match='plane'):
-        CellVisual(plane=plane, path='cells').prepare(PassCompiler().prepare(_system(space)).run().problem_)
+        CellVisual(plane=plane, path='cells').prepare(_system(space).prepare()._problem)
 
 
 def test_prepare_rejects_a_group_on_the_sites():
@@ -167,4 +170,4 @@ def test_prepare_rejects_a_group_on_the_sites():
     space = CellComplexSpace(LatticeSpace((3, 3))).prepare()
     system = _system(space, part='sites')
     with pytest.raises(ValidationError, match='edges or hyperedges'):
-        CellVisual(path='cells').prepare(PassCompiler().prepare(system).run().problem_)
+        CellVisual(path='cells').prepare(system.prepare()._problem)
