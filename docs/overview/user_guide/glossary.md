@@ -101,7 +101,8 @@ what chance alone can do. See [Run experiments](run_experiments.md#ensembles).
 ## Field realization
 
 A field realization is a subclass of a core component that names it in the words of one field and fixes its arguments,
-such as a compartment of an epidemic written as a `DeclaredElement`. The catalog writes its systems this way. See
+such as a compartment of an epidemic written as an `Element` with one value. The catalog writes its systems this way.
+See
 [System classes](system_classes.md#field-realizations).
 
 ## Fixed point
@@ -121,8 +122,9 @@ total rate and picks the event in proportion to its rate. See [Simulate](simulat
 
 ## Group
 
-A group holds many members of one element class, one per site of a lattice, node of a network, or point in space. A
-variable group lets members appear and disappear. See [GroupElement](core_components/elements.md#groupelement).
+A group holds many members of one element class, such as `Element('walkers', values={'x': 0.0}, size=1000)`, or one
+per site of a lattice or node of a network with `space=`. Rules may add and remove members as the run goes. See
+[Element](core_components/elements.md#element).
 
 ## Identifiability
 
@@ -214,7 +216,7 @@ Epidemiology calls the same assumption homogeneous mixing. See
 ## Member
 
 A member is one instance of the element class of a group, such as one cell of a lattice or one agent of a flock. Each
-member holds its own copy of the states of the class. See [GroupElement](core_components/elements.md#groupelement).
+member holds its own copy of the values of the class. See [Element](core_components/elements.md#element).
 
 ## Model parameter
 
@@ -347,8 +349,8 @@ See [Spaces, neighbourhoods, and times](core_components/spaces.md).
 
 ## Spec
 
-A spec is a small frozen record that describes a value, such as a `StateSpec` that gives the domain and the order of a
-state. Components read specs for their declarations and settings. See
+A spec is a small frozen record that describes a value, such as a `VisualSpec` that gives the drawing of an element.
+Components read specs for their settings. See
 [How the components fit](core_components/index.md#the-elements).
 
 ## State
@@ -406,7 +408,8 @@ system](check.md#tags).
 ## Time
 
 The time of a system says whether it flows continuously, steps in discrete increments, or is solved once without time.
-See [ContinuousTime](core_components/spaces.md#continuoustime).
+It follows from the kinds of the laws: rates flow, updates step, and objectives and constraints alone are static. See
+[Check a system](check.md#what-an-interaction-needs).
 
 ## Trajectory
 
