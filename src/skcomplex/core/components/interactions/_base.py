@@ -14,7 +14,7 @@ from typing import ClassVar, Union, cast, get_args, get_origin
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import CC, RR, SR, ZZ, Expression, function, vector
+from sage.all__sagemath_symbolics import CC, RR, SR, ZZ, Expression, I, function, vector
 from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.structure.element import Matrix
@@ -278,7 +278,11 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
 
     @staticmethod
     def _get_functional(value: object, time: Expression, functions: dict[str, Expression]) -> object:
-        """Return the symbols of states in a value of a role as functions of time."""
+        """Return the symbols of states in a value of a role as functions of time.
+
+        A complex state, written in its real and imaginary parts as `z_re + I * z_im`, has both parts as functions of
+        time, so `z.diff(t)` is its derivative.
+        """
         if isinstance(value, SimpleNamespace):
             return SimpleNamespace(
                 **{name: BaseInteraction._get_functional(item, time, functions) for name, item in vars(value).items()},
@@ -290,6 +294,10 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         if isinstance(value, Expression) and value.is_symbol() and value is not time:
             functions[str(value)] = value
             return function(str(value))(time)
+        if isinstance(value, Expression) and value.has(SR(I)):
+            return value.subs(
+                {item: BaseInteraction._get_functional(item, time, functions) for item in value.variables()},
+            )
         return value
 
     @staticmethod
@@ -466,10 +474,28 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
                 )
                 raise ValidationError(error_msg)
             return BaseInteraction._get_replaced(law, target=state, order=1 if order == 1 else order)
+        if law.target.has(SR(I)):
+            return BaseInteraction._get_normalized_complex(law)
         if law.target.operator() is not derivative:
             return law if law.order is not None else BaseInteraction._get_replaced(law, order=1)
         state, order = law.target.operands()
         return BaseInteraction._get_replaced(law, target=state, order=int(order))
+
+    @staticmethod
+    def _get_normalized_complex(law: RateLaw | NoiseLaw) -> BaseComponent:
+        """Return a law on the derivative of a complex state as a law on the state.
+
+        The derivative `z.diff(t, k)` of a complex state is the sum of the derivatives of order `k` of its real and
+        imaginary parts, so the law becomes a law on `z` of the order `k`. A target with no derivatives has order 1.
+        """
+        target = cast('Expression', law.target)
+        found = target.find(derivative(SR.wild(0), SR.wild(1)))
+        orders = {int(item.operands()[1]) for item in found}
+        if len(orders) > 1:
+            return law
+        state = target.subs({item: item.operands()[0] for item in found})
+        order = orders.pop() if orders else (law.order or 1)
+        return BaseInteraction._get_replaced(law, target=state, order=order)
 
     @staticmethod
     def _get_normalized_vector(law: RateLaw | NoiseLaw) -> BaseComponent:

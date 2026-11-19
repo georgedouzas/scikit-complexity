@@ -1,12 +1,13 @@
 """Test the `_base` module of `skcomplex.core.components.interactions`."""
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import function, oo, var
+from sage.all__sagemath_symbolics import I, function, oo, var
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.components import interactions
@@ -970,3 +971,26 @@ def test_a_delay_that_reads_the_state_is_bounded_by_its_clip():
     assert 'where(n.tau*n.x < 0.6, 0.6, n.tau*n.x)' in system.equations_['n.x']
     _, fixed = _get_delayed_decay(lambda target: 0.6)
     np.testing.assert_allclose(clipped, fixed, rtol=1e-12)
+
+
+def _get_rotated(target: Callable[[SimpleNamespace], object]) -> object:
+    """Return the last value of a complex point whose derivative of an order is `i z`."""
+    rotate = Interaction(
+        'rotate',
+        roles={'point': 'point'},
+        laws=lambda s: [RateLaw(target(s), I * s.point.z)],
+    )
+    system = System(elements=[Element('point', values={'z': 1.0 + 0.0j})], interactions=[rotate]).prepare()
+    return system.simulate(until=1.0).get_values('point.z')[-1]
+
+
+def test_rate_of_the_derivative_of_a_complex_state_is_its_rate():
+    """Test that `RateLaw(z.diff(t), f)` of a complex state turns it as `RateLaw(z, f)` does, by `exp(i t)`."""
+    by_derivative = _get_rotated(lambda s: s.point.z.diff(s.t))
+    assert by_derivative == pytest.approx(_get_rotated(lambda s: s.point.z))
+    assert by_derivative == pytest.approx(np.exp(1j), rel=1e-5)
+
+
+def test_second_derivative_of_a_complex_state_gives_it_a_second_order():
+    """Test that `z'' = i z` from rest at one gives `cosh(sqrt(i) t)` at the end."""
+    assert _get_rotated(lambda s: s.point.z.diff(s.t, 2)) == pytest.approx(np.cosh(np.sqrt(1j)), rel=1e-5)
