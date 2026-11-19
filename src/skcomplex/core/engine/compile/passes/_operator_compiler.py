@@ -279,7 +279,7 @@ class OperatorCompiler(BaseCompiler):
         hints = element._get_hints()
         for name, value in values.items():
             annotation = hints.get(name, inspect.Parameter.empty)
-            if OperatorCompiler._is_complex(_StateInference._get_domain(annotation, value)):
+            if OperatorCompiler._is_complex(Element._get_domain_of(annotation, value)):
                 return name
         return next(iter(values)) if len(values) == 1 else None
 

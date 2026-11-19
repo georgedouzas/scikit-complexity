@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from collections.abc import Callable, Mapping, Sequence
+from dataclasses import replace
 from types import SimpleNamespace
 from typing import ClassVar, Self
 
@@ -142,9 +143,21 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
         """Return the tags derived from the components of the system.
 
         The domains of an element given only by its values, such as `Element('ball', values={'x': 10.0})`, follow from
-        the laws that change them, so the states and parameters of such elements are inferred first.
+        the laws that change them, so the states and parameters of such elements are inferred first. The kinds of laws
+        that interactions learn only when they are prepared, such as those of `Interaction('flip', laws=...)`, follow
+        from the census of the laws of the system, and so does their randomness when their kinds draw, such as noise.
         """
-        return PassCompiler()._get_declared_system(self._get_composite())._get_tags()
+        compiler = PassCompiler()
+        declared = compiler._get_declared_system(self._get_composite())
+        tags = declared._get_tags()
+        if tags.laws is not None:
+            return tags
+        census = compiler._get_census_of(declared).census
+        if census is None or census.errors:
+            return tags
+        learned = self._get_law_tags([type(record.law) for record in census.records])
+        randomness = 'stochastic' if learned.randomness == 'stochastic' else tags.randomness
+        return replace(tags, laws=learned.laws, randomness=randomness, time=tags.time or learned.time)
 
     def _get_values(self) -> dict[str, object]:
         """Return the parameters of the system and of its components by name."""
