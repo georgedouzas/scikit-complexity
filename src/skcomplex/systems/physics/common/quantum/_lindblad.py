@@ -32,30 +32,27 @@ class LindbladSolver(OperatorSolver):
             The largest number of internal steps between two frames.
 
     Examples:
-        >>> from typing import Annotated
         >>> import numpy as np
-        >>> from sage.all__sagemath_symbolics import CC, SR
-        >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.laws.utils import local_operator
-        >>> from skcomplex.core.specs import StateSpec
+        >>> from sage.all__sagemath_symbolics import SR
         >>> from skcomplex.core.components import Observable
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.systems.physics.common.quantum import DissipatorLaw, HilbertSpec, LindbladSolver
-        >>> operators = {'x': (np.array([[0, 1], [1, 0]]), True), 'z': (np.diag([1, -1]), True)}
-        >>> operators['minus'] = (np.array([[0, 0], [1, 0]]), False)
-        >>> QUBIT = HilbertSpec(2, operators, basis={'up': 0, 'down': 1})
-        >>> class TwoLevelElement(Element):
-        ...     def __init__(self, label, psi: Annotated[object, StateSpec(domain=CC**2)] = 'up', hilbert=QUBIT):
+        >>> from skcomplex.core.components.interactions import Interaction
+        >>> from skcomplex.core.components.laws.utils import local_operator
+        >>> from skcomplex.core.specs import Role
+        >>> from skcomplex.core.systems import System
+        >>> from skcomplex.systems.physics.common.quantum import DissipatorLaw, LindbladSolver, QubitElement
+        >>> class Decay(Interaction):
+        ...     def __init__(self, label, *, target: Role = 'q', rate=1.0):
         ...         super().__init__(label)
-        ...         self.psi = psi
-        ...         self.hilbert = hilbert
+        ...         self.target = target
+        ...         self.rate = rate
         ...
-        ...     def _get_laws(self, s):
-        ...         return [DissipatorLaw(local_operator(s.psi, SR.symbol('minus')), 0.5)]
+        ...     def _prepare(self, s):
+        ...         super()._prepare(s)
+        ...         self.laws_ = [DissipatorLaw(local_operator(s.target.psi, SR.symbol('minus')), self.rate)]
         >>> z = [Observable('z', element='q', variable='z')]
-        >>> system = CompositeSystem(elements=[TwoLevelElement('q')])
-        >>> values = simulate(system, until=2.0, solver=LindbladSolver(), dt=1.0, observables=z).get_values('q.z')
+        >>> decay = Decay('decay', rate=0.5)
+        >>> system = System(elements=[QubitElement('q')], interactions=[decay], solver=LindbladSolver()).prepare(z)
+        >>> values = system.simulate(until=2.0, dt=1.0, observables=z).get_values('q.z')
         >>> bool(abs((1 + values[-1]) / 2 - np.exp(-1.0)) < 1e-6)
         True
     """
