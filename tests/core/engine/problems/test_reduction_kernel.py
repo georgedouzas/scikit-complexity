@@ -208,7 +208,7 @@ def _rotation():
     )
 
 
-class CouplingInteraction(Interaction):
+class MeanFieldInteraction(Interaction):
     """Mean-field coupling of phases through the means of their sines and cosines."""
 
     def __init__(self, label: str, *, target: Role, K: object = 1.0) -> None:
@@ -231,7 +231,7 @@ def _kuramoto(size, *, observables=False):
     coupling = (
         MeanCouplingInteraction('coupling', target='oscillators', X='X', Y='Y', K=2.0)
         if observables
-        else CouplingInteraction('coupling', target='oscillators', K=2.0)
+        else MeanFieldInteraction('coupling', target='oscillators', K=2.0)
     )
     return System(elements=[oscillators], interactions=[_rotation(), coupling]), theta, omega
 
@@ -398,7 +398,7 @@ def test_two_groups_in_one_reduction():
 def test_interaction_reads_second_group_through_reductions():
     """Test that an interaction acts on one group and reads another group through a mean."""
 
-    class CouplingInteraction(Interaction):
+    class SourceMeanInteraction(Interaction):
         """Coupling interaction."""
 
         def __init__(
@@ -426,7 +426,7 @@ def test_interaction_reads_second_group_through_reductions():
             UnitElement('second', x=second, size=6),
         ],
         interactions=[
-            CouplingInteraction('coupling', target='first', source='second'),
+            SourceMeanInteraction('coupling', target='first', source='second'),
             Interaction('still', roles={'target': 'second'}, laws=lambda s: [RateLaw(s.target.x, 0)]),
         ],
     )

@@ -607,7 +607,7 @@ def test_default_blueprint_puts_spatial_views_above_series():
 
 
 @pytest.mark.skip(
-    reason='engine gap: the views of inferred elements are named after DeclaredElement, not the class of the element',
+    reason='engine gap: the views of inferred elements are named after an internal class, not the class of the element',
 )
 def test_default_blueprint_splits_series_by_six():
     """Test that a type with more than six series is split over several views."""
