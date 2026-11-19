@@ -18,7 +18,6 @@ San Diego State University) to Purves, Sadava, Orians, and Heller, *Life: The Sc
 ```python
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 years = np.arange(1900, 1921)
@@ -78,11 +77,11 @@ system.until, system.dt, len(system.prepare().simulate().times)
 `LotkaVolterraSystem` tunes `until=50.0` and `dt=0.1`, so a call without them runs fifty years in 501 frames. The
 settings are these.
 
-- `until` sets the end time. A system without a tuned end time, such as a plain `CompositeSystem`, raises an error
-  that asks for it.
+- `until` sets the end time. A system without a tuned end time, such as a plain `System`, raises an error that asks
+  for it.
 - `dt` sets the time between frames. Without a tuned value it is 1 for discrete maps and [agents](glossary.md#agent). For other forms it
   is 0.01, raised to the smallest of 0.02, 0.05, 0.1, and so on, in steps of 1, 2, and 5 times a power of ten, that
-  keeps the run at most 1000 frames long. So a plain composite run with `until=1000` takes frames of 1.
+  keeps the run at most 1000 frames long. So a plain `System` run with `until=1000` takes frames of 1.
 - `initial_state` replaces initial values of the [elements](glossary.md#element) for one run, by dotted name.
 - `schedule` sets parameters from functions of time at every frame, such as a slow ramp of a control parameter.
 - `solver` and `backend` choose how the run steps and evaluates its laws, as the section on solvers shows.
@@ -302,23 +301,13 @@ A law can call a fast function of its own, once per member, with `CallSpec(funct
 groups grows at a rate that saturates with its size.
 
 ```python
-from typing import Annotated
-
 import numba
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
-from skcomplex.core.components.laws import CallSpec
-
-
-class PopulationElement(Element):
-    def __init__(self, label, *, n: Annotated[float, StateSpec()] = 1.0):
-        super().__init__(label)
-        self.n = n
+from skcomplex.core.components.laws import CallSpec, RateLaw
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 
 
 @numba.njit
@@ -326,21 +315,20 @@ def saturating(t, n, r):
     return r * n / (1 + n)
 
 
-class SaturationInteraction(Interaction):
-    def __init__(self, label, *, target: Annotated[str, RoleSpec()], r: Annotated[float, ParameterSpec()] = 1.0):
+class Saturation(Interaction):
+    def __init__(self, label, *, target: Role, r=1.0):
         super().__init__(label)
         self.target = target
         self.r = r
 
-    def _get_laws(self, s):
-        return [RateLaw(s.target.n, CallSpec(saturating, (s.target.n, s.r)))]
+    def _prepare(self, s):
+        super()._prepare(s)
+        self.laws_ = [RateLaw(s.target.n, CallSpec(saturating, (s.target.n, s.r)))]
 
 
-herds = CompositeSystem(
-    elements=[GroupElement('herds', element=PopulationElement, size=2000, values={'n': 1.0})],
-    interactions=[SaturationInteraction('growth', target='herds')],
-)
-round(float(simulate(herds, until=1, dt=0.1).get_values('herds.n')[-1, 0]), 4)
+herds = Element('herds', values={'n': 1.0}, size=2000)
+system = System(elements=[herds], interactions=[Saturation('growth', target='herds')])
+round(float(system.prepare().simulate(until=1, dt=0.1).get_values('herds.n')[-1, 0]), 4)
 ```
 
 Each herd grows from 1 to 1.5571 in one time unit. A function compiled with Numba runs inside the compiled kernels,
@@ -356,58 +344,46 @@ Rerun visualization. `LammpsSolver` runs particle systems in LAMMPS, which integ
 100 atoms under the Lennard-Jones potential and a drag start on a square grid.
 
 ```python
-from typing import Annotated
-
 import numpy as np
+from sage.all__sagemath_symbolics import sqrt
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import PairInteraction, RateInteraction
-from skcomplex.core.components.laws.utils import derivative
-from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws.utils import neighbors
+from skcomplex.core.components.spaces import ContinuousSpace, RadiusNeighborhood
 from skcomplex.core.engine.solvers import LammpsSolver
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 
 
-class AtomElement(Element):
-    def __init__(
-        self, label, *, x: Annotated[object, StateSpec(vector=True, order=2, role='position')] = 0.0, x_d1: object = 0.0
-    ):
+class LennardJones(Interaction):
+    def __init__(self, label, *, target: Role, cutoff=2.5, epsilon=1.0, sigma=1.0):
         super().__init__(label)
-        self.x = x
-        self.x_d1 = x_d1
-
-
-class LennardJonesInteraction(PairInteraction):
-    def __init__(
-        self,
-        label,
-        first,
-        second,
-        cutoff=1.0,
-        position='x',
-        *,
-        epsilon: Annotated[float, ParameterSpec()] = 1.0,
-        sigma: Annotated[float, ParameterSpec()] = 1.0,
-    ):
-        super().__init__(label, first, second, cutoff=cutoff, position=position, potential=self._get_energy)
+        self.target = target
+        self.cutoff = cutoff
         self.epsilon = epsilon
         self.sigma = sigma
 
-    @staticmethod
-    def _get_energy(s, r):
-        return 4 * s.epsilon * ((s.sigma / r) ** 12 - (s.sigma / r) ** 6)
+    def _prepare(self, s):
+        super()._prepare(s)
+        x = s.target.x
+        separation = x - s.target.other.x
+        r = sqrt(separation.dot_product(separation))
+        force = 24 * s.epsilon * (2 * (s.sigma / r) ** 12 - (s.sigma / r) ** 6) / r**2 * separation
+        self.laws_ = [RateLaw(x.diff(s.t, 2), neighbors(force, RadiusNeighborhood(self.cutoff)))]
 
 
-class DragInteraction(RateInteraction):
-    def __init__(self, label, *, target, gamma: Annotated[float, ParameterSpec()] = 1.0):
-        super().__init__(label, target=target, state='x', rate=self._get_rate)
+class Drag(Interaction):
+    def __init__(self, label, *, target: Role, gamma=1.0):
+        super().__init__(label)
+        self.target = target
         self.gamma = gamma
 
-    @staticmethod
-    def _get_rate(s):
-        return -s.gamma * s.target.x.apply_map(lambda item: derivative(item, 1))
+    def _prepare(self, s):
+        super()._prepare(s)
+        x = s.target.x
+        self.laws_ = [RateLaw(x.diff(s.t, 2), -s.gamma * x.diff(s.t))]
 
 
 def get_pair_coefficients(value):
@@ -420,18 +396,15 @@ def get_drag_fix(fix):
 
 side = np.arange(10) * 1.2
 grid = np.stack(np.meshgrid(side, side), axis=-1).reshape(-1, 2)
-atoms = CompositeSystem(
-    elements=[GroupElement('atoms', element=AtomElement, size=100, values={'x': grid})],
-    interactions=[
-        LennardJonesInteraction('lj', 'atoms', 'atoms', cutoff=2.5),
-        DragInteraction('air', target='atoms', gamma=1.0),
-    ],
+pairs = {LennardJones: ('lj/cut', get_pair_coefficients)}
+fixes = {Drag: get_drag_fix}
+atoms = System(
+    elements=[Element('atoms', values={'x': grid}, size=100)],
+    interactions=[LennardJones('lj', target='atoms'), Drag('air', target='atoms', gamma=1.0)],
     space=ContinuousSpace(n_dim=2),
+    solver=LammpsSolver(dt=0.005, pairs=pairs, fixes=fixes),
 )
-pairs = {LennardJonesInteraction: ('lj/cut', get_pair_coefficients)}
-fixes = {DragInteraction: get_drag_fix}
-solver = LammpsSolver(dt=0.005, pairs=pairs, fixes=fixes)
-trajectory = simulate(atoms, until=1, dt=0.05, solver=solver, random_state=0)
+trajectory = atoms.prepare().simulate(until=1, dt=0.05, random_state=0)
 trajectory.get_values('atoms.x').shape
 ```
 
@@ -448,15 +421,13 @@ function in `fixes` reads a seed from the random state of the run with `fix.seed
 Before the first frame the solver checks the system. It raises one error that lists every element, interaction, and
 law it cannot run. The library translates a system to LAMMPS as follows.
 
-- Elements and groups with a vector position of order 2, such as `AtomElement`, become one atom type per element or
-  group. The velocities of the atoms are the first derivatives of the positions. Their mass is the parameter that the
+- Elements and groups with a vector position whose laws set its second derivative, such as `atoms`, become one atom
+  type per element or group. The velocities of the atoms are the first derivatives of the positions. Their mass is the parameter that the
   `divisor` of their interactions names, or 1 without one.
 - Two or three dimensions become `dimension 2` with `fix enforce2d`, or `dimension 3`.
 - `ContinuousSpace(extent, boundary='reflecting')` becomes `fix wall/reflect` at `0` and the extent.
 - `ContinuousSpace(extent, boundary='periodic')` becomes periodic boundaries of the extent, shared by every group.
 - A class in `pairs`, such as `LennardJonesInteraction`, becomes its native pair style, such as `pair_style lj/cut`.
-- Any other `PairInteraction` with a potential becomes `pair_style lepton`, with the potential printed as a
-  Lepton expression.
 - A class in `fixes` becomes its native fix, such as `fix addforce`, `fix viscous`, or `fix langevin`.
 - Any other interaction that only changes the derivatives of the positions becomes `fix external`, which the library
   evaluates at every step.
@@ -468,10 +439,9 @@ the land they harvest. Such a system is split into [partitions](glossary.md#part
 systems](glossary.md#nested-system), and each partition runs with its own solver.
 
 ```python
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.economics.resources import HarvestingSystem
 
-trajectory = simulate(HarvestingSystem(farmers=10, effort=0.05), until=50, random_state=0)
+trajectory = HarvestingSystem(farmers=10, effort=0.05).prepare().simulate(until=50, random_state=0)
 round(trajectory.get_values('land/stock.n')[-1]), trajectory.get_agents('village/farmers', 50).values['wealth'].size
 trajectory.get_values('village/farmers_count.value')[-1]
 ```
