@@ -585,7 +585,7 @@ class OperatorCompiler(BaseCompiler):
                 )
             return
         roles = {
-            name: OperatorCompiler._get_role_namespace(node, interaction._get_binding(name), members, set(groups))
+            name: OperatorCompiler._get_role_namespace(node, str(interaction._get_binding(name)), members, set(groups))
             for name in declarations_of(interaction, VariableKind.ROLE)
         }
         self._collect_laws(
