@@ -17,7 +17,8 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.components.interactions import RateInteraction
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.systems import System
@@ -61,14 +62,14 @@ observer.recording_.flush()
 
 def lorenz_samples(samples):
     """Return samples of the Lorenz flow on its attractor."""
-    rates = {
-        'x': lambda s: 10.0 * (s.target.y - s.target.x),
-        'y': lambda s: s.target.x * (28.0 - s.target.z) - s.target.y,
-        'z': lambda s: s.target.x * s.target.y - 8.0 / 3.0 * s.target.z,
-    }
+
+    def lorenz(s):
+        x, y, z = s.target.x, s.target.y, s.target.z
+        return [RateLaw(x, 10.0 * (y - x)), RateLaw(y, x * (28.0 - z) - y), RateLaw(z, x * y - 8.0 / 3.0 * z)]
+
     flow = System(
         elements=[LorenzFlowElement('flow')],
-        interactions=[RateInteraction(name, target='flow', state=name, rate=rate) for name, rate in rates.items()],
+        interactions=[Interaction('lorenz', roles={'target': 'flow'}, laws=lorenz)],
         solver=ScipyODESolver(method='RK23', rtol=1e-3, atol=1e-6),
     )
     run = flow.prepare().simulate(until=5.0 + STEP * (samples - 1), dt=STEP)
