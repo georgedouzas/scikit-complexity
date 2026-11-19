@@ -1,85 +1,54 @@
 """Share the helpers of the compilation tests."""
 
+from collections.abc import Mapping
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import CC, I
+from sage.all__sagemath_symbolics import I
 
 from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import BaseLaw, NoiseLaw, RateLaw, UpdateLaw
+from skcomplex.core.components.laws import NoiseLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.spaces import BaseSpace
-from skcomplex.core.specs import ParameterSpec, Role, StateSpec
+from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
 
 
-class PairElement(Element):
-    """Element whose two states take unit noise on one local process."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[float, StateSpec()] = 1.0,
-        y: Annotated[float, StateSpec()] = 1.0,
-        sigma: Annotated[float, ParameterSpec()] = 0.5,
-        process: str = 'common',
-        conventions: tuple[str, str] = ('ito', 'ito'),
-    ) -> None:
-        super().__init__(label)
-        self.x = x
-        self.y = y
-        self.sigma = sigma
-        self.process = process
-        self.conventions = conventions
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the noise of both states on the shared process."""
-        first, second = self.conventions
-        return [
-            NoiseLaw(s.x, s.sigma * s.y, convention=first, process=self.process),
-            NoiseLaw(s.y, s.sigma * s.x, convention=second, process=self.process),
-        ]
-
-
 class PhaseElement(Element):
-    """Complex amplitude that turns at a constant frequency."""
+    """Complex amplitude `z` with the real frequency `omega`."""
 
     def __init__(
         self,
         label: str,
         *,
-        z: Annotated[complex, StateSpec(domain=CC)] = 1.0,
-        omega: Annotated[float, ParameterSpec()] = 2.0,
+        z: complex = 1.0,
+        omega: float = 2.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.z = z
         self.omega = omega
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return `dz/dt = i omega z`."""
-        return [RateLaw(s.z, I * s.omega * s.z)]
-
 
 class QuadraticElement(Element):
-    """Complex quadratic map `z -> z^2 + c`."""
+    """Complex point `z` with the complex constant `c` of the quadratic map."""
 
     def __init__(
         self,
         label: str,
         *,
-        z: Annotated[complex, StateSpec(domain=CC)] = 0.0,
-        c: Annotated[complex, ParameterSpec(domain=CC)] = 0.0,
+        z: complex = 0.0,
+        c: complex = 0.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.z = z
         self.c = c
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the map."""
-        return [UpdateLaw(s.z, s.z**2 + s.c)]
 
 
 class PairNoiseInteraction(Interaction):
@@ -126,7 +95,7 @@ def phase_system(z: complex = 1.0 + 0j, omega: object = 2.0, **settings: object)
         roles={'target': 'osc'},
         laws=lambda s: [RateLaw(s.target.z, I * s.target.omega * s.target.z)],
     )
-    return System(elements=[Element('osc', values={'z': z, 'omega': omega})], interactions=[turn], **settings)
+    return System(elements=[PhaseElement('osc', z=z, omega=omega)], interactions=[turn], **settings)
 
 
 def quadratic_system(element: Element, **settings: object) -> System:
