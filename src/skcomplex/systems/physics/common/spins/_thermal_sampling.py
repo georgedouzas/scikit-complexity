@@ -10,7 +10,7 @@ from collections.abc import Callable
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import oo
+from sage.all__sagemath_symbolics import SR, oo
 from sage.sets.real_set import RealSet
 
 from .....core.components.base import BaseComponent
@@ -83,5 +83,5 @@ class ThermalSamplingInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             state = getattr(self._get_member(context, 'target'), self.state)
-            objective = self.energy(context) / self._get_temperature(context)
+            objective = SR(self.energy(context)) / SR(self._get_temperature(context))
             self.laws_: list[BaseComponent] = [ObjectiveLaw(objective, state)]
