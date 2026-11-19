@@ -93,7 +93,7 @@ class PredationInteraction(Interaction):
             ]
 
 
-class TransferInteraction(Interaction):
+class InflowInteraction(Interaction):
     """Inflow into a sink at the value of a source."""
 
     def __init__(
@@ -236,7 +236,7 @@ def test_interaction_reads_two_groups_member_by_member(backend):
             StockElement('source', n=np.arange(5.0), size=5),
             StockElement('sink', size=5),
         ],
-        interactions=[TransferInteraction('flow', source='source', sink='sink')],
+        interactions=[InflowInteraction('flow', source='source', sink='sink')],
     )
     problem = system.set_params(backend=backend).prepare()._problem
     drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
@@ -250,7 +250,7 @@ def test_interaction_reading_groups_of_different_sizes_raises_error():
             StockElement('source', size=5),
             StockElement('sink', size=7),
         ],
-        interactions=[TransferInteraction('flow', source='source', sink='sink')],
+        interactions=[InflowInteraction('flow', source='source', sink='sink')],
     )
     with pytest.raises(RoleError, match=r'sink of 7 members, source of 5 members'):
         system.prepare()
