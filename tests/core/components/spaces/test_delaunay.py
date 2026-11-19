@@ -1,48 +1,35 @@
 """Test the `_delaunay` module of `skcomplex.core.components.spaces`."""
 
-from typing import Annotated
-
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import ContinuousSpace, DelaunayNeighborhood
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.errors import BackendError
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 
 
-class CountingElement(Element):
-    """Element whose state `out` sums the tags of its Delaunay neighbours, powers of two that name them."""
+def _count(s):
+    """Return the sum of the tags of the Delaunay neighbours, powers of two that name them, as the value `out`."""
+    return [UpdateLaw(s.target.out, neighbors(s.target.other.tag, over=DelaunayNeighborhood(), reduce='sum'))]
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        out: Annotated[object, StateSpec()] = 0.0,
-        tag: Annotated[object, StateSpec()] = 1.0,
-        x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0,
-    ) -> None:
-        super().__init__(label)
-        self.out = out
-        self.tag = tag
-        self.x = x
 
-    def _get_laws(self, s):
-        """Return the sum of the tags of the Delaunay neighbours."""
-        return [UpdateLaw(s.out, neighbors(s.other.tag, over=DelaunayNeighborhood(), reduce='sum'))]
+def _system(positions, side, boundary, backend='auto', tags=None):
+    """Return members at positions in a square, tagged by ones or by given tags, that count their neighbours."""
+    size = len(positions)
+    values = {'out': np.zeros(size), 'tag': np.ones(size) if tags is None else tags, 'x': positions}
+    cells = Element('cells', values=values, size=size, space=ContinuousSpace(extent=(side, side), boundary=boundary))
+    counting = Interaction('counting', roles={'target': 'cells'}, laws=_count)
+    return System(elements=[cells], interactions=[counting], backend=backend)
 
 
 def _problem(positions, side, boundary, backend=None, tags=None):
     """Return the problem of members at positions in a square, tagged by ones or by given tags."""
-    values = {'x': positions, 'tag': np.ones(len(positions)) if tags is None else tags}
-    group = GroupElement('cells', element=CountingElement, size=len(positions), values=values)
-    system = CompositeSystem(elements=[group], space=ContinuousSpace(extent=(side, side), boundary=boundary))
-    return PassCompiler(backend=backend or NumpyBackend()).prepare(system).run().problem_
+    return _system(positions, side, boundary, backend or NumpyBackend(), tags).prepare()._problem
 
 
 def _counts(problem, state=None):
@@ -94,9 +81,6 @@ def test_delaunay_neighbourhood_does_not_run_on_numba():
 def test_delaunay_neighbourhood_of_a_large_group_runs_on_numpy():
     """Test that a group of 1000 members, which defaults to Numba, runs Delaunay neighbourhoods on NumPy."""
     rng = np.random.default_rng(0)
-    values = {'x': rng.uniform(0.0, 10.0, (1000, 2)), 'tag': np.ones(1000)}
-    group = GroupElement('cells', element=CountingElement, size=1000, values=values)
-    system = CompositeSystem(elements=[group], space=ContinuousSpace(extent=(10.0, 10.0), boundary='open'))
-    problem = PassCompiler().prepare(system).run().problem_
+    problem = _system(rng.uniform(0.0, 10.0, (1000, 2)), 10.0, 'open').prepare()._problem
     assert problem.backend == 'numpy'
     assert np.all(_counts(problem) >= 2)
