@@ -1,37 +1,17 @@
 """Test the `_sensitivity` module of `skcomplex.core.experiments`."""
 
 import math
-from typing import Annotated
 
 import pytest
 from sage.all__sagemath_symbolics import sin
 
 from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.experiments import sensitivity
-from skcomplex.core.specs import ParameterSpec
 from skcomplex.core.systems import System
 from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 from skcomplex.systems.mathematics.dynamical_systems import HenonMapInteraction
-
-
-class PointElement(Element):
-    """Point element."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        x1: Annotated[object, ParameterSpec()] = 0.0,
-        x2: Annotated[object, ParameterSpec()] = 0.0,
-        x3: Annotated[object, ParameterSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label)
-        self.x1 = x1
-        self.x2 = x2
-        self.x3 = x3
 
 
 def _ishigami(s):
@@ -42,7 +22,7 @@ def _ishigami(s):
 @pytest.mark.slow
 def test_sobol_indices_of_ishigami():
     """Test that Sobol first-order indices of the Ishigami function match the known values within 0.05."""
-    system = CompositeSystem(elements=[PointElement('p')])
+    system = System(elements=[Element('p', values={'x1': 0.0, 'x2': 0.0, 'x3': 0.0})])
     bounds = {f'p.x{index}': (-math.pi, math.pi) for index in (1, 2, 3)}
     observables = [Observable('y', _ishigami)]
     analysis = sensitivity(system, bounds, output='y', n=2048, until=0, observables=observables, random_state=0)
