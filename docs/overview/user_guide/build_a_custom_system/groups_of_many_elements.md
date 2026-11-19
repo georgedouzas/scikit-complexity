@@ -150,8 +150,8 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import total
-from skcomplex.core.types import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
 class Inhibition(Interaction):
@@ -187,8 +187,8 @@ third weight to 0 from time 1.
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import UpdateLaw
-from skcomplex.core.types import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
 class WeightedSum(Interaction):
@@ -249,8 +249,8 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import mod, shift_member
-from skcomplex.core.types import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
 class Following(Interaction):

@@ -182,8 +182,8 @@ graph. Every layer holds the nodes of the graph, and `prepare` raises a `Validat
 nodes.
 
 ```python continuation
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.components.spaces import LayerSpec
+from skcomplex.core.errors import ValidationError
 
 try:
     NetworkSpace(nx.path_graph(3), layers=[LayerSpec('work', nx.path_graph(4))]).prepare()
@@ -366,8 +366,8 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import laplacian
-from skcomplex.core.types import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
 class Conduction(Interaction):

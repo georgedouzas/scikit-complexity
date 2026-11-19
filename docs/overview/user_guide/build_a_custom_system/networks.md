@@ -75,8 +75,8 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import NetworkSpace
-from skcomplex.core.types import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
 class Hebbian(Interaction):
@@ -133,8 +133,8 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import NetworkSpace
-from skcomplex.core.types import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
 class Triads(Interaction):
@@ -439,8 +439,8 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import NetworkSpace
-from skcomplex.core.types import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
 class BondExchange(Interaction):
@@ -600,8 +600,8 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import TopologyRequestSpec, UpdateLaw
 from skcomplex.core.components.laws.utils import neighbors
-from skcomplex.core.systems import System
 from skcomplex.core.components.spaces import NetworkSpace
+from skcomplex.core.systems import System
 
 
 def degree(node):

@@ -1750,8 +1750,8 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.engine.compile import PhaseSpec
 from skcomplex.core.engine.solvers import MesaSolver
-from skcomplex.core.types import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.general.matching import BatchMatchingSpec, MatchingInteraction
 
 
@@ -2234,8 +2234,8 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.errors import RoleElementError
-from skcomplex.core.types import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
 class BitRuleInteraction(Interaction):
