@@ -1,48 +1,35 @@
 """Test the lowering of conserved noise to link processes on lattices, and its validation."""
 
-from typing import Annotated
-
 import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import Element, FieldElement
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import NoiseLaw
 from skcomplex.core.components.spaces import LatticeSpace, NetworkSpace
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine._utils import symbol
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver, HeunSolver, MilsteinSolver
 from skcomplex.core.enums import NoiseKind
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.systems import System
 
 
-class ConservedElement(Element):
-    """Conserved element."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        rho: Annotated[object, StateSpec()] = 0.0,
-        a: Annotated[object, ParameterSpec()] = 2.0,
-    ) -> None:
-        super().__init__(label)
-        self.rho = rho
-        self.a = a
-
-    def _get_laws(self, s):
-        """Return the laws of the conserved element."""
-        return [NoiseLaw(s.rho, s.a, conserved=True)]
+def _conserved(element, amplitude=lambda s: s.target.a):
+    """Return a system of one element with conserved noise of an amplitude."""
+    noise = Interaction(
+        'noise',
+        roles={'target': element.label},
+        laws=lambda s: [NoiseLaw(s.target.rho, amplitude(s), conserved=True)],
+    )
+    return System(elements=[element], interactions=[noise])
 
 
 def _field(shape, boundary='periodic', spacing=1.0):
     """Return a system of one field with conserved noise on a lattice."""
-    space = LatticeSpace(shape, spacing=spacing)
-    return CompositeSystem(
-        elements=[FieldElement('f', element=ConservedElement, space=space, boundary={'rho': boundary})],
-    )
+    space = LatticeSpace(shape, spacing=spacing, boundary={'rho': boundary})
+    return _conserved(Element('f', values={'rho': 0.0, 'a': 2.0}, space=space))
 
 
 def _noise_matrix(problem):
@@ -61,7 +48,7 @@ def test_noise_rejects_conserved_process():
 
 def test_compiler_gives_every_link_two_entries():
     """Test that every link process of a periodic lattice adds `a / h` to one site and takes it from its neighbour."""
-    matrix = _noise_matrix(PassCompiler().prepare(_field((4, 3), spacing=0.5)).run().problem_)
+    matrix = _noise_matrix(_field((4, 3), spacing=0.5).prepare()._problem)
     assert matrix.shape == (12, 24)
     np.testing.assert_allclose(np.sort(matrix, axis=0)[[0, -1]], [[-4.0] * 24, [4.0] * 24])
     np.testing.assert_array_equal(np.count_nonzero(matrix, axis=0), 2)
@@ -70,7 +57,7 @@ def test_compiler_gives_every_link_two_entries():
 
 def test_compiler_leaves_out_outer_links_of_zero_flux_edges():
     """Test that a zero-flux chain draws its inner links and a silent process for the links that leave it."""
-    problem = PassCompiler().prepare(_field((4,), boundary='zero-flux')).run().problem_
+    problem = _field((4,), boundary='zero-flux').prepare()._problem
     matrix = _noise_matrix(problem)
     (block,) = problem.noise_blocks
     np.testing.assert_array_equal(block.factor, [[0.0]])
@@ -81,31 +68,15 @@ def test_compiler_leaves_out_outer_links_of_zero_flux_edges():
 
 def test_compiler_rejects_conserved_amplitude_of_state():
     """Test that a conserved noise whose amplitude reads the field is rejected as out of scope."""
-
-    class MultiplicativeElement(Element):
-        """Multiplicative element."""
-
-        def __init__(
-            self,
-            label: str,
-            *,
-            rho: Annotated[object, StateSpec()] = 1.0,
-        ) -> None:
-            super().__init__(label)
-            self.rho = rho
-
-        def _get_laws(self, s):
-            """Return the laws of the multiplicative element."""
-            return [NoiseLaw(s.rho, s.rho, conserved=True)]
-
-    system = CompositeSystem(elements=[FieldElement('f', element=MultiplicativeElement, space=LatticeSpace((4,)))])
+    field = Element('f', values={'rho': 1.0}, space=LatticeSpace((4,)))
+    system = _conserved(field, lambda s: s.target.rho)
     with pytest.raises(ValidationError, match='reads the states'):
-        PassCompiler().prepare(system).run()
+        system.prepare()
 
 
 def test_validate_reports_conserved_noise_off_lattice():
     """Test that conserved noise on an element that is not a field reports `noise-unsupported` naming lattices."""
-    (issue,) = PassCompiler().prepare(CompositeSystem(elements=[ConservedElement('c')])).report_.issues
+    (issue,) = PassCompiler().prepare(_conserved(Element('c', values={'rho': 0.0, 'a': 2.0}))).report_.issues
     assert issue.code == 'noise-unsupported'
     assert 'c.rho' in issue.message
     assert 'LatticeSpace' in issue.fix
@@ -114,7 +85,7 @@ def test_validate_reports_conserved_noise_off_lattice():
 def test_validate_reports_conserved_noise_on_network():
     """Test that conserved noise on a field of a network reports `noise-unsupported`."""
     space = NetworkSpace(nx.cycle_graph(5))
-    system = CompositeSystem(elements=[FieldElement('f', element=ConservedElement, space=space)])
+    system = _conserved(Element('f', values={'rho': 0.0, 'a': 2.0}, space=space))
     report = PassCompiler().prepare(system).report_
     issues = report.issues
     assert [issue.code for issue in issues] == ['noise-unsupported']
