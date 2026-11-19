@@ -21,13 +21,10 @@ from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element, FieldElement, Member, Period, Quantity
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import (
-    BoundaryLaw,
     ConstraintLaw,
     NoiseLaw,
     RateLaw,
-    Sink,
     TopologyRequestSpec,
-    TransferLaw,
     UpdateLaw,
 )
 from skcomplex.core.components.laws.utils import bernoulli, components, divergence, laplacian, neighbors, where
@@ -35,7 +32,6 @@ from skcomplex.core.components.spaces import (
     BaseSpace,
     CellComplexSpace,
     ContinuousSpace,
-    DiscreteTime,
     FiniteVolumeSpec,
     LatticeSpace,
     LayerSpec,
@@ -43,7 +39,6 @@ from skcomplex.core.components.spaces import (
     RadiusNeighborhood,
 )
 from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from skcomplex.core.engine.runtime import ConservationObserver, simulate
 from skcomplex.core.engine.solvers import AgentView, ETDRK4Solver, IMEXEulerSolver, RK4Solver, SSPRKSolver
 from skcomplex.core.errors import ValidationError
@@ -826,7 +821,7 @@ class Brake(Interaction):
         if isinstance(context, SimpleNamespace):
             cart, t = context.cart, context.t
             speed = cart.x.diff(t)
-            self.laws_: list[BaseComponent] = [RateLaw(speed.diff(t), cart.force), BoundaryLaw(cart.force, -2 * speed)]
+            self.laws_: list[BaseComponent] = [RateLaw(speed.diff(t), cart.force), UpdateLaw(cart.force, -2 * speed)]
 
 
 def test_get_declared_holds_a_value_a_controller_sets_after_every_step():
@@ -912,13 +907,12 @@ def test_get_declared_gives_the_signed_links_of_triadic_percolation():
     space, signs = ready.elements[0].space, ready.elements[1].sign
     nodes = Element('nodes', values={'active': 1}, space=space)
     links = Element('links', values={'active': 1, 'sign': signs}, space=space, on='edges')
-    phases = PhasesScheduleSpec((PhaseSpec('regulation'), PhaseSpec('percolation')))
-    system = CompositeSystem(
+    system = System(
         elements=[nodes, links],
         interactions=[Regulation('regulation', p=0.5), Percolation('percolation')],
-        time=DiscreteTime(schedule=phases),
     )
-    np.testing.assert_array_equal(simulate(system, until=10, random_state=0).get_values('nodes.active'), expected)
+    trajectory = system.prepare().simulate(until=10, random_state=0)
+    np.testing.assert_array_equal(trajectory.get_values('nodes.active'), expected)
 
 
 class Majority(Interaction):
@@ -1048,7 +1042,7 @@ class Extraction(Interaction):
         if isinstance(context, SimpleNamespace):
             stock = context.target.stock
             rate = context.r * stock
-            law = TransferLaw(stock, Sink('society'), rate, label='extracted') if self.flow else RateLaw(stock, -rate)
+            law = RateLaw({stock: -1}, rate, label='extracted') if self.flow else RateLaw(stock, -rate)
             self.laws_ = [law]
 
 
@@ -1058,7 +1052,7 @@ def test_get_declared_reads_the_quantity_of_a_value():
     system = System(elements=[Reserve('reserve')], interactions=[Extraction('extraction')]).prepare()
     trajectory = system.simulate(until=2.0, dt=1.0, observers=[monitor])
     assert monitor.totals_['energy'] == pytest.approx(10.0 * np.exp(-1.0), rel=1e-4)
-    assert trajectory.get_values('extraction.extracted')[-1] == pytest.approx(5.0 * np.exp(-1.0), rel=1e-4)
+    assert trajectory.get_values('reserve.extracted')[-1] == pytest.approx(5.0 * np.exp(-1.0), rel=1e-4)
     burning = System(elements=[Reserve('reserve')], interactions=[Extraction('extraction', flow=False)])
     with pytest.raises(ValidationError, match=r"holds the quantity 'energy'"):
         burning.prepare()
