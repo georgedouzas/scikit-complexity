@@ -1,6 +1,7 @@
 """Test the symbolic analysis of systems."""
 
 import math
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -13,13 +14,11 @@ from skcomplex.core.analysis._symbolic import _MittagLefflerFunction
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, UpdateLaw
-from skcomplex.core.components.laws.utils import derivative, lag
+from skcomplex.core.components.laws.utils import fractional
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.common.populations import LogisticGrowthInteraction, PopulationElement
 from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 from skcomplex.systems.biology.epidemiology import RecoveryInteraction
@@ -39,59 +38,42 @@ from ...conftest import BodyElement, CallableGrowthInteraction, HoldingElement
 class AmountElement(Element):
     """Element that holds one nonnegative scalar `x`, an amount."""
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-    ) -> None:
+    def __init__(self, label: str, *, x: Annotated[float, RealSet.closed_open(0, oo)] = 0.0) -> None:
         super().__init__(label)
         self.x = x
 
 
-class RelaxingElement(Element):
-    """Element whose state relaxes with a Caputo derivative of order 0.6."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[float, StateSpec(order=0.6)] = 2.0,
-        lam: Annotated[float, ParameterSpec()] = 0.5,
-    ) -> None:
-        super().__init__(label)
-        self.x = x
-        self.lam = lam
-
-    def _get_laws(self, s):
-        """Return the relaxation rate."""
-        return [RateLaw(s.x, -s.lam * s.x)]
+def _system(element, rates):
+    """Return a system of one element whose laws are a function of the namespace of its role `target`."""
+    return System(elements=[element], interactions=[Interaction('laws', roles={'target': element.label}, laws=rates)])
 
 
-class SaturatingElement(Element):
-    """Element whose fractional state follows a nonlinear law."""
+def _relaxing():
+    """Return a value that relaxes with a Caputo derivative of order 0.6."""
+    element = Element('r', values={'x': 2.0, 'lam': 0.5})
+    return _system(element, lambda s: [RateLaw(fractional(s.target.x, 0.6), -s.target.lam * s.target.x)])
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[float, StateSpec(order=0.6)] = 0.5,
-    ) -> None:
-        super().__init__(label)
-        self.x = x
 
-    def _get_laws(self, s):
-        """Return the logistic rate."""
-        return [RateLaw(s.x, s.x * (1 - s.x))]
+def _saturating():
+    """Return a fractional value that follows a nonlinear law."""
+    element = Element('s', values={'x': 0.5})
+    return _system(element, lambda s: [RateLaw(fractional(s.target.x, 0.6), s.target.x * (1 - s.target.x))])
+
+
+def _free_particle(*interactions):
+    """Return a body at a position of one component on a line, with no force on it but the interactions given."""
+    free = Interaction('free', roles={'target': 'p'}, laws=lambda s: [RateLaw(s.target.x.diff(s.t, 2), 0)])
+    interactions = interactions or (free,)
+    return System(elements=[BodyElement('p', x=[0.0])], interactions=list(interactions), space=ContinuousSpace(n_dim=1))
 
 
 def test_equations_of_logistic_growth():
     """Test that logistic growth gives `dn/dt = r * n * (1 - n / K)`."""
-    system = CompositeSystem(
+    system = System(
         elements=[PopulationElement('p', x=10)],
         interactions=[LogisticGrowthInteraction('g', target='p')],
     )
-    problem = PassCompiler().prepare(system).run().problem_
+    problem = system.prepare()._problem
     n = function('x_p')(problem.time)
     r, K = problem.symbols['g.r'], problem.symbols['g.K']
     equation = symbolic(system).equations['p.x']
@@ -102,9 +84,9 @@ def test_equations_of_logistic_growth():
 
 def test_equations_of_discrete_map_gives_next_value():
     """Test that a discrete map gives the value at `t + 1`."""
-    system = CompositeSystem(elements=[MarketElement('m')], interactions=[CobwebInteraction('c', target='m')])
+    system = System(elements=[MarketElement('m')], interactions=[CobwebInteraction('c', target='m')])
     equation = symbolic(system).equations['m.price']
-    t = PassCompiler().prepare(system).run().problem_.time
+    t = system.prepare()._problem.time
     assert bool(equation.lhs() == function('price_m')(t + 1))
 
 
@@ -116,7 +98,7 @@ def test_equations_of_group_with_numeric_derivatives_raises_error():
 
 def test_equations_of_jump_process_raises_error():
     """Test that jump processes have no symbolic equations."""
-    system = CompositeSystem(
+    system = System(
         elements=[AmountElement('I', x=1), AmountElement('R')],
         interactions=[RecoveryInteraction('r', infected='I', recovered='R', stochastic=True)],
     )
@@ -126,9 +108,9 @@ def test_equations_of_jump_process_raises_error():
 
 def test_solve_symbolically_free_particle():
     """Test that a free particle moves linearly with two integration constants."""
-    system = CompositeSystem(elements=[BodyElement('p')], space=ContinuousSpace(n_dim=1))
+    system = _free_particle()
     solution = symbolic(system, kind='solve').solutions['p.x[0]']
-    t = PassCompiler().prepare(system).run().problem_.time
+    t = system.prepare()._problem.time
     slope, start = solution.rhs().diff(t), solution.rhs().subs({t: 0})
     assert solution.rhs().diff(t, 2) == 0
     assert not slope.is_numeric()
@@ -138,12 +120,8 @@ def test_solve_symbolically_free_particle():
 
 def test_solve_symbolically_constant_acceleration():
     """Test that a constant force gives `F * t**2 / (2 * m)` from rest."""
-    system = CompositeSystem(
-        elements=[BodyElement('p')],
-        interactions=[ConstantForceInteraction('push', target='p', F=3.0)],
-        space=ContinuousSpace(n_dim=1),
-    )
-    problem = PassCompiler().prepare(system).run().problem_
+    system = _free_particle(ConstantForceInteraction('push', target='p', F=3.0))
+    problem = system.prepare()._problem
     F = problem.symbols['push.F']
     m = problem.symbols['p.m']
     solution = symbolic(system, kind='solve', use_initial_state=True).solutions['p.x[0]']
@@ -152,12 +130,12 @@ def test_solve_symbolically_constant_acceleration():
 
 def test_solve_symbolically_harmonic_oscillator():
     """Test that an oscillator from its initial state oscillates with frequency `sqrt(k / m)`."""
-    system = CompositeSystem(
-        elements=[BodyElement('p', x=1.0, x_d1=0.0)],
+    system = System(
+        elements=[BodyElement('p', x=[1.0], values={"x'": [0.0]})],
         interactions=[HarmonicPotentialInteraction('trap', target='p')],
         space=ContinuousSpace(n_dim=1),
     )
-    problem = PassCompiler().prepare(system).run().problem_
+    problem = system.prepare()._problem
     k, m, t = problem.symbols['trap.k'], problem.symbols['p.m'], problem.time
     center = problem.symbols['trap.center']
     solution = symbolic(system, kind='solve', use_initial_state=True).solutions['p.x[0]'].rhs().subs({center: 0})
@@ -171,7 +149,7 @@ def test_solve_symbolically_harmonic_oscillator():
 
 def test_solve_symbolically_not_ode_raises_error():
     """Test that only ODE systems are solved."""
-    system = CompositeSystem(
+    system = System(
         elements=[AssetElement('s')],
         interactions=[GeometricBrownianMotionInteraction('g', target='s')],
     )
@@ -181,7 +159,7 @@ def test_solve_symbolically_not_ode_raises_error():
 
 def test_solve_symbolically_callable_raises_error():
     """Test that callable laws cannot be solved."""
-    system = CompositeSystem(
+    system = System(
         elements=[HoldingElement('rabbits', n=1.0)],
         interactions=[CallableGrowthInteraction('g', target='rabbits')],
     )
@@ -192,150 +170,71 @@ def test_solve_symbolically_callable_raises_error():
 def test_sage_expression_compiles_like_number():
     """Test that a constant force given as a Sage expression simulates like the same force given as a number."""
     force = SR(2) * SR(1.5)
-    system = CompositeSystem(
-        elements=[BodyElement('p')],
-        interactions=[ConstantForceInteraction('push', target='p', F=float(force))],
-        space=ContinuousSpace(n_dim=1),
-    )
+    system = _free_particle(ConstantForceInteraction('push', target='p', F=float(force)))
 
     class SageForceInteraction(Interaction):
         """Force written as a Sage expression."""
 
-        def __init__(
-            self,
-            label: str,
-            *,
-            target: Annotated[str, RoleSpec()],
-        ) -> None:
+        def __init__(self, label: str, *, target: Role) -> None:
             super().__init__(label)
             self.target = target
 
-        def _get_laws(self, s):
-            """Return a rate with a Sage value."""
-            return [RateLaw(s.target.x, [force])]
+        def _prepare(self, context=None):
+            """Set an acceleration with a Sage value."""
+            super()._prepare(context)
+            if isinstance(context, SimpleNamespace):
+                self.laws_ = [RateLaw(context.target.x.diff(context.t, 2), [force])]
 
-    sage_system = CompositeSystem(
-        elements=[BodyElement('p')],
-        interactions=[SageForceInteraction('push', target='p')],
-        space=ContinuousSpace(n_dim=1),
-    )
-    expected = simulate(system, until=1).get_values('p.x')
-    result = simulate(sage_system, until=1).get_values('p.x')
+    sage_system = _free_particle(SageForceInteraction('push', target='p'))
+    expected = system.prepare().simulate(until=1).get_values('p.x')
+    result = sage_system.prepare().simulate(until=1).get_values('p.x')
     assert np.allclose(expected, result)
 
 
-class PendulumElement(Element):
-    """Pendulum element."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        theta: Annotated[object, StateSpec(order=2)] = 0.1,
-        theta_d1: float = 0.0,
-        g: Annotated[object, ParameterSpec()] = 9.81,
-        l: Annotated[object, ParameterSpec()] = 1.0,
-    ) -> None:
-        super().__init__(label)
-        self.theta = theta
-        self.theta_d1 = theta_d1
-        self.g = g
-        self.l = l
-
-    def _get_laws(self, s):
-        """Return the laws of the pendulum element."""
-        return [RateLaw(s.theta, -(s.g / s.l) * sin(s.theta))]
+def _pendulum(rates, theta=0.1):
+    """Return a pendulum `bob` of length `l` under the gravity `g`, whose angle follows rates of the namespace."""
+    return _system(Element('bob', values={'theta': theta, "theta'": 0.0, 'g': 9.81, 'l': 1.0}), rates)
 
 
-class SmallAngleElement(Element):
-    """Small angle element."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        theta: Annotated[object, StateSpec(order=2)] = 0.1,
-        theta_d1: float = 0.0,
-        g: Annotated[object, ParameterSpec()] = 9.81,
-        l: Annotated[object, ParameterSpec()] = 1.0,
-    ) -> None:
-        super().__init__(label)
-        self.theta = theta
-        self.theta_d1 = theta_d1
-        self.g = g
-        self.l = l
-
-    def _get_laws(self, s):
-        """Return the laws of the small angle element."""
-        return [RateLaw(s.theta, -(s.g / s.l) * s.theta)]
+def _pendulum_rates(s):
+    """Return the second derivative of the angle of a pendulum."""
+    bob = s.target
+    return [RateLaw(bob.theta.diff(s.t, 2), -(bob.g / bob.l) * sin(bob.theta))]
 
 
-class ThirdOrderElement(Element):
-    """Third order element."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[object, StateSpec(order=3, initial=(1.0, 0.0))] = 0.0,
-        x_d2: float = 0.0,
-        x_d1: float = 1.0,
-    ) -> None:
-        super().__init__(label)
-        self.x = x
-        self.x_d2 = x_d2
-        self.x_d1 = x_d1
-
-    def _get_laws(self, s):
-        """Return the laws of the third order element."""
-        return [RateLaw(s.x, -derivative(s.x, 1))]
+def _small_angle_rates(s):
+    """Return the second derivative of the angle of a pendulum at small angles."""
+    bob = s.target
+    return [RateLaw(bob.theta.diff(s.t, 2), -(bob.g / bob.l) * bob.theta)]
 
 
-class FirstOrderPendulumElement(Element):
-    """First order pendulum element."""
+def _first_order_pendulum():
+    """Return a pendulum written as two first order equations of its angle and its angular velocity."""
+    bob = Element('bob', values={'theta': 0.1, 'omega': 0.0, 'g': 9.81, 'l': 1.0})
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        theta: Annotated[object, StateSpec()] = 0.1,
-        omega: Annotated[object, StateSpec()] = 0.0,
-        g: Annotated[object, ParameterSpec()] = 9.81,
-        l: Annotated[object, ParameterSpec()] = 1.0,
-    ) -> None:
-        super().__init__(label)
-        self.theta = theta
-        self.omega = omega
-        self.g = g
-        self.l = l
+    def rates(s):
+        """Return the rates of the angle and of the angular velocity."""
+        target = s.target
+        return [RateLaw(target.theta, target.omega), RateLaw(target.omega, -(target.g / target.l) * sin(target.theta))]
 
-    def _get_laws(self, s):
-        """Return the laws of the first order pendulum element."""
-        return [RateLaw(s.theta, s.omega), RateLaw(s.omega, -(s.g / s.l) * sin(s.theta))]
+    return _system(bob, rates)
 
 
-class FibonacciElement(Element):
-    """Fibonacci element."""
+def _third_order():
+    """Return the third order equation of `x` whose third derivative is minus its first, from `sin(0)`."""
+    element = Element('a', values={'x': 0.0, "x'": 1.0, "x''": 0.0})
+    return _system(element, lambda s: [RateLaw(s.target.x.diff(s.t, 3), -s.target.x.diff(s.t))])
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[object, StateSpec(lags=1, initial=(1.0,))] = 1.0,
-        x_lag1: float = 1.0,
-    ) -> None:
-        super().__init__(label)
-        self.x = x
-        self.x_lag1 = x_lag1
 
-    def _get_laws(self, s):
-        """Return the laws of the fibonacci element."""
-        return [UpdateLaw(s.x, s.x + lag(s.x, 1))]
+def _fibonacci():
+    """Return the Fibonacci numbers, each the sum of the two before."""
+    element = Element('f', values={'x': 1.0, 'x[-1]': 1.0})
+    return _system(element, lambda s: [UpdateLaw(s.target.x, s.target.x + s.target.x(t=s.t - 1))])
 
 
 def test_pendulum_equation_keeps_its_order():
     """Test that a pendulum of order 2 gives one second-order equation and no separate velocity equation."""
-    equations = symbolic(CompositeSystem(elements=[PendulumElement('bob')])).equations
+    equations = symbolic(_pendulum(_pendulum_rates)).equations
     assert list(equations) == ['bob.theta']
     theta = function('theta_bob')(SR.var('t'))
     g, l = SR.var('g_bob'), SR.var('l_bob')
@@ -346,7 +245,7 @@ def test_pendulum_equation_keeps_its_order():
 
 def test_lagged_equation_reads_past_values():
     """Test that a difference equation with a lag reads the value one step back."""
-    equation = symbolic(CompositeSystem(elements=[FibonacciElement('f')])).equations['f.x']
+    equation = symbolic(_fibonacci()).equations['f.x']
     t = SR.var('t')
     x = function('x_f')
     assert bool(equation.lhs() == x(t + 1))
@@ -356,7 +255,7 @@ def test_lagged_equation_reads_past_values():
 def test_small_angle_pendulum_solved_with_plain_numbers():
     """Test that `θ'' = -(g / l) θ` with plain positive numbers solves to `0.1 cos(sqrt(g / l) t)`."""
     solution = symbolic(
-        CompositeSystem(elements=[SmallAngleElement('bob')]),
+        _pendulum(_small_angle_rates),
         kind='solve',
         use_initial_state=True,
     ).solutions['bob.theta']
@@ -369,7 +268,7 @@ def test_small_angle_pendulum_solved_with_plain_numbers():
 def test_third_order_equation_solved():
     """Test that `x''' = -x'` from `x = 0`, `x' = 1`, `x'' = 0` solves to `sin(t)`."""
     solution = symbolic(
-        CompositeSystem(elements=[ThirdOrderElement('a')]),
+        _third_order(),
         kind='solve',
         use_initial_state=True,
     ).solutions['a.x']
@@ -379,41 +278,23 @@ def test_third_order_equation_solved():
 
 
 @pytest.mark.parametrize(
-    'element',
-    [PendulumElement('bob'), FirstOrderPendulumElement('bob')],
+    'system',
+    [_pendulum(_pendulum_rates), _first_order_pendulum()],
     ids=['second-order', 'first-order'],
 )
-def test_nonlinear_pendulum_has_no_false_solution(element):
+def test_nonlinear_pendulum_has_no_false_solution(system):
     """Test that the nonlinear pendulum raises the no-closed-form error instead of returning unevaluated transforms."""
     with pytest.raises(AnalysisError, match='No closed form was found'):
-        symbolic(CompositeSystem(elements=[element]), kind='solve', use_initial_state=True)
+        symbolic(system, kind='solve', use_initial_state=True)
 
 
 def test_remaining_sign_question_names_parameter():
     """Test that a sign Maxima still needs raises an error that names the parameter and the domain to declare."""
 
-    class SpringElement(Element):
-        """Spring element."""
-
-        def __init__(
-            self,
-            label: str,
-            *,
-            x: Annotated[object, StateSpec(order=2)] = 0.1,
-            x_d1: float = 0.0,
-            k: Annotated[object, ParameterSpec()] = 0.0,
-        ) -> None:
-            super().__init__(label)
-            self.x = x
-            self.x_d1 = x_d1
-            self.k = k
-
-        def _get_laws(self, s):
-            """Return the laws of the spring element."""
-            return [RateLaw(s.x, -s.k * s.x)]
-
+    spring = Element('a', values={'x': 0.1, "x'": 0.0, 'k': 0.0})
+    system = _system(spring, lambda s: [RateLaw(s.target.x.diff(s.t, 2), -s.target.k * s.target.x)])
     with pytest.raises(AnalysisError, match=r'sign of k_a.*domain=RealSet'):
-        symbolic(CompositeSystem(elements=[SpringElement('a')]), kind='solve', use_initial_state=True)
+        symbolic(system, kind='solve', use_initial_state=True)
 
 
 def test_symbolic_refuses_rewriting_systems_with_an_analysis_error():
@@ -487,7 +368,7 @@ def test_mittag_leffler_rejects_nonpositive_alpha():
 
 def test_solve_symbolically_fractional_relaxation():
     """Test that linear fractional relaxation is solved by the Mittag-Leffler function of its order."""
-    system = CompositeSystem(elements=[RelaxingElement('r')])
+    system = _relaxing()
     solution = symbolic(system, kind='solve', use_initial_state=True).solutions['r.x']
     assert str(solution) == 'x_r(t) == 2*mittag_leffler(3/5, 1, -lam_r*t^(3/5))'
     symbols = {str(item): item for item in solution.rhs().variables()}
@@ -501,16 +382,13 @@ def test_solve_symbolically_fractional_relaxation():
 
 def test_equations_of_fractional_state_write_caputo_derivative():
     """Test that the equation of a fractional state writes its Caputo derivative of the exact order."""
-    assert (
-        str(symbolic(CompositeSystem(elements=[RelaxingElement('r')])).equations['r.x'])
-        == 'caputo(x_r(t), t, 3/5) == -lam_r*x_r(t)'
-    )
+    assert str(symbolic(_relaxing()).equations['r.x']) == 'caputo(x_r(t), t, 3/5) == -lam_r*x_r(t)'
 
 
 def test_solve_symbolically_rejects_nonlinear_fractional_law():
     """Test that a nonlinear fractional law has no exact solution."""
     with pytest.raises(AnalysisError, match='linear fractional relaxation'):
-        symbolic(CompositeSystem(elements=[SaturatingElement('s')]), kind='solve')
+        symbolic(_saturating(), kind='solve')
 
 
 def test_mittag_leffler_of_order_one_half_at_minus_one():
