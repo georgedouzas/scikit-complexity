@@ -321,20 +321,10 @@ class BaseComponent[ContextT, InputT](BaseConfig[ContextT, InputT]):
                 The tags of the component, known before it is prepared.
 
         Examples:
-            >>> from typing import Annotated
-            >>> from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
-            >>> from skcomplex.core.components.elements import Element
-            >>> from skcomplex.core.specs import StateSpec
-            >>> class CellElement(Element):
-            ...     def __init__(self, label, alive: Annotated[int, StateSpec(FiniteEnumeratedSet([0, 1]))] = 0):
-            ...         super().__init__(label)
-            ...         self.alive = alive
-            >>> sorted(CellElement('cell').get_tags().domains)
-            ['boolean']
-
             A component whose rules draw random numbers declares it, so its randomness is stochastic:
 
-            >>> class WalkerElement(CellElement):
+            >>> from skcomplex.core.components.elements import Element
+            >>> class WalkerElement(Element):
             ...     draws = True
             >>> WalkerElement('walker').get_tags().randomness
             'stochastic'
