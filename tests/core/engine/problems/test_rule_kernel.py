@@ -8,17 +8,17 @@ import pytest
 from sage.all__sagemath_gap import PermutationGroup, libgap
 from sage.all__sagemath_symbolics import ZZ
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import LocalRuleInteraction
-from skcomplex.core.components.laws import TotalisticSpec
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import TotalisticSpec, UpdateLaw
 from skcomplex.core.components.spaces import (
+    BaseSpace,
     LatticeNeighborhood,
     LatticeSpace,
 )
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import PowerSeriesSpec, StateSpec
+from skcomplex.core.specs import PowerSeriesSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.computer_science.automata import PowerSeriesCellElement
 from skcomplex.systems.computer_science.common.automata import CayleySpace, StateTranslationNeighborhood
 
@@ -29,31 +29,31 @@ FORWARD = LatticeNeighborhood(((0,), (1,)))
 class GroupValuedElement(Element):
     """Cell that holds a group element by the number of its site."""
 
-    def __init__(self, label, *, value: Annotated[float, StateSpec(domain=ZZ)] = 0):
-        super().__init__(label)
+    def __init__(self, label, *, value: Annotated[int, ZZ] = 0, space: BaseSpace | None = None):
+        super().__init__(label, space=space)
         self.value = value
+
+
+def _local_rule(label, rule, neighborhood, schedule=None):
+    """Return the interaction of a local rule of the value of the cells over a neighbourhood."""
+    return Interaction(
+        label,
+        roles={'target': 'cells'},
+        laws=lambda s: [UpdateLaw(s.target.value, rule, neighborhood=neighborhood, schedule=schedule)],
+    )
 
 
 def _translated(space, values, schedule='synchronous', rule=lambda value: value):
     """Return the system of a rule over the memory translated by the values of the cells."""
-    return CompositeSystem(
-        elements=[GroupElement('cells', element=GroupValuedElement, space=space, values={'value': values}, on='sites')],
-        interactions=[
-            LocalRuleInteraction(
-                'shift',
-                target='cells',
-                state='value',
-                rule=rule,
-                neighborhood=StateTranslationNeighborhood(),
-                schedule=schedule,
-            ),
-        ],
+    return System(
+        elements=[GroupValuedElement('cells', value=values, space=space)],
+        interactions=[_local_rule('shift', rule, StateTranslationNeighborhood(), schedule)],
     )
 
 
 def _values(system, until, schedule_random_state=0):
     """Return the values of the cells at every step of a run."""
-    trajectory = simulate(system, until=until, dt=1, random_state=schedule_random_state)
+    trajectory = system.prepare().simulate(until=until, dt=1, random_state=schedule_random_state)
     return trajectory.get_values('cells.value')
 
 
@@ -103,7 +103,7 @@ def test_translated_memory_rejects_colorings_and_lookups_of_series():
     """Test that a colored schedule, which needs a fixed table, is rejected with a translated memory."""
     space = CayleySpace(SYMMETRIC).prepare()
     with pytest.raises(ValidationError, match='neither degrees nor a coloring'):
-        simulate(_translated(space, np.zeros(space.size_), schedule='colored'), until=0)
+        _translated(space, np.zeros(space.size_), schedule='colored').prepare().simulate(until=0)
 
 
 def test_function_rule_updates_a_power_series_state():
@@ -115,19 +115,9 @@ def test_function_rule_updates_a_power_series_state():
     def difference(here, right):
         return here - ring.multiply(ring.get_coefficients_of('t'), right)
 
-    system = CompositeSystem(
-        elements=[
-            GroupElement(
-                'cells',
-                element=PowerSeriesCellElement,
-                space=LatticeSpace(6),
-                values={'ring': ring, 'value': values},
-                on='sites',
-            ),
-        ],
-        interactions=[
-            LocalRuleInteraction('difference', target='cells', state='value', rule=difference, neighborhood=FORWARD),
-        ],
+    system = System(
+        elements=[PowerSeriesCellElement('cells', ring=ring, value=values, space=LatticeSpace(6))],
+        interactions=[_local_rule('difference', difference, FORWARD)],
     )
     final = _values(system, 3)[-1]
     expected = np.zeros((6, 4))
@@ -137,17 +127,9 @@ def test_function_rule_updates_a_power_series_state():
 
 def test_lookup_rules_reject_power_series_states():
     """Test that a totalistic rule cannot read a state of several components."""
-    system = CompositeSystem(
-        elements=[GroupElement('cells', element=PowerSeriesCellElement, space=LatticeSpace(5), on='sites')],
-        interactions=[
-            LocalRuleInteraction(
-                'sum',
-                target='cells',
-                state='value',
-                rule=TotalisticSpec({1: 1}),
-                neighborhood=FORWARD,
-            ),
-        ],
+    system = System(
+        elements=[PowerSeriesCellElement('cells', value=np.zeros((5, 8)), space=LatticeSpace(5))],
+        interactions=[_local_rule('sum', TotalisticSpec({1: 1}), FORWARD)],
     )
     with pytest.raises(ValidationError, match='one component'):
-        simulate(system, until=0)
+        system.prepare().simulate(until=0)
