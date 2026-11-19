@@ -19,9 +19,10 @@ class BaseObserver(BaseConfig[BaseProblemSpec, FrameSpec]):
     and `_release`.
 
     Examples:
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.runtime import BaseObserver, simulate
-        >>> from skcomplex.systems.biology.common.populations import PopulationElement
+        >>> from skcomplex.core.systems import System
+        >>> from skcomplex.core.engine.runtime import BaseObserver
+        >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
+        >>> growth = ExponentialGrowthInteraction('growth', target='a')
         >>> class CountingObserver(BaseObserver):
         ...     def _prepare(self, context):
         ...         self.count_ = 0
@@ -29,7 +30,8 @@ class BaseObserver(BaseConfig[BaseProblemSpec, FrameSpec]):
         ...     def _run(self, inputs):
         ...         self.count_ += inputs is not None
         >>> observer = CountingObserver()
-        >>> _ = simulate(CompositeSystem(elements=[PopulationElement('a')]), until=3, dt=1, observers=[observer])
+        >>> system = System(elements=[PopulationElement('a')], interactions=[growth]).prepare()
+        >>> _ = system.simulate(until=3, dt=1, observers=[observer])
         >>> observer.count_
         4
     """

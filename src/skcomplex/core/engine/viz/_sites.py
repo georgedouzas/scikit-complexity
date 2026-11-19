@@ -194,16 +194,15 @@ class SiteVisual(BaseVisual):
             >>> from skcomplex.core.components.elements import Element, GroupElement
             >>> from skcomplex.core.components.spaces import NetworkSpace
             >>> from skcomplex.core.specs import StateSpec
-            >>> from skcomplex.core.components.systems import CompositeSystem
-            >>> from skcomplex.core.engine.runtime import simulate
+            >>> from skcomplex.core.systems import System
             >>> from skcomplex.core.engine.viz import SiteVisual
             >>> class NodeElement(Element):
             ...     def __init__(self, label, value: Annotated[float, StateSpec()] = 0.0):
             ...         super().__init__(label)
             ...         self.value = value
             >>> nodes = GroupElement('nodes', element=NodeElement, space=NetworkSpace(nx.cycle_graph(4)), on='sites')
-            >>> system = CompositeSystem(elements=[nodes])
-            >>> problem = simulate(system, until=0).problem
+            >>> system = System(elements=[nodes])
+            >>> problem = system.prepare().simulate(until=0).problem
             >>> views = SiteVisual(path=problem.elements[0].path).prepare(problem).views_
             >>> [type(view).__name__ for view in views]
             ['GraphView']

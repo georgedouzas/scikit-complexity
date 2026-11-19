@@ -63,10 +63,10 @@ class OperatorProblemSpec(BaseProblemSpec):
 
     Examples:
         >>> from skcomplex.core.components.elements import GroupElement
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.core.engine.compile import OperatorCompiler
         >>> from skcomplex.systems.physics.common.quantum import QubitElement
-        >>> system = CompositeSystem(elements=[GroupElement('pair', element=QubitElement, size=2)])
+        >>> system = System(elements=[GroupElement('pair', element=QubitElement, size=2)])
         >>> problem = OperatorCompiler().prepare(system).run().problem_
         >>> problem.dimensions, problem.subsystems
         ((2, 2), ('pair[0]', 'pair[1]'))

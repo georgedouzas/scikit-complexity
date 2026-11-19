@@ -243,10 +243,9 @@ class AgentsVisual(BaseVisual):
                 position state.
 
         Examples:
-            >>> from skcomplex.core.engine.runtime import simulate
             >>> from skcomplex.core.engine.viz import AgentsVisual
             >>> from skcomplex.systems.social.opinion_dynamics import VoterSystem
-            >>> problem = simulate(VoterSystem(), until=0).problem
+            >>> problem = VoterSystem().prepare().simulate(until=0).problem
             >>> type(AgentsVisual(path=problem.agents[0].path).prepare(problem).views_[0]).__name__
             'GraphView'
         """

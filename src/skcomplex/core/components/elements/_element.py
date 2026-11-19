@@ -84,8 +84,7 @@ class Element(BaseElement):
         >>> from typing import Annotated
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.laws import RateLaw
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.core.specs import ParameterSpec, StateSpec
         >>> class GrowthElement(Element):
         ...     law_classes = (RateLaw,)
@@ -101,7 +100,7 @@ class Element(BaseElement):
         ...         return [RateLaw(namespace.x, namespace.r * namespace.x)]
         >>> rabbits = GrowthElement('rabbits', x=40.0, r=0.5)
         >>> deposit = GrowthElement('deposit', x=250.0, r=0.05)
-        >>> trajectory = simulate(CompositeSystem(elements=[rabbits, deposit]), until=1, dt=1.0)
+        >>> trajectory = System(elements=[rabbits, deposit]).prepare().simulate(until=1, dt=1.0)
         >>> trajectory.get_values('rabbits.x').round(1).tolist(), trajectory.get_values('deposit.x').round(2).tolist()
         ([40.0, 65.9], [250.0, 262.82])
     """

@@ -110,15 +110,15 @@ class NumbaBackend(BaseBackend):
             the compiled loops of jump processes and discrete maps call once per event always run serially.
 
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
-        >>> system = CompositeSystem(
-        ...     elements=[GroupElement('herds', element=PopulationElement, size=2, values={'x': [1.0, 2.0]})],
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.systems import System
+        >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction
+        >>> system = System(
+        ...     elements=[Element('herds', values={'x': [1.0, 2.0]}, size=2)],
         ...     interactions=[ExponentialGrowthInteraction('growth', target='herds', r=3.0)],
+        ...     backend=NumbaBackend(),
         ... )
-        >>> problem = simulate(system, until=0, backend=NumbaBackend()).problem
+        >>> problem = system.prepare().simulate(until=0).problem
         >>> problem.drift(0.0, problem.initial_state, problem.initial_parameters).tolist()
         [3.0, 6.0]
     """

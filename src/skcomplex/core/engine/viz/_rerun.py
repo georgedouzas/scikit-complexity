@@ -140,20 +140,19 @@ class RerunObserver(BaseObserver):
     Examples:
         >>> import tempfile
         >>> from pathlib import Path
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.viz import RerunObserver
-        >>> system = CompositeSystem(
+        >>> system = System(
         ...     elements=[PopulationElement('a', x=1)],
         ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ... )
         >>> path = Path(tempfile.mkdtemp()) / 'growth.rrd'
-        >>> _ = simulate(system, until=1, dt=0.1, observers=[RerunObserver('growth', save_path=path)])
+        >>> _ = system.prepare().simulate(until=1, dt=0.1, observers=[RerunObserver('growth', save_path=path)])
         >>> path.exists()
         True
         >>> observer = RerunObserver('growth', save_path=path, blueprint='default')
-        >>> _ = simulate(system, until=1, dt=0.1, observers=[observer])
+        >>> _ = system.prepare().simulate(until=1, dt=0.1, observers=[observer])
         >>> path.with_suffix('.rbl').exists()
         True
 

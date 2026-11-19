@@ -109,14 +109,14 @@ def invariants(
         >>> from skcomplex.core.components import Observable
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.interactions import RateInteraction
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.core.specs import StateSpec
         >>> class OscillatorElement(Element):
         ...     def __init__(self, label, q: Annotated[float, StateSpec()] = 1.0, p: Annotated[float, StateSpec()] = 0):
         ...         super().__init__(label)
         ...         self.q = q
         ...         self.p = p
-        >>> system = CompositeSystem(
+        >>> system = System(
         ...     elements=[OscillatorElement('mass')],
         ...     interactions=[
         ...         RateInteraction('position', target='mass', state='q', rate=lambda s: s.target.p),
