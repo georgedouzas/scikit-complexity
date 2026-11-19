@@ -1,27 +1,16 @@
 """Test the `_renormalization` module of `skcomplex.core.analysis`."""
 
-from typing import Annotated
-
 import networkx as nx
 import numpy as np
 import pytest
 
 from skcomplex.core.analysis import renormalization
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import TopologyInteraction
-from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import TopologyRequestSpec, UpdateLaw
+from skcomplex.core.components.spaces import NetworkSpace
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.specs import StateSpec
-
-
-class AngleElement(Element):
-    """Node with an angle."""
-
-    def __init__(self, label: str, *, angle: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.angle = angle
+from skcomplex.core.systems import System
 
 
 def _two_blocks(size: int = 20) -> nx.Graph:
@@ -124,12 +113,13 @@ def test_run_measures_every_scale():
 
 def test_prepare_reads_the_last_frame_of_a_trajectory_with_its_node_states():
     """Test that a growing network gives the graph of its last frame with the values of its group on the nodes."""
-    nodes = GroupElement('nodes', element=AngleElement, on='sites', variable=True, capacity=20)
-    links = GroupElement('links', element=Element, on='edges', variable=True, capacity=40)
-    growth = TopologyInteraction('growth', action='add-node', values={'angle': lambda rng: rng.uniform(0.0, 6.0)})
     space = NetworkSpace(nx.complete_graph(2))
-    system = CompositeSystem(elements=[nodes, links], interactions=[growth], space=space, time=DiscreteTime())
-    trajectory = simulate(system, until=6, random_state=0)
+    nodes = Element('nodes', values={'angle': [0.0, 0.0]}, space=space)
+    links = Element('links', space=space, on='edges')
+    request = TopologyRequestSpec('add-node', values=(('angle', lambda rng: rng.uniform(0.0, 6.0)),))
+    growth = Interaction('growth', laws=[UpdateLaw(request, 1)])
+    system = System(elements=[nodes, links], interactions=[growth])
+    trajectory = system.prepare().simulate(until=6, random_state=0)
     analysis = renormalization(trajectory, kind='geometric', steps=1)
     assert analysis.graphs[0].number_of_nodes() == 8
     assert analysis.graphs[1].number_of_nodes() == 4
