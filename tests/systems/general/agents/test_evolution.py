@@ -1,36 +1,36 @@
 """Test the `_evolution` module of `skcomplex.systems.general.agents`."""
 
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import BaseLaw, RuleLaw
-from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
-from skcomplex.core.engine.runtime import Trajectory, simulate
-from skcomplex.core.engine.solvers import AgentView, SystemView
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.engine.compile import PhaseSpec
+from skcomplex.core.engine.runtime import Trajectory
+from skcomplex.core.engine.solvers import AgentView, MesaSolver, SystemView
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import RoleSpec, StateSpec
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 from skcomplex.systems.general.agents import EvolutionInteraction
 
 NEUTRAL_RUNS = 100
 
 
 class TypeElement(Element):
-    """Member with a strategy and a fitness that no rule of its own changes."""
+    """Members with a strategy and a fitness that no rule of their own changes."""
 
     def __init__(
         self,
         label: str,
         *,
-        strategy: Annotated[object, StateSpec()] = 0.0,
-        fitness: Annotated[float, StateSpec()] = 1.0,
+        strategy: object = 0.0,
+        fitness: float = 1.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.strategy = strategy
         self.fitness = fitness
 
@@ -43,16 +43,17 @@ class BitStringView(AgentView):
 
 
 class BitStringElement(Element):
-    """Member whose fitness is the count of ones of its strategy."""
+    """Members with a strategy of bits and a fitness."""
 
     def __init__(
         self,
         label: str,
         *,
-        strategy: Annotated[object, StateSpec()] = 0.0,
-        fitness: Annotated[float, StateSpec()] = 0.0,
+        strategy: object = 0.0,
+        fitness: float = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.strategy = strategy
         self.fitness = fitness
 
@@ -61,9 +62,19 @@ class BitStringElement(Element):
         """Return the view of a member, which types its states."""
         return BitStringView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the scoring of the strategy."""
-        return [RuleLaw(self.score, phase='scoring')]
+
+class ScoringInteraction(Interaction):
+    """Scoring that sets the fitness of every member to the count of ones of its strategy."""
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context=None):
+        """Set the scoring of the strategy in its phase."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [UpdateLaw(context.target, self.score, phase='scoring')]
 
     def score(self, agent: BitStringView, system: SystemView) -> None:
         """Set the fitness to the count of ones."""
@@ -77,7 +88,7 @@ class AliasEvolutionInteraction(EvolutionInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         renamed: str,
         alias: float,
         phase: str | None = None,
@@ -95,10 +106,13 @@ class AliasEvolutionInteraction(EvolutionInteraction):
 
 def _run_evolution(evolution: EvolutionInteraction, strategies: np.ndarray, until: int, seed: int) -> Trajectory:
     """Return the trajectory of a group of bit strings that evolve after every scoring."""
-    group = GroupElement('agents', element=BitStringElement, size=len(strategies), values={'strategy': strategies})
-    schedule = PhasesScheduleSpec([PhaseSpec('scoring'), PhaseSpec('evolution')])
-    system = CompositeSystem(elements=[group], interactions=[evolution], time=DiscreteTime(schedule=schedule))
-    return simulate(system, until=until, random_state=seed)
+    group = BitStringElement('agents', strategy=strategies, size=len(strategies))
+    system = System(
+        elements=[group],
+        interactions=[ScoringInteraction('scoring', target='agents'), evolution],
+        solver=MesaSolver(phases=[PhaseSpec('scoring'), PhaseSpec('evolution')]),
+    )
+    return system.prepare().simulate(until, random_state=seed)
 
 
 def _strategies(trajectory: Trajectory, frame: int) -> np.ndarray:
@@ -145,9 +159,9 @@ def test_evolution_interaction_neutral_fixation_has_the_initial_fraction_as_prob
     initial = (np.arange(10) < 3).astype(float)[:, None]
     finals = []
     for seed in range(NEUTRAL_RUNS):
-        group = GroupElement('agents', element=TypeElement, size=10, values={'strategy': initial})
-        system = CompositeSystem(elements=[group], interactions=[evolution], time=DiscreteTime())
-        trajectory = simulate(system, until=200, random_state=seed)
+        group = TypeElement('agents', strategy=initial, size=10)
+        system = System(elements=[group], interactions=[evolution])
+        trajectory = system.prepare().simulate(200, random_state=seed)
         finals.append(_strategies(trajectory, 200).ravel())
     assert all(np.ptp(final) == 0.0 for final in finals)
     wins = np.mean([final[0] for final in finals])
@@ -211,14 +225,9 @@ def test_evolution_interaction_truncation_redraws_the_least_fit_every_period_and
         period=2,
         reset={'fitness': -1.0},
     )
-    group = GroupElement(
-        'agents',
-        element=TypeElement,
-        size=8,
-        values={'strategy': np.arange(8.0)[:, None] * 0 - 1, 'fitness': np.arange(8.0)},
-    )
-    system = CompositeSystem(elements=[group], interactions=[evolution], time=DiscreteTime())
-    trajectory = simulate(system, until=2, random_state=0)
+    group = TypeElement('agents', strategy=np.arange(8.0)[:, None] * 0 - 1, fitness=np.arange(8.0), size=8)
+    system = System(elements=[group], interactions=[evolution])
+    trajectory = system.prepare().simulate(2, random_state=0)
     assert np.all(_strategies(trajectory, 1) == -1.0)
     final = trajectory.get_agents('agents', 2).values
     changed = _strategies(trajectory, 2).ravel() != -1.0
@@ -239,9 +248,9 @@ def test_evolution_interaction_mutates_to_new_labels_and_by_steps():
             mutation=1.0,
             crossover=0.0,
         )
-        group = GroupElement('agents', element=TypeElement, size=6, values={'strategy': np.full((6, 1), 3.0)})
-        system = CompositeSystem(elements=[group], interactions=[evolution], time=DiscreteTime())
-        trajectory = simulate(system, until=1, random_state=0)
+        group = TypeElement('agents', strategy=np.full((6, 1), 3.0), size=6)
+        system = System(elements=[group], interactions=[evolution])
+        trajectory = system.prepare().simulate(1, random_state=0)
         assert check(_strategies(trajectory, 1).ravel())
 
 
@@ -254,9 +263,9 @@ def test_evolution_interaction_best_mutant_climbs_an_evaluated_landscape():
         evaluate=lambda strategies, system: strategies.sum(axis=1),
         mutation=0.02,
     )
-    group = GroupElement('agents', element=TypeElement, size=5, values={'strategy': np.zeros((5, 10))})
-    system = CompositeSystem(elements=[group], interactions=[evolution], time=DiscreteTime())
-    trajectory = simulate(system, until=60, random_state=0)
+    group = TypeElement('agents', strategy=np.zeros((5, 10)), size=5)
+    system = System(elements=[group], interactions=[evolution])
+    trajectory = system.prepare().simulate(60, random_state=0)
     fitness = [trajectory.get_agents('agents', frame).values['fitness'][0] for frame in range(1, 61)]
     assert np.all(np.diff(fitness) >= 0)
     assert fitness[-1] > 2
@@ -275,9 +284,9 @@ def test_evolution_interaction_one_gene_changes_and_parents_include_the_dead():
         change='one',
         mutation=1.0,
     )
-    group = GroupElement('agents', element=TypeElement, size=10, values={'strategy': np.zeros((10, 7))})
-    system = CompositeSystem(elements=[group], interactions=[evolution], time=DiscreteTime())
-    trajectory = simulate(system, until=1, random_state=0)
+    group = TypeElement('agents', strategy=np.zeros((10, 7)), size=10)
+    system = System(elements=[group], interactions=[evolution])
+    trajectory = system.prepare().simulate(1, random_state=0)
     assert _strategies(trajectory, 1).sum(axis=1).tolist() == [1.0] * 10
 
 
