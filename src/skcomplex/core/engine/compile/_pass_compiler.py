@@ -253,9 +253,18 @@ class PassCompiler(BaseCompiler):
         self.passes_ = tuple(clone(item) for item in passes)
 
     def _get_census_of(self, system: CompositeSystem) -> Compilation:
-        """Return a compilation of a system run up to its census of laws and its layout."""
+        """Return a compilation of a system run up to its census of laws and its layout.
+
+        An observable that a role binds and that is read only at synchronisation points is held in an element, as
+        compiling does, so the laws that read it are counted.
+        """
         self._set_passes()
-        compilation = self._run_passes(self._get_new_compilation(system), until='census')
+        compilation = self._run_passes(self._get_new_compilation(system), until='nodes')
+        held = ObservableEvaluator._get_held_observables(system, Compilation._get_required(compilation.nodes, 'nodes'))
+        if held:
+            tree, paths = ObservableEvaluator._copy_with_held_observables(system, held)
+            compilation = self._get_new_compilation(tree, held=tuple(paths))
+        compilation = self._run_passes(compilation, until='census')
         return self._run_passes(compilation, until='layout')
 
     def _get_declared_system(self, system: CompositeSystem) -> CompositeSystem:
@@ -2087,7 +2096,8 @@ class PassCompiler(BaseCompiler):
     def _get_census_issues(compilation: Compilation) -> list[IssueSpec]:
         """Return the issues of the components that fail to declare or collect.
 
-        Components whose binding is the problem are left out.
+        Components whose binding is the problem are left out. An array argument that the laws read but that no group
+        shapes is an issue of the shape of a parameter.
         """
         census = Compilation._get_required(compilation.census, 'census')
         nodes = Compilation._get_required(compilation.nodes, 'nodes')
@@ -2100,6 +2110,8 @@ class PassCompiler(BaseCompiler):
             if path in unbound:
                 continue
             code, fix = FIXES.get(type(failure), ('value', 'Correct the component as the message describes.'))
+            if isinstance(failure, ParameterError) and isinstance(failure.__cause__, AttributeError):
+                code, fix = 'parameter-shape', 'Bind the roles of the axes of the array to groups of their lengths.'
             issues.append(IssueSpec(code, path, str(failure), fix, error=type(failure)))
         return issues + bindings + shapes + roles
 

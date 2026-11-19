@@ -389,3 +389,16 @@ def test_system_runs_a_plain_quantum_element_with_the_compiler_its_hilbert_space
     """Test that a system of a plain element that takes a Hilbert space prepares the quantum problem by itself."""
     system = System(elements=[Element('qubit', values={'psi': 'up', 'hilbert': QUBIT})]).prepare()
     assert type(system.solver_).__name__ == 'LindbladSolver'
+
+
+def test_system_runs_a_one_off_interaction_of_a_qubit():
+    """Test that a one-off interaction binds a qubit by its roles and gives its generator, as `x` flips it."""
+    flip = Interaction(
+        'flip',
+        roles={'target': 'q'},
+        laws=lambda s: [GeneratorLaw(2 * local_operator(s.target.psi, 'x'))],
+    )
+    system = System(elements=[QubitElement('q')], interactions=[flip]).prepare()
+    observable = Observable('sz', local_z, group='q', reduce='sum')
+    trajectory = system.simulate(until=math.pi / 4, dt=math.pi / 4, observables=[observable])
+    assert trajectory.get_values('sz')[-1] == pytest.approx(-1.0, abs=1e-6)

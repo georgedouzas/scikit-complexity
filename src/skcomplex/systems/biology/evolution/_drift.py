@@ -16,7 +16,7 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BoundaryLaw, NoiseLaw, RateLaw
+from ....core.components.laws import NoiseLaw, RateLaw, UpdateLaw
 from ....core.components.laws.utils import clip
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
@@ -82,7 +82,7 @@ class KimuraDriftInteraction(Interaction):
     """
 
     law_classes = (
-        BoundaryLaw,
+        UpdateLaw,
         NoiseLaw,
         RateLaw,
     )
@@ -105,7 +105,7 @@ class KimuraDriftInteraction(Interaction):
             self.laws_ = [
                 RateLaw(x, Ns * variance),
                 NoiseLaw(x, sqrt(2 * variance)),
-                BoundaryLaw(x, clip(x, low=0, high=1)),
+                UpdateLaw(x, clip(x, low=0, high=1)),
             ]
 
 

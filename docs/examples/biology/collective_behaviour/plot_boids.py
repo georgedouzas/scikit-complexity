@@ -48,7 +48,7 @@ trajectory = (
 polarization = []
 for frame in range(len(trajectory.times)):
     boids = trajectory.get_agents('flock', frame)
-    headings = np.column_stack([boids.values['x_d1'], boids.values['y_d1']])
+    headings = np.column_stack([boids.values["x'"], boids.values["y'"]])
     headings /= np.linalg.norm(headings, axis=1, keepdims=True)
     polarization.append(np.linalg.norm(headings.mean(axis=0)))
 fig, ax = plt.subplots(figsize=(6, 4))

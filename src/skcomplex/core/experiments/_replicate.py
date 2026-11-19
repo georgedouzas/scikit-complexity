@@ -4,7 +4,6 @@
 # License: MIT
 
 import copy
-import inspect
 from collections.abc import Mapping
 
 import numpy as np
@@ -226,16 +225,21 @@ def _get_value_names(element: Element) -> set[str]:
 def _get_members(element: Element, size: int, values: Mapping[str, object]) -> BaseElement:
     """Return `size` members of a single element.
 
-    The given values hold one value per member. A plain element whose class takes `size` becomes an element of many
-    members, with the per-member values as its arguments or entries of `values`. Any other element, such as one that
-    declares its states, becomes a group of members of its class.
+    The given values hold one value per member. A plain element becomes an element of many members of its class,
+    with the per-member values as its arguments or entries of `values`, so the allowed values and periods of its
+    class still hold. A class that does not take `size`, such as a population of one value, keeps the number of
+    members in the `size` that every element holds. An element that declares its states becomes a group of members
+    of its class.
     """
-    if 'size' not in inspect.signature(type(element)).parameters or _declares(element):
+    if _declares(element):
         settings = {**_member_settings(element), **values}
         return GroupElement(element.label, element=type(element), size=size, values=settings)
     arguments = {name: value for name, value in values.items() if name in element._get_hints()}
     entries = {name: value for name, value in values.items() if name not in arguments}
-    return clone(element).set_params(size=size, values={**(element.values or {}), **entries}, **arguments)
+    members = clone(element).set_params(**arguments)
+    members.size = size
+    members.values = {**(element.values or {}), **entries}
+    return members
 
 
 def _replicate_prepared(system: System, size: int, values: Mapping[str, npt.ArrayLike] | None = None) -> System:

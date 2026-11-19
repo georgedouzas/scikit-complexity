@@ -44,6 +44,7 @@ from ..problems import AgentSnapshotSpec, ProblemSpec
 from ..problems._compiled_agents_spec import _CompiledAgentsSpec
 from ..problems._draw_kernel import DrawKernel
 from ..problems._draw_recorder import KEYWORDS
+from ..problems._layout_spec import LayoutSpec
 from ..problems._metric_search import MetricSearch
 from ..types import MesaSpace
 from ._agent_state_spec import _AgentStateSpec
@@ -2098,16 +2099,17 @@ class MesaSolver(ExternalSolver):
         agents = sorted(agents, key=lambda agent: agent.unique_id)
         ids = np.array([agent.unique_id for agent in agents], dtype=np.int64)
         values = {
-            name: (
+            LayoutSpec._get_display_name(name): (
                 np.fromiter(map(reporter, agents), dtype=object, count=len(agents))
                 if name in spec.objects
                 else np.asarray([reporter(agent) for agent in agents])
             )
             for name, reporter in reporters.items()
         }
+        roles = {role: LayoutSpec._get_display_name(name) for role, name in spec.roles.items()}
         locations = [MesaSolver._get_location_of(agent) for agent in agents]
         has_locations = any(location is not None for location in locations)
-        return AgentSnapshotSpec(ids, values, np.asarray(locations) if has_locations else None, spec.roles)
+        return AgentSnapshotSpec(ids, values, np.asarray(locations) if has_locations else None, roles)
 
     @staticmethod
     def _get_defaults_of(spec: _CompiledAgentsSpec) -> dict[str, object]:

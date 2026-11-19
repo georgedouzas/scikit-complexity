@@ -18,6 +18,7 @@ from ..components.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
 from ..components.systems import BaseSystem, CompositeSystem
 from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import BaseProblemSpec, CompiledElementSpec, NetworkSnapshotSpec
+from ..engine.problems._layout_spec import LayoutSpec
 from ..engine.runtime import Trajectory
 from ..enums import DataKind, DomainKind, FormKind
 from ..errors import AnalysisError, TagError, ValidationError
@@ -495,7 +496,9 @@ def _read_particle_snapshots(trajectory: Trajectory, group: str) -> _SnapshotsSp
         box,
         periodic=periodic,
     )
-    derivatives = [f'{name}_d1' for name in located if f'{name}_d1' in element.states]
+    derivatives = [
+        velocity for name in located if (velocity := LayoutSpec._get_internal_name(f"{name}'")) in element.states
+    ]
     moving = derivatives or _get_role_states(element, 'velocity')
     velocities = _read_axes(trajectory, [element.states[name] for name in moving]) if moving else None
     others = {
