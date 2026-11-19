@@ -37,8 +37,7 @@ from skcomplex.systems.physics.common.quantum import (
     QubitElement,
     mode_space,
 )
-
-from .....conftest import SpinElement, _spin_space
+from skcomplex.systems.physics.statistical_mechanics._quantum_spins import SPIN_HALF, SpinElement
 
 
 class HeisenbergInteraction(NeighborInteraction):
@@ -136,7 +135,7 @@ def test_compiler_counts_one_exchange_term_per_bond():
                 'chain',
                 element=SpinElement,
                 space=LatticeSpace(8),
-                values={'hilbert': _spin_space()},
+                values={'hilbert': SPIN_HALF},
                 on='sites',
             ),
         ],
@@ -232,7 +231,7 @@ def test_compiler_starts_from_the_ground_state():
                 'chain',
                 element=SpinElement,
                 space=LatticeSpace(4),
-                values={'hilbert': _spin_space()},
+                values={'hilbert': SPIN_HALF},
                 on='sites',
             ),
         ],
@@ -256,7 +255,7 @@ def test_observable_evaluator_reads_local_magnetization():
                 'chain',
                 element=SpinElement,
                 space=LatticeSpace(8),
-                values={'psi': labels, 'hilbert': _spin_space()},
+                values={'psi': labels, 'hilbert': SPIN_HALF},
                 on='sites',
             ),
         ],

@@ -1,15 +1,16 @@
 """Test the state spec."""
 
+from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
 import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import CC, SR, ZZ
+from sage.all__sagemath_symbolics import CC, SR, ZZ, pi
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.components.elements import Element, FieldElement, GroupElement
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.components.laws import BaseLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
@@ -17,10 +18,27 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import MatrixGroupSpec, ParameterSpec, RoleSpec, StateSpec
 
-from ...conftest import RotorElement
-
 COLOR = MatrixGroupSpec('SU', 3)
 HEALTH = FiniteEnumeratedSet(['susceptible', 'infected', 'recovered'])
+
+
+class RotorElement(Element):
+    """Rotor whose angle turns at a constant rate."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        theta: Annotated[object, StateSpec(period=2 * pi)] = 0.0,
+        omega: Annotated[object, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.theta = theta
+        self.omega = omega
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the turning of the angle."""
+        return [RateLaw(s.theta, s.omega)]
 
 
 class _NematicElement(Element):

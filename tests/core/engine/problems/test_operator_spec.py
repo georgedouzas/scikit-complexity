@@ -11,8 +11,7 @@ from skcomplex.core.engine.compile.passes._operator_compiler import OperatorComp
 from skcomplex.core.engine.problems import LocalOperatorSpec, OperatorSpec
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.physics.common.quantum import ModeElement, QubitElement, mode_space
-
-from ....conftest import SpinElement
+from skcomplex.systems.physics.statistical_mechanics._quantum_spins import SpinElement
 
 
 def _namespace(element, key):
