@@ -193,10 +193,10 @@ class PassCompiler(BaseCompiler):
             inner problem of a `LearningProblemSpec`, or `None` for other systems.
 
     Examples:
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
-        >>> system = CompositeSystem(
+        >>> system = System(
         ...     elements=[PopulationElement('rabbits', x=10)],
         ...     interactions=[ExponentialGrowthInteraction('growth', target='rabbits', r=0.5)],
         ... )

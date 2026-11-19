@@ -158,7 +158,6 @@ the split steppers of fixed step, they control the error and adapt the step. Bel
 a spreading population on 400 sites.
 
 ```python
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.systems.biology.ecology import FisherKPPSystem
 
@@ -199,15 +198,16 @@ holds `KuramotoSivashinskySystem`, `ComplexGinzburgLandauSystem`, `SwiftHohenber
 
 This section reads a field beyond the nearest sites. A rate can smooth the field against a kernel, solve for a
 potential, or look ahead by a distance. Each rate below changes a Gaussian bump on a line of 128 sites, through a
-[`RateInteraction`](../core_components/interactions.md#rateinteraction) on the field, and the block returns the total of
-the field after 0.2 units of time.
+one-off [`Interaction`](../core_components/interactions.md#interaction) on the field, and the block returns the total
+of the field after 0.2 units of time.
 
 ```python
 import numpy as np
 from sage.all__sagemath_symbolics import exp, pi, sqrt
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import RateInteraction
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import convolve, displacement, inverse_helmholtz, partial, shifted
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.systems import System
@@ -217,7 +217,7 @@ def rate_of(rate):
     centers = np.arange(128) * 0.1
     values = {'u': np.exp(-((centers - 6.4) ** 2)), 'k': 2.0}
     line = Element('line', values=values, space=LatticeSpace(128, spacing=0.1))
-    interaction = RateInteraction('rate', target='line', state='u', rate=rate)
+    interaction = Interaction('rate', roles={'target': 'line'}, laws=lambda s: [RateLaw(s.target.u, rate(s))])
     system = System(elements=[line], interactions=[interaction])
     return system.prepare().simulate(until=0.2, dt=0.05).get_values('line.u')
 
@@ -280,36 +280,38 @@ use the operators too, which streams a streamfunction as an image.
 
 ## Coupling through a function of both ends
 
-This section couples the sites of a field without an operator. A
-[`CouplingInteraction`](../core_components/interactions.md#couplinginteraction) on a field sums a function of each site
-and one neighbour over the neighbours of every site, and reads a fixed boundary value as `laplacian` does. Here each
-cell of a periodic ring of 32 exchanges a fifth of its difference with each neighbour, starting from one unit at cell
-16.
+This section couples the sites of a field without an operator. `neighbors(expression)` of
+`skcomplex.core.components.laws.utils` sums a function of each site and one neighbour over the neighbours of every
+site, and reads a fixed boundary value as `laplacian` does. In the expression, `s.target.u` is the value of the site
+and `s.target.other.u` that of the neighbour. Here each cell of a periodic ring of 32 exchanges a fifth of its
+difference with each neighbour, starting from one unit at cell 16.
 
 ```python
 import numpy as np
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import CouplingInteraction
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.systems import System
 
+
+def exchange_laws(s):
+    u = s.target.u
+    return [RateLaw(u, neighbors(0.2 * (s.target.other.u - u)))]
+
+
 cells = Element('cells', values={'u': np.eye(32)[16]}, space=LatticeSpace(32))
-exchange = CouplingInteraction(
-    'exchange',
-    target='cells',
-    read='u',
-    write='u',
-    function=lambda s: 0.2 * (s.other.u - s.member.u),
-)
+exchange = Interaction('exchange', roles={'target': 'cells'}, laws=exchange_laws)
 trajectory = System(elements=[cells], interactions=[exchange]).prepare().simulate(until=2.0, dt=0.5)
 trajectory.get_values('cells.u')[-1].sum().round(6)
 ```
 
 The total stays at 1.0 after two units of time, since each exchange moves as much into one cell as out of the other.
 
-A constant times `s.other.u - s.member.u` becomes `laplacian`, so spectral and finite-element fields keep their own
-operator.
+A constant times `s.target.other.u - s.target.u` becomes `laplacian`, so spectral and finite-element fields keep their
+own operator.
 
 The catalog uses these operators in its models. `AmariNeuralFieldSystem` holds a bump of neural activity with a
 convolution, `DoubleGyreSystem` streams the streamfunction of a closed basin, `GktTrafficSystem` brakes on the traffic

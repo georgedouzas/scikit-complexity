@@ -46,12 +46,11 @@ class NumpyBackend(BaseBackend):
     reference that runs any law the compiler can lower.
 
     Examples:
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.backends import NumpyBackend
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
-        >>> system = CompositeSystem(elements=[PopulationElement('a')])
-        >>> simulate(system, until=0, backend=NumpyBackend()).problem.backend
+        >>> system = System(elements=[PopulationElement('a')], backend=NumpyBackend())
+        >>> system.prepare().simulate(until=0).problem.backend
         'numpy'
     """
 

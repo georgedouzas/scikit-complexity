@@ -33,9 +33,9 @@ class QuantumCompiler(OperatorCompiler):
             The largest dimension of the Hilbert space, for a solver without a largest dimension of its own.
 
     Examples:
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.physics.common.quantum import QuantumCompiler, QubitElement
-        >>> compiler = QuantumCompiler().prepare(CompositeSystem(elements=[QubitElement('q')])).run()
+        >>> compiler = QuantumCompiler().prepare(System(elements=[QubitElement('q')])).run()
         >>> compiler.problem_.dimensions, type(compiler.solver_).__name__
         ((2,), 'LindbladSolver')
     """

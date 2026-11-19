@@ -27,17 +27,17 @@ class InvariantObserver(BaseObserver):
             The value of every invariant at the first frame.
 
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
+        >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components import Observable
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.runtime import InvariantObserver, simulate
-        >>> from skcomplex.systems.biology.common.populations import PopulationElement
-        >>> system = CompositeSystem(
-        ...     elements=[GroupElement('herd', element=PopulationElement, size=2, values={'x': [2.0, 6.0]})]
-        ... )
+        >>> from skcomplex.core.systems import System
+        >>> from skcomplex.core.engine.runtime import InvariantObserver
+        >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction
+        >>> herd = Element('herd', values={'x': [2.0, 6.0]}, size=2)
+        >>> still = ExponentialGrowthInteraction('growth', target='herd', r=0.0)
+        >>> system = System(elements=[herd], interactions=[still])
         >>> total = Observable('total', group='herd', reduce='sum', variable='x')
         >>> monitor = InvariantObserver({'total': 1e-9})
-        >>> _ = simulate(system, until=3, dt=1, observables=[total], observers=[monitor])
+        >>> _ = system.prepare().simulate(until=3, dt=1, observables=[total], observers=[monitor])
         >>> monitor.initial_
         {'total': 8.0}
     """

@@ -10,8 +10,8 @@ derives from [`BaseSystem`](core_components/systems.md#basesystem).
 
 - **`BaseSystem`** is the base of every system. It holds the main public methods, derives the tags, and builds the
   components of a system from its model parameters.
-- **[`CompositeSystem`](core_components/systems.md#compositesystem)** is the composite of elements, interactions, and
-  nested systems, on a space and in a time. It plays the role of `Pipeline` in scikit-learn: it holds components and
+- **[`System`](core_components/systems.md#system)** is the composite of elements, interactions, and nested systems,
+  on a space. It plays the role of `Pipeline` in scikit-learn: it holds components and
   adds no model of its own.
 - **General realizations** name a structure that several fields share.
   [`ReactionNetworkSystem`](core_components/general.md#reactionnetworksystem) of `skcomplex.systems.general.reactions`
@@ -29,14 +29,14 @@ The kinds mirror the linear models of scikit-learn, where `Ridge` and `Lasso` re
 parameters of their own.
 
 ```python
-from skcomplex.core.components.systems import BaseSystem, CompositeSystem
+from skcomplex.core.systems import BaseSystem, System
 from skcomplex.systems.general.reactions import ReactionNetworkSystem
 from skcomplex.systems.biology.epidemiology import SIRSystem
 
 (
     issubclass(SIRSystem, ReactionNetworkSystem),
     issubclass(ReactionNetworkSystem, BaseSystem),
-    issubclass(CompositeSystem, BaseSystem),
+    issubclass(System, BaseSystem),
 )
 ```
 
@@ -50,26 +50,17 @@ two things.
 
 - Its `__init__` takes the parameters of the model and stores each under its own name, and nothing else, as in
   scikit-learn. So `get_params`, `set_params`, and `clone` work on them.
-- Its hook `_build_system` returns the `CompositeSystem` of its components, written in terms of these parameters.
+- Its hook `_prepare` sets `system_`, the `System` of its components, written in terms of these parameters.
 
-The example is a tank that drains at a rate proportional to its level, written with the base class
-[`Element`](core_components/elements.md#element) and the general
-[`RateInteraction`](core_components/interactions.md#rateinteraction).
+The example is a tank that drains at a rate proportional to its level, written with an
+[`Element`](core_components/elements.md#element) that holds the level and a one-off
+[`Interaction`](core_components/interactions.md#interaction) that drains it.
 
 ```python
-from typing import Annotated
-
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.systems import BaseSystem, CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
-
-
-class TankElement(Element):
-    def __init__(self, label, *, level: Annotated[float, StateSpec()] = 1.0):
-        super().__init__(label)
-        self.level = level
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.systems import BaseSystem, System
 
 
 class DrainingTankSystem(BaseSystem):
@@ -81,30 +72,35 @@ class DrainingTankSystem(BaseSystem):
         self.level = level
         self.k = k
 
-    def _build_system(self):
-        drain = RateInteraction('drain', target='tank', state='level', rate=lambda s: -self.k * s.target.level)
-        return CompositeSystem(self.label, elements=[TankElement('tank', level=self.level)], interactions=[drain])
+    def _prepare(self, context=None):
+        super()._prepare(context)
+        k = self.k
+        tank = Element('tank', values={'level': self.level})
+
+        def outflow(s):
+            return [RateLaw(s.target.level, -k * s.target.level)]
+
+        drain = Interaction('drain', roles={'target': 'tank'}, laws=outflow)
+        self.system_ = System(self.label, elements=[tank], interactions=[drain])
 
 
-tank = DrainingTankSystem(k=0.2)
-tank.get_params(), sorted(tank.get_tags().laws)
+tank = DrainingTankSystem(k=0.2).prepare()
+tank.get_params(), tank.states_, tank.form_
 ```
 
-`get_params` returns `k=0.2`, the label, and `level=1.0`, and the tags hold one kind of [law](glossary.md#law),
-`'rate'`. The class runs like any system.
+`get_params` returns `k=0.2`, the label, and `level=1.0`. The level is the one state, and the system is an ordinary
+differential equation. The class runs like any system.
 
 ```python continuation
-round(float(simulate(tank).get_values('tank.level')[-1]), 3)
+round(float(tank.simulate().get_values('tank.level')[-1]), 3)
 ```
 
 The level falls to 0.135 at time 10, which is `exp(-0.2 * 10)`. `prepare` builds the components from the current
-parameters and keeps them as `system_`. It builds them again only when a parameter changed, so `set_params(k=0.4)`
-changes the components of the next `prepare` and of the next `simulate`. The tags come from the components and are never
-declared, so they cannot drift from what the system does.
+parameters, keeps them as `system_`, and compiles them once. After `set_params(k=0.4)` the system must be prepared
+again before it simulates, and the next `prepare` builds the components with the new rate.
 
-The class attributes `until` and `dt` above are tuned run settings. `simulate` reads them, with `solver`,
-`observables`, `initial_state`, `invariants`, `schedule`, `compiler`, and `backend`, for every argument a call leaves
-out. A system whose settings depend on its parameters overrides `get_run_settings` instead.
+The class attributes `until` and `dt` above are tuned run settings, which `simulate` reads when a call leaves them
+out. The solver and the backend are the settings `solver=` and `backend=` of a system, as for `System`.
 
 ## Field realizations
 
@@ -122,7 +118,6 @@ vaccinates susceptible people at the rate `nu` adds one parameter and one reacti
 
 ```python
 from skcomplex.systems.general.reactions import ReactionInteraction
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.epidemiology import SIRSystem
 
 

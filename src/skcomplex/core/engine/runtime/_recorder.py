@@ -25,11 +25,13 @@ class RecorderObserver(BaseObserver):
             The frames received so far.
 
     Examples:
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.systems.biology.common.populations import PopulationElement
-        >>> from skcomplex.core.engine.runtime import RecorderObserver, simulate
+        >>> from skcomplex.core.systems import System
+        >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
+        >>> growth = ExponentialGrowthInteraction('growth', target='a')
+        >>> from skcomplex.core.engine.runtime import RecorderObserver
         >>> recorder = RecorderObserver()
-        >>> _ = simulate(CompositeSystem(elements=[PopulationElement('a')]), until=2, dt=1, observers=[recorder])
+        >>> system = System(elements=[PopulationElement('a')], interactions=[growth]).prepare()
+        >>> _ = system.simulate(until=2, dt=1, observers=[recorder])
         >>> len(recorder.trajectory_.times)
         3
     """

@@ -49,10 +49,10 @@ class RewritingCompiler(BaseCompiler):
     sequences of computer science.
 
     Examples:
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.general.rewriting._rewriting_compiler import RewritingCompiler
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
-        >>> RewritingCompiler().prepare(CompositeSystem(elements=[PopulationElement('rabbits')])).report_.ok
+        >>> RewritingCompiler().prepare(System(elements=[PopulationElement('rabbits')])).report_.ok
         False
     """
 
@@ -292,12 +292,12 @@ class RewritingCompiler(BaseCompiler):
                 An interaction sets a law that is not a rewriting law, or a production or a substitution is malformed.
 
         Examples:
-            >>> from skcomplex.core.components.systems import CompositeSystem
+            >>> from skcomplex.core.systems import System
             >>> from skcomplex.systems.general.rewriting._rewriting_compiler import RewritingCompiler
             >>> from skcomplex.systems.general.rewriting import ProductionLaw, RewritingInteraction, WordElement
             >>> laws = [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
             >>> growth = RewritingInteraction('growth', target='algae', laws=laws)
-            >>> system = CompositeSystem(elements=[WordElement('algae', axiom='A')], interactions=[growth])
+            >>> system = System(elements=[WordElement('algae', axiom='A')], interactions=[growth])
             >>> problem = RewritingCompiler().prepare(system).run().problem_
             >>> str(problem.form), problem.states.names
             ('rewriting system', ['algae.A', 'algae.B', 'algae.size'])

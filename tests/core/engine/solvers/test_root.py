@@ -28,6 +28,9 @@ from skcomplex.core.errors import SolverError
 from skcomplex.core.specs import ParameterSpec, Role, StateSpec
 from skcomplex.core.systems import System
 
+VALUES = {'x': 1.0, 'b': 1.0}
+COURNOT = {'q_i': 0.0, 'q_j': 0.0, 'alpha': 10.0, 'c_i': 1.0, 'c_j': 2.0, 'lambda_i': 0.0, 'lambda_j': 0.0}
+
 
 class ValueElement(Element):
     """Element of one state and the equation a subclass gives."""
@@ -109,10 +112,6 @@ def _cournot(s):
         ConstraintLaw(a.alpha - 2 * a.q_i - a.q_j == a.c_i / (1 + a.lambda_i), target=a.q_i),
         ConstraintLaw(a.alpha - 2 * a.q_j - a.q_i == a.c_j / (1 + a.lambda_j), target=a.q_j),
     ]
-
-
-VALUES = {'x': 1.0, 'b': 1.0}
-COURNOT = {'q_i': 0.0, 'q_j': 0.0, 'alpha': 10.0, 'c_i': 1.0, 'c_j': 2.0, 'lambda_i': 0.0, 'lambda_j': 0.0}
 
 
 def _static(laws, values=None, size=None, interactions=()):

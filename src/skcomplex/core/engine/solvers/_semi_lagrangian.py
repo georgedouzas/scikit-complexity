@@ -48,31 +48,22 @@ class SemiLagrangianSolver(Solver):
 
     Examples:
         >>> import numpy as np
-        >>> from typing import Annotated
-        >>> from skcomplex.core.components.elements import Element, FieldElement
-        >>> from skcomplex.core.specs import StateSpec
-        >>> class AmountElement(Element):
-        ...     def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
-        ...         super().__init__(label)
-        ...         self.x = x
-        >>> from skcomplex.core.components.interactions import ConservationInteraction
-        >>> from skcomplex.core.components.laws.utils import coordinate
-        >>> from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.components.interactions import Interaction
+        >>> from skcomplex.core.components.laws import RateLaw
+        >>> from skcomplex.core.components.laws.utils import coordinate, divergence
+        >>> from skcomplex.core.components.spaces import AxisSpec, LatticeSpace, PhaseSpace
+        >>> from skcomplex.core.systems import System
+        >>> def streaming(s):
+        ...     return [RateLaw(s.target.x, -divergence([coordinate('v') * s.target.x, 0]))]
+        >>> stream = Interaction('stream', roles={'target': 'gas'}, laws=streaming)
         >>> from skcomplex.core.engine.solvers import SemiLagrangianSolver
-        >>> from skcomplex.core.components.spaces import AxisSpec
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> space = PhaseSpace(LatticeSpace((16,)), [AxisSpec('v', 8, -1.0, 1.0)]).prepare()
+        >>> position = LatticeSpace((16,), discretization='finite-volume')
+        >>> space = PhaseSpace(position, [AxisSpec('v', 8, -1.0, 1.0)]).prepare()
         >>> start = np.outer(2 + np.sin(2 * np.pi * np.arange(16) / 16), np.ones(8))
-        >>> gas = FieldElement(
-        ...     'gas', element=AmountElement, space=space, values={'x': start}, discretization='finite-volume'
-        ... )
-        >>> stream = ConservationInteraction(
-        ...     's', target='gas', state='x', flux=lambda s: [coordinate('v') * s.target.x, 0]
-        ... )
-        >>> system = CompositeSystem(elements=[gas], interactions=[stream])
-        >>> solver = SemiLagrangianSolver(dt=1.0)
-        >>> final = simulate(system, until=2.0, solver=solver).get_values('gas.x')[-1]
+        >>> gas = Element('gas', values={'x': start}, space=space)
+        >>> system = System(elements=[gas], interactions=[stream], solver=SemiLagrangianSolver(dt=1.0))
+        >>> final = system.prepare().simulate(until=2.0).get_values('gas.x')[-1]
         >>> abs(float(final.sum() / start.sum()) - 1.0) < 1e-12
         True
     """

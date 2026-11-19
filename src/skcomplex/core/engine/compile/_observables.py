@@ -77,15 +77,15 @@ class ObservableEvaluator:
             The compiled problem.
 
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
+        >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.engine.compile._observables import ObservableEvaluator
         >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
         >>> from skcomplex.core.components import Observable
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.systems.biology.common.populations import PopulationElement
-        >>> system = CompositeSystem(
-        ...     elements=[GroupElement('herd', element=PopulationElement, size=2, values={'x': [2.0, 6.0]})]
-        ... )
+        >>> from skcomplex.core.systems import System
+        >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction
+        >>> herd = Element('herd', values={'x': [2.0, 6.0]}, size=2)
+        >>> still = ExponentialGrowthInteraction('growth', target='herd', r=0.0)
+        >>> system = System(elements=[herd], interactions=[still])
         >>> total = Observable('total', group='herd', reduce='sum', variable='x')
         >>> problem = PassCompiler(observables=[total]).prepare(system).run().problem_
         >>> ObservableEvaluator(problem).prepare().evaluate(0.0, problem.initial_state, problem.initial_parameters)

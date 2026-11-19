@@ -113,31 +113,24 @@ class LammpsSolver(ExternalSolver):
             Whether the LAMMPS instance is closed.
 
     Examples:
-        >>> from typing import Annotated
-        >>> from skcomplex.core.components.elements import Element, GroupElement
-        >>> from skcomplex.core.specs import StateSpec
-        >>> class BallElement(Element):
-        ...     def __init__(
-        ...         self, label, x: Annotated[object, StateSpec(vector=True, order=2, role='position')] = 0.0, x_d1=0.0
-        ...     ):
-        ...         super().__init__(label)
-        ...         self.x = x
-        ...         self.x_d1 = x_d1
-        >>> from skcomplex.core.components.interactions import PairInteraction
-        >>> from skcomplex.core.components.spaces import ContinuousSpace
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from sage.all__sagemath_symbolics import sqrt
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.components.interactions import Interaction
+        >>> from skcomplex.core.components.laws import RateLaw
+        >>> from skcomplex.core.components.laws.utils import neighbors
+        >>> from skcomplex.core.components.spaces import ContinuousSpace, RadiusNeighborhood
         >>> from skcomplex.core.engine.solvers import LammpsSolver
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> potential = lambda namespace, r: 4 * (r**-12 - r**-6)
-        >>> system = CompositeSystem(
-        ...     elements=[
-        ...         GroupElement('gas', element=BallElement, size=2, values={'x': [[0.0, 0.0], [1.5, 0.0]]}),
-        ...     ],
-        ...     interactions=[PairInteraction('lj', 'gas', 'gas', cutoff=2.5, potential=potential)],
-        ...     space=ContinuousSpace(n_dim=2),
-        ... )
-        >>> solver = LammpsSolver(dt=0.005)
-        >>> trajectory = simulate(system, until=0.5, solver=solver, dt=0.1)
+        >>> from skcomplex.core.systems import System
+        >>> def lennard_jones(s):
+        ...     x = s.target.x
+        ...     separation = x - s.target.other.x
+        ...     r = sqrt(separation.dot_product(separation))
+        ...     force = 24 * (2 * r**-12 - r**-6) / r**2 * separation
+        ...     return [RateLaw(x.diff(s.t, 2), neighbors(force, RadiusNeighborhood(2.5)))]
+        >>> gas = Element('gas', values={'x': [[0.0, 0.0], [1.5, 0.0]]}, size=2, space=ContinuousSpace(n_dim=2))
+        >>> forces = Interaction('lj', roles={'target': 'gas'}, laws=lennard_jones)
+        >>> system = System(elements=[gas], interactions=[forces], solver=LammpsSolver(dt=0.005))
+        >>> trajectory = system.prepare().simulate(until=0.5, dt=0.1)
         >>> positions = trajectory.get_values('gas.x')
         >>> bool(positions[-1, 1, 0] - positions[-1, 0, 0] < 1.5)
         True

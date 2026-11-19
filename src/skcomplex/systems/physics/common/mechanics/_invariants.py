@@ -68,20 +68,13 @@ def poisson_brackets(source: Source, expressions: Sequence[Observable]) -> dict[
             The system has no Hamiltonian interaction, or an expression is not one of the system.
 
     Examples:
-        >>> from typing import Annotated
         >>> from skcomplex.core.components import Observable
         >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.physics.common.mechanics import HamiltonianInteraction, poisson_brackets
-        >>> class OscillatorElement(Element):
-        ...     def __init__(self, label, q: Annotated[float, StateSpec()] = 1.0, p: Annotated[float, StateSpec()] = 0):
-        ...         super().__init__(label)
-        ...         self.q = q
-        ...         self.p = p
         >>> energy = lambda s: (s.target.p**2 + s.target.q**2) / 2
-        >>> system = CompositeSystem(
-        ...     elements=[OscillatorElement('mass')],
+        >>> system = System(
+        ...     elements=[Element('mass', values={'q': 1.0, 'p': 0.0})],
         ...     interactions=[HamiltonianInteraction('spring', target='mass', hamiltonian=energy)],
         ... )
         >>> expressions = [Observable('position', lambda s: s.mass.q), Observable('momentum', lambda s: s.mass.p)]
@@ -135,19 +128,12 @@ def noether(
             interaction.
 
     Examples:
-        >>> from typing import Annotated
         >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.physics.common.mechanics import HamiltonianInteraction, SymmetrySpec, noether
-        >>> class ParticleElement(Element):
-        ...     def __init__(self, label, q: Annotated[float, StateSpec()] = 0.0, p: Annotated[float, StateSpec()] = 1):
-        ...         super().__init__(label)
-        ...         self.q = q
-        ...         self.p = p
         >>> free = lambda s: s.target.p**2 / 2
-        >>> system = CompositeSystem(
-        ...     elements=[ParticleElement('ball')],
+        >>> system = System(
+        ...     elements=[Element('ball', values={'q': 0.0, 'p': 1.0})],
         ...     interactions=[HamiltonianInteraction('motion', target='ball', hamiltonian=free)],
         ... )
         >>> result = noether(system, SymmetrySpec('translation', lambda s: {'ball.q': 1}))

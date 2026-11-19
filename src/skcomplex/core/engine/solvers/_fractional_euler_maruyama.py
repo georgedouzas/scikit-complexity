@@ -60,24 +60,17 @@ class FractionalEulerMaruyamaSolver(Solver):
             The Hurst index of every noise row the increments were drawn with.
 
     Examples:
-        >>> from typing import Annotated
         >>> import numpy as np
-        >>> from skcomplex.core.components.elements import Element, GroupElement
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.components.interactions import Interaction
         >>> from skcomplex.core.components.laws import NoiseLaw
-        >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.engine.solvers import FractionalEulerMaruyamaSolver
-        >>> from skcomplex.core.engine.solvers import StepSpec
-        >>> class WalkerElement(Element):
-        ...     def __init__(self, label, x: Annotated[float, StateSpec()] = 0.0):
-        ...         super().__init__(label)
-        ...         self.x = x
-        ...
-        ...     def _get_laws(self, s):
-        ...         return [NoiseLaw(s.x, 1, hurst=0.75)]
-        >>> system = CompositeSystem(elements=[GroupElement('walkers', element=WalkerElement, size=500)])
-        >>> problem = simulate(system, until=0).problem
+        >>> from skcomplex.core.engine.solvers import FractionalEulerMaruyamaSolver, StepSpec
+        >>> from skcomplex.core.systems import System
+        >>> def rough(s):
+        ...     return [NoiseLaw(s.target.x, 1, hurst=0.75)]
+        >>> roughness = Interaction('roughness', roles={'target': 'walkers'}, laws=rough)
+        >>> system = System(elements=[Element('walkers', values={'x': 0.0}, size=500)], interactions=[roughness])
+        >>> problem = system.prepare().simulate(until=0).problem
         >>> stepper = FractionalEulerMaruyamaSolver(dt=0.01, horizon=1.0, random_state=0).prepare(problem)
         >>> state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_
         >>> round(float(np.var(state)), 1)

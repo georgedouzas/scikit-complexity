@@ -140,34 +140,28 @@ def operator_measures(
             A parameter name is not part of the system.
 
     Examples:
-        >>> from typing import Annotated
         >>> import numpy as np
-        >>> from sage.all__sagemath_symbolics import CC, SR
-        >>> from skcomplex.systems.physics.common.quantum import GeneratorLaw, HilbertSpec, operator_measures
-        >>> from skcomplex.core.components.elements import Element, GroupElement
+        >>> from sage.all__sagemath_symbolics import SR
+        >>> from skcomplex.core.components.interactions import Interaction
         >>> from skcomplex.core.components.laws.utils import local_operator
-        >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> operators = {'z': (np.diag([1, -1]), True), 'minus': (np.array([[0, 0], [1, 0]]), False)}
-        >>> QUBIT = HilbertSpec(2, operators, basis={'up': 0, 'down': 1})
-        >>> class TwoLevelElement(Element):
-        ...     def __init__(
-        ...         self, label, psi: Annotated[object, StateSpec(domain=CC**2)] = 'up', hilbert=QUBIT
-        ...     ):
+        >>> from skcomplex.core.specs import Role
+        >>> from skcomplex.core.systems import System
+        >>> from skcomplex.systems.physics.common.quantum import GeneratorLaw, QubitElement, operator_measures
+        >>> class Field(Interaction):
+        ...     def __init__(self, label, *, target: Role = 'q'):
         ...         super().__init__(label)
-        ...         self.psi = psi
-        ...         self.hilbert = hilbert
+        ...         self.target = target
         ...
-        ...     def _get_laws(self, s):
-        ...         return [GeneratorLaw(local_operator(s.psi, SR.symbol('z')))]
-        >>> system = CompositeSystem(elements=[TwoLevelElement('q')])
+        ...     def _prepare(self, s):
+        ...         super()._prepare(s)
+        ...         self.laws_ = [GeneratorLaw(local_operator(s.target.psi, SR.symbol('z')))]
+        >>> system = System(elements=[QubitElement('q')], interactions=[Field('field')])
         >>> operator_measures(system, n_states=2).energies.round(6).tolist()
         [-1.0, 1.0]
         >>> singlet = np.array([0, 1, -1, 0]) / np.sqrt(2)
-        >>> pair = CompositeSystem(elements=[GroupElement('pair', element=TwoLevelElement, size=2)])
-        >>> trajectory = simulate(pair, until=1.0, dt=1.0, initial_state={'system.state': singlet})
-        >>> result = operator_measures(trajectory, kind='entanglement', subsystems=['pair[0]'])
+        >>> pair = System(elements=[QubitElement('a'), QubitElement('b')]).prepare()
+        >>> trajectory = pair.simulate(until=1.0, dt=1.0, initial_state={'system.state': singlet})
+        >>> result = operator_measures(trajectory, kind='entanglement', subsystems=['a'])
         >>> bool(np.allclose(result.entropy, np.log(2)))
         True
     """

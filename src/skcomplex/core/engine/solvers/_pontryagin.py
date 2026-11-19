@@ -90,27 +90,24 @@ class PontryaginSolver(OptimalControlSolver):
 
     Examples:
         >>> from typing import Annotated
+        >>> from sage.sets.real_set import RealSet
         >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.laws import RateLaw
-        >>> from skcomplex.core.specs import ParameterSpec, StateSpec
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.engine.solvers import PontryaginSolver
+        >>> from skcomplex.core.components.interactions import Interaction
+        >>> from skcomplex.core.components.laws import ObjectiveLaw, RateLaw
+        >>> from skcomplex.core.systems import System
         >>> class PlantElement(Element):
-        ...     def __init__(
-        ...         self,
-        ...         label,
-        ...         x: Annotated[float, StateSpec()] = 1.0,
-        ...         u: Annotated[float, ParameterSpec(adaptive=True, bounds=(-10, 10))] = 0.0,
-        ...     ):
+        ...     def __init__(self, label, x=1.0, u: Annotated[float, RealSet.closed(-10, 10)] = 0.0):
         ...         super().__init__(label)
         ...         self.x = x
         ...         self.u = u
-        ...
-        ...     def _get_laws(self, s):
-        ...         return [RateLaw(s.x, s.u)]
-        >>> solver = PontryaginSolver(objective=lambda s: (s.plant.x**2 + s.plant.u**2) / 2)
-        >>> trajectory = simulate(CompositeSystem(elements=[PlantElement('plant')]), until=1.0, solver=solver)
+        >>> def regulate(s):
+        ...     plant = s.target
+        ...     cost = (plant.x**2 + plant.u**2) / 2
+        ...     return [RateLaw(plant.x.diff(s.t), plant.u), ObjectiveLaw(cost, controls=[plant.u])]
+        >>> regulator = Interaction('regulator', roles={'target': 'plant'}, laws=regulate)
+        >>> from skcomplex.core.engine.solvers import PontryaginSolver
+        >>> plant = System(elements=[PlantElement('plant')], interactions=[regulator], solver=PontryaginSolver())
+        >>> trajectory = plant.prepare().simulate(until=1.0)
         >>> float(round(trajectory.get_values('plant.u')[0], 3))
         -0.762
     """

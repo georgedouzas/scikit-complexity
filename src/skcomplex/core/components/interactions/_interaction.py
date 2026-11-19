@@ -86,18 +86,12 @@ class Interaction(BaseInteraction):
 
     Examples:
         >>> from typing import Annotated
-        >>> from skcomplex.core.components.interactions import Interaction
-        >>> from skcomplex.core.specs import ParameterSpec, RoleSpec
         >>> from sage.all__sagemath_symbolics import oo
         >>> from sage.sets.real_set import RealSet
+        >>> from skcomplex.core.components.interactions import Interaction
+        >>> from skcomplex.core.specs import Role
         >>> class PredationInteraction(Interaction):
-        ...     def __init__(
-        ...         self,
-        ...         label,
-        ...         predator: Annotated[str, RoleSpec()],
-        ...         prey: Annotated[str, RoleSpec()],
-        ...         a: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
-        ...     ):
+        ...     def __init__(self, label, predator: Role, prey: Role, a: Annotated[float, RealSet.open(0, oo)] = 0.1):
         ...         super().__init__(label)
         ...         self.predator = predator
         ...         self.prey = prey

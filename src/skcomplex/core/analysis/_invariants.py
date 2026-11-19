@@ -104,25 +104,16 @@ def invariants(
             invalid.
 
     Examples:
-        >>> from typing import Annotated
         >>> from skcomplex.core.analysis import invariants
         >>> from skcomplex.core.components import Observable
         >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.interactions import RateInteraction
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.specs import StateSpec
-        >>> class OscillatorElement(Element):
-        ...     def __init__(self, label, q: Annotated[float, StateSpec()] = 1.0, p: Annotated[float, StateSpec()] = 0):
-        ...         super().__init__(label)
-        ...         self.q = q
-        ...         self.p = p
-        >>> system = CompositeSystem(
-        ...     elements=[OscillatorElement('mass')],
-        ...     interactions=[
-        ...         RateInteraction('position', target='mass', state='q', rate=lambda s: s.target.p),
-        ...         RateInteraction('momentum', target='mass', state='p', rate=lambda s: -s.target.q),
-        ...     ],
-        ... )
+        >>> from skcomplex.core.components.interactions import Interaction
+        >>> from skcomplex.core.components.laws import RateLaw
+        >>> from skcomplex.core.systems import System
+        >>> def swing(s):
+        ...     return [RateLaw(s.target.q, s.target.p), RateLaw(s.target.p, -s.target.q)]
+        >>> spring = Interaction('spring', roles={'target': 'mass'}, laws=swing)
+        >>> system = System(elements=[Element('mass', values={'q': 1.0, 'p': 0.0})], interactions=[spring])
         >>> expressions = [
         ...     Observable('energy', lambda s: s.mass.q**2 + s.mass.p**2),
         ...     Observable('position', lambda s: s.mass.q),
