@@ -47,10 +47,16 @@ class BoundaryLawsPass(BasePass):
         the space, such as `x` and `y` of `Element('walkers', values={'x': [1.0, 9.0], 'y': [5.0, 5.0]}, size=2)`. A
         periodic boundary wraps every position component into the box. A reflecting boundary mirrors a position that
         crossed a wall back into the box and reverses the velocity component across the wall, where the velocity is
-        the first derivative of a position of order 2.
+        the first derivative of a position of order 2. Agents keep their own positions in the space, which wraps or
+        bounds them, so they take no law.
         """
         space = block.node.space
-        if block.node.interaction or not isinstance(space, ContinuousSpace) or space.boundary == 'open':
+        if (
+            block.node.interaction
+            or block.node.is_agent
+            or not isinstance(space, ContinuousSpace)
+            or space.boundary == 'open'
+        ):
             return []
         declarations = declarations_of(block.node.component_type, VariableKind.STATE)
         laws: list[BaseLaw] = []
