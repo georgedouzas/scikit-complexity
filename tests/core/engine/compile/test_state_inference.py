@@ -1604,3 +1604,25 @@ def test_a_field_bound_to_rules_keeps_as_states_only_the_values_its_laws_change(
     assert [name for name in trajectory.problem.states.names if name.startswith('field/')] == ['field/ground.level']
     assert 'field/ground.rate' in trajectory.problem.parameters.names
     assert float(np.sum(trajectory.get_values('field/ground.level')[-1])) > 0
+
+
+def _tend(system: object) -> None:
+    """Leave the system as it is."""
+    del system
+
+
+def test_get_declared_keeps_a_value_a_rate_changes_beside_a_rule_of_the_same_interaction():
+    """Test that soil a rate grows stays a state of its nested system when the same interaction runs a system rule."""
+    tending = Interaction(
+        'tend',
+        roles={'soil': 'land/soil', 'farmers': 'village/farmers'},
+        laws=lambda s: [RateLaw(s.soil.x, 1.0), UpdateLaw(s, _tend)],
+    )
+    system = System(
+        systems=[
+            System('land', elements=[Element('soil', values={'x': 0.0})]),
+            System('village', elements=[Element('farmers', values={'wealth': 1.0}, size=2)]),
+        ],
+        interactions=[tending],
+    ).prepare()
+    assert system.states_ == ('land/soil.x', 'village/farmers.wealth')

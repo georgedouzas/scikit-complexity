@@ -837,18 +837,23 @@ class _StateInference:
         """Return the paths of the groups whose members are agents.
 
         Their members run agent rules, or a rule reads them through the roles of its interaction, such as the traders a
-        market clears with `UpdateLaw(s, clear)` or the balls an urn draws from with `UpdateLaw(s.target, draw)`.
+        market clears with `UpdateLaw(s, clear)` or the balls an urn draws from with `UpdateLaw(s.target, draw)`. An
+        element whose values rate or noise laws change flows in continuous time, so it is no agent even when a rule of
+        the same interaction reads it, as the soil that farmers tend.
         """
         census = Compilation._get_required(compilation.census, 'census')
         nodes = {node.path: node for node in Compilation._get_required(compilation.nodes, 'nodes')}
         groups: set[str] = set()
+        flowing: set[str] = set()
         for record in census.records:
+            if isinstance(record.law, RateLaw | NoiseLaw):
+                flowing.update(entry.name.rpartition('.')[0] for entry in record.targets)
             node = nodes.get(record.path)
             if not isinstance(record.law, RuleLaw) or node is None:
                 continue
             for role in declarations_of(node.component, VariableKind.ROLE):
                 groups.update(f'{node.scope}{label}' for label in bound_labels(binding_of(node.component, role)))
-        return groups
+        return groups - flowing
 
     @staticmethod
     def _get_field(label: str, space: LatticeSpace | NetworkSpace, values: Mapping[str, object]) -> FieldElement:

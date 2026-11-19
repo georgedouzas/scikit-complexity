@@ -86,6 +86,7 @@ from skcomplex.core.errors import (
     ValidationError,
 )
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.common.populations import (
     ExponentialGrowthInteraction,
     LogisticGrowthInteraction,
@@ -524,6 +525,24 @@ def test_compiler_reports_an_observable_of_a_missing_system():
     observable = Observable('village/size', lambda s: s.rabbits.x)
     report = PassCompiler(observables=[observable]).prepare(_growth()).report_
     assert [issue.code for issue in report.errors] == ['observable-path']
+
+
+def test_census_of_plain_elements_holds_an_observable_a_role_binds():
+    """Test that a role bound to an observable of another nested system lets its law make a plain value a state."""
+    copy = Interaction(
+        'copy',
+        roles={'target': 'ledger/tally', 'source': 'herds/largest'},
+        laws=lambda s: [UpdateLaw(s.target.k, s.source.value)],
+    )
+    herds = System(
+        'herds',
+        elements=[Element('herd', values={'x': [1.0, 2.0, 3.0]}, size=3)],
+        interactions=[Interaction('growth', roles={'target': 'herd'}, laws=lambda s: [RateLaw(s.target.x, 0.0)])],
+    )
+    ledger = System('ledger', elements=[Element('tally', values={'k': 0.0})])
+    largest = Observable('herds/largest', group='herd', reduce=np.max, variable='x')
+    system = System(systems=[ledger, herds], interactions=[copy]).prepare([largest])
+    assert system.simulate(until=1, dt=1).get_values('ledger/tally.k')[-1] == pytest.approx(3.0)
 
 
 def _nonlocal_field(label, law, space, **settings):

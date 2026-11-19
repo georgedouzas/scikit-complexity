@@ -253,9 +253,18 @@ class PassCompiler(BaseCompiler):
         self.passes_ = tuple(clone(item) for item in passes)
 
     def _get_census_of(self, system: CompositeSystem) -> Compilation:
-        """Return a compilation of a system run up to its census of laws and its layout."""
+        """Return a compilation of a system run up to its census of laws and its layout.
+
+        An observable that a role binds and that is read only at synchronisation points is held in an element, as
+        compiling does, so the laws that read it are counted.
+        """
         self._set_passes()
-        compilation = self._run_passes(self._get_new_compilation(system), until='census')
+        compilation = self._run_passes(self._get_new_compilation(system), until='nodes')
+        held = ObservableEvaluator._get_held_observables(system, Compilation._get_required(compilation.nodes, 'nodes'))
+        if held:
+            tree, paths = ObservableEvaluator._copy_with_held_observables(system, held)
+            compilation = self._get_new_compilation(tree, held=tuple(paths))
+        compilation = self._run_passes(compilation, until='census')
         return self._run_passes(compilation, until='layout')
 
     def _get_declared_system(self, system: CompositeSystem) -> CompositeSystem:
