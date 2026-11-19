@@ -672,11 +672,14 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         pairs = self._get_pair_search_of(kernel)
         same = pairs.first == pairs.second
         columns = pairs.first.columns
-        cutoff = ReferenceSpec(pairs.cutoff, is_state=False, column=0)
+        if isinstance(pairs.cutoff, float):
+            read = repr(pairs.cutoff)
+        else:
+            read = f'p[{self._get_index(ReferenceSpec(pairs.cutoff, is_state=False, column=0), None)}]'
         lines = [
             f'@njit(cache=CACHE, parallel={parallel})',
             f'def {name}(t, x, p, L, out, offset):',
-            f'{INDENT}_cutoff_ = p[{self._get_index(cutoff, None)}]',
+            f'{INDENT}_cutoff_ = {read}',
             f'{INDENT}_box_ = (np.full({columns}, PERIOD), PERIODIC)',
         ]
         for label, entry in (('a', pairs.first), ('b', pairs.second)) if not same else (('a', pairs.first),):

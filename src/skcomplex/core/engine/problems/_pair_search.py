@@ -24,7 +24,7 @@ class PairSearch(BaseSearch):
             The entry of the positions of the second members.
 
         cutoff:
-            The parameter entry of the cutoff distance.
+            The parameter entry of the cutoff distance, or the distance itself.
 
         period:
             The side of a periodic box, or `None` for an open space.
@@ -36,7 +36,7 @@ class PairSearch(BaseSearch):
 
     pairs_: tuple[Indices, Indices]
 
-    def __init__(self, first: EntrySpec, second: EntrySpec, cutoff: EntrySpec, period: float | None) -> None:
+    def __init__(self, first: EntrySpec, second: EntrySpec, cutoff: EntrySpec | float, period: float | None) -> None:
         self.first = first
         self.second = second
         self.cutoff = cutoff
@@ -52,7 +52,7 @@ class PairSearch(BaseSearch):
         They are the first and second members of every pair.
         """
         x, p = state.x, state.p
-        cutoff = float(self.cutoff.get_view(p)[0, 0])
+        cutoff = self.cutoff if isinstance(self.cutoff, float) else float(self.cutoff.get_view(p)[0, 0])
         first, second = self._get_positions(self.first.get_view(x)), self._get_positions(self.second.get_view(x))
         boxsize = self.period
         first_tree = cKDTree(first, boxsize=boxsize)
