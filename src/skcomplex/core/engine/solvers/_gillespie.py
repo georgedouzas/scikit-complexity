@@ -29,22 +29,15 @@ class GillespieSolver(Solver):
     small outbreaks of an epidemic, and queues.
 
     Examples:
-        >>> from typing import Annotated
         >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.interactions import JumpInteraction
+        >>> from skcomplex.core.components.interactions import Interaction
+        >>> from skcomplex.core.components.laws import JumpLaw
+        >>> from skcomplex.core.engine.solvers import GillespieSolver, StepSpec
         >>> from skcomplex.core.systems import System
-        >>> from skcomplex.core.engine.solvers import GillespieSolver
-        >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.engine.solvers import StepSpec
-        >>> class PopulationElement(Element):
-        ...     def __init__(
-        ...         self, label, i: Annotated[float, StateSpec()] = 10.0, r: Annotated[float, StateSpec()] = 0.0
-        ...     ):
-        ...         super().__init__(label)
-        ...         self.i = i
-        ...         self.r = r
-        >>> recovery = JumpInteraction('recovery', target='pop', changes={'i': -1, 'r': 1}, rate=lambda s: s.target.i)
-        >>> system = System(elements=[PopulationElement('pop')], interactions=[recovery])
+        >>> def recover(s):
+        ...     return [JumpLaw(s.target.i, {s.target.i: -1, s.target.r: 1})]
+        >>> recovery = Interaction('recovery', roles={'target': 'pop'}, laws=recover)
+        >>> system = System(elements=[Element('pop', values={'i': 10.0, 'r': 0.0})], interactions=[recovery])
         >>> problem = system.prepare().simulate(until=0).problem
         >>> stepper = GillespieSolver(random_state=0).prepare(problem)
         >>> stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 100.0)).state_.tolist()

@@ -32,22 +32,17 @@ class GrunwaldLetnikovSolver(ConvolutionSolver):
             The order of every state component.
 
     Examples:
-        >>> from typing import Annotated
-        >>> import numpy as np
         >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.components.interactions import Interaction
         >>> from skcomplex.core.components.laws import RateLaw
-        >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.core.components.laws.utils import fractional
+        >>> from skcomplex.core.engine.solvers import GrunwaldLetnikovSolver, StepSpec
         >>> from skcomplex.core.systems import System
-        >>> from skcomplex.core.engine.solvers import GrunwaldLetnikovSolver
-        >>> from skcomplex.core.engine.solvers import StepSpec
-        >>> class RelaxingElement(Element):
-        ...     def __init__(self, label, x: Annotated[float, StateSpec(order=0.5)] = 1.0):
-        ...         super().__init__(label)
-        ...         self.x = x
-        ...
-        ...     def _get_laws(self, s):
-        ...         return [RateLaw(s.x, -s.x)]
-        >>> problem = System(elements=[RelaxingElement('a')]).prepare().simulate(until=0).problem
+        >>> def relax(s):
+        ...     return [RateLaw(fractional(s.target.x, 0.5), -s.target.x)]
+        >>> relaxation = Interaction('relaxation', roles={'target': 'a'}, laws=relax)
+        >>> system = System(elements=[Element('a', values={'x': 1.0})], interactions=[relaxation])
+        >>> problem = system.prepare().simulate(until=0).problem
         >>> stepper = GrunwaldLetnikovSolver(dt=0.001, random_state=0).prepare(problem)
         >>> step = StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)
         >>> round(float(stepper.run(step).state_[0]), 2)
