@@ -287,7 +287,7 @@ class _StateInference:
 
     @staticmethod
     def _get_class_defaults(element: Element, names: Collection[str]) -> dict[str, object]:
-        """Return the default of every value that its element class takes as an argument with a default.
+        """Return the defaults that the element class gives the values, by name.
 
         A member that a rule creates takes them for the values the rule does not give. A plain `Element(values=...)`
         takes its values in `values`, so its class gives no default.
@@ -699,9 +699,10 @@ class _StateInference:
         delays = self._get_delays(compilation)
 
         def declare(element: Element, path: str, space: BaseSpace | None) -> list[BaseElement]:
+            agent = path in agents and not self._is_field(element, kinds)
             return self._get_declared_elements(
                 element,
-                (lambda name: 1) if path in agents else (lambda name: orders.get(f'{path}.{name}')),
+                (lambda name: 1) if agent else (lambda name: orders.get(f'{path}.{name}')),
                 lambda name: lags.get(f'{path}.{name}', 0),
                 kinds,
                 agents=path in agents,
@@ -717,6 +718,22 @@ class _StateInference:
             )
 
         return self._replace(system, declare)
+
+    @staticmethod
+    def _is_field(element: Element, kinds: frozenset[str]) -> bool:
+        """Return whether an element is a field on the sites or the links of a space.
+
+        Such an element is a field, such as the pheromone on the cells of a lattice, and not a group of agents, even
+        when rules read it through a role. Rules change a field only through deposits into the values that its laws
+        change, so it keeps as states only those values, as every other element does, and its other values, such as a
+        rate of evaporation, stay parameters. The nodes and links of a network whose laws change it are agents.
+        """
+        space = element.space
+        if isinstance(space, NetworkSpace) and kinds:
+            return False
+        if _StateInference._get_link(element) is not None:
+            return True
+        return isinstance(space, LatticeSpace | NetworkSpace) and element.size is None
 
     @staticmethod
     def _get_steps(compilation: Compilation) -> dict[str, str]:

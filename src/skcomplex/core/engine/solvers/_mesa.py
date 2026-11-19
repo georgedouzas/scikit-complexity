@@ -433,7 +433,11 @@ class SystemView:
         problem = self._stepper.problem_
         if not problem.states.has(name):
             names = [entry.name for entry in problem.states.entries if entry.members is not None]
-            error_msg = f'No field state named {name!r}. Available group states are: {", ".join(names)}.'
+            error_msg = (
+                f'No field state named {name!r}. A value of a field that no law changes is a parameter, so a rule that '
+                'deposits into it needs a law that changes it too, such as its decay. Available group states are: '
+                f'{", ".join(names)}.'
+            )
             raise KeyError(error_msg)
         shape = problem.get_lattice_shape(name)
         if shape is not None:
@@ -2107,7 +2111,7 @@ class MesaSolver(ExternalSolver):
 
     @staticmethod
     def _get_defaults_of(spec: _CompiledAgentsSpec) -> dict[str, object]:
-        """Return the values of the states that a new agent takes when none is given, by name.
+        """Return the values a new agent takes when it is given none, by name.
 
         An agent takes the value its group shares, such as the `innovation` of
         `Element('words', values={'count': 1.0, 'innovation': 0.1}, size=1)`. For a value its group gives per member, it

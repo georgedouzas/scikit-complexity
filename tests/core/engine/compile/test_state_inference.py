@@ -1571,3 +1571,36 @@ def test_a_single_element_keeps_its_vector_value_over_the_default_of_its_class()
     drift = Interaction('drift', roles={'target': 'probe'}, laws=lambda s: [RateLaw(s.target.x.diff(s.t), [1.0, 1.0])])
     system = System(elements=[_ProbeElement('probe', x=[3.0, 4.0])], interactions=[drift], solver=RK4Solver(dt=0.5))
     assert system.prepare().simulate(until=1.0).get_values('probe.x')[0].tolist() == [3.0, 4.0]
+
+
+def _mark(agent, system):
+    """Deposit one unit into the field at the cell of an agent."""
+    system.deposit('ground.level', agent.location_key, 1.0)
+
+
+def test_a_field_bound_to_rules_keeps_as_states_only_the_values_its_laws_change():
+    """Test that a field that a rule deposits into keeps the values no law changes as parameters."""
+    grid = LatticeSpace((3, 3))
+    ants = Element('ants', values={'x': [0, 2], 'y': [1, 1]}, size=2, space=grid)
+    ground = Element('ground', values={'level': 0.0, 'rate': 0.5}, space=LatticeSpace((3, 3)))
+    decay = Interaction(
+        'decay',
+        roles={'target': 'ground'},
+        laws=lambda s: [RateLaw(s.target.level, -s.target.rate * s.target.level)],
+    )
+    marking = Interaction(
+        'marking',
+        roles={'target': 'colony/ants', 'ground': 'field/ground'},
+        laws=lambda s: [UpdateLaw(s.target, _mark)],
+    )
+    system = System(
+        systems=[
+            System('colony', elements=[ants], space=grid),
+            System('field', elements=[ground], interactions=[decay]),
+        ],
+        interactions=[marking],
+    )
+    trajectory = system.prepare().simulate(until=2, random_state=0)
+    assert [name for name in trajectory.problem.states.names if name.startswith('field/')] == ['field/ground.level']
+    assert 'field/ground.rate' in trajectory.problem.parameters.names
+    assert float(np.sum(trajectory.get_values('field/ground.level')[-1])) > 0
