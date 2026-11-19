@@ -19,9 +19,9 @@ from ....core import systems
 from ....core.components import Observable
 from ....core.components.elements import Element, Period
 from ....core.components.laws.utils import neighbors, where
-from ....core.components.spaces import BaseNeighborhood, BaseSpace, LatticeSpace
+from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import BaseSolver
+from ....core.engine.solvers import BaseSolver, MetropolisSolver
 from ....core.specs import Role
 from ..common.spins import IsingSamplingInteraction, IsingSpinElement, SpinSamplingInteraction
 
@@ -115,12 +115,11 @@ class XYSpinElement(Element):
 
 
 class PottsSamplingInteraction(SpinSamplingInteraction):
-    """Monte Carlo sweeps of Potts spins in states `0` to `q - 1`.
+    """Boltzmann weight of Potts spins in states `0` to `q - 1`, whose local energy is `-J` times the like neighbours.
 
-    The local energy is `-J` times the like neighbours.
-
-    Every move proposes a state drawn from the `q` states. The coupling `J` and the temperature are parameters of the
-    spins.
+    The coupling `J` and the temperature are values of the spins, and the `MetropolisSolver` of the system proposes
+    states drawn from the `q` states, `MetropolisSolver(moves={'spins.color': 'random-value'},
+    values={'spins.color': range(q)})`.
 
     Args:
         label:
@@ -135,53 +134,27 @@ class PottsSamplingInteraction(SpinSamplingInteraction):
         state:
             The name of the state that holds the spin.
 
-        rule:
-            The acceptance, `'metropolis'`, `'glauber'`, or `'heat-bath'`.
-
-        neighborhood:
-            The neighbours of a spin, or `None` for the von Neumann neighbourhood.
-
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics._spins import PottsSamplingInteraction
-        >>> PottsSamplingInteraction('potts', target='spins', q=4).values
-        (0.0, 1.0, 2.0, 3.0)
+        >>> PottsSamplingInteraction('potts', target='spins', q=4).q
+        4
     """
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Role,
-        q: int = 3,
-        state: str = 'color',
-        rule: str = 'heat-bath',
-        neighborhood: BaseNeighborhood | None = None,
-    ) -> None:
-        super().__init__(
-            label,
-            target=target,
-            state=state,
-            energy=self._get_energy,
-            move='random-value',
-            rule=rule,
-            neighborhood=neighborhood,
-            values=tuple(float(value) for value in range(q)),
-        )
+    def __init__(self, label: str, *, target: Role, q: int = 3, state: str = 'color') -> None:
+        super().__init__(label, target=target, state=state, energy=self._get_energy)
         self.q = q
 
     def _get_energy(self, namespace: SimpleNamespace) -> Expression:
         """Return the local energy `-J` times the number of neighbours in the spin's state."""
         color, other = getattr(namespace.target, self.state), getattr(namespace.target.other, self.state)
-        return -namespace.target.J * neighbors(where(other == color, 1, 0), over=self.neighborhood)
+        return -namespace.target.J * neighbors(where(other == color, 1, 0))
 
 
 class XYSamplingInteraction(SpinSamplingInteraction):
-    """Monte Carlo sweeps of planar spins at angles `theta`.
+    """Boltzmann weight of planar spins at angles `theta`, whose local energy is `-J sum_j cos(theta - theta_j)`.
 
-    The local energy is `-J sum_j cos(theta - theta_j)`.
-
-    Every move rotates the angle by a uniform number in `[-width, width]`, accepted by the Metropolis rule. The
-    coupling `J` and the temperature are parameters of the spins.
+    The coupling `J` and the temperature are values of the spins, and the `MetropolisSolver` of the system rotates the
+    angles by a uniform number in `[-width, width]`, `MetropolisSolver(moves={'spins.theta': 'rotate'}, width=1.0)`.
 
     Args:
         label:
@@ -190,44 +163,22 @@ class XYSamplingInteraction(SpinSamplingInteraction):
         target:
             The path of the group of spins.
 
-        width:
-            The largest change of a proposed rotation.
-
         state:
             The name of the state that holds the angle.
 
-        neighborhood:
-            The neighbours of a spin, or `None` for the von Neumann neighbourhood.
-
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics._spins import XYSamplingInteraction
-        >>> XYSamplingInteraction('xy', target='spins', width=0.5).move
-        'rotate'
+        >>> XYSamplingInteraction('xy', target='spins').state
+        'theta'
     """
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Role,
-        width: float = 1.0,
-        state: str = 'theta',
-        neighborhood: BaseNeighborhood | None = None,
-    ) -> None:
-        super().__init__(
-            label,
-            target=target,
-            state=state,
-            energy=self._get_energy,
-            move='rotate',
-            neighborhood=neighborhood,
-            width=width,
-        )
+    def __init__(self, label: str, *, target: Role, state: str = 'theta') -> None:
+        super().__init__(label, target=target, state=state, energy=self._get_energy)
 
     def _get_energy(self, namespace: SimpleNamespace) -> Expression:
         """Return the local energy `-J sum_j cos(theta - theta_j)` of a spin."""
         angle, other = getattr(namespace.target, self.state), getattr(namespace.target.other, self.state)
-        return -namespace.target.J * neighbors(cos(angle - other), over=self.neighborhood)
+        return -namespace.target.J * neighbors(cos(angle - other))
 
 
 class IsingSystem(systems.BaseSystem):
@@ -335,7 +286,8 @@ class IsingSystem(systems.BaseSystem):
         self.system_ = systems.System(
             self.label,
             elements=[group],
-            interactions=[IsingSamplingInteraction('sampling', target='spins', rule=self.sampler)],
+            interactions=[IsingSamplingInteraction('sampling', target='spins')],
+            solver=MetropolisSolver(moves={'spins.spin': 'flip'}, rule=self.sampler),
         )
 
 
@@ -427,7 +379,12 @@ class PottsSystem(systems.BaseSystem):
         self.system_ = systems.System(
             self.label,
             elements=[group],
-            interactions=[PottsSamplingInteraction('sampling', target='spins', q=self.q, rule=self.sampler)],
+            interactions=[PottsSamplingInteraction('sampling', target='spins', q=self.q)],
+            solver=MetropolisSolver(
+                moves={'spins.color': 'random-value'},
+                rule=self.sampler,
+                values={'spins.color': tuple(float(value) for value in range(self.q))},
+            ),
         )
 
 
@@ -465,7 +422,7 @@ class XYSystem(systems.BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import XYSystem
-        >>> XYSystem(8).prepare().system_.interactions[0].width
+        >>> XYSystem(8).prepare().system_.solver.width
         1.0
     """
 
@@ -514,5 +471,6 @@ class XYSystem(systems.BaseSystem):
         self.system_ = systems.System(
             self.label,
             elements=[group],
-            interactions=[XYSamplingInteraction('sampling', target='spins', width=self.width)],
+            interactions=[XYSamplingInteraction('sampling', target='spins')],
+            solver=MetropolisSolver(moves={'spins.theta': 'rotate'}, width=self.width),
         )

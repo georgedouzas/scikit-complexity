@@ -27,11 +27,14 @@ from ....components.laws import (
     LinearObjectiveSpec,
     LinearProgramLaw,
     LocalRuleLaw,
+    MoveSpec,
     NoiseLaw,
     ObjectiveLaw,
+    ObjectiveSpec,
     RateLaw,
     RuleLaw,
     SampleLaw,
+    SamplerSpec,
     TransferLaw,
     UpdateLaw,
 )
@@ -40,7 +43,7 @@ from ....components.laws.utils._operators import _OperatorFunction
 from ....components.laws.utils._reductions import hyperedges_in, neighborhoods_in, reductions_in
 from ....components.laws.utils._relaxations import relaxation_of
 from ....components.laws.utils._tensors import distribute_operators
-from ....components.spaces import CellComplexSpace, LatticeSpace
+from ....components.spaces import CellComplexSpace, LatticeSpace, RadiusNeighborhood
 from ....components.systems import CompositeSystem
 from ....enums import ElementKind, VariableKind
 from ....errors import RoleElementError, SkcomplexError, TensorShapeError, TensorSymmetryError, ValidationError
@@ -101,6 +104,7 @@ class CensusPass(BasePass):
             compilation.system,
             Compilation._get_required(compilation.nodes, 'nodes'),
             frozenset(compilation.trained),
+            compilation.solver,
         )
 
     @staticmethod
@@ -204,6 +208,8 @@ class CensusPass(BasePass):
         observer: Observer,
         declarations: DeclarationsSpec,
         agents: set[str],
+        *,
+        solver: object = None,
     ) -> list[_CensusRecordSpec]:
         """Return the census records of the laws of one component.
 
@@ -214,7 +220,7 @@ class CensusPass(BasePass):
         specs, _ = SpecsPass._get_specs_of(block, elements, declarations, observer)
         for spec in specs:
             component = CensusPass._get_component_of(block.node)
-            laws = CensusPass._get_declared_laws(spec, component)
+            laws = CensusPass._get_declared_laws(spec, component, solver)
             programs = any(isinstance(law, LinearProgramLaw) for law in laws)
             rows = RowsPass._get_settled(spec, list(laws)).rows if programs else spec.rows
             for law in laws:
@@ -250,6 +256,7 @@ class CensusPass(BasePass):
         system: CompositeSystem,
         nodes: list[_NodeSpec],
         trained: frozenset[str] = frozenset(),
+        solver: object = None,
     ) -> _CensusSpec:
         """Return the census of the laws of a system.
 
@@ -266,6 +273,9 @@ class CensusPass(BasePass):
 
             trained:
                 The dotted paths of the parameters a training trains, which are adaptive.
+
+            solver:
+                The solver of the compilation, whose moves turn objectives of members into sweeps, or `None`.
 
         Returns:
             census:
@@ -290,7 +300,7 @@ class CensusPass(BasePass):
         records = []
         for block in blocks:
             try:
-                records += CensusPass._get_records_of(block, elements, observer, declarations, agents)
+                records += CensusPass._get_records_of(block, elements, observer, declarations, agents, solver=solver)
             except SkcomplexError as error:
                 errors.append((block.node.path, error))
         flowing = CensusPass._get_flowing(records)
@@ -960,7 +970,7 @@ class CensusPass(BasePass):
             raise RoleElementError(error_msg) from error
 
     @staticmethod
-    def _get_declared_laws(spec: KernelSpec, component: BaseComponent) -> list[BaseLaw]:
+    def _get_declared_laws(spec: KernelSpec, component: BaseComponent, solver: object = None) -> list[BaseLaw]:
         """Return the laws a component returns for its namespace.
 
         It first checks their classes against its binding.
@@ -971,6 +981,9 @@ class CensusPass(BasePass):
 
             component:
                 The object whose `laws` method describes the component.
+
+            solver:
+                The solver of the compilation, whose moves turn objectives of members into sweeps, or `None`.
 
         Returns:
             laws:
@@ -985,6 +998,7 @@ class CensusPass(BasePass):
         if not isinstance(returned, list | tuple) or len(laws) < len(returned):
             error_msg = f'`_get_laws` of {spec.owner} must return a list of laws.'
             raise ValidationError(error_msg)
+        laws = [CensusPass._get_sampled(spec, law, solver) for law in laws]
         lowered = [BilinearLaw._get_lowered(law) for law in CensusPass._get_programs(laws, spec.owner)]
         split = [item for law in lowered for item in CensusPass._get_component_rates(spec, law)]
         declared = [CensusPass._get_relaxation(law).prepare(spec.owner) for law in split]
@@ -1120,6 +1134,37 @@ class CensusPass(BasePass):
                 if str(item) in targets and targets & {str(other) for other in expression.diff(item).variables()}:
                     return False
         return True
+
+    @staticmethod
+    def _get_sampled(spec: KernelSpec, law: BaseLaw, solver: object) -> BaseLaw:
+        """Return the objective of members a Metropolis solver moves as a Monte Carlo sweep.
+
+        The objective is the local objective of a member, such as its energy over the temperature, and the moves, the
+        rule, the schedule, and the neighbourhood are the settings of the solver, so the sweep accepts a move with the
+        weight `exp(-change)` of the objective.
+        """
+        metropolis = getattr(solver, 'metropolis', None)
+        moves = getattr(metropolis, 'moves', None)
+        if not isinstance(law, ObjectiveLaw) or not moves or not isinstance(law.targets, Expression):
+            return law
+        reference = spec.references.get(law.targets)
+        name = reference.entry.name if reference is not None else None
+        if name not in moves:
+            return law
+        kind = moves[name]
+        if callable(kind):
+            move = MoveSpec(law.targets, 'function', function=kind)
+        else:
+            values = tuple((getattr(metropolis, 'values', None) or {}).get(name, ()))
+            move = MoveSpec(law.targets, kind, values, getattr(metropolis, 'width', 1.0))
+        over = getattr(metropolis, 'neighborhood', None) or RadiusNeighborhood(1, metric='manhattan')
+        sampler = SamplerSpec(
+            getattr(metropolis, 'rule', 'metropolis'),
+            1.0,
+            getattr(metropolis, 'schedule', 'checkerboard'),
+        )
+        label = law.label or spec.owner.rpartition('/')[2]
+        return SampleLaw(ObjectiveSpec(law.value, over), move, sampler, label=label)
 
     @staticmethod
     def _get_component_of(node: _NodeSpec) -> BaseComponent:
