@@ -4,15 +4,13 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components import Observable
-from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.interactions import TrainingInteraction
 from skcomplex.core.components.laws import DatasetSpec
-from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import JaxBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems._learning_problem_spec import LearningProblemSpec
 from skcomplex.core.engine.solvers import RK4Solver
+from skcomplex.core.systems import System
 from skcomplex.systems.computer_science.neural_networks import ElmanNetworkSystem
 from skcomplex.systems.computer_science.neural_networks._elman import TRAINED
 
@@ -93,15 +91,15 @@ def test_shape_mismatch(values):
 
 def test_not_differentiable():
     """Test that a nested system holding a law given as a Python callable cannot be differentiated."""
-    net = CompositeSystem(
+    net = System(
         'net',
-        elements=[GroupElement('cells', element=HoldingElement, size=2)],
+        elements=[HoldingElement('cells', size=2)],
         interactions=[CallableGrowthInteraction('growth', target='cells')],
     )
     data = DatasetSpec({'growth.r': np.zeros((2, 3))})
     loss = Observable('size', group='cells', reduce='sum', variable='n')
     training = TrainingInteraction('training', system='net', trained=['growth.r'], loss=loss, data=data)
-    issues = _issues(CompositeSystem('fit', systems=[net], interactions=[training], time=DiscreteTime()))
+    issues = _issues(System('fit', systems=[net], interactions=[training]))
     assert [issue.code for issue in issues] == ['learning-not-differentiable']
     assert 'discrete map or ordinary differential equations' in issues[0].message
 
@@ -111,12 +109,6 @@ def test_unsupported_solver():
     issues = [issue for issue in _issues(_elman(), solver=RK4Solver()) if issue.severity == 'error']
     assert [issue.code for issue in issues] == ['solver-unsupported']
     assert 'GradientDescentSolver' in issues[0].message
-
-
-def test_training_needs_discrete_time():
-    """Test that a system that trains in a declared continuous time is reported."""
-    system = _elman()._get_composite().set_params(time=ContinuousTime())
-    assert 'law-time' in _codes(system)
 
 
 def test_training_steps_once_per_epoch_without_a_time():
