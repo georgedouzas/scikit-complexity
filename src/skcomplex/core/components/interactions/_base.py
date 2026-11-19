@@ -14,7 +14,7 @@ from typing import ClassVar, Union, cast, get_args, get_origin
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import CC, RR, SR, ZZ, Expression, function, vector
+from sage.all__sagemath_symbolics import CC, RR, SR, ZZ, Expression, I, function, vector
 from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.structure.element import Matrix
@@ -23,7 +23,7 @@ from sage.symbolic.operators import FDerivativeOperator
 from sklearn.base import clone
 
 from ...enums import DomainKind
-from ...errors import SpaceError, ValidationError
+from ...errors import ParameterError, SpaceError, ValidationError
 from ...specs import BaseSpec, DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec
 from .._tags import Tags
 from ..base import BaseComponent
@@ -275,7 +275,11 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
 
     @staticmethod
     def _get_functional(value: object, time: Expression, functions: dict[str, Expression]) -> object:
-        """Return the symbols of states in a value of a role as functions of time."""
+        """Return the symbols of states in a value of a role as functions of time.
+
+        A complex state, written in its real and imaginary parts as `z_re + I * z_im`, has both parts as functions of
+        time, so `z.diff(t)` is its derivative.
+        """
         if isinstance(value, SimpleNamespace):
             return SimpleNamespace(
                 **{name: BaseInteraction._get_functional(item, time, functions) for name, item in vars(value).items()},
@@ -287,6 +291,10 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         if isinstance(value, Expression) and value.is_symbol() and value is not time:
             functions[str(value)] = value
             return function(str(value))(time)
+        if isinstance(value, Expression) and value.has(SR(I)):
+            return value.subs(
+                {item: BaseInteraction._get_functional(item, time, functions) for item in value.variables()},
+            )
         return value
 
     @staticmethod
@@ -463,10 +471,28 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
                 )
                 raise ValidationError(error_msg)
             return BaseInteraction._get_replaced(law, target=state, order=1 if order == 1 else order)
+        if law.target.has(SR(I)):
+            return BaseInteraction._get_normalized_complex(law)
         if law.target.operator() is not derivative:
             return law if law.order is not None else BaseInteraction._get_replaced(law, order=1)
         state, order = law.target.operands()
         return BaseInteraction._get_replaced(law, target=state, order=int(order))
+
+    @staticmethod
+    def _get_normalized_complex(law: RateLaw | NoiseLaw) -> BaseComponent:
+        """Return a law on the derivative of a complex state as a law on the state.
+
+        The derivative `z.diff(t, k)` of a complex state is the sum of the derivatives of order `k` of its real and
+        imaginary parts, so the law becomes a law on `z` of the order `k`. A target with no derivatives has order 1.
+        """
+        target = cast('Expression', law.target)
+        found = target.find(derivative(SR.wild(0), SR.wild(1)))
+        orders = {int(item.operands()[1]) for item in found}
+        if len(orders) > 1:
+            return law
+        state = target.subs({item: item.operands()[0] for item in found})
+        order = orders.pop() if orders else (law.order or 1)
+        return BaseInteraction._get_replaced(law, target=state, order=order)
 
     @staticmethod
     def _get_normalized_vector(law: RateLaw | NoiseLaw) -> BaseComponent:
@@ -500,7 +526,15 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         }
         functional = SimpleNamespace(**roles)
         prepared = copy.copy(self)
-        prepared.prepare(functional)
+        try:
+            prepared.prepare(functional)
+        except AttributeError as error:
+            name = error.name
+            if name is None or error.obj is not functional:
+                raise
+            if not isinstance(self.get_params(deep=False).get(name), list | np.ndarray):
+                raise
+            raise self._get_unshaped_error(name) from error
         laws: list[BaseComponent] = []
         for law in prepared.laws_:
             rule = self._get_rule(law, roles, functional)
@@ -512,6 +546,19 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
             terms = FlowTermLaw._get_terms(translated, self.label) if flow else [translated]
             laws.extend(self._get_local_rule(self._get_normalized(term)) for term in terms)
         return laws
+
+    def _get_unshaped_error(self, name: str) -> ParameterError:
+        """Return the error of an array argument the laws read but no group shapes.
+
+        An array argument is a parameter when it is a vector, a square matrix of 2 or 3 rows, or an array with one
+        axis per role whose group has as many members, such as the interaction matrix of the species of a community.
+        """
+        shape = np.shape(self.get_params(deep=False)[name])
+        error_msg = (
+            f'{self.label}.{name} is an array of shape {shape}, which no group bound to a role of {self.label} shapes. '
+            'Give a vector, a square matrix of 2 or 3 rows, or one axis per role whose group has as many members.'
+        )
+        return ParameterError(error_msg)
 
     @staticmethod
     def _get_local_rule(law: BaseComponent) -> BaseComponent:
