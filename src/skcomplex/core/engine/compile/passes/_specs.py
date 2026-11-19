@@ -1233,7 +1233,9 @@ class SpecsPass(BasePass):
         references.update(second_references)
         period = getattr(interaction, 'period', None)
         period = period if period is not None else SpecsPass._get_space_period(node)
-        pairs = PairSearch(first.entries[position], second.entries[position], block.entries['cutoff'], period).prepare()
+        within = interaction._get_within()
+        cutoff = block.entries['cutoff'] if within is None else float(within.prepare().radius)
+        pairs = PairSearch(first.entries[position], second.entries[position], cutoff, period).prepare()
         namespace = SimpleNamespace(
             t=time,
             **vars(parameters),
@@ -1485,7 +1487,8 @@ class SpecsPass(BasePass):
         if (hyperedges and bound) or grouped:
             gathered = SpecsPass._get_grouping_specs if grouped else SpecsPass._get_hyperedge_specs
             return gathered(block, elements, time), declarations
-        if isinstance(block.node.component, PairInteraction):
+        paired = isinstance(component, BaseInteraction) and component._get_within() is not None
+        if isinstance(block.node.component, PairInteraction) or paired:
             return [SpecsPass._get_pair_spec(block, elements, time)], declarations
         specs = SpecsPass._get_interaction_specs(block, elements, time, observer)
         grows = isinstance(component, TopologyInteraction) and component.action == 'add-node' and not bound
