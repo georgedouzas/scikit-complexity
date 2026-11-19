@@ -128,21 +128,13 @@ class BirthDeathInteraction(Interaction):
             function is not callable, or the schedule `'member'` has arrivals, raised by `prepare`.
 
     Examples:
-        >>> from typing import Annotated
-        >>> from skcomplex.core.components.elements import Element, GroupElement
-        >>> from skcomplex.systems.general.agents import BirthDeathInteraction
+        >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.spaces import LatticeSpace
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> class CellElement(Element):
-        ...     def __init__(self, label, *, mass: Annotated[float, StateSpec()] = 0.0):
-        ...         super().__init__(label)
-        ...         self.mass = mass
-        >>> cells = GroupElement('cells', element=CellElement, size=1, values={'mass': 8.0}, variable=True)
+        >>> from skcomplex.core.systems import System
+        >>> from skcomplex.systems.general.agents import BirthDeathInteraction
+        >>> cells = Element('cells', values={'mass': 8.0}, size=1, space=LatticeSpace((3, 3)))
         >>> division = BirthDeathInteraction('division', target='cells', birth=1.0, split=('mass',))
-        >>> system = CompositeSystem(elements=[cells], interactions=[division], space=LatticeSpace((3, 3)))
-        >>> trajectory = simulate(system, until=2, random_state=0)
+        >>> trajectory = System(elements=[cells], interactions=[division]).prepare().simulate(until=2, random_state=0)
         >>> trajectory.get_agents('cells', 2).values['mass'].tolist()
         [2.0, 2.0, 2.0, 2.0]
     """
