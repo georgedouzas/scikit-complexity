@@ -286,6 +286,20 @@ class _StateInference:
         return DeclaredVariableSpec(default, declared.spec)
 
     @staticmethod
+    def _get_class_defaults(element: Element, names: Collection[str]) -> dict[str, object]:
+        """Return the default of every value that its element class takes as an argument with a default.
+
+        A member that a rule creates takes them for the values the rule does not give. A plain `Element(values=...)`
+        takes its values in `values`, so its class gives no default.
+        """
+        parameters = inspect.signature(type(element)).parameters
+        return {
+            name: parameters[name].default
+            for name in names
+            if name in parameters and parameters[name].default is not inspect.Parameter.empty
+        }
+
+    @staticmethod
     def _is_plain(component: BaseComponent) -> bool:
         """Return whether an element has values or members but declares no states or laws.
 
@@ -1101,7 +1115,8 @@ class _StateInference:
         view = element._get_view()
         if count is None:
             return [DeclaredElement(element.label, variables=variables, drawing=drawing, view=view)]
-        values = {'variables': variables, 'drawing': drawing, 'view': view, **arrays}
+        defaults = self._get_class_defaults(element, variables) if agents else None
+        values = {'variables': variables, 'drawing': drawing, 'view': view, 'defaults': defaults, **arrays}
         if network:
             nodes = GroupElement(
                 element.label,
