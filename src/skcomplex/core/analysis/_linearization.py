@@ -136,27 +136,22 @@ def linearization(
 
     Examples:
         >>> from typing import Annotated
+        >>> from sage.all__sagemath_symbolics import RealSet
         >>> from skcomplex.core.analysis import linearization
         >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.components.interactions import Interaction
         >>> from skcomplex.core.components.laws import RateLaw
-        >>> from skcomplex.core.specs import ParameterSpec, StateSpec
         >>> from skcomplex.core.systems import System
         >>> class CartElement(Element):
-        ...     def __init__(
-        ...         self,
-        ...         label,
-        ...         x: Annotated[float, StateSpec()] = 0.0,
-        ...         v: Annotated[float, StateSpec()] = 0.0,
-        ...         force: Annotated[float, ParameterSpec(adaptive=True, bounds=(-1, 1))] = 0.0,
-        ...     ):
+        ...     def __init__(self, label, x=0.0, force: Annotated[float, RealSet.closed(-1, 1)] = 0.0):
         ...         super().__init__(label)
         ...         self.x = x
-        ...         self.v = v
         ...         self.force = force
-        ...
-        ...     def _get_laws(self, namespace):
-        ...         return [RateLaw(namespace.x, namespace.v), RateLaw(namespace.v, namespace.force)]
-        >>> result = linearization(System(elements=[CartElement('cart')]))
+        >>> def push(s):
+        ...     return [RateLaw(s.target.x.diff(s.t, 2), s.target.force)]
+        >>> pushing = Interaction('push', roles={'target': 'cart'}, laws=push)
+        >>> system = System(elements=[CartElement('cart')], interactions=[pushing])
+        >>> result = linearization(system, controls=['cart.force'])
         >>> result.B.tolist(), result.controllability
         ([[0.0], [1.0]], 2)
     """

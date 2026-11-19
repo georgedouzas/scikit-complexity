@@ -189,19 +189,18 @@ class SiteVisual(BaseVisual):
                 One view per chosen state, with `<path>/<state>` as origin.
 
         Examples:
-            >>> from typing import Annotated
             >>> import networkx as nx
-            >>> from skcomplex.core.components.elements import Element, GroupElement
+            >>> from skcomplex.core.components.elements import Element
+            >>> from skcomplex.core.components.interactions import Interaction
+            >>> from skcomplex.core.components.laws import RateLaw
             >>> from skcomplex.core.components.spaces import NetworkSpace
-            >>> from skcomplex.core.specs import StateSpec
             >>> from skcomplex.core.systems import System
             >>> from skcomplex.core.engine.viz import SiteVisual
-            >>> class NodeElement(Element):
-            ...     def __init__(self, label, value: Annotated[float, StateSpec()] = 0.0):
-            ...         super().__init__(label)
-            ...         self.value = value
-            >>> nodes = GroupElement('nodes', element=NodeElement, space=NetworkSpace(nx.cycle_graph(4)), on='sites')
-            >>> system = System(elements=[nodes])
+            >>> nodes = Element('nodes', values={'value': 1.0}, space=NetworkSpace(nx.cycle_graph(4)))
+            >>> def fade(s):
+            ...     return [RateLaw(s.target.value, -s.target.value)]
+            >>> decay = Interaction('decay', roles={'target': 'nodes'}, laws=fade)
+            >>> system = System(elements=[nodes], interactions=[decay])
             >>> problem = system.prepare().simulate(until=0).problem
             >>> views = SiteVisual(path=problem.elements[0].path).prepare(problem).views_
             >>> [type(view).__name__ for view in views]
