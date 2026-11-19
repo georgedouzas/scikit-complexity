@@ -1,7 +1,5 @@
 """Test the `_constraint` module of `skcomplex.core.components.laws`."""
 
-from typing import Annotated
-
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import oo, sin, var
@@ -10,182 +8,60 @@ from sage.sets.real_set import RealSet
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import ConstraintLaw, RateLaw
-from skcomplex.core.components.laws.utils import derivative, step, where
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.laws.utils import step, where
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
+from skcomplex.core.systems import System
 
 from .conftest import PRECISE
 
 POSITIVE = RealSet.open(0, oo)
 
 
-class WrittenElement(Element):
-    """Pendulum written as Newton's equation."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        theta: Annotated[object, StateSpec(order=2)] = 0.3,
-        theta_d1: float = 0.0,
-        m: Annotated[object, ParameterSpec(domain=POSITIVE)] = 2.0,
-        g: Annotated[object, ParameterSpec()] = 9.81,
-        l: Annotated[object, ParameterSpec()] = 1.5,
-    ) -> None:
-        super().__init__(label)
-        self.theta = theta
-        self.theta_d1 = theta_d1
-        self.m = m
-        self.g = g
-        self.l = l
-
-    def _get_laws(self, s):
-        """Return the equation of motion."""
-        return [ConstraintLaw(s.m * s.l * derivative(s.theta, 2) == -s.m * s.g * sin(s.theta))]
+PENDULUM = {'theta': 0.3, 'm': 2.0, 'g': 9.81, 'l': 1.5}
+SPRING = {'x': 1.0, 'm': 2.0, 'k': 3.0}
 
 
-class SolvedElement(Element):
-    """Pendulum written as the rate of its angular velocity."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        theta: Annotated[object, StateSpec(order=2)] = 0.3,
-        theta_d1: float = 0.0,
-        g: Annotated[object, ParameterSpec()] = 9.81,
-        l: Annotated[object, ParameterSpec()] = 1.5,
-    ) -> None:
-        super().__init__(label)
-        self.theta = theta
-        self.theta_d1 = theta_d1
-        self.g = g
-        self.l = l
-
-    def _get_laws(self, s):
-        """Return the rate of the angular velocity."""
-        return [RateLaw(s.theta, -(s.g / s.l) * sin(s.theta))]
+def _run(label, values, laws, until, dt, *, interactions=()):
+    """Return the run of one element whose laws are a function of the namespace of its target."""
+    rule = Interaction('laws', roles={'target': label}, laws=laws)
+    system = System(elements=[Element(label, values=values)], interactions=[rule, *interactions], solver=PRECISE)
+    return system.prepare().simulate(until=until, dt=dt)
 
 
-class SquaredElement(Element):
-    """Element whose equation holds the square of its highest derivative."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[object, StateSpec(order=2)] = 1.0,
-        x_d1: float = 0.0,
-    ) -> None:
-        super().__init__(label)
-        self.x = x
-        self.x_d1 = x_d1
-
-    def _get_laws(self, s):
-        """Return the nonlinear equation."""
-        return [ConstraintLaw(derivative(s.x, 2) ** 2, s.x)]
+def _written(s):
+    """Return the pendulum written as Newton's equation."""
+    b = s.target
+    return [ConstraintLaw(b.m * b.l * b.theta.diff(s.t, 2) == -b.m * b.g * sin(b.theta))]
 
 
-class OscillatorsElement(Element):
-    """Seven oscillators, one equation each, more than the equations solved symbolically."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        x0: Annotated[object, StateSpec(order=2)] = 1.0,
-        x1: Annotated[object, StateSpec(order=2)] = 1.0,
-        x2: Annotated[object, StateSpec(order=2)] = 1.0,
-        x3: Annotated[object, StateSpec(order=2)] = 1.0,
-        x4: Annotated[object, StateSpec(order=2)] = 1.0,
-        x5: Annotated[object, StateSpec(order=2)] = 1.0,
-        x6: Annotated[object, StateSpec(order=2)] = 1.0,
-    ) -> None:
-        super().__init__(label)
-        self.x0 = x0
-        self.x1 = x1
-        self.x2 = x2
-        self.x3 = x3
-        self.x4 = x4
-        self.x5 = x5
-        self.x6 = x6
-
-    def _get_laws(self, s):
-        """Return one equation per oscillator."""
-        states = (s.x0, s.x1, s.x2, s.x3, s.x4, s.x5, s.x6)
-        return [ConstraintLaw(2 * derivative(x, 2), -x) for x in states]
+def _solved(s):
+    """Return the pendulum written as the rate of its angular velocity."""
+    b = s.target
+    return [RateLaw(b.theta.diff(s.t, 2), -(b.g / b.l) * sin(b.theta))]
 
 
-class SpringElement(Element):
-    """Mass on a spring, whose laws the subclasses write."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[object, StateSpec(order=2)] = 1.0,
-        x_d1: float = 0.0,
-        m: Annotated[object, ParameterSpec()] = 2.0,
-        k: Annotated[object, ParameterSpec()] = 3.0,
-    ) -> None:
-        super().__init__(label)
-        self.x = x
-        self.x_d1 = x_d1
-        self.m = m
-        self.k = k
+def _driven_equation(s):
+    """Return a mass on a spring pushed by a step at time 1, as an equation."""
+    m = s.target
+    return [ConstraintLaw(m.m * m.x.diff(s.t, 2) == -m.k * m.x + step(s.t, 1))]
 
 
-class DrivenEquationElement(SpringElement):
-    """Mass on a spring pushed by a step at time 1, as an equation."""
-
-    def _get_laws(self, s):
-        """Return the equation of motion."""
-        return [ConstraintLaw(s.m * derivative(s.x, 2) == -s.k * s.x + step(s.t, 1))]
+def _driven_rate(s):
+    """Return a mass on a spring pushed by a step at time 1, as a rate law."""
+    m = s.target
+    return [RateLaw(m.x.diff(s.t, 2), (-m.k * m.x + step(s.t, 1)) / m.m)]
 
 
-class DrivenRateElement(SpringElement):
-    """Mass on a spring pushed by a step at time 1, as a rate law."""
-
-    def _get_laws(self, s):
-        """Return the rate of the velocity."""
-        return [RateLaw(s.x, (-s.k * s.x + step(s.t, 1)) / s.m)]
+def _switched_equation(s):
+    """Return a spring that stiffens on the positive side, as an equation."""
+    m = s.target
+    return [ConstraintLaw(m.m * m.x.diff(s.t, 2) == where(m.x < 0, -m.k * m.x, -2 * m.k * m.x))]
 
 
-class SwitchedEquationElement(SpringElement):
-    """Spring that stiffens on the positive side, as an equation."""
-
-    def _get_laws(self, s):
-        """Return the equation of motion."""
-        return [ConstraintLaw(s.m * derivative(s.x, 2) == where(s.x < 0, -s.k * s.x, -2 * s.k * s.x))]
-
-
-class SwitchedRateElement(SpringElement):
-    """Spring that stiffens on the positive side, as a rate law."""
-
-    def _get_laws(self, s):
-        """Return the rate of the velocity."""
-        return [RateLaw(s.x, where(s.x < 0, -s.k * s.x, -2 * s.k * s.x) / s.m)]
-
-
-class PushInteraction(Interaction):
-    """Constant push on the angle of its target."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[object, RoleSpec()],
-        f: Annotated[object, ParameterSpec()] = 1.0,
-    ) -> None:
-        super().__init__(label)
-        self.target = target
-        self.f = f
-
-    def _get_laws(self, s):
-        """Return the push."""
-        return [RateLaw(s.target.theta, s.f)]
+def _switched_rate(s):
+    """Return a spring that stiffens on the positive side, as a rate law."""
+    m = s.target
+    return [RateLaw(m.x.diff(s.t, 2), where(m.x < 0, -m.k * m.x, -2 * m.k * m.x) / m.m)]
 
 
 def test_equation_takes_two_sides_or_a_relation():
@@ -200,30 +76,32 @@ def test_equation_takes_two_sides_or_a_relation():
 
 def test_pendulum_as_written_matches_solved_form():
     """Test that `m l theta'' = -m g sin theta` runs exactly like the rate law `theta'' = -(g / l) sin theta`."""
-    written = simulate(CompositeSystem(elements=[WrittenElement('bob')]), until=5, solver=PRECISE, dt=0.1)
-    solved = simulate(CompositeSystem(elements=[SolvedElement('bob')]), until=5, solver=PRECISE, dt=0.1)
+    written = _run('bob', PENDULUM, _written, 5, 0.1)
+    solved = _run('bob', PENDULUM, _solved, 5, 0.1)
     assert np.array_equal(written.get_values('bob.theta'), solved.get_values('bob.theta'))
 
 
 def test_rates_add_to_equation():
     """Test that a rate law on a state with an equation adds to the solved highest derivative."""
-    pushed = CompositeSystem(
-        elements=[WrittenElement('bob', theta=0.0)],
-        interactions=[PushInteraction('push', target='bob')],
-    )
-    trajectory = simulate(pushed, until=0.1, solver=PRECISE, dt=0.01)
+    push = Interaction('push', roles={'target': 'bob'}, laws=lambda s: [RateLaw(s.target.theta.diff(s.t, 2), 1.0)])
+    trajectory = _run('bob', PENDULUM | {'theta': 0.0}, _written, 0.1, 0.01, interactions=[push])
     assert trajectory.get_values('bob.theta')[-1] == pytest.approx(0.5 * 0.1**2, rel=1e-2)
 
 
 def test_nonlinear_highest_derivative_is_rejected():
     """Test that an equation with the square of a highest derivative names the equation and the derivative."""
-    with pytest.raises(ValidationError, match=r'equation .* of s is not linear in the highest derivative x_d1'):
-        simulate(CompositeSystem(elements=[SquaredElement('s')]), until=1)
+    with pytest.raises(ValidationError, match=r'equation .* of laws is not linear in the highest derivative x_d1'):
+        _run('s', {'x': 1.0}, lambda s: [ConstraintLaw(s.target.x.diff(s.t, 2) ** 2, s.target.x)], 1, None)
 
 
 def test_many_equations_are_solved_numerically():
     """Test that seven equations, above the symbolic size, are solved per evaluation with the same result."""
-    trajectory = simulate(CompositeSystem(elements=[OscillatorsElement('o')]), until=3, solver=PRECISE, dt=0.1)
+    values = {f'x{index}': 1.0 for index in range(7)}
+
+    def laws(s):
+        return [ConstraintLaw(2 * getattr(s.target, name).diff(s.t, 2), -getattr(s.target, name)) for name in values]
+
+    trajectory = _run('o', values, laws, 3, 0.1)
     expected = np.cos(trajectory.times / np.sqrt(2))
     for index in range(7):
         assert np.allclose(trajectory.get_values(f'o.x{index}'), expected, atol=1e-7)
@@ -231,13 +109,13 @@ def test_many_equations_are_solved_numerically():
 
 @pytest.mark.parametrize(
     ('equation', 'rate'),
-    [(DrivenEquationElement, DrivenRateElement), (SwitchedEquationElement, SwitchedRateElement)],
+    [(_driven_equation, _driven_rate), (_switched_equation, _switched_rate)],
     ids=['driver', 'condition'],
 )
 def test_equation_with_driver_or_condition_matches_rate(equation, rate):
     """Test that equations with a driver or a condition on the right side run like their rate laws."""
-    first = simulate(CompositeSystem(elements=[equation('mass')]), until=3, solver=PRECISE, dt=0.1)
-    second = simulate(CompositeSystem(elements=[rate('mass')]), until=3, solver=PRECISE, dt=0.1)
+    first = _run('mass', SPRING, equation, 3, 0.1)
+    second = _run('mass', SPRING, rate, 3, 0.1)
     assert first.get_values('mass.x') == pytest.approx(second.get_values('mass.x'), abs=1e-8)
 
 
