@@ -827,7 +827,8 @@ class OperatorCompiler(BaseCompiler):
         """
         component = node.as_interaction
         roles = {
-            name: f'{node.scope}{component._get_binding(name)}' for name in declarations_of(component, VariableKind.ROLE)
+            name: f'{node.scope}{component._get_binding(name)}'
+            for name in declarations_of(component, VariableKind.ROLE)
         }
         return _CompiledInteractionSpec(node.path, component, roles)
 
