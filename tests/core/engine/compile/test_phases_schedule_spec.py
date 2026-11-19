@@ -2,7 +2,7 @@
 
 import pytest
 
-from skcomplex.core.components.spaces import DiscreteTime, ScheduleSpec
+from skcomplex.core.components.spaces import ScheduleSpec
 from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from skcomplex.core.errors import ValidationError
 
@@ -24,14 +24,13 @@ def test_phases_schedule_spec_checks_its_phases(phases, message):
 
 
 def test_ordered_phases_are_a_schedule():
-    """Test that a discrete time with phases lists them in order, and rejects repeated names."""
-    time = DiscreteTime(
-        schedule=PhasesScheduleSpec([PhaseSpec('produce'), PhaseSpec('trade'), PhaseSpec('consume')]),
-    ).prepare()
-    assert isinstance(time.schedule_, ScheduleSpec)
-    assert [phase.name for phase in time.schedule_.phases] == ['produce', 'trade', 'consume']
+    """Test that phases form a schedule that lists them in order, and rejects repeated names."""
+    schedule = PhasesScheduleSpec([PhaseSpec('produce'), PhaseSpec('trade'), PhaseSpec('consume')])
+    schedule._check()
+    assert isinstance(schedule, ScheduleSpec)
+    assert [phase.name for phase in schedule.phases] == ['produce', 'trade', 'consume']
     with pytest.raises(ValidationError, match='repeat a name'):
-        DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('trade'), PhaseSpec('trade')])).prepare()
+        PhasesScheduleSpec([PhaseSpec('trade'), PhaseSpec('trade')])._check()
 
 
 def test_phase_rejects_unknown_activation():
