@@ -2107,7 +2107,7 @@ class MesaSolver(ExternalSolver):
 
     @staticmethod
     def _get_defaults_of(spec: _CompiledAgentsSpec) -> dict[str, object]:
-        """Return the values of the states that a new agent takes when none is given, by name.
+        """Return the state values a new agent takes when none is given, by name.
 
         An agent takes the value its group shares, such as the `innovation` of
         `Element('words', values={'count': 1.0, 'innovation': 0.1}, size=1)`. For a value its group gives per member, it

@@ -287,7 +287,7 @@ class _StateInference:
 
     @staticmethod
     def _get_class_defaults(element: Element, names: Collection[str]) -> dict[str, object]:
-        """Return the default of every value that its element class takes as an argument with a default.
+        """Return the default of every value the element class gives a default.
 
         A member that a rule creates takes them for the values the rule does not give. A plain `Element(values=...)`
         takes its values in `values`, so its class gives no default.
