@@ -529,12 +529,12 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         try:
             prepared.prepare(functional)
         except AttributeError as error:
-            if error.obj is not functional or not isinstance(
-                self.get_params(deep=False).get(error.name),
-                list | np.ndarray,
-            ):
+            name = error.name
+            if name is None or error.obj is not functional:
                 raise
-            raise self._get_unshaped_error(error.name) from error
+            if not isinstance(self.get_params(deep=False).get(name), list | np.ndarray):
+                raise
+            raise self._get_unshaped_error(name) from error
         laws: list[BaseComponent] = []
         for law in prepared.laws_:
             rule = self._get_rule(law, roles, functional)
