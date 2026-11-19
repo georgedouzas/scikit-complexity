@@ -30,13 +30,6 @@ def _rotating_lagrangian(s):
     return kinetic + (1 - MU) / first + MU / second
 
 
-def _jacobi(s):
-    """Return the Jacobi constant of the light body."""
-    body = s.body
-    first, second = _distances(body.x, body.y)
-    return body.x**2 + body.y**2 + 2 * (1 - MU) / first + 2 * MU / second - body.x_d1**2 - body.y_d1**2
-
-
 def _lagrangian_three_body() -> System:
     """Return the restricted three-body problem written with an Euler-Lagrange interaction."""
     motion = EulerLagrangeInteraction('motion', target='body', states=('x', 'y'), lagrangian=_rotating_lagrangian)

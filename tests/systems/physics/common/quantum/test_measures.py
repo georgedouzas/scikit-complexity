@@ -1,17 +1,34 @@
 """Test the measures of operator systems: spectra, ground states, purity, and entanglement."""
 
+from typing import Annotated
+
 import numpy as np
 import pytest
+from sage.all__sagemath_symbolics import CC
 
-from skcomplex.core.components.elements import GroupElement
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.elements import Element
 from skcomplex.core.errors import AnalysisError, ParameterError, ValidationError
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.common.populations import PopulationElement
-from skcomplex.systems.physics.common.quantum import SectorSpec, operator_measures
+from skcomplex.systems.physics.common.quantum import HilbertSpec, SectorSpec, operator_measures
 from skcomplex.systems.physics.statistical_mechanics import QuantumHeisenbergSystem, total_magnetization
+from skcomplex.systems.physics.statistical_mechanics._quantum_spins import SPIN_HALF
 
-from .....conftest import SpinElement
+
+class SpinsElement(Element):
+    """Spins one half, one per member."""
+
+    def __init__(
+        self,
+        label: str,
+        psi: Annotated[object, CC] = 'up',
+        *,
+        hilbert: HilbertSpec = SPIN_HALF,
+        size: int | None = None,
+    ) -> None:
+        super().__init__(label, size=size)
+        self.psi = psi
+        self.hilbert = hilbert
 
 
 def _operator(kind, source, **settings):
@@ -53,7 +70,7 @@ def test_spectrum_rejects_bad_requests():
     with pytest.raises(AnalysisError, match='eigenvalue'):
         _operator('spectrum', system, sector=SectorSpec(total_magnetization, 7.0))
     with pytest.raises(ValidationError, match='no operator element'):
-        _operator('spectrum', CompositeSystem(elements=[PopulationElement('rabbits')]))
+        _operator('spectrum', System(elements=[PopulationElement('rabbits')]))
 
 
 def test_ground_state_is_stationary():
@@ -72,8 +89,8 @@ def test_ground_state_is_stationary():
 def test_entanglement_entropy_of_a_singlet_is_log_two():
     """Test that one spin of the singlet has the entropy ln 2, and the pair has none."""
     singlet = np.array([0, 1, -1, 0]) / np.sqrt(2)
-    system = CompositeSystem(elements=[GroupElement('pair', element=SpinElement, size=2)])
-    trajectory = simulate(system, until=1.0, dt=1.0, initial_state={'system.state': singlet})
+    system = System(elements=[SpinsElement('pair', size=2)]).prepare()
+    trajectory = system.simulate(until=1.0, dt=1.0, initial_state={'system.state': singlet})
     assert np.allclose(_operator('entanglement', trajectory, subsystems=['pair[0]']).entropy, np.log(2), atol=1e-12)
     assert np.allclose(_operator('entanglement', trajectory, subsystems=['pair']).entropy, 0, atol=1e-10)
     with pytest.raises(AnalysisError, match='not a subsystem'):
@@ -87,7 +104,7 @@ def test_purity_of_pure_and_dephased_runs():
     opened = QuantumHeisenbergSystem(n_sites=4, gamma=0.5).prepare().simulate(until=2.0, dt=0.5)
     assert np.all(np.diff(_operator('purity', opened).purity) <= 1e-10)
     assert _operator('purity', opened).purity[-1] < 1
-    rabbits = simulate(CompositeSystem(elements=[PopulationElement('rabbits')]), until=1.0, dt=1.0)
+    rabbits = System(elements=[PopulationElement('rabbits')]).prepare().simulate(until=1.0, dt=1.0)
     with pytest.raises(AnalysisError, match='not the trajectory'):
         _operator('purity', rabbits)
 

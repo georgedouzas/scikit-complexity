@@ -4,7 +4,6 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import fit_law
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem, kinetic_temperature, maxwell_boltzmann
 
@@ -12,11 +11,11 @@ from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem, kine
 def test_maxwell_boltzmann_test_in_two_and_three_dimensions():
     """Test that ideal gases in two and three dimensions follow the law of their constant kinetic temperature."""
     for dimension in (2, 3):
-        trajectory = simulate(IdealGasSystem(n_dim=dimension, random_state=0), until=1.0, random_state=0)
+        trajectory = IdealGasSystem(n_dim=dimension, random_state=0).prepare().simulate(until=1.0, random_state=0)
         test = maxwell_boltzmann(trajectory)
         temperatures = kinetic_temperature(trajectory).temperature
         np.testing.assert_array_equal(test.temperature, temperatures)
-        velocities = np.asarray(trajectory.get_values('gas.x_d1'), dtype=float)
+        velocities = np.asarray(trajectory.get_values("gas.x'"), dtype=float)
         assert maxwell_boltzmann(velocities[-1]).p_value[0] > 0.05
         assert test.p_value.shape == temperatures.shape
     with pytest.raises(AnalysisError, match='positive values'):

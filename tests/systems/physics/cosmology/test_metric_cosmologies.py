@@ -2,21 +2,17 @@
 
 import math
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import SR, diagonal_matrix, function, sin
 from scipy.optimize import brentq
 
-from skcomplex.core.components.elements import Element, FieldElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws.utils import partial
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.errors import SpaceError, ValidationError
-from skcomplex.core.specs import StateSpec
 from skcomplex.core.systems import System
 from skcomplex.systems.physics.common.relativity import SpacetimeSpace
 from skcomplex.systems.physics.cosmology import (
@@ -106,15 +102,6 @@ def test_oppenheimer_snyder_collapse_rejects_a_ball_inside_its_horizon():
 t, r, theta, phi, x, y, z = SR.var('t r theta phi x y z')
 
 
-class ProfileElement(Element):
-    """Site of a field with the warp `u` of order 2."""
-
-    def __init__(self, label: str, *, u: Annotated[float, StateSpec(order=2)] = 1.0, u_d1: float = 0.0) -> None:
-        super().__init__(label)
-        self.u = u
-        self.u_d1 = u_d1
-
-
 def _flat_universe() -> SpacetimeSpace:
     """Return the flat Robertson-Walker ansatz of the scale factor `a(t)`."""
     a = function('a')(t)
@@ -161,15 +148,10 @@ def test_warped_plane_reduces_to_the_wave_equation_of_a_field():
     n_sites = 64
     spacing = 2 * math.pi / n_sites
     positions = spacing * np.arange(n_sites)
-    plane = FieldElement(
-        'plane',
-        element=ProfileElement,
-        space=LatticeSpace((n_sites,), spacing=spacing, boundary='periodic'),
-        values={'u': 2 + 0.1 * np.sin(positions)},
-        discretization='spectral',
-    )
-    system = CompositeSystem(elements=[plane], interactions=[einstein])
-    trajectory = simulate(system, until=1.0, dt=0.1, solver=ACCURATE)
+    space = LatticeSpace((n_sites,), spacing=spacing, boundary='periodic', discretization='spectral')
+    plane = Element('plane', values={'u': 2 + 0.1 * np.sin(positions), "u'": 0.0}, space=space)
+    system = System(elements=[plane], interactions=[einstein], solver=ACCURATE).prepare()
+    trajectory = system.simulate(until=1.0, dt=0.1)
     expected = 2 + 0.1 * np.sin(positions) * np.cos(1.0)
     assert np.asarray(trajectory.get_values('plane.u'))[-1] == pytest.approx(expected, abs=1e-6)
 
