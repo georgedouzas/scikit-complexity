@@ -1,170 +1,179 @@
 # Linear programs
 
-This page sets some states of a system to the optimum of a linear program, as flux balance analysis sets the fluxes of
-a cell. A linear program maximises a linear objective over variables that satisfy linear equalities and inequalities.
-The [`LinearProgramLaw`](../core_components/laws.md#linearprogramlaw) sets algebraic states, its variables, to an
-optimal solution. An algebraic state is one that a law sets directly at every evaluation, rather than integrating a
-rate. HiGHS solves the program through `highspy`, which the default install holds.
+This page sets some values of a system to the optimum of a linear program, as flux balance analysis sets the fluxes of
+a cell. A linear program finds the least value of a linear objective over variables that satisfy linear equalities and
+inequalities. An [`ObjectiveLaw`](../core_components/laws.md#objectivelaw) linear in its targets, with
+[`ConstraintLaw`](../core_components/laws.md#constraintlaw) relations on them, is solved as a linear program, and the
+targets take an optimal solution at every time of a run. HiGHS solves the program through `highspy`, which the default
+install holds.
 
 ## A first program
 
-This section routes traffic over two roads and maximises the total flow. The direct road carries at most its capacity
-of 3, and the detour at most 4. The [`Element`](../core_components/elements.md#element) declares both flows with
-`StateSpec(algebraic=True)` and returns the program from `_get_laws`. Under a
-[`StaticTime`](../core_components/spaces.md#statictime), a run solves the program once and gives one frame.
+This section routes traffic over two roads and makes the total flow as large as it can be. The direct road carries at
+most its capacity of 3, and the detour at most 4. The [`Element`](../core_components/elements.md#element) holds both
+flows, and the interaction `Routing` gives the objective, minus the total flow, and one constraint per bound. A
+constraint names the value it bounds in `target`.
 
 ```python
-from typing import Annotated
-
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.laws import LinearProgramLaw
-from skcomplex.core.components.spaces import StaticTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
-from skcomplex.core.components.laws import LinearObjectiveSpec
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import ConstraintLaw, ObjectiveLaw
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 
 
-class RoutesElement(Element):
-    def __init__(
-        self,
-        label,
-        direct: Annotated[float, StateSpec(algebraic=True)] = 0.0,
-        detour: Annotated[float, StateSpec(algebraic=True)] = 0.0,
-        capacity: Annotated[float, ParameterSpec()] = 3.0,
-    ):
+class Routing(Interaction):
+    def __init__(self, label, *, routes: Role = 'flows', capacity=3.0):
         super().__init__(label)
-        self.direct = direct
-        self.detour = detour
+        self.routes = routes
         self.capacity = capacity
 
-    def _get_laws(self, s):
-        constraints = [s.direct <= s.capacity, s.detour <= 4, s.direct >= 0, s.detour >= 0]
-        objective = LinearObjectiveSpec(s.direct + s.detour)
-        return [LinearProgramLaw([s.direct, s.detour], constraints, [objective])]
+    def _prepare(self, s):
+        super()._prepare(s)
+        direct, detour = s.routes.direct, s.routes.detour
+        self.laws_ = [
+            ObjectiveLaw(-(direct + detour), [direct, detour]),
+            ConstraintLaw(direct <= s.capacity, target=direct),
+            ConstraintLaw(detour <= 4, target=detour),
+            ConstraintLaw(direct >= 0, target=direct),
+            ConstraintLaw(detour >= 0, target=detour),
+        ]
 
 
-system = CompositeSystem(elements=[RoutesElement('flows')], time=StaticTime())
-trajectory = simulate(system, until=0.0)
-trajectory.get_values('flows.objective_0')[0]
+routes = Element('flows', values={'direct': 0.0, 'detour': 0.0})
+system = System(elements=[routes], interactions=[Routing('routing')]).prepare()
+trajectory = system.simulate(until=0.0)
+trajectory.get_values('flows.objective_0')[0], trajectory.get_values('flows.direct')[0]
 ```
 
-The objective reaches 7.0, three on the direct road at its capacity and four on the detour. A program follows these
-rules.
+The objective reaches -7.0, so the total flow is 7, three on the direct road at its capacity and four on the detour. A
+program follows these rules.
 
-- The constraints are Sage relations, `==`, `<=`, or `>=`, linear in the variables. A coefficient of a variable reads
-  no state, and the other terms may read states, parameters, and the time. A relation in one variable is a bound of
-  that variable.
-- The objectives are `LinearObjectiveSpec`s, linear in the variables or a sum of their absolute values. They solve in
-  order, and each optimum is kept within a relative 1e-9 while the next one solves.
-- `active` is a condition. Where it is false the solve is skipped and the variables are zero.
-- `infeasible` is `'raise'`, `'zero'`, or `'hold'`. `InfeasibleError` names the program, the time, the member, and the
-  constraints and variables of an irreducible infeasible subset, a smallest set of constraints that cannot hold
-  together.
-- A run records the variables under their paths, and the objective values under `<path>.objective_<k>`. With
-  `duals=True` it also records the duals of the constraints under `<path>.dual_<k>`. The dual of a constraint is the
-  change of the first objective with its right side.
+- The constraints are Sage relations, `==`, `<=`, or `>=`, linear in the targets, each naming the value it bounds in
+  `target`. A coefficient of a target reads no state, and the other terms may read states, parameters, and the time. A
+  relation in one target is a bound of that target.
+- The objective is minimised, so a value to make as large as it can be, such as a flow or a growth, is minimised with
+  its sign changed. It is linear in the targets or a sum of their absolute values. A list of objectives solves in
+  order, and each optimum is kept within a relative 1e-9 while the next one solves, such as the smallest total flux at
+  the greatest growth.
+- `active` is a condition. Where it is false the solve is skipped and the targets are zero.
+- `infeasible` is `'raise'`, `'zero'`, or `'hold'`. `InfeasibleError` names the program, the time, and the constraints
+  and variables of an irreducible infeasible subset, a smallest set of constraints that cannot hold together.
+- A run records the targets under their paths, and the objective values under `<path>.objective_<k>`, the path being
+  that of the element that holds the targets.
 
 ## Merged programs
 
-This section adds a constraint to a program from another component of the system. The laws whose variables overlap, from
-any element or interaction, form one program. Their variables unite, their constraints add, and at most one of them
-holds objectives. So an [`Interaction`](../core_components/interactions.md#interaction) adds a bound to the program of
-an element by returning a law over the variable it bounds, and the tighter of two bounds holds. Here a road closure
-limits the detour to 1.
+This section adds a constraint to a program from another interaction of the system. The constraints whose targets are
+the targets of an objective, from any interaction, join its program. So an
+[`Interaction`](../core_components/interactions.md#interaction) adds a bound to a program by returning a constraint on
+the value it bounds, and the tighter of two bounds holds. Here a road closure limits the detour to 1.
 
 ```python continuation
-from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.specs import RoleSpec
-
-
-class ClosureInteraction(Interaction):
-    def __init__(self, label, *, routes: Annotated[str, RoleSpec()], limit: Annotated[float, ParameterSpec()] = 1.0):
+class Closure(Interaction):
+    def __init__(self, label, *, routes: Role = 'flows', limit=1.0):
         super().__init__(label)
         self.routes = routes
         self.limit = limit
 
-    def _get_laws(self, s):
-        return [LinearProgramLaw([s.routes.detour], [s.routes.detour <= s.limit])]
+    def _prepare(self, s):
+        super()._prepare(s)
+        detour = s.routes.detour
+        self.laws_ = [ConstraintLaw(detour <= s.limit, target=detour)]
 
 
-closure = ClosureInteraction('closure', routes='flows')
-closed = CompositeSystem(elements=[RoutesElement('flows')], interactions=[closure], time=StaticTime())
-simulate(closed, until=0.0).get_values('flows.objective_0')[0]
+closed = System(elements=[routes], interactions=[Routing('routing'), Closure('closure')]).prepare()
+closed.simulate(until=0.0).get_values('flows.objective_0')[0]
 ```
 
-The objective falls to 4.0, three on the direct road and one on the detour. The bound 1 of the closure is tighter than
-the bound 4 of the element, so it holds.
+The objective rises to -4.0, a total flow of 4, three on the direct road and one on the detour. The bound 1 of the
+closure is tighter than the bound 4 of the routing, so it holds.
 
 ## Switches
 
 This section turns a part of a program on or off, such as a gene knock-out in a metabolic network. A switch is a
-parameter that a bound reads, such as `s.v <= 1000 * either(s.g1 > 0.5, s.g2 > 0.5)`. The capacity of the direct road
-acts as such a switch, and setting it to 0 at construction closes the road.
+parameter that a bound reads, such as `v <= 1000 * either(g1 > 0.5, g2 > 0.5)`. The capacity of the direct road acts as
+such a switch, and setting it to 0 between runs closes the road.
 
 ```python continuation
-switched = CompositeSystem(elements=[RoutesElement('flows', capacity=0.0)], time=StaticTime())
-simulate(switched, until=0.0).get_values('flows.objective_0')[0]
+system.set_params(routing__capacity=0.0).prepare().simulate(until=0.0).get_values('flows.objective_0')[0]
 ```
 
-The objective falls to 4.0, the flow of the detour alone. A knock-out sets the parameter to 0 in one of three ways.
+The objective rises to -4.0, the flow of the detour alone. A knock-out sets the parameter to 0 in one of three ways.
 
-- At construction, as above.
-- Between runs, with `set_params` of the element that holds it.
-- For an adaptive parameter, by an [`UpdateLaw`](../core_components/laws.md#updatelaw) of an interaction that reads a
-  Boolean node.
+- At construction, such as `Routing('routing', capacity=0.0)`.
+- Between runs, with `set_params`, as above.
+- During a run, by an [`UpdateLaw`](../core_components/laws.md#updatelaw) of an interaction that reads a Boolean
+  node.
 
 ## The forms of a program
 
-This section explains where the program solves in systems of each form. A linear program law does not decide the form
-of the system that holds it. The program solves wherever the form needs it.
+This section explains where the program solves in systems of each form. A linear objective does not decide the form of
+the system that holds it. The program solves wherever the form needs it. Here a store fills at the total flow of the
+roads, once with a rate and once with a step.
 
-- Beside rate laws under continuous time, the system keeps the ODE form, and the drift solves the program first at each
-  evaluation. This is the direct approach. Its right side is only piecewise smooth, so fixed steps, such as
-  `RK4Solver`, suit it better than an adaptive integrator.
-- Alone or beside update laws under discrete time, the system keeps the map form, and each step solves the program
-  first.
-- Alone under static time, the system has the static form, and each frame solves the program from the current
-  parameters.
-- In a discrete-time nested system beside a sibling with rate laws, the program solves at every synchronisation point
-  of `CoSimulationSolver`, whatever the length of the interval, and the sibling reads its variables as held inputs.
-  This is the static optimisation approach.
+```python continuation
+from skcomplex.core.components.laws import RateLaw, UpdateLaw
+
+store = Element('store', values={'stock': 0.0})
+fill = Interaction(
+    'fill',
+    roles={'store': 'store', 'routes': 'flows'},
+    laws=lambda s: [RateLaw(s.store.stock.diff(s.t), s.routes.direct + s.routes.detour)],
+)
+step = Interaction(
+    'step',
+    roles={'store': 'store', 'routes': 'flows'},
+    laws=lambda s: [UpdateLaw(s.store.stock, s.store.stock + s.routes.direct + s.routes.detour)],
+)
+filled = System(elements=[routes, store], interactions=[Routing('routing'), fill]).prepare()
+stepped = System(elements=[routes, store], interactions=[Routing('routing'), step]).prepare()
+flowing = filled.simulate(until=2.0, dt=1.0).get_values('store.stock')
+flowing.round(3).tolist(), stepped.simulate(until=2).get_values('store.stock').tolist()
+```
+
+Both stores hold 7 after one unit of time and 14 after two, since the roads carry 7 at every time.
+
+- Beside rate laws, the system flows in continuous time, and the drift solves the program first at each evaluation.
+  This is the direct approach. Its right side is only piecewise smooth, so fixed steps, such as `RK4Solver`, suit it
+  better than an adaptive integrator.
+- Beside update laws, the system steps in discrete time, and each step solves the program first.
+- Alone, each frame solves the program from the current parameters.
+- In a nested system that steps beside a sibling with rate laws, the program solves at every synchronisation point of
+  `CoSimulationSolver`, whatever the length of the interval, and the sibling reads its targets as held inputs. This is
+  the static optimisation approach.
 - In a group on the sites of a lattice, the program solves per member where `active` holds, each with its own warm
   start.
 
 ## Issues of linear programs
 
-This section lists the issues that stop a program before it runs. `simulate` checks a program first and raises a
-`ValidationError` that lists each issue with its code. A variable declared without `algebraic=True` is one of them.
+This section lists the issues that stop a program before it runs. `prepare` checks a program first and raises a
+`ValidationError` that lists each issue. An inequality without its `target` is one of them, since a program adds the
+bounds of one target from every interaction.
 
 ```python continuation
 from skcomplex.core.errors import ValidationError
 
 
-class StockElement(Element):
-    def __init__(self, label, level: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.level = level
-
-    def _get_laws(self, s):
-        return [LinearProgramLaw([s.level], [s.level <= 2], [LinearObjectiveSpec(s.level)])]
+class OpenClosure(Closure):
+    def _prepare(self, s):
+        super()._prepare(s)
+        self.laws_ = [ConstraintLaw(s.routes.detour <= s.limit)]
 
 
 try:
-    simulate(CompositeSystem(elements=[StockElement('stock')], time=StaticTime()), until=0.0)
+    System(elements=[routes], interactions=[Routing('routing'), OpenClosure('closure')]).prepare()
 except ValidationError as error:
     message = str(error)
 message
 ```
 
-The message says that the law sets `stock.level`, which is not an algebraic state, and asks to declare it with
-`StateSpec(algebraic=True)`, under the code `linear-program-variable`. The codes are these.
+The message says that the inequality of `closure` holds in a linear program, so it names the value it bounds in
+`target`, such as `ConstraintLaw(flux >= -uptake, target=flux)`. The other issues are these, with their codes.
 
-- `linear-program-form`: a relation is not linear in the variables, or a coefficient of a variable reads a state.
-- `linear-program-objectives`: two merged laws hold objectives.
-- `linear-program-variable`: a variable is not declared with `StateSpec(algebraic=True)`.
-
-A program under any other time gives the issue `law-time`.
+- `linear-program-form`: a relation is not linear in the targets, or a coefficient of a target reads a state.
+- `linear-program-objectives`: two interactions give objectives to one program. One `ObjectiveLaw` with a list of
+  objectives holds them instead.
 
 ## Elementary modes
 

@@ -5,13 +5,14 @@ progression of a tumour cell, and lets encounters between members reshape that s
 active particles of Bellomo et al. Encounters change the distribution, and its moments give the macroscopic quantities,
 such as the mean wealth or its variance.
 
-## Distributions as site groups
 
-This section holds a distribution over nine wealth classes as a group with one member per class. A
-[`GroupElement`](../core_components/elements.md#groupelement) built with `on='sites'` places one member on each site of
-a lattice, so a distribution over `n` activity values is `GroupElement(label, element=E, size=n, on='sites')`. The
-element `E` is an [`Element`](../core_components/elements.md#element) subclass that declares one real state, the
-density at the member's activity. Here the wealth starts as a bell around the middle class.
+## Distributions on a lattice
+
+This section holds a distribution over nine wealth classes as an element with one member per class. An
+[`Element`](../core_components/elements.md#element) given a [`LatticeSpace`](../core_components/spaces.md#latticespace)
+with `space=` has one member on each site, so a distribution over `n` activity values is an element on a lattice of `n`
+sites. Its value `f` is the density at the activity of each member, and the allowed values in `Annotated` keep it from
+going negative. Here the wealth starts as a bell around the middle class.
 
 ```python
 from typing import Annotated
@@ -20,46 +21,42 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.spaces import LatticeSpace
 
 
-class WealthDensityElement(Element):
-    def __init__(self, label, *, f: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0):
-        super().__init__(label)
+class WealthDensity(Element):
+    def __init__(self, label, *, f: Annotated[float, RealSet.closed_open(0, oo)] = 0.0, space=None):
+        super().__init__(label, space=space)
         self.f = f
 
 
 classes = np.linspace(0.0, 1.0, 9)
 profile = np.exp(-((classes - 0.5) ** 2) / 0.05)
-wealth = GroupElement('wealth', element=WealthDensityElement, size=9, on='sites', values={'f': profile / profile.sum()})
-wealth.values['f'].round(3).tolist()
+wealth = WealthDensity('wealth', f=profile / profile.sum(), space=LatticeSpace(9, boundary='fixed'))
+wealth.f.round(3).tolist()
 ```
 
 The densities read 0.002, 0.019, 0.09, 0.231, 0.315, 0.231, 0.09, 0.019, and 0.002 from the poorest class to the
 richest, and they sum to one. The activity values are the array `classes`, which the laws and the moments receive. No
-distribution component is needed, and a population of several functional subsystems is several such groups.
+distribution component is needed, and a population of several functional subsystems is several such elements.
 
 ## Encounters
 
-This section declares who meets whom and where they end up, and lets the compiler derive the equations. An encounter
-is a meeting of a candidate particle at activity `h` with a field particle at activity `k`. Traders here exchange
-wealth, and cooperation moves the candidate one class towards its partner while competition moves it one class away.
-A [`RateLaw`](../core_components/laws.md#ratelaw) whose rate is the form `bilinear` of
+This section says who meets whom and where they end up, and lets the compiler derive the equations. An encounter is a
+meeting of a candidate particle at activity `h` with a field particle at activity `k`. Traders here exchange wealth,
+and cooperation moves the candidate one class towards its partner while competition moves it one class away. A
+[`RateLaw`](../core_components/laws.md#ratelaw) whose rate is the form `bilinear` of
 `skcomplex.core.components.laws.utils` states the rate of the encounters and the table of their outcomes, and an
-[`Interaction`](../core_components/interactions.md#interaction) subclass returns it with its role bound to the
-population. Encounters need continuous time, so the system takes a
-[`ContinuousTime`](../core_components/spaces.md#continuoustime) and a
-[`LatticeSpace`](../core_components/spaces.md#latticespace) of nine sites.
+[`Interaction`](../core_components/interactions.md#interaction) sets it in `_prepare`, with its role bound to the
+population. A rate law runs in continuous time, so the system needs no setting for it.
 
 ```python continuation
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import bilinear
-from skcomplex.core.components.spaces import ContinuousTime, LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, RoleSpec
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 
 
 def exchange_table(cooperation, competition):
@@ -74,24 +71,20 @@ def exchange_table(cooperation, competition):
     return table
 
 
-class ExchangeInteraction(Interaction):
-    def __init__(self, label, *, population: Annotated[str, RoleSpec()], eta: Annotated[float, ParameterSpec()] = 1.0):
+class Exchange(Interaction):
+    def __init__(self, label, *, population: Role = 'wealth', eta=1.0):
         super().__init__(label)
         self.population = population
         self.eta = eta
 
-    def _get_laws(self, s):
-        table = exchange_table(0.2, 0.3)
-        return [RateLaw(s.population.f, bilinear(s.eta, table, s.population.f, s.population.f, conserved=True))]
+    def _prepare(self, s):
+        super()._prepare(s)
+        f = s.population.f
+        self.laws_ = [RateLaw(f, bilinear(s.eta, exchange_table(0.2, 0.3), f, f, conserved=True))]
 
 
-economy = CompositeSystem(
-    elements=[wealth],
-    interactions=[ExchangeInteraction('exchange', population='wealth')],
-    space=LatticeSpace(9, boundary='fixed'),
-    time=ContinuousTime(),
-)
-densities = simulate(economy, until=100, dt=10.0).get_values('wealth.f')
+economy = System(elements=[wealth], interactions=[Exchange('exchange')]).prepare()
+densities = economy.simulate(until=100, dt=10.0).get_values('wealth.f')
 densities.sum(axis=1)[[0, -1]].round(12).tolist(), densities[-1].round(3).tolist()
 ```
 
@@ -99,14 +92,14 @@ The total density stays at 1.0 from the start to the end, since every encounter 
 After 100 time units the wealth spreads to the two ends, with 0.173 in the poorest and the richest classes and 0.078 in
 the middle class. Competition, at the probability 0.3, outweighs cooperation at 0.2, so the traders drift apart.
 
-`RateLaw(target, bilinear(rate, outcomes, first, second, conserved=True))` declares that a candidate of the first
-density at activity `h` meets a particle of the second density at activity `k` at the rate `eta[h, k]`. It ends at
-activity `i` with the probability `A[h, k, i]`. The compiler derives the gain and loss equations
+`RateLaw(target, bilinear(rate, outcomes, first, second, conserved=True))` says that a candidate of the first density
+at activity `h` meets a particle of the second density at activity `k` at the rate `eta[h, k]`. It ends at activity `i`
+with the probability `A[h, k, i]`. The compiler derives the gain and loss equations
 
 `df_i/dt = sum_hk eta[h, k] A[h, k, i] f_h g_k - f_i sum_k eta[i, k] g_k`
 
 with no derivation by hand. When the target of a form that is not conserved is another density than the first, the
-candidate moves into the target group, such as a cell that mutates into another subsystem. The form follows these
+candidate moves into the target element, such as a cell that mutates into another subsystem. The form follows these
 rules.
 
 - The form is the whole rate of its rate law, and the rate laws of one target add up.
@@ -115,8 +108,8 @@ rules.
   first density as the target removes it.
 - Rates and probabilities are numbers or parameter expressions, scalars or arrays. Only the nonzero probabilities enter
   the compiled code, as sparse contractions on NumPy and one fused loop on Numba.
-- Bilinear forms need continuous time, a lattice space, and real states. Validation reports a form whose system lacks
-  them, with the fix to declare them.
+- Bilinear forms need rate laws, elements on a lattice, and real values. Validation reports a form whose system lacks
+  them, with the fix.
 - Before compilation, validation reports the encounters whose probabilities do not sum to one over the outcomes, with
   the candidate and field activities and the sum.
 - A system with encounters has no exact Jacobian, so implicit solvers estimate it by finite differences.
@@ -130,35 +123,22 @@ lowers it to sparse contractions of the densities. Immune cells that meet tumour
 loss.
 
 ```python continuation
-class DensityElement(Element):
-    def __init__(self, label, *, f: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.f = f
-
-
-class KillingInteraction(Interaction):
-    def __init__(
-        self,
-        label,
-        *,
-        prey: Annotated[str, RoleSpec()],
-        hunter: Annotated[str, RoleSpec()],
-        k: Annotated[float, ParameterSpec()] = 0.5,
-    ):
+class Killing(Interaction):
+    def __init__(self, label, *, prey: Role = 'tumour', hunter: Role = 'immune', k=0.5):
         super().__init__(label)
         self.prey = prey
         self.hunter = hunter
         self.k = k
 
-    def _get_laws(self, s):
-        return [RateLaw(s.prey.f, bilinear(-s.k, None, s.prey.f, s.hunter.f))]
+    def _prepare(self, s):
+        super()._prepare(s)
+        self.laws_ = [RateLaw(s.prey.f, bilinear(-s.k, None, s.prey.f, s.hunter.f))]
 
 
-tumour = GroupElement('tumour', element=DensityElement, size=1, on='sites', values={'f': 1.0})
-immune = GroupElement('immune', element=DensityElement, size=1, on='sites', values={'f': 0.4})
-killing = KillingInteraction('killing', prey='tumour', hunter='immune')
-body = CompositeSystem(elements=[tumour, immune], interactions=[killing], space=LatticeSpace(1))
-simulate(body, until=5, dt=5.0).get_values('tumour.f').round(3).tolist()
+tumour = Element('tumour', values={'f': 1.0}, space=LatticeSpace(1))
+immune = Element('immune', values={'f': 0.4}, space=LatticeSpace(1))
+body = System(elements=[tumour, immune], interactions=[Killing('killing')])
+body.prepare().simulate(until=5, dt=5.0).get_values('tumour.f').round(3).tolist()
 ```
 
 No law changes the immune cells, so they act as a fixed input, and the tumour falls from 1 to 0.368 after five units of
@@ -169,26 +149,25 @@ a proposal, and a person who talks with someone of another class moves one class
 half. The form is conserved, so every person who leaves a class enters another.
 
 ```python continuation
-class PersuasionInteraction(Interaction):
-    def __init__(self, label, *, people: Annotated[str, RoleSpec()]):
+class Persuasion(Interaction):
+    def __init__(self, label, *, people: Role = 'opinions'):
         super().__init__(label)
         self.people = people
 
-    def _get_laws(self, s):
+    def _prepare(self, s):
+        super()._prepare(s)
         outcomes = np.zeros((3, 3, 3))
         for h in range(3):
             for k in range(3):
                 outcomes[h, k, h + int(np.sign(k - h))] += 0.5
                 outcomes[h, k, h] += 0.5
         f = s.people.f
-        return [RateLaw(f, bilinear(1.0, outcomes, f, f, conserved=True))]
+        self.laws_ = [RateLaw(f, bilinear(1.0, outcomes, f, f, conserved=True))]
 
 
-opinions = GroupElement('opinions', element=DensityElement, size=3, on='sites', values={'f': [0.6, 0.1, 0.3]})
-debate = CompositeSystem(
-    elements=[opinions], interactions=[PersuasionInteraction('persuasion', people='opinions')], space=LatticeSpace(3)
-)
-shares = simulate(debate, until=10, dt=10.0).get_values('opinions.f')
+opinions = Element('opinions', values={'f': [0.6, 0.1, 0.3]}, space=LatticeSpace(3))
+debate = System(elements=[opinions], interactions=[Persuasion('persuasion')])
+shares = debate.prepare().simulate(until=10, dt=10.0).get_values('opinions.f')
 shares.round(3).tolist(), shares.sum(axis=1).round(12).tolist()
 ```
 
@@ -201,19 +180,14 @@ into a cluster of `h + k + 2`, so the equations of Smoluchowski are two forms on
 merges past the largest class, so the mass stays the same.
 
 ```python continuation
-class CoagulationInteraction(Interaction):
-    def __init__(
-        self,
-        label,
-        *,
-        particles: Annotated[str, RoleSpec()],
-        kernel: Annotated[float, ParameterSpec()] = 1.0,
-    ):
+class Coagulation(Interaction):
+    def __init__(self, label, *, particles: Role = 'clusters', kernel=1.0):
         super().__init__(label)
         self.particles = particles
         self.kernel = kernel
 
-    def _get_laws(self, s):
+    def _prepare(self, s):
+        super()._prepare(s)
         fits = (np.add.outer(np.arange(6), np.arange(6)) < 5).astype(float)
         merged = np.zeros((6, 6, 6))
         for h, k in zip(*np.nonzero(fits)):
@@ -221,13 +195,12 @@ class CoagulationInteraction(Interaction):
         n = s.particles.f
         gain = bilinear(fits * s.kernel / 2, merged, n, n)
         loss = bilinear(-fits * s.kernel, None, n, n)
-        return [RateLaw(n, gain), RateLaw(n, loss)]
+        self.laws_ = [RateLaw(n, gain), RateLaw(n, loss)]
 
 
-clusters = GroupElement('clusters', element=DensityElement, size=6, on='sites', values={'f': [1, 0, 0, 0, 0, 0]})
-coagulation = CoagulationInteraction('coagulation', particles='clusters')
-smoke = CompositeSystem(elements=[clusters], interactions=[coagulation], space=LatticeSpace(6))
-sizes = simulate(smoke, until=1, dt=1.0).get_values('clusters.f')
+clusters = Element('clusters', values={'f': [1.0, 0, 0, 0, 0, 0]}, space=LatticeSpace(6))
+smoke = System(elements=[clusters], interactions=[Coagulation('coagulation')])
+sizes = smoke.prepare().simulate(until=1, dt=1.0).get_values('clusters.f')
 sizes[-1].round(3).tolist(), round(float(sizes[-1] @ np.arange(1, 7)), 3)
 ```
 
@@ -257,46 +230,33 @@ for the outcome probabilities `B[h, k, i]`. The fix is an array `outcomes` of sh
 
 This section adds a policy that acts on the population from outside. External actions need no component of their own. A
 micro-scale action, such as a welfare policy that acts on the transitions between wealth classes, is an encounter whose
-field role binds a group with fixed states, a group that no law changes. A macro-scale action, such as a recruitment of
-security forces in proportion to the mean criminality, is a [`RateLaw`](../core_components/laws.md#ratelaw) that reads
-the moments of a distribution. The policy below lifts the three poorest classes by one and taxes the three richest down
-by one, through encounters with a government of fixed density one.
+field role binds an element that no law changes. A macro-scale action, such as a recruitment of security forces in
+proportion to the mean criminality, is a [`RateLaw`](../core_components/laws.md#ratelaw) that reads the moments of a
+distribution. The policy below lifts the three poorest classes by one and taxes the three richest down by one, through
+encounters with a government of fixed density one.
 
 ```python continuation
-class PolicyInteraction(Interaction):
-    def __init__(
-        self,
-        label,
-        *,
-        population: Annotated[str, RoleSpec()],
-        government: Annotated[str, RoleSpec()],
-        tax: Annotated[float, ParameterSpec()] = 0.2,
-    ):
+class Policy(Interaction):
+    def __init__(self, label, *, population: Role = 'wealth', government: Role = 'government', tax=0.2):
         super().__init__(label)
         self.population = population
         self.government = government
         self.tax = tax
 
-    def _get_laws(self, s):
+    def _prepare(self, s):
+        super()._prepare(s)
         rates, table = np.zeros((9, 1)), np.zeros((9, 1, 9))
         for candidate in range(9):
             outcome = candidate + 1 if candidate < 3 else candidate - 1 if candidate >= 6 else candidate
             rates[candidate, 0] = float(outcome != candidate)
             table[candidate, 0, outcome] = 1.0
         form = bilinear(rates * s.tax, table, s.population.f, s.government.f, conserved=True)
-        return [RateLaw(s.population.f, form)]
+        self.laws_ = [RateLaw(s.population.f, form)]
 
 
-welfare = CompositeSystem(
-    elements=[wealth, GroupElement('government', element=WealthDensityElement, size=1, values={'f': 1.0})],
-    interactions=[
-        ExchangeInteraction('exchange', population='wealth'),
-        PolicyInteraction('policy', population='wealth', government='government'),
-    ],
-    space=LatticeSpace(9, boundary='fixed'),
-    time=ContinuousTime(),
-)
-simulate(welfare, until=100, dt=10.0).get_values('wealth.f')[-1].round(3).tolist()
+government = Element('government', values={'f': 1.0}, space=LatticeSpace(1))
+welfare = System(elements=[wealth, government], interactions=[Exchange('exchange'), Policy('policy')])
+welfare.prepare().simulate(until=100, dt=10.0).get_values('wealth.f')[-1].round(3).tolist()
 ```
 
 With the policy, the poorest and the richest classes fall from 0.173 to 0.049, and the wealth peaks at 0.19 in the
@@ -306,12 +266,12 @@ above.
 ## Moments
 
 This section records the mean and the variance of the distribution as it changes. The function
-`moment(expression, order, coordinates)` sums `c_j^r f_j` over the members of a group, with the coordinate `c_j` of
+`moment(expression, order, coordinates)` sums `c_j^r f_j` over the members of an element, with the coordinate `c_j` of
 every member, here its wealth class. Each moment enters an `Observable`, which records it at every output time.
 
 ```python continuation
-from skcomplex.core.components.laws.utils import moment
 from skcomplex.core.components import Observable
+from skcomplex.core.components.laws.utils import moment
 
 
 def mean_wealth(s):
@@ -326,7 +286,7 @@ observables = [
     Observable('mean_wealth', mean_wealth, group='wealth'),
     Observable('wealth_variance', wealth_variance, group='wealth'),
 ]
-trajectory = simulate(economy, until=100, dt=10.0, observables=observables)
+trajectory = economy.simulate(until=100, dt=10.0, observables=observables)
 variance = trajectory.get_values('wealth_variance')
 round(float(trajectory.get_values('mean_wealth')[-1]), 3), variance[[0, -1]].round(3).tolist()
 ```
@@ -339,19 +299,20 @@ The mean wealth ends at 0.5, since the exchange is symmetric about the middle cl
 - `central=True` takes the moment about the mean, so the central moment of order 2 is the variance.
 
 Moments are expressions of `total` with a shared row of weights, a vector with one weight per reduced member. So laws
-read them and observables record them. An observable of a group receives the namespace of one member, and its function
-must be defined at module level so that it pickles.
+read them and observables record them. An observable of an element with many members receives the namespace of one
+member, and its function must be defined at module level so that it pickles.
 
 ## The particle solver
 
-This section runs the same declarations with individual particles in place of densities and compares the two.
-`KineticSolver(n, dt)` runs the declarations by direct simulation Monte Carlo. It holds every density as counts of
-particles of one mass, with `n` particles for the largest initial density.
+This section runs the same laws with individual particles in place of densities and compares the two.
+`KineticSolver(n, dt)` runs them by direct simulation Monte Carlo. It holds every density as counts of particles of one
+mass, with `n` particles for the largest initial density. It is the `solver` setting of the system.
 
 ```python continuation
 from skcomplex.core.engine.solvers import KineticSolver
 
-sampled = simulate(economy, until=100, dt=10.0, solver=KineticSolver(n=20_000), random_state=0)
+particles = System(elements=[wealth], interactions=[Exchange('exchange')], solver=KineticSolver(n=20_000))
+sampled = particles.prepare().simulate(until=100, dt=10.0, random_state=0)
 round(float(np.abs(sampled.get_values('wealth.f')[-1] - densities[-1]).sum()), 2)
 ```
 
@@ -366,36 +327,29 @@ The state holds the empirical densities, so the trajectories match the form of t
 one over the square root of `n`. The welfare system, whose policy is an encounter too, runs on the solver as well.
 
 ```python continuation
-policed = simulate(welfare, until=100, dt=10.0, solver=KineticSolver(n=20_000), random_state=0)
-policed.get_values('wealth.f')[-1].round(2).tolist()
+policed = welfare.set_params(solver=KineticSolver(n=20_000)).prepare()
+policed.simulate(until=100, dt=10.0, random_state=0).get_values('wealth.f')[-1].round(2).tolist()
 ```
 
 The particles give 0.05, 0.07, 0.11, 0.19, 0.17, 0.19, 0.11, 0.07, and 0.05, the densities of the equations to two
-decimals. The solver supports continuous time, lattice spaces, site groups, and bilinear forms only. Validation reports
-any other rate law with it and lists the solvers that run it.
+decimals. The solver supports rate laws, elements on a lattice, and bilinear forms only. Validation reports any other
+rate law with it and lists the solvers that run it.
 
 ## Levels
 
 This section moves between individual agents and their distribution, so one level of a system can feed another. The
-analysis `coarse_grain(source, over=values)` bins the values of a state of a group's members over given values. Every
-member counts at the nearest value, so the densities sum to 1 and start a distribution site group. Here 1000 traders
+analysis `coarse_grain(source, over=values)` bins the values of the members of an element over given values. Every
+member counts at the nearest value, so the densities sum to 1 and start a distribution on a lattice. Here 1000 traders
 are drawn from the final distribution of the exchange and binned back.
 
 ```python continuation
 from skcomplex.core.analysis import coarse_grain
 
-
-class TraderElement(Element):
-    def __init__(self, label, *, w: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.w = w
-
-
 profile = densities[-1] / densities[-1].sum()
 wealths = classes[np.random.default_rng(0).choice(classes.size, size=1000, p=profile)]
-traders = GroupElement('traders', element=TraderElement, size=1000, values={'w': wealths}, variable=True)
+traders = Element('traders', values={'w': wealths}, size=1000)
 density = coarse_grain(traders.values['w'], over=classes).field
-binned = GroupElement('wealth', element=WealthDensityElement, size=classes.size, on='sites', values={'f': density})
+binned = WealthDensity('wealth', f=density, space=LatticeSpace(classes.size, boundary='fixed'))
 round(float(density.sum()), 6), round(float(density @ classes), 3), round(float(traders.values['w'].mean()), 3)
 ```
 
@@ -408,7 +362,7 @@ levels connect in both directions.
 - A system can then run one level in a partition of a co-simulation and feed another level its moments.
 
 The library has `KineticWealthWelfareSystem`, `ImmuneCompetitionSystem`, `KineticOpinionSystem`, `EvacuationSystem`, and
-`CriminalitySystem`. `EvacuationSystem` holds a crowd on a network of rooms as a site group on a two-dimensional lattice
+`CriminalitySystem`. `EvacuationSystem` holds a crowd on a network of rooms as an element on a two-dimensional lattice
 indexed by room and speed class, whose walking encounters read the doors of the building.
 
 ## Automata on groups
@@ -421,9 +375,9 @@ elements all reduced words in the generators and their inverses, and its Cayley 
 [`skcomplex.systems.computer_science.common.automata`][skcomplex.systems.computer_science.common.automata] holds the
 space and the neighbourhood of such automata. Its `CayleySpace` holds a ball of the tree, the words up to a length, and
 its `MemoryNeighborhood` lists the memory set as words, such as the identity `'1'` followed by every generator and its
-inverse. `FreeGroupAutomatonSystem` of `skcomplex.systems.computer_science.automata` builds them into a
-[`LocalRuleInteraction`](../core_components/interactions.md#localruleinteraction) that applies a majority rule over
-these five cells on the ball of radius 4.
+inverse. `FreeGroupAutomatonSystem` of `skcomplex.systems.computer_science.automata` builds them into an
+[`UpdateLaw`](../core_components/laws.md#updatelaw) with a neighbourhood, a local rule that applies a majority rule
+over these five cells on the ball of radius 4.
 
 ```python
 from skcomplex.systems.computer_science.automata import FreeGroupAutomatonSystem
@@ -453,8 +407,7 @@ shift.prepare().system_.elements[0].space.prepare().words_
 The shortest words of the six elements are `'1'`, `'a'`, `'b'`, `'b^-1'`, `'a*b'`, and `'a*b^-1'`. The group spaces
 follow these rules.
 
-- A group space is a space with sites, so `LocalRuleLaw`,
-  [`SampleLaw`](../core_components/laws.md#samplelaw), and the other lattice laws run on it with the NumPy and Numba
+- A group space is a space with sites, so local rules and the other lattice laws run on it with the NumPy and Numba
   backends, and a run reads only its neighbour table.
 - Preparing the space enumerates its sites, numbered by word length. `generators_` names the generators, `words_` gives
   the shortest word of every site, and `ball_sizes_` gives the growth of the balls. Cells outside a ball read the
@@ -508,15 +461,16 @@ The quotient on level 3 has 128 elements.
 This section asks whether an automaton is injective or surjective, finds a pattern that no configuration reaches, and
 inverts a reversible rule. The analysis `automaton` of `skcomplex.core.analysis` decides these properties on finite
 universes, where they are decidable: periodic configurations on a torus or a finite quotient, and patterns on windows.
-It does not decide them on infinite groups. A cellular automaton is a `System` of cells on a space with one
-interaction that sets an `UpdateLaw` with a rule and a neighbourhood, and the analysis reads the system.
-The first system is the Game of Life on a torus of 6 by 6 cells, whose rule a
-[`RadiusNeighborhood`](../core_components/spaces.md#radiusneighborhood) of the eight surrounding cells reads.
+It does not decide them on infinite groups. A cellular automaton is a `System` whose interaction sets an
+[`UpdateLaw`](../core_components/laws.md#updatelaw) with a neighbourhood, and the analysis reads the system. The cells
+allow the values 0 and 1, written in `Annotated`. The first system is the Game of Life on a torus of 6 by 6 cells,
+whose rule a [`RadiusNeighborhood`](../core_components/spaces.md#radiusneighborhood) of the eight surrounding cells
+reads.
 
 ```python
 from typing import Annotated
 
-from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.all__sagemath_symbolics import var
 
 from skcomplex.core.analysis import automaton
 from skcomplex.core.components.elements import Element
@@ -526,18 +480,19 @@ from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace, 
 from skcomplex.core.systems import System
 
 
-class CellElement(Element):
-    def __init__(self, label, alive: Annotated[int, FiniteEnumeratedSet([0, 1])] = 0, space=None):
+class Cells(Element):
+    def __init__(self, label, *, alive: Annotated[int, {0, 1}] = 0, space=None):
         super().__init__(label, space=space)
         self.alive = alive
 
 
-def cellular_automaton(space, neighborhood, rule):
-    def laws(s):
-        return [UpdateLaw(s.target.alive, rule, neighborhood=neighborhood)]
-
-    interaction = Interaction('rule', roles={'target': 'cells'}, laws=laws)
-    return System(elements=[CellElement('cells', space=space)], interactions=[interaction])
+def cellular_automaton(space, neighborhood, rule, alive=0):
+    step = Interaction(
+        'rule',
+        roles={'target': 'cells'},
+        laws=lambda s: [UpdateLaw(s.target.alive, rule, neighborhood=neighborhood)],
+    )
+    return System(elements=[Cells('cells', alive=alive, space=space)], interactions=[step])
 
 
 life_rule = OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1})
@@ -558,23 +513,30 @@ reversible, so the kind `'inverse'` finds its inverse, and the kind `'compose'` 
 
 ```python continuation
 ring = LatticeSpace(8)
-shift = cellular_automaton(ring, LatticeNeighborhood(((1,),)), TableSpec({(1,): 1}))
+right = LatticeNeighborhood(((1,),))
+shift = cellular_automaton(ring, right, TableSpec({(1,): 1}))
 back = automaton(shift, kind='inverse').inverse
 composition = automaton(shift, kind='compose', second=back).composition
 start = {'cells.alive': [1, 0, 1, 1, 0, 0, 0, 1]}
 composition.prepare().simulate(until=1, initial_state=start).get_values('cells.alive')[-1].astype(int).tolist()
 ```
 
-The composition returns the configuration `[1, 0, 1, 1, 0, 0, 0, 1]` unchanged after one step, so it is the identity.
-The inverse and the composition are systems like the shift, so `prepare` and `simulate` run them, and two steps of the
-shift move every cell two sites back.
+The inverse and the composition are systems like the shift, so `prepare` and `simulate` run them. The composition
+returns the configuration `[1, 0, 1, 1, 0, 0, 0, 1]` unchanged after one step, so it is the identity. The `run` of a
+local rule is one step of the map on configurations. So several steps are a loop over that `run` or a simulation of
+the system, and the two give the same configuration.
 
 ```python continuation
-frames = shift.prepare().simulate(until=2, initial_state={'cells.alive': [1, 0, 1, 1, 0, 0, 0, 0]})
-frames.get_values('cells.alive')[-1].astype(int).tolist()
+step = UpdateLaw(var('alive'), TableSpec({(1,): 1}), neighborhood=right).prepare()
+cells = [1, 0, 1, 1, 0, 0, 0, 0]
+for _ in range(2):
+    cells = step.run({'space': ring, 'alive': cells}).value_
+started = cellular_automaton(ring, right, TableSpec({(1,): 1}), alive=[1, 0, 1, 1, 0, 0, 0, 0])
+frames = started.prepare().simulate(until=2, dt=1).get_values('cells.alive')
+cells.tolist() == frames[-1].astype(int).tolist()
 ```
 
-The block returns `[1, 1, 0, 0, 0, 0, 1, 0]`. The kinds of `automaton` decide these properties.
+The block returns `True`. The kinds of `automaton` decide these properties.
 
 - `'injective'` and `'surjective'`, which agree on a finite universe, enumerate the configurations of small universes
   and solve a SAT encoding with PySAT on larger ones.
@@ -593,35 +555,33 @@ Laplacian `(1, -2, 1)` over `GF(2)` runs on a ring of five cells.
 ```python
 from typing import Annotated
 
-from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
-
 from skcomplex.core.analysis import automaton
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import LocalRuleInteraction
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import LinearRuleSpec, TableSpec, UpdateLaw
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec, SubshiftSpec
-from skcomplex.core.components.laws import LinearRuleSpec, TableSpec
+from skcomplex.core.specs import SubshiftSpec
+from skcomplex.core.systems import System
 
 
-class CellElement(Element):
-    def __init__(self, label, alive: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0):
-        super().__init__(label)
+class Cells(Element):
+    def __init__(self, label, *, alive: Annotated[int, {0, 1}] = 0, space=None):
+        super().__init__(label, space=space)
         self.alive = alive
 
 
-laplacian = CompositeSystem(
-    elements=[GroupElement('cells', element=CellElement, space=LatticeSpace(5), on='sites')],
-    interactions=[
-        LocalRuleInteraction(
-            'laplacian',
-            target='cells',
-            state='alive',
-            rule=LinearRuleSpec((1, -2, 1), 'GF(2)'),
-            neighborhood=LatticeNeighborhood(((-1,), (0,), (1,))),
-        ),
-    ],
+def local_rule(label, rule, neighborhood):
+    return Interaction(
+        label,
+        roles={'target': 'cells'},
+        laws=lambda s: [UpdateLaw(s.target.alive, rule, neighborhood=neighborhood)],
+    )
+
+
+three = LatticeNeighborhood(((-1,), (0,), (1,)))
+laplacian = System(
+    elements=[Cells('cells', space=LatticeSpace(5))],
+    interactions=[local_rule('laplacian', LinearRuleSpec((1, -2, 1), 'GF(2)'), three)],
 )
 automaton(laplacian, kind='injective').injective
 ```
@@ -641,24 +601,23 @@ The block returns `True`, since the polynomial is not zero. The algebra decides 
   monomial, and surjective when it is not zero.
 - The kinds `'matrix'` and `'polynomial'` of `automaton` return them.
 
-A subshift is the set of configurations that hold no forbidden pattern. `SubshiftSpec(neighborhood, forbidden)` is the
-domain of a state whose configurations hold none of the `forbidden` patterns, read through the `neighborhood`. The
-golden mean shift forbids two neighbouring cells that are both 1, and the kind `'count'` counts its configurations on
-windows of one to seven cells.
+A subshift is the set of configurations that hold no forbidden pattern. `SubshiftSpec(neighborhood, forbidden)`, given
+as the allowed values of a value in `Annotated`, allows only the configurations that hold none of the `forbidden`
+patterns, read through the `neighborhood`. The golden mean shift forbids two neighbouring cells that are both 1, and
+the kind `'count'` counts its configurations on windows of one to seven cells.
 
 ```python continuation
-class GoldenCellElement(Element):
-    def __init__(
-        self,
-        label,
-        alive: Annotated[float, StateSpec(domain=SubshiftSpec(LatticeNeighborhood(((0,), (1,))), ((1, 1),)))] = 0,
-    ):
-        super().__init__(label)
+GOLDEN_MEAN = SubshiftSpec(LatticeNeighborhood(((0,), (1,))), ((1, 1),))
+
+
+class GoldenCells(Element):
+    def __init__(self, label, *, alive: Annotated[int, GOLDEN_MEAN] = 0, space=None):
+        super().__init__(label, space=space)
         self.alive = alive
 
 
 def golden(space):
-    return CompositeSystem(elements=[GroupElement('cells', element=GoldenCellElement, space=space, on='sites')])
+    return System(elements=[GoldenCells('cells', space=space)])
 
 
 [automaton(golden(LatticeSpace(length, boundary='fixed')), kind='count').count for length in range(1, 8)]
@@ -679,15 +638,8 @@ every cell holds a value of the alphabet, so it runs from a configuration with a
 
 ```python continuation
 forbidden = [1, 1, 0, 0, 0]
-cells = GroupElement('cells', element=GoldenCellElement, space=LatticeSpace(5), values={'alive': forbidden}, on='sites')
-keep = LocalRuleInteraction(
-    'keep',
-    target='cells',
-    state='alive',
-    rule=TableSpec({(1,): 1}),
-    neighborhood=LatticeNeighborhood(((0,),)),
-)
-held = CompositeSystem(elements=[cells], interactions=[keep])
+keep = local_rule('keep', TableSpec({(1,): 1}), LatticeNeighborhood(((0,),)))
+held = System(elements=[GoldenCells('cells', alive=forbidden, space=LatticeSpace(5))], interactions=[keep])
 automaton(held, kind='admissible', configuration=forbidden).admissible
 ```
 
@@ -695,7 +647,7 @@ The configuration `[1, 1, 0, 0, 0]` is not admissible, so the block returns `Fal
 starts from it.
 
 ```python continuation
-simulate(held, until=2, dt=1).get_values('cells.alive')[-1].astype(int).tolist()
+held.prepare().simulate(until=2, dt=1).get_values('cells.alive')[-1].astype(int).tolist()
 ```
 
 The run ends at `[1, 1, 0, 0, 0]`, the forbidden pattern included. The other kinds read configurations and runs.

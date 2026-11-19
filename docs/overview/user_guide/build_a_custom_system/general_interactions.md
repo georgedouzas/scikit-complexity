@@ -20,8 +20,9 @@ The stock holds 2.943 after two time units, which is `8 exp(-1)`.
 
 The general interactions are the classes of `skcomplex.core.components.interactions` and the recipes that several
 fields share in `skcomplex.systems.general`, each for one mathematical operation, such as a rate, a gradient, a flow, a
-coupling, a jump, a transition, or a grouping. Find the operation you need in the list below, then follow the link to
-its subsection.
+coupling, a jump, a transition, or a grouping. Where no recipe fits, an
+[`Interaction`](../core_components/interactions.md#interaction) sets one of the seven kinds of law. Find the operation
+you need in the list below, then follow the link to its subsection.
 
 - Change a state continuously by a rate, towards a goal, or with noise:
   [`EquationInteraction`](../core_components/general.md#equationinteraction), in [Rates and relaxation](#rates-and-relaxation).
@@ -34,34 +35,33 @@ its subsection.
 - Conserve, carry, or spread a quantity over a field: the rate `-divergence(flux)` on a finite-volume field, in
   [Conservation laws](#conservation-laws).
 - Update a state in steps, search by trial and error, or run a cellular automaton: `EquationInteraction` with
-  `time='discrete'` and [`LocalRuleInteraction`](../core_components/interactions.md#localruleinteraction), in [Discrete time](#discrete-time).
-- Couple members over the edges of a lattice or a network, over a group, or over close pairs:
-  [`CouplingInteraction`](../core_components/interactions.md#couplinginteraction) and [`PairInteraction`](../core_components/interactions.md#pairinteraction), in [Coupling over a structure](#coupling-over-a-structure).
+  `time='discrete'` and an [`UpdateLaw`](../core_components/laws.md#updatelaw) with a neighbourhood, in
+  [Discrete time](#discrete-time).
+- Couple members over the whole group or over close pairs: the reductions `total` and `count`, and the binding
+  `within=RadiusNeighborhood(r)`, in [Coupling over a structure](#coupling-over-a-structure).
 - Move particles through a viscous fluid by the forces, torques, and active slip of all of them: the physics
   `StokesianMobilityInteraction`, in [Coupling over a structure](#coupling-over-a-structure).
-- Fire random events: [`JumpInteraction`](../core_components/interactions.md#jumpinteraction), in [Jumps](#jumps).
-- Move a member between discrete values, such as susceptible and infected:
-  [`TransitionInteraction`](../core_components/interactions.md#transitioninteraction), in
-  [Transitions between values](#transitions-between-values).
-- Reset states when a condition crosses zero, or at chosen times:
-  [`CrossingInteraction`](../core_components/interactions.md#crossinginteraction), in
-  [Crossings and impulses](#crossings-and-impulses).
+- Fire random events: a [`JumpLaw`](../core_components/laws.md#jumplaw), in [Jumps](#jumps).
+- Move a member between discrete values, such as susceptible and infected: an update law with a random draw or a jump
+  law, in [Transitions between values](#transitions-between-values).
+- Reset states when a condition crosses zero, or at chosen times: an [`EventLaw`](../core_components/laws.md#eventlaw),
+  in [Crossings and impulses](#crossings-and-impulses).
 - Sample configurations by Monte Carlo: [`SamplingInteraction`](../core_components/interactions.md#samplinginteraction), in [Monte Carlo sampling](#monte-carlo-sampling).
-- Set a state from the time or the random stream of the step: [`ArrayUpdateLaw`](../core_components/laws.md#arrayupdatelaw), in
-  [Array updates that read the step](#array-updates-that-read-the-step).
+- Set a state from the time or the random stream of the step: an update law whose value is a function, in
+  [Updates that read the step](#updates-that-read-the-step).
 - Write an operation as symbolic laws or as agent rules: in [Agent and symbolic forms](#agent-and-symbolic-forms).
 - Learn from payoffs: `EquationInteraction`, in [Learning](#learning).
 - Move amounts between stocks, form groups, or rewire a network: rate laws whose targets map stocks to signs and
-  [`FlowInteraction`](../core_components/general.md#flowinteraction),
-  [`GroupingInteraction`](../core_components/interactions.md#groupinginteraction), and [`TopologyInteraction`](../core_components/interactions.md#topologyinteraction),
-  in [Agents, groups, and exchange](#agents-groups-and-exchange).
+  [`FlowInteraction`](../core_components/general.md#flowinteraction), the binding `along=RandomPartition(k)`, and
+  update laws of a `TopologyRequestSpec`, in [Agents, groups, and exchange](#agents-groups-and-exchange).
 - Move agents, create and remove them, let them choose, imitate, and evolve, match partners, fire reactions, or give
   the encounters of a kinetic system: the recipes that several fields share, in
   [General realizations](../core_components/general.md).
 - Write laws with Hill functions, delays, pulses, or group reductions: `skcomplex.core.components.laws.utils`, in
   [Law utilities](#law-utilities).
-- Evolve a tensor state of a field: `StateSpec(tensor=...)`, in [Tensor fields](#tensor-fields).
-- Do something no general class covers: the binding bases, in [When no general class fits](#when-no-general-class-fits).
+- Evolve a tensor value of a field: `Tensor` in `Annotated`, in [Tensor fields](#tensor-fields).
+- Do something no general class covers: the bindings of `Interaction`, in
+  [When no general class fits](#when-no-general-class-fits).
 
 ## How the general classes are configured
 
@@ -72,13 +72,12 @@ and the functions you pass.
 
 - `target` is the [role](../glossary.md#role) whose states the laws change, the slot of the interaction that an
   element fills. `sources` are roles the laws only read.
-- `state`, `states`, `read`, and `write` name the states, so one class serves any meaning. A force is a rate on a
-  state of order 2, and a mass is its `divisor`.
+- `state`, `states`, `read`, and `write` name the states, so one class serves any meaning. A force is a rate of the
+  second derivative of a position.
 - Functions are callables of the namespace `s` that return symbolic expressions, such as
   `rate=lambda s: -s.k * s.target.x`. Where an argument allows it, a number stands for a constant function.
-- `divisor` divides what a rate, a gradient, or a pair coupling adds to the highest derivative, such as a mass, a
-  friction, or a capacitance. It is a named argument, not part of the function, so a backend such as LAMMPS can read
-  it.
+- `divisor` of `GradientInteraction` divides what the gradient adds to the highest derivative, such as a mass or a
+  friction.
 - A variant is a string checked against the constants of its module, such as `mode='increment'`. A variant that
   carries an algorithm of its own is a frozen spec instead, such as the totalistic rule of a cellular automaton.
 
@@ -402,51 +401,34 @@ The quote rises from 1.0 to 1.5 and to 2.0, where the signal `2 - x` vanishes, a
 `x (1 + step sign(signal))` kept within `[lower, upper]`. Economics names this search `PriceAdjustmentInteraction`,
 with an additive stepping and an agent form.
 
-A cellular automaton updates each cell from the cells around it by a fixed rule. A `LocalRuleInteraction` runs one,
-and here its [`RadiusNeighborhood`](../core_components/spaces.md#radiusneighborhood) takes the two nearest cells. The helper `run`
-below places a row of five cells and runs one interaction on it.
+A cellular automaton updates each cell from the cells around it by a fixed rule. An
+[`UpdateLaw`](../core_components/laws.md#updatelaw) with a `neighborhood` runs one, and here its
+[`RadiusNeighborhood`](../core_components/spaces.md#radiusneighborhood) takes the two nearest cells. The cells are an
+element on a row of five sites.
 
 ```python
-from typing import Annotated
-
 import numpy as np
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import LocalRuleInteraction
-from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace, RadiusNeighborhood
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
-from skcomplex.core.components.laws import TotalisticSpec
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import TotalisticSpec, UpdateLaw
+from skcomplex.core.components.spaces import LatticeSpace, RadiusNeighborhood
+from skcomplex.core.systems import System
 
-
-class CellElement(Element):
-    def __init__(self, label, *, c: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.c = c
-
-
-def run(interaction, values, until):
-    cells = GroupElement('cells', element=CellElement, space=LatticeSpace(5), values={'c': values}, on='sites')
-    system = CompositeSystem(elements=[cells], interactions=[interaction], time=DiscreteTime())
-    return simulate(system, until=until, dt=until, random_state=0)
-
-
-parity = LocalRuleInteraction(
-    'parity',
-    target='cells',
-    state='c',
-    rule=TotalisticSpec({1: 1}),
-    neighborhood=RadiusNeighborhood(1, metric='manhattan'),
+rule, nearest = TotalisticSpec({1: 1}), RadiusNeighborhood(1, metric='manhattan')
+parity = Interaction(
+    'parity', roles={'target': 'cells'}, laws=lambda s: [UpdateLaw(s.target.c, rule, neighborhood=nearest)]
 )
-run(parity, np.eye(5)[2], 1).states[-1].tolist()
+cells = Element('cells', values={'c': np.eye(5)[2]}, space=LatticeSpace(5))
+system = System(elements=[cells], interactions=[parity]).prepare()
+system.simulate(until=1, dt=1, random_state=0).states[-1].tolist()
 ```
 
 The rule turns on a cell whose neighbourhood holds exactly one live cell. The single live cell in the middle gives
 `[0.0, 1.0, 0.0, 1.0, 0.0]` after one step.
 
-`LocalRuleInteraction(target, state, rule, neighborhood)` runs a cellular automaton from a rule table, a totalistic
-rule, or a function of the ordered neighbourhood.
+`UpdateLaw(target, rule, neighborhood=...)` runs a cellular automaton from a rule table, a totalistic rule, or a
+function of the ordered neighbourhood, as [Lattice systems](lattice_systems.md) shows.
 
 A cascade, which relaxes every member at or above a threshold until none is left, is an `UpdateLaw` whose value is
 the operator [`relax`](../core_components/laws.md#relax) of the core, in
@@ -457,103 +439,79 @@ the operator [`relax`](../core_components/laws.md#relax) of the core, in
 
 This section lets members influence each other: neighbours on a lattice or a network, every member of a group, or
 pairs of points closer than a cutoff. Kuramoto oscillators, for example, couple every member of a group through the
-mean of a sine of their phase differences, in a `CouplingInteraction`.
+mean of a sine of their phase differences. The mean over the other members is a reduction over the group: since
+`sin(b - a) = sin b cos a - cos b sin a`, the sum over the group needs only the totals of `sin theta` and `cos theta`,
+which `total` gives, and `count()` gives the number of members.
 
 ```python
-from typing import Annotated
-
 import numpy as np
-from sage.all__sagemath_symbolics import sin
+from sage.all__sagemath_symbolics import cos, sin
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import CouplingInteraction
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.components.laws.utils import count, total
+from skcomplex.core.systems import System
 
 
-class OscillatorElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        theta: Annotated[float, StateSpec()] = 0.0,
-        omega: Annotated[float, ParameterSpec()] = 0.0,
-    ):
-        super().__init__(label)
-        self.theta = theta
-        self.omega = omega
-
-    def _get_laws(self, s):
-        return [RateLaw(s.theta, s.omega)]
+def kuramoto(s):
+    theta = s.target.theta
+    pull = (total(sin(theta)) * cos(theta) - total(cos(theta)) * sin(theta)) / (count() - 1)
+    return [RateLaw(theta, s.target.omega + 2.0 * pull)]
 
 
 rng = np.random.default_rng(0)
 values = {'theta': rng.uniform(-np.pi, np.pi, 50), 'omega': rng.normal(0.0, 0.5, 50)}
-oscillators = GroupElement('oscillators', element=OscillatorElement, size=50, values=values)
-kuramoto = CouplingInteraction(
-    'kuramoto',
-    target='oscillators',
-    read='theta',
-    write='theta',
-    function=lambda s: 2.0 * sin(s.other.theta - s.member.theta),
-    reduce='mean',
-    mode='group',
-)
-system = CompositeSystem(elements=[oscillators], interactions=[kuramoto])
-phases = simulate(system, until=10, dt=1.0).get_values('oscillators.theta')[-1]
+oscillators = Element('oscillators', values=values, size=50)
+coupling = Interaction('kuramoto', roles={'target': 'oscillators'}, laws=kuramoto)
+system = System(elements=[oscillators], interactions=[coupling]).prepare()
+phases = system.simulate(until=10, dt=1.0).get_values('oscillators.theta')[-1]
 round(float(np.abs(np.exp(1j * phases).mean())), 2)
 ```
 
 The order parameter, the length of the mean of `exp(i theta)`, reaches 0.97 at the time 10. The phases have locked.
 
-`CouplingInteraction(target, source=None, read, write, function, reduce='sum', mode='edges', ...)` gives member `i` a
-reduction over `j` of `function(s)`. Inside the function, `s.member` reads `i`, `s.other` reads `j`, and `s.edge`
-reads the edge between them.
+The reductions of `skcomplex.core.components.laws.utils` give the other couplings.
 
-- It works over the edges of a lattice or a network, over the whole group or a separate `source` group
-  (`mode='group'`), or over the next member of an ordered group.
-- The reductions are sum, mean, max, min, normalized mean, and circular mean.
-- The weights are an edge state, a matrix, or a function.
-- It adds to a rate (`form='rate'`), or sets the next value with `combine(s, reduction)` (`form='map'`).
+- `total`, `mean`, and `count` reduce over the whole group, and with `by=` over the members that share a value.
+- `neighbors(expression, reduce=...)` reduces over the neighbours of a lattice or a network, where `s.target.other`
+  reads the neighbour, as [Networks](networks.md#reductions-over-neighbourhoods) shows.
+- `hyperedges(expression, size=k)` reduces over the hyperedges of a member.
 
-A `PairInteraction` gives forces between pairs of points, here a Morse potential between two atoms.
+An [`Interaction`](../core_components/interactions.md#interaction) with `within=RadiusNeighborhood(r)` runs its laws
+once for every pair of members closer than `r`. The laws read the two members as `s.first` and `s.second`, and give the
+laws of both. Here a Morse potential `2 (1 - exp(1 - r))^2` holds two atoms together. Its force on the first atom is
+minus its derivative times the unit vector from the second atom, and the second atom feels the opposite force.
 
 ```python
 import numpy as np
-from sage.all__sagemath_symbolics import exp
+from sage.all__sagemath_symbolics import exp, sqrt
 
-from typing import Annotated
-
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import PairInteraction
-from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.spaces import ContinuousSpace, RadiusNeighborhood
+from skcomplex.core.systems import System
 
 
-class AtomElement(Element):
-    def __init__(self, label, *, x: Annotated[object, StateSpec(vector=True, order=2)] = 0.0, x_d1: object = 0.0):
-        super().__init__(label)
-        self.x = x
-        self.x_d1 = x_d1
+def morse(s):
+    gap = s.first.x - s.second.x
+    r = sqrt(sum(item**2 for item in gap))
+    force = -4 * (1 - exp(1 - r)) * exp(1 - r) * gap / r
+    return [RateLaw(s.first.x.diff(s.t, 2), force), RateLaw(s.second.x.diff(s.t, 2), -force)]
 
 
-morse = PairInteraction('morse', 'pair', 'pair', cutoff=3.0, potential=lambda s, r: 2 * (1 - exp(1 - r)) ** 2)
-pair = GroupElement('pair', element=AtomElement, size=2, values={'x': [[0.0, 0.0], [1.5, 0.0]]})
-system = CompositeSystem(elements=[pair], interactions=[morse], space=ContinuousSpace(n_dim=2))
-positions = simulate(system, until=5, dt=0.1).get_values('pair.x')
+plane = ContinuousSpace(n_dim=2)
+pair = Element('pair', values={'x': np.array([[0.0, 0.0], [1.5, 0.0]])}, size=2, space=plane)
+bond = Interaction('morse', roles={'first': 'pair', 'second': 'pair'}, within=RadiusNeighborhood(3.0), laws=morse)
+system = System(elements=[pair], interactions=[bond], space=plane).prepare()
+positions = system.simulate(until=5, dt=0.1).get_values('pair.x')
 distances = np.linalg.norm(positions[:, 1] - positions[:, 0], axis=1)
 round(float(distances.min()), 2), round(float(distances.max()), 2)
 ```
 
-The distance between the atoms oscillates between 0.67 and 1.5 around the minimum of the potential at 1.
-
-`PairInteraction(first, second, cutoff, read, write, function=None, potential=None, divisor=None,
-period=None)` adds to both members of every pair within the cutoff either `function(s)`, or minus the gradient of
-`potential(s, r)` at their distance `r`. With several states in `write`, the function returns one value per state.
+The distance between the atoms oscillates between 0.67 and 1.5 around the minimum of the potential at 1. The laws
+give the second derivative of the positions, so their velocities `pair.x'` are states too.
 
 The physics `StokesianMobilityInteraction` moves spheres in a viscous fluid at low Reynolds number, where the force on
 one sphere moves all the others through the flow it creates, as in `SquirmersSystem`. Two spheres that sediment side by
@@ -588,142 +546,110 @@ This section changes states by discrete, often random, events.
 
 ### Jumps
 
-A `JumpInteraction` fires random events that change states by fixed amounts, here arrivals to a queue at the rate 2.
+A [`JumpLaw`](../core_components/laws.md#jumplaw) fires random events that change states by fixed amounts, here
+arrivals to a queue at the rate 2.
 
 ```python
-from typing import Annotated
-
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import JumpInteraction
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import JumpLaw
+from skcomplex.core.systems import System
 
-
-class AmountElement(Element):
-    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.x = x
-
-
-arrivals = JumpInteraction('arrivals', target='queue', changes={'x': 1}, rate=lambda s: 2.0)
-queue = CompositeSystem(elements=[AmountElement('queue')], interactions=[arrivals])
-counts = simulate(queue, until=5, dt=1.0, random_state=0).get_values('queue.x')
+arrivals = Interaction('arrivals', roles={'target': 'queue'}, laws=lambda s: [JumpLaw(2.0, {s.target.x: 1})])
+queue = System(elements=[Element('queue', values={'x': 0.0})], interactions=[arrivals]).prepare()
+counts = queue.simulate(until=5, dt=1.0, random_state=0).get_values('queue.x')
 all(count == round(count) for count in counts)
 ```
 
 Every recorded length of the queue is a whole number.
 
-`JumpInteraction(target, changes, rate=None, probability=None, waiting=None, reset=None)` fires stochastic events that
-change states by signed amounts. They fire at a rate, with a probability per step, or after drawn waiting times.
+`JumpLaw(rate, changes)` fires events at a rate that change states by signed amounts, and `JumpLaw(waiting=...,
+reset=...)` fires them after drawn waiting times. A system of jump laws is a jump process, which Gillespie's method
+runs.
 
 A reaction between species at a product propensity is a recipe on these jumps and on rates, the general realization
 [`ReactionInteraction`](../core_components/general.md#reactioninteraction).
 
 ### Transitions between values
 
-A `TransitionInteraction` moves a member between discrete values, such as states of health or of ownership. Here
-each of 1000 holders leaves the value 1 with the probability 0.2 per step.
+A member moves between discrete values, such as states of health or of ownership, by an update law with a random draw
+in discrete time, or by a jump law in continuous time. Here each of 1000 holders leaves the value 1 for the value 2
+with the probability 0.2 per step. `bernoulli('leave', 0.2)` is a draw of 1 with probability 0.2 for every member at
+every step.
 
 ```python
-from typing import Annotated
-
-import numpy as np
-from sage.all__sagemath_symbolics import NN
-
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import TransitionInteraction
-from skcomplex.core.components.laws.utils import neighbors, where
-from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import JumpLaw, UpdateLaw
+from skcomplex.core.components.laws.utils import bernoulli, neighbors, where
+from skcomplex.core.components.spaces import LatticeSpace
+from skcomplex.core.systems import System
 
 
-class HolderElement(Element):
-    def __init__(self, label, *, state: Annotated[int, StateSpec(domain=NN)] = 1):
-        super().__init__(label)
-        self.state = state
+def leave(s):
+    state = s.target.state
+    return [UpdateLaw(state, where(state == 1, 1 + bernoulli('leave', 0.2), state))]
 
 
-move = TransitionInteraction(
-    'move', target='holders', state='state', source=1, destination=2, probability=lambda s: 0.2
-)
-holders = GroupElement('holders', element=HolderElement, size=1000)
-system = CompositeSystem(elements=[holders], interactions=[move], time=DiscreteTime())
-values = simulate(system, until=3, random_state=0).get_values('holders.state')
+holders = Element('holders', values={'state': 1}, size=1000)
+system = System(elements=[holders], interactions=[Interaction('move', roles={'target': 'holders'}, laws=leave)])
+values = system.prepare().simulate(until=3, random_state=0).get_values('holders.state')
 round(float((values[-1] == 1).mean()), 1)
 ```
 
 After three steps half the holders keep the value 1, close to `0.8^3 = 0.512`.
 
-`TransitionInteraction(target, state, source, destination, rate=None, probability=None, condition=None, matrix=None,
-...)` moves a discrete state from a value, a set of values, or the values a function accepts, to another value. It
-fires at a rate, with a probability per step, when a condition holds, or by a transition or an emission matrix. With
-`after`, it fires after a residence time.
-
-A rate can read the neighbours of a member, so spreading along edges with recovery takes two transitions.
+A rate can read the neighbours of a member, so spreading along edges with recovery takes two jump laws. Each jump law
+fires for every site at its rate, which is 0 for a site its change does not apply to.
 
 ```python continuation
-contact = TransitionInteraction(
-    'contact',
-    target='sites',
-    state='state',
-    source=0,
-    destination=1,
-    rate=lambda s: 4.0 * neighbors(where(s.target.other.state == 1, 1, 0), reduce='mean'),
-)
-recovery = TransitionInteraction('recovery', target='sites', state='state', source=1, destination=0, rate=lambda s: 1.0)
-sites = GroupElement('sites', element=HolderElement, space=LatticeSpace((20, 20)), on='sites')
-system = CompositeSystem(elements=[sites], interactions=[contact, recovery])
-values = simulate(system, until=10, dt=1.0, random_state=0).get_values('sites.state')
+def spread(s):
+    state = s.target.state
+    infected = neighbors(where(s.target.other.state == 1, 1, 0), reduce='mean')
+    return [JumpLaw(where(state == 0, 4.0 * infected, 0), {state: 1}), JumpLaw(where(state == 1, 1.0, 0), {state: -1})]
+
+
+sites = Element('sites', values={'state': 1}, space=LatticeSpace((20, 20)))
+system = System(elements=[sites], interactions=[Interaction('spread', roles={'target': 'sites'}, laws=spread)])
+values = system.prepare().simulate(until=10, dt=1.0, random_state=0).get_values('sites.state')
 values[-1].mean() > 0.3
 ```
 
 More than three in ten sites are infected at the time 10. The ready-made systems of
-`skcomplex.systems.biology.epidemiology` build on such a subclass.
+`skcomplex.systems.biology.epidemiology` build on such laws.
 
 ### Crossings and impulses
 
-A `CrossingInteraction` acts when a condition is met, or at chosen times with a guard of the time. The example wraps
-a clock back to zero each time it reaches 1, and kicks it forward once at the time 1.5.
+An [`EventLaw`](../core_components/laws.md#eventlaw) acts when a guard crosses zero, or at chosen times with a guard of
+the time. The example wraps a clock back to zero each time it reaches 1, and kicks it forward once at the time 1.5.
 
 ```python
-from typing import Annotated
-
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import CrossingInteraction
-from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import EventLaw, RateLaw
+from skcomplex.core.systems import System
 
 
-class ClockElement(Element):
-    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.x = x
+def tick(s):
+    x = s.target.x
+    return [
+        RateLaw(x, 1.0),
+        EventLaw(x - 1, {x: 0}, direction=1, label='wrap'),
+        EventLaw(s.t - 1.5, {x: x + 0.25}, direction=1, label='kick'),
+    ]
 
-    def _get_laws(self, s):
-        return [RateLaw(s.x, 1.0)]
 
-
-wrap = CrossingInteraction(
-    'wrap', target='clock', guard=lambda s: s.target.x - 1, reset={'x': lambda s: 0}, direction=1
-)
-kick = CrossingInteraction(
-    'kick', target='clock', guard=lambda s: s.t - 1.5, reset={'x': lambda s: s.target.x + 0.25}, direction=1
-)
-system = CompositeSystem(elements=[ClockElement('clock')], interactions=[wrap, kick])
-events = simulate(system, until=2.2, dt=0.5).events
+ticking = Interaction('ticking', roles={'target': 'clock'}, laws=tick)
+system = System(elements=[Element('clock', values={'x': 0.0})], interactions=[ticking]).prepare()
+events = system.simulate(until=2.2, dt=0.5).events
 [(event.label, round(event.time, 3)) for event in events]
 ```
 
 The events are a wrap at 1.0, the kick at 1.5, and a second wrap at 1.75, because the kick moved the clock from 0.5
 to 0.75.
 
-- `CrossingInteraction(target, guard, reset=None, direction=0, terminal=False)` fires an event when a guard crosses
-  zero. The event resets states, or ends the run.
+- `EventLaw(guard, reset=None, direction=0, terminal=False)` fires an event when a guard crosses zero. The event resets
+  states, or ends the run.
 - A guard `s.t - t_k` resets states at the time `t_k`, and the guard `periodic_guard(s.t, period, start, count)` of
   `skcomplex.core.components.laws.utils` at periodic times. Engineering names these resets `PulseInteraction`, and
   physics names periodic ones `KickInteraction`.
@@ -772,27 +698,28 @@ samples matrix links with `WilsonSamplingInteraction`, as in `LatticeYangMillsSy
 `skcomplex.systems.physics.waves`. An infinite intensity is the zero temperature, where the Metropolis rule accepts a
 move only when the objective does not grow.
 
-## Array updates that read the step
+## Updates that read the step
 
-This section sets a state from outside, by the time of the step or by a random draw, with an `ArrayUpdateLaw`. Here
-it replays an ensemble of recorded configurations.
+This section sets a state from outside, by the time of the step, with an
+[`UpdateLaw`](../core_components/laws.md#updatelaw) whose value is a Python function `f(t, values)`. Here it replays an
+ensemble of recorded configurations.
 
 ```python
 import numpy as np
 from sage.all__sagemath_symbolics import var
 
-from skcomplex.core.components.laws import ArrayUpdateLaw
+from skcomplex.core.components.laws import UpdateLaw
 
 ensemble = np.zeros((38, 20, 3))
-replay = ArrayUpdateLaw(var('x'), lambda values, *, time: ensemble[min(int(time), 37)])
+replay = UpdateLaw(var('x'), lambda t, values: ensemble[min(int(t), 37)])
 replay.prepare().targets_
 ```
 
 The law targets the one state `x`.
 
-`ArrayUpdateLaw` passes the time of the step to a function that names `time`, and the random generator to a function
-that names `random`. A function can then set a lattice state to one member of an ensemble per step, as
-`FuzzyOilDropSystem` of `skcomplex.systems.biology.systems_biology` does, and hold the last member after the end.
+The function receives the time of the step and the current values by name. It can then set a lattice state to one
+member of an ensemble per step, as `FuzzyOilDropSystem` of `skcomplex.systems.biology.systems_biology` does, and hold
+the last member after the end.
 
 ## Agent and symbolic forms
 
@@ -965,79 +892,74 @@ Every recorded step holds 10.0 particles.
 
 ### Grouping
 
-A `GroupingInteraction` lets agents meet in small groups and act together, here the majority vote of Galam's
-majority rule.
+An [`Interaction`](../core_components/interactions.md#interaction) with `along=RandomPartition(k)` lets the members of
+the group `among` meet in random groups of `k` at every step and act together, here the majority vote of Galam's
+majority rule. The laws read the member they change as `s.member` and its group as `s.members`.
 
 ```python
-from typing import Annotated
-
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import GroupingInteraction
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction, RandomPartition
+from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.components.laws.utils import mean, where
+from skcomplex.core.systems import System
 
 
-class VoterElement(Element):
-    def __init__(self, label, *, s: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.s = s
+def majority(s):
+    return [UpdateLaw(s.member.s, where(mean(s.members.s, over=s.members) > 1 / 2, 1, 0))]
 
 
-def adopt_majority(members, system):
-    majority = float(2 * sum(member.s for member in members) > len(members))
-    for member in members:
-        member.s = majority
-
-
-voters = GroupElement('voters', element=VoterElement, size=3, values={'s': [1.0, 1.0, 0.0]})
-galam = GroupingInteraction('galam', target='voters', groups='partition', size=3, act=adopt_majority)
-trajectory = simulate(CompositeSystem(elements=[voters], interactions=[galam]), until=1)
-trajectory.get_agents('voters', 1).values['s'].tolist()
+voters = Element('voters', values={'s': [1.0, 1.0, 0.0]}, size=3)
+galam = Interaction('galam', among='voters', along=RandomPartition(3), laws=majority)
+trajectory = System(elements=[voters], interactions=[galam]).prepare().simulate(until=1, random_state=0)
+trajectory.get_values('voters.s')[-1].tolist()
 ```
 
 The three voters held `[1.0, 1.0, 0.0]` and all hold 1.0 after one vote.
 
-`GroupingInteraction(target, groups='pairs', act, size=2)` draws pairs, a random partition, neighbourhoods, or groups
-by a state every step. It then calls `act(members, system)` on every group.
+`RandomPartition(2)` draws pairs, and `along='neighborhoods'` groups every member with the members around it in the
+space, as [Networks](networks.md#random-groups-and-neighbourhoods) shows.
 
 ### Network topology
 
-A `TopologyInteraction` changes the network itself. Here every node of a ring of five in a
-[`NetworkSpace`](../core_components/spaces.md#networkspace) removes an edge in one step.
+An [`UpdateLaw`](../core_components/laws.md#updatelaw) whose target is a `TopologyRequestSpec` changes the network
+itself, with the probability its value gives. Here every edge of a ring of five in a
+[`NetworkSpace`](../core_components/spaces.md#networkspace) is removed in one step, through an interaction that runs
+along the edges.
 
 ```python
 import networkx as nx
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import TopologyInteraction
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import TopologyRequestSpec, UpdateLaw
 from skcomplex.core.components.spaces import NetworkSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.systems import System
 
-nodes = GroupElement('nodes', element=Element, on='sites', variable=True, capacity=20)
-links = GroupElement('links', element=Element, on='edges', variable=True, capacity=20)
-expiry = TopologyInteraction('expiry', target='nodes', action='remove-edge')
-system = CompositeSystem(elements=[nodes, links], interactions=[expiry], space=NetworkSpace(nx.cycle_graph(5)))
-trajectory = simulate(system, until=1, random_state=0)
+space = NetworkSpace(nx.cycle_graph(5))
+nodes, links = Element('nodes', space=space), Element('links', space=space, on='edges')
+removal = TopologyRequestSpec('remove-edge')
+expiry = Interaction('expiry', among='nodes', along=True, laws=lambda s: [UpdateLaw(removal, 1.0)])
+system = System(elements=[nodes, links], interactions=[expiry], space=space).prepare()
+trajectory = system.simulate(until=1, random_state=0)
 len(trajectory.get_network(0).sources), len(trajectory.get_network(1).sources)
 ```
 
 The ring has 5 edges at the start and none after the step.
 
-`TopologyInteraction(target=None, action='add-edge', rate=None, probability=None, toward=None, ...)` adds or removes
-nodes and edges of a network, and rewires edges, preferentially towards a weight. Without a target, it adds one node
-per step from outside the network.
+`TopologyRequestSpec(kind, edges=1, toward=None, ...)` adds or removes nodes and edges of a network, and rewires edges,
+preferentially towards a weight. An interaction without roles fires it once per step, such as a node that arrives from
+outside the network, as [Networks](networks.md#topology-requests) shows.
 
 ### When no general class fits
 
-This section names the classes to subclass for an operation the general classes do not cover. These binding bases
-fix only which members an interaction binds.
+This section names the bindings of [`Interaction`](../core_components/interactions.md#interaction) for an operation
+the general classes do not cover. They fix only which members the laws of an interaction run for.
 
-- [`Interaction`](../core_components/interactions.md#interaction) for laws of its own over any roles.
-- [`NeighborInteraction`](../core_components/interactions.md#neighborinteraction) over the edges of a lattice or a network.
-- `PairInteraction` over the pairs within a cutoff.
-- [`HyperedgeInteraction`](../core_components/interactions.md#hyperedgeinteraction) over the members of hyperedges.
+- Named roles, such as `Interaction('pipe', roles={'upper': 'upper', 'lower': 'lower'}, laws=...)`, for laws over the
+  elements the roles bind.
+- `among` and `along=True` or a layer name, over the edges of a lattice or a network.
+- `within=RadiusNeighborhood(r)`, over the pairs of members closer than `r`.
+- `along='hyperedges'` or `along=('hyperedges', k)`, over the members of hyperedges.
 
 The sections [Groups of many elements](groups_of_many_elements.md), [Networks](networks.md), and
 [Pair interactions](groups_of_many_elements.md#pair-interactions) show them.
@@ -1083,7 +1005,8 @@ from typing import Annotated
 
 import numpy as np
 
-from skcomplex.core.components.elements import Element, FieldElement
+from skcomplex.core.components.elements import Element, Tensor
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import (
     advection,
@@ -1093,41 +1016,39 @@ from skcomplex.core.components.laws.utils import (
     tensor_divergence,
 )
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 
 
-class StirredElement(Element):
-    def __init__(self, label, Q: Annotated[object, StateSpec(tensor='traceless')] = 0.0):
-        super().__init__(label)
+class Film(Element):
+    def __init__(self, label, *, Q: Annotated[object, Tensor('traceless')] = 0.0, space=None):
+        super().__init__(label, space=space)
         self.Q = Q
 
-    def _get_laws(self, s):
-        force = tensor_divergence(s.Q)
-        velocity = leray_projection(force.apply_map(lambda item: inverse_helmholtz(-item)))
-        return [RateLaw(s.Q, -s.Q.apply_map(lambda item: advection(item, velocity)) + s.Q.apply_map(laplacian) - s.Q)]
+
+def stir(s):
+    Q = s.target.Q
+    force = tensor_divergence(Q)
+    velocity = leray_projection(force.apply_map(lambda item: inverse_helmholtz(-item)))
+    return [RateLaw(Q, -Q.apply_map(lambda item: advection(item, velocity)) + Q.apply_map(laplacian) - Q)]
 
 
 size = 16
 spacing = 2 * np.pi / size
 x, y = np.meshgrid(np.arange(size) * spacing, np.arange(size) * spacing, indexing='ij')
 start = np.stack([0.1 * np.cos(x).ravel(), 0.1 * np.sin(y).ravel()], axis=1)
-film = FieldElement(
-    'film',
-    element=StirredElement,
-    space=LatticeSpace((size, size), spacing=spacing),
-    values={'Q': start},
-    discretization='spectral',
-)
-trajectory = simulate(CompositeSystem(elements=[film]), until=0.2, dt=0.01)
+lattice = LatticeSpace((size, size), spacing=spacing, discretization='spectral')
+film = Film('film', Q=start, space=lattice)
+system = System(elements=[film], interactions=[Interaction('stir', roles={'target': 'film'}, laws=stir)]).prepare()
+trajectory = system.simulate(until=0.2, dt=0.01)
 bool(np.max(np.abs(trajectory.get_values('film.Q')[-1])) < np.max(np.abs(start)))
 ```
 
 The largest component at the time 0.2 is smaller than at the start, so the block returns `True`.
 
-`StateSpec(tensor=symmetry)` declares a rank-2 tensor state of a field on a lattice of 2 or 3 dimensions. The symmetry
-is `'full'`, `'symmetric'`, `'antisymmetric'`, or `'traceless'`, which means symmetric and traceless.
+`Tensor(symmetry)` in `Annotated` says that a value holds a rank-2 tensor of a field on a lattice of 2 or 3
+dimensions. The symmetry is `'full'`, `'symmetric'`, `'antisymmetric'`, or `'traceless'`, which means symmetric and
+traceless.
+
 
 - The element stores only the independent components, such as `Q_xx` and `Q_xy` for a symmetric traceless state in 2
   dimensions. Initial values give one value per independent component.
