@@ -8,12 +8,10 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from skcomplex.core.components.spaces import BaseSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems import AgentSnapshotSpec, BaseProblemSpec, FrameSpec, ProblemSpec
-from skcomplex.core.engine.runtime import BaseObserver, Trajectory, simulate
+from skcomplex.core.engine.runtime import BaseObserver, Trajectory
 from skcomplex.core.engine.viz import BaseVisual, RerunObserver
-from skcomplex.core.systems import BaseSystem
+from skcomplex.core.systems import BaseSystem, System
 from skcomplex.systems.biology.evolution import MoranProcessSystem
 
 
@@ -35,15 +33,13 @@ class Logs:
         return [archetype for logged, archetype in self.logs if logged == path]
 
 
-def _simulate(system: CompositeSystem | BaseSystem, **settings: object) -> Trajectory:
-    """Return the trajectory of a system of either API."""
-    if isinstance(system, BaseSystem):
-        return system.prepare().simulate(**settings)
-    return simulate(system, **settings)
+def _simulate(system: System | BaseSystem, **settings: object) -> Trajectory:
+    """Return the trajectory of a system."""
+    return system.prepare().simulate(**settings)
 
 
 def _frames(
-    system: CompositeSystem | BaseSystem,
+    system: System | BaseSystem,
     steps: int,
     dt: float = 0.1,
 ) -> tuple[BaseProblemSpec, list[FrameSpec]]:
@@ -62,7 +58,7 @@ def _frames(
     return trajectory.problem, frames
 
 
-def _first_frame(system: CompositeSystem | BaseSystem) -> tuple[BaseProblemSpec, FrameSpec]:
+def _first_frame(system: System | BaseSystem) -> tuple[BaseProblemSpec, FrameSpec]:
     """Return the problem and the first frame of a system."""
     trajectory = _simulate(system, until=0.0)
     problem = trajectory.problem
@@ -74,13 +70,19 @@ def _radius(archetype: rr.Points2D | rr.Points3D) -> float:
     return archetype.radii.as_arrow_array().to_pylist()[0]
 
 
-def _prepared(system: CompositeSystem | BaseProblemSpec, **settings: object) -> RerunObserver:
+def _problem_of(system: System | BaseSystem) -> BaseProblemSpec:
+    """Return the problem a system compiles to when it is prepared."""
+    prepared = system.prepare()
+    return prepared.system_._problem if isinstance(prepared, BaseSystem) else prepared._problem
+
+
+def _prepared(system: System | BaseSystem | BaseProblemSpec, **settings: object) -> RerunObserver:
     """Return a Rerun observer prepared on a system or a compiled problem."""
-    problem = system if isinstance(system, BaseProblemSpec) else PassCompiler().prepare(system).run().problem_
+    problem = system if isinstance(system, BaseProblemSpec) else _problem_of(system)
     return RerunObserver(**settings).prepare(problem)
 
 
-def default_blueprint(system: CompositeSystem | BaseProblemSpec, **settings: object) -> rrb.Blueprint:
+def default_blueprint(system: System | BaseSystem | BaseProblemSpec, **settings: object) -> rrb.Blueprint:
     """Return the default blueprint of a system or a compiled problem."""
     return _prepared(system, blueprint='default', **settings).blueprint_
 
@@ -101,7 +103,7 @@ def _views(blueprint: rrb.Blueprint) -> list[rrb.View]:
 @pytest.fixture(scope='module')
 def log_agents() -> Callable[..., BaseVisual]:
     """Return a function that prepares a visual for agents in a space and logs one frame per snapshot."""
-    problem = PassCompiler().prepare(MoranProcessSystem().prepare().system_).run().problem_
+    problem = _problem_of(MoranProcessSystem())
     assert isinstance(problem, ProblemSpec)
 
     def log(

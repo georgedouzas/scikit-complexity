@@ -1,73 +1,55 @@
 """Test the `VelocityVerletSolver` class."""
 
 import time
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-import numpy.typing as npt
 import pytest
-from sage.all__sagemath_symbolics import oo
+from sage.all__sagemath_symbolics import SR, oo, sqrt
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import PairInteraction
-from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws.utils import neighbors
+from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
 from skcomplex.core.engine.solvers import (
     StepSpec,
     VelocityVerletSolver,
 )
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 
 
-class BallElement(Element):
-    """Point of a continuous space, with a vector state `x` of order 2."""
+class SoftSphereInteraction(Interaction):
+    """Soft repulsion `k * (cutoff - r) ** 2 / 2` between the members of a group within the cutoff."""
 
     def __init__(
         self,
         label: str,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, order=2, role='position')] = 0.0,
-        x_d1: npt.ArrayLike = 0.0,
+        *,
+        target: Role,
+        cutoff: float = 1.0,
+        k: Annotated[float, RealSet.open(0, oo)] = 100.0,
     ) -> None:
         super().__init__(label)
-        self.x = x
-        self.x_d1 = x_d1
-
-    def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Set `default_visual_`, points at the values of `x`."""
-        super()._prepare(context)
-        self.default_visual_ = VisualSpec('points', {'position': 'x'})
-
-
-class SoftSphereInteraction(PairInteraction):
-    """Soft repulsion `k * (cutoff - r) ** 2 / 2`."""
-
-    def __init__(
-        self,
-        label: str,
-        first: str,
-        second: str,
-        cutoff: float = 1.0,
-        position: str = 'x',
-        *,
-        period: float | None = None,
-        k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
-    ) -> None:
-        super().__init__(
-            label,
-            first,
-            second,
-            cutoff=cutoff,
-            position=position,
-            potential=self._get_pair_energy,
-            period=period,
-        )
+        self.target = target
+        self.cutoff = cutoff
         self.k = k
 
-    def _get_pair_energy(self, s, r):
-        """Return the soft repulsion energy."""
-        return s.k * (s.cutoff - r) ** 2 / 2
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the force of the neighbours within the cutoff on every member."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s, x = context, context.target.x
+            separation = x - s.target.other.x
+            r = sqrt(separation.dot_product(separation))
+            distance = SR.var('r', domain='positive')
+            energy = s.k * (self.cutoff - distance) ** 2 / 2
+            slope = energy.diff(distance).subs({distance: r})
+            force = neighbors(-slope * separation / r, RadiusNeighborhood(self.cutoff))
+            self.laws_ = [RateLaw(x.diff(s.t, 2), force)]
 
 
 @pytest.mark.benchmark
@@ -76,21 +58,14 @@ def test_interacting_gas_of_100000_runs_in_real_time():
     n = 100_000
     size = float(np.sqrt(n))
     rng = np.random.default_rng(0)
-    system = CompositeSystem(
-        elements=[
-            GroupElement(
-                'gas',
-                element=BallElement,
-                size=n,
-                values={'x': rng.uniform(0, size, (n, 2)), 'x_d1': rng.normal(0, 1, (n, 2))},
-            ),
-        ],
-        interactions=[
-            SoftSphereInteraction('soft', first='gas', second='gas', cutoff=1.0),
-        ],
+    gas = Element('gas', values={'x': rng.uniform(0, size, (n, 2)), "x'": rng.normal(0, 1, (n, 2))}, size=n)
+    system = System(
+        elements=[gas],
+        interactions=[SoftSphereInteraction('soft', target='gas', cutoff=1.0)],
         space=ContinuousSpace(extent=(size, size), boundary='reflecting'),
+        solver=VelocityVerletSolver(dt=0.01),
     )
-    problem = simulate(system, until=0, solver=VelocityVerletSolver(dt=0.01)).problem
+    problem = system.prepare().simulate(until=0).problem
     solver = VelocityVerletSolver(dt=0.01, until=2.0).prepare(problem)
     state, lags = solver.initial_state_, []
     start = time.perf_counter()
