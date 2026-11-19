@@ -44,7 +44,7 @@ for period in np.linspace(2.0, 6.0, 41):
         transient=60,
     )
     values = np.asarray(points.values['toda.x'])
-    x, v = float(values[-1]), float(np.asarray(points.values['toda.x_d1'])[-1])
+    x, v = float(values[-1]), float(np.asarray(points.values["toda.x'"])[-1])
     ax.plot(np.full(values.size, period), values, ',', color='black')
 ax.set_xlabel('driving period T')
 ax.set_ylabel('x at multiples of T')

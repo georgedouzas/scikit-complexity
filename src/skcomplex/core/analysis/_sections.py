@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from ..engine.problems import ProblemSpec
+from ..engine.problems import LayoutSpec, ProblemSpec
 from ..engine.problems._event_kernel import EventKernel
 from ..engine.runtime._simulations import Simulation
 from ..engine.solvers import Solver
@@ -50,7 +50,7 @@ class SectionResult:
 
         values:
             A mapping from the name of every read state to its values at the points of a section, one row per point
-            for a vector state.
+            for a vector state. A derivative is named with a prime, such as `mass.x'`, as in trajectories.
     """
 
     problem: ProblemSpec
@@ -202,7 +202,7 @@ def section(
     for name in names:
         read = np.asarray([problem.states.read(row, name) for row in states], dtype=float)
         size = problem.states.get_entry(name).size
-        values[name] = read.reshape(len(times), -1) if size > 1 else read.reshape(-1)
+        values[LayoutSpec._get_display_name(name)] = read.reshape(len(times), -1) if size > 1 else read.reshape(-1)
     return SectionResult(problem, times, states, values)
 
 

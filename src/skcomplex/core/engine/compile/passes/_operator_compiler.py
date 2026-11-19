@@ -567,7 +567,7 @@ class OperatorCompiler(BaseCompiler):
                     'the group whose neighbours it couples.'
                 )
                 raise ValidationError(error_msg)
-            path = f'{node.scope}{getattr(interaction, role_names[0])}'
+            path = f"{node.scope}{interaction._get_binding(role_names[0])}"
             if path not in groups:
                 error_msg = f'Neighbour interaction {node.path} binds {path}, which is not an operator group.'
                 raise ValidationError(error_msg)
@@ -585,7 +585,7 @@ class OperatorCompiler(BaseCompiler):
                 )
             return
         roles = {
-            name: OperatorCompiler._get_role_namespace(node, getattr(interaction, name), members, set(groups))
+            name: OperatorCompiler._get_role_namespace(node, str(interaction._get_binding(name)), members, set(groups))
             for name in declarations_of(interaction, VariableKind.ROLE)
         }
         self._collect_laws(
@@ -827,7 +827,8 @@ class OperatorCompiler(BaseCompiler):
         """
         component = node.as_interaction
         roles = {
-            name: f'{node.scope}{getattr(component, name)}' for name in declarations_of(component, VariableKind.ROLE)
+            name: f'{node.scope}{component._get_binding(name)}'
+            for name in declarations_of(component, VariableKind.ROLE)
         }
         return _CompiledInteractionSpec(node.path, component, roles)
 

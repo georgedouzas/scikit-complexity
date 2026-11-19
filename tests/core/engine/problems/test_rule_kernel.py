@@ -9,8 +9,8 @@ from sage.all__sagemath_gap import PermutationGroup, libgap
 from sage.all__sagemath_symbolics import ZZ
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import LocalRuleInteraction
-from skcomplex.core.components.laws import TotalisticSpec
+from skcomplex.core.components.interactions import Interaction, LocalRuleInteraction
+from skcomplex.core.components.laws import TotalisticSpec, UpdateLaw
 from skcomplex.core.components.spaces import (
     LatticeNeighborhood,
     LatticeSpace,
@@ -19,6 +19,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import PowerSeriesSpec, StateSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.computer_science.automata import PowerSeriesCellElement
 from skcomplex.systems.computer_science.common.automata import CayleySpace, StateTranslationNeighborhood
 
@@ -115,21 +116,14 @@ def test_function_rule_updates_a_power_series_state():
     def difference(here, right):
         return here - ring.multiply(ring.get_coefficients_of('t'), right)
 
-    system = CompositeSystem(
-        elements=[
-            GroupElement(
-                'cells',
-                element=PowerSeriesCellElement,
-                space=LatticeSpace(6),
-                values={'ring': ring, 'value': values},
-                on='sites',
-            ),
-        ],
-        interactions=[
-            LocalRuleInteraction('difference', target='cells', state='value', rule=difference, neighborhood=FORWARD),
-        ],
+    cells = PowerSeriesCellElement('cells', ring=ring, value=values, space=LatticeSpace(6))
+    rule = Interaction(
+        'difference',
+        roles={'target': 'cells'},
+        laws=lambda s: [UpdateLaw(s.target.value, difference, neighborhood=FORWARD)],
     )
-    final = _values(system, 3)[-1]
+    system = System(elements=[cells], interactions=[rule]).prepare()
+    final = system.simulate(until=3, dt=1, random_state=0).get_values('cells.value')[-1]
     expected = np.zeros((6, 4))
     expected[3, 0], expected[2, 1], expected[1, 2], expected[0, 3] = 1, -3, 3, -1
     np.testing.assert_array_equal(final, expected)
@@ -137,17 +131,11 @@ def test_function_rule_updates_a_power_series_state():
 
 def test_lookup_rules_reject_power_series_states():
     """Test that a totalistic rule cannot read a state of several components."""
-    system = CompositeSystem(
-        elements=[GroupElement('cells', element=PowerSeriesCellElement, space=LatticeSpace(5), on='sites')],
-        interactions=[
-            LocalRuleInteraction(
-                'sum',
-                target='cells',
-                state='value',
-                rule=TotalisticSpec({1: 1}),
-                neighborhood=FORWARD,
-            ),
-        ],
+    cells = PowerSeriesCellElement('cells', space=LatticeSpace(5))
+    rule = Interaction(
+        'sum',
+        roles={'target': 'cells'},
+        laws=lambda s: [UpdateLaw(s.target.value, TotalisticSpec({1: 1}), neighborhood=FORWARD)],
     )
     with pytest.raises(ValidationError, match='one component'):
-        simulate(system, until=0)
+        System(elements=[cells], interactions=[rule]).prepare().simulate(until=1)

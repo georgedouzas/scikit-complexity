@@ -44,7 +44,16 @@ from ...components.spaces import BaseSpace, CellComplexSpace, ContinuousSpace, L
 from ...components.systems import CompositeSystem
 from ...enums import TopologyKind, VariableKind
 from ...errors import ValidationError
-from ...specs import BaseSpec, DeclaredVariableSpec, MatrixGroupSpec, ParameterSpec, StateSpec, SubshiftSpec, VisualSpec
+from ...specs import (
+    BaseSpec,
+    DeclaredVariableSpec,
+    MatrixGroupSpec,
+    ParameterSpec,
+    PowerSeriesSpec,
+    StateSpec,
+    SubshiftSpec,
+    VisualSpec,
+)
 from .._utils import binding_of, bound_labels, declarations_of
 from ..problems._bilinear_law import BilinearLaw
 from ._compilation import Compilation
@@ -237,6 +246,22 @@ class _StateInference:
         return ()
 
     @staticmethod
+    def _is_single(element: Element) -> bool:
+        """Return whether an element is one member whose values are its own, also when they are arrays.
+
+        Such an element has no size and lies in no space or in a space without sites, such as a ball in the plane or
+        a walker on a line, whose position `[0.25]` is a vector of one component and not one value per member.
+        """
+        space = element.space
+        no_sites = space is None or not space._has_sites()
+        return element.size is None and no_sites and _StateInference._get_link(element) is None
+
+    @staticmethod
+    def _get_rows(element: Element, value: object) -> object:
+        """Return the values of the members of an element, one row for the single member of a single element."""
+        return [value] if _StateInference._is_single(element) else value
+
+    @staticmethod
     def _get_member_value(element: Element, name: str, value: object, count: int | None) -> object:
         """Return the value of one member, checking an array holds one per member.
 
@@ -247,7 +272,7 @@ class _StateInference:
         cell of a plate.
         """
         array = np.asarray(value, dtype=object)
-        if count is None or array.ndim == 0:
+        if count is None or array.ndim == 0 or _StateInference._is_single(element):
             return value
         space = element.space
         if isinstance(space, LatticeSpace) and element.size is None and len(space.prepare().shape_) > 1:
@@ -335,7 +360,7 @@ class _StateInference:
                 if isinstance(item, set | frozenset):
                     return FiniteEnumeratedSet(sorted(item, key=str))
                 allowed = hasattr(item, '__contains__') and not isinstance(item, str | MatrixGroupSpec)
-                if allowed or isinstance(item, SubshiftSpec):
+                if allowed or isinstance(item, SubshiftSpec | PowerSeriesSpec):
                     return item
             annotation = get_args(annotation)[0]
         annotated = isinstance(annotation, type) and annotation not in {inspect.Parameter.empty, object}
@@ -837,18 +862,23 @@ class _StateInference:
         """Return the paths of the groups whose members are agents.
 
         Their members run agent rules, or a rule reads them through the roles of its interaction, such as the traders a
-        market clears with `UpdateLaw(s, clear)` or the balls an urn draws from with `UpdateLaw(s.target, draw)`.
+        market clears with `UpdateLaw(s, clear)` or the balls an urn draws from with `UpdateLaw(s.target, draw)`. An
+        element whose values rate or noise laws change flows in continuous time, so it is no agent even when a rule of
+        the same interaction reads it, as the soil that farmers tend.
         """
         census = Compilation._get_required(compilation.census, 'census')
         nodes = {node.path: node for node in Compilation._get_required(compilation.nodes, 'nodes')}
         groups: set[str] = set()
+        flowing: set[str] = set()
         for record in census.records:
+            if isinstance(record.law, RateLaw | NoiseLaw):
+                flowing.update(entry.name.rpartition('.')[0] for entry in record.targets)
             node = nodes.get(record.path)
             if not isinstance(record.law, RuleLaw) or node is None:
                 continue
             for role in declarations_of(node.component, VariableKind.ROLE):
                 groups.update(f'{node.scope}{label}' for label in bound_labels(binding_of(node.component, role)))
-        return groups
+        return groups - flowing
 
     @staticmethod
     def _get_field(label: str, space: LatticeSpace | NetworkSpace, values: Mapping[str, object]) -> FieldElement:
@@ -1114,18 +1144,20 @@ class _StateInference:
             tensor = None if self._get_symmetry(annotation) else element._get_shape_of(member)[2]
             if count is not None and np.ndim(np.asarray(value, dtype=object)) > 0:
                 variables[name] = self._get_new_member_default(element, name, variables[name], member)
-                arrays[name] = element._get_matrix_entries(value, tensor)
+                arrays[name] = self._get_rows(element, element._get_matrix_entries(value, tensor))
                 arrays |= self._get_past_arrays(name, arrays[name], 0 if count is None or probing else lags(name))
             for index, given in starting.get(name, {}).items():
                 if count is not None and np.ndim(np.asarray(given, dtype=object)) > 0:
-                    arrays[f'{name}_lag{index}' if lags(name) else f'{name}_d{index}'] = element._get_matrix_entries(
-                        given,
-                        tensor,
+                    arrays[f'{name}_lag{index}' if lags(name) else f'{name}_d{index}'] = self._get_rows(
+                        element,
+                        element._get_matrix_entries(given, tensor),
                     )
         if not probing:
             variables |= self._get_rule_derivative_specs(element, derivatives, count, axes)
             arrays |= {
-                name: given for name, (_, _, given) in derivatives.items() if np.ndim(np.asarray(given, dtype=object))
+                name: self._get_rows(element, given)
+                for name, (_, _, given) in derivatives.items()
+                if np.ndim(np.asarray(given, dtype=object))
             }
         visual = element._get_visual()
         drawing = None if visual == VisualSpec() or (visual.kind == 'agents' and not agents) else visual

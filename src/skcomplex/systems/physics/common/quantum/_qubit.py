@@ -12,7 +12,7 @@ import qutip
 from sage.all__sagemath_symbolics import CC
 
 from .....core.components.elements import Element
-from .....core.specs import StateSpec, VisualSpec
+from .....core.specs import VisualSpec
 from ._hilbert_spec import HilbertSpec
 
 QUBIT = HilbertSpec(
@@ -56,7 +56,7 @@ class QubitElement(Element):
     def __init__(
         self,
         label: str,
-        psi: Annotated[object, StateSpec(domain=CC)] = 'up',
+        psi: Annotated[object, CC] = 'up',
         *,
         hilbert: HilbertSpec = QUBIT,
     ) -> None:

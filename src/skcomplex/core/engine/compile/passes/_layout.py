@@ -198,20 +198,20 @@ class LayoutPass(BasePass):
         node = block.node
         if node.active is not None:
             return LayoutPass._declare_topology(declarations, block)
-        if LayoutPass._is_bare_nodes(node, block):
+        if LayoutPass._is_bare_group(node, block):
             return LayoutPass._declare_hidden(declarations, block, ACTIVE, np.ones(node.members or 0))
         return declarations, block
 
     @staticmethod
-    def _is_bare_nodes(node: _NodeSpec, block: BlockSpec) -> bool:
-        """Return whether a block is a group on the nodes of a network with no values.
+    def _is_bare_group(node: _NodeSpec, block: BlockSpec) -> bool:
+        """Return whether a block is a group of members with no values, such as the nodes of a network.
 
-        Such a group gets the activity of its members, so a law can count them with `count(over=s.target)` before the
-        laws that add nodes make it a growing group.
+        Such a group gets the activity of its members, so a law can count them with `count(over=s.target)`, such as
+        the nodes of a network before the laws that add nodes make it a growing group, or the agents of a village.
         """
         group = node.component
         on_nodes = isinstance(group, GroupElement) and group.on not in {'edges', 'hyperedges'}
-        return on_nodes and node.members is not None and not block.symbols and isinstance(node.space, NetworkSpace)
+        return on_nodes and node.members is not None and not block.symbols
 
     @staticmethod
     def _declare_processes(declarations: DeclarationsSpec, node: _NodeSpec) -> DeclarationsSpec:
