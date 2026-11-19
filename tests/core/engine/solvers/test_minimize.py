@@ -1,7 +1,6 @@
 """Test the `_minimize` module of `skcomplex.core.engine.solvers`."""
 
 from types import SimpleNamespace
-from typing import Annotated
 
 import pytest
 from sage.all__sagemath_symbolics import cos
@@ -10,15 +9,16 @@ from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import ConstraintLaw, ObjectiveLaw
+from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine.solvers import MinimizeSolver
-from skcomplex.core.specs import RoleSpec, StateSpec
+from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
 
 
 class PointElement(Element):
     """Point on a line."""
 
-    def __init__(self, label: str, *, x: Annotated[float, StateSpec()] = 0.0):
+    def __init__(self, label: str, *, x: float = 0.0):
         super().__init__(label)
         self.x = x
 
@@ -26,14 +26,16 @@ class PointElement(Element):
 class PullInteraction(Interaction):
     """Interaction that pulls a point towards a goal with a quadratic cost."""
 
-    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()] = 'a', goal: float = 1.0) -> None:
+    def __init__(self, label: str, *, target: Role = 'a', goal: float = 1.0) -> None:
         super().__init__(label)
         self.target = target
         self.goal = goal
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseComponent]:
-        """Return the quadratic cost."""
-        return [ObjectiveLaw((s.target.x - self.goal) ** 2, s.target.x)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the quadratic cost."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [ObjectiveLaw((context.target.x - self.goal) ** 2, context.target.x)]
 
 
 class BudgetInteraction(Interaction):
@@ -43,19 +45,21 @@ class BudgetInteraction(Interaction):
         self,
         label: str,
         *,
-        a: Annotated[str, RoleSpec()] = 'a',
-        b: Annotated[str, RoleSpec()] = 'b',
+        a: Role = 'a',
+        b: Role = 'b',
     ) -> None:
         super().__init__(label)
         self.a = a
         self.b = b
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseComponent]:
-        """Return the cost and the budget."""
-        return [
-            ObjectiveLaw(s.a.x**2 + s.b.x**2, [s.a.x, s.b.x]),
-            ConstraintLaw(s.a.x + s.b.x == 1, target=s.b.x),
-        ]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the cost and the budget."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [
+                ObjectiveLaw(context.a.x**2 + context.b.x**2, [context.a.x, context.b.x]),
+                ConstraintLaw(context.a.x + context.b.x == 1, target=context.b.x),
+            ]
 
 
 class ImplicitInteraction(Interaction):
@@ -65,19 +69,21 @@ class ImplicitInteraction(Interaction):
         self,
         label: str,
         *,
-        a: Annotated[str, RoleSpec()] = 'a',
-        b: Annotated[str, RoleSpec()] = 'b',
+        a: Role = 'a',
+        b: Role = 'b',
     ) -> None:
         super().__init__(label)
         self.a = a
         self.b = b
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseComponent]:
-        """Return the cost and an implicit constraint."""
-        return [
-            ObjectiveLaw((s.a.x - 1) ** 2, s.a.x),
-            ConstraintLaw(s.b.x == cos(s.b.x) + s.a.x, target=s.b.x),
-        ]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the cost and an implicit constraint."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_: list[BaseComponent] = [
+                ObjectiveLaw((context.a.x - 1) ** 2, context.a.x),
+                ConstraintLaw(context.b.x == cos(context.b.x) + context.a.x, target=context.b.x),
+            ]
 
 
 def points(*values: float) -> list[PointElement]:

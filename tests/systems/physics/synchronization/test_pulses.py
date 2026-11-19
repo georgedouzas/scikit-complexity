@@ -3,7 +3,6 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.components.interactions import PairInteraction
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.systems.physics.synchronization import MirolloStrogatzSystem, WinfreeSystem
 
@@ -15,7 +14,7 @@ def test_winfree_mean_influence():
     """Test that the Winfree drift is the response to the mean influence, with no pair or self-influence term."""
     system = WinfreeSystem(50).prepare().system_
     assert len(system.interactions) == 1
-    assert not isinstance(system.interactions[0], PairInteraction)
+    assert system.interactions[0].along is None
     problem, theta, rates = _random_drift(system)
     omega = problem.parameters.read(problem.initial_parameters, 'oscillators.omega')
     np.testing.assert_allclose(rates, omega - np.sin(theta) * 0.5 / 50 * (1 + np.cos(theta)).sum(), atol=1e-12)

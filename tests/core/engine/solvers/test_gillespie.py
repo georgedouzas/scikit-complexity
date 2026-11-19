@@ -9,35 +9,27 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import GillespieSolver, StepSpec
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.epidemiology import InfectionInteraction, RecoveryInteraction, SIRSystem
 
 
 class AmountElement(Element):
     """Element that holds one nonnegative scalar `x`, an amount."""
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-    ) -> None:
+    def __init__(self, label: str, *, x: Annotated[float, RealSet.closed_open(0, oo)] = 0.0) -> None:
         super().__init__(label)
         self.x = x
 
 
 def test_gillespie_conserves_individuals():
     """Test that recoveries move individuals without creating or destroying them."""
-    system = CompositeSystem(
+    system = System(
         elements=[AmountElement('I', x=50), AmountElement('R')],
         interactions=[RecoveryInteraction('rec', infected='I', recovered='R', gamma=0.5, stochastic=True)],
     )
-    problem = PassCompiler().prepare(system).run().problem_
+    problem = system.prepare()._problem
     stepper = GillespieSolver()
     stepper.set_params(random_state=np.random.default_rng(1)).prepare(problem)
     state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_
@@ -46,22 +38,24 @@ def test_gillespie_conserves_individuals():
     assert np.all(state == np.round(state))
 
 
-def _epidemic():
-    """Return a stochastic epidemic of 1000 individuals."""
-    return CompositeSystem(
+def _epidemic(backend):
+    """Return a stochastic epidemic of 1000 individuals run by Gillespie's method on a backend."""
+    return System(
         elements=[AmountElement('S', x=990), AmountElement('I', x=10), AmountElement('R')],
         interactions=[
             InfectionInteraction('infection', susceptible='S', infected='I', beta=0.0003, stochastic=True),
             RecoveryInteraction('recovery', infected='I', recovered='R', gamma=0.1, stochastic=True),
         ],
+        solver=GillespieSolver(),
+        backend=backend,
     )
 
 
 def _gillespie_run(backend):
     """Return the duration and the trajectory of a compiled Gillespie run after a warm-up run."""
-    simulate(_epidemic(), until=50, backend=backend, solver=GillespieSolver(), dt=1.0, random_state=0)
+    _epidemic(backend).prepare().simulate(until=50, dt=1.0, random_state=0)
     start = time.perf_counter()
-    trajectory = simulate(_epidemic(), until=50, backend=backend, solver=GillespieSolver(), dt=1.0, random_state=0)
+    trajectory = _epidemic(backend).prepare().simulate(until=50, dt=1.0, random_state=0)
     return time.perf_counter() - start, trajectory
 
 

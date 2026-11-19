@@ -2,7 +2,6 @@
 
 import inspect
 from dataclasses import dataclass
-from typing import Annotated
 
 import numpy as np
 import pytest
@@ -11,34 +10,27 @@ from skcomplex.core import experiments
 from skcomplex.core.analysis import bind_analysis
 from skcomplex.core.base import BaseConfig
 from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import UpdateLaw
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import ExperimentError, ValidationError
 from skcomplex.core.experiments import calibrate, ensemble, orbit_diagram, sweep
 from skcomplex.core.experiments._runs import _map_calls
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 from skcomplex.systems.biology.epidemiology import SIRSystem
 from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
 
 
-class LogisticMapElement(Element):
-    """Logistic map element."""
+def _logistic(s):
+    """Return the logistic map `x -> r x (1 - x)`."""
+    x = s.target.x
+    return [UpdateLaw(x, s.target.r * x * (1 - x))]
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[object, StateSpec()] = 0.2,
-        r: Annotated[object, ParameterSpec()] = 3.0,
-    ) -> None:
-        super().__init__(label)
-        self.x = x
-        self.r = r
 
-    def _get_laws(self, s):
-        """Return the laws of the logistic map element."""
-        return [UpdateLaw(s.x, s.r * s.x * (1 - s.x))]
+def logistic_map():
+    """Return the logistic map of the element `map`, with `x = 0.2` and `r = 3`."""
+    logistic = Interaction('logistic', roles={'target': 'map'}, laws=_logistic)
+    return System(elements=[Element('map', values={'x': 0.2, 'r': 3.0})], interactions=[logistic])
 
 
 @dataclass(frozen=True)
@@ -101,7 +93,7 @@ def test_a_sweep_leaves_the_system_unchanged():
 
 def test_paths_of_states_and_parameters_change_one_run():
     """Test that a dotted state path changes the initial value and a parameter path the value for the whole run."""
-    system = CompositeSystem(elements=[LogisticMapElement('map')])
+    system = logistic_map()
     result = sweep(system, [{'map.x': 0.5, 'map.r': 2.0}], until=3, outputs=['map.x'])
     assert result.get_series('map.x')[0].tolist() == [0.5, 0.5, 0.5, 0.5]
 

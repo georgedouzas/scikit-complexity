@@ -1,19 +1,16 @@
 """Test the `_stokesian_mobility` module of `skcomplex.systems.physics.common.particles`."""
 
 import math
-from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
 import pytest
 from sage.all__sagemath_symbolics import matrix, vector
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.physics.common.particles import StokesianMobilityInteraction
 from skcomplex.systems.physics.common.particles._stokesian_mobility import (
     _mobility_matrix,
@@ -23,48 +20,47 @@ from skcomplex.systems.physics.common.particles._stokesian_mobility import (
 
 
 class SphereElement(Element):
-    """Sphere with an order-1 position, an orientation, and a force and a torque of its own."""
+    """Spheres with a position, an orientation, and a force and a trap centre of their own."""
 
     def __init__(
         self,
         label: str,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
-        p: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
-        f: Annotated[npt.ArrayLike, ParameterSpec(vector=True)] = 0.0,
-        c: Annotated[npt.ArrayLike, ParameterSpec(vector=True)] = 0.0,
+        x: npt.ArrayLike = 0.0,
+        p: npt.ArrayLike = 0.0,
+        f: npt.ArrayLike = 0.0,
+        c: npt.ArrayLike = 0.0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size, space=space)
         self.x = x
         self.p = p
         self.f = f
         self.c = c
 
 
-def _system(interaction, positions, *, orientations=None, forces=None, centers=None, time=None):
+def _system(interaction, positions, *, orientations=None, forces=None, centers=None):
     """Return a system of spheres with given positions and per-sphere forces or trap centres."""
     positions = np.asarray(positions, dtype=float)
     size, dimension = positions.shape
-    values = {
-        'x': positions,
-        'p': np.zeros_like(positions) if orientations is None else orientations,
-        'f': np.zeros_like(positions) if forces is None else forces,
-        'c': positions if centers is None else centers,
-    }
-    spheres = GroupElement('spheres', element=SphereElement, size=size, values=values)
-    extra = {} if time is None else {'time': time}
-    return CompositeSystem(
-        elements=[spheres],
-        interactions=[interaction],
-        space=ContinuousSpace(n_dim=dimension),
-        **extra,
+    space = ContinuousSpace(n_dim=dimension)
+    spheres = SphereElement(
+        'spheres',
+        x=positions,
+        p=np.zeros_like(positions) if orientations is None else orientations,
+        f=np.zeros_like(positions) if forces is None else forces,
+        c=positions if centers is None else centers,
+        size=size,
+        space=space,
     )
+    return System(elements=[spheres], interactions=[interaction], space=space)
 
 
 def _velocities(interaction, positions, **kwargs):
     """Return the velocities of the spheres over a short run of the rate form."""
     system = _system(interaction, positions, **kwargs)
-    trajectory = simulate(system, until=1e-6, dt=1e-6)
+    trajectory = system.prepare().simulate(until=1e-6, dt=1e-6)
     return (trajectory.get_values('spheres.x')[-1] - trajectory.get_values('spheres.x')[0]) / 1e-6
 
 
@@ -162,7 +158,7 @@ def test_orientation_turns_with_the_angular_velocity_and_stays_unit():
         torque=lambda s: vector([0.0, 0.0, 1.0]),
     )
     system = _system(spin, [[0.0, 0.0, 0.0]], orientations=[[1.0, 0.0, 0.0]])
-    turn = simulate(system, until=16 * math.pi**2, dt=0.1).get_values('spheres.p')
+    turn = system.prepare().simulate(until=16 * math.pi**2, dt=0.1).get_values('spheres.p')
     assert turn[-1, 0] == pytest.approx([1.0, 0.0, 0.0], abs=1e-4)
     assert np.linalg.norm(turn[:, 0], axis=1) == pytest.approx(1.0, abs=1e-4)
 
@@ -177,7 +173,7 @@ def test_intrinsic_velocity_and_planar_torque():
         torque=lambda s: 8 * math.pi,
     )
     system = _system(swim, [[0.0, 0.0]], orientations=[[1.0, 0.0]])
-    trajectory = simulate(system, until=math.pi / 2, dt=0.01)
+    trajectory = system.prepare().simulate(until=math.pi / 2, dt=0.01)
     assert trajectory.get_values('spheres.p')[-1, 0] == pytest.approx([0.0, 1.0], abs=1e-4)
     assert trajectory.get_values('spheres.x')[-1, 0] == pytest.approx([2.0, 2.0], abs=1e-3)
 
@@ -214,8 +210,8 @@ def test_brownian_steps_have_the_mobility_covariance(root):
         dt=0.05,
         root=root,
     )
-    system = _system(stokes, [[0.0, 0.0, 0.0], [2.5, 0.0, 0.0]], time=DiscreteTime())
-    positions = simulate(system, until=4000, random_state=0).get_values('spheres.x')
+    system = _system(stokes, [[0.0, 0.0, 0.0], [2.5, 0.0, 0.0]])
+    positions = system.prepare().simulate(until=4000, random_state=0).get_values('spheres.x')
     steps = np.diff(positions, axis=0)
     along = 6 * math.pi * (1 / (4 * math.pi * 2.5) - 1 / (6 * math.pi * 2.5**3))
     across = 6 * math.pi * (1 + 2 / (3 * 2.5**2)) / (8 * math.pi * 2.5)
@@ -238,8 +234,8 @@ def test_brownian_rotation_turns_orientations():
     rng = np.random.default_rng(1)
     positions = rng.uniform(0, 1000, size=(size, 3))
     orientations = np.tile([0.0, 0.0, 1.0], (size, 1))
-    system = _system(stokes, positions, orientations=orientations, time=DiscreteTime())
-    turned = simulate(system, until=100, random_state=0).get_values('spheres.p')
+    system = _system(stokes, positions, orientations=orientations)
+    turned = system.prepare().simulate(until=100, random_state=0).get_values('spheres.p')
     rotation = 1 / (8 * math.pi)
     assert turned[-1, :, 2].mean() == pytest.approx(math.exp(-2 * rotation), abs=0.08)
     assert np.linalg.norm(turned[-1], axis=1) == pytest.approx(1.0)
@@ -248,9 +244,9 @@ def test_brownian_rotation_turns_orientations():
 def test_oseen_overlap_is_not_positive():
     """Test that noise from an Oseen mobility of overlapping spheres raises an error that suggests RPY."""
     stokes = StokesianMobilityInteraction('stokes', target='spheres', tensor='oseen', form='map', temperature=1.0)
-    system = _system(stokes, [[0.0, 0.0, 0.0], [0.2, 0.0, 0.0], [0.0, 0.2, 0.0]], time=DiscreteTime())
+    system = _system(stokes, [[0.0, 0.0, 0.0], [0.2, 0.0, 0.0], [0.0, 0.2, 0.0]])
     with pytest.raises(ValidationError, match='rotne-prager-yamakawa'):
-        simulate(system, until=2, random_state=0)
+        system.prepare().simulate(until=2, random_state=0)
 
 
 @pytest.mark.parametrize(
@@ -277,4 +273,4 @@ def test_stresslet_of_wrong_shape_is_reported():
         stresslet=lambda s: matrix([[1.0, 0.0], [0.0, -1.0]]),
     )
     with pytest.raises(ValidationError, match='3 by 3'):
-        simulate(_system(stokes, [[0.0, 0.0, 0.0]]), until=0, dt=0.1)
+        _system(stokes, [[0.0, 0.0, 0.0]]).prepare().simulate(until=0, dt=0.1)

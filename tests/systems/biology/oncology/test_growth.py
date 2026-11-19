@@ -2,8 +2,7 @@
 
 import numpy as np
 
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.common.kinetics import CompartmentElement
 from skcomplex.systems.biology.oncology import (
     DynamicCarryingCapacitySystem,
@@ -23,8 +22,8 @@ from ..conftest import _run_precise
 
 def _run_compartment(interaction, n0, until=4.0, dt=0.01):
     """Return the times and the population of one compartment under one interaction."""
-    system = CompositeSystem(elements=[CompartmentElement('population', x=n0)], interactions=[interaction])
-    trajectory = simulate(system, dt=dt, until=until)
+    system = System(elements=[CompartmentElement('population', x=n0)], interactions=[interaction])
+    trajectory = system.prepare().simulate(dt=dt, until=until)
     return np.asarray(trajectory.times), np.asarray(trajectory.get_values('population.x'))
 
 

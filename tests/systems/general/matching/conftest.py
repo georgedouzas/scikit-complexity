@@ -1,17 +1,14 @@
 """Share the participant element and the clearing of the tests of the matching interactions."""
 
 from collections.abc import Callable, Mapping
-from typing import Annotated
 
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.types import SystemViewProtocol
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import AgentView
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.general.matching import MatchingInteraction, MatchSpec
 from skcomplex.systems.general.matching.types import MatchingRule
 
@@ -37,15 +34,16 @@ class ParticipantElement(Element):
         self,
         label: str,
         *,
-        reserve: Annotated[float, StateSpec()] = 0.0,
-        quantity: Annotated[float, StateSpec()] = 1.0,
-        cap: Annotated[float, StateSpec()] = np.inf,
-        partner: Annotated[float, StateSpec()] = -1.0,
-        money: Annotated[float, StateSpec()] = 0.0,
-        goods: Annotated[float, StateSpec()] = 0.0,
-        value: Annotated[float, StateSpec()] = 0.0,
+        reserve: object = 0.0,
+        quantity: object = 1.0,
+        cap: object = np.inf,
+        partner: object = -1.0,
+        money: object = 0.0,
+        goods: object = 0.0,
+        value: object = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.reserve = reserve
         self.quantity = quantity
         self.cap = cap
@@ -78,10 +76,10 @@ def _clear(
         records.append((requester.reserve, provider.reserve, provider.value, match.quantity, match.value))
 
     sizes = [len(np.atleast_1d(np.asarray(values['reserve']))) for values in (providers, requesters)]
-    system = CompositeSystem(
+    system = System(
         elements=[
-            GroupElement('providers', element=ParticipantElement, size=sizes[0], values=dict(providers)),
-            GroupElement('requesters', element=ParticipantElement, size=sizes[1], values=dict(requesters)),
+            ParticipantElement('providers', size=sizes[0], **providers),
+            ParticipantElement('requesters', size=sizes[1], **requesters),
         ],
         interactions=[
             MatchingInteraction(
@@ -93,7 +91,7 @@ def _clear(
             ),
         ],
     )
-    simulate(system, until=steps, random_state=0)
+    system.prepare().simulate(until=steps, random_state=0)
     return records
 
 

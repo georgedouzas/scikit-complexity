@@ -112,9 +112,9 @@ def test_prepared_space_derives_again_only_when_its_source_changes():
 r, phi, theta = SR.var('r phi theta')
 
 
-def _run(space: SpacetimeSpace, x: list[float], x_d1: list[float], until: float) -> np.ndarray:
+def _run(space: SpacetimeSpace, x: list[float], tangent: list[float], until: float) -> np.ndarray:
     """Return the positions and tangents of a point that follows the geodesics of a space."""
-    point = Element('point', values={'x': x, "x'": x_d1})
+    point = Element('point', values={'x': x, "x'": tangent})
     geodesic = GeodesicInteraction('geodesic', target='point', space=space)
     system = System(elements=[point], interactions=[geodesic], space=space, solver=ACCURATE).prepare()
     trajectory = system.simulate(until=until, dt=until / 50)

@@ -1,44 +1,25 @@
 """Test the `_spreading` module of `skcomplex.systems.biology.common.networks`."""
 
-from typing import Annotated
-
 import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import JumpLaw
 from skcomplex.core.components.spaces import LatticeSpace, NetworkSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.epidemiology import SpreadingInteraction
 
 SIDE = 20
 CRITICAL = 1.65
 
 
-class SiteElement(Element):
-    """Site whose state is inactive, active, or removed."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        state: Annotated[object, StateSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label)
-        self.state = state
-
-
 def _states(space, spreading, initial, until, seed=0):
     """Return the states of the sites at every unit of time."""
-    system = CompositeSystem(
-        elements=[GroupElement('sites', element=SiteElement, space=space, values={'state': initial}, on='sites')],
-        interactions=[spreading],
-    )
-    trajectory = simulate(system, until=until, dt=1.0, random_state=seed)
+    sites = Element('sites', values={'state': np.asarray(initial, dtype=float)}, size=len(initial), space=space)
+    system = System(elements=[sites], interactions=[spreading])
+    trajectory = system.prepare().simulate(until=until, dt=1.0, random_state=seed)
     return trajectory.get_values('sites.state')
 
 

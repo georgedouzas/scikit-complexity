@@ -7,14 +7,10 @@ import numpy as np
 import pytest
 from sklearn.base import clone
 
-from skcomplex.core.components.systems import BaseSystem as OldBaseSystem
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.backends import NumpyBackend
 from skcomplex.core.engine.problems import ProblemSpec
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.errors import RegistryError, ValidationError
-from skcomplex.core.systems import BaseSystem
+from skcomplex.core.systems import BaseSystem, System
 from skcomplex.systems import all_systems
 from skcomplex.systems._catalog import _SystemClasses
 from skcomplex.systems.biology.common.populations import (
@@ -45,15 +41,15 @@ FIELDS = [
 PROBED_COLUMNS = 40
 
 
-def _undeclared_laws(system: CompositeSystem) -> list[str]:
-    """Return the laws an interaction of a compiled system returned that its class does not list."""
+def _undeclared_laws(compiled: object) -> list[str]:
+    """Return the laws an interaction of the compiled components of a system returned that its class does not list."""
     found = [
         f'{interaction.label}: {type(law).__name__}'
-        for interaction in system.interactions
+        for interaction in getattr(compiled, 'interactions', ())
         for law in getattr(interaction, 'laws_', ())
         if interaction.get_requirements().laws and not isinstance(law, interaction.get_requirements().laws)
     ]
-    return found + [item for child in system.systems for item in _undeclared_laws(child)]
+    return found + [item for child in getattr(compiled, 'systems', ()) for item in _undeclared_laws(child)]
 
 
 def test_tuned_solver_depends_on_the_model_parameters():
@@ -93,11 +89,10 @@ def test_all_systems_lists_system_classes_by_field_and_topics():
     code = """
 import sys
 from skcomplex.systems import all_systems
-from skcomplex.core.components.systems import BaseSystem as OldBaseSystem
 from skcomplex.core.systems import BaseSystem
 listed = all_systems(field='chemistry/pattern_formation')
 assert [name for name, _ in listed] == ['BrusselatorSystem', 'GrayScottSystem', 'SchnakenbergSystem'], listed
-assert all(issubclass(system, BaseSystem | OldBaseSystem) and system.__name__ == name for name, system in listed)
+assert all(issubclass(system, BaseSystem) and system.__name__ == name for name, system in listed)
 loaded = [name for name in sys.modules if name.startswith('skcomplex.systems.chemistry.kinetics')]
 assert loaded == [], loaded
 assert [name for name, _ in all_systems(field='chemistry', topics=('oscillation', 'pde'))] == ['BrusselatorSystem']
@@ -175,7 +170,7 @@ def test_all_systems_filters_by_topic():
 
 def test_system_class_matches_components():
     """Test that a system class runs like the same system built from its components."""
-    built = CompositeSystem(
+    built = System(
         elements=[PopulationElement('prey', x=40.0), PopulationElement('predators', x=9.0)],
         interactions=[
             ExponentialGrowthInteraction('growth', target='prey', r=1.1),
@@ -184,7 +179,7 @@ def test_system_class_matches_components():
         ],
     )
     first = LotkaVolterraSystem(a=0.2).prepare().system_.prepare().simulate(until=5, dt=0.1).states
-    second = simulate(built, until=5, dt=0.1).states
+    second = built.prepare().simulate(until=5, dt=0.1).states
     assert np.array_equal(first, second)
 
 
@@ -200,22 +195,14 @@ def test_simulate_uses_the_tuned_settings():
     [pytest.param(system, marks=pytest.mark.slow) if name in SLOW else system for name, system in all_systems()],
     ids=lambda system: system.__name__,
 )
-def test_system_conforms(system: type[BaseSystem | OldBaseSystem], tmp_path: Path):
+def test_system_conforms(system: type[BaseSystem], tmp_path: Path):
     """Test that a ready-made system is built, validated, compiled, simulated, logged, and cloned generically."""
     built = system()
     observer = RerunObserver(system.__name__, save_path=tmp_path / 'run.rrd')
-    if isinstance(built, BaseSystem):
-        dt = built.dt or 1.0
-        until = CONFORMANCE_FRAMES * dt if built.until is None else min(built.until, CONFORMANCE_FRAMES * dt)
-        trajectory = built.prepare().simulate(until, observers=[observer], random_state=0)
-        assert _undeclared_laws(built.system_._composite) == []
-    else:
-        settings = built.get_run_settings()
-        dt = settings['dt'] or 1.0
-        tuned = settings['until']
-        until = CONFORMANCE_FRAMES * dt if tuned is None else min(tuned, CONFORMANCE_FRAMES * dt)
-        trajectory = simulate(built, until=until, observers=[observer], random_state=0)
-        assert _undeclared_laws(built.system_) == []
+    dt = built.dt or 1.0
+    until = CONFORMANCE_FRAMES * dt if built.until is None else min(built.until, CONFORMANCE_FRAMES * dt)
+    trajectory = built.prepare().simulate(until, observers=[observer], random_state=0)
+    assert _undeclared_laws(built.system_._composite) == []
     problem = trajectory.problem
     assert observer.logged_frames_ == len(trajectory.times)
     for name in problem.states.names:
@@ -226,20 +213,14 @@ def test_system_conforms(system: type[BaseSystem | OldBaseSystem], tmp_path: Pat
         )
     copy = clone(built)
     assert copy is not built
-    if isinstance(copy, BaseSystem):
-        assert copy.prepare().simulate(0, random_state=0).problem.states.names == problem.states.names
-    else:
-        assert simulate(copy, until=0, random_state=0).problem.states.names == problem.states.names
+    assert copy.prepare().simulate(0, random_state=0).problem.states.names == problem.states.names
 
 
 @pytest.mark.parametrize('system', [system for _, system in all_systems()], ids=lambda system: system.__name__)
-def test_jacobian_pattern_holds_finite_differences(system: type[BaseSystem | OldBaseSystem]):
+def test_jacobian_pattern_holds_finite_differences(system: type[BaseSystem]):
     """Test that the Jacobian pattern of every system with an ODE form holds its finite differences at random states."""
     built = system()
-    if isinstance(built, BaseSystem):
-        problem = built.prepare().system_._problem
-    else:
-        problem = simulate(built, until=0, backend=NumpyBackend(), random_state=0).problem
+    problem = built.prepare().system_._problem
     if not isinstance(problem, ProblemSpec) or problem.jacobian is None or problem.delays or problem.drift is None:
         pytest.skip('The system has no ODE form without delays.')
     rng = np.random.default_rng(0)

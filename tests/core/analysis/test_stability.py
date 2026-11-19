@@ -1,21 +1,19 @@
 """Test the stability analysis: fixed points, Jacobians, stability, nullclines, divergence, and dispersion."""
 
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import SR
 
 from skcomplex.core.analysis import stability
-from skcomplex.core.components.elements import Element, FieldElement, GroupElement
-from skcomplex.core.components.interactions import Interaction, RateInteraction
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import laplacian, total
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.specs import Role, RoleSpec, StateSpec
+from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 from skcomplex.systems.biology.epidemiology import SIRSystem
@@ -30,23 +28,31 @@ def _stability(source, **settings):
     return stability(source, **settings)
 
 
+def _rate(label, state, rate, target='cells'):
+    """Return an interaction that adds a rate, a function of the namespace, to a state of its target."""
+    return Interaction(
+        label,
+        roles={'target': target},
+        laws=lambda s: [RateLaw(getattr(s.target, state).diff(s.t), rate(s))],
+    )
+
+
 def _brusselator(b, *, discretization='spectral', boundary='periodic'):
     """Return a one-dimensional Brusselator field at its uniform state `(1, b)`."""
-    values = {'u': 1.0, 'v': b, 'a': 1.0, 'b': b, 'Du': 1.0, 'Dv': 8.0}
-    space = LatticeSpace((128,), spacing=0.5, boundary=boundary)
-    cells = FieldElement('cells', element=BrusselatorElement, space=space, values=values, discretization=discretization)
+    space = LatticeSpace((128,), spacing=0.5, boundary=boundary, discretization=discretization)
+    cells = BrusselatorElement('cells', u=1.0, v=b, a=1.0, b=b, Du=1.0, Dv=8.0, space=space)
     reactions = [
-        RateInteraction('feed', target='cells', state='u', rate=lambda s: s.target.a),
-        RateInteraction('loss', target='cells', state='u', rate=lambda s: -s.target.b * s.target.u),
-        RateInteraction('gain', target='cells', state='v', rate=lambda s: s.target.b * s.target.u),
+        _rate('feed', 'u', lambda s: s.target.a),
+        _rate('loss', 'u', lambda s: -s.target.b * s.target.u),
+        _rate('gain', 'v', lambda s: s.target.b * s.target.u),
         CubicAutocatalysisInteraction('autocatalysis', target='cells', substrate='v', autocatalyst='u'),
-        RateInteraction('decay', target='cells', state='u', rate=lambda s: -s.target.u),
+        _rate('decay', 'u', lambda s: -s.target.u),
     ]
     diffusions = [
-        RateInteraction('u_diffusion', target='cells', state='u', rate=lambda s: s.target.Du * laplacian(s.target.u)),
-        RateInteraction('v_diffusion', target='cells', state='v', rate=lambda s: s.target.Dv * laplacian(s.target.v)),
+        _rate('u_diffusion', 'u', lambda s: s.target.Du * laplacian(s.target.u)),
+        _rate('v_diffusion', 'v', lambda s: s.target.Dv * laplacian(s.target.v)),
     ]
-    return CompositeSystem(elements=[cells], interactions=[*reactions, *diffusions])
+    return System(elements=[cells], interactions=[*reactions, *diffusions])
 
 
 def test_lotka_volterra_centre():
@@ -103,46 +109,14 @@ def _hawks_and_doves(V=2.0, C=3.0, size=2):
     """Return replicator dynamics of hawks and doves as the members of a group."""
     payoff = np.array([[(V - C) / 2, V], [0.0, V / 2]])
 
-    class StrategyElement(Element):
-        """Strategy element."""
+    def replication(s):
+        """Return the replicator dynamics of the members."""
+        x = s.target.x
+        return [RateLaw(x.diff(s.t), x * (total(x, weights=payoff) - total(x * total(x, weights=payoff))))]
 
-        def __init__(
-            self,
-            label: str,
-            *,
-            x: Annotated[object, StateSpec()] = 0.5,
-        ) -> None:
-            super().__init__(label)
-            self.x = x
-
-    class ReplicationInteraction(Interaction):
-        """Replication interaction."""
-
-        def __init__(
-            self,
-            label: str,
-            *,
-            population: Annotated[object, RoleSpec()],
-        ) -> None:
-            super().__init__(label)
-            self.population = population
-
-        def _get_laws(self, s):
-            """Return the laws of the replication interaction."""
-            return [
-                RateLaw(
-                    s.population.x,
-                    s.population.x
-                    * (
-                        total(s.population.x, weights=payoff)
-                        - total(s.population.x * total(s.population.x, weights=payoff))
-                    ),
-                ),
-            ]
-
-    return CompositeSystem(
-        elements=[GroupElement('population', element=StrategyElement, size=size, values={'x': [1 / size] * size})],
-        interactions=[ReplicationInteraction('replication', population='population')],
+    return System(
+        elements=[Element('population', values={'x': [1 / size] * size}, size=size)],
+        interactions=[Interaction('replication', roles={'target': 'population'}, laws=replication)],
     )
 
 
@@ -159,23 +133,11 @@ def test_hawks_and_doves_as_group():
 def test_group_above_limit():
     """Test that the Jacobian of a group of 1000 members that reads reductions states the limit of 64 members."""
 
-    class MemberElement(Element):
-        """Member element."""
-
-        def __init__(
-            self,
-            label: str,
-            *,
-            x: Annotated[object, StateSpec()] = 0.0,
-        ) -> None:
-            super().__init__(label)
-            self.x = x
-
-        def _get_laws(self, s):
-            """Return the laws of the member element."""
-            return [RateLaw(s.x, total(s.x) - s.x)]
-
-    system = CompositeSystem(elements=[GroupElement('group', element=MemberElement, size=1000)])
+    group = Element('group', values={'x': 0.0}, size=1000)
+    system = System(
+        elements=[group],
+        interactions=[_rate('pull', 'x', lambda s: total(s.target.x) - s.target.x, 'group')],
+    )
     with pytest.raises(AnalysisError, match=r'limit of 64 members.*smaller group'):
         _stability(system)
 
@@ -211,9 +173,7 @@ def test_dispersion_relation_of_finite_differences_and_below_threshold():
 def test_dispersion_relation_rejects_an_interaction_on_another_component():
     """Test that an interaction binding a component other than the field has no place in the dispersion relation."""
     system = _brusselator(1.9)
-    system.interactions.append(
-        RateInteraction('elsewhere', target='other', state='u', rate=lambda s: s.target.Du * laplacian(s.target.u)),
-    )
+    system.interactions.append(_rate('elsewhere', 'u', lambda s: s.target.Du * laplacian(s.target.u), 'other'))
     with pytest.raises(AnalysisError, match='other than the field'):
         _stability(system, kind='dispersion')
 

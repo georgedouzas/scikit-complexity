@@ -3,17 +3,25 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import RecorderObserver, simulate
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.engine.runtime import RecorderObserver
 from skcomplex.core.errors import SimulationError
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.common.populations import PopulationElement
 from skcomplex.systems.biology.epidemiology import SIRSystem
+
+
+def _held(x: float = 1.0) -> System:
+    """Return a population `a` whose rate is zero, so it holds its value at every frame."""
+    hold = Interaction('hold', roles={'target': 'a'}, laws=lambda s: [RateLaw(s.target.x.diff(s.t), 0)])
+    return System(elements=[PopulationElement('a', x=x)], interactions=[hold])
 
 
 def test_recorder_builds_the_trajectory_of_its_frames():
     """Test that a recorder keeps every frame of a run and reads them as a trajectory."""
     recorder = RecorderObserver()
-    simulate(CompositeSystem(elements=[PopulationElement('a', x=2)]), until=2, dt=1, observers=[recorder])
+    _held(2.0).prepare().simulate(until=2, dt=1, observers=[recorder])
     assert len(recorder.frames_) == 3
     assert recorder.trajectory_.times.tolist() == [0.0, 1.0, 2.0]
     assert recorder.trajectory_.get_values('a.x').tolist() == [2.0, 2.0, 2.0]

@@ -5,13 +5,13 @@ import dataclasses
 import numpy as np
 import pytest
 
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.experiments import ScenarioSpec, compare_scenarios
 from skcomplex.core.specs import BaseSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.economics.resources import HarvestingSystem
 
 
-def _harvesting() -> CompositeSystem:
+def _harvesting() -> System:
     """Return the components of the harvesting system, the factory of the scenario experiments."""
     return HarvestingSystem().prepare().system_
 

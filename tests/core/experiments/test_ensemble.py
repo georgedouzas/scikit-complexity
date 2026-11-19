@@ -9,12 +9,11 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import NoiseLaw, RateLaw
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.solvers import KineticSolver, ScipyODESolver
 from skcomplex.core.errors import TagError
 from skcomplex.core.experiments import ensemble
-from skcomplex.core.specs import StateSpec
 from skcomplex.core.systems import System
 from skcomplex.systems.biology.epidemiology import SIRSystem
 from skcomplex.systems.mathematics.stochastic_processes import PoissonProcessSystem
@@ -23,26 +22,15 @@ from skcomplex.systems.mathematics.stochastic_processes import PoissonProcessSys
 class AmountElement(Element):
     """Element that holds one nonnegative scalar `x`, an amount."""
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-    ) -> None:
+    def __init__(self, label: str, *, x: Annotated[float, RealSet.closed_open(0, oo)] = 0.0) -> None:
         super().__init__(label)
         self.x = x
 
 
-class OrnsteinUhlenbeckElement(Element):
-    """Ornstein-Uhlenbeck process that relaxes to zero with white noise."""
-
-    def __init__(self, label: str, *, x: Annotated[object, StateSpec()] = 1.0):
-        super().__init__(label)
-        self.x = x
-
-    def _get_laws(self, s):
-        """Return the drift and the noise of the process."""
-        return [RateLaw(s.x, -s.x), NoiseLaw(s.x, 0.5)]
+def _ornstein_uhlenbeck(s):
+    """Return the drift and the noise of a process that relaxes to zero with white noise."""
+    x = s.target.x
+    return [RateLaw(x.diff(s.t), -x), NoiseLaw(x, 0.5)]
 
 
 @dataclass(frozen=True)
@@ -79,7 +67,8 @@ def test_analyses_of_stochastic_sir_replicates():
 
 def test_ensemble_of_ornstein_uhlenbeck_replicates():
     """Test that the ensemble of 200 Ornstein-Uhlenbeck replicates has one row per replicate carrying its seed."""
-    system = CompositeSystem(elements=[OrnsteinUhlenbeckElement('ou')])
+    process = Interaction('process', roles={'target': 'ou'}, laws=_ornstein_uhlenbeck)
+    system = System(elements=[Element('ou', values={'x': 1.0})], interactions=[process])
     result = ensemble(system, replicates=200, until=2, dt=0.1, outputs=['ou.x'], random_state=0)
     times, values, seeds = result.get_ensemble('ou.x')
     assert values.shape == (200, times.size)
@@ -104,7 +93,7 @@ def test_ensemble_of_a_deterministic_system_names_the_randomness():
 
 def test_ensemble_of_a_deterministic_system_with_a_solver_that_draws():
     """Test that a solver decides an ensemble of a deterministic system by whether it draws, as KineticSolver does."""
-    system = CompositeSystem(elements=[AmountElement('stock', x=1.0)])
+    system = System(elements=[AmountElement('stock', x=1.0)])
     assert not ScipyODESolver.draws
     assert KineticSolver.draws
     with pytest.raises(TagError, match='randomness'):

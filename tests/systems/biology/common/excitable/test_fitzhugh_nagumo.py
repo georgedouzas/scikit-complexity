@@ -1,15 +1,11 @@
 """Test the `_fitzhugh_nagumo` module of `skcomplex.systems.biology.common.excitable`."""
 
-from typing import Annotated
-
 import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.common.excitable import FitzHughNagumoInteraction
 
 
@@ -20,8 +16,8 @@ class MembraneElement(Element):
         self,
         label: str,
         *,
-        u: Annotated[float, StateSpec()] = -1.2,
-        r: Annotated[float, StateSpec()] = -0.6,
+        u: float = -1.2,
+        r: float = -0.6,
     ) -> None:
         super().__init__(label)
         self.u = u
@@ -31,8 +27,8 @@ class MembraneElement(Element):
 def _run(current: float) -> np.ndarray:
     """Return the potential of a membrane under a current."""
     kinetics = FitzHughNagumoInteraction('kinetics', target='membrane', fast='u', slow='r', I=current)
-    system = CompositeSystem(elements=[MembraneElement('membrane')], interactions=[kinetics])
-    trajectory = simulate(system, dt=0.1, until=200.0)
+    system = System(elements=[MembraneElement('membrane')], interactions=[kinetics])
+    trajectory = system.prepare().simulate(dt=0.1, until=200.0)
     return trajectory.get_values('membrane.u')[trajectory.times > 100.0]
 
 

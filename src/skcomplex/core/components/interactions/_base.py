@@ -31,7 +31,7 @@ from ..laws import BaseLaw, NoiseLaw, PartnerSpec, RateLaw, RuleLaw, UpdateLaw
 from ..laws._flow_term import FlowTermLaw
 from ..laws.utils import delayed, derivative, lag
 from ..laws.utils._fractional import fractional_of
-from ..spaces import BaseSpace, ContinuousSpace
+from ..spaces import BaseNeighborhood, BaseSpace, ContinuousSpace
 from ..types import AgentViewProtocol, SystemViewProtocol
 from ._interaction_requirement_spec import _InteractionRequirementSpec
 from ._wiener_process_spec import WienerProcessSpec
@@ -986,6 +986,10 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
 
     def _get_layer(self) -> str | None:
         """Return the layer of the network the laws run along, or `None` for its graph."""
+        return None
+
+    def _get_within(self) -> BaseNeighborhood | None:
+        """Return the neighbourhood of the pairs the laws run for, or `None` for no pairs."""
         return None
 
     def _get_grouping(self) -> tuple[str, int, str] | None:

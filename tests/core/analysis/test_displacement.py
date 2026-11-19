@@ -2,7 +2,7 @@
 
 import dataclasses
 import math
-from types import SimpleNamespace
+from collections.abc import Callable
 from typing import Annotated
 
 import numpy as np
@@ -10,14 +10,14 @@ import pytest
 from sage.all__sagemath_symbolics import NN
 
 from skcomplex.core.analysis import DisplacementResult, displacement
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import BaseLaw, RuleLaw
-from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace
 from skcomplex.core.engine.solvers import AgentView, SystemView
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.specs import VisualSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.evolution import ReplicatorDynamicsSystem
 
 
@@ -57,13 +57,13 @@ def test_displacement_keeps_its_reference_values():
 
 def test_displacement_refuses_states_that_are_no_positions():
     """Test that a group whose states are series has no displacement, and the error names what it holds."""
-    trajectory = simulate(ReplicatorDynamicsSystem(), until=1.0, random_state=0)
+    trajectory = ReplicatorDynamicsSystem().prepare().simulate(until=1.0, random_state=0)
     with pytest.raises(AnalysisError, match='Its data kinds are: series'):
         _displacement(trajectory)
 
 
-class GridWalkerElement(Element):
-    """Walker that moves to a random neighbouring cell of a periodic grid at every step."""
+class WalkerElement(Element):
+    """Walkers that count their steps, drawn as agents."""
 
     visual = VisualSpec('agents', {})
 
@@ -71,45 +71,32 @@ class GridWalkerElement(Element):
         self,
         label: str,
         *,
-        steps: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        steps: Annotated[float, NN] = 0.0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size, space=space)
         self.steps = steps
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the stepping rule."""
-        return [RuleLaw(self.step)]
 
-    def step(self, agent: AgentView, system: SystemView) -> None:
-        """Move to a random neighbouring cell."""
-        cells = agent.get_neighbor_cells()
-        agent.move_to(cells[int(system.rng.integers(len(cells)))])
-        agent.steps += 1
+def _grid_step(agent: AgentView, system: SystemView) -> None:
+    """Move to a random neighbouring cell."""
+    cells = agent.get_neighbor_cells()
+    agent.move_to(cells[int(system.rng.integers(len(cells)))])
+    agent.steps += 1
 
 
-class DiffuserElement(Element):
-    """Particle that takes a Gaussian step of unit variance per coordinate in a periodic square at every step."""
+def _gaussian_step(agent: AgentView, system: SystemView) -> None:
+    """Take a Gaussian step of unit variance per coordinate and wrap into the square."""
+    position = np.asarray(agent.location, dtype=float) + system.rng.standard_normal(2)
+    agent.move_to(tuple(np.mod(position, 20.0)))
+    agent.steps += 1
 
-    visual = VisualSpec('agents', {})
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        steps: Annotated[float, StateSpec(domain=NN)] = 0.0,
-    ) -> None:
-        super().__init__(label)
-        self.steps = steps
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the stepping rule."""
-        return [RuleLaw(self.step)]
-
-    def step(self, agent: AgentView, system: SystemView) -> None:
-        """Take a Gaussian step and wrap into the square."""
-        position = np.asarray(agent.location, dtype=float) + system.rng.standard_normal(2)
-        agent.move_to(tuple(np.mod(position, 20.0)))
-        agent.steps += 1
+def _walkers(label: str, space: BaseSpace, step: Callable[[AgentView, SystemView], None]) -> System:
+    """Return 300 walkers on a space that take a step at every step."""
+    walking = Interaction('walking', roles={'target': label}, laws=lambda s: [UpdateLaw(s.target, step)])
+    return System(elements=[WalkerElement(label, size=300, space=space)], interactions=[walking])
 
 
 def _active_brownian(rng: np.random.Generator, particles: int, speed: float, rotation: float) -> np.ndarray:
@@ -125,16 +112,10 @@ def _active_brownian(rng: np.random.Generator, particles: int, speed: float, rot
 
 def test_mean_squared_displacement_diffusion_on_two_kinds_of_space():
     """Test that Brownian particles in a periodic box and walkers on a periodic grid diffuse without a plateau."""
-    continuous = CompositeSystem(
-        elements=[GroupElement('particles', element=DiffuserElement, size=300)],
-        space=ContinuousSpace(extent=(20.0, 20.0), boundary='periodic'),
-    )
-    grid = CompositeSystem(
-        elements=[GroupElement('walkers', element=GridWalkerElement, size=300)],
-        space=LatticeSpace((20, 20), boundary='periodic', metric='manhattan'),
-    )
+    continuous = _walkers('particles', ContinuousSpace(extent=(20.0, 20.0), boundary='periodic'), _gaussian_step)
+    grid = _walkers('walkers', LatticeSpace((20, 20), boundary='periodic', metric='manhattan'), _grid_step)
     for system in (continuous, grid):
-        trajectory = simulate(system, until=600, dt=1, random_state=0)
+        trajectory = system.prepare().simulate(until=600, dt=1, random_state=0)
         displacement = _displacement(trajectory, fit_range=(1, 150))
         assert displacement.exponent == pytest.approx(1, abs=0.05)
         assert displacement.msd[-1] > 20.0**2

@@ -1,26 +1,24 @@
 """Test the `_gradient_descent` module of `skcomplex.core.engine.solvers`."""
 
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 import pytest
 from scipy.integrate import solve_ivp
 
 from skcomplex.core.components import Observable
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import Interaction, RateInteraction, TrainingInteraction
-from skcomplex.core.components.laws import BaseLaw, DatasetSpec, RateLaw
+from skcomplex.core.components.base import BaseComponent
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction, TrainingInteraction
+from skcomplex.core.components.laws import DatasetSpec, RateLaw
 from skcomplex.core.components.laws.utils import contraction
-from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine.backends import NumpyBackend
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import GradientDescentSolver, StepSpec
 from skcomplex.core.engine.solvers._defaults import DEFAULT_SOLVERS
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 from skcomplex.systems.computer_science.neural_networks import ElmanNetworkSystem
 
 RATES = {'alpha': 1.1, 'beta': 0.4, 'gamma': 0.4, 'delta': 0.1}
@@ -28,25 +26,25 @@ TIMES = np.linspace(0.4, 20.0, 50)
 
 
 def _elman(**settings):
-    """Return the composite of an Elman network that trains, which the free `simulate` runs."""
-    return ElmanNetworkSystem(**settings).prepare().system_._get_composite()
+    """Return the system of an Elman network that trains."""
+    return ElmanNetworkSystem(**settings).prepare().system_
 
 
 class PairElement(Element):
-    """Prey and predators with adaptive rates and observed abundances."""
+    """Prey and predators with rates to fit and observed abundances."""
 
     def __init__(
         self,
         label: str,
         *,
-        prey: Annotated[float, StateSpec()] = 10.0,
-        predator: Annotated[float, StateSpec()] = 5.0,
-        alpha: Annotated[float, ParameterSpec(adaptive=True)] = 1.0,
-        beta: Annotated[float, ParameterSpec(adaptive=True)] = 1.0,
-        gamma: Annotated[float, ParameterSpec(adaptive=True)] = 1.0,
-        delta: Annotated[float, ParameterSpec(adaptive=True)] = 1.0,
-        observed_prey: Annotated[float, ParameterSpec()] = 0.0,
-        observed_predator: Annotated[float, ParameterSpec()] = 0.0,
+        prey: float = 10.0,
+        predator: float = 5.0,
+        alpha: float = 1.0,
+        beta: float = 1.0,
+        gamma: float = 1.0,
+        delta: float = 1.0,
+        observed_prey: float = 0.0,
+        observed_predator: float = 0.0,
     ) -> None:
         super().__init__(label)
         self.prey = prey
@@ -61,12 +59,14 @@ class PairElement(Element):
 
 def _prey_rate(s):
     """Return the rate of the prey."""
-    return s.target.alpha * s.target.prey - s.target.beta * s.target.prey * s.target.predator
+    pair = s.target
+    return [RateLaw(pair.prey.diff(s.t), pair.alpha * pair.prey - pair.beta * pair.prey * pair.predator)]
 
 
 def _predator_rate(s):
     """Return the rate of the predators."""
-    return s.target.delta * s.target.prey * s.target.predator - s.target.gamma * s.target.predator
+    pair = s.target
+    return [RateLaw(pair.predator.diff(s.t), pair.delta * pair.prey * pair.predator - pair.gamma * pair.predator)]
 
 
 def _squared_error(s):
@@ -92,12 +92,12 @@ def _fitting(learning_rate=0.05, optimizer='adam'):
         rtol=1e-12,
         atol=1e-12,
     )
-    system = CompositeSystem(
+    system = System(
         'lv',
         elements=[PairElement('pair', **{name: 1.3 * value for name, value in RATES.items()})],
         interactions=[
-            RateInteraction('prey_rate', target='pair', state='prey', rate=_prey_rate),
-            RateInteraction('predator_rate', target='pair', state='predator', rate=_predator_rate),
+            Interaction('prey_rate', roles={'target': 'pair'}, laws=_prey_rate),
+            Interaction('predator_rate', roles={'target': 'pair'}, laws=_predator_rate),
         ],
     )
     data = DatasetSpec(
@@ -114,12 +114,12 @@ def _fitting(learning_rate=0.05, optimizer='adam'):
         learning_rate=learning_rate,
         batch_size=1,
     )
-    return CompositeSystem('fitting', systems=[system], interactions=[training], time=DiscreteTime())
+    return System('fitting', systems=[system], interactions=[training])
 
 
 def _trajectory(system, until, **arguments):
     """Return the trajectory of a system that trains, run with the seed 0."""
-    return simulate(system, until=until, random_state=0, **arguments)
+    return system.prepare().simulate(until=until, random_state=0, **arguments)
 
 
 def _gradient(system, rate=1.0):
@@ -133,7 +133,7 @@ def _gradient(system, rate=1.0):
 
 def _loss(system, values):
     """Return the loss of the whole dataset at given trained values, the reporter of frame 0."""
-    trajectory = simulate(system, until=1, random_state=0, initial_state=values)
+    trajectory = system.prepare().simulate(until=1, random_state=0, initial_state=values)
     return trajectory.get_values('training/loss')[0]
 
 
@@ -145,7 +145,7 @@ def test_check_unknown_precision():
 
 def test_automatic_solver():
     """Test that a system that trains runs on the learning solver and the JAX backend without being told."""
-    problem = simulate(_elman(n_bits=60), until=0).problem
+    problem = _elman(n_bits=60).prepare().simulate(until=0).problem
     assert DEFAULT_SOLVERS[problem.form] is GradientDescentSolver
     assert problem.inner.backend == 'jax'
 
@@ -163,7 +163,7 @@ def test_epochs_as_frames():
 def test_time_between_frames():
     """Test that a fraction of an epoch between frames raises an error naming the value."""
     with pytest.raises(ValidationError, match=r'0\.5.*whole number of epochs'):
-        simulate(_elman(n_bits=60), until=2, dt=0.5)
+        _elman(n_bits=60).prepare().simulate(until=2, dt=0.5)
 
 
 def test_loss_at_the_start():
@@ -179,7 +179,11 @@ def test_loss_at_the_start():
             'inputs.x': lambda t, values=inputs: values[min(round(t), len(values) - 1)],
             'outputs.target': lambda t, values=targets: values[max(round(t) - 1, 0)],
         }
-        run = simulate(net, until=data.steps, backend=NumpyBackend(), schedule=schedule, observables=[error])
+        run = (
+            net.set_params(backend=NumpyBackend())
+            .prepare()
+            .simulate(until=data.steps, schedule=schedule, observables=[error])
+        )
         losses.append(run.get_values('error')[1:].mean())
     assert trajectory.get_values('training/loss')[0] == pytest.approx(np.mean(losses), abs=1e-10)
 
@@ -211,7 +215,7 @@ def test_same_seed():
 
 def test_updates_per_epoch():
     """Test that 996 sequences in batches of 16 give 63 updates per epoch."""
-    problem = simulate(_elman(), until=0).problem
+    problem = _elman().prepare().simulate(until=0).problem
     stepper = GradientDescentSolver(random_state=0, until=1).prepare(problem)
     stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0))
     assert int(stepper.optimizer_state_.inner_state[0].count) == 63
@@ -237,7 +241,7 @@ def test_gradient_against_finite_differences():
     """Test that the gradient of the loss of an Elman network agrees with central finite differences."""
     system = _elman(n_bits=30)
     gradient = _gradient(system)
-    problem = PassCompiler().prepare(system).run().problem_
+    problem = system.prepare()._problem
     step = 1e-6
     for name in problem.states.names:
         value = np.asarray(problem.states.read(problem.initial_state, name), dtype=float)
@@ -261,12 +265,12 @@ def test_full_and_truncated_gradients():
 def test_gradient_through_an_ode():
     """Test that the gradient of the squared error of a Lotka-Volterra system agrees with finite differences."""
     gradient = _gradient(_fitting(), rate=1e-6)
-    problem = PassCompiler().prepare(_fitting()).run().problem_
+    problem = _fitting().prepare()._problem
     step = 1e-6
     for name in problem.states.names:
         value = float(problem.states.read(problem.initial_state, name))
-        up = simulate(_fitting(), until=1, random_state=0, initial_state={name: value + step})
-        down = simulate(_fitting(), until=1, random_state=0, initial_state={name: value - step})
+        up = _fitting().prepare().simulate(until=1, random_state=0, initial_state={name: value + step})
+        down = _fitting().prepare().simulate(until=1, random_state=0, initial_state={name: value - step})
         loss_up, loss_down = (item.get_values('fit/loss')[0] for item in (up, down))
         assert gradient[name] == pytest.approx((loss_up - loss_down) / (2 * step), rel=1e-5)
 
@@ -280,38 +284,20 @@ def test_lotka_volterra_fit():
     assert loss[-1] < 1e-4 * loss[0]
 
 
-class TargetNodeElement(Element):
-    """Node with a state and a target that a dataset sets."""
+class CubicInteraction(Interaction):
+    """Rate of every member of a group, the contraction of a tensor of order 3 with the states."""
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[float, StateSpec()] = 0.5,
-        target: Annotated[float, ParameterSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label)
-        self.x = x
-        self.target = target
-
-
-class AdaptiveCubicInteraction(Interaction):
-    """Rate of every member of a group, the contraction of an adaptive tensor of order 3 with the states."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-        T: Annotated[object, ParameterSpec(shape=('target', 'target', 'target'), adaptive=True)] = 0.0,
-    ) -> None:
+    def __init__(self, label: str, *, target: Role, T: object = 0.0) -> None:
         super().__init__(label)
         self.target = target
         self.T = T
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the contraction of the tensor with the states."""
-        return [RateLaw(s.target.x, contraction(s.T, s.target.x, s.target.x))]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the contraction of the tensor with the states."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x = context.target.x
+            self.laws_: list[BaseComponent] = [RateLaw(x.diff(context.t), contraction(context.T, x, x))]
 
 
 def _node_error(member):
@@ -323,15 +309,15 @@ def test_tensor_trains():
     """Test that the gradient of an adaptive tensor of order 3 read through a contraction agrees with differences."""
     rng = np.random.default_rng(0)
     tensor = rng.normal(0.0, 0.3, (4, 4, 4))
-    inner = CompositeSystem(
+    inner = System(
         'community',
-        elements=[GroupElement('species', element=TargetNodeElement, size=4)],
-        interactions=[AdaptiveCubicInteraction('cubic', target='species', T=tensor)],
+        elements=[Element('species', values={'x': np.full(4, 0.5), 'target': np.zeros(4)}, size=4)],
+        interactions=[CubicInteraction('cubic', target='species', T=tensor)],
     )
     data = DatasetSpec({'species.target': rng.uniform(0.4, 0.8, (1, 5, 4))}, times=np.linspace(0.2, 1.0, 5))
     loss = Observable('error', group='species', reduce='sum', expression=_node_error)
     training = TrainingInteraction('training', system='community', trained=['cubic.T'], loss=loss, data=data)
-    system = CompositeSystem('fitting', systems=[inner], interactions=[training], time=DiscreteTime())
+    system = System('fitting', systems=[inner], interactions=[training])
     gradient = _gradient(system, rate=1e-6)['community/cubic.T']
     step = 1e-6
     for index in [(0, 0, 0), (1, 2, 3), (3, 1, 0)]:
@@ -362,5 +348,9 @@ def test_trained_system_agrees_with_training():
         'outputs.target': lambda t: targets[max(round(t) - 1, 0)],
     }
     error = Observable('error', group='outputs', reduce='sum', expression=_output_error)
-    run = simulate(net, until=data.steps, backend=NumpyBackend(), schedule=schedule, observables=[error])
+    run = (
+        net.set_params(backend=NumpyBackend())
+        .prepare()
+        .simulate(until=data.steps, schedule=schedule, observables=[error])
+    )
     assert run.get_values('error')[1:].mean() == pytest.approx(expected, abs=1e-10)

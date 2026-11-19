@@ -9,17 +9,16 @@ from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import SR, exp, oo, sqrt, vector
-from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.interactions import CouplingInteraction, Interaction
+from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
-from ....core.components.laws.utils import neighbors
+from ....core.components.laws.utils import hyperedges, neighbors
 from ....core.components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import ParameterSpec, Role, RoleSpec
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ...general.elements import PointElement
 
@@ -164,7 +163,7 @@ class MorseAlignmentInteraction(Interaction):
             self.laws_ = [RateLaw(x.diff(t, 2), neighbors(term, RadiusNeighborhood(self.R)))]
 
 
-class FlankingInteraction(CouplingInteraction):
+class FlankingInteraction(Interaction):
     """Three-body alignment of an agent with pairs of neighbours that flank it.
 
     An agent `i` gains from every pair `j < k` of its neighbours within `R` the acceleration
@@ -190,47 +189,49 @@ class FlankingInteraction(CouplingInteraction):
 
     Examples:
         >>> from skcomplex.systems.biology.collective_behaviour import FlankingInteraction
-        >>> FlankingInteraction('flanking', target='agents').size
-        3
+        >>> FlankingInteraction('flanking', target='agents').kappa_v
+        2.0
     """
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         R: float = 3.0,
-        kappa_v: Annotated[float, ParameterSpec()] = 2.0,
-        l_3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        kappa_v: float = 2.0,
+        l_3: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(
-            label,
-            target=target,
-            write='x',
-            function=self._get_flanking,
-            mode='hyperedges',
-            size=3,
-            neighborhood=RadiusNeighborhood(R),
-        )
+        super().__init__(label)
+        self.target = target
         self.R = R
         self.kappa_v = kappa_v
         self.l_3 = l_3
 
-    def _get_flanking(self, s: SimpleNamespace) -> FreeModuleElement:
-        """Return the flanking alignment of one pair of neighbours."""
-        weight, relative = SR(1), vector(SR, [0] * len(s.member.x))
-        directions = []
-        for other in s.others:
-            offset = other.x - s.member.x
-            rho = sqrt(offset.dot_product(offset))
-            weight *= (1 - rho**2 / self.R**2) ** 2 * exp(-rho / s.l_3)
-            directions.append(offset / rho)
-            relative += other.x_d1 - s.member.x_d1
-        cosine = directions[0].dot_product(directions[1])
-        return s.kappa_v * weight * (1 - cosine) / 2 * relative / 2
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the sum of the flanking alignments over the pairs of neighbours within `R`.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s, t, member = context, context.t, context.target
+            weight, relative = SR(1), vector(SR, [0] * len(member.x))
+            directions = []
+            for other in member.others[:2]:
+                offset = other.x - member.x
+                rho = sqrt(offset.dot_product(offset))
+                weight *= (1 - rho**2 / self.R**2) ** 2 * exp(-rho / s.l_3)
+                directions.append(offset / rho)
+                relative += other.x.diff(t) - member.x.diff(t)
+            cosine = directions[0].dot_product(directions[1])
+            term = s.kappa_v * weight * (1 - cosine) / 2 * relative / 2
+            self.laws_ = [RateLaw(member.x.diff(t, 2), hyperedges(term, size=3, over=RadiusNeighborhood(self.R)))]
 
 
-class EncirclementInteraction(CouplingInteraction):
+class EncirclementInteraction(Interaction):
     """Four-body alignment of an agent with triples of neighbours that surround it.
 
     An agent `i` gains from every triple `j < k < l` of its neighbours within `R` the acceleration
@@ -257,43 +258,45 @@ class EncirclementInteraction(CouplingInteraction):
 
     Examples:
         >>> from skcomplex.systems.biology.collective_behaviour import EncirclementInteraction
-        >>> EncirclementInteraction('encirclement', target='agents').size
-        4
+        >>> EncirclementInteraction('encirclement', target='agents').kappa_4
+        4.0
     """
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         R: float = 3.0,
-        kappa_4: Annotated[float, ParameterSpec()] = 4.0,
-        l_3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        kappa_4: float = 4.0,
+        l_3: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(
-            label,
-            target=target,
-            write='x',
-            function=self._get_encirclement,
-            mode='hyperedges',
-            size=4,
-            neighborhood=RadiusNeighborhood(R),
-        )
+        super().__init__(label)
+        self.target = target
         self.R = R
         self.kappa_4 = kappa_4
         self.l_3 = l_3
 
-    def _get_encirclement(self, s: SimpleNamespace) -> FreeModuleElement:
-        """Return the encirclement alignment of one triple of neighbours."""
-        zero = vector(SR, [0] * len(s.member.x))
-        weight, directions, relative = SR(1), zero, zero
-        for other in s.others:
-            offset = other.x - s.member.x
-            rho = sqrt(offset.dot_product(offset))
-            weight *= (1 - rho**2 / self.R**2) ** 2 * exp(-rho / s.l_3)
-            directions += offset / rho
-            relative += other.x_d1 - s.member.x_d1
-        return s.kappa_4 * weight * (1 - directions.dot_product(directions) / 9) * relative / 3
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the sum of the encirclement alignments over the triples of neighbours within `R`.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s, t, member = context, context.t, context.target
+            zero = vector(SR, [0] * len(member.x))
+            weight, directions, relative = SR(1), zero, zero
+            for other in member.others[:3]:
+                offset = other.x - member.x
+                rho = sqrt(offset.dot_product(offset))
+                weight *= (1 - rho**2 / self.R**2) ** 2 * exp(-rho / s.l_3)
+                directions += offset / rho
+                relative += other.x.diff(t) - member.x.diff(t)
+            term = s.kappa_4 * weight * (1 - directions.dot_product(directions) / 9) * relative / 3
+            self.laws_ = [RateLaw(member.x.diff(t, 2), hyperedges(term, size=4, over=RadiusNeighborhood(self.R)))]
 
 
 class ManyBodyAlignmentSwarmSystem(BaseSystem):

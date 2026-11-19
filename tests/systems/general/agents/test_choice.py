@@ -6,17 +6,15 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import ZZ
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import RuleLaw
+from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.laws.utils import mean
-from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
-from skcomplex.core.engine.runtime import Trajectory, simulate
-from skcomplex.core.engine.solvers import AgentView, SystemView
+from skcomplex.core.engine.compile import PhaseSpec
+from skcomplex.core.engine.runtime import Trajectory
+from skcomplex.core.engine.solvers import AgentView, MesaSolver, SystemView
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.general.agents import ChoiceInteraction
 
 GLAUBER_ROOT = 0.9575040240772687
@@ -29,15 +27,16 @@ class ChooserView(AgentView):
 
 
 class ChooserElement(Element):
-    """Member with one discrete state."""
+    """Members with one discrete state."""
 
     def __init__(
         self,
         label: str,
         *,
-        option: Annotated[float, StateSpec(domain=ZZ)] = 0.0,
+        option: Annotated[object, ZZ] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.option = option
 
     @classmethod
@@ -49,16 +48,17 @@ class ChooserElement(Element):
 class PayoffFeedback(Interaction):
     """Reporter of a constant payoff of option 1 after every choice."""
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
     reports: ClassVar[tuple[str, ...]] = ('payoff',)
 
     def __init__(self, label: str, *, phase: str | None = None) -> None:
         super().__init__(label)
         self.phase = phase
 
-    def _get_laws(self, namespace):
-        """Return the rule that reports the payoff in its phase."""
-        return [RuleLaw(self.act, phase=self.phase)]
+    def _prepare(self, context=None):
+        """Set the rule that reports the payoff in its phase."""
+        super()._prepare(context)
+        self.laws_ = [UpdateLaw(context, self.act, phase=self.phase)]
 
     def act(self, system: SystemView) -> None:
         """Report the payoff of option 1."""
@@ -67,9 +67,8 @@ class PayoffFeedback(Interaction):
 
 def _run_choice(choice: ChoiceInteraction, initial: np.ndarray, until: int, seed: int = 0) -> Trajectory:
     """Return the trajectory of a group of choosers bound to a choice."""
-    group = GroupElement('members', element=ChooserElement, size=len(initial), values={'option': initial})
-    system = CompositeSystem(elements=[group], interactions=[choice], time=DiscreteTime())
-    return simulate(system, until=until, random_state=seed)
+    group = ChooserElement('members', option=initial, size=len(initial))
+    return System(elements=[group], interactions=[choice]).prepare().simulate(until, random_state=seed)
 
 
 def _fixed(namespace: object, option: float) -> float:
@@ -307,7 +306,7 @@ def test_choice_interaction_random_sequential_sees_earlier_choices():
 
 def test_choice_interaction_agent_utility_reads_the_history_of_the_system():
     """Test that an agent choice whose utility reads the payoffs reported in earlier steps takes the better option."""
-    group = GroupElement('members', element=ChooserElement, size=30)
+    group = ChooserElement('members', size=30)
     choice = ChoiceInteraction(
         'choice',
         target='members',
@@ -318,13 +317,12 @@ def test_choice_interaction_agent_utility_reads_the_history_of_the_system():
         form='agent',
         phase='choice',
     )
-    schedule = PhasesScheduleSpec([PhaseSpec('choice'), PhaseSpec('report')])
-    system = CompositeSystem(
+    system = System(
         elements=[group],
         interactions=[choice, PayoffFeedback('feedback', phase='report')],
-        time=DiscreteTime(schedule=schedule),
+        solver=MesaSolver(phases=[PhaseSpec('choice'), PhaseSpec('report')]),
     )
-    trajectory = simulate(system, until=5, random_state=0)
+    trajectory = system.prepare().simulate(5, random_state=0)
     assert 0.0 < trajectory.get_agents('members', 1).values['option'].mean() < 1.0
     assert trajectory.get_agents('members', 5).values['option'].mean() > 0.9
 

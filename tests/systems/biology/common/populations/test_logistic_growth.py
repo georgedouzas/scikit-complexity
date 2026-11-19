@@ -3,16 +3,15 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.common.kinetics import CompartmentElement
 from skcomplex.systems.biology.common.populations import LogisticGrowthInteraction, PopulationElement
 
 
 def _run(interaction, n0, until=4.0, dt=0.01):
     """Return the times and the population of one compartment under one interaction."""
-    system = CompositeSystem(elements=[CompartmentElement('population', x=n0)], interactions=[interaction])
-    trajectory = simulate(system, dt=dt, until=until)
+    system = System(elements=[CompartmentElement('population', x=n0)], interactions=[interaction])
+    trajectory = system.prepare().simulate(dt=dt, until=until)
     return np.asarray(trajectory.times), np.asarray(trajectory.get_values('population.x'))
 
 
@@ -32,8 +31,8 @@ def test_logistic_growth_has_no_exponent_parameter():
 
 def test_logistic_growth_saturates():
     """Test that logistic growth approaches the carrying capacity."""
-    system = CompositeSystem(
+    system = System(
         elements=[PopulationElement('p', x=5)],
         interactions=[LogisticGrowthInteraction('g', target='p', r=1.0, K=200)],
     )
-    assert simulate(system, dt=1.0, until=30).get_values('p.x')[-1] == pytest.approx(200, rel=1e-3)
+    assert system.prepare().simulate(dt=1.0, until=30).get_values('p.x')[-1] == pytest.approx(200, rel=1e-3)
