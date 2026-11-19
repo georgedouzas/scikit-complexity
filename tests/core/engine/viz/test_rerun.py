@@ -651,8 +651,11 @@ def test_default_blueprint_puts_spatial_views_above_series():
 
 
 def test_default_blueprint_splits_series_by_six():
-    """Test that a type with more than six series is split over several views."""
-    system = CompositeSystem(elements=[PopulationElement(f'p{index}') for index in range(8)])
+    """Test that a type with more than six series is split over several views named after the class."""
+    system = System(
+        elements=[PopulationElement(f'p{index}') for index in range(8)],
+        interactions=[ExponentialGrowthInteraction(f'g{index}', target=f'p{index}') for index in range(8)],
+    )
     names = [str(view.name) for view in _views(default_blueprint(system))]
     assert names == ['PopulationElement 1', 'PopulationElement 2']
 
