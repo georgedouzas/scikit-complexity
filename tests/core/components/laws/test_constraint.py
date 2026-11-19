@@ -15,8 +15,6 @@ from skcomplex.core.systems import System
 from .conftest import PRECISE
 
 POSITIVE = RealSet.open(0, oo)
-
-
 PENDULUM = {'theta': 0.3, 'm': 2.0, 'g': 9.81, 'l': 1.5}
 SPRING = {'x': 1.0, 'm': 2.0, 'k': 3.0}
 

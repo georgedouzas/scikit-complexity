@@ -22,8 +22,6 @@ from skcomplex.core.systems import System
 
 STEPS = 2000
 MATRIX = [[0.9, 0.1], [0.4, 0.6]]
-
-
 BATCH_SHAPES: list[tuple[int, ...]] = []
 
 

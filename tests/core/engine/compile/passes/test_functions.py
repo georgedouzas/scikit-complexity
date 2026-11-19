@@ -16,8 +16,6 @@ from skcomplex.core.systems import System
 from skcomplex.core.types import Role
 
 BACKENDS = pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
-
-
 SCHEDULED = pytest.mark.skip(
     reason='Engine gap: the functions pass reads phases only from a DiscreteTime schedule, which a System has not.',
 )

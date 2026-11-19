@@ -400,9 +400,6 @@ def test_recorded_duals_give_the_change_of_the_objective():
     assert sum(float(trajectory.get_values(f'net.dual_{item}')[0]) for item in shared) == pytest.approx(0.05)
 
 
-STATIC_GAP = 'A linear program alone is inferred as continuous time, not as a static solution.'
-
-
 def _clock():
     """Return a counter whose update makes its system step in discrete time."""
     count = _one_off('tick', 'clock', lambda s: [UpdateLaw(s.target.n, s.target.n + 1)])
@@ -417,7 +414,6 @@ def test_form_of_programs_keeps_the_form_of_the_laws_beside_them():
     assert beside.prepare()._problem.form == FormKind.DISCRETE
 
 
-@pytest.mark.skip(reason=STATIC_GAP)
 def test_form_of_a_program_alone_is_static():
     """Test that a program alone is a static solution."""
     assert _flows().prepare()._problem.form == FormKind.STATIC
@@ -461,7 +457,6 @@ def test_drift_solves_the_program_once_per_evaluation(backend):
     assert problem.states.read(derivative, 'e.c') == pytest.approx(2)
 
 
-@pytest.mark.skip(reason=STATIC_GAP)
 def test_static_program_solves_once_per_frame():
     """Test that a program alone solves once for its one frame."""
     trajectory = _flows().prepare().simulate(until=1.0)

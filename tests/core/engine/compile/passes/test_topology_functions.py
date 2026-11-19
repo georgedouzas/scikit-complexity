@@ -45,11 +45,13 @@ def _network(space, nodes=None, links=None):
     return [nodes, links]
 
 
-GROWTH = Interaction(
-    'growth',
-    roles={'nodes': 'nodes'},
-    laws=[UpdateLaw(TopologyRequestSpec('add-node', edges=2, toward=_degree, one=True), 1)],
-)
+def _growth() -> Interaction:
+    """Return the growth that adds a node with two edges toward high degrees at every step."""
+    return Interaction(
+        'growth',
+        roles={'nodes': 'nodes'},
+        laws=[UpdateLaw(TopologyRequestSpec('add-node', edges=2, toward=_degree, one=True), 1)],
+    )
 
 
 class RewiringInteraction(Interaction):
@@ -75,7 +77,7 @@ class RewiringInteraction(Interaction):
 
 def _growing(size):
     """Return a network that starts complete on `size` nodes and grows by preferential attachment."""
-    return System(elements=_network(NetworkSpace(nx.complete_graph(size))), interactions=[_aging(), GROWTH])
+    return System(elements=_network(NetworkSpace(nx.complete_graph(size))), interactions=[_aging(), _growth()])
 
 
 @pytest.mark.slow
@@ -189,7 +191,7 @@ def test_reductions_over_growing_groups_count_present_members():
         laws=lambda s: [UpdateLaw(s.counter.count, total(s.nodes.x))],
     )
     elements = [*_network(NetworkSpace(nx.complete_graph(3))), Element('counter', values={'count': 0.0})]
-    system = System(elements=elements, interactions=[_aging(), GROWTH, counting]).prepare()
+    system = System(elements=elements, interactions=[_aging(), _growth(), counting]).prepare()
     trajectory = system.simulate(until=4, dt=1.0, random_state=0)
     assert trajectory.get_values('counter.count').tolist() == [0.0, 3.0, 4.0, 5.0, 6.0]
     assert system._problem.topology is not None
