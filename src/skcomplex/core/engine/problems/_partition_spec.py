@@ -8,6 +8,7 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
+from ...base import BaseConfig
 from ...specs._base_spec import BaseSpec
 from ._base_problem_spec import BaseProblemSpec
 
@@ -31,9 +32,14 @@ class PartitionSpec(BaseSpec):
 
         owners:
             The paths of the partition's own elements and groups.
+
+        solver:
+            The solver of the nested system the partition holds, which it keeps as it keeps its time, or `None` for the
+            default solver of its form.
     """
 
     name: str
     problem: BaseProblemSpec
     owned: npt.NDArray[np.intp]
     owners: frozenset[str]
+    solver: BaseConfig | None = None

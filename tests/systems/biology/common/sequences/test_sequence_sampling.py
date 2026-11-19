@@ -8,8 +8,6 @@ import pytest
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import SamplingInteraction
-from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
@@ -17,7 +15,6 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.systems.biology.common.sequences import RowScoreSpec, SequenceSamplingInteraction
-from skcomplex.systems.physics.common.spins import ThermalSamplingInteraction
 
 INFINITE = float('inf')
 LETTERS = 'ACGU'
@@ -113,7 +110,7 @@ def test_row_score_keeps_a_neutral_walk_on_its_target():
     def score(row):
         return float(row[:3].sum() != 3)
 
-    trajectory = simulate(_bits((4, 10), RowScoreSpec(score), neighborhood=None), until=200, random_state=0)
+    trajectory = simulate(_bits((4, 10), RowScoreSpec(score)), until=200, random_state=0)
     states = trajectory.get_lattice('bits.s').astype(float)
     assert np.all(states[:, :, :3] == 1)
     assert np.any(states[-1] != 1)
@@ -219,12 +216,13 @@ def test_row_score_samples_a_categorical_state_with_labels():
 
 
 def test_row_score_rejects_a_function_that_is_not_callable():
-    """Test that a row score of a value raises an error, which the compiler reports as a structure issue."""
+    """Test that a row score of a value raises an error, which the compiler reports as a value issue."""
     with pytest.raises(ValidationError, match='callable'):
         _bits(objective=RowScoreSpec(1.0)).interactions[0].prepare()
     report = PassCompiler().prepare(_bits(objective=RowScoreSpec(1.0))).report_
     assert not report.ok
-    assert 'structure' in {issue.code for issue in report.issues}
+    assert {('value', 'walk')} <= {(issue.code, issue.path) for issue in report.issues}
+    assert any('callable' in issue.message for issue in report.issues)
 
 
 def test_row_score_rejects_too_few_proposals():
@@ -270,56 +268,6 @@ def test_row_score_reports_a_target_off_a_lattice():
     system = CompositeSystem(elements=[spins], interactions=[sampling], time=DiscreteTime())
     report = PassCompiler().prepare(system).report_
     assert 'law-space' in {issue.code for issue in report.issues}
-
-
-def _ising(namespace):
-    """Return the local Ising energy."""
-    return -namespace.target.s * neighbors(namespace.target.other.s)
-
-
-def _total_energy(spins):
-    """Return the Ising energy of a periodic lattice."""
-    return -(spins * np.roll(spins, 1, axis=-1)).sum(axis=(-1, -2)) - (spins * np.roll(spins, 1, axis=-2)).sum(
-        axis=(-1, -2),
-    )
-
-
-def _spins_at(sampling):
-    """Return the lattice frames of random spins under a sampling."""
-    values = {'s': np.random.default_rng(0).choice([-1.0, 1.0], size=(16, 16))}
-    spins = GroupElement('spins', element=SpinElement, space=LatticeSpace((16, 16)), values=values, on='sites')
-    system = CompositeSystem(elements=[spins], interactions=[sampling], time=DiscreteTime())
-    return simulate(system, until=60, random_state=0).get_lattice('spins.s')
-
-
-@pytest.mark.parametrize('rule', ['metropolis', 'glauber', 'heat-bath'])
-def test_infinite_intensity_never_raises_the_energy(rule):
-    """Test that the total energy of an Ising lattice never grows from one frame to the next at infinite intensity."""
-    sampling = SamplingInteraction('ising', target='spins', state='s', objective=_ising, intensity=INFINITE, rule=rule)
-    energies = _total_energy(_spins_at(sampling))
-    assert np.all(np.diff(energies) <= 0)
-    assert energies[-1] < energies[0]
-
-
-def test_infinite_intensity_accepts_moves_that_keep_the_energy():
-    """Test that the Metropolis rule at infinite intensity accepts a move that keeps the objective."""
-    sampling = SamplingInteraction(
-        'free',
-        target='spins',
-        state='s',
-        objective=lambda n: 0 * n.target.s,
-        intensity=INFINITE,
-    )
-    frames = _spins_at(sampling)
-    assert np.array_equal(frames[1], -frames[0])
-
-
-def test_thermal_sampling_at_zero_temperature_never_raises_the_energy():
-    """Test that the thin thermal subclass at temperature 0 is the infinite intensity of the general class."""
-    sampling = ThermalSamplingInteraction('ising', target='spins', state='s', energy=_ising, temperature=0.0)
-    energies = _total_energy(_spins_at(sampling))
-    assert np.all(np.diff(energies) <= 0)
-    assert energies[-1] < energies[0]
 
 
 def test_intensity_rejects_zero_and_negative_values():

@@ -103,7 +103,7 @@ class BaseSystem[CompositeT: BaseSystem](BaseComponent[BaseSpace, SimpleNamespac
 
     until: ClassVar[float | None] = None
     dt: ClassVar[float | None] = None
-    solver: ClassVar[BaseConfig | None] = None
+    solver: BaseConfig | None = None
     observables: Sequence[Observable] = ()
     initial_state: ClassVar[Mapping[str, object] | None] = None
     invariants: ClassVar[Mapping[str, float] | None] = None

@@ -5,9 +5,13 @@ import numpy.typing as npt
 import pytest
 
 from skcomplex.core.components.elements import Element
+from skcomplex.core.components.spaces import LatticeSpace
+from skcomplex.core.engine.solvers import MetropolisSolver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.systems import System
 from skcomplex.systems.computer_science.evolutionary_computation import (
+    AnnealedCandidateElement,
+    AnnealingInteraction,
     CovarianceAdaptationSpec,
     DifferentialEvolutionSpec,
     EvolutionaryOptimisersSystem,
@@ -130,3 +134,26 @@ def test_check_algorithm_not_a_spec() -> None:
     )
     with pytest.raises(ValidationError, match=r'DifferentialEvolutionSpec.*CovarianceAdaptationSpec'):
         interaction.prepare()
+
+
+def _square(s):
+    """Return the energy `x^2` of a candidate."""
+    return s.target.x**2
+
+
+@pytest.mark.parametrize(('generations', 'low', 'high'), [(10.0, 0.0, 0.01), (1e9, 1.0, 5.0)])
+def test_annealing_interaction_cools_the_candidates(generations, low, high):
+    """Test that candidates in the well `x^2` at temperature 5 gather at 0 only when the temperature falls."""
+    candidates = AnnealedCandidateElement('candidates', x=np.zeros(64), space=LatticeSpace((64,)))
+    anneal = AnnealingInteraction(
+        'anneal',
+        target='candidates',
+        state='x',
+        energy=_square,
+        temperature=5.0,
+        generations=generations,
+    )
+    solver = MetropolisSolver(moves={'candidates.x': 'gaussian'}, width=0.5)
+    system = System(elements=[candidates], interactions=[anneal], solver=solver).prepare()
+    positions = system.simulate(until=40, random_state=0).get_values('candidates.x')[-1]
+    assert low <= np.var(positions) < high

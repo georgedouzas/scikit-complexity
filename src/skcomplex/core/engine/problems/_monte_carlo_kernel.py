@@ -117,7 +117,7 @@ class MonteCarloKernel(BaseKernel):
             neighbours = np.hstack([around, signs])
             masks = (rows != self.boundary.shape[0]).astype(float).T
         change = ExpressionPrinter._get_values_of(
-            self.delta(0.0, values, *neighbours.T, proposal, *masks, *keywords.values()),
+            self.delta(self.time_, values, *neighbours.T, proposal, *masks, *keywords.values()),
         )[0]
         return np.broadcast_to(np.asarray(change, dtype=float), values.shape)
 
@@ -167,9 +167,9 @@ class MonteCarloKernel(BaseKernel):
         if self.bond is None:
             error_msg = f'The Monte Carlo laws of {self.owner} make cluster moves without the objective of a bond.'
             raise SolverError(error_msg)
-        bond = ExpressionPrinter._get_values_of(self.bond(0.0, values[sites][:, None], neighbours, *keywords.values()))[
-            0
-        ]
+        bond = ExpressionPrinter._get_values_of(
+            self.bond(self.time_, values[sites][:, None], neighbours, *keywords.values()),
+        )[0]
         bonds = np.broadcast_to(np.asarray(bond, dtype=float), rows.shape)
         with np.errstate(over='ignore'):
             probability = 1.0 - np.exp(np.minimum(self._get_scaled(bonds, intensity), 0.0))

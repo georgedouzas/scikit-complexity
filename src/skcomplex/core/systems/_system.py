@@ -125,7 +125,8 @@ class System(BaseSystem):
     def _get_composite(self) -> CompositeSystem:
         """Return the composite that the engine compiles.
 
-        A nested system of this kind is replaced by its own composite, and any other nested system is kept as it is.
+        A nested system of this kind is replaced by its own composite, which keeps its solver, and any other nested
+        system is kept as it is.
         """
         systems = [system._get_composite() if isinstance(system, BaseSystem) else system for system in self.systems]
         return CompositeSystem(
@@ -134,6 +135,7 @@ class System(BaseSystem):
             interactions=list(self.interactions),
             systems=systems,
             space=self.space,
+            solver=self.solver if isinstance(self.solver, BaseSolver) else None,
         )
 
     def _check_runners(self) -> None:

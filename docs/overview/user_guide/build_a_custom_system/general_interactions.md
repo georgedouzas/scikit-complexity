@@ -46,7 +46,8 @@ you need in the list below, then follow the link to its subsection.
   law, in [Transitions between values](#transitions-between-values).
 - Reset states when a condition crosses zero, or at chosen times: an [`EventLaw`](../core_components/laws.md#eventlaw),
   in [Crossings and impulses](#crossings-and-impulses).
-- Sample configurations by Monte Carlo: [`SamplingInteraction`](../core_components/interactions.md#samplinginteraction), in [Monte Carlo sampling](#monte-carlo-sampling).
+- Sample configurations by Monte Carlo: an [`ObjectiveLaw`](../core_components/laws.md#objectivelaw) moved by a
+  [`MetropolisSolver`](../core_components/interactions.md#samplinginteraction), in [Monte Carlo sampling](#monte-carlo-sampling).
 - Set a state from the time or the random stream of the step: an update law whose value is a function, in
   [Updates that read the step](#updates-that-read-the-step).
 - Write an operation as symbolic laws or as agent rules: in [Agent and symbolic forms](#agent-and-symbolic-forms).
@@ -656,47 +657,44 @@ to 0.75.
 
 ### Monte Carlo sampling
 
-A `SamplingInteraction` samples the configurations of a lattice, here the spins of an Ising magnet at low
-temperature, which align.
+An interaction gives the objective of every member as an `ObjectiveLaw`, and a `MetropolisSolver` samples the
+configurations of a lattice by its moves, here the spins of an Ising magnet at low temperature, which align.
 
 ```python
-from typing import Annotated
+import numpy as np
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import SamplingInteraction
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import ObjectiveLaw
 from skcomplex.core.components.laws.utils import neighbors
-from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.spaces import LatticeSpace
+from skcomplex.core.engine.solvers import MetropolisSolver
+from skcomplex.core.systems import System
 
 
-class SpinElement(Element):
-    def __init__(self, label, *, s: Annotated[float, StateSpec()] = 1.0):
-        super().__init__(label)
-        self.s = s
+def ising(s):
+    spin = s.target.s
+    return [ObjectiveLaw(-spin * neighbors(s.target.other.s) / s.target.T, spin)]
 
 
-objective = lambda s: -s.target.s * neighbors(s.target.other.s)
-ising = SamplingInteraction('ising', target='spins', state='s', objective=objective, intensity=1.0)
-spins = GroupElement('spins', element=SpinElement, space=LatticeSpace((8, 8)), on='sites')
-system = CompositeSystem(elements=[spins], interactions=[ising], time=DiscreteTime())
-abs(simulate(system, until=20, random_state=0).states[-1].mean()) > 0.9
+spins = Element('spins', values={'s': np.ones(64), 'T': 1.0}, space=LatticeSpace((8, 8)))
+magnet = Interaction('ising', roles={'target': 'spins'}, laws=ising)
+system = System(elements=[spins], interactions=[magnet], solver=MetropolisSolver(moves={'spins.s': 'flip'}))
+abs(system.prepare().simulate(until=20, random_state=0).states[-1].mean()) > 0.9
 ```
 
 The mean spin stays above 0.9 in absolute value after 20 sweeps.
 
-`SamplingInteraction(target, state, objective, move='flip', intensity=1.0)` runs Monte Carlo sweeps. A move is accepted
-from the change of an objective with probability `exp(-intensity * change)`. With `move='cluster'`, it makes Wolff
-cluster flips instead. To sample an energy at a temperature, pass the energy as the objective and one over the
-temperature as the intensity.
+`MetropolisSolver(moves={'spins.s': 'flip'})` runs Monte Carlo sweeps of the states it names. A move is accepted from
+the change of the objective with probability `exp(-change)`, so an energy over a temperature samples the Boltzmann
+weight at that temperature, which stays a value of the system. With the move `'cluster'`, it makes Wolff cluster flips
+instead.
 
-A subclass that scores more than local terms overrides the hooks `_check_objective` and `_check_move`, and returns its
-own Monte Carlo sweep as an `ArrayUpdateLaw`. Biology samples whole rows of sequences this way with
-`SequenceSamplingInteraction`, as in `RNANeutralNetworksSystem` of `skcomplex.systems.biology.evolution`, and physics
-samples matrix links with `WilsonSamplingInteraction`, as in `LatticeYangMillsSystem` of
-`skcomplex.systems.physics.waves`. An infinite intensity is the zero temperature, where the Metropolis rule accepts a
-move only when the objective does not grow.
+An interaction that scores more than local terms returns its own Monte Carlo sweep as an `ArrayUpdateLaw`. Biology
+samples whole rows of sequences this way with `SequenceSamplingInteraction`, as in `RNANeutralNetworksSystem` of
+`skcomplex.systems.biology.evolution`, and physics samples matrix links with `WilsonSamplingInteraction`, as in
+`LatticeYangMillsSystem` of `skcomplex.systems.physics.waves`. A temperature near zero accepts a move only when the
+objective does not grow.
 
 ## Updates that read the step
 
