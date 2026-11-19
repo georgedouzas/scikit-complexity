@@ -1202,9 +1202,9 @@ class PassCompiler(BaseCompiler):
 
     @staticmethod
     def _get_finite_rate_issues(record: _CensusRecordSpec, name: str) -> list[IssueSpec]:
-        """Return the issues of a rate or noise law on a value of a finite set, such as `{0, 1}`.
+        """Return the issues of a rate or noise law on a value of a finite set.
 
-        A rate moves a value continuously, so it leaves any finite set of allowed values.
+        A rate moves a value continuously, so it leaves any finite set of allowed values, such as `{0, 1}`.
         """
         if not isinstance(record.law, RateLaw | NoiseLaw):
             return []
