@@ -25,7 +25,7 @@ from ._culture import (
     SwitchInteraction,
 )
 from ._flux_balance import FluxBalanceInteraction, MetabolicCellElement
-from ._reaction_spec import ReactionName, ReactionSpec
+from ._reaction_spec import ReactionSpec
 from ._toy_network import ToyFluxBalanceInteraction
 
 __all__: list[str] = [
@@ -40,7 +40,6 @@ __all__: list[str] = [
     'MetabolicCellElement',
     'ObjectiveFloorInteraction',
     'ProductionScanResult',
-    'ReactionName',
     'ReactionSpec',
     'StrainDesignResult',
     'SubstrateElement',

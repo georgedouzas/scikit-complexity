@@ -272,12 +272,15 @@ class Compilation:
         solver: object = None,
         owners: frozenset[str] | None = None,
         held: tuple[str, ...] = (),
+        *,
+        trained: tuple[str, ...] = (),
     ) -> None:
         self.system = system
         self.backend = backend
         self.solver = solver
         self.owners = owners
         self.held = held
+        self.trained = trained
 
     def _replace_specs(self, replaced: Mapping[int, KernelSpec]) -> None:
         """Replace kernel specs by their copies in every field that holds them.

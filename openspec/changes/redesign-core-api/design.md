@@ -272,7 +272,7 @@ Two kinds of model need forms that the table above does not name yet.
   member at a point the run draws inside that region from its own generator.
 
 - Trained parameters. A training interaction names the parameters it trains by path,
-  `TrainingInteraction(..., trained=['net__recurrent__W'])`, and the learning compiler makes exactly those paths
+  `TrainingInteraction(..., trained=['recurrence.A'])`, and the learning compiler makes exactly those paths
   adaptive when it compiles the inner system. No marker goes on the value.
 
 - Newborn agents. A member that a rule creates takes, for every value the rule does not give, the default of that

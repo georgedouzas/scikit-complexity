@@ -21,7 +21,6 @@ from .....core.components.laws.utils import either, where
 from .....core.components.spaces import BaseSpace
 from .....core.specs import Role
 from ._flux_balance import FluxBalanceInteraction
-from ._reaction_spec import ReactionName
 
 POSITIVE = RealSet.open(0, oo)
 
@@ -276,7 +275,7 @@ class CommunityInteraction(Interaction):
         members: tuple[Role, ...],
         medium: Role,
         abundances: Sequence[float] = (),
-        exchanges: Mapping[ReactionName, float] | None = None,
+        exchanges: Mapping[str, float] | None = None,
         growth: str = 'Biomass_Ecoli_core',
         common_rate: bool = False,
     ) -> None:
@@ -376,7 +375,7 @@ class ObjectiveFloorInteraction(Interaction):
         label: str,
         *,
         cell: Role = 'cell',
-        weights: Mapping[ReactionName, float] | None = None,
+        weights: Mapping[str, float] | None = None,
         floor: float = 0.0,
     ) -> None:
         super().__init__(label)

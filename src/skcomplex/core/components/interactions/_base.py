@@ -939,8 +939,8 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
 
         They follow from the type hints.
 
-        Such an argument holds names of states, such as `states: tuple[str, ...]` or the keys of a mapping
-        `Mapping[str, float]`. A role of several elements or of Wiener processes reads none.
+        Such an argument holds names of states, such as `states: tuple[str, ...]`, which may name derivatives with
+        primes, such as `("x", "x'")`. A role of several elements or of Wiener processes reads none.
         """
         if role.variadic or role.noise:
             return ()
@@ -949,16 +949,12 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
 
     @classmethod
     def _is_state_names(cls, annotation: object) -> bool:
-        """Return whether a type hint holds names of states.
-
-        It does as a tuple of `str` or a mapping keyed by `str`.
-        """
+        """Return whether a type hint holds names of states, as `tuple[str, ...]` does."""
         hint = cls._get_annotated(annotation)
         origin, args = get_origin(hint), get_args(hint)
         if origin is Union or origin is UnionType:
             return any(cls._is_state_names(arg) for arg in args)
-        if origin is tuple and args[1:] != (Ellipsis,):
-            return False
+        return origin is tuple and args == (str, Ellipsis)
         if origin in (tuple, Mapping, dict) and args:
             first = args[0]
             keys = get_args(first) if get_origin(first) in (Union, UnionType) else (first,)
