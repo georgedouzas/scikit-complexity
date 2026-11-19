@@ -113,16 +113,14 @@ class MovementInteraction(Interaction):
             the step `'best'` has no score, raised by `prepare`.
 
     Examples:
-        >>> from skcomplex.core.components.elements import Element, GroupElement
-        >>> from skcomplex.systems.general.agents import MovementInteraction
+        >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.spaces import LatticeSpace
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> walkers = GroupElement('walkers', element=Element, size=2, location=[(2, 2), (2, 2)])
-        >>> walk = MovementInteraction('walk', target='walkers', step='neighbor')
+        >>> from skcomplex.core.systems import System
+        >>> from skcomplex.systems.general.agents import MovementInteraction
         >>> space = LatticeSpace((5, 5), metric='manhattan')
-        >>> system = CompositeSystem(elements=[walkers], interactions=[walk], space=space)
-        >>> trajectory = simulate(system, until=1, random_state=0)
+        >>> walkers = Element('walkers', values={'x': [2, 2], 'y': [2, 2]}, size=2, space=space)
+        >>> walk = MovementInteraction('walk', target='walkers', step='neighbor')
+        >>> trajectory = System(elements=[walkers], interactions=[walk]).prepare().simulate(until=1, random_state=0)
         >>> [bool(abs(cell - 2).sum() == 1) for cell in trajectory.get_agents('walkers', 1).locations]
         [True, True]
     """

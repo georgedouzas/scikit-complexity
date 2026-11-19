@@ -15,6 +15,8 @@ from skcomplex.core.errors import ValidationError
 from skcomplex.core.systems import System
 from skcomplex.systems.general.agents import BirthDeathInteraction
 
+LATTICE = LatticeSpace((3, 3))
+
 
 class ReserveElement(Element):
     """Members that hold a reserve and a trait, with places given as values named after the axes of their space."""
@@ -219,9 +221,6 @@ def test_live_inherits_and_mutates_the_states_of_offspring():
     values = trajectory.get_agents('parents', 1).values
     assert values['trait'].tolist() == [2.0, 3.0]
     assert values['reserve'].tolist() == [5.0, 0.0]
-
-
-LATTICE = LatticeSpace((3, 3))
 
 
 def _cycle(life: BirthDeathInteraction, *groups: Element, until: int = 1) -> Trajectory:

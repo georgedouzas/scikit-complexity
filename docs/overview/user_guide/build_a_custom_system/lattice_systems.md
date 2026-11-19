@@ -29,8 +29,8 @@ the facts, whose names end in `_`.
 - `periodic_` says whether the lattice wraps, and `default_visual_` is the visual of its groups.
 
 Compiling a system prepares its spaces, so a space needs its own call to `prepare()` only when you read its facts
-before that. A [`GroupElement`](../core_components/elements.md#groupelement) with `on='sites'` puts one member of an
-element class on every site, and takes its initial values as arrays of the shape of the lattice. Every section below
+before that. An [`Element`](../core_components/elements.md#element) with `space=` puts one member on every site, and
+takes its initial values as arrays of the shape of the lattice. Every section below
 builds one.
 
 ## Local rules
@@ -108,8 +108,8 @@ They are `{'cells.alive[i]': "life(neighbors(cells.alive, reduce='each'))"}`.
   cars of `NagelSchreckenbergSystem`.
 - One unit of time is one application of every rule, so `dt` is an integer. `trajectory.get_lattice(name)` returns the
   states in the shape of the lattice.
-- [`ArrayUpdateLaw(target, function)`](../core_components/laws.md#arrayupdatelaw) changes a whole lattice at once, such
-  as dropping a grain on a random site.
+- A rule of the whole system, `UpdateLaw(s, rule)` with `def rule(system): ...`, runs once per step and changes a
+  whole lattice at once, such as dropping a grain on a random site.
 
 ## Cascades
 
@@ -328,29 +328,18 @@ the cells at `g x(g) s` for the words `s` of the neighbourhood. `SelfIndexedShif
 once on the symmetric group of three letters, whose six elements are the sites.
 
 ```python
-from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_gap import SymmetricGroup
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import PowerSeriesSpec, Role, StateSpec
+from skcomplex.core.specs import PowerSeriesSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.computer_science.automata import SelfIndexedShiftSystem
-
-RING = PowerSeriesSpec(order=4, field='QQ')
-
-
-class SeriesElement(Element):
-    def __init__(self, label, *, value: Annotated[float, StateSpec(domain=RING)] = 0):
-        super().__init__(label)
-        self.value = value
-
 
 shift = SelfIndexedShiftSystem(SymmetricGroup(3), radius=None, initial=[1, 2, 3, 4, 5, 0])
 shift.prepare().simulate(until=1).get_values('cells.value')[-1].tolist()
@@ -364,41 +353,41 @@ The map sends the values `[1, 2, 3, 4, 5, 0]` to `[2.0, 1.0, 0.0, 3.0, 3.0, 0.0]
 - The products of every pair of sites are tabulated once, so balls of a few thousand sites fit. Translated reads run
   on the synchronous and random schedules, and refuse colorings and `degree`, which need a fixed table.
 
-A `PowerSeriesSpec` as the domain of a state gives it values in a ring of formal power series, truncated at an order.
+A `PowerSeriesSpec` in `Annotated` gives a value its values in a ring of formal power series, truncated at an order.
 Here the automaton `x(n) - t x(n + 1)` over `K[[t]]` runs three steps on a line of six cells whose fourth cell holds the
 series 1.
 
 ```python continuation
+RING = PowerSeriesSpec(order=4, field='QQ')
+
+
+class Series(Element):
+    def __init__(self, label, value: Annotated[object, RING] = 0, space=None):
+        super().__init__(label, space=space)
+        self.value = value
+
+
 def difference(here, right):
     return here - RING.multiply(RING.get_coefficients_of('t'), right)
 
 
-class DifferenceInteraction(Interaction):
-    def __init__(self, label, *, target: Role = 'cells'):
-        super().__init__(label)
-        self.target = target
-
-    def _prepare(self, context):
-        super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            here_and_right = LatticeNeighborhood(((0,), (1,)))
-            self.laws_ = [UpdateLaw(context.target.value, difference, neighborhood=here_and_right)]
+def shift_laws(s):
+    here_and_right = LatticeNeighborhood(((0,), (1,)))
+    return [UpdateLaw(s.target.value, difference, neighborhood=here_and_right)]
 
 
 start = np.zeros((6, 4))
 start[3, 0] = 1
-series = CompositeSystem(
-    elements=[GroupElement('cells', element=SeriesElement, space=LatticeSpace(6), values={'value': start}, on='sites')],
-    interactions=[DifferenceInteraction('difference')],
-)
-final = simulate(series, until=3).get_values('cells.value')[-1]
+cells = Series('cells', value=start, space=LatticeSpace(6))
+series = System(elements=[cells], interactions=[Interaction('difference', roles={'target': 'cells'}, laws=shift_laws)])
+final = series.prepare().simulate(until=3).get_values('cells.value')[-1]
 RING.get_series_of(final[2])
 ```
 
 The third cell holds `-3*t + O(t^4)`, the coefficient of one shift in `(1 - t S)^3`, where `S` reads the cell to the
 right.
 
-- A state whose domain is a `PowerSeriesSpec` holds `order` coefficients per cell. A function rule receives one row of
+- A value annotated with a `PowerSeriesSpec` holds `order` coefficients per cell. A function rule receives one row of
   coefficients per cell for every neighbour and returns rows. The spec multiplies series by the truncated Cauchy
   product, reduces coefficients over a prime field `'GF(p)'`, and converts them to the power series ring of Sage with
   `get_series_of` and `get_coefficients_of`.
@@ -422,40 +411,29 @@ least fit species of a ring is replaced together with its two neighbours, and ea
 a neighbour, and keeps its fitness otherwise. Every step is one extinction.
 
 ```python
-from typing import Annotated
-
 import numpy as np
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.laws.utils import minimum, neighbors, uniform, where
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 
 BESIDE = LatticeNeighborhood(((-1,), (1,)))
 
 
-class SpeciesElement(Element):
-    law_classes = (UpdateLaw,)
-    draws = True
-
-    def __init__(self, label, *, fitness: Annotated[float, StateSpec()] = 0.5):
-        super().__init__(label)
-        self.fitness = fitness
-
-    def _get_laws(self, s):
-        around = neighbors(s.other.fitness, over=BESIDE, reduce='min')
-        renewed = minimum(s.fitness, around) == minimum(s.fitness)
-        return [UpdateLaw(s.fitness, where(renewed, uniform('fitness'), s.fitness), label='extinction')]
+def extinction(s):
+    fitness = s.target.fitness
+    around = neighbors(s.target.other.fitness, over=BESIDE, reduce='min')
+    renewed = minimum(fitness, around) == minimum(fitness)
+    return [UpdateLaw(fitness, where(renewed, uniform('fitness'), fitness), label='extinction')]
 
 
 fitness = np.random.default_rng(0).random(100)
-space = LatticeSpace(100)
-members = GroupElement('ring', element=SpeciesElement, space=space, on='sites', values={'fitness': fitness})
-ring = CompositeSystem(elements=[members])
-trajectory = simulate(ring, until=1, dt=1, random_state=0)
+ring = Element('ring', values={'fitness': fitness}, space=LatticeSpace(100))
+system = System(elements=[ring], interactions=[Interaction('evolution', roles={'target': 'ring'}, laws=extinction)])
+trajectory = system.prepare().simulate(until=1, dt=1, random_state=0)
 changed = np.flatnonzero(trajectory.states[1] != trajectory.states[0])
 changed.tolist(), int(np.argmin(fitness))
 ```
@@ -463,9 +441,10 @@ changed.tolist(), int(np.argmin(fitness))
 The first step changes three sites, the least fit species, at the site the second value names, and its two
 neighbours.
 
-- `minimum(s.fitness)` reduces over the whole group, and `neighbors(s.other.fitness, over=BESIDE, reduce='min')` over
-  the neighbours of every member. Comparing the two finds the members whose neighbourhood holds the extremum, so the
-  update needs no index of the extremal site. A largest value takes `maximum` and `reduce='max'`.
+- `minimum(s.target.fitness)` reduces over the whole group, and
+  `neighbors(s.target.other.fitness, over=BESIDE, reduce='min')` over the neighbours of every member. Comparing the
+  two finds the members whose neighbourhood holds the extremum, so the update needs no index of the extremal site. A
+  largest value takes `maximum` and `reduce='max'`.
 - On a network, `AdjacencyNeighborhood()` gives the neighbours of every node, and an isolated node renews only when it
   holds the extremum itself.
 - Ties of the extremum renew every tied member with its neighbours. Uniform draws make them vanishingly rare.

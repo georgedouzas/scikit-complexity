@@ -104,7 +104,7 @@ states, interactions change them through laws, and systems nest and compose.
 
 - **One interface for many kinds of dynamics.** Differential equations, stochastic processes, jump processes, discrete
   maps, cellular automata, agents, networks and hypergraphs, fields and partial differential equations, quantum
-  systems, and systems that learn by gradient descent all run through `simulate`.
+  systems, and systems that learn by gradient descent all run through `prepare` and `simulate`.
 - **The form is inferred.** The library reads the laws of a system and decides whether it is an ordinary differential
   equation, a stochastic differential equation, or a jump process. It then compiles it for NumPy, Numba, or JAX.
 - **Symbolic or numeric laws.** A law is a Sage symbolic expression, which you can inspect and solve exactly, or a
@@ -140,9 +140,10 @@ pdm install
 ## Usage
 
 The library follows the conventions of scikit-learn. What you define is an estimator, a class with `get_params`,
-`set_params`, and `clone`, such as an element, an interaction, or a system. What you do to it is a function. `simulate`
-runs a system as `cross_validate` runs a model, an analysis measures the run as `sklearn.metrics` scores a model, and
-an experiment runs many systems as the model selection functions do.
+`set_params`, and `clone`, such as an element, an interaction, or a system. A system is prepared and simulated as a
+model is fitted and used to predict: `prepare()` checks and compiles it once, and `simulate()` returns a trajectory.
+What you do to it is a function. An analysis measures the run as `sklearn.metrics` scores a model, and an experiment
+runs many systems as the model selection functions do.
 
 You can start in two ways. Select a ready-made system from the catalog, or build a custom system from the general
 classes of `skcomplex.core.components`.
@@ -178,12 +179,10 @@ LotkaVolterraSystem.topics, LotkaVolterraSystem.references, LotkaVolterraSystem(
 ```
 
 The topics of `LotkaVolterraSystem` are `predator-prey`, `ode`, and `oscillation`, its references are Lotka (1925) and
-Volterra (1926), and its parameters start from 40 prey and 9 predators. `simulate` runs it with its tuned settings, or
-with parameters and settings of your own.
+Volterra (1926), and its parameters start from 40 prey and 9 predators. `prepare().simulate()` runs it with its tuned
+settings, or with parameters and settings of your own.
 
 ```python continuation
-from skcomplex.core.engine.runtime import simulate
-
 trajectory = LotkaVolterraSystem().prepare().simulate()
 fast_prey = LotkaVolterraSystem(r=1.5).prepare().simulate(until=50, dt=0.1)
 round(float(fast_prey.get_values('prey.x').max()))
@@ -204,64 +203,59 @@ and the page of each system shows the classes it is built from.
 
 ### Build a custom system
 
-This section writes a predator and prey system from the core alone. An element declares its states. An interaction
-declares its roles, the names of the elements it reads and changes, and returns its laws. In `_get_laws`, the
-namespace `s` holds the symbols of its parameters and of the elements bound to its roles. The system takes one element
-class, the general `RateInteraction`, and one new interaction.
+This section writes a predator and prey system from the core alone. An element is a plain class whose arguments are
+its values, such as the size `n` of a population. An interaction names the elements it binds through its roles and
+sets its laws in `_prepare`, where the namespace `s` holds the symbols of its parameters and of the elements bound to
+its roles. A value that a law changes is a state, and any other value is a parameter. A one-off process needs no class:
+`Interaction(label, roles=..., laws=...)` takes its laws as a function of `s`.
 
 ```python
-from typing import Annotated
-
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import Interaction, RateInteraction
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 
 
-class PopulationElement(Element):
-    def __init__(self, label, *, n: Annotated[float, StateSpec()] = 1.0):
+class Population(Element):
+    def __init__(self, label, n=1.0):
         super().__init__(label)
         self.n = n
 
 
-class PredationInteraction(Interaction):
-    def __init__(
-        self,
-        label,
-        *,
-        predator: Annotated[str, RoleSpec(states=('n',))],
-        prey: Annotated[str, RoleSpec(states=('n',))],
-        a: Annotated[float, ParameterSpec()] = 0.4,
-        b: Annotated[float, ParameterSpec()] = 0.1,
-    ):
+class Predation(Interaction):
+    def __init__(self, label, *, predator: Role, prey: Role, a=0.4, b=0.1):
         super().__init__(label)
         self.predator = predator
         self.prey = prey
         self.a = a
         self.b = b
 
-    def _get_laws(self, s):
+    def _prepare(self, s):
+        super()._prepare(s)
         contacts = s.predator.n * s.prey.n
-        return [RateLaw(s.prey.n, -s.a * contacts), RateLaw(s.predator.n, s.b * contacts)]
+        self.laws_ = [RateLaw(s.prey.n, -s.a * contacts), RateLaw(s.predator.n, s.b * contacts)]
 
 
-system = CompositeSystem(
-    elements=[PopulationElement('rabbits', n=40), PopulationElement('foxes', n=9)],
+def growth(s):
+    return [RateLaw(s.target.n, 1.1 * s.target.n * (1 - s.target.n / 1000))]
+
+
+system = System(
+    elements=[Population('rabbits', n=40), Population('foxes', n=9)],
     interactions=[
-        RateInteraction('growth', target='rabbits', state='n', rate=lambda s: 1.1 * s.target.n * (1 - s.target.n / 1000)),
-        PredationInteraction('hunt', predator='foxes', prey='rabbits'),
-        RateInteraction('death', target='foxes', state='n', rate=lambda s: -0.4 * s.target.n),
+        Interaction('growth', roles={'target': 'rabbits'}, laws=growth),
+        Predation('hunt', predator='foxes', prey='rabbits'),
+        Interaction('death', roles={'target': 'foxes'}, laws=lambda s: [RateLaw(s.target.n, -0.4 * s.target.n)]),
     ],
-)
-trajectory = simulate(system, until=30, dt=0.05)
-round(float(trajectory.get_values('rabbits.n').max()))
+).prepare()
+trajectory = system.simulate(until=30, dt=0.05)
+system.states_, round(float(trajectory.get_values('rabbits.n').max()))
 ```
 
-The rabbits peak at 51. A `RerunObserver` records the run for the Rerun viewer, and
-`RerunObserver('predators', spawn=True)` opens the viewer during the run. A schedule changes a parameter while the
-system runs. Here it halves the hunting rate at time 15.
+The states are `rabbits.n` and `foxes.n`, and the rabbits peak at 51. A `RerunObserver` records the run for the Rerun
+viewer, and `RerunObserver('predators', spawn=True)` opens the viewer during the run. A schedule changes a parameter
+while the system runs. Here it halves the hunting rate at time 15.
 
 ```python continuation
 import tempfile
@@ -270,8 +264,7 @@ from pathlib import Path
 from skcomplex.core.engine.viz import RerunObserver
 
 recording = Path(tempfile.mkdtemp()) / 'predators.rrd'
-trajectory = simulate(
-    system,
+trajectory = system.simulate(
     until=30,
     dt=0.05,
     observers=[RerunObserver('predators', save_path=recording)],
@@ -281,73 +274,65 @@ float(trajectory.times[-1])
 ```
 
 The run ends at time 30.0, with the hunting rate halved for its second half. A new process takes one more
-interaction. Here a fishery harvests a fish stock in proportion to its size, and the analysis `symbolic` returns the
-equations of the system.
+interaction. Here a fishery harvests a fish stock in proportion to its size, and `equations_` shows the equations of
+the prepared system. `Annotated` gives the allowed values of the harvest rate, here zero or more.
 
 ```python continuation
+from typing import Annotated
+
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.analysis import symbolic
 
-
-class HarvestInteraction(Interaction):
-    def __init__(
-        self,
-        label,
-        *,
-        target: Annotated[str, RoleSpec(states=('n',))],
-        h: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-    ):
+class Harvest(Interaction):
+    def __init__(self, label, *, target: Role, h: Annotated[float, RealSet.closed_open(0, oo)] = 0.1):
         super().__init__(label)
         self.target = target
         self.h = h
 
-    def _get_laws(self, s):
-        return [RateLaw(s.target.n, -s.h * s.target.n)]
+    def _prepare(self, s):
+        super()._prepare(s)
+        self.laws_ = [RateLaw(s.target.n, -s.h * s.target.n)]
 
 
-harvested = CompositeSystem(
-    elements=[PopulationElement('fish', n=500)],
+def slow_growth(s):
+    return [RateLaw(s.target.n, 0.5 * s.target.n * (1 - s.target.n / 1000))]
+
+
+harvested = System(
+    elements=[Population('fish', n=500)],
     interactions=[
-        RateInteraction('growth', target='fish', state='n', rate=lambda s: 0.5 * s.target.n * (1 - s.target.n / 1000)),
-        HarvestInteraction('fishing', target='fish', h=0.1),
+        Interaction('growth', roles={'target': 'fish'}, laws=slow_growth),
+        Harvest('fishing', target='fish', h=0.1),
     ],
-)
-symbolic(harvested).equations['fish.n']
+).prepare()
+harvested.equations_['fish.n']
 ```
 
 The equation of the stock is the logistic growth `-0.0005 (n - 1000) n` minus the harvest `h n`.
 
 ### Find out which components fit
 
-This section checks that components fit before you build a system with them. An interaction states what it needs from
-each role, and an element states what it carries.
-
-```python continuation
-hunt = PredationInteraction('hunt', predator='foxes', prey='rabbits')
-hunt.get_requirements().roles['prey'].states, list(PopulationElement('rabbits').get_states())
-```
-
-The role `prey` reads the state `n`, and `PopulationElement` carries `n`, so they fit. When a role is bound to an
-element without the state it reads, `simulate` raises a `RoleElementError`.
+This section checks that components fit. An interaction reads values of the elements bound to its roles, and
+`prepare` checks that every bound element carries them. Here the role `prey` is bound to a tank, which carries a
+level and no population.
 
 ```python continuation
 from skcomplex.core.errors import RoleElementError
 
 
-class TankElement(Element):
-    def __init__(self, label, *, level: Annotated[float, StateSpec()] = 1.0):
+class Tank(Element):
+    def __init__(self, label, level=1.0):
         super().__init__(label)
         self.level = level
 
 
-wrong = CompositeSystem(
-    elements=[TankElement('tank'), PopulationElement('foxes')],
-    interactions=[PredationInteraction('hunt', predator='foxes', prey='tank')],
+wrong = System(
+    elements=[Tank('tank'), Population('foxes')],
+    interactions=[Predation('hunt', predator='foxes', prey='tank')],
 )
 try:
-    simulate(wrong, until=1)
+    wrong.prepare()
 except RoleElementError as error:
     message = str(error)
 message

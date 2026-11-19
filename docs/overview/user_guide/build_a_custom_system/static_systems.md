@@ -1,49 +1,35 @@
 # Static systems
 
 This page solves a system of equations that has no time axis, such as a dose-response curve, and sweeps its
-parameters. A system under a [`StaticTime`](../core_components/spaces.md#statictime) has
-[`ConstraintLaw`](../core_components/laws.md#equationlaw)s that name their `target`, the state each equation solves for.
-A run solves them once and gives one frame.
+parameters. A system whose laws are only [`ConstraintLaw`](../core_components/laws.md#constraintlaw)s is static: each
+equation names its `target`, the state it solves for, and a run solves them once and gives one frame.
 
 ## Equations and sweeps
 
 This section computes the surviving fraction of cells after a dose of radiation, by the linear-quadratic model
 `exp(-0.3 D - 0.03 D^2)`, and sweeps the dose. The [`Element`](../core_components/elements.md#element) holds the
-survival as a state and the dose as a parameter. A function builds the
-[`CompositeSystem`](../core_components/systems.md#compositesystem) from the dose, so the experiment `sweep` can run it
-once per value.
+survival and the dose, and the interaction `radiation` sets the equation of the survival, so the survival is a state
+and the dose a parameter. A function builds the [`System`](../core_components/systems.md#system) from the dose, so the
+experiment `sweep` can run it once per value.
 
 ```python
-from types import SimpleNamespace
-from typing import Annotated
-
 from sage.all__sagemath_symbolics import exp
 
 from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import ConstraintLaw
-from skcomplex.core.components.spaces import StaticTime
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.experiments import sweep
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.systems import System
 
 
-class DoseElement(Element):
-    def __init__(
-        self,
-        label: str,
-        survival: Annotated[float, StateSpec()] = 0.0,
-        dose: Annotated[float, ParameterSpec()] = 2.0,
-    ) -> None:
-        super().__init__(label)
-        self.survival = survival
-        self.dose = dose
-
-    def _get_laws(self, s: SimpleNamespace) -> list[ConstraintLaw]:
-        return [ConstraintLaw(s.survival == exp(-0.3 * s.dose - 0.03 * s.dose**2), target=s.survival)]
+def survive(s):
+    survival, dose = s.target.survival, s.target.dose
+    return [ConstraintLaw(survival == exp(-0.3 * dose - 0.03 * dose**2), target=survival)]
 
 
-def dose_response(dose: float = 2.0) -> CompositeSystem:
-    return CompositeSystem(elements=[DoseElement('cells', dose=dose)], time=StaticTime())
+def dose_response(dose=2.0):
+    cells = Element('cells', values={'survival': 0.0, 'dose': dose})
+    return System(elements=[cells], interactions=[Interaction('radiation', roles={'target': 'cells'}, laws=survive)])
 
 
 result = sweep(dose_response, {'dose': [0.0, 2.0]}, until=0.0, outputs=['cells.survival'])
@@ -64,8 +50,8 @@ Equations combine across the components of a system.
 - The equations of one target from every element and interaction add.
 - A system without equations solves to its initial state, so its observables run on quenched states in one frame.
 
-`simulate` raises a `ValidationError` with the code `equation-target` for an equation with no target, or with a target
-that is not a state. A law that does not run under static time gives the code `law-time`.
+`prepare` raises a `ValidationError` with the code `equation-target` for an equation with no target, or with a target
+that is not a state.
 
 ## Log-sum-exp
 

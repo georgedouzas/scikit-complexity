@@ -45,46 +45,31 @@ The shape `(1, 4)` holds the one solid tetrahedron and its four triangles. The c
 This section writes field equations on a complex with the operators of discrete exterior calculus. The exterior
 derivative `d` maps a state on cells of one degree to the next, as the gradient maps a potential to a field on links.
 The codifferential maps back down, as the divergence does. Here a potential `A` on the links of the torus follows the
-lattice Maxwell equations `dA/dt = -E` and `dE/dt = codifferential(d A)`. Two
-[`RateInteraction`](../core_components/interactions.md#rateinteraction)s write them on a
-[`GroupElement`](../core_components/elements.md#groupelement) on the edges of the complex.
+lattice Maxwell equations `dA/dt = -E` and `dE/dt = codifferential(d A)`. One
+[`Interaction`](../core_components/interactions.md#interaction) writes them on an
+[`Element`](../core_components/elements.md#element) with one member on every edge of the complex, `on='edges'`.
 
 ```python
-from typing import Annotated
-
 import numpy as np
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import RateInteraction
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import codifferential, exterior_derivative
 from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 
 
-class FieldLinkElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        A: Annotated[float, StateSpec()] = 0.0,
-        E: Annotated[float, StateSpec()] = 0.0,
-    ):
-        super().__init__(label)
-        self.A = A
-        self.E = E
+def maxwell(s):
+    A, E = s.target.A, s.target.E
+    return [RateLaw(A, -E), RateLaw(E, codifferential(exterior_derivative(A)))]
 
 
 space = CellComplexSpace(LatticeSpace((8, 8))).prepare()
 potential = np.random.default_rng(0).normal(size=128)
-links = GroupElement('links', element=FieldLinkElement, space=space, on='edges', values={'A': potential})
-interactions = [
-    RateInteraction('potential', target='links', state='A', rate=lambda n: -n.target.E),
-    RateInteraction('field', target='links', state='E', rate=lambda n: codifferential(exterior_derivative(n.target.A))),
-]
-system = CompositeSystem(elements=[links], interactions=interactions)
-trajectory = simulate(system, until=2.0, dt=0.1)
+links = Element('links', values={'A': potential, 'E': 0.0}, space=space, on='edges')
+system = System(elements=[links], interactions=[Interaction('maxwell', roles={'target': 'links'}, laws=maxwell)])
+trajectory = system.prepare().simulate(until=2.0, dt=0.1)
 bool(np.abs(space.incidences_[0].T @ trajectory.get_values('links.E').T).max() < 1e-10)
 ```
 
@@ -101,8 +86,8 @@ a complex. The degree of their argument is the part of the complex its group liv
   is the parameter `weight` of the group on that part of the complex.
 
 With this sign, `codifferential(exterior_derivative(x))` is the graph Laplacian of a site state, and the curl of the
-curl of an edge state. A rate of `RateInteraction` reads another group on the complex through `sources`, and the value
-must have the degree of the state it changes.
+curl of an edge state. A rate reads another group on the complex through a role bound to it, and the value must have
+the degree of the state it changes.
 
 ## Coface reductions
 

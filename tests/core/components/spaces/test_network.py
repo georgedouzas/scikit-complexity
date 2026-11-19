@@ -1,22 +1,20 @@
 """Test the `_network` module of `skcomplex.core.components.spaces`."""
 
 import itertools
-from typing import Annotated
 
 import networkx as nx
 import numpy as np
 import pytest
 import xgi
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import AdjacencyNeighborhood, LayerSpec, NetworkSpace, RadiusNeighborhood
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.errors import SpaceError, ValidationError
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 
 BACKENDS = (NumpyBackend(), NumbaBackend())
 GENERATORS = [
@@ -163,34 +161,21 @@ def test_reductions_read_the_edges_of_their_layer(backend):
     work.add_nodes_from(range(4))
     space = NetworkSpace(contact, layers=[LayerSpec('work', work)])
 
-    class LayeredElement(Element):
-        """Layered element."""
+    def sums(s):
+        """Return the sums of the neighbours on the contact network and on the work layer."""
+        g = s.target
+        return [
+            UpdateLaw(g.contacts, neighbors(g.other.y)),
+            UpdateLaw(g.colleagues, neighbors(g.other.y, over=space.layers[0])),
+        ]
 
-        def __init__(
-            self,
-            label: str,
-            *,
-            y: Annotated[object, StateSpec()] = 0.0,
-            contacts: Annotated[object, StateSpec()] = 0.0,
-            colleagues: Annotated[object, StateSpec()] = 0.0,
-        ) -> None:
-            super().__init__(label)
-            self.y = y
-            self.contacts = contacts
-            self.colleagues = colleagues
-
-        def _get_laws(self, s):
-            """Return the laws of the layered element."""
-            return [
-                UpdateLaw(s.contacts, neighbors(s.other.y)),
-                UpdateLaw(s.colleagues, neighbors(s.other.y, over=space.layers[0])),
-            ]
-
-    values = np.array([1.0, 10.0, 100.0, 1000.0])
-    system = CompositeSystem(
-        elements=[GroupElement('g', element=LayeredElement, space=space, values={'y': values}, on='sites')],
+    values = {'y': np.array([1.0, 10.0, 100.0, 1000.0]), 'contacts': np.zeros(4), 'colleagues': np.zeros(4)}
+    system = System(
+        elements=[Element('g', values=values, space=space)],
+        interactions=[Interaction('sums', roles={'target': 'g'}, laws=sums)],
+        backend=backend,
     )
-    problem = PassCompiler(backend=backend).prepare(system).run().problem_
+    problem = system.prepare()._problem
     after = problem.update(0.0, problem.initial_state, problem.initial_parameters)
     assert problem.states.read(after, 'g.contacts').tolist() == [10.0, 101.0, 1010.0, 100.0]
     assert problem.states.read(after, 'g.colleagues').tolist() == [1000.0, 100.0, 10.0, 1.0]

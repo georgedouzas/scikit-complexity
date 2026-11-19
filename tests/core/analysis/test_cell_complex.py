@@ -5,23 +5,21 @@ from typing import Annotated
 import networkx as nx
 import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import pi
 
 from skcomplex.core.analysis import cell_complex
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace, NetworkSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.elements import Element, Period
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.spaces import BaseSpace, CellComplexSpace, LatticeSpace, NetworkSpace
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 
 
 class AngleLinkElement(Element):
-    """Link with an angle `theta`."""
+    """Links with an angle `theta`, one on every edge of a space."""
 
-    def __init__(self, label, *, theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0):
-        super().__init__(label)
+    def __init__(self, label, *, theta: Annotated[float, Period(2 * np.pi)] = 0.0, space: BaseSpace | None = None):
+        super().__init__(label, space=space, on='edges')
         self.theta = theta
 
 
@@ -97,9 +95,9 @@ def test_flat_and_curved_connections_are_told_apart():
 def test_curvature_of_a_trajectory_reads_the_group_and_its_period():
     """Test that a trajectory gives the complex of the group and one row per frame."""
     space = _square(4)
-    links = GroupElement('links', element=AngleLinkElement, space=space, on='edges')
-    rate = RateInteraction('rate', target='links', state='theta', rate=0.5)
-    trajectory = simulate(CompositeSystem(elements=[links], interactions=[rate]), until=1.0, dt=0.1)
+    links = AngleLinkElement('links', space=space)
+    rate = Interaction('rate', roles={'target': 'links'}, laws=lambda s: [RateLaw(s.target.theta.diff(s.t), 0.5)])
+    trajectory = System(elements=[links], interactions=[rate]).prepare().simulate(until=1.0, dt=0.1)
     curvature = cell_complex(trajectory, kind='curvature', variables='links.theta')
     assert curvature.share.shape == trajectory.times.shape
     assert np.all(curvature.share == 0.0)

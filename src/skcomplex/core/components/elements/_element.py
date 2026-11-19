@@ -81,27 +81,23 @@ class Element(BaseElement):
     Examples:
         A population and a bank deposit both grow at a rate proportional to their size, so one class serves both.
 
-        >>> from typing import Annotated
         >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.components.interactions import Interaction
         >>> from skcomplex.core.components.laws import RateLaw
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.specs import ParameterSpec, StateSpec
-        >>> class GrowthElement(Element):
-        ...     law_classes = (RateLaw,)
-        ...
-        ...     def __init__(
-        ...         self, label, x: Annotated[float, StateSpec()] = 1.0, r: Annotated[float, ParameterSpec()] = 0.5
-        ...     ):
+        >>> from skcomplex.core.systems import System
+        >>> class Population(Element):
+        ...     def __init__(self, label, x=1.0, r=0.5):
         ...         super().__init__(label)
         ...         self.x = x
         ...         self.r = r
-        ...
-        ...     def _get_laws(self, namespace):
-        ...         return [RateLaw(namespace.x, namespace.r * namespace.x)]
-        >>> rabbits = GrowthElement('rabbits', x=40.0, r=0.5)
-        >>> deposit = GrowthElement('deposit', x=250.0, r=0.05)
-        >>> trajectory = simulate(CompositeSystem(elements=[rabbits, deposit]), until=1, dt=1.0)
+        >>> def grow(s):
+        ...     return [RateLaw(s.target.x, s.target.r * s.target.x)]
+        >>> rabbits = Population('rabbits', x=40.0, r=0.5)
+        >>> deposit = Population('deposit', x=250.0, r=0.05)
+        >>> names = ['rabbits', 'deposit']
+        >>> growths = [Interaction(f'{name}_growth', roles={'target': name}, laws=grow) for name in names]
+        >>> system = System(elements=[rabbits, deposit], interactions=growths)
+        >>> trajectory = system.prepare().simulate(until=1, dt=1.0)
         >>> trajectory.get_values('rabbits.x').round(1).tolist(), trajectory.get_values('deposit.x').round(2).tolist()
         ([40.0, 65.9], [250.0, 262.82])
     """

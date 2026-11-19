@@ -294,22 +294,15 @@ class StokesianMobilityInteraction(Interaction):
 
     Examples:
         >>> import math
-        >>> from typing import Annotated
         >>> from sage.all__sagemath_symbolics import vector
-        >>> from skcomplex.core.components.elements import Element, GroupElement
-        >>> from skcomplex.systems.physics.common.particles import StokesianMobilityInteraction
+        >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.spaces import ContinuousSpace
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> class SphereElement(Element):
-        ...     def __init__(self, label, *, x: Annotated[list, StateSpec(vector=True, role='position')] = 0.0):
-        ...         super().__init__(label)
-        ...         self.x = x
+        >>> from skcomplex.core.systems import System
+        >>> from skcomplex.systems.physics.common.particles import StokesianMobilityInteraction
         >>> pull = StokesianMobilityInteraction('stokes', target='spheres', force=lambda s: vector([1.0, 0.0, 0.0]))
-        >>> spheres = GroupElement('spheres', element=SphereElement, size=2, values={'x': [[0, 0, 0], [0, 4, 0]]})
-        >>> system = CompositeSystem(elements=[spheres], interactions=[pull], space=ContinuousSpace(n_dim=3))
-        >>> trajectory = simulate(system, until=1.0, dt=1.0)
+        >>> space = ContinuousSpace(n_dim=3)
+        >>> spheres = Element('spheres', values={'x': [[0, 0, 0], [0, 4, 0]]}, size=2, space=space)
+        >>> trajectory = System(elements=[spheres], interactions=[pull]).prepare().simulate(until=1.0, dt=1.0)
         >>> (trajectory.get_values('spheres.x')[-1, :, 0] * 6 * math.pi).round(4).tolist()
         [1.1953, 1.1953]
     """

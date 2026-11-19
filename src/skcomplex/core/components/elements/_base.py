@@ -46,15 +46,12 @@ class BaseElement(BaseComponent[BaseSpace, SimpleNamespace]):
     Examples:
         A population with one state and one parameter. The constructor stores its arguments as given.
 
-        >>> from typing import Annotated
         >>> from skcomplex.core.components.elements import BaseElement
-        >>> from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+        >>> from skcomplex.core.specs import VisualSpec
         >>> class PopulationElement(BaseElement):
         ...     visual = VisualSpec('line')
         ...
-        ...     def __init__(
-        ...         self, label, n: Annotated[float, StateSpec()] = 1.0, r: Annotated[float, ParameterSpec()] = 0.5
-        ...     ):
+        ...     def __init__(self, label, n=1.0, r=0.5):
         ...         super().__init__(label)
         ...         self.n = n
         ...         self.r = r

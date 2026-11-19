@@ -344,7 +344,7 @@ def automaton(
         >>> from skcomplex.core.components.elements import Element, GroupElement
         >>> from skcomplex.core.components.interactions import LocalRuleInteraction
         >>> from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.core.specs import StateSpec, SubshiftSpec
         >>> from skcomplex.core.components.laws import TableSpec, TotalisticSpec
         >>> class CellElement(Element):
@@ -356,7 +356,7 @@ def automaton(
         ...     interaction = LocalRuleInteraction(
         ...         'rule', target='cells', state='alive', rule=rule, neighborhood=neighborhood
         ...     )
-        ...     return CompositeSystem(elements=[cells], interactions=[interaction])
+        ...     return System(elements=[cells], interactions=[interaction])
         >>> shift = build(8, TableSpec({(1,): 1}), LatticeNeighborhood(((1,),)))
         >>> automaton(shift).injective
         True

@@ -72,13 +72,10 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
             The laws the interaction contributes for the namespace of its last run.
 
     Examples:
-        >>> from typing import Annotated
         >>> from skcomplex.core.components.interactions import BaseInteraction
-        >>> from skcomplex.core.specs import ParameterSpec, RoleSpec
+        >>> from skcomplex.core.specs import Role
         >>> class GrowthInteraction(BaseInteraction):
-        ...     def __init__(
-        ...         self, label, target: Annotated[str, RoleSpec()], r: Annotated[float, ParameterSpec()] = 1.0
-        ...     ):
+        ...     def __init__(self, label, target: Role, r=1.0):
         ...         super().__init__(label)
         ...         self.target = target
         ...         self.r = r

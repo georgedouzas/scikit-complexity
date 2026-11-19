@@ -1,146 +1,86 @@
 """Test the renewal stepper and the renewals of fixed-step steppers."""
 
 import itertools
-from typing import Annotated
 
 import numpy as np
 import pytest
 import rerun as rr
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import JumpLaw, RateLaw
 from skcomplex.core.components.laws.utils import bernoulli, draw, mean, normal
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems import RenewalRecordSpec
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RenewalSolver, RK4Solver, ScipyODESolver, StepSpec
 from skcomplex.core.engine.solvers._defaults import DEFAULT_SOLVERS
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import SolverError
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.systems import System
 
 
-class CounterElement(Element):
-    """Counter element."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        n: Annotated[object, StateSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label)
-        self.n = n
-
-    def _get_laws(self, s):
-        """Return the laws of the counter element."""
-        return [JumpLaw(waiting=draw('wait', 'expon'), reset={s.n: s.n + 1}, label='ticks')]
+def _counter_laws(s):
+    """Return the renewals that count up."""
+    n = s.target.n
+    return [JumpLaw(waiting=draw('wait', 'expon'), reset={n: n + 1}, label='ticks')]
 
 
-class ResettingElement(Element):
-    """Resetting element."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[object, StateSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label)
-        self.x = x
-
-    def _get_laws(self, s):
-        """Return the laws of the resetting element."""
-        return [JumpLaw(waiting=draw('wait', 'expon'), reset={s.x: draw('value', 'norm', loc=2, scale=3)})]
+def _resetting_laws(s):
+    """Return the renewals that reset the value to a normal draw."""
+    return [JumpLaw(waiting=draw('wait', 'expon'), reset={s.target.x: draw('value', 'norm', loc=2, scale=3)})]
 
 
-class KickedElement(Element):
-    """Kicked element."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        a: Annotated[object, StateSpec()] = 0.0,
-        b: Annotated[object, StateSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label)
-        self.a = a
-        self.b = b
-
-    def _get_laws(self, s):
-        """Return the laws of the kicked element."""
-        return [
-            JumpLaw(waiting=draw('wait', 'expon'), reset={s.a: normal('kick', 0, 1), s.b: -normal('kick', 0, 1)}),
-        ]
+def _kicked_laws(s):
+    """Return the renewals that kick two values by one draw in opposite directions."""
+    a, b = s.target.a, s.target.b
+    return [JumpLaw(waiting=draw('wait', 'expon'), reset={a: normal('kick', 0, 1), b: -normal('kick', 0, 1)})]
 
 
-class WaitingElement(Element):
-    """Waiting element."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        n: Annotated[object, StateSpec()] = 0.0,
-        alpha: Annotated[object, ParameterSpec()] = 0.5,
-    ) -> None:
-        super().__init__(label)
-        self.n = n
-        self.alpha = alpha
-
-    def _get_laws(self, s):
-        """Return the laws of the waiting element."""
-        return [JumpLaw(waiting=draw('wait', 'pareto', b=s.alpha), reset={s.n: s.n + 1})]
+def _waiting_laws(s):
+    """Return the renewals that count up after Pareto waits."""
+    n = s.target.n
+    return [JumpLaw(waiting=draw('wait', 'pareto', b=s.target.alpha), reset={n: n + 1})]
 
 
-class FlierElement(Element):
-    """Flier element."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[object, StateSpec()] = 0.0,
-        v: Annotated[object, StateSpec()] = 1.0,
-    ) -> None:
-        super().__init__(label)
-        self.x = x
-        self.v = v
-
-    def _get_laws(self, s):
-        """Return the laws of the flier element."""
-        return [
-            RateLaw(s.x, s.v),
-            JumpLaw(waiting=draw('flight', 'pareto', b=1.5, scale=0.5), reset={s.v: 2 * bernoulli('sign', 0.5) - 1}),
-        ]
+def _flier_laws(s):
+    """Return the flight at the velocity and the renewals that draw a new sign of the velocity."""
+    x, v = s.target.x, s.target.v
+    return [
+        RateLaw(x.diff(s.t), v),
+        JumpLaw(waiting=draw('flight', 'pareto', b=1.5, scale=0.5), reset={v: 2 * bernoulli('sign', 0.5) - 1}),
+    ]
 
 
-class FollowingElement(Element):
-    """Following element."""
+def _following_laws(s):
+    """Return the pull towards the mean and the renewals that jump by a normal draw."""
+    x = s.target.x
+    return [
+        RateLaw(x.diff(s.t), mean(x) - x + 1),
+        JumpLaw(waiting=draw('wait', 'expon'), reset={x: x + normal('jump')}),
+    ]
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[object, StateSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label)
-        self.x = x
 
-    def _get_laws(self, s):
-        """Return the laws of the following element."""
-        return [
-            RateLaw(s.x, mean(s.x) - s.x + 1),
-            JumpLaw(waiting=draw('wait', 'expon'), reset={s.x: s.x + normal('jump')}),
-        ]
+LAWS = {
+    'c': (_counter_laws, {'n': 0.0}),
+    'r': (_resetting_laws, {'x': 0.0}),
+    'k': (_kicked_laws, {'a': 0.0, 'b': 0.0}),
+    'w': (_waiting_laws, {'n': 0.0, 'alpha': 0.5}),
+    'flier': (_flier_laws, {'x': 0.0, 'v': 1.0}),
+    'following': (_following_laws, {'x': 0.0}),
+}
+
+
+def _system(kind, size=None, label=None, solver='auto'):
+    """Return an element, or a group of a size, with the laws of a kind, labelled `f` or the kind."""
+    laws, values = LAWS[kind]
+    label = label or kind
+    renewal = Interaction('renewal', roles={'target': label}, laws=laws)
+    return System(elements=[Element(label, values=values, size=size)], interactions=[renewal], solver=solver)
 
 
 def _trajectory(system, until, dt, **settings):
     """Return the trajectory of a system run with a seed."""
-    return simulate(system, until=until, dt=dt, random_state=0, **settings)
+    return system.prepare().simulate(until=until, dt=dt, random_state=0, **settings)
 
 
 def _member_times(trajectory, label, member):
@@ -159,7 +99,7 @@ def _member_times(trajectory, label, member):
 def test_renewal_stepper_draws_reset_values_from_scipy():
     """Test that 100000 reset values of a SciPy normal draw have mean 2 and scale 3."""
     trajectory = _trajectory(
-        CompositeSystem(elements=[GroupElement('r', element=ResettingElement, size=1000)]),
+        _system('r', 1000),
         100,
         100,
     )
@@ -171,7 +111,7 @@ def test_renewal_stepper_draws_reset_values_from_scipy():
 
 def test_renewal_stepper_shares_a_draw_within_a_renewal():
     """Test that two uses of one draw name in a reset read the same value at every renewal."""
-    trajectory = _trajectory(CompositeSystem(elements=[GroupElement('k', element=KickedElement, size=20)]), 50, 1)
+    trajectory = _trajectory(_system('k', 20), 50, 1)
     after = np.concatenate([record.after for record in trajectory.events])
     assert after.shape[0] > 500
     assert np.all(after[:, 0] + after[:, 1] == 0)
@@ -179,15 +119,15 @@ def test_renewal_stepper_shares_a_draw_within_a_renewal():
 
 def test_renewal_stepper_reproduces_runs_with_one_seed():
     """Test that two runs with random state 0 give equal trajectories and records."""
-    first = _trajectory(CompositeSystem(elements=[GroupElement('k', element=KickedElement, size=20)]), 20, 1)
-    second = _trajectory(CompositeSystem(elements=[GroupElement('k', element=KickedElement, size=20)]), 20, 1)
+    first = _trajectory(_system('k', 20), 20, 1)
+    second = _trajectory(_system('k', 20), 20, 1)
     assert np.array_equal(first.states, second.states)
     assert all(np.array_equal(a.times, b.times) for a, b in zip(first.events, second.events, strict=True))
 
 
 def test_renewal_stepper_counts_exponential_renewals():
     """Test that exponential waits of mean 1 give 1000 renewals by time 1000 within 2 standard errors over 100 runs."""
-    problem = PassCompiler().prepare(CompositeSystem(elements=[CounterElement('c')])).run().problem_
+    problem = _system('c').prepare()._problem
     step = StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1000.0)
     counts = [
         float(
@@ -201,7 +141,7 @@ def test_renewal_stepper_counts_exponential_renewals():
 def test_renewal_stepper_counts_power_law_renewals():
     """Test that Pareto waits of tail exponent 0.5 for 10000 members give a mean count growing as t^0.5."""
     trajectory = _trajectory(
-        CompositeSystem(elements=[GroupElement('w', element=WaitingElement, size=10000)]),
+        _system('w', 10000),
         10000,
         100,
     )
@@ -211,7 +151,7 @@ def test_renewal_stepper_counts_power_law_renewals():
 
 def test_renewal_stepper_holds_states_between_renewals():
     """Test that every frame holds the states the last renewal at or before its time set."""
-    trajectory = _trajectory(CompositeSystem(elements=[CounterElement('c')]), 20, 0.1)
+    trajectory = _trajectory(_system('c'), 20, 0.1)
     times = np.concatenate([record.times for record in trajectory.events])
     expected = np.searchsorted(times, trajectory.times, side='right')
     assert np.array_equal(trajectory.get_values('c.n'), expected)
@@ -219,7 +159,7 @@ def test_renewal_stepper_holds_states_between_renewals():
 
 def test_renewal_stepper_exposes_the_renewal_count_observable():
     """Test that the observable of a renewal law counts the renewals recorded up to every frame."""
-    trajectory = _trajectory(CompositeSystem(elements=[GroupElement('c', element=CounterElement, size=5)]), 10, 0.5)
+    trajectory = _trajectory(_system('c', 5), 10, 0.5)
     times = np.concatenate([record.times for record in trajectory.events])
     assert np.array_equal(
         trajectory.get_values('ticks.renewals'),
@@ -238,25 +178,16 @@ def test_renewal_stepper_streams_renewals_to_rerun(monkeypatch, tmp_path):
 
     monkeypatch.setattr(rr.RecordingStream, 'log', log)
     observer = RerunObserver('renewals', save_path=tmp_path / 'run.rrd')
-    simulate(
-        CompositeSystem(elements=[GroupElement('c', element=CounterElement, size=5)]),
-        until=5,
-        dt=1,
-        observers=[observer],
-        random_state=0,
-    )
+    _system('c', 5).prepare().simulate(until=5, dt=1, observers=[observer], random_state=0)
     assert logged.count(('ticks.renewals', 'Scalars')) == 6
     assert ('renewals/ticks', 'TextLog') in logged
 
 
-@pytest.mark.parametrize(
-    'system',
-    [GroupElement('f', element=FlierElement, size=1000), GroupElement('f', element=FollowingElement, size=1000)],
-)
-def test_rk4_renews_members_on_their_own_clocks(system):
+@pytest.mark.parametrize('kind', ['flier', 'following'])
+def test_rk4_renews_members_on_their_own_clocks(kind):
     """Test that members renew at their own times, with independent and interacting members."""
-    trajectory = _trajectory(CompositeSystem(elements=[system]), 10, 1, solver=RK4Solver(dt=0.1))
-    clocks = [tuple(_member_times(trajectory, 'f', member)) for member in range(1000)]
+    trajectory = _trajectory(_system(kind, 1000, 'f', RK4Solver(dt=0.1)), 10, 1)
+    clocks = [tuple(_member_times(trajectory, 'renewal', member)) for member in range(1000)]
     renewing = [clock for clock in clocks if clock]
     assert len(renewing) > 950
     assert len(set(renewing)) == len(renewing)
@@ -264,12 +195,7 @@ def test_rk4_renews_members_on_their_own_clocks(system):
 
 def test_rk4_moves_ballistically_between_renewals():
     """Test that the position at every renewal is the previous one plus the velocity times the waiting time."""
-    trajectory = _trajectory(
-        CompositeSystem(elements=[GroupElement('f', element=FlierElement, size=50)]),
-        50,
-        1,
-        solver=RK4Solver(dt=0.25),
-    )
+    trajectory = _trajectory(_system('flier', 50, 'f', RK4Solver(dt=0.25)), 50, 1)
     for member in range(50):
         rows = [
             (time, before, after)
@@ -289,12 +215,7 @@ def test_rk4_moves_ballistically_between_renewals():
 
 def test_renewal_records_name_their_states():
     """Test that a renewal record holds the time, the member, and the member's states before and after it."""
-    record = _trajectory(
-        CompositeSystem(elements=[GroupElement('f', element=FlierElement, size=3)]),
-        5,
-        5,
-        solver=RK4Solver(dt=0.5),
-    ).events[0]
+    record = _trajectory(_system('flier', 3, 'f', RK4Solver(dt=0.5)), 5, 5).events[0]
     assert isinstance(record, RenewalRecordSpec)
     assert record.states == ('f.x', 'f.v')
     assert record.before.shape == record.after.shape == (record.members.size, 2)
@@ -302,13 +223,13 @@ def test_renewal_records_name_their_states():
 
 def test_stepper_rejects_renewals_it_does_not_fire():
     """Test that a stepper without renewals names the steppers that fire them."""
-    problem = PassCompiler().prepare(CompositeSystem(elements=[FlierElement('f')])).run().problem_
+    problem = _system('flier', label='f', solver=RK4Solver()).prepare()._problem
     with pytest.raises(SolverError, match=r'ScipyODESolver does not fire renewal laws. Use RK4Solver'):
         ScipyODESolver(random_state=0).prepare(problem)
 
 
 def test_renewal_stepper_solves_the_renewal_form():
     """Test that the renewal stepper is the default solver of the renewal form."""
-    trajectory = simulate(CompositeSystem(elements=[CounterElement('c')]), until=1, random_state=0)
+    trajectory = _system('c').prepare().simulate(until=1, random_state=0)
     assert trajectory.problem.form == FormKind.RENEWAL
     assert DEFAULT_SOLVERS[FormKind.RENEWAL] is RenewalSolver

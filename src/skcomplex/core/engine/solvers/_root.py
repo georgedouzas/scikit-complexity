@@ -43,22 +43,15 @@ class RootSolver(Solver):
 
     Examples:
         >>> from sage.all__sagemath_symbolics import cos
-        >>> from typing import Annotated
         >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.components.interactions import Interaction
         >>> from skcomplex.core.components.laws import ConstraintLaw
-        >>> from skcomplex.core.components.spaces import StaticTime
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> class FixedPointElement(Element):
-        ...     def __init__(self, label, x: Annotated[float, StateSpec()] = 1.0):
-        ...         super().__init__(label)
-        ...         self.x = x
-        ...
-        ...     def _get_laws(self, s):
-        ...         return [ConstraintLaw(s.x == cos(s.x), target=s.x)]
-        >>> system = CompositeSystem(elements=[FixedPointElement('a')], time=StaticTime())
-        >>> trajectory = simulate(system, until=1.0)
+        >>> from skcomplex.core.systems import System
+        >>> def fix(s):
+        ...     return [ConstraintLaw(s.target.x == cos(s.target.x), target=s.target.x)]
+        >>> fixed = Interaction('fixed', roles={'target': 'a'}, laws=fix)
+        >>> system = System(elements=[Element('a', values={'x': 1.0})], interactions=[fixed])
+        >>> trajectory = system.prepare().simulate(until=1.0)
         >>> round(float(trajectory.get_values('a.x')[0]), 7)
         0.7390851
     """

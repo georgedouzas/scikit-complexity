@@ -1,59 +1,56 @@
 # Control
 
 This page steers a system with a control input. It drives the input by a schedule, computes the optimal control for an
-objective, or closes the loop with a feedback controller. A control input is an adaptive parameter with bounds,
-annotated with `ParameterSpec(adaptive=True, bounds=(lower, upper))`. An adaptive parameter is one whose value may
-change during a run.
+objective, or closes the loop with a feedback controller. A control input is a value of an element that no law
+changes but that a schedule, a solver, or a controller sets during a run. Its bounds are its allowed values, written in
+`Annotated`, such as `power: Annotated[float, RealSet.closed(0, 1)]`.
 
 ## Control inputs
 
 This section declares a control input and drives it by a schedule. A heater warms a room at the rate `power - T`, and
-its power is a control input between 0 and 1. The [`Element`](../core_components/elements.md#element) returns a
-[`RateLaw`](../core_components/laws.md#ratelaw) that reads the power like any parameter. `simulate` raises a
-`ParameterError` for an initial value outside the bounds, at the parameter.
+its power is a control input between 0 and 1. The interaction `warming` sets a
+[`RateLaw`](../core_components/laws.md#ratelaw) that reads the power like any parameter. `prepare` raises a
+`ValidationError` for an initial value outside the bounds.
 
 ```python
 from typing import Annotated
 
+from sage.sets.real_set import RealSet
+
 from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.errors import ParameterError
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.errors import ValidationError
+from skcomplex.core.systems import System
 
 
-class HeaterElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        T: Annotated[float, StateSpec()] = 0.0,
-        power: Annotated[float, ParameterSpec(adaptive=True, bounds=(0, 1))] = 0.0,
-    ):
+class Heater(Element):
+    def __init__(self, label, T=0.0, power: Annotated[float, RealSet.closed(0, 1)] = 0.0):
         super().__init__(label)
         self.T = T
         self.power = power
 
-    def _get_laws(self, s):
-        return [RateLaw(s.T, s.power - s.T)]
+
+def warm(s):
+    return [RateLaw(s.target.T, s.target.power - s.target.T)]
 
 
+warming = Interaction('warming', roles={'target': 'heater'}, laws=warm)
 try:
-    simulate(CompositeSystem(elements=[HeaterElement('heater', power=2.0)]), until=3)
-except ParameterError as error:
+    System(elements=[Heater('heater', power=2.0)], interactions=[warming]).prepare()
+except ValidationError as error:
     message = str(error)
 message
 ```
 
-The message reads "The adaptive parameter heater.power starts at 2.0, outside its bounds (0, 1)", and the fix asks for
-an initial value inside the bounds. A schedule supplies the value of a control input at every time. Here it switches
+The message reads "heater.power = 2.0 is not in its domain [0, 1]", and the fix is an initial value inside the
+bounds. A schedule supplies the value of a control input at every time. Here it switches
 the heater on at time 1.
 
 ```python continuation
-room = CompositeSystem(elements=[HeaterElement('heater')])
+room = System(elements=[Heater('heater')], interactions=[warming]).prepare()
 schedule = {'heater.power': lambda t: 1.0 if t >= 1.0 else 0.0}
-heated = simulate(room, until=3, dt=0.5, schedule=schedule)
+heated = room.simulate(until=3, dt=0.5, schedule=schedule)
 heated.get_values('heater.power').tolist()
 ```
 
@@ -166,14 +163,15 @@ This section closes the loop with a controller of your own. The core holds no fe
 controller is an [`Interaction`](../core_components/interactions.md#interaction) that you write.
 
 - Its control input is a plain value of the plant, such as the `force` of
-  `Element('cart', values={'x': 0.0, 'force': 0.0})`, and it sets that value with a
-  [`BoundaryLaw`](../core_components/laws.md#boundarylaw). A value that a boundary law sets is a state that holds
-  within a solver step, so the plant declares nothing.
+  `Element('cart', values={'x': 0.0, 'force': 0.0})`, and it sets that value with an
+  [`UpdateLaw`](../core_components/laws.md#updatelaw) beside the rate laws, such as `UpdateLaw(s.plant.force, -K * x)`.
+  A value that such an update sets after each solver step is a state that holds within the step, so the plant declares
+  nothing.
 - A proportional-integral-derivative controller sets it to `kp e + ki ∫ e dt - kd y'`, from the error
   `e = setpoint - y` of a measured state. It adds a `RateLaw` for the integral of the error on an element of its own.
 - A state feedback controller sets it to `-K x`.
 
-A boundary law sets the control after every solver step. So a fixed-step solver with small steps makes the controller
+The update sets the control after every solver step. So a fixed-step solver with small steps makes the controller
 close to a continuous one. `PidInvertedPendulumSystem` and `LqrOscillatorSystem` of the catalog are built this way.
 
 ## Linear analysis

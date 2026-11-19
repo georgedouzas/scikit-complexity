@@ -2,19 +2,27 @@
 
 import importlib.util
 import warnings
-from typing import Annotated
 
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import sin, var
 
 from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import both, either, mod, where
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems._expression_printer import ExpressionPrinter
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
+
+
+def _rate_system(label, state, rate, backend='auto', size=None, **values):
+    """Return one element, or a group of a size, whose state changes at a rate, a function of the namespace."""
+    laws = Interaction(
+        'rate',
+        roles={'target': label},
+        laws=lambda s: [RateLaw(getattr(s.target, state).diff(s.t), rate(s))],
+    )
+    return System(elements=[Element(label, values=values, size=size)], interactions=[laws], backend=backend)
 
 
 def test_functions_stay_unevaluated_on_symbols():
@@ -83,23 +91,10 @@ def test_where_branch_not_chosen_raises_no_warning():
 def test_condition_on_a_nested_modulo_of_time_compiles():
     """Test that a condition whose side holds a modulo of time inside another function compiles and switches."""
 
-    class NestedElement(Element):
-        """Nested element."""
+    def rate(s):
+        """Return 1 while the value is below the sine of a switch of time, and 0 otherwise."""
+        return where(s.target.y < sin(where(mod(s.t, 2) < 1, 1, 0)), 1, 0)
 
-        def __init__(
-            self,
-            label: str,
-            *,
-            y: Annotated[object, StateSpec()] = 0.0,
-        ) -> None:
-            super().__init__(label)
-            self.y = y
-
-        def _get_laws(self, s):
-            """Return the laws of the nested element."""
-            return [RateLaw(s.y, where(s.y < sin(where(mod(s.t, 2) < 1, 1, 0)), 1, 0))]
-
-    nested = NestedElement
-    problem = PassCompiler().prepare(CompositeSystem(elements=[nested('n')])).run().problem_
+    problem = _rate_system('n', 'y', rate, y=0.0).prepare()._problem
     assert problem.drift(0.5, problem.initial_state, problem.initial_parameters)[0] == 1.0
     assert problem.drift(1.5, problem.initial_state, problem.initial_parameters)[0] == 0.0

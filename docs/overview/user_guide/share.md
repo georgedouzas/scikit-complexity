@@ -7,9 +7,10 @@ follows its placement rule.
 
 ## The system class
 
-A system of the catalog is a subclass of [`BaseSystem`][skcomplex.core.components.systems.BaseSystem] whose name ends
+A system of the catalog is a subclass of [`BaseSystem`][skcomplex.core.systems.BaseSystem] whose name ends
 in `System`. It takes its model parameters as arguments, stores each under its own name, and builds its components in
-`_build_system`. Four class variables describe it:
+`_prepare`, which sets `system_`, the [`System`][skcomplex.core.systems.System] of its components. Four class
+variables describe it:
 
 - `field` is the field path, a field and a subfield of the catalog, such as `'biology/ecology'`.
 - `topics` are the words that `all_systems` filters by, such as `'predator-prey'`.
@@ -18,16 +19,16 @@ in `System`. It takes its model parameters as arguments, stores each under its o
 
 The tutorial [Build a custom system](build_a_custom_system/index.md) wrote the model as `PeltSystem` from core
 components. The class below builds it from the same core components. A class of the catalog would build it from the
-components that the systems of ecology share in `skcomplex.systems.biology.common`, a population element and the growth,
-predation, and mortality interactions, so that one model has one implementation. Its defaults are the rates of Carpenter
-(2018) and the pelt records of 1900, and its docstring follows the style of the catalog: a summary, a paragraph on what
-the model shows, the arguments, and an example.
+components that the systems of ecology share in `skcomplex.systems.biology.common`, a population element and the
+growth, predation, and mortality interactions, so that one model has one implementation. Its defaults are the rates
+of Carpenter (2018) and the pelt records of 1900, and its docstring follows the style of the catalog: a summary, a
+paragraph on what the model shows, the arguments, and an example.
 
 ```python
-from skcomplex.core.components.elements import DeclaredElement
-from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.systems import BaseSystem, CompositeSystem
-from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.systems import BaseSystem, System
 
 
 class HareLynxSystem(BaseSystem):
@@ -89,30 +90,21 @@ class HareLynxSystem(BaseSystem):
         self.gamma = gamma
         self.delta = delta
 
-    def _build_system(self):
-        hares = DeclaredElement('hares', variables={'x': DeclaredVariableSpec(self.hares, StateSpec())})
-        lynx = DeclaredElement('lynx', variables={'x': DeclaredVariableSpec(self.lynx, StateSpec())})
+    def _prepare(self, context=None):
+        super()._prepare(context)
         alpha, beta, gamma, delta = self.alpha, self.beta, self.gamma, self.delta
-        interactions = [
-            RateInteraction('births', target='hares', state='x', rate=lambda s: alpha * s.target.x),
-            RateInteraction(
-                'hunting',
-                target='hares',
-                state='x',
-                sources=['lynx'],
-                rate=lambda s: -beta * s.target.x * s.sources[0].x,
-            ),
-            RateInteraction(
-                'feeding',
-                target='lynx',
-                state='x',
-                sources=['hares'],
-                rate=lambda s: delta * s.target.x * s.sources[0].x,
-            ),
-            RateInteraction('deaths', target='lynx', state='x', rate=lambda s: -gamma * s.target.x),
-        ]
-        return CompositeSystem(self.label, elements=[hares, lynx], interactions=interactions)
 
+        def predation(s):
+            contacts = s.prey.x * s.predator.x
+            return [RateLaw(s.prey.x, -beta * contacts), RateLaw(s.predator.x, delta * contacts)]
+
+        elements = [Element('hares', values={'x': self.hares}), Element('lynx', values={'x': self.lynx})]
+        interactions = [
+            Interaction('births', roles={'target': 'hares'}, laws=lambda s: [RateLaw(s.target.x, alpha * s.target.x)]),
+            Interaction('predation', roles={'prey': 'hares', 'predator': 'lynx'}, laws=predation),
+            Interaction('deaths', roles={'target': 'lynx'}, laws=lambda s: [RateLaw(s.target.x, -gamma * s.target.x)]),
+        ]
+        self.system_ = System(self.label, elements=elements, interactions=interactions)
 
 HareLynxSystem().get_params()
 ```
@@ -134,13 +126,11 @@ from pathlib import Path
 
 from sklearn.base import clone
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 
-system = HareLynxSystem()
-settings = system.get_run_settings()
+system = HareLynxSystem().prepare()
 observer = RerunObserver('hare_lynx', save_path=Path(tempfile.mkdtemp()) / 'run.rrd')
-trajectory = simulate(system, until=10 * settings['dt'], observers=[observer], random_state=0)
+trajectory = system.simulate(until=10 * system.dt, observers=[observer], random_state=0)
 copy = clone(system)
 hares = trajectory.get_values('hares.x').round(1)[:4].tolist()
 observer.logged_frames_ == len(trajectory.times), copy is not system, hares
@@ -149,9 +139,9 @@ observer.logged_frames_ == len(trajectory.times), copy is not system, hares
 The observer logged all eleven frames, the clone is a new object, and the hares rise from 30.0 to 81.2 thousand in
 1903, as in the build tutorial. The tuned `dt` of one year set the length of the run.
 
-A class of the catalog must also run like the same components put together by hand, and it must say what it is through
-its capability tags. The block below compares the states of a run with those of `LotkaVolterraSystem`, which holds the
-same model with the rates `r`, `a`, `b`, and `d`, and reads the tags.
+A class of the catalog must also run like the same components put together by hand, and it must say what it is, such as
+the kind of problem it is. The block below compares the states of a run with those of `LotkaVolterraSystem`, which holds
+the same model with the rates `r`, `a`, `b`, and `d`, and reads the form of the prepared system.
 
 ```python continuation
 import numpy as np
@@ -159,15 +149,14 @@ import numpy as np
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 reference = LotkaVolterraSystem(prey=30.0, predators=4.0, r=0.55, a=0.028, b=0.024, d=0.80)
-difference = simulate(system, until=20).states - reference.prepare().simulate(until=20, dt=1.0).states
-tags = system.get_tags()
-bool(np.abs(difference).max() < 1e-9), sorted(tags.time), tags.randomness, sorted(tags.laws)
+difference = system.simulate(until=20).states - reference.prepare().simulate(until=20, dt=1.0).states
+bool(np.abs(difference).max() < 1e-9), system.form_
 ```
 
 The states of the two systems agree to within rounding error, below 1e-9 thousand animals, so the new class adds the
-data and the names, not a new model. The tags say that
-the system runs in continuous time, is deterministic, and holds rate laws. The catalog test of the tags reads the same
-values, and the inventory takes them from the class rather than repeating them.
+data and the names, not a new model. The form says that the system is an ordinary differential equation. A class of
+the catalog also says what it is through its capability tags, which its catalog test and the inventory read from the
+class rather than repeating them.
 
 A class is listed by `all_systems` when its module lives in the package `skcomplex.systems` and its body sets `field`.
 The listing reads the sources without importing them, so `field`, `topics`, and `references` must be literal values.
@@ -251,14 +240,13 @@ by a peak of the lynx a year later.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import HareLynxSystem
 
 SYSTEM = 'hare_lynx'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(HareLynxSystem(), observers=[observer])
+trajectory = HareLynxSystem().prepare().simulate(observers=[observer])
 
 # %%
 # The phase plane

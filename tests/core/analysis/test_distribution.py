@@ -4,7 +4,6 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import DistributionResult, distribution
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError, ValidationError
 from skcomplex.systems.economics.finance import GeometricBrownianMotionSystem
 from skcomplex.systems.mathematics.stochastic_processes import PoissonProcessSystem
@@ -103,7 +102,7 @@ def test_moment_ratio_of_any_sample():
     ising = _distribution('moment-ratio', magnetisations)
     assert ising.cumulant[0] == pytest.approx(2 / 3, abs=0.02)
     assert abs(ising.cumulant[1]) < 0.15
-    market = simulate(GeometricBrownianMotionSystem(), until=100, random_state=0, dt=0.01)
+    market = GeometricBrownianMotionSystem().prepare().simulate(until=100, random_state=0, dt=0.01)
     returns = np.diff(np.log(market.get_values('asset.price')))
     prices = _distribution('moment-ratio', returns)
     assert prices.ratio[0] == pytest.approx(3, rel=0.1)

@@ -9,9 +9,10 @@ import skfem
 import toponetx
 import xgi
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace, NetworkSpace
 from skcomplex.core.errors import SpaceError, ValidationError
+from skcomplex.core.systems import System
 
 GRID = skfem.MeshTri.init_tensor(np.linspace(0, 1, 3), np.linspace(0, 1, 3))
 BLOCK = skfem.MeshTet.init_tensor(*[np.linspace(0, 1, 3)] * 3)
@@ -254,9 +255,10 @@ def test_cofaces_list_the_faces_of_every_link_with_their_signs():
 def test_potential_and_field_strength_groups_hold_one_member_per_cell():
     """Test that groups on the edges and hyperedges of a periodic 16 by 16 complex hold 512 and 256 values."""
     space = CellComplexSpace(LatticeSpace((16, 16)))
-    potentials = GroupElement('potentials', element=Element, space=space, on='edges').prepare()
-    strengths = GroupElement('strengths', element=Element, space=space, on='hyperedges').prepare()
-    assert (potentials.size_, strengths.size_) == (512, 256)
+    potentials = Element('potentials', values={'A': 0.0}, space=space, on='edges')
+    strengths = Element('strengths', values={'F': 0.0}, space=space, on='hyperedges')
+    parameters = System(elements=[potentials, strengths]).prepare()._problem.parameters
+    assert (parameters.get_entry('potentials.A').size, parameters.get_entry('strengths.F').size) == (512, 256)
 
 
 @pytest.mark.parametrize(
