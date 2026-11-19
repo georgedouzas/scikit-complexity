@@ -2106,7 +2106,7 @@ class MesaSolver(ExternalSolver):
             )
             for name, reporter in reporters.items()
         }
-        roles = {role: LayoutSpec._get_display_name(name) for role, name in spec.roles.items()}
+        roles = {LayoutSpec._get_display_name(name): role for name, role in spec.roles.items()}
         locations = [MesaSolver._get_location_of(agent) for agent in agents]
         has_locations = any(location is not None for location in locations)
         return AgentSnapshotSpec(ids, values, np.asarray(locations) if has_locations else None, roles)
