@@ -7,6 +7,7 @@ The tissue lies on a square, triangular, or disordered lattice.
 # License: MIT
 
 import functools
+import inspect
 import math
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -18,13 +19,13 @@ import networkx as nx
 import numba
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import NN, SR, oo
+from sage.all__sagemath_symbolics import NN, RR, SR, ConditionSet, Expression, oo
 from sage.sets.real_set import RealSet
 from scipy.spatial import Voronoi
 
-from ....core.components import Observable
+from ....core.components import Observable, Tags
 from ....core.components.elements import Element
-from ....core.components.interactions import SamplingInteraction
+from ....core.components.interactions import Interaction
 from ....core.components.laws import ArrayUpdateLaw, BaseLaw
 from ....core.components.spaces import (
     AdjacencyNeighborhood,
@@ -37,13 +38,22 @@ from ....core.components.spaces import (
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec, ParameterSpec, RoleSpec
+from ....core.specs import BaseSpec, ParameterSpec, Role, RoleSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Indices
 
 MATRIX_AXES = 2
 LATTICES = ('square', 'triangular', 'disordered')
 DEFAULT_ADHESION = ((1.0, 2.0), (2.0, 1.5))
+RULES = ('metropolis', 'glauber')
+
+
+def _is_positive(value: float) -> bool:
+    """Return whether a value is above zero."""
+    return bool(value > 0)
+
+
+POSITIVE_VALUES = ConditionSet(RR, _is_positive)
 
 
 @numba.njit(cache=True)
@@ -224,7 +234,7 @@ class TissueSiteElement(Element):
         self.cell = cell
 
 
-class RegionSamplingInteraction(SamplingInteraction):
+class RegionSamplingInteraction(Interaction):
     """Monte Carlo sampling of regions of integer labels by copies of the labels of neighbours.
 
     The objective is a `RegionScoreSpec`, and the state holds integer labels from 0 on the sites of a `LatticeSpace` or
@@ -234,8 +244,41 @@ class RegionSamplingInteraction(SamplingInteraction):
     keeps the volume and the surface of every region and updates them on every accepted copy. The neighbourhood is that
     of the copies and the contacts, by default the Moore neighbourhood of a square lattice, the six neighbours of a
     triangular lattice, or the edges of a network, whose edge attribute `'weight'` weighs the contact and node
-    attribute `'volume'` the volume of a site. The schedule does not apply. The arguments are those of
-    `SamplingInteraction`, with the move `'copy'`.
+    attribute `'volume'` the volume of a site. It samples the cells of a tissue, the grains of a foam, or the domains
+    of a polycrystal.
+
+    Args:
+        label:
+            The label of the interaction, unique among the components of its system.
+
+        target:
+            The path of the group of sites.
+
+        state:
+            The name of the state that holds the label of a site.
+
+        objective:
+            The score of the regions.
+
+        move:
+            `'copy'`, the copy of the label of a neighbour, the one move of regions.
+
+        intensity:
+            The factor of the change of the score in the acceptance `exp(-intensity * change)`, positive and possibly
+            infinite.
+
+        rule:
+            The acceptance, `'metropolis'` or `'glauber'`.
+
+        neighborhood:
+            The neighbours of a site, or `None` for the default neighbourhood of the space.
+
+        cooling:
+            The function of the time that multiplies one over the intensity, or `None` for a constant intensity.
+
+    Raises:
+        ValidationError:
+            The move is not a copy, the rule is unknown, or the objective is not a region score, raised by `prepare`.
 
     Examples:
         >>> import numpy as np
@@ -258,31 +301,74 @@ class RegionSamplingInteraction(SamplingInteraction):
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (ArrayUpdateLaw,)
 
-    def _check_move(self) -> None:
-        """Raise an error for a move other than `'copy'`, which copies the label of a neighbour."""
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Role,
+        state: str,
+        objective: RegionScoreSpec,
+        move: str = 'copy',
+        intensity: Annotated[float, ParameterSpec(domain=POSITIVE_VALUES)] = 1.0,
+        rule: str = 'metropolis',
+        neighborhood: BaseNeighborhood | None = None,
+        cooling: Callable[[Expression | float], object] | None = None,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.state = state
+        self.objective = objective
+        self.move = move
+        self.intensity = intensity
+        self.rule = rule
+        self.neighborhood = neighborhood
+        self.cooling = cooling
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of the update of the labels, which draws."""
+        return self._get_variant_tags((ArrayUpdateLaw,), stochastic=True)
+
+    def _get_intensity(self, namespace: SimpleNamespace) -> object:
+        """Return the intensity of the acceptance before cooling."""
+        return self._get_parameter_symbol('intensity', namespace)
+
+    def _get_keywords(self, function: Callable[..., object], parameters: Mapping[str, object]) -> dict[str, object]:
+        """Return the parameters that a function names."""
+        try:
+            names = inspect.signature(function).parameters
+        except (TypeError, ValueError):
+            return {}
+        return {name: value for name, value in parameters.items() if name in names}
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Raise an error for a sampling it cannot run, and set the law that samples the labels.
+
+        Args:
+            context:
+                The space the interaction inherits from its system, or the namespace of the target and the parameters.
+
+        Raises:
+            ValidationError:
+                The move is not a copy, the rule is unknown, the objective is not a region score, or the cooling is not
+                callable.
+        """
+        super()._prepare(context)
         if self.move != 'copy':
             error_msg = f"The region sampling {self.label!r} moves labels by the move 'copy', not {self.move!r}."
             raise ValidationError(error_msg)
-
-    def _check_objective(self, objective: object) -> None:
-        """Raise an error for an objective that is not a region score, or a region score it cannot run."""
-        if not isinstance(objective, RegionScoreSpec):
-            error_msg = f'The objective of region sampling {self.label!r} must be a RegionScoreSpec.'
-            raise ValidationError(error_msg)
-        self._check_region_score(objective)
-
-    def _check_region_score(self, score: RegionScoreSpec) -> None:
-        """Raise an error for a region score with a bad move or the heat-bath rule.
-
-        A bad move is a move other than a label copy.
-        """
-        score._check()
-        if self.move != 'copy':
-            error_msg = f"The region score of sampling {self.label!r} moves labels by the move 'copy'."
-            raise ValidationError(error_msg)
-        if self.rule == 'heat-bath':
+        if self.rule not in RULES:
             error_msg = f"The region score of sampling {self.label!r} takes the rule 'metropolis' or 'glauber'."
             raise ValidationError(error_msg)
+        if self.cooling is not None and not callable(self.cooling):
+            error_msg = f'The cooling of sampling {self.label!r} must be a function of the time.'
+            raise ValidationError(error_msg)
+        if not isinstance(self.objective, RegionScoreSpec):
+            error_msg = f'The objective of region sampling {self.label!r} must be a RegionScoreSpec.'
+            raise ValidationError(error_msg)
+        self.objective._check()
+        if isinstance(context, SimpleNamespace):
+            target = getattr(self._get_member(context, 'target'), self.state)
+            self.laws_ = [ArrayUpdateLaw(target, self._sample_regions, label=self.label)]
 
     @staticmethod
     @functools.cache
@@ -374,7 +460,7 @@ class RegionSamplingInteraction(SamplingInteraction):
         The sweep makes as many copies as `hits` times the sites.
         """
         rng = random
-        score = getattr(self, self._get_parameter('objective'))
+        score = self.objective
         if not isinstance(space, (LatticeSpace, NetworkSpace)) or values.size != space.size_:
             error_msg = f'The region score of sampling {self.label!r} reads a label per site of a lattice or a network.'
             raise ValidationError(error_msg)
@@ -411,20 +497,6 @@ class RegionSamplingInteraction(SamplingInteraction):
             (intensity, self.rule == 'metropolis'),
         )
         return labels.reshape(values.shape).astype(values.dtype)
-
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the law that samples the state by the score.
-
-        Args:
-            namespace:
-                The namespace of the symbols the laws can use, with `namespace.target`.
-
-        Returns:
-            laws:
-                The law of the sampling.
-        """
-        target = getattr(self._get_member(namespace, 'target'), self.state)
-        return [ArrayUpdateLaw(target, self._sample_regions, label=self.label)]
 
 
 class CellAdhesionInteraction(RegionSamplingInteraction):
