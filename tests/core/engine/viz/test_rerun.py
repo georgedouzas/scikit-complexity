@@ -116,8 +116,12 @@ def test_rerun_observer_interval_thins_frames(tmp_path):
 def test_scalars_visual_logs_nested_paths():
     """Test that scalar states are logged under the element path."""
     recording = LoggedPaths()
-    system = CompositeSystem(systems=[CompositeSystem('meadow', elements=[PopulationElement('rabbits')])])
-    trajectory = simulate(system, until=0.0)
+    meadow = CompositeSystem(
+        'meadow',
+        elements=[PopulationElement('rabbits')],
+        interactions=[ExponentialGrowthInteraction('growth', target='rabbits')],
+    )
+    trajectory = simulate(CompositeSystem(systems=[meadow]), until=0.0)
     element = trajectory.problem.elements[0]
     frame = FrameSpec(0, 0.0, trajectory.states[-1], trajectory.parameters[-1], trajectory.problem)
     ScalarsVisual(path=element.path, recording=recording).prepare(frame.problem).run(frame)

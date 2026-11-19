@@ -44,7 +44,16 @@ from ...components.spaces import BaseSpace, CellComplexSpace, ContinuousSpace, L
 from ...components.systems import CompositeSystem
 from ...enums import TopologyKind, VariableKind
 from ...errors import ValidationError
-from ...specs import BaseSpec, DeclaredVariableSpec, MatrixGroupSpec, ParameterSpec, StateSpec, SubshiftSpec, VisualSpec
+from ...specs import (
+    BaseSpec,
+    DeclaredVariableSpec,
+    MatrixGroupSpec,
+    ParameterSpec,
+    PowerSeriesSpec,
+    StateSpec,
+    SubshiftSpec,
+    VisualSpec,
+)
 from .._utils import binding_of, bound_labels, declarations_of
 from ..problems._bilinear_law import BilinearLaw
 from ._compilation import Compilation
@@ -351,7 +360,7 @@ class _StateInference:
                 if isinstance(item, set | frozenset):
                     return FiniteEnumeratedSet(sorted(item, key=str))
                 allowed = hasattr(item, '__contains__') and not isinstance(item, str | MatrixGroupSpec)
-                if allowed or isinstance(item, SubshiftSpec):
+                if allowed or isinstance(item, SubshiftSpec | PowerSeriesSpec):
                     return item
             annotation = get_args(annotation)[0]
         annotated = isinstance(annotation, type) and annotation not in {inspect.Parameter.empty, object}
