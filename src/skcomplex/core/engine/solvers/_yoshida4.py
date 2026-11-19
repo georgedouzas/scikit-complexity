@@ -62,22 +62,12 @@ class Yoshida4Solver(Solver):
             The problem is not an ODE, or its states admit no split into two blocks whose rates read only the other.
 
     Examples:
-        >>> from skcomplex.core.components.spaces import ContinuousSpace
-        >>> from skcomplex.core.systems import System
-        >>> from typing import Annotated
         >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.specs import StateSpec
-        >>> class BallElement(Element):
-        ...     def __init__(
-        ...         self, label, x: Annotated[object, StateSpec(vector=True, order=2, role='position')] = 0.0, x_d1=0.0
-        ...     ):
-        ...         super().__init__(label)
-        ...         self.x = x
-        ...         self.x_d1 = x_d1
-        >>> from skcomplex.core.engine.solvers import Yoshida4Solver
-        >>> from skcomplex.core.engine.solvers import StepSpec
-        >>> system = System(elements=[BallElement('ball', x_d1=2.0)], space=ContinuousSpace(n_dim=1))
-        >>> problem = system.prepare().simulate(until=0).problem
+        >>> from skcomplex.core.components.spaces import ContinuousSpace
+        >>> from skcomplex.core.engine.solvers import Yoshida4Solver, StepSpec
+        >>> from skcomplex.core.systems import System
+        >>> ball = Element('ball', values={'x': [0.0], "x'": [2.0]}, space=ContinuousSpace(n_dim=1))
+        >>> problem = System(elements=[ball]).prepare().simulate(until=0).problem
         >>> stepper = Yoshida4Solver(dt=0.1).prepare(problem)
         >>> stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_.round(10).tolist()
         [2.0, 2.0]
