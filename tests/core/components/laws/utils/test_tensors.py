@@ -1,12 +1,11 @@
 """Test the `_tensors` module of `skcomplex.core.components.laws.utils`."""
 
-from typing import Annotated
-
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import SR, identity_matrix, var, vector
 
-from skcomplex.core.components.elements import Element, FieldElement
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import (
     antisymmetric_part,
@@ -20,41 +19,24 @@ from skcomplex.core.components.laws.utils import (
 )
 from skcomplex.core.components.laws.utils._tensors import distribute_operators
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumpyBackend
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.errors import TensorShapeError
-from skcomplex.core.specs import StateSpec
-
-
-def _vector_element(rate):
-    """Return an element with a scalar `f`, a vector `g`, and a vector `w`, whose rate a function gives."""
-
-    class VectorElement(Element):
-        def __init__(
-            self,
-            label,
-            w: Annotated[object, StateSpec(vector=True)] = 0.0,
-            g: Annotated[object, StateSpec(vector=True)] = 0.0,
-            f: Annotated[object, StateSpec()] = 0.0,
-        ):
-            super().__init__(label)
-            self.w = w
-            self.g = g
-            self.f = f
-
-        def _get_laws(self, namespace):
-            return [RateLaw(namespace.w, rate(namespace))]
-
-    return VectorElement
+from skcomplex.core.systems import System
 
 
 def _rate_of_w(rate, space, values, **settings):
-    """Return the rate of the state `w` at its initial values, with one row per site."""
-    field = FieldElement('m', element=_vector_element(rate), space=space, values=values, **settings)
-    problem = PassCompiler(backend=NumpyBackend()).prepare(CompositeSystem(elements=[field])).run().problem_
+    """Return the rate of the vector `w` at its initial values, with one row per site.
+
+    The field holds a scalar `f`, a vector `g`, and a vector `w` at every site, and the rate is a function of the
+    namespace of the field. The settings, such as the discretization, go to the space.
+    """
+    sites, dimensions = int(np.prod(space.shape)), len(space.shape)
+    start = {'w': np.zeros((sites, dimensions)), 'g': np.zeros((sites, dimensions)), 'f': np.zeros(sites), **values}
+    field = Element('m', values=start, space=space.set_params(**settings))
+    laws = Interaction('rate', roles={'target': 'm'}, laws=lambda s: [RateLaw(s.target.w.diff(s.t), rate(s.target))])
+    problem = System(elements=[field], interactions=[laws], backend=NumpyBackend()).prepare()._problem
     drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
-    return np.reshape(problem.states.read(drift, 'm.w'), (np.prod(space.shape), -1))
+    return np.reshape(problem.states.read(drift, 'm.w'), (sites, -1))
 
 
 def test_tensor_divergence_of_a_diagonal_tensor_on_a_spectral_field():
