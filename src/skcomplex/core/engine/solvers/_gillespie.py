@@ -32,8 +32,7 @@ class GillespieSolver(Solver):
         >>> from typing import Annotated
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.interactions import JumpInteraction
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.core.engine.solvers import GillespieSolver
         >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.engine.solvers import StepSpec
@@ -45,8 +44,8 @@ class GillespieSolver(Solver):
         ...         self.i = i
         ...         self.r = r
         >>> recovery = JumpInteraction('recovery', target='pop', changes={'i': -1, 'r': 1}, rate=lambda s: s.target.i)
-        >>> system = CompositeSystem(elements=[PopulationElement('pop')], interactions=[recovery])
-        >>> problem = simulate(system, until=0).problem
+        >>> system = System(elements=[PopulationElement('pop')], interactions=[recovery])
+        >>> problem = system.prepare().simulate(until=0).problem
         >>> stepper = GillespieSolver(random_state=0).prepare(problem)
         >>> stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 100.0)).state_.tolist()
         [0.0, 10.0]

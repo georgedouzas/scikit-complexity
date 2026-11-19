@@ -50,16 +50,15 @@ class RK4Solver(Solver):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.solvers import RK4Solver
         >>> from skcomplex.core.engine.solvers import StepSpec
-        >>> system = CompositeSystem(
+        >>> system = System(
         ...     elements=[PopulationElement('a', x=1)],
         ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ... )
-        >>> problem = simulate(system, until=0).problem
+        >>> problem = system.prepare().simulate(until=0).problem
         >>> stepper = RK4Solver(dt=0.001, random_state=0).prepare(problem)
         >>> step = StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)
         >>> round(float(stepper.run(step).state_[0]), 10)
