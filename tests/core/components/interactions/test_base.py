@@ -54,7 +54,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.enums import ElementKind
-from skcomplex.core.errors import SpaceError, ValidationError
+from skcomplex.core.errors import ParameterError, SpaceError, ValidationError
 from skcomplex.core.specs import BaseSpec, ParameterSpec, Role, RoleSpec, StateSpec
 from skcomplex.core.systems import System
 from skcomplex.systems.general.agents import (
@@ -994,3 +994,26 @@ def test_rate_of_the_derivative_of_a_complex_state_is_its_rate():
 def test_second_derivative_of_a_complex_state_gives_it_a_second_order():
     """Test that `z'' = i z` from rest at one gives `cosh(sqrt(i) t)` at the end."""
     assert _get_rotated(lambda s: s.point.z.diff(s.t, 2)) == pytest.approx(np.cosh(np.sqrt(1j)), rel=1e-5)
+
+
+class Contraction(Interaction):
+    """Decay `x' = -a[0, 0, 0] x` of one element at a rate read from a tensor."""
+
+    def __init__(self, label: str, *, target: Role = 'ball', a: object = None) -> None:
+        super().__init__(label)
+        self.target = target
+        self.a = a
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the decay at the first entry of the tensor."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [RateLaw(context.target.x, -context.a[0][0][0] * context.target.x)]
+
+
+def test_array_argument_no_group_shapes_is_an_issue_of_the_shape_of_a_parameter():
+    """Test that a tensor argument read by the laws of one element is named as an issue, not an attribute error."""
+    contraction = Contraction('contraction', a=np.ones((2, 2, 2)))
+    system = System(elements=[Element('ball', values={'x': 1.0})], interactions=[contraction])
+    with pytest.raises(ParameterError, match=r'contraction\.a is an array of shape \(2, 2, 2\).*\[parameter-shape\]'):
+        system.prepare()

@@ -23,7 +23,7 @@ from sage.symbolic.operators import FDerivativeOperator
 from sklearn.base import clone
 
 from ...enums import DomainKind
-from ...errors import SpaceError, ValidationError
+from ...errors import ParameterError, SpaceError, ValidationError
 from ...specs import BaseSpec, DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec
 from .._tags import Tags
 from ..base import BaseComponent
@@ -526,7 +526,15 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         }
         functional = SimpleNamespace(**roles)
         prepared = copy.copy(self)
-        prepared.prepare(functional)
+        try:
+            prepared.prepare(functional)
+        except AttributeError as error:
+            if error.obj is not functional or not isinstance(
+                self.get_params(deep=False).get(error.name),
+                list | np.ndarray,
+            ):
+                raise
+            raise self._get_unshaped_error(error.name) from error
         laws: list[BaseComponent] = []
         for law in prepared.laws_:
             rule = self._get_rule(law, roles, functional)
@@ -538,6 +546,19 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
             terms = FlowTermLaw._get_terms(translated, self.label) if flow else [translated]
             laws.extend(self._get_local_rule(self._get_normalized(term)) for term in terms)
         return laws
+
+    def _get_unshaped_error(self, name: str) -> ParameterError:
+        """Return the error of an array argument that the laws read but that no group shapes.
+
+        An array argument is a parameter when it is a vector, a square matrix of 2 or 3 rows, or an array with one
+        axis per role whose group has as many members, such as the interaction matrix of the species of a community.
+        """
+        shape = np.shape(self.get_params(deep=False)[name])
+        error_msg = (
+            f'{self.label}.{name} is an array of shape {shape}, which no group bound to a role of {self.label} shapes. '
+            'Give a vector, a square matrix of 2 or 3 rows, or one axis per role whose group has as many members.'
+        )
+        return ParameterError(error_msg)
 
     @staticmethod
     def _get_local_rule(law: BaseComponent) -> BaseComponent:
