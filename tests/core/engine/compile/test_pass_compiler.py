@@ -1221,7 +1221,7 @@ def test_compiler_mixed_kinds_raises_error():
 
 def test_compiler_names_nested_states_by_path():
     """Test that nested states are named by their path."""
-    system = CompositeSystem(systems=[CompositeSystem('meadow', elements=[PopulationElement('rabbits', x=3)])])
+    system = CompositeSystem(systems=[CompositeSystem('meadow', elements=[AmountElement('rabbits', x=3)])])
     problem = PassCompiler().prepare(system).run().problem_
     assert problem.states.names == ['meadow/rabbits.x']
     assert problem.initial_state.tolist() == [3.0]
@@ -1571,7 +1571,7 @@ def test_compile_periodic_box_wraps_positions():
 def test_compile_group_callable_rate():
     """Test that a callable law over a group returns one value per member."""
     system = CompositeSystem(
-        elements=[GroupElement('herds', element=PopulationElement, size=3, values={'x': [1.0, 2.0, 3.0]})],
+        elements=[GroupElement('herds', element=AmountElement, size=3, values={'x': [1.0, 2.0, 3.0]})],
         interactions=[DoublingInteraction('d', target='herds')],
     )
     problem = PassCompiler().prepare(system).run().problem_
@@ -1582,7 +1582,7 @@ def test_compile_group_callable_rate():
 def test_compile_group_jumps_have_one_channel_per_member():
     """Test that a jump law over a group has one channel per member."""
     system = CompositeSystem(
-        elements=[GroupElement('herds', element=PopulationElement, size=3, values={'x': [1.0, 2.0, 3.0]})],
+        elements=[GroupElement('herds', element=AmountElement, size=3, values={'x': [1.0, 2.0, 3.0]})],
         interactions=[BirthInteraction('birth', target='herds')],
     )
     problem = PassCompiler().prepare(system).run().problem_
@@ -1593,7 +1593,7 @@ def test_compile_group_jumps_have_one_channel_per_member():
 def test_compile_group_noise_has_one_process_per_member():
     """Test that a noise law over a group drives every member with its own process."""
     system = CompositeSystem(
-        elements=[GroupElement('herds', element=PopulationElement, size=3, values={'x': [1.0, 2.0, 3.0]})],
+        elements=[GroupElement('herds', element=AmountElement, size=3, values={'x': [1.0, 2.0, 3.0]})],
         interactions=[VolatilityInteraction('vol', target='herds')],
     )
     problem = PassCompiler().prepare(system).run().problem_
@@ -1604,7 +1604,7 @@ def test_compile_group_noise_has_one_process_per_member():
 def test_compile_group_updates_every_member():
     """Test that a discrete update over a group updates every member."""
     system = CompositeSystem(
-        elements=[GroupElement('herds', element=PopulationElement, size=2, values={'x': [4.0, 8.0]})],
+        elements=[GroupElement('herds', element=AmountElement, size=2, values={'x': [4.0, 8.0]})],
         interactions=[HalvingInteraction('half', target='herds')],
     )
     problem = PassCompiler().prepare(system).run().problem_
@@ -1615,7 +1615,7 @@ def test_compile_group_updates_every_member():
 def test_compile_update_of_single_element_from_group_raises_error():
     """Test that an update cannot set a single element from a group."""
     system = CompositeSystem(
-        elements=[GroupElement('herds', element=PopulationElement, size=2), PopulationElement('total')],
+        elements=[GroupElement('herds', element=AmountElement, size=2), AmountElement('total')],
         interactions=[SingleUpdateFromGroupInteraction('sum', target='herds', total='total')],
     )
     with pytest.raises(ValidationError, match='single element from a group'):
@@ -1875,7 +1875,7 @@ def test_passes_run_only_what_a_field_needs():
 
 
 def test_compiler_flattens_the_system_once(monkeypatch):
-    """Test that validating and compiling a system flattens its tree once."""
+    """Test that validating and compiling a system whose values are declared flattens its tree once."""
     calls = []
     flatten = FlattenPass._flatten_system
 
@@ -1883,7 +1883,7 @@ def test_compiler_flattens_the_system_once(monkeypatch):
         calls.append(args[0])
         return flatten(*args, **kwargs)
 
-    system = LotkaVolterraSystem().prepare().system_
+    system = PassCompiler()._get_declared_system(LotkaVolterraSystem().prepare().system_._get_composite())
     monkeypatch.setattr(FlattenPass, '_flatten_system', staticmethod(counted))
     PassCompiler(backend=NumpyBackend()).prepare(system).run()
     assert len(calls) == 1
