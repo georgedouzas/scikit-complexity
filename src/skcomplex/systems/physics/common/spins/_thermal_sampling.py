@@ -1,27 +1,33 @@
 """Define thermal sampling.
 
-Monte Carlo sweeps read an energy at a temperature.
+The Boltzmann weight of an energy at a temperature is sampled by the moves of a Metropolis solver.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import SR, Expression, oo
+from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from .....core.components.interactions import SamplingInteraction
-from .....core.components.spaces import BaseNeighborhood
-from .....core.specs import ParameterSpec, Role
+from .....core.components.base import BaseComponent
+from .....core.components.interactions import Interaction
+from .....core.components.laws import ObjectiveLaw
+from .....core.components.spaces import BaseSpace
+from .....core.specs import Role
 
 
-class ThermalSamplingInteraction(SamplingInteraction):
-    """Monte Carlo sweeps of a state in an energy at a temperature.
+class ThermalSamplingInteraction(Interaction):
+    """Boltzmann weight `exp(-E / T)` of a state of the members of a group, at a temperature.
 
-    The intensity is one over the temperature.
+    The objective of every member is its local energy over the temperature, `E / T`, such as
+    `-s sum_j s_j / T` for an Ising spin, and the `MetropolisSolver` of the system moves the state, such as
+    `MetropolisSolver(moves={'spins.s': 'flip'})`. The temperature is a value of the system, so a sweep or a schedule
+    changes it like any value. It samples the spins of a magnet, the angles of a lattice gauge field, or the opinions
+    of a population with a social energy.
 
     Args:
         label:
@@ -34,32 +40,11 @@ class ThermalSamplingInteraction(SamplingInteraction):
             The name of the state the moves change.
 
         energy:
-            The function `energy(namespace)` of the local energy of a member.
-
-        move:
-            `'flip'`, `'random-value'`, `'rotate'`, `'gaussian'`, `'cluster'`, or a function that proposes values.
+            The function `energy(namespace)` of the local energy of a member, which reads the member as
+            `namespace.target` and a neighbour as `namespace.target.other`.
 
         temperature:
-            The temperature, where 0 accepts only moves that do not raise the energy.
-
-        rule:
-            The acceptance, `'metropolis'`, `'glauber'`, or `'heat-bath'`, which draws among all values of a discrete
-            move by their Boltzmann weights.
-
-        schedule:
-            `'checkerboard'`, `'colored'`, or `'random-sequential'`.
-
-        neighborhood:
-            The neighbourhood the energy reduces over, or `None` for the von Neumann neighbourhood.
-
-        values:
-            The values a random-value move draws from.
-
-        width:
-            The largest change of a rotation, or the standard deviation of a Gaussian move.
-
-        cooling:
-            The function of the time symbol that multiplies the temperature, or `None` for a constant temperature.
+            The temperature.
 
     Examples:
         >>> from skcomplex.core.components.laws.utils import neighbors
@@ -76,42 +61,27 @@ class ThermalSamplingInteraction(SamplingInteraction):
         target: Role,
         state: str,
         energy: Callable[[SimpleNamespace], object],
-        move: str | Callable[..., object] = 'flip',
-        temperature: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        rule: str = 'metropolis',
-        schedule: str = 'checkerboard',
-        neighborhood: BaseNeighborhood | None = None,
-        values: Sequence[float] = (),
-        width: float = 1.0,
-        cooling: Callable[[Expression], object] | None = None,
+        temperature: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(
-            label,
-            target=target,
-            state=state,
-            objective=energy,
-            move=move,
-            rule=rule,
-            schedule=schedule,
-            neighborhood=neighborhood,
-            values=values,
-            width=width,
-            cooling=cooling,
-        )
+        super().__init__(label)
+        self.target = target
+        self.state = state
         self.energy = energy
         self.temperature = temperature
 
-    def _get_parameter(self, name: str) -> str:
-        """Return `energy` for the objective of the general interaction.
+    def _get_temperature(self, namespace: SimpleNamespace) -> object:
+        """Return the temperature the energy is divided by, the parameter `temperature`."""
+        return namespace.temperature
 
-        Any other name is returned unchanged.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the objective of every member, its local energy over the temperature.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        return 'energy' if name == 'objective' else name
-
-    def _get_intensity(self, namespace: SimpleNamespace) -> object:
-        """Return one over the temperature.
-
-        It is infinite at a temperature of zero, which a row score reads as a value.
-        """
-        temperature = SR(self._get_parameter_symbol('temperature', namespace))
-        return float('inf') if temperature.is_zero() else 1 / temperature
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            state = getattr(self._get_member(context, 'target'), self.state)
+            objective = self.energy(context) / self._get_temperature(context)
+            self.laws_: list[BaseComponent] = [ObjectiveLaw(objective, state)]
