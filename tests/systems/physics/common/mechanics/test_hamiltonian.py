@@ -10,7 +10,6 @@ from sage.all__sagemath_symbolics import cos, var, vector
 from skcomplex.core.components.elements import Element, Period
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import Role
@@ -138,13 +137,11 @@ def test_run_rejects_a_momentum_of_another_size():
 
 
 def test_prepare_reports_a_coordinate_of_order_2():
-    """Test that a coordinate of order 2 is one error at the path of the interaction with the fixes."""
+    """Test that a coordinate that another law gives a second derivative is rejected with both orders and the fix."""
     energy = HamiltonianInteraction('energy', target='mass', hamiltonian=lambda s: s.target.p**2 + s.target.q**2)
     push = Interaction('push', roles={'target': 'mass'}, laws=lambda s: [RateLaw(s.target.q.diff(s.t, 2), 0.0)])
     mass = Element('mass', values={'q': 1.0, "q'": 0.0, 'p': 0.0})
     system = System(elements=[mass], interactions=[energy, push])
-    errors = [issue for issue in PassCompiler().prepare(system).report_.issues if issue.severity == 'error']
-    assert len(errors) == 1
-    assert errors[0].path == 'energy'
-    assert 'RateLaw of its second derivative' in errors[0].message
-    assert 'EulerLagrangeInteraction' in errors[0].message
+    with pytest.raises(ValidationError, match=r'mass\.q has rate laws of order 1 and of order 2') as error:
+        system.prepare()
+    assert 'Write each law on the same derivative' in str(error.value)

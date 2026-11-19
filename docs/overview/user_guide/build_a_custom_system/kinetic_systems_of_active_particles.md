@@ -516,12 +516,13 @@ ring = LatticeSpace(8)
 right = LatticeNeighborhood(((1,),))
 shift = cellular_automaton(ring, right, TableSpec({(1,): 1}))
 back = automaton(shift, kind='inverse').inverse
-composition = automaton(shift, kind='compose', second=back).composition.interactions[0]
-law = UpdateLaw(var('alive'), composition.rule, neighborhood=composition.neighborhood).prepare()
-law.run({'space': ring, 'alive': [1, 0, 1, 1, 0, 0, 0, 1]}).value_.tolist()
+composition = automaton(shift, kind='compose', second=back).composition
+start = {'cells.alive': [1, 0, 1, 1, 0, 0, 0, 1]}
+composition.prepare().simulate(until=1, initial_state=start).get_values('cells.alive')[-1].astype(int).tolist()
 ```
 
-The composition returns the configuration `[1, 0, 1, 1, 0, 0, 0, 1]` unchanged, so it is the identity. The `run` of a
+The inverse and the composition are systems like the shift, so `prepare` and `simulate` run them. The composition
+returns the configuration `[1, 0, 1, 1, 0, 0, 0, 1]` unchanged after one step, so it is the identity. The `run` of a
 local rule is one step of the map on configurations. So several steps are a loop over that `run` or a simulation of
 the system, and the two give the same configuration.
 

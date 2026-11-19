@@ -109,6 +109,7 @@ def test_cloning_estimates_the_poisson_generating_function():
     )
     assert estimate.scgf[0] == pytest.approx(np.exp(0.5) - 1, rel=0.02)
     assert estimate.effective_population.shape == (1,)
+    assert isinstance(estimate.system, System)
 
 
 def test_cloning_takes_a_function_of_the_segment():

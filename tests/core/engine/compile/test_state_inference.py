@@ -1637,3 +1637,21 @@ def test_get_declared_keeps_a_value_a_rate_changes_beside_a_rule_of_the_same_int
         interactions=[tending],
     ).prepare()
     assert system.states_ == ('land/soil.x', 'village/farmers.wealth')
+
+
+def test_rate_laws_of_two_orders_on_one_state_are_rejected():
+    """Test that a rate of `x` beside a rate of `x''` is rejected with the state, both orders, and the fix."""
+    drift = Interaction('drift', roles={'target': 'ball'}, laws=lambda s: [RateLaw(s.target.x, 1.0)])
+    gravity = Interaction('gravity', roles={'target': 'ball'}, laws=lambda s: [RateLaw(s.target.x.diff(s.t, 2), -9.81)])
+    system = System(elements=[Element('ball', values={'x': 10.0})], interactions=[drift, gravity])
+    with pytest.raises(ValidationError, match=r'ball\.x has rate laws of order 1 and of order 2') as error:
+        system.prepare()
+    assert 'Write each law on the same derivative' in str(error.value)
+
+
+def test_rate_laws_of_one_order_on_one_state_add_up():
+    """Test that two rates of the same derivative of a state add up."""
+    gravity = Interaction('gravity', roles={'target': 'ball'}, laws=lambda s: [RateLaw(s.target.x.diff(s.t, 2), -9.81)])
+    lift = Interaction('lift', roles={'target': 'ball'}, laws=lambda s: [RateLaw(s.target.x.diff(s.t, 2), 9.81)])
+    system = System(elements=[Element('ball', values={'x': 10.0})], interactions=[gravity, lift]).prepare()
+    assert system.simulate(until=1.0, dt=1.0).get_values('ball.x').tolist() == pytest.approx([10.0, 10.0])

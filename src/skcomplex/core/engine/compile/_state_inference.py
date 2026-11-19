@@ -613,6 +613,26 @@ class _StateInference:
         return max(order, known)
 
     @staticmethod
+    def _check_rate_order(name: str, order: float, known: float | None) -> None:
+        """Raise an error for rate laws of two integer orders on one state.
+
+        Rates of the same derivative add up, but a rate of `x` beside a rate of `x''` states the motion twice.
+
+        Raises:
+            ValidationError:
+                The state has rate laws of two different integer orders.
+        """
+        if known is None or known == order or not float(order).is_integer() or not float(known).is_integer():
+            return
+        low, high = sorted((int(order), int(known)))
+        error_msg = (
+            f'The state {name} has rate laws of order {low} and of order {high}, but the rates of a state add up '
+            f'only on one derivative. Write each law on the same derivative, such as both on the derivative of '
+            f'order {high}, or derive the rates from one interaction.'
+        )
+        raise ValidationError(error_msg)
+
+    @staticmethod
     def _get_densities(law: BaseComponent, named: Mapping[str, str]) -> list[str]:
         """Return the names of the densities a bilinear form reads.
 
@@ -632,6 +652,10 @@ class _StateInference:
         reads the speed of its rotor. A value that rate laws give a fractional derivative has its fractional order.
         A value whose derivative of order `k` a constraint reads has order `k` at least, as the charge of
         `L q'' + R q' + q / C == 0`.
+
+        Raises:
+            ValidationError:
+                A value has rate laws of two different integer orders, or a fractional order beside another order.
         """
         census = Compilation._get_required(compilation.census, 'census')
         layout = Compilation._get_required(compilation.layout, 'layout')
@@ -641,6 +665,7 @@ class _StateInference:
             for variable, entry in block.entries.items()
         }
         orders: dict[str, float] = {}
+        rates: dict[str, float] = {}
         lags: dict[str, int] = {}
         for record in census.records:
             law = record.law
@@ -658,6 +683,9 @@ class _StateInference:
                 names.append(named[str(law.target)])
                 order = 0
             for name in names:
+                if isinstance(law, RateLaw):
+                    _StateInference._check_rate_order(name, order, rates.get(name))
+                    rates[name] = order
                 orders[name] = _StateInference._get_order(name, order, orders.get(name))
             if isinstance(law, ConstraintLaw):
                 for name, steps in _StateInference._get_derivative_orders(law, named).items():

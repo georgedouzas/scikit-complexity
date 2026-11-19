@@ -62,7 +62,9 @@ def _kepler_expressions() -> list[Observable]:
 
 def test_run_reports_the_energy_and_angular_momentum_of_kepler_conserved():
     """Test that the energy and angular momentum of the Kepler problem are conserved and a momentum is not."""
-    analysis = invariants(TwoBodyOrbitSystem().prepare().system_, expressions=_kepler_expressions())
+    system = TwoBodyOrbitSystem().prepare().system_
+    analysis = invariants(system, expressions=_kepler_expressions())
+    assert analysis.system is system
     assert analysis.conserved == {'energy': True, 'angular_momentum': True, 'px': False}
     assert analysis.methods['energy'] == 'symbolic'
     namespace = analysis.namespace.planet

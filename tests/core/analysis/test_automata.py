@@ -1,5 +1,6 @@
 """Test the automaton analysis: decisions, inverses, compositions, difference patterns, entropies, and subshifts."""
 
+import functools
 import hashlib
 import itertools
 from types import SimpleNamespace
@@ -11,13 +12,13 @@ from sage.all__sagemath_gap import PermutationGroup, libgap
 from sage.all__sagemath_symbolics import GF, matrix, var
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from scipy.linalg import circulant
+from sklearn.base import clone
 
 from skcomplex.core.analysis import automaton, entropy
-from skcomplex.core.components.elements import DeclaredElement, Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction, LocalRuleInteraction
 from skcomplex.core.components.laws import (
     LinearRuleSpec,
-    LocalRuleLaw,
     OuterTotalisticSpec,
     TableSpec,
     TotalisticSpec,
@@ -28,10 +29,8 @@ from skcomplex.core.components.spaces import (
     LatticeSpace,
     RadiusNeighborhood,
 )
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.specs import DeclaredVariableSpec, Role, StateSpec, SubshiftSpec
+from skcomplex.core.specs import Role, SubshiftSpec
 from skcomplex.core.systems import System
 from skcomplex.systems.computer_science.automata import lamplighter
 from skcomplex.systems.computer_science.common.automata import CayleySpace, MemoryNeighborhood
@@ -44,36 +43,41 @@ GOLDEN_PAIR = LatticeNeighborhood(((0,), (1,)))
 
 
 class CellElement(Element):
-    """Cell of an automaton with the values 0 and 1."""
+    """Cells of an automaton with the values 0 and 1, one per site of a space."""
 
-    def __init__(self, label, alive: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0):
-        super().__init__(label)
+    def __init__(self, label, alive: Annotated[int, FiniteEnumeratedSet([0, 1])] = 0, space=None):
+        super().__init__(label, space=space)
         self.alive = alive
+
+
+class SubshiftCellElement(Element):
+    """Cells whose value has a subshift as its allowed values, one per site of a space."""
+
+    def __init__(self, label, *, subshift=None, space=None):
+        super().__init__(label, values={'alive': 0}, space=space)
+        self.subshift = subshift
+
+    def _get_hints(self):
+        """Return the subshift as the allowed values of the cells, which is no value itself."""
+        return {'alive': Annotated[int, self.subshift]}
+
+
+def _rule_laws(s, *, rule, neighborhood, schedule=None):
+    """Return the update law of the cells by a rule of their neighbourhood."""
+    return [UpdateLaw(s.target.alive, rule, neighborhood=neighborhood, schedule=schedule)]
 
 
 def _automaton_system(space, neighborhood, rule, **settings):
     """Return the system of an automaton of a space, a neighbourhood, and a rule."""
-    cells = GroupElement('cells', element=CellElement, space=space, on='sites')
-    interaction = LocalRuleInteraction(
-        'rule',
-        target='cells',
-        state='alive',
-        rule=rule,
-        neighborhood=neighborhood,
-        **settings,
-    )
-    return CompositeSystem(elements=[cells], interactions=[interaction])
+    laws = functools.partial(_rule_laws, rule=rule, neighborhood=neighborhood, **settings)
+    interaction = Interaction('rule', roles={'target': 'cells'}, laws=laws)
+    return System(elements=[CellElement('cells', space=space)], interactions=[interaction])
 
 
 def _subshift_system(space, neighborhood, forbidden, states=2):
-    """Return the system of a group of cells whose state has a subshift as its domain."""
+    """Return the system of a group of cells whose state has a subshift as its allowed values."""
     domain = SubshiftSpec(neighborhood, forbidden, states)
-    variables = {'alive': DeclaredVariableSpec(0, StateSpec(domain=domain))}
-    return CompositeSystem(
-        elements=[
-            GroupElement('cells', element=DeclaredElement, space=space, values={'variables': variables}, on='sites'),
-        ],
-    )
+    return System(elements=[SubshiftCellElement('cells', subshift=domain, space=space)])
 
 
 class GoldenCellElement(Element):
@@ -97,9 +101,10 @@ def _automaton(kind, source, **settings):
 
 
 def _law(system):
-    """Return the law of the local rule of a system."""
-    interaction = system.interactions[0]
-    return LocalRuleLaw(var('alive'), interaction.neighborhood, interaction.rule).prepare()
+    """Return the local rule that the one interaction of a system sets on the cells."""
+    namespace = SimpleNamespace(target=SimpleNamespace(alive=var('alive')), t=var('t'))
+    law = clone(system.interactions[0]).prepare(namespace).laws_[0]
+    return law._get_local_rule().prepare()
 
 
 def _step(system, configuration):
@@ -279,16 +284,16 @@ def test_reference_values_on_a_lattice():
     shift = _automaton_system(LatticeSpace(8), LatticeNeighborhood(((1,),)), TableSpec({(1,): 1}))
     assert _automaton('inverse', _elementary(30, 8)).inverse is None
     back = _automaton('inverse', shift).inverse
-    assert back.interactions[0].neighborhood.prepare().offsets_ == ((-1,), (0,), (1,))
-    assert back.interactions[0].rule.n_states == 2
-    assert sorted(pattern for pattern, value in back.interactions[0].rule.mapping.items() if value) == [
+    assert _law(back).over.prepare().offsets_ == ((-1,), (0,), (1,))
+    assert _law(back).rule.n_states == 2
+    assert sorted(pattern for pattern, value in _law(back).rule.mapping.items() if value) == [
         (1, 0, 0),
         (1, 0, 1),
         (1, 1, 0),
         (1, 1, 1),
     ]
     composition = _automaton('compose', shift, second=back).composition
-    assert composition.interactions[0].neighborhood.prepare().offsets_ == ((0,), (1,), (2,))
+    assert _law(composition).over.prepare().offsets_ == ((0,), (1,), (2,))
     configurations = np.zeros((8, 8), dtype=int)
     configurations[:, :3] = list(itertools.product((0, 1), repeat=3))
     assert _step(composition, configurations)[:, 0].tolist() == [0, 0, 0, 0, 1, 1, 1, 1]
@@ -306,8 +311,8 @@ def test_reference_values_on_a_group():
     assert _automaton('pre-injective', rotation, window=[1, 2]).pre_injective
     assert _automaton('garden-of-eden', rotation, tries=5, random_state=0).pattern is None
     back = _automaton('inverse', rotation, max_radius=1).inverse
-    assert back.interactions[0].neighborhood.elements == ('1', 'a', 'a^-1')
-    assert sorted(pattern for pattern, value in back.interactions[0].rule.mapping.items() if value) == [
+    assert _law(back).over.elements == ('1', 'a', 'a^-1')
+    assert sorted(pattern for pattern, value in _law(back).rule.mapping.items() if value) == [
         (0, 0, 1),
         (0, 1, 1),
         (1, 0, 1),
@@ -455,7 +460,8 @@ def test_rules_that_are_no_map_of_configurations_raise():
     with pytest.raises(AnalysisError, match='of the cells alone'):
         automaton(_automaton_system(space, LatticeNeighborhood(((-1,), (0,), (1,))), needs_degree))
     double = _automaton_system(space, LatticeNeighborhood(((-1,), (0,), (1,))), rule)
-    double.interactions = [*double.interactions, *double.interactions]
+    first = double.interactions[0]
+    double.interactions = [first, Interaction('again', roles=first.roles, laws=first.laws)]
     with pytest.raises(AnalysisError, match='one local rule'):
         automaton(double)
 
@@ -466,15 +472,8 @@ def test_composition_runs_in_a_simulation():
     back = _automaton('inverse', shift).inverse
     composition = _automaton('compose', shift, second=back).composition
     start = np.array([1, 0, 1, 1, 0, 0, 0, 1])
-    cells = GroupElement(
-        'cells',
-        element=CellElement,
-        space=shift.elements[0].space,
-        values={'alive': start},
-        on='sites',
-    )
-    system = CompositeSystem(elements=[cells], interactions=composition.interactions)
-    trajectory = simulate(system, until=1, dt=1)
+    assert isinstance(composition, System)
+    trajectory = composition.prepare().simulate(until=1, dt=1, initial_state={'cells.alive': start})
     np.testing.assert_array_equal(trajectory.get_values('cells.alive')[-1].astype(int), start)
 
 

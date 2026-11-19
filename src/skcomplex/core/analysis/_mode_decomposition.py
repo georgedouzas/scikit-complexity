@@ -11,11 +11,10 @@ import numpy as np
 from sklearn.base import TransformerMixin, clone
 
 from ..components.laws import BaseLaw, RateLaw
-from ..components.spaces import ContinuousTime
-from ..components.systems import CompositeSystem
 from ..engine._utils import vector
 from ..enums import DataKind
 from ..errors import AnalysisError
+from ..systems import System
 from ..types import Array, ComplexArray
 from ._analysis_tags import AnalysisTags
 from ._base import _read_samples
@@ -45,7 +44,8 @@ class ModeDecompositionResult:
             The series of every run, the names of the variables, and the step.
 
         system:
-            The system of one surrogate element under continuous time, whose states follow `dg/dt = L g + M u`.
+            The `System` of one surrogate element and one interaction whose rate laws `dg/dt = L g + M u` flow in
+            continuous time.
 
         labels:
             The variables, or the observables of the dictionary, in the order of the states.
@@ -90,14 +90,14 @@ class ModeDecompositionResult:
             The fitted dictionary, which lifts new states to the observables, or `None` without a dictionary.
 
         inputs:
-            The names of the adaptive parameters of the surrogate element that hold the inputs.
+            The names of the parameters of the surrogate element that hold the inputs.
 
         forecast:
             The states at the `horizon` samples after the last one, one row per sample.
     """
 
     samples: _SamplesSpec
-    system: CompositeSystem
+    system: System
     labels: list[str]
     states: list[str]
     last_state: Array
@@ -133,14 +133,14 @@ def mode_decomposition(
     It is computed with PyDMD. The decomposition fits the exact DMD of the one-sample map `g(t + dt) = A g(t)` to the
     pairs of consecutive samples of every run. With a dictionary, `g` holds the observables the dictionary computes from
     the variables, which is extended DMD, and the dictionary should keep the variables among its observables. The fitted
-    system follows the rate law `dg/dt = L g` with `L = Phi diag(ln(mu) / dt) Phi^+` under continuous time and starts at
-    the first sample of the first run. The forecast iterates the map from the last sample of the last run.
+    `System` follows the rate law `dg/dt = L g` with `L = Phi diag(ln(mu) / dt) Phi^+` and starts at the first sample of
+    the first run, so `result.system.prepare().simulate(until=...)` runs it. The forecast iterates the map from the last
+    sample of the last run.
 
     With inputs, the decomposition is dynamic mode decomposition with control, `g(t + dt) = A g(t) + B u(t)`, where `g`
     holds the variables that are not inputs or their observables. The fitted system follows `dg/dt = L g + M u`, where
-    `M` gives the same one-sample map under an input held over the sample. Every input is a bounded adaptive parameter
-    of the surrogate element, bounded by its range in the samples, and the forecast holds the inputs at their last
-    values.
+    `M` gives the same one-sample map under an input held over the sample. Every input is a parameter of the surrogate
+    element whose allowed values are its range in the samples, and the forecast holds the inputs at their last values.
 
     It appears in many fields. It finds the coherent patterns of a fluid flow, of brain activity, and of traffic in a
     city.
@@ -225,7 +225,6 @@ def mode_decomposition(
         label,
         dict(zip(states, map(float, lifted[0][0]), strict=True)),
         _linear_laws(states, generator, names, input_generator),
-        ContinuousTime(),
         inputs=_input_declarations(names, controls),
     )
     last_state = np.asarray(lifted[-1][-1], dtype=float)
@@ -429,8 +428,8 @@ def _linear_laws(
 
     def laws(s: SimpleNamespace) -> list[BaseLaw]:
         """Return the matrix rate law."""
-        symbols = _symbols_of(s, names)
-        read = [*symbols, *_symbols_of(s, inputs)]
+        symbols = _symbols_of(s.target, names)
+        read = [*symbols, *_symbols_of(s.target, inputs)]
         rows = [sum(float(value) * item for value, item in zip(row, read, strict=True) if value) for row in matrix]
         return [RateLaw(vector(symbols), vector(rows))]
 

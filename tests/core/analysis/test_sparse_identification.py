@@ -4,13 +4,10 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import sparse_identification
-from skcomplex.core.components.spaces import ContinuousTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
-from skcomplex.core.engine.solvers._defaults import DEFAULT_SOLVERS
+from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import AnalysisError
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 from skcomplex.systems.mathematics.dynamical_systems import LorenzSystem
 
@@ -35,7 +32,7 @@ def _fit(source, **settings):
 def _lorenz_trajectory():
     """Return a noise-free trajectory of the Lorenz system, sampled every 0.002 for 10 time units."""
     solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-10)
-    return simulate(LorenzSystem().prepare().system_, until=10.0, solver=solver, dt=0.002)
+    return LorenzSystem(solver=solver).prepare().simulate(until=10.0, dt=0.002)
 
 
 def test_sparse_identification_rediscovers_lorenz():
@@ -52,19 +49,17 @@ def test_sparse_identification_rediscovers_lorenz():
 
 
 def test_sparse_identification_system_validates_with_ode_solver():
-    """Test that a SINDy surrogate of Lorenz validates, declares continuous time, and gets an ODE solver."""
-    system = _fit(_lorenz_trajectory())
-    report = PassCompiler().prepare(system.system).report_
-    assert not report.errors
-    assert isinstance(system.system.time, ContinuousTime)
-    assert DEFAULT_SOLVERS[PassCompiler().prepare(system.system).run().problem_.form] is ScipyODESolver
+    """Test that a SINDy surrogate of Lorenz prepares as differential equations and gets an ODE solver."""
+    system = _fit(_lorenz_trajectory()).system.prepare()
+    assert system.form_ == FormKind.ODE
+    assert isinstance(system.solver_, ScipyODESolver)
 
 
 def test_sparse_identification_system_follows_trajectory():
     """Test that the surrogate run from the first sample follows the trajectory for a short time."""
     trajectory = _lorenz_trajectory()
     system = _fit(trajectory)
-    run = simulate(system.system, until=0.5, dt=0.002)
+    run = system.system.prepare().simulate(until=0.5, dt=0.002)
     assert np.allclose(run.get_values('surrogate.x'), trajectory.get_values('lorenz.x')[:251], atol=0.05)
     assert system.training_error < 1e-3
 
@@ -80,13 +75,11 @@ def test_sparse_identification_fits_series_of_measured_data():
 def test_sparse_identification_run_continues_lotka_volterra():
     """Test that a SINDy surrogate of a Lotka-Volterra run forecasts 50 steps that continue the run."""
     solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-10)
-    trajectory = (
-        LotkaVolterraSystem().prepare().system_.set_params(solver=solver).prepare().simulate(until=20.0, dt=0.01)
-    )
+    trajectory = LotkaVolterraSystem(solver=solver).prepare().simulate(until=20.0, dt=0.01)
     names = ['prey.x', 'predators.x']
     values = np.column_stack([trajectory.get_values(name) for name in names])
     system = _fit(values[:1001], variables=names, degree=2, threshold=0.01, horizon=50, dt=0.01)
-    assert isinstance(system.system, CompositeSystem)
+    assert isinstance(system.system, System)
     assert isinstance(system.training_error, float)
     assert system.forecast.shape == (50, 2)
     assert np.allclose(system.forecast, values[1001:1051], rtol=0.01)

@@ -25,9 +25,10 @@ from ..engine.problems import BaseProblemSpec, ProblemSpec
 from ..engine.problems._dynamics_spec import _DynamicsSpec
 from ..enums import DataKind, FormKind, VariableKind
 from ..errors import AnalysisError
+from ..systems import System
 from ..types import Array
 from ._analysis_tags import AnalysisTags
-from ._base import _check_choice, _check_settings, _composite, _read_system
+from ._base import _check_choice, _check_settings, _composite, _get_system, _read_system
 from ._groups import _Expansion
 from ._symbolic import _declare_domains
 from ._utils import compile_problem
@@ -81,7 +82,7 @@ class StabilityResult:
             `'fixed-points'`.
 
         system:
-            The system of one field, set for `'dispersion'`.
+            The `System` of one field, the one a ready-made system builds, set for `'dispersion'`.
 
         wavenumbers:
             The wave vector of every mode, one row per mode, set for `'dispersion'`.
@@ -111,7 +112,7 @@ class StabilityResult:
     fixed_points: list[dict[str, Expression | float]] | None = None
     eigenvalues: list[npt.NDArray[np.complex128]] | None = None
     classifications: list[str] | None = None
-    system: CompositeSystem | None = None
+    system: System | None = None
     wavenumbers: Array | None = None
     magnitudes: Array | None = None
     growth_rates: Array | None = None
@@ -324,17 +325,18 @@ def stability(
         >>> bool(relation.growth_rates.max() > 0), bool(relation.growth_rates[0] < 0)
         (True, True)
     """
-    source = _composite(source)
+    system = _get_system(source)
+    source = _composite(system)
     _check_choice('stability', 'kind', kind, KINDS)
     _check_settings(stability, 'kind', SETTINGS[kind], kind=kind, parameters=parameters, points=points, at=at)
     if kind == 'dispersion':
-        if not isinstance(source, CompositeSystem):
-            error_msg = f'A dispersion relation is computed from a system, not from {type(source).__name__}.'
+        if not isinstance(system, System) or not isinstance(source, CompositeSystem):
+            error_msg = f'A dispersion relation is computed from a system, not from {type(system).__name__}.'
             raise AnalysisError(error_msg)
         declared = PassCompiler()._get_declared_system(source)
         waves, magnitudes, growth_rates, frequencies, uniform = _dispersion_relation(declared, at)
         return StabilityResult(
-            system=source,
+            system=system,
             wavenumbers=waves,
             magnitudes=magnitudes,
             growth_rates=growth_rates,
