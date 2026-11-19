@@ -9,17 +9,14 @@ import pytest
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import Element, FieldElement
-from skcomplex.core.components.interactions import ConservationInteraction
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import divergence
-from skcomplex.core.components.spaces import AxisSpec, LatticeSpace, PhaseSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.spaces import AxisSpec, BaseSpace, LatticeSpace, PhaseSpace
 from skcomplex.core.engine.solvers import SSPRKSolver, StepSpec
 from skcomplex.core.errors import SolverError
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.physics.fluids import BurgersSystem, ShallowWaterSystem
 from skcomplex.systems.social.cooperation import SimplexSpace
 
@@ -34,50 +31,31 @@ class AmountElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        x: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.x = x
 
 
-class CyclicElement(Element):
-    """Cell of five states whose fluxes couple each state to the next, with no closed-form Jacobian eigenvalues."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        u0: Annotated[object, StateSpec()] = 0.0,
-        u1: Annotated[object, StateSpec()] = 0.0,
-        u2: Annotated[object, StateSpec()] = 0.0,
-        u3: Annotated[object, StateSpec()] = 0.0,
-        u4: Annotated[object, StateSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label)
-        self.u0 = u0
-        self.u1 = u1
-        self.u2 = u2
-        self.u3 = u3
-        self.u4 = u4
-
-    def _get_laws(self, s):
-        """Return one conservation law per state, the Burgers flux plus the next state."""
-        states = [s.u0, s.u1, s.u2, s.u3, s.u4]
-        return [
-            RateLaw(state, -divergence([state**2 / 2 + states[(index + 1) % N_STATES] / 2]))
-            for index, state in enumerate(states)
-        ]
+def _cyclic_laws(s):
+    """Return one conservation law per state, the Burgers flux plus the next state, with no closed-form eigenvalues."""
+    states = [getattr(s.target, f'u{index}') for index in range(N_STATES)]
+    return [
+        RateLaw(state, -divergence([state**2 / 2 + states[(index + 1) % N_STATES] / 2]))
+        for index, state in enumerate(states)
+    ]
 
 
 def _volume(system):
-    """Return the compiled problem and the finite-volume kernel of its only field."""
-    problem = PassCompiler().prepare(system).run().problem_
+    """Return the compiled problem and the finite-volume kernel of the only field of a system."""
+    problem = system.prepare().system_._problem
     return problem, problem.volumes[0]
 
 
 def test_max_speed_matches_numerical_eigenvalues():
     """Test that the closed-form speeds of the dam break agree with the numerical eigenvalues."""
-    problem, volume = _volume(ShallowWaterSystem(200).prepare().system_)
+    problem, volume = _volume(ShallowWaterSystem(200))
     rng = np.random.default_rng(0)
     depth, discharge = volume.starts
     x = problem.initial_state.copy()
@@ -92,7 +70,7 @@ def test_max_speed_matches_numerical_eigenvalues():
 
 def _timed_dam_break(closed):
     """Return the time and the final state of the dam break on 1600 cells, with closed-form or numerical speeds."""
-    problem = PassCompiler(solver=SSPRKSolver()).prepare(ShallowWaterSystem(1600).prepare().system_).run().problem_
+    problem = ShallowWaterSystem(1600, solver=SSPRKSolver()).prepare().system_._problem
     if not closed:
         problem.volumes[0].set_params(speeds=())
     solver = SSPRKSolver().set_params(until=0.5).prepare(problem)
@@ -116,7 +94,7 @@ def test_run_keeps_burgers_shock_conservative_and_monotone():
     """Test that the Burgers shock keeps its total and forms no new extrema with the closed-form speeds."""
     system = BurgersSystem(400).prepare()
     initial = np.asarray(system.system_.elements[0].u)
-    _, volume = _volume(system.system_)
+    _, volume = _volume(system)
     values = system.simulate(until=2.0, dt=2.0).states[-1]
     assert volume.closed_form is True
     assert values.sum() == pytest.approx(initial.sum(), rel=1e-12)
@@ -128,16 +106,12 @@ def test_run_falls_back_to_numerical_eigenvalues_without_closed_form():
     n = 40
     centers = (np.arange(n) + 0.5) * 2 * math.pi / n
     values = {f'u{index}': 1.0 + 0.2 * np.sin(centers + index) for index in range(N_STATES)}
-    field = FieldElement(
-        'line',
-        element=CyclicElement,
-        space=LatticeSpace(n, spacing=2 * math.pi / n),
-        values=values,
-        discretization='finite-volume',
-    )
-    system = CompositeSystem(elements=[field])
+    space = LatticeSpace(n, spacing=2 * math.pi / n, discretization='finite-volume')
+    field = Element('line', values=values, space=space)
+    flux = Interaction('flux', roles={'target': 'line'}, laws=_cyclic_laws)
+    system = System(elements=[field], interactions=[flux], solver=SSPRKSolver())
     _, volume = _volume(system)
-    trajectory = simulate(system, until=0.5, dt=0.5, solver=SSPRKSolver())
+    trajectory = system.simulate(until=0.5, dt=0.5)
     assert volume.closed_form is False
     for index in range(N_STATES):
         total = values[f'u{index}'].sum()
@@ -146,7 +120,7 @@ def test_run_falls_back_to_numerical_eigenvalues_without_closed_form():
 
 def test_max_speed_rejects_states_outside_the_hyperbolic_region():
     """Test that non-real closed-form speeds raise a solver error naming the field."""
-    problem, volume = _volume(ShallowWaterSystem(20).prepare().system_)
+    problem, volume = _volume(ShallowWaterSystem(20))
     x = problem.initial_state.copy()
     x[volume.starts[0] : volume.starts[0] + 20] = -1.0
     with pytest.raises(SolverError, match='channel'):
@@ -156,14 +130,14 @@ def test_max_speed_rejects_states_outside_the_hyperbolic_region():
 @pytest.mark.parametrize('space_type', [PhaseSpace, SimplexSpace])
 def test_max_speed_divides_by_the_smallest_cell_volume(space_type):
     """Test that the wave speed of a field on a simplex is doubled by its half cells, and kept on a phase space."""
-    space = space_type(LatticeSpace((1,)), [AxisSpec('x', 8, 0.0, 1.0), AxisSpec('y', 8, 0.0, 1.0)])
-    groups = FieldElement('groups', element=AmountElement, space=space, discretization='finite-volume')
-    flow = ConservationInteraction(
+    position = LatticeSpace((1,), discretization='finite-volume')
+    space = space_type(position, [AxisSpec('x', 8, 0.0, 1.0), AxisSpec('y', 8, 0.0, 1.0)])
+    groups = AmountElement('groups', space=space)
+    flow = Interaction(
         'flow',
-        target='groups',
-        state='x',
-        flux=lambda s: [0, 0.5 * s.target.x, -0.25 * s.target.x],
+        roles={'target': 'groups'},
+        laws=lambda s: [RateLaw(s.target.x, -divergence([0, 0.5 * s.target.x, -0.25 * s.target.x]))],
     )
-    problem, volume = _volume(CompositeSystem(elements=[groups], interactions=[flow]))
+    problem, volume = _volume(System(elements=[groups], interactions=[flow]))
     speed = volume.get_max_speed(problem.initial_state, problem.initial_parameters)
     assert speed == pytest.approx(1.0 if space_type is SimplexSpace else 0.5)
