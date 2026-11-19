@@ -8,10 +8,8 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.common.kinetics import CompartmentElement
 from skcomplex.systems.biology.common.populations import GrowthInteraction
 
@@ -26,7 +24,7 @@ class BiomassElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        x: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
     ) -> None:
         super().__init__(label)
         self.x = x
@@ -34,11 +32,11 @@ class BiomassElement(Element):
 
 def _run(until=10.0, dt=0.05, **arguments):
     """Return the times and the population of one compartment that grows by the given arguments."""
-    system = CompositeSystem(
+    system = System(
         elements=[CompartmentElement('population', x=N0)],
         interactions=[GrowthInteraction('growth', target='population', **arguments)],
     )
-    trajectory = simulate(system, dt=dt, until=until)
+    trajectory = system.prepare().simulate(dt=dt, until=until)
     return np.asarray(trajectory.times), np.asarray(trajectory.get_values('population.x'))
 
 
@@ -71,11 +69,11 @@ def test_growth_follows_the_closed_solution_of_its_form(arguments, solution):
 
 def test_growth_logistic_inflects_at_half_the_capacity():
     """Test that logistic growth from 1 approaches the capacity 100, and grows fastest at 50."""
-    system = CompositeSystem(
+    system = System(
         elements=[CompartmentElement('population', x=1.0)],
         interactions=[GrowthInteraction('growth', target='population', r=1.0, K=100.0, form='logistic')],
     )
-    trajectory = simulate(system, dt=0.01, until=20)
+    trajectory = system.prepare().simulate(dt=0.01, until=20)
     population = np.asarray(trajectory.get_values('population.x'))
     assert population[-1] == pytest.approx(100.0, rel=1e-6)
     inflection = population[np.argmax(np.diff(population))]
@@ -103,11 +101,11 @@ def test_growth_long_delay_sustains_oscillations():
 
 def test_growth_reads_the_named_state():
     """Test that growth changes the state its argument names."""
-    system = CompositeSystem(
+    system = System(
         elements=[BiomassElement('cells', x=1.0)],
         interactions=[GrowthInteraction('growth', target='cells', r=0.5, state='x')],
     )
-    trajectory = simulate(system, dt=1.0, until=2)
+    trajectory = system.prepare().simulate(dt=1.0, until=2)
     assert trajectory.get_values('cells.x')[-1] == pytest.approx(np.exp(1.0), rel=1e-4)
 
 
