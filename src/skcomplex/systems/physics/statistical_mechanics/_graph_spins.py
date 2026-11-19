@@ -13,7 +13,7 @@ from ....core import systems
 from ....core.components import Observable
 from ....core.components.spaces import AdjacencyNeighborhood, NetworkSpace
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import BaseSolver
+from ....core.engine.solvers import BaseSolver, MetropolisSolver
 from ..common.spins import IsingSamplingInteraction, IsingSpinElement
 
 NODES = 400
@@ -117,11 +117,11 @@ class GraphIsingSystem(systems.BaseSystem):
             temperature=self.temperature,
             space=NetworkSpace(graph),
         )
-        sampling = IsingSamplingInteraction(
-            'sampling',
-            target='spins',
+        sampling = IsingSamplingInteraction('sampling', target='spins')
+        solver = MetropolisSolver(
+            moves={'spins.spin': 'flip'},
             rule=self.sampler,
             schedule='colored',
             neighborhood=AdjacencyNeighborhood(),
         )
-        self.system_ = systems.System(self.label, elements=[group], interactions=[sampling])
+        self.system_ = systems.System(self.label, elements=[group], interactions=[sampling], solver=solver)

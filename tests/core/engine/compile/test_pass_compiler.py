@@ -527,6 +527,22 @@ def test_compiler_reports_an_observable_of_a_missing_system():
     assert [issue.code for issue in report.errors] == ['observable-path']
 
 
+class Switch(Element):
+    """Switch whose state `lit` is off or on."""
+
+    def __init__(self, label: str, *, lit: Annotated[int, {0, 1}] = 0) -> None:
+        super().__init__(label)
+        self.lit = lit
+
+
+def test_rate_of_a_value_of_a_finite_set_is_an_issue_of_its_domain():
+    """Test that a rate law on a value allowed only 0 and 1 is rejected, since a rate moves it continuously."""
+    turn = Interaction('turn', roles={'target': 'switch'}, laws=lambda s: [RateLaw(s.target.lit, 1.0)])
+    system = System(elements=[Switch('switch')], interactions=[turn])
+    with pytest.raises(ValidationError, match=r'changes switch\.lit continuously.*\{0, 1\}.*\[law-domain\]'):
+        system.prepare()
+
+
 def test_census_of_plain_elements_holds_an_observable_a_role_binds():
     """Test that a role bound to an observable of another nested system lets its law make a plain value a state."""
     copy = Interaction(

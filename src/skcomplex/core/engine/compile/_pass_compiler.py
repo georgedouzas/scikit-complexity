@@ -13,6 +13,7 @@ from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from shapely import Polygon
 from sklearn.base import clone
 
@@ -1196,6 +1197,27 @@ class PassCompiler(BaseCompiler):
                 classes = ' or '.join(f'`{TIME_CLASSES[item]}`' for item in requires.time)
                 fix = f'Declare {classes} for its system, or use laws that run in {time.__name__}.'
                 issues.append(IssueSpec('law-time', record.path, message, fix))
+            issues += PassCompiler._get_finite_rate_issues(record, name)
+        return issues
+
+    @staticmethod
+    def _get_finite_rate_issues(record: _CensusRecordSpec, name: str) -> list[IssueSpec]:
+        """Return the issues of a rate or noise law on a value of a finite set.
+
+        A rate moves a value continuously, so it leaves any finite set of allowed values, such as `{0, 1}`.
+        """
+        if not isinstance(record.law, RateLaw | NoiseLaw):
+            return []
+        issues = []
+        for entry in record.targets:
+            if isinstance(entry.domain, FiniteEnumeratedSet):
+                values = ', '.join(map(str, entry.domain))
+                message = (
+                    f'The {name} changes {LayoutSpec._get_display_name(entry.name)} continuously, but its allowed '
+                    f'values are the finite set {{{values}}}.'
+                )
+                fix = 'Change the value with an UpdateLaw or a JumpLaw, or allow it a range of real numbers.'
+                issues.append(IssueSpec('law-domain', record.path, message, fix))
         return issues
 
     @staticmethod
@@ -2096,8 +2118,7 @@ class PassCompiler(BaseCompiler):
     def _get_census_issues(compilation: Compilation) -> list[IssueSpec]:
         """Return the issues of the components that fail to declare or collect.
 
-        Components whose binding is the problem are left out. An array argument that the laws read but that no group
-        shapes is an issue of the shape of a parameter.
+        Components whose binding is the problem are left out.
         """
         census = Compilation._get_required(compilation.census, 'census')
         nodes = Compilation._get_required(compilation.nodes, 'nodes')
@@ -2110,8 +2131,6 @@ class PassCompiler(BaseCompiler):
             if path in unbound:
                 continue
             code, fix = FIXES.get(type(failure), ('value', 'Correct the component as the message describes.'))
-            if isinstance(failure, ParameterError) and isinstance(failure.__cause__, AttributeError):
-                code, fix = 'parameter-shape', 'Bind the roles of the axes of the array to groups of their lengths.'
             issues.append(IssueSpec(code, path, str(failure), fix, error=type(failure)))
         return issues + bindings + shapes + roles
 

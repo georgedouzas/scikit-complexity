@@ -54,7 +54,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.enums import ElementKind
-from skcomplex.core.errors import ParameterError, SpaceError, ValidationError
+from skcomplex.core.errors import ParameterShapeError, SpaceError, ValidationError
 from skcomplex.core.specs import BaseSpec, ParameterSpec, Role, RoleSpec, StateSpec
 from skcomplex.core.systems import System
 from skcomplex.systems.general.agents import (
@@ -1015,5 +1015,8 @@ def test_array_argument_no_group_shapes_is_an_issue_of_the_shape_of_a_parameter(
     """Test that a tensor argument read by the laws of one element is named as an issue, not an attribute error."""
     contraction = Contraction('contraction', a=np.ones((2, 2, 2)))
     system = System(elements=[Element('ball', values={'x': 1.0})], interactions=[contraction])
-    with pytest.raises(ParameterError, match=r'contraction\.a is an array of shape \(2, 2, 2\).*\[parameter-shape\]'):
+    with pytest.raises(
+        ParameterShapeError,
+        match=r'contraction\.a is an array of shape \(2, 2, 2\).*\[parameter-shape\]',
+    ):
         system.prepare()

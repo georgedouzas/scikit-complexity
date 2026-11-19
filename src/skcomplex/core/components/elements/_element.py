@@ -10,16 +10,21 @@ import numbers
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from types import SimpleNamespace
-from typing import ClassVar
+from typing import Annotated, ClassVar, get_args, get_origin
+
+import numpy as np
+from sage.all__sagemath_symbolics import CC, RR, ZZ
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ...errors import ValidationError
-from ...specs import ConnectorSpec, ParameterSpec, StateSpec
+from ...specs import ConnectorSpec, MatrixGroupSpec, ParameterSpec, PowerSeriesSpec, StateSpec, SubshiftSpec
 from .._tags import Tags
 from ..base import BaseComponent
 from ..spaces import BaseSpace, NetworkSpace
 from ._base import BaseElement
 
 RESERVED = ('label', 'size', 'space', 'values')
+BOOLEAN = FiniteEnumeratedSet([0, 1])
 LINKS = ('edges', 'hyperedges')
 RESERVED_MEANINGS = {
     'size': 'number of members',
@@ -175,6 +180,54 @@ class Element(BaseElement):
             "Element('links', values={'sign': 1}, space=network, on='edges')."
         )
         raise ValidationError(error_msg)
+
+    @staticmethod
+    def _get_domain_of(annotation: object, value: object) -> object:
+        """Return the domain of a value from its annotation or its Python type.
+
+        A value without an annotation, such as one given through `values`, takes the domain of its type, so `3` is an
+        integer and `0.5 + 1j` is complex. The annotation `object` says nothing of the kind, so a value annotated so,
+        such as a point that may be one number or an array of complex numbers, also takes the domain of its type, and
+        so does a value of one of several types, such as `float | Sequence[float]`. A subshift, such as
+        `Annotated[int, SubshiftSpec(LatticeNeighborhood(((0,), (1,))), ((1, 1),))]`, is the domain of the cells of a
+        lattice whose configurations hold no forbidden word.
+        """
+        if get_origin(annotation) is Annotated:
+            for item in get_args(annotation)[1:]:
+                if isinstance(item, set | frozenset):
+                    return FiniteEnumeratedSet(sorted(item, key=str))
+                allowed = hasattr(item, '__contains__') and not isinstance(item, str | MatrixGroupSpec)
+                if allowed or isinstance(item, SubshiftSpec | PowerSeriesSpec):
+                    return item
+            annotation = get_args(annotation)[0]
+        annotated = isinstance(annotation, type) and annotation not in {inspect.Parameter.empty, object}
+        kind = annotation if annotated else type(value)
+        if kind is bool:
+            return BOOLEAN
+        if kind is int:
+            return ZZ
+        if kind is complex or (isinstance(kind, type) and issubclass(kind, np.complexfloating)):
+            return CC
+        return RR
+
+    def _get_domain_tags(self) -> frozenset[str]:
+        """Return the domain tags of the states of the element.
+
+        An element that declares no states has the domains of all its numeric values, since the laws of the system
+        decide which of them are states, such as `boolean` for `opinion: Annotated[int, {0, 1}] = 0`.
+        """
+        if self._get_component_specs():
+            return super()._get_domain_tags()
+        params = self.get_params(deep=False)
+        values = {name: params.get(name) for name in self._get_hints()}
+        values |= {name: value for name, value in (self.values or {}).items() if name.isidentifier()}
+        hints = self._get_hints()
+        domains = {
+            StateSpec(domain=self._get_domain_of(hints.get(name, inspect.Parameter.empty), value))._get_domain_tag()
+            for name, value in values.items()
+            if isinstance(value, numbers.Number | list | np.ndarray)
+        }
+        return frozenset(domain for domain in domains if domain is not None)
 
     def _get_hints(self) -> dict[str, object]:
         """Return the type hint of every value argument by name, in their order.

@@ -11,8 +11,7 @@ from collections.abc import Callable, Collection, Mapping
 from typing import Annotated, get_args, get_origin
 
 import numpy as np
-from sage.all__sagemath_symbolics import CC, RR, SR, ZZ, Expression
-from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.all__sagemath_symbolics import RR, SR, Expression
 from shapely import Polygon
 
 from ...components.base import BaseComponent
@@ -49,9 +48,7 @@ from ...specs import (
     DeclaredVariableSpec,
     MatrixGroupSpec,
     ParameterSpec,
-    PowerSeriesSpec,
     StateSpec,
-    SubshiftSpec,
     VisualSpec,
 )
 from .._utils import binding_of, bound_labels, declarations_of
@@ -63,7 +60,6 @@ REGION = 'region'
 LINKS = ('edges', 'hyperedges')
 MIN_RANK = 2
 OTHER = '__other'
-BOOLEAN = FiniteEnumeratedSet([0, 1])
 MEMBERSHIP = frozenset(
     {
         TopologyKind.ADD_NODE,
@@ -247,7 +243,7 @@ class _StateInference:
 
     @staticmethod
     def _is_single(element: Element) -> bool:
-        """Return whether an element is one member whose values are its own, also when they are arrays.
+        """Return whether an element is one member whose values, even arrays, are its own.
 
         Such an element has no size and lies in no space or in a space without sites, such as a ball in the plane or
         a walker on a line, whose position `[0.25]` is a vector of one component and not one value per member.
@@ -258,7 +254,7 @@ class _StateInference:
 
     @staticmethod
     def _get_rows(element: Element, value: object) -> object:
-        """Return the values of the members of an element, one row for the single member of a single element."""
+        """Return the values of the members of an element, one row for a single element."""
         return [value] if _StateInference._is_single(element) else value
 
     @staticmethod
@@ -343,35 +339,6 @@ class _StateInference:
             return False
         specs = type(component)._get_specs()
         return not any(isinstance(spec, StateSpec | ParameterSpec) for spec in specs.values())
-
-    @staticmethod
-    def _get_domain(annotation: object, value: object) -> object:
-        """Return the domain of a value from its annotation or its Python type.
-
-        A value without an annotation, such as one given through `values`, takes the domain of its type, so `3` is an
-        integer and `0.5 + 1j` is complex. The annotation `object` says nothing of the kind, so a value annotated so,
-        such as a point that may be one number or an array of complex numbers, also takes the domain of its type, and
-        so does a value of one of several types, such as `float | Sequence[float]`. A subshift, such as
-        `Annotated[int, SubshiftSpec(LatticeNeighborhood(((0,), (1,))), ((1, 1),))]`, is the domain of the cells of a
-        lattice whose configurations hold no forbidden word.
-        """
-        if get_origin(annotation) is Annotated:
-            for item in get_args(annotation)[1:]:
-                if isinstance(item, set | frozenset):
-                    return FiniteEnumeratedSet(sorted(item, key=str))
-                allowed = hasattr(item, '__contains__') and not isinstance(item, str | MatrixGroupSpec)
-                if allowed or isinstance(item, SubshiftSpec | PowerSeriesSpec):
-                    return item
-            annotation = get_args(annotation)[0]
-        annotated = isinstance(annotation, type) and annotation not in {inspect.Parameter.empty, object}
-        kind = annotation if annotated else type(value)
-        if kind is bool:
-            return BOOLEAN
-        if kind is int:
-            return ZZ
-        if kind is complex or (isinstance(kind, type) and issubclass(kind, np.complexfloating)):
-            return CC
-        return RR
 
     @staticmethod
     def _get_quantity(annotation: object) -> str | None:
@@ -459,7 +426,7 @@ class _StateInference:
                 A starting value is given for a parameter, or for a derivative or past value no law reads.
         """
         annotation = element._get_hints().get(name, inspect.Parameter.empty)
-        domain = self._get_domain(annotation, value)
+        domain = Element._get_domain_of(annotation, value)
         quantity = self._get_quantity(annotation)
         period = self._get_period(annotation)
         member = self._get_member(annotation)
@@ -1162,10 +1129,18 @@ class _StateInference:
         visual = element._get_visual()
         drawing = None if visual == VisualSpec() or (visual.kind == 'agents' and not agents) else visual
         view = element._get_view()
+        kind = type(element).__name__
         if count is None:
-            return [DeclaredElement(element.label, variables=variables, drawing=drawing, view=view)]
+            return [DeclaredElement(element.label, variables=variables, drawing=drawing, view=view, kind=kind)]
         defaults = self._get_class_defaults(element, variables) if agents else None
-        values = {'variables': variables, 'drawing': drawing, 'view': view, 'defaults': defaults, **arrays}
+        values = {
+            'variables': variables,
+            'drawing': drawing,
+            'view': view,
+            'defaults': defaults,
+            'kind': kind,
+            **arrays,
+        }
         if network:
             nodes = GroupElement(
                 element.label,

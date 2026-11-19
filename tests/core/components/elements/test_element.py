@@ -355,6 +355,21 @@ def test_element_on_a_space_has_the_tags_of_its_space():
     assert not Element('ball', values={'x': 1.0}).get_tags().space
 
 
+class VoterElement(Element):
+    """Plain element with an opinion of 0 or 1 and a real confidence."""
+
+    def __init__(self, label: str, *, opinion: Annotated[int, {0, 1}] = 0, confidence: float = 0.5) -> None:
+        super().__init__(label)
+        self.opinion = opinion
+        self.confidence = confidence
+
+
+def test_plain_element_has_the_domains_of_all_its_values_before_prepare():
+    """Test that a plain element, whose laws decide its states, has the domain tags of every numeric value."""
+    assert VoterElement('voter').get_tags().domains == {'boolean', 'real'}
+    assert Element('counter', values={'n': 3}).get_tags().domains == {'integer'}
+
+
 class HeatedElement(Element):
     """Plain element with an annotated temperature and a plain mass."""
 

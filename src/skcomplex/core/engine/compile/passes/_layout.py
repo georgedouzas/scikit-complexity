@@ -204,7 +204,7 @@ class LayoutPass(BasePass):
 
     @staticmethod
     def _is_bare_group(node: _NodeSpec, block: BlockSpec) -> bool:
-        """Return whether a block is a group of members with no values, such as the nodes of a network.
+        """Return whether a block is a group with no values, such as network nodes.
 
         Such a group gets the activity of its members, so a law can count them with `count(over=s.target)`, such as
         the nodes of a network before the laws that add nodes make it a growing group, or the agents of a village.
