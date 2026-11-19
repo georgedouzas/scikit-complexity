@@ -59,7 +59,7 @@ def _velocity_alignment(s):
 
 
 def test_hyperedges_read_the_derivatives_of_their_other_members():
-    """Test that `others[0].x.diff(t)` in a reduction over pairs of neighbours reads the velocity of the other member."""
+    """Test that `others[0].x.diff(t)` in a reduction over pairs of neighbours reads the velocity of the other."""
     birds = Element(
         'birds',
         values={'x': np.array([[0.0, 0.0], [1.0, 0.0]]), "x'": np.array([[1.0, 0.0], [-1.0, 0.0]])},

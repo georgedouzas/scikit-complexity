@@ -16,7 +16,7 @@ from skcomplex.core.components.elements import BaseElement, Element, GroupElemen
 from skcomplex.core.components.interactions import Interaction, WienerProcessSpec
 from skcomplex.core.components.laws import NoiseLaw, RateLaw, TopologyRequestSpec, UpdateLaw
 from skcomplex.core.components.laws.utils import neighbors, total
-from skcomplex.core.components.spaces import BaseSpace, LatticeSpace, NetworkSpace
+from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace, NetworkSpace, RadiusNeighborhood
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
@@ -534,3 +534,27 @@ def test_an_interaction_without_a_class_binds_among_as_a_role():
     system = System(elements=[cells], interactions=[decay]).prepare()
     assert system.equations_ == {'cells.n[i]': '-cells.n[i]'}
     assert system.simulate(until=1.0).get_values('cells.n')[-1] == pytest.approx(np.full(3, np.exp(-1.0)), rel=1e-3)
+
+
+def _push_apart(s):
+    """Return equal and opposite velocities of the two members of a pair, along the line between them."""
+    separation = s.first.x - s.second.x
+    return [RateLaw(s.first.x.diff(s.t), separation), RateLaw(s.second.x.diff(s.t), -separation)]
+
+
+@pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
+def test_interaction_within_a_radius_runs_once_per_pair_of_two_groups(backend):
+    """Test that `within=RadiusNeighborhood(r)` pushes apart only the members of two groups closer than `r`."""
+    space = ContinuousSpace(n_dim=1)
+    left = Element('left', values={'x': np.array([[0.0], [10.0]])}, size=2, space=space)
+    right = Element('right', values={'x': np.array([[1.0]])}, size=1, space=space)
+    push = Interaction(
+        'push',
+        roles={'first': 'left', 'second': 'right'},
+        within=RadiusNeighborhood(2.0),
+        laws=_push_apart,
+    )
+    system = System(elements=[left, right], interactions=[push], space=space, backend=backend()).prepare()
+    trajectory = system.simulate(until=0.001, dt=0.001)
+    assert trajectory.get_values('left.x')[-1].ravel() == pytest.approx([-0.001, 10.0], abs=1e-5)
+    assert trajectory.get_values('right.x')[-1].ravel() == pytest.approx([1.001], abs=1e-5)

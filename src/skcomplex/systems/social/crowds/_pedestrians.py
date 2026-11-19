@@ -9,16 +9,16 @@ from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import Expression, exp, oo
+from sage.all__sagemath_symbolics import SR, Expression, exp, oo, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.interactions import BaseInteraction, Interaction, PairInteraction
+from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import RateLaw
-from ....core.components.spaces import BaseSpace, ContinuousSpace
+from ....core.components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver
-from ....core.specs import ParameterSpec, Role
+from ....core.specs import Role
 from ....core.systems import BaseSystem, System
 from ...general.elements import PointElement
 from ...general.gradients import GradientInteraction
@@ -83,30 +83,25 @@ class MotivationInteraction(Interaction):
             self.laws_ = [RateLaw(x.diff(t, 2), (s.speed * s.direction - x.diff(t)) / s.tau)]
 
 
-class SocialRepulsionInteraction(PairInteraction):
+class SocialRepulsionInteraction(Interaction):
     """Repulsion between two walkers of the social force system.
 
-    Its force is `strength * exp((2 * radius - r) / falloff)`. It derives from the pair energy
-    `strength * falloff * exp((2 * radius - r) / falloff)`.
+    Its force is `strength * exp((2 * radius - r) / falloff)` along the line between the walkers. It derives from the
+    pair energy `strength * falloff * exp((2 * radius - r) / falloff)`, and it runs once for every pair of walkers of
+    the groups `first` and `second` closer than the cutoff, pushing both apart.
 
     Args:
         label:
             The label of the interaction.
 
         first:
-            The path of the group or walker of the first members.
+            The path of the group of the first walkers.
 
         second:
-            The path of the group or walker of the second members.
+            The path of the group of the second walkers, which may be the first group.
 
         cutoff:
             The distance beyond which walkers do not interact.
-
-        position:
-            The name of the vector state that holds the positions of the walkers.
-
-        period:
-            The side of a periodic box, for minimum image distances, or `None` for an open space.
 
         strength:
             The strength of the repulsion.
@@ -126,34 +121,42 @@ class SocialRepulsionInteraction(PairInteraction):
     def __init__(
         self,
         label: str,
-        first: str,
-        second: str,
-        cutoff: float = 1.0,
-        position: str = 'x',
         *,
-        period: float | None = None,
-        strength: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        falloff: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
-        radius: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        first: Role,
+        second: Role,
+        cutoff: float = 1.0,
+        strength: Annotated[float, RealSet.closed_open(0, oo)] = 2.0,
+        falloff: Annotated[float, RealSet.open(0, oo)] = 0.3,
+        radius: Annotated[float, RealSet.closed_open(0, oo)] = 0.3,
     ) -> None:
-        super().__init__(
-            label,
-            first,
-            second,
-            cutoff=cutoff,
-            position=position,
-            potential=self._get_pair_energy,
-            period=period,
-            order=2,
-        )
+        super().__init__(label)
+        self.first = first
+        self.second = second
+        self.cutoff = cutoff
         self.strength = strength
         self.falloff = falloff
         self.radius = radius
 
-    @staticmethod
-    def _get_pair_energy(s: SimpleNamespace, r: Expression) -> Expression:
-        """Return the pair energy `strength * falloff * exp((2 * radius - r) / falloff)`."""
-        return s.strength * s.falloff * exp((2 * s.radius - r) / s.falloff)
+    def _get_within(self) -> RadiusNeighborhood:
+        """Return the neighbourhood of the cutoff, whose pairs of walkers repel."""
+        return RadiusNeighborhood(self.cutoff)
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the accelerations of both walkers of a pair, apart along the line between them.
+
+        Args:
+            context:
+                The namespace of the pair, `s.first` and `s.second`, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s, t = context, context.t
+            separation = s.first.x - s.second.x
+            r = sqrt(separation.dot_product(separation))
+            distance = SR.var('r', domain='positive')
+            energy = s.strength * s.falloff * exp((2 * s.radius - distance) / s.falloff)
+            push = -energy.diff(distance).subs({distance: r}) * separation / r
+            self.laws_ = [RateLaw(s.first.x.diff(t, 2), push), RateLaw(s.second.x.diff(t, 2), -push)]
 
 
 class WallsInteraction(GradientInteraction):
@@ -289,13 +292,7 @@ class SocialForceSystem(BaseSystem):
             ]
         pairs = (('rightward', 'rightward'), ('leftward', 'leftward'), ('rightward', 'leftward'))
         interactions += [
-            SocialRepulsionInteraction(
-                f'{first}_{second}',
-                first=first,
-                second=second,
-                cutoff=cutoff,
-                period=self.length,
-            )
+            SocialRepulsionInteraction(f'{first}_{second}', first=first, second=second, cutoff=cutoff)
             for first, second in pairs
         ]
         self.system_ = System(
