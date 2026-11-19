@@ -291,6 +291,10 @@ Two kinds of model need forms that the table above does not name yet.
 - Linear programs keep their duals. `ObjectiveLaw(..., duals=True)` records the dual value of each constraint, the
   shadow prices of flux balance, and a variable of a program that no constraint bounds is a `prepare` issue.
 
+- Recipes with an agent walk. A recipe such as `ChoiceInteraction` takes no `form` argument. Without a `schedule` it sets
+  symbolic laws, and with one, such as `'synchronous'` or `'random-sequential'`, it sets one rule of the whole system,
+  `UpdateLaw(s, rule)`, that walks the agents in that order with its own draws.
+
 A field law first becomes a recipe of the seven kinds and the core reductions where it can, such as Bak-Sneppen as an
 `UpdateLaw` on the site where `argmin` falls, so it needs no engine code. A law that truly needs numerics of its own,
 such as the Lindblad equation, finite volumes, Cayley graphs, or rewriting, moves with that support: the field package
