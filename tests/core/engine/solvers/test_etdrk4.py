@@ -1,19 +1,16 @@
 """Test the `ETDRK4Solver` class."""
 
 import math
-from typing import Annotated
 
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import Element, FieldElement
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import laplacian
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems import FrameSpec
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import (
     CrankNicolsonSolver,
     ETDRK4Solver,
@@ -22,7 +19,7 @@ from skcomplex.core.engine.solvers import (
 )
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.errors import SolverError, ValidationError
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 from skcomplex.systems.physics.fluids import (
     BurgersSystem,
@@ -35,21 +32,18 @@ from skcomplex.systems.physics.heat import HeatLShapeSystem
 from skcomplex.systems.physics.pattern_formation import SwiftHohenbergSystem
 
 
-class HeatElement(Element):
-    """Heat element."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        u: Annotated[object, StateSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label)
-        self.u = u
-
-    def _get_laws(self, s):
-        """Return the laws of the heat element."""
-        return [RateLaw(s.u, laplacian(s.u))]
+def _heat_rod(space: LatticeSpace, solver: object = 'auto', **values: object) -> System:
+    """Return a rod on a space whose values `u` diffuse."""
+    heat = Interaction(
+        'heat',
+        roles={'target': 'rod'},
+        laws=lambda s: [RateLaw(s.target.u.diff(s.t), laplacian(s.target.u))],
+    )
+    return System(
+        elements=[Element('rod', values={'u': 0.0, **values}, space=space)],
+        interactions=[heat],
+        solver=solver,
+    )
 
 
 def _diffused(discretization):
@@ -59,16 +53,9 @@ def _diffused(discretization):
     positions = np.arange(n) * spacing
     initial = np.sin(3 * positions) + 0.5 * np.cos(5 * positions)
     exact = np.exp(-9 * 0.1) * np.sin(3 * positions) + 0.5 * np.exp(-25 * 0.1) * np.cos(5 * positions)
-    rod = FieldElement(
-        'rod',
-        element=HeatElement,
-        space=LatticeSpace(n, spacing=spacing),
-        values={'u': initial},
-        discretization=discretization,
-    )
-    values = simulate(CompositeSystem(elements=[rod]), until=0.1, dt=0.1, solver=CrankNicolsonSolver(dt=1e-4)).states[
-        -1
-    ]
+    space = LatticeSpace(n, spacing=spacing, discretization=discretization)
+    system = _heat_rod(space, CrankNicolsonSolver(dt=1e-4), u=initial).prepare()
+    values = system.simulate(until=0.1, dt=0.1).states[-1]
     return np.abs(values - exact).max()
 
 
@@ -121,12 +108,7 @@ def test_steppers_need_linear_terms():
     with pytest.raises(SolverError, match='no linear terms'):
         LogisticGrowthSystem().prepare().system_.set_params(solver=IMEXEulerSolver()).prepare().simulate(until=1)
     with pytest.raises(SolverError, match='spectral'):
-        simulate(
-            CompositeSystem(elements=[FieldElement('rod', element=HeatElement, space=LatticeSpace(8))]),
-            until=1,
-            dt=1,
-            solver=ETDRK4Solver(),
-        )
+        _heat_rod(LatticeSpace(8), ETDRK4Solver()).prepare().simulate(until=1, dt=1)
 
 
 def test_burgers_shock_is_conservative():
@@ -202,9 +184,8 @@ def test_convection_onset():
 
 def test_symmetry_needs_periodic_lattice():
     """Test that parities on a lattice with fixed edges are rejected."""
-    rod = FieldElement('rod', element=HeatElement, space=LatticeSpace(8, boundary='fixed'), symmetry={'u': ('odd',)})
     with pytest.raises(ValidationError, match='periodic lattice'):
-        PassCompiler().prepare(CompositeSystem(elements=[rod])).run()
+        _heat_rod(LatticeSpace(8, boundary='fixed', symmetry={'u': ('odd',)})).prepare()
 
 
 def test_swift_hohenberg_rolls():
