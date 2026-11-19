@@ -22,7 +22,7 @@ from ....core.components.laws.utils import neighbors, where
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, MetropolisSolver
-from ....core.specs import Role
+from ....core.types import Role
 from ..common.spins import IsingSamplingInteraction, IsingSpinElement, SpinSamplingInteraction
 
 

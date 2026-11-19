@@ -18,8 +18,8 @@ from ....core.components.laws.utils import hyperedges, neighbors
 from ....core.components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import Role
 from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ...general.elements import PointElement
 
 NEIGHBOURS = 10

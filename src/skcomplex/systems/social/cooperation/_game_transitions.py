@@ -25,9 +25,9 @@ from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver, SystemView
 from ....core.errors import ValidationError
-from ....core.specs import Role, VisualSpec
+from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
-from ....core.types import Array, IntArray
+from ....core.types import Array, IntArray, Role
 
 UPDATES = ('death-birth', 'pairwise')
 MUTUAL_COOPERATION = 2

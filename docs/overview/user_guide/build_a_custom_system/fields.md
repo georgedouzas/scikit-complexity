@@ -21,7 +21,7 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import laplacian
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.specs import Role
+from skcomplex.core.types import Role
 from skcomplex.core.systems import System
 
 
@@ -98,7 +98,7 @@ from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import divergence, laplacian
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.engine.solvers import ETDRK4Solver
-from skcomplex.core.specs import Role
+from skcomplex.core.types import Role
 from skcomplex.core.systems import System
 
 

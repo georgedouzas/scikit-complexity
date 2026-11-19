@@ -16,8 +16,7 @@ from .....core.components.elements import Element, Period
 from .....core.components.interactions import Interaction
 from .....core.components.laws import RateLaw
 from .....core.components.spaces import BaseSpace
-from .....core.specs import Role
-from .....core.types import Array
+from .....core.types import Array, Role
 
 
 class ThetaNeuronElement(Element):

@@ -32,8 +32,8 @@ from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, ScipyODESolver
 from ....core.errors import SpaceError, ValidationError
-from ....core.specs import Role
 from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ..common.relativity import SpacetimeSpace
 
 COUPLING = 8 * math.pi

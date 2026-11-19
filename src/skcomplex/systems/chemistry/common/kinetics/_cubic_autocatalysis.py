@@ -11,7 +11,7 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from .....core.specs import Role
+from .....core.types import Role
 from ....general.reactions import ReactionInteraction
 from ....general.reactions.types import Stoichiometry
 

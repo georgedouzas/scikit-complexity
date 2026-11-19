@@ -13,8 +13,8 @@ from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.physics.common.mechanics import HamiltonianInteraction
 
 

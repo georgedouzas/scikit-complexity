@@ -13,8 +13,8 @@ from skcomplex.core.engine._utils import symbol
 from skcomplex.core.engine.runtime import RecorderObserver
 from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import IncompatibleLawsError, RewritingError, ValidationError
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.biology.common.populations import PopulationElement
 from skcomplex.systems.general.rewriting import (
     AffineSpec,

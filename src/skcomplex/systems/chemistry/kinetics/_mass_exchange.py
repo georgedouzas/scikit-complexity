@@ -16,7 +16,7 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import NoiseLaw, RateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.errors import ValidationError
-from ....core.specs import Role
+from ....core.types import Role
 
 
 class MassExchangeInteraction(Interaction):

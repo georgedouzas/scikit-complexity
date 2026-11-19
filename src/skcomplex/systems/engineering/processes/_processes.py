@@ -22,8 +22,8 @@ from ....core.components.laws.utils import step, where
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import Role
 from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ...general.dynamics import StockFlowSystem
 from ...general.dynamics.types import FlowTable
 

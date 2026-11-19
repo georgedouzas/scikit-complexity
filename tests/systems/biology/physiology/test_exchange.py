@@ -9,8 +9,8 @@ import pytest
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import hill, laplacian
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.biology.physiology import (
     ClosedContourCellExchangeSystem,
     ContourCellElement,

@@ -37,8 +37,9 @@ from skcomplex.core.errors import (
     SpaceError,
     ValidationError,
 )
-from skcomplex.core.specs import ParameterSpec, Role, RoleSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.biology.collective_behaviour import BoidsSystem
 from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
 from skcomplex.systems.general.agents import MovementInteraction

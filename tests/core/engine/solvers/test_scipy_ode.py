@@ -23,8 +23,8 @@ from skcomplex.core.engine.backends import NumpyBackend
 from skcomplex.core.engine.problems import RunStateSpec
 from skcomplex.core.engine.solvers import CrankNicolsonSolver, RK4Solver, ScipyODESolver, StepSpec, _scipy_ode
 from skcomplex.core.errors import SolverError, ValidationError
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
 from skcomplex.systems.biology.ecology import FisherKPPSystem
 from skcomplex.systems.biology.physiology import FitzhughNagumoSystem

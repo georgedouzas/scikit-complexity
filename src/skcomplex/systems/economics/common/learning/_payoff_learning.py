@@ -21,8 +21,7 @@ from .....core.components.laws.utils import where
 from .....core.components.spaces import BaseSpace
 from .....core.components.types import AgentViewProtocol, SystemViewProtocol
 from .....core.errors import ValidationError
-from .....core.specs import Role
-from .....core.types import Array
+from .....core.types import Array, Role
 
 RULES = ('average', 'cumulative')
 FORMS = ('symbolic', 'agent')

@@ -16,7 +16,7 @@ from .....core.components.laws import BaseLaw, RateLaw
 from .....core.components.spaces import BaseSpace
 from .....core.components.types import Target
 from .....core.errors import ValidationError
-from .....core.specs import Role
+from .....core.types import Role
 
 
 class HamiltonianInteraction(Interaction):

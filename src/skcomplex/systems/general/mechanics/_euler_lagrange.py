@@ -15,7 +15,7 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, ConstraintLaw
 from ....core.components.spaces import BaseSpace
 from ....core.errors import ValidationError
-from ....core.specs import Role
+from ....core.types import Role
 
 
 class EulerLagrangeInteraction(Interaction):

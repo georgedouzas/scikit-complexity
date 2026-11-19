@@ -73,7 +73,7 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
 
     Examples:
         >>> from skcomplex.core.components.interactions import BaseInteraction
-        >>> from skcomplex.core.specs import Role
+        >>> from skcomplex.core.types import Role
         >>> class GrowthInteraction(BaseInteraction):
         ...     def __init__(self, label, target: Role, r=1.0):
         ...         super().__init__(label)

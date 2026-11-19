@@ -28,9 +28,9 @@ from ....core.engine.runtime import Trajectory
 from ....core.engine.solvers import BaseSolver
 from ....core.engine.viz import PointsVisual
 from ....core.errors import AnalysisError, ValidationError
-from ....core.specs import Role, VisualSpec
+from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
-from ....core.types import Array
+from ....core.types import Array, Role
 from ..._extras import import_extra
 from ..common.sequences import RowScoreSpec, SequenceSamplingInteraction
 from ._backbone_geometry import BackboneGeometry

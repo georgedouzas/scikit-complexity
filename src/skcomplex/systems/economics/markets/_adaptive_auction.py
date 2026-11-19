@@ -17,8 +17,9 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver, SystemView
-from ....core.specs import Role, VisualSpec
+from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ..common.policy import PolicyRuleInteraction
 
 

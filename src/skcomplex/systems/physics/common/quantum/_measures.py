@@ -144,7 +144,7 @@ def operator_measures(
         >>> from sage.all__sagemath_symbolics import SR
         >>> from skcomplex.core.components.interactions import Interaction
         >>> from skcomplex.core.components.laws.utils import local_operator
-        >>> from skcomplex.core.specs import Role
+        >>> from skcomplex.core.types import Role
         >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.physics.common.quantum import GeneratorLaw, QubitElement, operator_measures
         >>> class Field(Interaction):

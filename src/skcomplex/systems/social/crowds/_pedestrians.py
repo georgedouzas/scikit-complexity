@@ -18,8 +18,8 @@ from ....core.components.laws import RateLaw
 from ....core.components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver
-from ....core.specs import Role
 from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ...general.elements import PointElement
 from ...general.gradients import GradientInteraction
 

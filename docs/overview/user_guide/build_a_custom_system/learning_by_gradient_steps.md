@@ -120,7 +120,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import contraction, count, total
-from skcomplex.core.specs import Role
+from skcomplex.core.types import Role
 from skcomplex.core.systems import System
 
 

@@ -11,7 +11,7 @@ from types import SimpleNamespace
 from .....core.components.interactions import Interaction
 from .....core.components.laws import RateLaw
 from .....core.components.spaces import BaseSpace
-from .....core.specs import Role
+from .....core.types import Role
 
 
 class StuartLandauInteraction(Interaction):

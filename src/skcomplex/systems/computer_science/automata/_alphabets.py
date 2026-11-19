@@ -25,9 +25,9 @@ from ....core.components.spaces import BaseSpace, LatticeNeighborhood, LatticeSp
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ParameterError
-from ....core.specs import PowerSeriesSpec, Role
+from ....core.specs import PowerSeriesSpec
 from ....core.systems import BaseSystem, System
-from ....core.types import Array
+from ....core.types import Array, Role
 from ..common.automata import CayleySpace, StateTranslationNeighborhood
 from ._groups import free_group
 from ._pascal_cell import PascalCellElement

@@ -36,8 +36,8 @@ from skcomplex.core.engine.solvers import (
     ScipyODESolver,
 )
 from skcomplex.core.errors import SolverError, ValidationError
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 

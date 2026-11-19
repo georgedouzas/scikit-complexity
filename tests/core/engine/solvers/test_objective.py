@@ -12,8 +12,8 @@ from skcomplex.core.components.laws import ObjectiveLaw
 from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine.solvers import GradientFlowSolver, MetropolisSolver, MinimizeSolver
 from skcomplex.core.engine.solvers._objective import BaseObjectiveSolver
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
 class Well(Interaction):

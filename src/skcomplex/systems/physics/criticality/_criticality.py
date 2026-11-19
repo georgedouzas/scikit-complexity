@@ -29,9 +29,8 @@ from ....core.components.spaces import (
 )
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import Role
 from ....core.systems import BaseSystem, System
-from ....core.types import Array
+from ....core.types import Array, Role
 from ..common.avalanches import TopplingInteraction
 
 NEAREST = RadiusNeighborhood(1, metric='manhattan', center=True)

@@ -19,8 +19,8 @@ from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec, Role
-from ....core.types import Array
+from ....core.specs import BaseSpec
+from ....core.types import Array, Role
 
 REDUCTIONS = ('sum', 'mean')
 

@@ -12,8 +12,8 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.general.mechanics import EulerLagrangeInteraction
 
 DAMPING, FORCE, OMEGA = 0.3, 0.5, 1.3

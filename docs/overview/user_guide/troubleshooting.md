@@ -327,7 +327,7 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import total
 from skcomplex.core.errors import ParameterShapeError
-from skcomplex.core.specs import Role
+from skcomplex.core.types import Role
 from skcomplex.core.systems import System
 
 

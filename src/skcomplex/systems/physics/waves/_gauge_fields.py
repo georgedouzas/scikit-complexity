@@ -27,9 +27,9 @@ from ....core.engine.backends import BaseBackend
 from ....core.engine.runtime import BaseClock, BaseObserver, Trajectory
 from ....core.engine.solvers import BaseSolver, MetropolisSolver, VelocityVerletSolver
 from ....core.errors import ValidationError
-from ....core.specs import Role, VisualSpec
+from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
-from ....core.types import Array
+from ....core.types import Array, Role
 from ..common.fields import WilsonSamplingInteraction
 
 DYNAMICS = ('monte-carlo', 'hamiltonian')

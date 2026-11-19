@@ -121,7 +121,7 @@ of change of `x`.
 ```python continuation
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.specs import Role
+from skcomplex.core.types import Role
 
 
 class PredationInteraction(Interaction):

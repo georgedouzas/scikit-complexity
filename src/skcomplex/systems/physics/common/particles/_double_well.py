@@ -17,7 +17,7 @@ from .....core.components.elements import Element
 from .....core.components.interactions import Interaction
 from .....core.components.laws import NoiseLaw, RateLaw
 from .....core.components.spaces import BaseSpace
-from .....core.specs import Role
+from .....core.types import Role
 
 
 class DoubleWellElement(Element):

@@ -13,7 +13,7 @@ from .....core.components.interactions import Interaction
 from .....core.components.laws import RateLaw
 from .....core.components.laws.utils import neighbors
 from .....core.components.spaces import BaseSpace, RadiusNeighborhood
-from .....core.specs import Role
+from .....core.types import Role
 
 
 class LennardJonesInteraction(Interaction):

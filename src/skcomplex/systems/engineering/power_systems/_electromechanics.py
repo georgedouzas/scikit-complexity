@@ -22,8 +22,8 @@ from ....core.components.laws.utils import pulse_train, sign
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import Role
 from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ..common.mechanics import SpringDamperInteraction

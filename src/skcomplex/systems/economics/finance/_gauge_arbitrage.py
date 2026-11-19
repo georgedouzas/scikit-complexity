@@ -26,9 +26,9 @@ from ....core.components.laws.utils import codifferential, exterior_derivative
 from ....core.components.spaces import BaseSpace, CellComplexSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver
-from ....core.specs import Role, VisualSpec
+from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
-from ....core.types import Array
+from ....core.types import Array, Role
 
 SOLVER_TOLERANCE = 1e-15
 

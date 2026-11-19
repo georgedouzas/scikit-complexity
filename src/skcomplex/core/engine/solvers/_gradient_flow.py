@@ -34,7 +34,7 @@ class GradientFlowSolver(BaseObjectiveSolver):
         >>> from skcomplex.core.components.interactions import Interaction
         >>> from skcomplex.core.components.laws import ObjectiveLaw
         >>> from skcomplex.core.engine.solvers import GradientFlowSolver
-        >>> from skcomplex.core.specs import Role
+        >>> from skcomplex.core.types import Role
         >>> from skcomplex.core.systems import System
         >>> class Well(Interaction):
         ...     def __init__(self, label, *, target: Role = 'ball'):

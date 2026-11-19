@@ -307,7 +307,7 @@ import numba
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import CallSpec, RateLaw
-from skcomplex.core.specs import Role
+from skcomplex.core.types import Role
 from skcomplex.core.systems import System
 
 
@@ -354,7 +354,7 @@ from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import ContinuousSpace, RadiusNeighborhood
 from skcomplex.core.engine.solvers import LammpsSolver
-from skcomplex.core.specs import Role
+from skcomplex.core.types import Role
 from skcomplex.core.systems import System
 
 
@@ -460,7 +460,7 @@ from types import SimpleNamespace
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, UpdateLaw
-from skcomplex.core.specs import Role
+from skcomplex.core.types import Role
 from skcomplex.core.systems import System
 
 

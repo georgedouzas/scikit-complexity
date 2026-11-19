@@ -11,7 +11,7 @@ from types import SimpleNamespace
 from sage.all__sagemath_symbolics import Expression
 
 from .....core.components.laws.utils import neighbors
-from .....core.specs import Role
+from .....core.types import Role
 from ._spin_sampling import SpinSamplingInteraction
 
 

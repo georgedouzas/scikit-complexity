@@ -14,8 +14,9 @@ from skcomplex.core.components.laws import BaseLaw, RateLaw
 from skcomplex.core.components.spaces import BaseNeighborhood, BaseSpace, BaseTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, Role, RoleSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
 class DoublingComponent(BaseComponent):

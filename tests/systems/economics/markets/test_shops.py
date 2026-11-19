@@ -14,8 +14,8 @@ from skcomplex.core.engine.compile import PhaseSpec
 from skcomplex.core.engine.runtime import Trajectory
 from skcomplex.core.engine.solvers import MesaSolver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.economics.common.policy import PolicyRuleInteraction
 from skcomplex.systems.economics.markets import PriceAdjustmentInteraction, ShopsSystem
 

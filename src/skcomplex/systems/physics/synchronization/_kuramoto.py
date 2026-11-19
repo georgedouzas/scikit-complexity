@@ -24,8 +24,9 @@ from ....core.components.spaces import BaseNeighborhood, BaseSpace, ContinuousSp
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import Role, VisualSpec
+from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ..common.oscillators import (
     PhaseOscillatorElement,
     PhaseRotationInteraction,

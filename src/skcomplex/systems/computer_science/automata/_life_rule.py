@@ -10,7 +10,7 @@ from ....core.components.base import BaseComponent
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseNeighborhood, BaseSpace, RadiusNeighborhood
-from ....core.specs import Role
+from ....core.types import Role
 from ._codes import life
 
 MOORE = RadiusNeighborhood(1, metric='chebyshev')

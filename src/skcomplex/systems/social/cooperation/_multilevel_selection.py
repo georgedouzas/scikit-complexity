@@ -23,8 +23,9 @@ from ....core.components.spaces import AxisSpec, BaseSpace, FiniteVolumeSpec, La
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver
 from ....core.errors import ValidationError
-from ....core.specs import Role, VisualSpec
+from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ..common.kinetics import ActivityDensityElement
 
 PAIRWISE_VICTORIES = ('fermi', 'local', 'tullock')

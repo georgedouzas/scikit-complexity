@@ -22,8 +22,9 @@ from ....core.components.laws.utils import bernoulli, where
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import Role, VisualSpec
+from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from .types import Window
 
 MANDELBROT_WINDOW: Window = (-2.2, 0.8, -1.2, 1.2)

@@ -11,8 +11,8 @@ from skcomplex.core.components.laws.utils import local_operator
 from skcomplex.core.components.spaces import BaseSpace, LatticeSpace
 from skcomplex.core.engine.solvers import BaseSolver
 from skcomplex.core.errors import SolverError
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.physics.common.quantum import (
     DissipatorLaw,
     GeneratorLaw,

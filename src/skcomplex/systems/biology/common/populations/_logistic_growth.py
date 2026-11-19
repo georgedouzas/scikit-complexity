@@ -9,7 +9,7 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from .....core.specs import Role
+from .....core.types import Role
 from ._growth import GrowthInteraction
 
 

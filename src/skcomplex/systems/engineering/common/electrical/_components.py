@@ -16,7 +16,7 @@ from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, ConstraintLaw
 from .....core.components.spaces import BaseSpace
-from .....core.specs import Role
+from .....core.types import Role
 
 POSITIVE = RealSet.open(0, oo)
 

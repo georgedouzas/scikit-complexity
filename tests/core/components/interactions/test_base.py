@@ -55,8 +55,9 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.enums import ElementKind
 from skcomplex.core.errors import ParameterShapeError, SpaceError, ValidationError
-from skcomplex.core.specs import BaseSpec, ParameterSpec, Role, RoleSpec, StateSpec
+from skcomplex.core.specs import BaseSpec, ParameterSpec, RoleSpec, StateSpec
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.general.agents import (
     BirthDeathInteraction,
     ChoiceInteraction,

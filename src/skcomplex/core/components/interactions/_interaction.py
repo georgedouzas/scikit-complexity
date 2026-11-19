@@ -89,7 +89,7 @@ class Interaction(BaseInteraction):
         >>> from sage.all__sagemath_symbolics import oo
         >>> from sage.sets.real_set import RealSet
         >>> from skcomplex.core.components.interactions import Interaction
-        >>> from skcomplex.core.specs import Role
+        >>> from skcomplex.core.types import Role
         >>> class PredationInteraction(Interaction):
         ...     def __init__(self, label, predator: Role, prey: Role, a: Annotated[float, RealSet.open(0, oo)] = 0.1):
         ...         super().__init__(label)

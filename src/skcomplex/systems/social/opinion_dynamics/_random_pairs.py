@@ -15,7 +15,7 @@ from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
-from ....core.specs import Role
+from ....core.types import Role
 
 PAIR = 2
 

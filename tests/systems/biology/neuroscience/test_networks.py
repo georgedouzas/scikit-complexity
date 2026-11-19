@@ -12,8 +12,8 @@ from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import laplacian, logistic
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.biology.neuroscience import (
     DelayedLIFNetworkSystem,
     InhibitorDecayInteraction,

@@ -18,8 +18,9 @@ from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import AlgebraicStateError, SolverError, ValidationError
-from skcomplex.core.specs import ConnectorSpec, ParameterSpec, Role, StateSpec
+from skcomplex.core.specs import ConnectorSpec, ParameterSpec, StateSpec
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 PIN = ConnectorSpec('pin', potential='v', flow='i')
 ELECTRICAL = ConnectorSpec('electrical', potential='v', flow='i')

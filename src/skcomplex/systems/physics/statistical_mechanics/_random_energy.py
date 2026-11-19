@@ -19,8 +19,9 @@ from ....core.components.laws.utils import log_sum_exp, total
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import Role, VisualSpec
+from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 
 class BoltzmannAverageElement(Element):

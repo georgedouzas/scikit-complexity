@@ -11,8 +11,9 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import BaseLaw, NoiseLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.spaces import BaseSpace
-from skcomplex.core.specs import ParameterSpec, Role, StateSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
 class PairElement(Element):

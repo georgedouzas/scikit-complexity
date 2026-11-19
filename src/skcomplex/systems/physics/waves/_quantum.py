@@ -25,8 +25,9 @@ from ....core.components.spaces import BaseSpace, LatticeSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, ETDRK4Solver
 from ....core.errors import ValidationError
-from ....core.specs import Role, VisualSpec
+from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ..common.quantum import DissipatorLaw, GeneratorLaw, HilbertSpec
 
 FORMULATIONS = ('fields', 'operators')

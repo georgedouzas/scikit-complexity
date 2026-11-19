@@ -27,8 +27,9 @@ from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import Role, VisualSpec
+from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 ANGLES = (-math.pi / 2, math.pi / 6, 5 * math.pi / 6)
 SHAPES = ('sinai', 'mushroom', 'three_disk')

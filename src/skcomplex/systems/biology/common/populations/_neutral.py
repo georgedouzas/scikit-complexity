@@ -13,7 +13,7 @@ from .....core.components.interactions import Interaction
 from .....core.components.laws import JumpLaw
 from .....core.components.laws.utils import where
 from .....core.components.spaces import BaseSpace
-from .....core.specs import Role
+from .....core.types import Role
 
 
 class NeutralBirthInteraction(Interaction):

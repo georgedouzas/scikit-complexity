@@ -12,8 +12,8 @@ from skcomplex.core.components.laws import NoiseLaw
 from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver, FractionalEulerMaruyamaSolver
 from skcomplex.core.errors import SolverError
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
 class NoiseInteraction(Interaction):

@@ -22,8 +22,8 @@ from ....core.components.laws.utils import draw, normal
 from ....core.components.spaces import BaseSpace, ContinuousSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver, FractionalEulerMaruyamaSolver, RK4Solver
-from ....core.specs import Role
 from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 
 class ContinuousTimeWalkerElement(Element):

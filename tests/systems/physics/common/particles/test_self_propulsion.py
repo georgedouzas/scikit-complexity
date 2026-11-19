@@ -8,8 +8,8 @@ import numpy as np
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.physics.common.particles import ActiveParticleElement, SelfPropulsionInteraction
 
 

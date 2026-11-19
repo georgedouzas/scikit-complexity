@@ -10,7 +10,7 @@ from types import SimpleNamespace
 
 from sage.all__sagemath_symbolics import Expression
 
-from .....core.specs import Role
+from .....core.types import Role
 from ._growth import GrowthInteraction
 
 

@@ -31,8 +31,9 @@ from skcomplex.core.components.spaces import (
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.specs import DeclaredVariableSpec, Role, StateSpec, SubshiftSpec
+from skcomplex.core.specs import DeclaredVariableSpec, StateSpec, SubshiftSpec
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.computer_science.automata import lamplighter
 from skcomplex.systems.computer_science.common.automata import CayleySpace, MemoryNeighborhood
 

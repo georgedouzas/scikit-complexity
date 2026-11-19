@@ -121,7 +121,7 @@ class LatticeSpace(BaseSpace):
         >>> from skcomplex.core.components.interactions import Interaction
         >>> from skcomplex.core.components.laws import RateLaw
         >>> from skcomplex.core.components.laws.utils import laplacian
-        >>> from skcomplex.core.specs import Role
+        >>> from skcomplex.core.types import Role
         >>> from skcomplex.core.systems import System
         >>> class Conduction(Interaction):
         ...     def __init__(self, label, *, target: Role = 'rod'):

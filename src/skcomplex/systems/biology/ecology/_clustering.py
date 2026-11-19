@@ -19,8 +19,9 @@ from ....core.components.laws import JumpLaw
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend, NumbaBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import Role, VisualSpec
+from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ..common.populations import NeutralBirthInteraction, NeutralDeathInteraction
 
 

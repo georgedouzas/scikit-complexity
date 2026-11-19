@@ -18,8 +18,8 @@ from ....core.components.laws.utils import categorical, where
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import Role
 from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from .types import Matrix
 
 CHAIN = ((0.9, 0.1), (0.4, 0.6))

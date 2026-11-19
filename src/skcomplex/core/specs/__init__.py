@@ -17,7 +17,6 @@ from ._subshift_spec import SubshiftSpec
 from ._tensor_spec import TensorSpec
 from ._variable_spec import VariableSpec
 from ._visual_spec import VisualSpec
-from .types import Role
 
 __all__ = [
     'BaseSpec',
@@ -27,7 +26,6 @@ __all__ = [
     'MatrixGroupSpec',
     'ParameterSpec',
     'PowerSeriesSpec',
-    'Role',
     'RoleSpec',
     'Spec',
     'StateSpec',

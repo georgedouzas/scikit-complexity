@@ -23,9 +23,9 @@ from ....core.components.spaces import BaseSpace, LatticeSpace, NetworkSpace, Ra
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver, SystemView
-from ....core.specs import Role, VisualSpec
+from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
-from ....core.types import Array, IntArray
+from ....core.types import Array, IntArray, Role
 
 MAJORITY = 5
 MOORE = RadiusNeighborhood(1, metric='chebyshev', center=True)

@@ -22,7 +22,8 @@ from ....core.components.laws import EventLaw, RateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import Role, VisualSpec
+from ....core.specs import VisualSpec
+from ....core.types import Role
 from ..common.mechanics import PendulumSwingInteraction
 from ..common.particles import LinearDragInteraction, PeriodicForceInteraction, RestoringForceInteraction
 

@@ -25,9 +25,9 @@ from ....core.components.spaces import BaseSpace, LatticeSpace, NetworkSpace
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver, SystemView
-from ....core.specs import Role, VisualSpec
+from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
-from ....core.types import Array
+from ....core.types import Array, Role
 from ._random_pairs import NeighborhoodsInteraction
 
 TRIPLES = RandomPartition(3)

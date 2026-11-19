@@ -27,8 +27,8 @@ from ....core.components.spaces import BaseSpace, ContinuousSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver
 from ....core.errors import ParameterError
-from ....core.specs import Role
 from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 AXES = ('x', 'y', 'z')
 DIRECTIONS = ('ux', 'uy', 'uz')

@@ -21,9 +21,8 @@ from ....core.components.types import SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
 from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver
-from ....core.specs import Role
 from ....core.systems import BaseSystem, System
-from ....core.types import AnyArray, Array
+from ....core.types import AnyArray, Array, Role
 from ...general.agents import ChoiceInteraction
 
 MARKED = 2

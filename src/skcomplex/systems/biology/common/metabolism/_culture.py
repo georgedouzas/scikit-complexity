@@ -19,7 +19,7 @@ from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, ConstraintLaw, ObjectiveLaw, RateLaw, UpdateLaw
 from .....core.components.laws.utils import either, where
 from .....core.components.spaces import BaseSpace
-from .....core.specs import Role
+from .....core.types import Role
 from ._flux_balance import FluxBalanceInteraction
 
 POSITIVE = RealSet.open(0, oo)

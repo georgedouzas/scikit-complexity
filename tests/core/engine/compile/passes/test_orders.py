@@ -11,8 +11,8 @@ from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import hyperedges
 from skcomplex.core.components.spaces import ContinuousSpace, RadiusNeighborhood
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
 class _Drag(Interaction):

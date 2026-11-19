@@ -20,7 +20,7 @@ from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.enums import ScheduleKind
 from ....core.errors import ValidationError
-from ....core.specs import Role
+from ....core.types import Role
 from .types import Stoichiometry
 
 MODES = ('rate', 'jump', 'langevin')

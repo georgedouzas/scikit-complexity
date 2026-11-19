@@ -20,7 +20,7 @@ from sklearn.base import clone
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.specs import Role
+from skcomplex.core.types import Role
 from skcomplex.core.systems import System
 
 
@@ -193,7 +193,7 @@ values are keyed by dotted name. Here a cull removes one deer a year while the h
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.specs import Role
+from skcomplex.core.types import Role
 from skcomplex.core.systems import System
 
 
@@ -229,7 +229,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import CallSpec, EventLaw, JumpLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import reduction
-from skcomplex.core.specs import Role
+from skcomplex.core.types import Role
 from skcomplex.core.systems import System
 
 
@@ -394,7 +394,7 @@ from sage.sets.real_set import RealSet
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import where
-from skcomplex.core.specs import Role
+from skcomplex.core.types import Role
 
 
 class Crowding(Interaction):
@@ -480,7 +480,7 @@ from sage.all__sagemath_symbolics import I
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.specs import Role
+from skcomplex.core.types import Role
 from skcomplex.core.systems import System
 
 
@@ -525,7 +525,7 @@ from sage.all__sagemath_symbolics import sin
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import ConstraintLaw
-from skcomplex.core.specs import Role
+from skcomplex.core.types import Role
 from skcomplex.core.systems import System
 
 

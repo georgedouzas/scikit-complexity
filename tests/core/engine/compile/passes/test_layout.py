@@ -17,8 +17,9 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import Role, StateSpec
+from skcomplex.core.specs import StateSpec
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 from ..conftest import PhaseElement, QuadraticElement
 
