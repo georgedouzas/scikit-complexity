@@ -1,36 +1,67 @@
 """Test the `EulerMaruyamaSolver` class."""
 
 import math
-from typing import Annotated
+from types import SimpleNamespace
 
 import numpy as np
+import numpy.typing as npt
 import pytest
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.base import BaseComponent
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction, WienerProcessSpec
 from skcomplex.core.components.laws import NoiseLaw
-from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver, HeunSolver, StepSpec
 from skcomplex.core.errors import SolverError
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 from skcomplex.systems.economics.finance import (
     AssetElement,
     GeometricBrownianMotionInteraction,
     GeometricBrownianMotionSystem,
 )
 
-from ....conftest import _correlated
+
+class DriveInteraction(Interaction):
+    """Unit noise on two elements from the two processes of a `WienerProcessSpec`."""
+
+    def __init__(self, label: str, *, first: Role, second: Role, noise: WienerProcessSpec) -> None:
+        super().__init__(label)
+        self.first = first
+        self.second = second
+        self.noise = noise
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the noise of both elements."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            dw = context.noise.dW
+            self.laws_: list[BaseComponent] = [
+                NoiseLaw(context.first.n, 1.0, process=dw[0]),
+                NoiseLaw(context.second.n, 1.0, process=dw[1]),
+            ]
+
+
+def _correlated(covariance: npt.ArrayLike, backend: object) -> System:
+    """Return two holdings driven by a `WienerProcessSpec` of a covariance."""
+    noise = WienerProcessSpec('market', dimension=2, covariance=covariance)
+    return System(
+        elements=[Element('a', values={'n': 0.0}), Element('b', values={'n': 0.0})],
+        interactions=[DriveInteraction('drive', first='a', second='b', noise=noise)],
+        solver=EulerMaruyamaSolver(dt=1.0),
+        backend=backend,
+    )
 
 
 def test_euler_maruyama_without_noise_matches_ode():
     """Test that zero noise reduces Euler-Maruyama to the deterministic solution."""
-    system = CompositeSystem(
+    system = System(
         elements=[AssetElement('s', price=1.0)],
         interactions=[GeometricBrownianMotionInteraction('gbm', target='s', mu=1.0, sigma=0.0)],
     )
-    problem = PassCompiler().prepare(system).run().problem_
+    problem = system.prepare()._problem
     stepper = EulerMaruyamaSolver(dt=1e-4)
     stepper.set_params(random_state=np.random.default_rng(0)).prepare(problem)
     state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_
@@ -39,11 +70,8 @@ def test_euler_maruyama_without_noise_matches_ode():
 
 def test_euler_maruyama_nonpositive_dt_raises_error():
     """Test that the internal step must be positive."""
-    system = CompositeSystem(
-        elements=[AssetElement('s')],
-        interactions=[GeometricBrownianMotionInteraction('gbm', target='s')],
-    )
-    problem = PassCompiler().prepare(system).run().problem_
+    system = System(elements=[AssetElement('s')], interactions=[GeometricBrownianMotionInteraction('gbm', target='s')])
+    problem = system.prepare()._problem
     stepper = EulerMaruyamaSolver(dt=0.0)
     stepper.set_params(random_state=np.random.default_rng(0)).prepare(problem)
     with pytest.raises(SolverError, match='positive'):
@@ -54,9 +82,7 @@ def test_euler_maruyama_same_seed_on_both_backends():
     """Test that geometric Brownian motion from 0.1 to 0.4 takes three steps on both backends and ends equal."""
     states = []
     for backend in (NumpyBackend(), NumbaBackend()):
-        problem = (
-            PassCompiler(backend=backend).prepare(GeometricBrownianMotionSystem().prepare().system_).run().problem_
-        )
+        problem = GeometricBrownianMotionSystem(backend=backend).prepare().system_._problem
         rng = np.random.default_rng(0)
         stepper = EulerMaruyamaSolver(dt=0.1)
         stepper.set_params(random_state=rng).prepare(problem)
@@ -68,37 +94,22 @@ def test_euler_maruyama_same_seed_on_both_backends():
     np.testing.assert_allclose(states[0], states[1], rtol=1e-12)
 
 
-class PairElement(Element):
-    """Pair element."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[object, StateSpec()] = 1.0,
-        y: Annotated[object, StateSpec()] = 1.0,
-    ) -> None:
-        super().__init__(label)
-        self.x = x
-        self.y = y
-
-    def _get_laws(self, s):
-        """Return the laws of the pair element."""
-        return [NoiseLaw(s.x, 1.0, process='common'), NoiseLaw(s.y, 1.0, process='common')]
+def _common_noise(s):
+    """Return the noise of both values of the pair from one process."""
+    return [NoiseLaw(s.target.x, 1.0, process='common'), NoiseLaw(s.target.y, 1.0, process='common')]
 
 
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend], ids=['numpy', 'numba'])
 @pytest.mark.parametrize('stepper', [EulerMaruyamaSolver, HeunSolver])
 def test_shared_process_keeps_difference(backend, stepper):
     """Test that one process driving two states keeps their difference at every frame, with correlation 1."""
-    trajectory = simulate(
-        CompositeSystem(elements=[PairElement('pair')]),
-        until=5,
-        backend=backend(),
+    system = System(
+        elements=[Element('pair', values={'x': 1.0, 'y': 1.0})],
+        interactions=[Interaction('noise', roles={'target': 'pair'}, laws=_common_noise)],
         solver=stepper(dt=0.01),
-        random_state=0,
-        dt=0.1,
+        backend=backend(),
     )
+    trajectory = system.prepare().simulate(until=5, random_state=0, dt=0.1)
     np.testing.assert_array_equal(trajectory.get_values('pair.x'), trajectory.get_values('pair.y'))
     assert np.corrcoef(trajectory.get_values('pair.x'), trajectory.get_values('pair.y'))[0, 1] == pytest.approx(1.0)
 
@@ -107,14 +118,7 @@ def test_shared_process_keeps_difference(backend, stepper):
 def test_correlated_increments_reproduce_covariance(backend):
     """Test that the frame increments of two states driven by a `WienerProcessSpec` have its covariance within 0.1."""
     covariance = [[1.0, 0.6], [0.6, 2.0]]
-    trajectory = simulate(
-        _correlated(covariance),
-        until=10_000,
-        backend=backend(),
-        solver=EulerMaruyamaSolver(dt=1.0),
-        random_state=0,
-        dt=1.0,
-    )
+    trajectory = _correlated(covariance, backend()).prepare().simulate(until=10_000, random_state=0, dt=1.0)
     increments = np.diff(np.stack([trajectory.get_values('a.n'), trajectory.get_values('b.n')]), axis=1)
     np.testing.assert_allclose(np.cov(increments), covariance, atol=0.1)
 
@@ -123,29 +127,20 @@ def test_shared_stratonovich_process_has_exact_mean():
     """Test that `dX = s Y o dW`, `dY = s X o dW` on one process has the mean `(X0 + Y0) exp(s^2 / 2)` at time 1."""
     sigma = 0.5
 
-    class CrossElement(Element):
-        """Cross element."""
+    def cross_noise(s):
+        """Return the noise of each value driven by the other one."""
+        x, y = s.target.x, s.target.y
+        return [
+            NoiseLaw(x, sigma * y, convention='stratonovich', process='common'),
+            NoiseLaw(y, sigma * x, convention='stratonovich', process='common'),
+        ]
 
-        def __init__(
-            self,
-            label: str,
-            *,
-            x: Annotated[object, StateSpec()] = 1.0,
-            y: Annotated[object, StateSpec()] = 0.5,
-        ) -> None:
-            super().__init__(label)
-            self.x = x
-            self.y = y
-
-        def _get_laws(self, s):
-            """Return the laws of the cross element."""
-            return [
-                NoiseLaw(s.x, sigma * s.y, convention='stratonovich', process='common'),
-                NoiseLaw(s.y, sigma * s.x, convention='stratonovich', process='common'),
-            ]
-
-    system = CompositeSystem(elements=[GroupElement('crosses', element=CrossElement, size=4000)])
-    state = simulate(system, until=1, solver=EulerMaruyamaSolver(dt=0.01), random_state=0, dt=1.0).states[-1]
+    system = System(
+        elements=[Element('crosses', values={'x': np.ones(4000), 'y': np.full(4000, 0.5)}, size=4000)],
+        interactions=[Interaction('noise', roles={'target': 'crosses'}, laws=cross_noise)],
+        solver=EulerMaruyamaSolver(dt=0.01),
+    )
+    state = system.prepare().simulate(until=1, random_state=0, dt=1.0).states[-1]
     totals = state[:4000] + state[4000:]
     error = totals.std() / math.sqrt(totals.size)
     assert abs(totals.mean() - 1.5 * math.exp(sigma**2 / 2)) < 2 * error

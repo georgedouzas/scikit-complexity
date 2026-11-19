@@ -10,12 +10,12 @@ from skcomplex.core import errors
 from skcomplex.core.base import BaseConfig
 from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import RateInteraction
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import series
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import BaseSpec
+from skcomplex.core.systems import System
 
 
 class ScalingConfig(BaseConfig):
@@ -73,8 +73,8 @@ def test_no_public_check_remains():
 
 def test_bad_component_fails_before_it_is_prepared():
     """Test that a component with a bad label raises from `prepare` of its system, before it sets any attribute."""
-    interaction = RateInteraction(1, target='stock', state='n', rate=1.0)
-    system = CompositeSystem(elements=[Element('stock')], interactions=[interaction])
+    interaction = Interaction(1, roles={'target': 'stock'}, laws=lambda s: [RateLaw(s.target.n.diff(s.t), 1.0)])
+    system = System(elements=[Element('stock', values={'n': 0.0})], interactions=[interaction])
     with pytest.raises(ValidationError, match='label'):
         system.prepare()
     assert not [name for name in vars(interaction) if name.endswith('_')]

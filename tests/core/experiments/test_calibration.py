@@ -4,7 +4,6 @@ import numpy as np
 import pytest
 from scipy import stats
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.experiments import CalibrationResult, calibrate
 from skcomplex.core.experiments._calibration import _CalibrationObjective, _check_priors, _numpyro_prior, _series_of
@@ -101,7 +100,7 @@ def test_point_fit_searches_the_central_part_of_a_scipy_prior():
 
 def _brock_hommes_data():
     """Return the price deviations of a small Brock-Hommes market."""
-    truth = simulate(BrockHommesSystem(20, intensity=4.0, strength=1.3), until=60, random_state=0)
+    truth = BrockHommesSystem(20, intensity=4.0, strength=1.3).prepare().simulate(until=60, random_state=0)
     return {'pricing.deviation': (truth.times[1:], truth.get_values('pricing.deviation')[1:])}
 
 
