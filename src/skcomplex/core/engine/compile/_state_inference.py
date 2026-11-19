@@ -1158,16 +1158,17 @@ class _StateInference:
         visual = element._get_visual()
         drawing = None if visual == VisualSpec() or (visual.kind == 'agents' and not agents) else visual
         view = element._get_view()
-        kind = type(element).__name__
         if count is None:
-            return [DeclaredElement(element.label, variables=variables, drawing=drawing, view=view, kind=kind)]
+            return [
+                DeclaredElement(element.label, variables=variables, drawing=drawing, view=view, origin=type(element)),
+            ]
         defaults = self._get_class_defaults(element, variables) if agents else None
         values = {
             'variables': variables,
             'drawing': drawing,
             'view': view,
             'defaults': defaults,
-            'kind': kind,
+            'origin': type(element),
             **arrays,
         }
         if network:
