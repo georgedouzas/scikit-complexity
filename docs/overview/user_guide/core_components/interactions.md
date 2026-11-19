@@ -1578,45 +1578,42 @@ and its [API entry][skcomplex.core.components.interactions.LocalRuleInteraction]
 
 ## SamplingInteraction
 
-A `SamplingInteraction` samples the states of the members by Monte Carlo moves. Every sweep proposes a new value for
-each member and accepts it with a probability that depends on the change of an objective, such as an energy, scaled
-by `intensity`, the inverse of a temperature. Here the spins of a magnet in the Ising model align on a lattice of 8 by
-8 sites from a random start.
+A sampled system needs no `SamplingInteraction`. It is an interaction whose `ObjectiveLaw` gives the local objective of
+every member, such as its energy over a temperature, run by a `MetropolisSolver` that says how the states move. Every sweep proposes a new value for
+each member and accepts it with a probability that depends on the change of the objective. The temperature is a value
+of the system the objective reads, so a sweep or a schedule changes it like any other value. Here the spins of a magnet
+in the Ising model align on a lattice of 8 by 8 sites from a random start.
 
 ```python
-from typing import Annotated
-
 import numpy as np
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import SamplingInteraction
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import ObjectiveLaw
 from skcomplex.core.components.laws.utils import neighbors
-from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.spaces import LatticeSpace
+from skcomplex.core.engine.solvers import MetropolisSolver
+from skcomplex.core.systems import System
 
 
-class SpinElement(Element):
-    def __init__(self, label, *, s: Annotated[float, StateSpec()] = 1.0):
-        super().__init__(label)
-        self.s = s
+def ising(s):
+    spin = s.target.s
+    return [ObjectiveLaw(-spin * neighbors(s.target.other.s) / s.target.T, spin)]
 
 
 start = np.random.default_rng(0).choice([-1.0, 1.0], 64)
-spins = GroupElement('spins', element=SpinElement, space=LatticeSpace((8, 8)), on='sites', values={'s': start})
-energy = lambda n: -n.target.s * neighbors(n.target.other.s)
-ising = SamplingInteraction('ising', target='spins', state='s', objective=energy, intensity=1.0)
-magnet = CompositeSystem(elements=[spins], interactions=[ising], time=DiscreteTime())
-values = simulate(magnet, until=20, random_state=0).get_values('spins.s')
+spins = Element('spins', values={'s': start, 'T': 1.0}, space=LatticeSpace((8, 8)))
+interaction = Interaction('ising', roles={'target': 'spins'}, laws=ising)
+magnet = System(elements=[spins], interactions=[interaction], solver=MetropolisSolver(moves={'spins.s': 'flip'}))
+values = magnet.prepare().simulate(until=20, random_state=0).get_values('spins.s')
 round(float(values[0].mean()), 2), round(abs(float(values[-1].mean())), 2)
 ```
 
 The magnetization, the mean spin, is 0.16 at the start, and its size is 1.0 after 20 sweeps in this run, since the
 temperature lies below the critical temperature of the model. `neighbors` sums the spins of the neighbours.
 
-The same class lets voters of a social network align with their friends. The network is the karate club of Zachary,
-and `AdjacencyNeighborhood` reads the neighbours along its edges.
+The same objective lets voters of a social network align with their friends. The network is the karate club of
+Zachary, and `AdjacencyNeighborhood` reads the neighbours along its edges.
 
 ```python continuation
 import networkx as nx
@@ -1625,38 +1622,36 @@ from skcomplex.core.components.spaces import AdjacencyNeighborhood, NetworkSpace
 
 club = nx.karate_club_graph()
 opinions = np.random.default_rng(0).choice([-1.0, 1.0], 34)
-members = GroupElement('members', element=SpinElement, space=NetworkSpace(club), on='sites', values={'s': opinions})
-alignment = SamplingInteraction(
-    'alignment',
-    target='members',
-    state='s',
-    objective=energy,
-    intensity=2.0,
+members = Element('members', values={'s': opinions, 'T': 0.5}, space=NetworkSpace(club))
+alignment = Interaction('alignment', roles={'target': 'members'}, laws=ising)
+solver = MetropolisSolver(
+    moves={'members.s': 'flip'},
     neighborhood=AdjacencyNeighborhood(),
     schedule='random-sequential',
 )
-society = CompositeSystem(elements=[members], interactions=[alignment], time=DiscreteTime())
-values = simulate(society, until=20, random_state=0).get_values('members.s')
+society = System(elements=[members], interactions=[alignment], solver=solver)
+values = society.prepare().simulate(until=20, random_state=0).get_values('members.s')
 ends = np.array(club.edges())
 [round(float((frame[ends[:, 0]] == frame[ends[:, 1]]).mean()), 2) for frame in (values[0], values[-1])]
 ```
 
 The share of friendships whose two ends agree rises from 0.51 to 0.95 in this run.
 
-**How the engine runs it.** The interaction returns a sample law. The solver makes one sweep per unit of time. Under
-the rule `'metropolis'` it accepts a move with the probability `min(1, exp(-intensity * change))`, and the rules
-`'glauber'` and `'heat-bath'` use other acceptances. The schedule `'checkerboard'` updates the sites of one colour of
-a lattice at once, since they share no neighbours, and `'random-sequential'` visits the members one by one.
+**How the engine runs it.** The solver turns the objective of every member into a sweep, one per unit of time. Under
+the rule `'metropolis'` it accepts a move with the probability `min(1, exp(-change))`, and the rules `'glauber'` and
+`'heat-bath'` use other acceptances. The schedule `'checkerboard'` updates the sites of one colour of a lattice at once,
+since they share no neighbours, and `'random-sequential'` visits the members one by one.
 
 ```python continuation
-[law.__name__ for law in alignment.law_classes]
+magnet.form_
 ```
 
-The interaction emits a sample law.
+The form of the system is Monte Carlo sampling.
 
 **How it combines.** The role `target` binds a group on a lattice, a network, or the edges of a cell complex. The
-argument `move` proposes the new values, by a flip, a random value, a rotation, a Gaussian step, or a flip of a whole
-cluster by the algorithm of Wolff. `cooling` lowers the temperature over time, as in simulated annealing.
+`moves` of the solver propose the new values of every state it names, by a flip, a random value, a rotation, a Gaussian
+step, a flip of a whole cluster by the algorithm of Wolff, or a function. An objective that reads the time `t`, such as
+an energy over a temperature that falls with `t`, anneals.
 
 **Limits and errors.** The states follow the stationary distribution of the objective, not a dynamics in time, so a
 sweep is not a physical time step. The move must be one of the names above or a function, and `prepare` raises a
@@ -1666,35 +1661,48 @@ sweep is not a physical time step. The move must be one of the names above or a 
 from skcomplex.core.errors import ValidationError
 
 try:
-    SamplingInteraction('ising', target='spins', state='s', objective=energy, move='swap').prepare()
+    swapped = MetropolisSolver(moves={'spins.s': 'swap'})
+    System(elements=[spins], interactions=[interaction], solver=swapped).prepare()
 except ValidationError as error:
     message = str(error)
 message
 ```
 
-The message reads "Unknown move 'swap' of 'ising'. Use one of 'flip', 'random-value', 'rotate', 'gaussian', 'cluster',
-a function." The fix is a known move, such as `'flip'` for spins.
+The message names the unknown move `'swap'` of `ising` and lists the moves flip, random-value, rotate, gaussian,
+function, and cluster. The fix is a known move, such as `'flip'` for spins.
 
 **A field realization.** A field fixes the objective and names the temperature, such as the Ising model at a
 temperature `T`.
 
 ```python continuation
-class IsingInteraction(SamplingInteraction):
-    def __init__(self, label, *, target, T=1.0):
-        super().__init__(label, target=target, state='s', objective=energy, intensity=1 / T)
+from types import SimpleNamespace
+
+from skcomplex.core.specs import Role
+
+
+class IsingInteraction(Interaction):
+    def __init__(self, label, *, target: Role, T: float = 1.0):
+        super().__init__(label)
+        self.target = target
         self.T = T
 
+    def _prepare(self, context):
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            spin = context.target.s
+            self.laws_ = [ObjectiveLaw(-spin * neighbors(context.target.other.s) / context.T, spin)]
 
+
+plain = Element('spins', values={'s': start}, space=LatticeSpace((8, 8)))
 heated = IsingInteraction('ising', target='spins', T=10.0)
-hot = CompositeSystem(elements=[spins], interactions=[heated], time=DiscreteTime())
-values = simulate(hot, until=20, random_state=0).get_values('spins.s')
+hot = System(elements=[plain], interactions=[heated], solver=MetropolisSolver(moves={'spins.s': 'flip'}))
+values = hot.prepare().simulate(until=20, random_state=0).get_values('spins.s')
 round(abs(float(values[-1].mean())), 2)
 ```
 
 At the high temperature 10 the spins stay disordered, with a magnetization of 0.06 in size.
 
-See its [fact sheet](../../../components/interactions.md#samplinginteraction)
-and its [API entry][skcomplex.core.components.interactions.SamplingInteraction].
+See the [API entry][skcomplex.core.engine.solvers.MetropolisSolver] of the solver.
 
 ## TopologyInteraction
 

@@ -38,7 +38,7 @@ from ....core.components.spaces import (
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec, ParameterSpec, Role, RoleSpec
+from ....core.specs import BaseSpec, ParameterSpec, Role
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Indices
 
@@ -566,7 +566,7 @@ class CellAdhesionInteraction(RegionSamplingInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         kinds: Sequence[int],
         adhesion: npt.ArrayLike,
         temperature: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
