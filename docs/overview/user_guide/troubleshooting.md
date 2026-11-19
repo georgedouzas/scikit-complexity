@@ -106,8 +106,8 @@ message, system.set_params(solver=RK4Solver()).prepare().simulate(until=2, dt=1.
 ```
 
 The message reads "A solver prepares on a compiled problem. Pass the problem to `prepare`." The fix gives the solver
-to the system as its `solver`, and `prepare` of the system compiles the problem and prepares the solver on it. The run gives 30.0, 46.4, and 68.5 thousand
-hares.
+to the system as its `solver`, and `prepare` of the system compiles the problem and prepares the solver on it. The run
+gives 30.0, 46.4, and 68.5 thousand hares.
 
 ## AlgebraicStateError
 
