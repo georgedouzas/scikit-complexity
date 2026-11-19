@@ -331,7 +331,7 @@ from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
 
 
-class CouplingInteraction(Interaction):
+class Coupling(Interaction):
     def __init__(self, label, *, target: Role = 'nodes', a=1.0):
         super().__init__(label)
         self.target = target
@@ -343,7 +343,7 @@ class CouplingInteraction(Interaction):
         self.laws_ = [RateLaw(x, total(x, weights=context.a) - x)]
 
 
-coupling = CouplingInteraction('coupling', a=np.ones((4, 4)) / 4)
+coupling = Coupling('coupling', a=np.ones((4, 4)) / 4)
 try:
     System(elements=[Element('nodes', values={'x': 1.0})], interactions=[coupling]).prepare()
 except ParameterShapeError as error:
