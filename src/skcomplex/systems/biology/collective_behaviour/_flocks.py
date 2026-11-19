@@ -111,7 +111,7 @@ class BoidElement(Element):
         10
     """
 
-    visual = VisualSpec('agents', {'color_by': 'x_d1'})
+    visual = VisualSpec('agents', {'color_by': "x'"})
 
     def __init__(
         self,
