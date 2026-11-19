@@ -1,58 +1,65 @@
 """Test the `_event` module of `skcomplex.core.components.laws`."""
 
 import warnings
-from typing import Annotated
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import CallSpec, EventLaw, RateLaw
-from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import BackendWarning, ValidationError
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 
 
-class BallElement(Element):
-    """Ball that falls and bounces, with the guard and the reset given by the argument `law`."""
+class BounceInteraction(Interaction):
+    """Fall and bounce of a ball, with the guard and the reset given by the argument `law`."""
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        law: str = 'symbols',
-        y: Annotated[object, StateSpec()] = 1.0,
-        v: Annotated[object, StateSpec()] = 0.0,
-    ) -> None:
+    def __init__(self, label: str, *, target: Role, law: str = 'symbols') -> None:
         super().__init__(label)
+        self.target = target
         self.law = law
-        self.y = y
-        self.v = v
 
-    def _get_laws(self, s):
-        """Return the fall and the bounce."""
-        name = 'ball.y' if self.label == 'ball' else f'{self.label}.y'
-        speed = name.replace('.y', '.v')
-        crossings = {
-            'symbols': EventLaw(s.y, {s.v: -0.5 * s.v}, direction=-1),
-            'functions': EventLaw(lambda t, values: values[name], {s.v: lambda t, values: -0.5 * values[speed]}, -1),
-            'relative': EventLaw(
-                CallSpec(lambda t, values: values['y'], relative=True),
-                {s.v: CallSpec(lambda t, values: -0.5 * values['v'], relative=True)},
-                -1,
-            ),
-            'mixed': EventLaw(lambda t, values: values[name], {s.v: -0.5 * s.v}, -1),
-            'arguments': EventLaw(CallSpec(lambda t, y: y, (s.y,)), direction=-1),
-        }
-        return [RateLaw(s.y, s.v), RateLaw(s.v, -9.81), crossings[self.law]]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the fall and the bounce."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context.target
+            name, speed = f'{self.target}.y', f'{self.target}.v'
+            crossings = {
+                'symbols': lambda: EventLaw(s.y, {s.v: -0.5 * s.v}, direction=-1),
+                'functions': lambda: EventLaw(
+                    lambda t, values: values[name],
+                    {s.v: lambda t, values: -0.5 * values[speed]},
+                    -1,
+                ),
+                'relative': lambda: EventLaw(
+                    CallSpec(lambda t, values: values['target.y'], relative=True),
+                    {s.v: CallSpec(lambda t, values: -0.5 * values['target.v'], relative=True)},
+                    -1,
+                ),
+                'mixed': lambda: EventLaw(lambda t, values: values[name], {s.v: -0.5 * s.v}, -1),
+                'arguments': lambda: EventLaw(CallSpec(lambda t, y: y, (s.y,)), direction=-1),
+            }
+            self.laws_ = [RateLaw(s.y, s.v), RateLaw(s.v, -9.81), crossings[self.law]()]
+
+
+def _ball(law, backend='auto'):
+    """Return the system of a ball whose crossing has the given form."""
+    return System(
+        elements=[Element('ball', values={'y': 1.0, 'v': 0.0})],
+        interactions=[BounceInteraction('bounce', target='ball', law=law)],
+        backend=backend,
+    )
 
 
 def _trajectory(law, backend=None):
     """Return the trajectory of a ball whose crossing has the given form."""
-    system = CompositeSystem(elements=[BallElement('ball', law=law)])
-    return simulate(system, until=1.0, dt=0.001, backend=backend or NumpyBackend())
+    return _ball(law, backend or NumpyBackend()).prepare().simulate(until=1.0, dt=0.001)
 
 
 @pytest.mark.parametrize('law', ['functions', 'relative', 'mixed'])
@@ -74,30 +81,18 @@ def test_crossing_with_functions_on_numba_runs_in_python():
 def test_crossing_with_a_function_reads_every_member_of_a_group():
     """Test that a guard over a group gives one value per member, and each member fires alone."""
 
-    class FallingElement(Element):
-        """Falling member."""
+    def laws(s):
+        """Return the fall and the reset of one member."""
+        guard = CallSpec(lambda t, values: values['target.y'], relative=True)
+        return [RateLaw(s.target.y, -1.0), EventLaw(guard, {s.target.y: lambda t, values: 5.0}, -1)]
 
-        def __init__(
-            self,
-            label: str,
-            *,
-            y: Annotated[object, StateSpec()] = 1.0,
-        ) -> None:
-            super().__init__(label)
-            self.y = y
-
-        def _get_laws(self, s):
-            """Return the fall and the reset of one member."""
-            guard = CallSpec(lambda t, values: values['y'], relative=True)
-            return [RateLaw(s.y, -1.0), EventLaw(guard, {s.y: lambda t, values: 5.0}, -1)]
-
-    group = GroupElement('herd', element=FallingElement, size=2, values={'y': [1.0, 2.0]})
-    trajectory = simulate(CompositeSystem(elements=[group]), until=1.5, dt=0.01)
+    herd = Element('herd', values={'y': [1.0, 2.0]}, size=2)
+    system = System(elements=[herd], interactions=[Interaction('fall', roles={'target': 'herd'}, laws=laws)])
+    trajectory = system.prepare().simulate(until=1.5, dt=0.01)
     assert np.asarray(trajectory.get_values('herd.y'))[-1] == pytest.approx([4.5, 0.5], abs=1e-6)
 
 
 def test_crossing_rejects_a_call_with_arguments():
     """Test that a crossing names the forms of a function it takes."""
-    system = CompositeSystem(elements=[BallElement('ball', law='arguments')])
     with pytest.raises(ValidationError, match='An event takes'):
-        simulate(system, until=0, dt=0.01)
+        _ball('arguments').prepare().simulate(until=0, dt=0.01)
