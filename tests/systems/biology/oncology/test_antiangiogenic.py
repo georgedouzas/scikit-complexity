@@ -2,9 +2,7 @@
 
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
-from skcomplex.core.systems import BaseSystem
 from skcomplex.systems.biology.oncology import HahnfeldtSystem, VascularCorePeripherySystem
 
 STIFF = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-8)
@@ -12,9 +10,7 @@ STIFF = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-8)
 
 def _run(system, until, dt):
     """Return the trajectory of a system integrated with a stiff method."""
-    if isinstance(system, BaseSystem):
-        return system.set_params(solver=STIFF).prepare().simulate(until, dt=dt)
-    return simulate(system, dt=dt, solver=STIFF, until=until)
+    return system.set_params(solver=STIFF).prepare().simulate(until, dt=dt)
 
 
 def test_hahnfeldt_approaches_the_equilibrium_volume():

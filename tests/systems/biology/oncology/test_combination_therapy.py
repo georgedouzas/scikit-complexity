@@ -2,9 +2,7 @@
 
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
-from skcomplex.core.systems import BaseSystem
 from skcomplex.systems.biology.oncology import (
     AngiogenesisImmunotherapySystem,
     ChemoimmunotherapySystem,
@@ -19,11 +17,9 @@ STIFF = ScipyODESolver(method='LSODA', rtol=1e-6, atol=1e-6)
 
 
 def _run(system, until, dt, solver=None, observables=()):
-    """Return the trajectory of a system, prepared and simulated when it has the new base."""
-    if isinstance(system, BaseSystem):
-        system = system if solver is None else system.set_params(solver=solver)
-        return system.prepare().simulate(until, dt=dt, random_state=0, observables=observables)
-    return simulate(system, dt=dt, random_state=0, solver=solver, observables=observables, until=until)
+    """Return the trajectory of a system, prepared and simulated with a solver if given."""
+    system = system if solver is None else system.set_params(solver=solver)
+    return system.prepare().simulate(until, dt=dt, random_state=0, observables=observables)
 
 
 def test_chemovirotherapy_combination_beats_each_therapy_alone():
