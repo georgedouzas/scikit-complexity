@@ -22,7 +22,8 @@ def _lorenz_samples():
     """Return samples of the Lorenz attractor every 0.025 for 42 Lyapunov times after a transient."""
     solver = ScipyODESolver(method='DOP853', rtol=1e-9, atol=1e-9)
     until = TRANSIENT + 42 * LYAPUNOV_TIME
-    trajectory = simulate(LorenzSystem().prepare().system_, until=until, solver=solver, dt=STEP)
+    lorenz = LorenzSystem().prepare().system_.set_params(solver=solver).prepare()
+    trajectory = lorenz.simulate(until=until, dt=STEP)
     values = np.column_stack([trajectory.get_values(f'lorenz.{name}') for name in 'xyz'])
     first = round(TRANSIENT / STEP)
     return values[first:]
