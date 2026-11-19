@@ -132,21 +132,21 @@ The loops read `('prey.x',)` reinforcing, `('predators.x',)` balancing, and `('p
 This section moves money and claims between agents so that the totals stay constant, and lets the run check it. Agents
 move conserved quantities between each other inside rules. `transfer(source, sink, amount, state)` moves an amount
 between two agents at once. A negative holding is an amount owed, and the total holdings stay constant. Here three
-traders in a [`GroupElement`](../core_components/elements.md#groupelement) each hold 10 units of cash, and at every
-step each one lends a unit to the first trader in exchange for a claim, through a
-[`RuleLaw`](../core_components/laws.md#rulelaw). A run checks that an expression keeps its first value with
-`simulate(system, invariants={name: tolerance})`, where the name is an observable of the run, here the total net worth.
+traders, an [`Element`](../core_components/elements.md#element) with `size=3`, each hold 10 units of cash, and at every
+step each one lends a unit to the first trader in exchange for a claim, through a rule, an
+[`UpdateLaw`](../core_components/laws.md#updatelaw) whose value is a function. A run checks that an expression keeps
+its first value with `simulate(invariants={name: tolerance})`, where the name is an observable of the run, here the
+total net worth.
 
 ```python
 from typing import Annotated
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import RuleLaw
-from skcomplex.core.components.laws.utils import transfer
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
 from skcomplex.core.components import Observable
+from skcomplex.core.components.elements import Element, Quantity
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.components.laws.utils import transfer
+from skcomplex.core.systems import System
 
 
 def net_worth(agent):
@@ -160,27 +160,25 @@ def lend(agent, system):
         transfer(borrower, agent, 1.0, 'claims')
 
 
-class TraderElement(Element):
+class Trader(Element):
     def __init__(
         self,
         label,
-        *,
-        cash: Annotated[float, StateSpec(quantity='money')] = 10.0,
-        claims: Annotated[float, StateSpec(quantity='claims')] = 0.0,
-        equity: Annotated[float, StateSpec()] = 10.0,
+        cash: Annotated[float, Quantity('money')] = 10.0,
+        claims: Annotated[float, Quantity('claims')] = 0.0,
+        equity=10.0,
+        size=None,
     ):
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.cash = cash
         self.claims = claims
         self.equity = equity
 
-    def _get_laws(self, s):
-        return [RuleLaw(lend)]
 
-
+lending = Interaction('lending', roles={'target': 'traders'}, laws=lambda s: [UpdateLaw(s.target, lend)])
 balance = Observable('net_worth', net_worth, group='traders', reduce='sum')
-market = CompositeSystem(elements=[GroupElement('traders', element=TraderElement, size=3)])
-traders = simulate(market, until=3, observables=[balance], invariants={'net_worth': 1e-9})
+market = System(elements=[Trader('traders', size=3)], interactions=[lending]).prepare()
+traders = market.simulate(until=3, observables=[balance], invariants={'net_worth': 1e-9})
 float(traders.get_agents('traders', 3).values['cash'].sum())
 ```
 
@@ -263,8 +261,9 @@ from skcomplex.systems.general.dynamics import StockFlowSystem
 issubclass(module.PeopleSystem, StockFlowSystem), list(system.get_params())
 ```
 
-The block returns `True` and the parameters `['birth_fraction', 'label', 'lifetime']`. A file whose stocks also change
-outside flow variables, or are subscripted, keeps the shape of a custom system. It gets one element class, whose states
+The block returns `True` and the parameters `birth_fraction`, `label`, and `lifetime`, with the settings `backend`
+and `solver`. A file whose stocks also change outside flow variables, or are subscripted, keeps the shape of a custom
+system. It gets one element class, whose states
 are the stocks and whose parameters are the constants, and a system class on
 [`BaseSystem`](../core_components/systems.md#basesystem) that builds the element and its interactions.
 
