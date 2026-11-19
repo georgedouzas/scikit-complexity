@@ -7,46 +7,23 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import cos, var, vector
 
-from skcomplex.core.components.elements import Element
+from skcomplex.core.components.elements import Element, Period
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import RoleSpec, StateSpec
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 from skcomplex.systems.physics.common.mechanics import HamiltonianInteraction
 
 
 class OscillatorElement(Element):
-    """Element with a canonical pair of order 1."""
+    """Element with a canonical pair."""
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        q: Annotated[object, StateSpec()] = 1.0,
-        p: Annotated[object, StateSpec()] = 0.0,
-    ) -> None:
+    def __init__(self, label: str, *, q: object = 1.0, p: object = 0.0) -> None:
         super().__init__(label)
         self.q = q
-        self.p = p
-
-
-class SecondOrderElement(Element):
-    """Element with a coordinate of order 2."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        q: Annotated[object, StateSpec(order=2)] = 1.0,
-        q_d1: object = 0.0,
-        p: Annotated[object, StateSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label)
-        self.q = q
-        self.q_d1 = q_d1
         self.p = p
 
 
@@ -57,8 +34,8 @@ class RotorElement(Element):
         self,
         label: str,
         *,
-        q: Annotated[object, StateSpec(period=2 * np.pi)] = 0.0,
-        p: Annotated[object, StateSpec()] = 2.0,
+        q: Annotated[object, Period(2 * np.pi)] = 0.0,
+        p: object = 2.0,
     ) -> None:
         super().__init__(label)
         self.q = q
@@ -68,7 +45,7 @@ class RotorElement(Element):
 class CouplingInteraction(HamiltonianInteraction):
     """Spring between the coordinates of two oscillators, whose Hamiltonian holds only the coupling energy."""
 
-    def __init__(self, label: str, *, first: Annotated[str, RoleSpec()], second: Annotated[str, RoleSpec()]) -> None:
+    def __init__(self, label: str, *, first: Role, second: Role) -> None:
         super().__init__(label, target=first)
         self.first = first
         self.second = second
@@ -118,11 +95,12 @@ def test_run_sums_the_hamiltonians_of_a_coupling():
         )
         for label in ('left', 'right')
     ]
-    system = CompositeSystem(
+    system = System(
         elements=[OscillatorElement('left', q=1.0), OscillatorElement('right', q=1.0)],
         interactions=[*free, CouplingInteraction('spring', first='left', second='right')],
+        solver=ScipyODESolver(rtol=1e-10, atol=1e-12),
     )
-    trajectory = simulate(system, until=1.0, solver=ScipyODESolver(rtol=1e-10, atol=1e-12), dt=1.0)
+    trajectory = system.prepare().simulate(until=1.0, dt=1.0)
     np.testing.assert_allclose(trajectory.get_values('left.q')[-1], np.cos(1.0), atol=1e-7)
     np.testing.assert_allclose(trajectory.get_values('left.p')[-1], -np.sin(1.0), atol=1e-7)
 
@@ -130,8 +108,8 @@ def test_run_sums_the_hamiltonians_of_a_coupling():
 def test_run_wraps_an_angle_coordinate():
     """Test that an angle coordinate of a rotor wraps around its period."""
     rotor = HamiltonianInteraction('rotor', target='wheel', hamiltonian=lambda s: s.target.p**2 / 2 - cos(s.target.q))
-    system = CompositeSystem(elements=[RotorElement('wheel')], interactions=[rotor])
-    trajectory = simulate(system, until=20.0, dt=0.01)
+    system = System(elements=[RotorElement('wheel')], interactions=[rotor])
+    trajectory = system.prepare().simulate(until=20.0, dt=0.01)
     values = trajectory.get_values('wheel.q')
     assert np.abs(values).max() <= np.pi
     assert np.abs(np.diff(values)).max() > np.pi
@@ -162,7 +140,9 @@ def test_run_rejects_a_momentum_of_another_size():
 def test_prepare_reports_a_coordinate_of_order_2():
     """Test that a coordinate of order 2 is one error at the path of the interaction with the fixes."""
     energy = HamiltonianInteraction('energy', target='mass', hamiltonian=lambda s: s.target.p**2 + s.target.q**2)
-    system = CompositeSystem(elements=[SecondOrderElement('mass')], interactions=[energy])
+    push = Interaction('push', roles={'target': 'mass'}, laws=lambda s: [RateLaw(s.target.q.diff(s.t, 2), 0.0)])
+    mass = Element('mass', values={'q': 1.0, "q'": 0.0, 'p': 0.0})
+    system = System(elements=[mass], interactions=[energy, push])
     errors = [issue for issue in PassCompiler().prepare(system).report_.issues if issue.severity == 'error']
     assert len(errors) == 1
     assert errors[0].path == 'energy'
