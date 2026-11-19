@@ -11,7 +11,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.interactions import Interaction, TransferInteraction
+from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
@@ -25,7 +25,7 @@ GRID_STEPS = ('neighbor', 'best')
 
 
 type Step = str | Callable[..., object]
-type Cost = TransferInteraction | Callable[[AgentViewProtocol, SystemViewProtocol], None]
+type Cost = Callable[[AgentViewProtocol, SystemViewProtocol], None]
 type Vision = float | Callable[[AgentViewProtocol, SystemViewProtocol], float]
 
 
@@ -90,8 +90,8 @@ class MovementInteraction(Interaction):
             The tail exponent of the length of a Lévy step.
 
         cost:
-            A `TransferInteraction` that the agent pays to itself or to the environment for every step taken, a function
-            of the agent and the system view run for every step taken, or `None`.
+            A function of the agent and the system view run for every step taken, such as one that takes the energy a
+            step costs from the agent, `def pay(agent, system): agent.energy -= 1.0`, or `None`.
 
         vision:
             The number of cells the step `'best'` looks along every direction of a lattice, a number or a function of
@@ -177,16 +177,11 @@ class MovementInteraction(Interaction):
 
     def _check_functions(self) -> None:
         """Raise an error for a condition, acceptance, score, or cost that is not callable."""
-        for name in ('condition', 'accept', 'score'):
+        for name in ('condition', 'accept', 'score', 'cost'):
             value = getattr(self, name)
             if value is not None and not callable(value):
                 error_msg = f'The {name} of {self.label!r} is {value!r}. Give a function, or None.'
                 raise ValidationError(error_msg)
-        if isinstance(self.cost, TransferInteraction):
-            self.cost.prepare()
-        elif self.cost is not None and not callable(self.cost):
-            error_msg = f'The cost of {self.label!r} is {self.cost!r}. Give a TransferInteraction, a function, or None.'
-            raise ValidationError(error_msg)
 
     def _check_space(self, space: BaseSpace | None) -> None:
         """Raise an error for a step to a neighbouring cell or node in a continuous space."""
@@ -324,9 +319,7 @@ class MovementInteraction(Interaction):
 
     def _charge(self, agent: AgentViewProtocol, system: SystemViewProtocol) -> None:
         """Charge the cost of one step taken to an agent."""
-        if isinstance(self.cost, TransferInteraction):
-            self.cost.transfer(agent, agent, system)
-        elif self.cost is not None:
+        if self.cost is not None:
             self.cost(agent, system)
 
     def _take(self, agent: AgentViewProtocol, destination: object, occupied: set[object]) -> bool:
