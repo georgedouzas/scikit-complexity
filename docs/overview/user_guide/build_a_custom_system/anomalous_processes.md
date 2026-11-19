@@ -11,32 +11,26 @@ This section draws from any distribution of `scipy.stats`, such as a Lévy stabl
 `draw(name, distribution, **parameters)` takes the name of the distribution, such as `'pareto'`, `'lomax'`,
 `'expon'`, `'beta'`, or `'levy_stable'`, with its shape parameters, `loc`, and `scale` as keywords.
 
-Here 100 fliers each take a step drawn from a symmetric stable law of index 1.5 on every step, through an
-[`UpdateLaw`](../core_components/laws.md#updatelaw) of an [`Element`](../core_components/elements.md#element)
-subclass that a [`GroupElement`](../core_components/elements.md#groupelement) repeats.
+Here 100 fliers, an [`Element`](../core_components/elements.md#element) with `size=100`, each take a step drawn
+from a symmetric stable law of index 1.5 on every step, through an
+[`UpdateLaw`](../core_components/laws.md#updatelaw) of a one-off interaction.
 
 ```python
-from typing import Annotated
-
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.laws.utils import draw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 
 
-class FlierElement(Element):
-    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.x = x
-
-    def _get_laws(self, s):
-        return [UpdateLaw(s.x, s.x + draw('jump', 'levy_stable', alpha=1.5, beta=0.0))]
+def fly(s):
+    x = s.target.x
+    return [UpdateLaw(x, x + draw('jump', 'levy_stable', alpha=1.5, beta=0.0))]
 
 
-fliers = CompositeSystem(elements=[GroupElement('fliers', element=FlierElement, size=100)])
-flight = simulate(fliers, until=20, dt=1.0, random_state=0)
+fliers = Element('fliers', values={'x': 0.0}, size=100)
+system = System(elements=[fliers], interactions=[Interaction('flight', roles={'target': 'fliers'}, laws=fly)])
+flight = system.prepare().simulate(until=20, dt=1.0, random_state=0)
 flight.get_values('fliers.x').shape
 ```
 
@@ -70,36 +64,30 @@ reset. A renewal is one such firing.
 Here 1000 walkers wait a Pareto time of index 0.5, which has no finite mean, and then jump by a normal step.
 
 ```python
-from typing import Annotated
-
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import JumpLaw
 from skcomplex.core.components.laws.utils import draw, normal
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 
 
-class WalkerElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        x: Annotated[float, StateSpec()] = 0.0,
-        alpha: Annotated[float, ParameterSpec()] = 0.5,
-    ):
+class Trapping(Interaction):
+    def __init__(self, label, *, target: Role, alpha=0.5):
         super().__init__(label)
-        self.x = x
+        self.target = target
         self.alpha = alpha
 
-    def _get_laws(self, s):
-        waiting = draw('wait', 'pareto', b=s.alpha)
-        return [JumpLaw(waiting=waiting, reset={s.x: s.x + normal('jump', 0, 1)}, label='jumps')]
+    def _prepare(self, s):
+        super()._prepare(s)
+        x, waiting = s.target.x, draw('wait', 'pareto', b=s.alpha)
+        self.laws_ = [JumpLaw(waiting=waiting, reset={x: x + normal('jump', 0, 1)}, label='jumps')]
 
 
-walkers = CompositeSystem(elements=[GroupElement('walkers', element=WalkerElement, size=1000)])
-walk = simulate(walkers, until=1000, dt=100.0, random_state=0)
-walk.problem.form.value, bool(walk.get_values('jumps.renewals')[-1] > 1000)
+walkers = Element('walkers', values={'x': 0.0}, size=1000)
+system = System(elements=[walkers], interactions=[Trapping('trapping', target='walkers')]).prepare()
+walk = system.simulate(until=1000, dt=100.0, random_state=0)
+system.form_, bool(walk.get_values('jumps.renewals')[-1] > 1000)
 ```
 
 The system compiles to the form `'renewal process'`, and the 1000 walkers renew more than 1000 times by time 1000.
@@ -114,7 +102,7 @@ The clocks follow these rules.
 A system or partition whose only laws are such jumps compiles to the renewal form. `RenewalSolver` runs it exactly, from
 renewal to renewal with no time grid, and a frame holds the states the last renewal at or before its time set.
 
-These jumps also combine with the rate and noise laws of the same element, which evolve the states between renewals.
+These jumps also combine with rate and noise laws on the same states, which evolve them between renewals.
 `RK4Solver` and `EulerMaruyamaSolver` stop every member at its own renewals when the members do not interact. When a
 law sums over the group, they split the step at every renewal time for all members. Other steppers reject these jumps.
 
@@ -132,27 +120,16 @@ Brownian motion of Hurst index `0 < H < 1`. The Hurst index sets how the increme
 Here 500 walkers follow rough paths of index 0.3 with amplitude 1 up to time 1.
 
 ```python
-from typing import Annotated
-
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import NoiseLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import FractionalEulerMaruyamaSolver
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 
-
-class RoughElement(Element):
-    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.x = x
-
-    def _get_laws(self, s):
-        return [NoiseLaw(s.x, 1, hurst=0.3)]
-
-
-walkers = CompositeSystem(elements=[GroupElement('walkers', element=RoughElement, size=500)])
-rough = simulate(walkers, until=1, dt=0.1, solver=FractionalEulerMaruyamaSolver(dt=0.01), random_state=0)
+walkers = Element('walkers', values={'x': 0.0}, size=500)
+roughness = Interaction('roughness', roles={'target': 'walkers'}, laws=lambda s: [NoiseLaw(s.target.x, 1, hurst=0.3)])
+system = System(elements=[walkers], interactions=[roughness], solver=FractionalEulerMaruyamaSolver(dt=0.01))
+rough = system.prepare().simulate(until=1, dt=0.1, random_state=0)
 round(float(rough.get_values('walkers.x')[-1].var()), 1)
 ```
 
@@ -175,38 +152,34 @@ These ready-made systems have memory: `ContinuousTimeRandomWalkSystem`, `LevyWal
 ## Fractional derivatives
 
 This section gives a state a derivative of fractional order, for relaxation that is slower than any exponential. A
-state declared with a fractional order, `StateSpec(order=0.6)`, has a Caputo derivative of that order. The Caputo
+rate law whose target is `fractional(x, 0.6)` sets the Caputo derivative of that order of the state `x`. The Caputo
 derivative of order `alpha` weighs the whole past of the rate of change with a kernel that decays as a power of time.
 
-Here a state relaxes under a [`RateLaw`](../core_components/laws.md#ratelaw) with `D^0.6 x = -x` from 1.0, and the run
-compares with the exact solution at time 20.
+Here a state relaxes under the [`RateLaw`](../core_components/laws.md#ratelaw) `RateLaw(fractional(x, 0.6), -x)`, the
+equation `D^0.6 x = -x`, from 1.0, and the run compares with the exact solution at time 20.
 
 ```python
-from typing import Annotated
-
 from skcomplex.core.analysis import symbolic
 from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.laws.utils import fractional
 from skcomplex.core.engine.solvers import L1Solver
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 
 
-class RelaxingElement(Element):
-    def __init__(self, label, *, x: Annotated[float, StateSpec(order=0.6)] = 1.0):
-        super().__init__(label)
-        self.x = x
 
-    def _get_laws(self, s):
-        return [RateLaw(s.x, -s.x)]
+def relax(s):
+    return [RateLaw(fractional(s.target.x, 0.6), -s.target.x)]
 
 
-system = CompositeSystem(elements=[RelaxingElement('a')])
-relaxing = simulate(system, until=20, dt=1.0, solver=L1Solver(dt=0.01, memory=10.0))
+relaxation = Interaction('relaxation', roles={'target': 'a'}, laws=relax)
+solver = L1Solver(dt=0.01, memory=10.0)
+system = System(elements=[Element('a', values={'x': 1.0})], interactions=[relaxation], solver=solver)
+relaxing = system.prepare().simulate(until=20, dt=1.0)
 solution = symbolic(system, kind='solve', use_initial_state=True).solutions['a.x'].rhs()
 exact = solution.subs({solution.variables()[0]: 20.0})
-relaxing.problem.form.value, abs(float(relaxing.get_values('a.x')[-1]) - float(exact)) < 1e-3
+system.form_, abs(float(relaxing.get_values('a.x')[-1]) - float(exact)) < 1e-3
 ```
 
 The system compiles to the form `'fractional differential equations'`, and the simulated relaxation matches the
@@ -233,10 +206,9 @@ fractional relaxation of order 0.6, a window of 10 time units stays within `1e-8
 change of a fractional state between frames, such as one a `schedule` makes, starts a new history from
 the changed state.
 
-`simulate` reports the misuses of fractional orders before compiling, each with the path of the state and a fix.
+`prepare` reports the misuses of fractional orders before compiling, each with the path of the state and a fix.
 
 - `fractional-order`: an order that is neither an integer nor in `(0, 1)`.
-- `fractional-time`: a fractional state in a system whose declared time is not continuous.
 - `order-unsupported`: a chosen solver or backend that does not integrate fractional orders.
 - `solver-unsupported`: a law on a fractional state that no fractional solver runs, such as a noise law.
 
@@ -249,8 +221,8 @@ numerically. It sums the power series in arbitrary precision with Sage for moder
 expansion for large ones.
 `symbolic(system)` writes a Caputo derivative as `caputo(x(t), t, alpha)`.
 
-An interaction states the same relaxation as `RateLaw(fractional(x, 0.6), -x)`, with the order in the target of the
-law, as the [`fractional`](../core_components/laws.md#fractional) section of the laws page shows. These ready-made
+The [`fractional`](../core_components/laws.md#fractional) section of the laws page shows the operator in full. These
+ready-made
 systems of `skcomplex.systems.mathematics.fractional_dynamics` are written this way and take the order as a model
 parameter: `FractionalRelaxationSystem`, `FractionalOscillatorSystem`, `FractionalVanDerPolSystem`, and
 `FractionalLorenzSystem`.

@@ -14,15 +14,14 @@ This section changes the parameters of a model. Every model parameter is an argu
 `get_params` lists them.
 
 ```python
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 LotkaVolterraSystem().get_params()
 ```
 
 The parameters are the initial populations `prey=40.0` and `predators=9.0`, the prey growth rate `r=1.1`, the
-predation rates `a=0.4` and `b=0.1`, the predator death rate `d=0.4`, the capacity `K=None`, and the label. You pass new
-values by name to the class, as for any scikit-learn estimator.
+predation rates `a=0.4` and `b=0.1`, the predator death rate `d=0.4`, the capacity `K=None`, the label, and the
+settings `solver` and `backend`. You pass new values by name to the class, as for any scikit-learn estimator.
 
 ```python continuation
 LotkaVolterraSystem(r=1.5, predators=5.0).prepare().simulate().get_values('prey.x').max().round()
@@ -37,16 +36,15 @@ logistic.prepare().system_.interactions
 ```
 
 The components are a `LogisticGrowthInteraction` with `K=200.0`, a `PredationInteraction`, and a `MortalityInteraction`.
-`prepare` keeps them as `system_`, the [`CompositeSystem`](core_components/systems.md#compositesystem) of the elements
-and interactions of the system.
+`prepare` keeps them as `system_`, the [`System`](core_components/systems.md#system) of the elements and
+interactions of the system.
 
 A parameter can change more than a number. With a finite capacity `K`, `LotkaVolterraSystem` replaces the exponential
 growth of the prey by logistic growth, as above. With `stochastic=True`, `SIRSystem` writes the epidemic as random
-jumps of whole individuals. Its tags then change from rates to jumps, and `simulate` picks a solver of jump processes
+jumps of whole individuals. Its tags then change from rates to jumps, and `prepare` picks a solver of jump processes
 instead of one of differential equations.
 
 ```python
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.epidemiology import SIRSystem
 
 epidemic = SIRSystem(stochastic=True)
@@ -61,10 +59,10 @@ people, against 304 for the deterministic model.
 
 This section overrides the tuned run settings for one run. A system class keeps tuned run settings, which `simulate`
 uses for every argument a call leaves out. An argument of the call overrides one of them, such as `until`, `dt`,
-`solver`, `initial_state`, or `random_state`.
+`initial_state`, or `random_state`. The solver and the backend are settings of the system itself, as the next section
+shows.
 
 ```python
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 LotkaVolterraSystem.until, LotkaVolterraSystem.dt
@@ -83,11 +81,10 @@ repeat any tuned value you want to keep.
 
 ### Simulating the system your own way
 
-This section picks every setting of a run yourself, such as a fixed-step [solver](glossary.md#solver).
-`RK4Solver` integrates ordinary differential equations by the classical Runge-Kutta method with a fixed step.
+This section picks every setting of a run yourself, such as a fixed-step [solver](glossary.md#solver), which
+`set_params(solver=...)` gives the system before it is prepared. `RK4Solver` integrates ordinary differential equations by the classical Runge-Kutta method with a fixed step.
 
 ```python
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
@@ -109,61 +106,51 @@ written from the base classes [`Element`](core_components/elements.md#element) a
 [Build a custom system](build_a_custom_system/index.md) explains.
 
 ```python
-from typing import Annotated
-
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 
 
-class PopulationElement(Element):
-    def __init__(self, label, *, n: Annotated[float, StateSpec()] = 1.0):
+class Population(Element):
+    def __init__(self, label, n=1.0):
         super().__init__(label)
         self.n = n
 
 
-class PredationInteraction(Interaction):
-    def __init__(
-        self,
-        label,
-        *,
-        predator: Annotated[str, RoleSpec(states=('n',))],
-        prey: Annotated[str, RoleSpec(states=('n',))],
-        a: Annotated[float, ParameterSpec()] = 0.4,
-        b: Annotated[float, ParameterSpec()] = 0.1,
-    ):
+class Predation(Interaction):
+    def __init__(self, label, *, predator: Role, prey: Role, a=0.4, b=0.1):
         super().__init__(label)
         self.predator = predator
         self.prey = prey
         self.a = a
         self.b = b
 
-    def _get_laws(self, s):
+    def _prepare(self, s):
+        super()._prepare(s)
         contacts = s.predator.n * s.prey.n
-        return [RateLaw(s.prey.n, -s.a * contacts), RateLaw(s.predator.n, s.b * contacts)]
+        self.laws_ = [RateLaw(s.prey.n, -s.a * contacts), RateLaw(s.predator.n, s.b * contacts)]
 
 
-landscape = CompositeSystem(
+landscape = System(
     systems=[
-        CompositeSystem('forest', elements=[PopulationElement('foxes', n=5)]),
-        CompositeSystem('meadow', elements=[PopulationElement('rabbits', n=50)]),
+        System('forest', elements=[Population('foxes', n=5)]),
+        System('meadow', elements=[Population('rabbits', n=50)]),
     ],
-    interactions=[PredationInteraction('hunt', predator='forest/foxes', prey='meadow/rabbits', a=0.02, b=0.01)],
+    interactions=[Predation('hunt', predator='forest/foxes', prey='meadow/rabbits', a=0.02, b=0.01)],
 )
-trajectory = simulate(landscape, until=10, dt=0.1)
-trajectory.get_values('meadow/rabbits.n')[-1].round(3)
+trajectory = landscape.prepare().simulate(until=10, dt=0.1)
+trajectory.get_values('meadow/rabbits.n')[-1].round(3), landscape.get_params()['hunt__a']
 ```
 
 The rabbits fall from 50 to 0.735 in ten time units. The interaction `hunt` sits in the outer system and binds
-`forest/foxes` and `meadow/rabbits` to its roles, the names under which it reads and changes them. States and
-parameters are named by their path, such as `meadow/rabbits.n` and `hunt.a`, in the trajectory, in initial values, and
-in parameter changes.
+`forest/foxes` and `meadow/rabbits` to its roles, the names under which it reads and changes them. States are named
+by their path, such as `meadow/rabbits.n`, in the trajectory and in initial values. Parameters are named with double
+underscores, such as `hunt__a`, in `get_params` and `set_params`, as in a scikit-learn `Pipeline`.
 
 A ready-made system nests in the same way, through its components. Give each nested system its own label, since a system
-class has the label `system` by default, and nest the composite `system_` of its components.
+class has the label `system` by default.
 
 ```python
 from skcomplex.core.systems import System

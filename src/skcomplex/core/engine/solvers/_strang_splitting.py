@@ -57,34 +57,27 @@ class StrangSplittingSolver(Solver):
 
     Examples:
         >>> import numpy as np
-        >>> from typing import Annotated
-        >>> from skcomplex.core.components.elements import Element, FieldElement
-        >>> from skcomplex.core.specs import StateSpec
-        >>> class AmountElement(Element):
-        ...     def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
-        ...         super().__init__(label)
-        ...         self.x = x
-        >>> from skcomplex.core.components.interactions import ConservationInteraction, RateInteraction
-        >>> from skcomplex.core.components.laws.utils import coordinate, maximum_entropy
-        >>> from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.components.interactions import Interaction
+        >>> from skcomplex.core.components.laws import RateLaw
+        >>> from skcomplex.core.components.laws.utils import coordinate, divergence
+        >>> from skcomplex.core.components.spaces import AxisSpec, LatticeSpace, PhaseSpace
+        >>> from skcomplex.core.systems import System
+        >>> def streaming(s):
+        ...     return [RateLaw(s.target.x, -divergence([coordinate('v') * s.target.x, 0]))]
+        >>> stream = Interaction('stream', roles={'target': 'gas'}, laws=streaming)
+        >>> from skcomplex.core.components.laws.utils import maximum_entropy
         >>> from skcomplex.core.engine.solvers import RK4Solver, SemiLagrangianSolver, StrangSplittingSolver
-        >>> from skcomplex.core.components.spaces import AxisSpec
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> space = PhaseSpace(LatticeSpace((8,)), [AxisSpec('v', 16, -6.0, 6.0)]).prepare()
-        >>> start = np.outer(2 + np.sin(2 * np.pi * np.arange(8) / 8), np.exp(-space.coordinates_['v'] ** 2))
-        >>> gas = FieldElement(
-        ...     'gas', element=AmountElement, space=space, values={'x': start}, discretization='finite-volume'
-        ... )
-        >>> stream = ConservationInteraction(
-        ...     's', target='gas', state='x', flux=lambda s: [coordinate('v') * s.target.x, 0]
-        ... )
         >>> def relaxation(s):
-        ...     return (maximum_entropy(s.target.x, axes=('v',)) - s.target.x) / 0.5
-        >>> relax = RateInteraction('r', target='gas', state='x', rate=relaxation)
-        >>> system = CompositeSystem(elements=[gas], interactions=[stream, relax])
+        ...     return [RateLaw(s.target.x, (maximum_entropy(s.target.x, axes=('v',)) - s.target.x) / 0.5)]
+        >>> relax = Interaction('relax', roles={'target': 'gas'}, laws=relaxation)
+        >>> position = LatticeSpace((8,), discretization='finite-volume')
+        >>> space = PhaseSpace(position, [AxisSpec('v', 16, -6.0, 6.0)]).prepare()
+        >>> start = np.outer(2 + np.sin(2 * np.pi * np.arange(8) / 8), np.exp(-space.coordinates_['v'] ** 2))
+        >>> gas = Element('gas', values={'x': start}, space=space)
         >>> solver = StrangSplittingSolver(SemiLagrangianSolver(dt=0.1), RK4Solver(dt=0.1), dt=0.1)
-        >>> final = simulate(system, until=0.2, solver=solver).get_values('gas.x')[-1]
+        >>> system = System(elements=[gas], interactions=[stream, relax], solver=solver)
+        >>> final = system.prepare().simulate(until=0.2).get_values('gas.x')[-1]
         >>> abs(float(final.sum() / start.sum()) - 1.0) < 1e-12
         True
     """

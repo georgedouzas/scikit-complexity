@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.spaces import LatticeSpace
+from skcomplex.core.engine.solvers import MetropolisSolver
 from skcomplex.core.engine.viz import ImageVisual
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.systems import System
@@ -65,7 +66,8 @@ def test_image_visual_colors_angles_cyclically():
     """Test that angles just either side of ±π get nearly the same color, as on a cyclic palette."""
     spins = XYSpinElement('spins', theta=np.array([-3.1, 3.1, 0.0, 1.5]), space=LatticeSpace((2, 2)))
     sampling = XYSamplingInteraction('sampling', target='spins')
-    problem, frame = _first_frame(System(elements=[spins], interactions=[sampling]))
+    solver = MetropolisSolver(moves={'spins.theta': 'rotate'})
+    problem, frame = _first_frame(System(elements=[spins], interactions=[sampling], solver=solver))
     logs = Logs()
     ImageVisual(path=problem.elements[0].path, recording=logs).prepare(problem).run(frame)
     image = logs.of('spins/theta')[0]

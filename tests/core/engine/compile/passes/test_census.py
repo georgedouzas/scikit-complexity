@@ -13,7 +13,7 @@ from skcomplex.core.components.laws import ConstraintLaw, NoiseLaw, ObjectiveLaw
 from skcomplex.core.components.laws.utils import laplacian, logistic, neighbors
 from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace, NetworkSpace, RadiusNeighborhood
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.errors import ValidationError
+from skcomplex.core.errors import IncompatibleLawsError, ValidationError
 from skcomplex.core.systems import System
 
 NEAREST = RadiusNeighborhood(1, metric='manhattan')
@@ -235,6 +235,25 @@ def test_update_law_beside_rate_laws_corrects_the_state_after_each_step():
     positions = np.ravel(system.simulate(until=20.0, random_state=1).get_values('walker.x'))
     assert system.form_ == 'stochastic differential equations'
     assert positions.min() >= 0.0
+
+
+@pytest.mark.parametrize(
+    'update',
+    [
+        lambda x: UpdateLaw(x, 1.0, increment=True),
+        lambda x: UpdateLaw(x, x + 1.0, order=0),
+    ],
+)
+def test_update_law_that_steps_a_state_rates_change_is_rejected(update):
+    """Test that a step of a state that a rate also changes, which is no correction, is a conflict of law kinds."""
+    clash = Interaction(
+        'clash',
+        roles={'target': 'node'},
+        laws=lambda s: [RateLaw(s.target.x, 1.0), update(s.target.x)],
+    )
+    system = System(elements=[Element('node', values={'x': 0.0})], interactions=[clash])
+    with pytest.raises(IncompatibleLawsError, match=r'RateLaw: node; UpdateLaw: node.*\[laws-mixed\]'):
+        system.prepare()
 
 
 def test_update_law_of_a_discrete_child_stays_a_map():

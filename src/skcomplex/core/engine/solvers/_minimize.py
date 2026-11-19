@@ -38,24 +38,14 @@ class MinimizeSolver(BaseObjectiveSolver):
         RootSolver: Solves the constraint laws of a static system that has no objective.
 
     Examples:
-        >>> from typing import Annotated
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.interactions import Interaction
         >>> from skcomplex.core.components.laws import ObjectiveLaw
-        >>> from skcomplex.core.specs import RoleSpec, StateSpec
         >>> from skcomplex.core.systems import System
-        >>> class PointElement(Element):
-        ...     def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
-        ...         super().__init__(label)
-        ...         self.x = x
-        >>> class WellInteraction(Interaction):
-        ...     def __init__(self, label, *, target: Annotated[str, RoleSpec()] = 'point'):
-        ...         super().__init__(label)
-        ...         self.target = target
-        ...
-        ...     def _get_laws(self, s):
-        ...         return [ObjectiveLaw((s.target.x - 2) ** 2, s.target.x)]
-        >>> system = System(elements=[PointElement('point')], interactions=[WellInteraction('well')]).prepare()
+        >>> def bottom(s):
+        ...     return [ObjectiveLaw((s.target.x - 2) ** 2, s.target.x)]
+        >>> well = Interaction('well', roles={'target': 'point'}, laws=bottom)
+        >>> system = System(elements=[Element('point', values={'x': 0.0})], interactions=[well]).prepare()
         >>> round(float(system.simulate(until=1.0).get_values('point.x')[0]), 6)
         2.0
     """

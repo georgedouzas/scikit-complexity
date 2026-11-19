@@ -38,7 +38,7 @@ fig, ax = plt.subplots(figsize=(7, 4))
 for beta, color in ((0.25, 'tab:blue'), (1.5, 'tab:orange')):
     flock = CuckerSmaleFlockingSystem(beta=beta, random_state=1, solver=solver).prepare()
     run = flock.simulate(until=60, random_state=1)
-    velocities = run.get_values('birds.x_d1')
+    velocities = run.get_values("birds.x'")
     spread = np.sqrt(np.mean(np.sum((velocities - velocities.mean(axis=1, keepdims=True)) ** 2, axis=-1), axis=1))
     ax.semilogy(run.times, spread, color=color, label=f'beta = {beta}')
 ax.set_xlabel('time t')

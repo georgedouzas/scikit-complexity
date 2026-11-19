@@ -168,6 +168,14 @@ def test_get_tags_reads_the_domains_of_values_from_the_laws() -> None:
     assert tags.laws == {'update'}
 
 
+def test_get_tags_reads_the_laws_of_a_one_off_interaction_from_the_census() -> None:
+    """The tags of a system name the kinds of laws a one-off interaction learns only when it is prepared."""
+    flip = Interaction('flip', roles={'target': 'voter'}, laws=lambda s: [UpdateLaw(s.target.n, 1 - s.target.n)])
+    tags = System(elements=[Element('voter', values={'n': 0})], interactions=[flip]).get_tags()
+    assert flip.get_tags().laws is None
+    assert (tags.laws, tags.time) == ({'update'}, {'discrete'})
+
+
 def test_simulate_a_static_system_needs_no_end_time():
     """Test that a system that only minimises an objective simulates with no `until` to its one frame."""
     bowl = Interaction('bowl', roles={'target': 'p'}, laws=lambda s: [ObjectiveLaw((s.target.x - 2) ** 2, s.target.x)])

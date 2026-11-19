@@ -115,11 +115,14 @@ def test_function_rule_updates_a_power_series_state():
     def difference(here, right):
         return here - ring.multiply(ring.get_coefficients_of('t'), right)
 
-    system = System(
-        elements=[PowerSeriesCellElement('cells', ring=ring, value=values, space=LatticeSpace(6))],
-        interactions=[_local_rule('difference', difference, FORWARD)],
+    cells = PowerSeriesCellElement('cells', ring=ring, value=values, space=LatticeSpace(6))
+    rule = Interaction(
+        'difference',
+        roles={'target': 'cells'},
+        laws=lambda s: [UpdateLaw(s.target.value, difference, neighborhood=FORWARD)],
     )
-    final = _values(system, 3)[-1]
+    system = System(elements=[cells], interactions=[rule]).prepare()
+    final = system.simulate(until=3, dt=1, random_state=0).get_values('cells.value')[-1]
     expected = np.zeros((6, 4))
     expected[3, 0], expected[2, 1], expected[1, 2], expected[0, 3] = 1, -3, 3, -1
     np.testing.assert_array_equal(final, expected)
@@ -127,9 +130,11 @@ def test_function_rule_updates_a_power_series_state():
 
 def test_lookup_rules_reject_power_series_states():
     """Test that a totalistic rule cannot read a state of several components."""
-    system = System(
-        elements=[PowerSeriesCellElement('cells', value=np.zeros((5, 8)), space=LatticeSpace(5))],
-        interactions=[_local_rule('sum', TotalisticSpec({1: 1}), FORWARD)],
+    cells = PowerSeriesCellElement('cells', space=LatticeSpace(5))
+    rule = Interaction(
+        'sum',
+        roles={'target': 'cells'},
+        laws=lambda s: [UpdateLaw(s.target.value, TotalisticSpec({1: 1}), neighborhood=FORWARD)],
     )
     with pytest.raises(ValidationError, match='one component'):
-        system.prepare().simulate(until=0)
+        System(elements=[cells], interactions=[rule]).prepare().simulate(until=1)

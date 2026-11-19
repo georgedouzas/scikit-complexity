@@ -62,14 +62,13 @@ class OperatorProblemSpec(BaseProblemSpec):
             The matrices of local operators computed so far.
 
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.core.engine.compile import OperatorCompiler
         >>> from skcomplex.systems.physics.common.quantum import QubitElement
-        >>> system = CompositeSystem(elements=[GroupElement('pair', element=QubitElement, size=2)])
+        >>> system = System(elements=[QubitElement('a'), QubitElement('b')])
         >>> problem = OperatorCompiler().prepare(system).run().problem_
         >>> problem.dimensions, problem.subsystems
-        ((2, 2), ('pair[0]', 'pair[1]'))
+        ((2, 2), ('a', 'b'))
     """
 
     dimensions: tuple[int, ...] = ()

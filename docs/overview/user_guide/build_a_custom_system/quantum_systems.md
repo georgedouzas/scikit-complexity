@@ -34,9 +34,9 @@ of your own declares the operators it needs. Typical subsystems have these opera
 - A mode has `annihilate`, `create`, and `number`, truncated at `quanta`.
 - A particle on the sites of a lattice or a network has its `laplacian` and its `adjacency`.
 
-A group of subsystems, such as a [`GroupElement`](../core_components/elements.md#groupelement) of spins on `'sites'`,
-is the tensor product of the spaces of its members, in member order. The initial state of every subsystem is a basis
-label, an index, or a vector. The `HilbertSpec` names the compiler of quantum systems, so `simulate` compiles a system
+A group of subsystems, such as an [`Element`](../core_components/elements.md#element) of spins with one member per
+site of a space, is the tensor product of the spaces of its members, in member order. The initial state of every subsystem is a basis
+label, an index, or a vector. The `HilbertSpec` names the compiler of quantum systems, so `prepare` compiles a system
 of such elements to the operator form by itself.
 
 ## Operators and laws
@@ -44,9 +44,9 @@ of such elements to the operator form by itself.
 This section writes the generator of a system from the operators of its subsystems. A spin one half is an
 [`Element`](../core_components/elements.md#element) whose state `psi` lives in the two-dimensional space of a
 `HilbertSpec` with the three spin components. Neighbouring spins on a ring exchange their spin with the coupling `J`,
-the Heisenberg exchange `J (Sx Sx + Sy Sy + Sz Sz)`. A
-[`NeighborInteraction`](../core_components/interactions.md#neighborinteraction) writes the exchange once for a bond and
-returns it as a `GeneratorLaw`, as the Heisenberg chain of the catalog does. Here the chain has six sites and starts in
+the Heisenberg exchange `J (Sx Sx + Sy Sy + Sz Sz)`. An
+[`Interaction`](../core_components/interactions.md#interaction) bound `among` the spins writes the exchange once for a
+bond and sets it as a `GeneratorLaw`, as the Heisenberg chain of the catalog does. Here the chain has six sites and starts in
 the alternating state up, down, up, down, up, down, and its observable `sz` records the expectation of `Sz` at every
 site.
 
@@ -72,8 +72,8 @@ build the dynamics.
 - `DissipatorLaw(operator, rate)` adds a Lindblad dissipator, a term that lets the system lose energy or coherence to
   its surroundings, which makes the system open.
 
-A `NeighborInteraction` is written once for a bond, with `s.source` and `s.target`. It acts on every pair of
-neighbours of the space of the group that its one role binds, here the
+An interaction bound `among` a group is written once for a bond, with `s.source` and `s.target`. It acts on every pair
+of neighbours of the space of that group, here the
 [`LatticeSpace`](../core_components/spaces.md#latticespace) of six sites. Compiling checks that the generator is
 Hermitian, and that the dimension stays within the `max_dimension` of the operator solver.
 
@@ -83,7 +83,7 @@ A whole-system initial state, such as an entangled vector or `'ground'`, is give
 ## Solvers, observables, and spectra
 
 This section chooses how the state evolves, records the expectations of operators, and diagonalises the generator
-exactly. `simulate` compiles a system of quantum elements to the operator form. Its state is stored as complex pairs
+exactly. `prepare` compiles a system of quantum elements to the operator form. Its state is stored as complex pairs
 under `<system>.state`, a pure state for a closed system and a density matrix for an open one. The solvers of the
 quantum package hand every frame to QuTiP.
 

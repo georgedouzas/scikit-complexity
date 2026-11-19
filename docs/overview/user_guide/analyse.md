@@ -18,7 +18,6 @@ pelt records of the Hudson's Bay Company, run for a hundred years from the recor
 
 ```python
 from skcomplex.core.analysis import applicable_analyses
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 system = LotkaVolterraSystem(prey=30.0, predators=4.0, r=0.55, a=0.028, b=0.024, d=0.80)
@@ -77,28 +76,21 @@ The kind `'solve'` solves the equations exactly where a closed form exists. The 
 so a harmonic oscillator shows it, a particle on a spring whose acceleration is `-4 x`.
 
 ```python continuation
-from typing import Annotated
-
 from skcomplex.core.analysis import symbolic
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import RateInteraction
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 
 
-class AtomElement(Element):
-    def __init__(
-        self, label, *, x: Annotated[object, StateSpec(vector=True, order=2, role='position')] = 0.0, x_d1: object = 0.0
-    ):
-        super().__init__(label)
-        self.x = x
-        self.x_d1 = x_d1
+def trap(s):
+    return [RateLaw(s.target.x.diff(s.t, 2), -4.0 * s.target.x)]
 
 
-oscillator = CompositeSystem(
-    elements=[AtomElement('p', x=1.0)],
-    interactions=[RateInteraction('trap', target='p', rate=lambda s: -4.0 * s.target.x)],
+oscillator = System(
+    elements=[Element('p', values={'x': [1.0]})],
+    interactions=[Interaction('trap', roles={'target': 'p'}, laws=trap)],
     space=ContinuousSpace(n_dim=1),
 )
 equation = symbolic(oscillator).equations['p.x[0]']
@@ -361,7 +353,6 @@ kind.
 import numpy as np
 
 from skcomplex.core.analysis import applicable_analyses, spectrum
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.statistical_mechanics import IsingSystem
 
 spins = IsingSystem(size=32).prepare().simulate(until=20)
@@ -678,27 +669,16 @@ whose increment is counted, or a function of the trajectory of each interval. A 
 effective size collapses, a sign that the estimate is biased.
 
 ```python
-from typing import Annotated
-
 import numpy as np
 
 from skcomplex.core.analysis import irreversibility, large_deviations
 from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import JumpLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 
-
-class CounterElement(Element):
-    def __init__(self, label, *, n: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.n = n
-
-    def _get_laws(self, s):
-        return [JumpLaw(1.0, {s.n: 1})]
-
-
-counter = CompositeSystem(elements=[CounterElement('counter')])
+tick = Interaction('tick', roles={'target': 'counter'}, laws=lambda s: [JumpLaw(1.0, {s.target.n: 1})])
+counter = System(elements=[Element('counter', values={'n': 0.0})], interactions=[tick])
 cloning = large_deviations(
     counter, kind='cloning', observable='counter.n', tilts=0.5, population=200, until=10.0, random_state=0
 )
@@ -824,10 +804,9 @@ Agents align, spread in [space](glossary.md#space), and segregate into groups, a
 import numpy as np
 
 from skcomplex.core.analysis import alignment, coarse_grain, neighbors
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.collective_behaviour import BoidsSystem
 
-flock = simulate(BoidsSystem(), until=5)
+flock = BoidsSystem().prepare().simulate(until=5)
 positions = np.random.default_rng(4).random((1000, 2))
 ratio = neighbors(positions, kind='clark-evans', box=[1.0, 1.0]).ratio
 field = coarse_grain(positions, shape=[8, 8], box=[1.0, 1.0]).field

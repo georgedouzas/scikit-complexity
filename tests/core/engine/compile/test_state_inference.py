@@ -629,6 +629,17 @@ def test_get_declared_places_one_walker_in_a_space_without_sites():
     assert system.parameters_ == ('walker.m[i]',)
 
 
+@pytest.mark.parametrize(('boundary', 'end'), [('periodic', 0.25), ('reflecting', 1.0)])
+def test_get_declared_keeps_one_walker_with_a_vector_position_of_one_component_in_the_box(boundary, end):
+    """Test that the position `[0.25]` of one walker on a line is a vector of one component the boundary acts on."""
+    space = ContinuousSpace((1.0,), boundary=boundary)
+    drift = Interaction('drift', roles={'target': 'walker'}, laws=lambda s: [RateLaw(s.target.x, 1.0)])
+    walker = Element('walker', values={'x': [0.25]}, space=space)
+    system = System(elements=[walker], interactions=[drift], space=space).prepare()
+    assert system.states_ == ('walker.x[i, 0]',)
+    assert system.simulate(until=1.0, dt=0.5).get_values('walker.x').ravel()[-1] == pytest.approx(end, abs=1e-3)
+
+
 class Growth(Interaction):
     """Interaction that adds one node joined to one other node at every step."""
 
@@ -1598,3 +1609,25 @@ def test_a_field_bound_to_rules_keeps_as_states_only_the_values_its_laws_change(
     assert [name for name in trajectory.problem.states.names if name.startswith('field/')] == ['field/ground.level']
     assert 'field/ground.rate' in trajectory.problem.parameters.names
     assert float(np.sum(trajectory.get_values('field/ground.level')[-1])) > 0
+
+
+def _tend(system: object) -> None:
+    """Leave the system as it is."""
+    del system
+
+
+def test_get_declared_keeps_a_value_a_rate_changes_beside_a_rule_of_the_same_interaction():
+    """Test that soil a rate grows stays a state of its nested system when the same interaction runs a system rule."""
+    tending = Interaction(
+        'tend',
+        roles={'soil': 'land/soil', 'farmers': 'village/farmers'},
+        laws=lambda s: [RateLaw(s.soil.x, 1.0), UpdateLaw(s, _tend)],
+    )
+    system = System(
+        systems=[
+            System('land', elements=[Element('soil', values={'x': 0.0})]),
+            System('village', elements=[Element('farmers', values={'wealth': 1.0}, size=2)]),
+        ],
+        interactions=[tending],
+    ).prepare()
+    assert system.states_ == ('land/soil.x', 'village/farmers.wealth')

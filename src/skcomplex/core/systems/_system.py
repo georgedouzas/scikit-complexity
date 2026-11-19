@@ -20,7 +20,7 @@ from ..engine.problems._neighborhood_kernel import NeighborhoodKernel
 from ..engine.problems._reduction_kernel import ReductionKernel
 from ..engine.problems._rule_kernel import RuleKernel
 from ..engine.runtime import compile_problem
-from ..engine.solvers import BaseSolver
+from ..engine.solvers import BaseSolver, MetropolisSolver
 from ..enums import FormKind
 from ..errors import ValidationError
 from ..specs import EntrySpec
@@ -310,6 +310,8 @@ class System(BaseSystem):
         self._check_runners()
         self._composite = self._get_composite()
         solver = self.solver if isinstance(self.solver, BaseSolver) else None
+        if isinstance(solver, MetropolisSolver) and solver.moves:
+            solver = solver._get_member_solver()
         self._backend = self.backend if isinstance(self.backend, BaseBackend) else None
         self._problem, self.solver_ = compile_problem(
             self._composite,

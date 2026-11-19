@@ -25,7 +25,7 @@ from ....core.components.laws.utils import codifferential, exterior_derivative
 from ....core.components.spaces import BaseSpace, CellComplexSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.runtime import BaseClock, BaseObserver, Trajectory
-from ....core.engine.solvers import BaseSolver, VelocityVerletSolver
+from ....core.engine.solvers import BaseSolver, MetropolisSolver, VelocityVerletSolver
 from ....core.errors import ValidationError
 from ....core.specs import Role, VisualSpec
 from ....core.systems import BaseSystem, System
@@ -365,9 +365,17 @@ class LatticeGaugeFieldsSystem(BaseSystem):
             space=space,
             on='edges',
         )
-        move = {'move': 'rotate'} if self.n is None else {'move': 'random-value', 'values': values, 'rule': 'heat-bath'}
-        sampling = WilsonSamplingInteraction('wilson', target='links', beta=self.beta, **move)
-        return System(self.label, elements=[links], interactions=[sampling])
+        sampling = WilsonSamplingInteraction('wilson', target='links', beta=self.beta)
+        if self.n is None:
+            solver = MetropolisSolver(moves={'links.theta': 'rotate'}, schedule='colored', width=1.5)
+        else:
+            solver = MetropolisSolver(
+                moves={'links.theta': 'random-value'},
+                rule='heat-bath',
+                schedule='colored',
+                values={'links.theta': values},
+            )
+        return System(self.label, elements=[links], interactions=[sampling], solver=solver)
 
     def _get_gauge_observables(self, space: CellComplexSpace) -> list[Observable]:
         """Return the observables of the dynamics.

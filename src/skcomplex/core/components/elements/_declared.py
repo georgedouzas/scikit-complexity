@@ -50,6 +50,10 @@ class DeclaredElement(Element):
             The values a member that a rule creates takes when the rule gives none, by name, such as the defaults of
             the arguments of the class of a plain element the system declares it from, or `None` for none.
 
+        kind:
+            The name of the class of a plain element the system declares it from, such as `'PopulationElement'`,
+            which names it in drawings, or `None` for the name of its own class.
+
     Attributes:
         default_visual_:
             How the element is drawn by default, the `visual` of its class.
@@ -96,12 +100,14 @@ class DeclaredElement(Element):
         drawing: VisualSpec | None = None,
         view: type | None = None,
         defaults: Mapping[str, object] | None = None,
+        kind: str | None = None,
     ) -> None:
         super().__init__(label)
         self.variables = variables
         self.drawing = drawing
         self.view = view
         self.defaults = defaults
+        self.kind = kind
 
     def _get_visual(self) -> VisualSpec:
         """Return how the element is drawn, its `drawing` or the `visual` of its class."""

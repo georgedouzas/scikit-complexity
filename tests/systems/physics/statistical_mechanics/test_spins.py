@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.engine.problems import FrameSpec
+from skcomplex.core.engine.solvers import MetropolisSolver
 from skcomplex.core.engine.viz import ImageVisual, RerunObserver
 from skcomplex.core.experiments import sweep
 from skcomplex.systems.physics.statistical_mechanics import IsingSystem, PottsSystem, XYSystem
@@ -20,14 +21,20 @@ def test_potts_spins_take_only_their_states_and_order_cold():
     """Test that Potts spins stay within their `q` states and order into one state at a low temperature."""
     colors = np.random.default_rng(1).integers(0, 3, (12, 12)).astype(float)
     sampling = PottsSamplingInteraction('potts', target='sites', q=3)
-    values = _run(sampling, 'color', {'color': colors, 'temperature': 0.1})
+    solver = MetropolisSolver(
+        moves={'sites.color': 'random-value'},
+        rule='heat-bath',
+        values={'sites.color': (0.0, 1.0, 2.0)},
+    )
+    values = _run(sampling, 'color', {'color': colors, 'temperature': 0.1}, solver)
     assert set(np.unique(values)) <= {0.0, 1.0, 2.0}
     assert np.bincount(values[-1].astype(int).ravel()).max() > 0.6 * values[-1].size
 
 
 def test_aligned_xy_spins_stay_aligned_when_cold():
     """Test that aligned planar spins keep a large magnetization at a low temperature."""
-    angles = _run(XYSamplingInteraction('xy', target='sites', width=0.5), 'theta', {'temperature': 0.1})
+    solver = MetropolisSolver(moves={'sites.theta': 'rotate'}, width=0.5)
+    angles = _run(XYSamplingInteraction('xy', target='sites'), 'theta', {'temperature': 0.1}, solver)
     assert np.abs(np.exp(1j * angles[-1]).mean()) > 0.9
 
 
@@ -66,7 +73,8 @@ def test_ising_transition():
 @pytest.mark.parametrize('factory', [PottsSystem, XYSystem])
 def test_cold_spin_systems_order(factory):
     """Test that the Potts and XY systems order at low temperature."""
-    trajectory = _run_default(factory(16, temperature=0.2), until=300, dt=100)
+    system = factory(16, temperature=0.2)
+    trajectory = _run_default(system, until=300, dt=100, solver=system.prepare().system_.solver)
     values = trajectory.states[-1]
     if factory is PottsSystem:
         assert np.bincount(values.astype(int)).max() > 0.8 * values.size

@@ -21,7 +21,7 @@ from ....core.components.elements import Element
 from ....core.components.laws.utils import neighbors
 from ....core.components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import BaseSolver
+from ....core.engine.solvers import BaseSolver, MetropolisSolver
 from ....core.errors import ValidationError
 from ....core.specs import Role, VisualSpec
 from ..common.spins import SpinSamplingInteraction
@@ -180,12 +180,12 @@ class BondSamplingInteraction(SpinSamplingInteraction):
 
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import BondSamplingInteraction
-        >>> BondSamplingInteraction('sampling', target='spins').neighborhood
-        LatticeNeighborhood(offsets=((-1, 0), (0, -1), (0, 1), (1, 0)))
+        >>> BondSamplingInteraction('sampling', target='spins').state
+        'spin'
     """
 
     def __init__(self, label: str, *, target: Role) -> None:
-        super().__init__(label, target=target, state='spin', energy=self._get_energy, neighborhood=NEAREST)
+        super().__init__(label, target=target, state='spin', energy=self._get_energy)
 
     def _get_energy(self, namespace: SimpleNamespace) -> Expression:
         """Return the local energy `-s (sum_k J_k s_k + h)` of a spin."""
@@ -321,6 +321,7 @@ class EdwardsAndersonSystem(systems.BaseSystem):
             self.label,
             elements=[group],
             interactions=[BondSamplingInteraction('sampling', target='spins')],
+            solver=MetropolisSolver(moves={'spins.spin': 'flip'}, neighborhood=NEAREST),
         )
 
 
@@ -430,4 +431,5 @@ class MattisSpinGlassSystem(systems.BaseSystem):
             self.label,
             elements=[group],
             interactions=[BondSamplingInteraction('sampling', target='spins')],
+            solver=MetropolisSolver(moves={'spins.spin': 'flip'}, neighborhood=NEAREST),
         )

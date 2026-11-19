@@ -26,7 +26,7 @@ def test_boids_align():
 
     def polarization(frame):
         snapshot = trajectory.get_agents('flock', frame)
-        velocity = np.stack([snapshot.values['x_d1'], snapshot.values['y_d1']], axis=1)
+        velocity = np.stack([snapshot.values["x'"], snapshot.values["y'"]], axis=1)
         return np.hypot(*(velocity / np.hypot(velocity[:, :1], velocity[:, 1:])).mean(axis=0))
 
     assert polarization(0) < 0.3
@@ -60,7 +60,7 @@ def test_bird_swarm_flies_together():
 
 def _get_velocity(values):
     """Return the velocities of boids in three dimensions, one row per boid."""
-    return np.stack([values[name] for name in ('x_d1', 'y_d1', 'z_d1')], axis=1)
+    return np.stack([values[name] for name in ("x'", "y'", "z'")], axis=1)
 
 
 def _velocities(values, locations, interactions, until=1):
@@ -146,7 +146,7 @@ def test_flocking_interaction_steers_by_cohesion_and_separation_with_bounded_spe
     )
     system = System(elements=[flock], interactions=[FlockingInteraction('flocking', target='flock')], space=space)
     snapshot = system.prepare().simulate(random_state=0, until=1).get_agents('flock', 1)
-    found = np.stack([snapshot.values['x_d1'], snapshot.values['y_d1']], axis=1)
+    found = np.stack([snapshot.values["x'"], snapshot.values["y'"]], axis=1)
     pull = (0.1 - 0.5) * np.array([0.8, 0.0])
     steered = [np.array([0.5, 0.0]) + pull, np.array([0.0, 0.5]) - pull]
     expected = [vector * max(np.hypot(*vector), 0.5) / np.hypot(*vector) for vector in steered]

@@ -1,14 +1,13 @@
 """Test the `_movement` module of `skcomplex.systems.general.agents`."""
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
 import networkx as nx
 import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import TransferInteraction
-from skcomplex.core.components.laws import PartnerSpec, Sink
+from skcomplex.core.components.laws import PartnerSpec
 from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace, NetworkSpace
 from skcomplex.core.engine.runtime import Trajectory
 from skcomplex.core.errors import ValidationError
@@ -63,17 +62,14 @@ def _lattice_walk(until: int, walk: MovementInteraction, size: int = 4) -> Traje
     return _run(walkers, walk, until)
 
 
-def _cost(amount: float) -> TransferInteraction:
-    """Return the transfer of an amount of the level of a walker to the environment."""
-    return TransferInteraction(
-        'cost',
-        source='walkers',
-        target='walkers',
-        state='level',
-        into=Sink(),
-        amount=amount,
-        form='agent',
-    )
+def _cost(amount: float) -> Callable[[object, object], None]:
+    """Return the cost of a step, which takes an amount of the level of a walker."""
+
+    def pay(agent: object, system: object) -> None:
+        del system
+        agent.level -= amount
+
+    return pay
 
 
 def test_move_gaussian_steps_spread_as_diffusion():
@@ -115,8 +111,8 @@ def test_move_neighbor_steps_follow_the_edges_of_a_network():
     assert np.all(np.abs(np.diff(nodes, axis=0)) == 1)
 
 
-def test_move_charges_a_transfer_for_every_step():
-    """Test that every step pays the amount of a transfer from the level of the walker."""
+def test_move_charges_a_cost_for_every_step():
+    """Test that every step takes the amount of the cost from the level of the walker."""
     trajectory = _lattice_walk(3, MovementInteraction('walk', target='walkers', cost=_cost(1.5)))
     assert trajectory.get_agents('walkers', 3).values['level'].tolist() == [5.5] * 4
 

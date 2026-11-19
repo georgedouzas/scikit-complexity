@@ -39,7 +39,7 @@ points = section(
     transient=50,
 )
 fig, ax = plt.subplots(figsize=(6, 4))
-ax.plot(points.values['duffing.x'], points.values['duffing.x_d1'], ',', color='black', alpha=0.6)
+ax.plot(points.values['duffing.x'], points.values["duffing.x'"], ',', color='black', alpha=0.6)
 ax.set_xlabel('x')
 ax.set_ylabel("x'")
 ax.set_title('Stroboscopic section: a strange attractor')

@@ -54,14 +54,13 @@ class Trajectory:
             The total log-probability of the draws and firings of a run that records or replays them, or `None`.
 
     Examples:
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> system = CompositeSystem(
+        >>> system = System(
         ...     elements=[PopulationElement('a', x=1)],
         ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ... )
-        >>> trajectory = simulate(system, until=1, dt=0.5)
+        >>> trajectory = system.prepare().simulate(until=1, dt=0.5)
         >>> trajectory.times.tolist()
         [0.0, 0.5, 1.0]
         >>> trajectory.get_values('a.x').round(3).tolist()
@@ -225,9 +224,8 @@ class Trajectory:
                 The locations at every frame, empty arrays for frames without locations.
 
         Examples:
-            >>> from skcomplex.core.engine.runtime import simulate
             >>> from skcomplex.systems.biology.collective_behaviour import BoidsSystem
-            >>> trajectory = simulate(BoidsSystem().prepare().system_, until=2, random_state=0)
+            >>> trajectory = (BoidsSystem().prepare().system_).prepare().simulate(until=2, random_state=0)
             >>> [locations.shape[1] for locations in trajectory.get_agent_locations('flock')]
             [2, 2, 2]
         """

@@ -13,6 +13,7 @@ from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from shapely import Polygon
 from sklearn.base import clone
 
@@ -193,10 +194,10 @@ class PassCompiler(BaseCompiler):
             inner problem of a `LearningProblemSpec`, or `None` for other systems.
 
     Examples:
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
-        >>> system = CompositeSystem(
+        >>> system = System(
         ...     elements=[PopulationElement('rabbits', x=10)],
         ...     interactions=[ExponentialGrowthInteraction('growth', target='rabbits', r=0.5)],
         ... )
@@ -253,9 +254,18 @@ class PassCompiler(BaseCompiler):
         self.passes_ = tuple(clone(item) for item in passes)
 
     def _get_census_of(self, system: CompositeSystem) -> Compilation:
-        """Return a compilation of a system run up to its census of laws and its layout."""
+        """Return a compilation of a system run up to its census of laws and its layout.
+
+        An observable that a role binds and that is read only at synchronisation points is held in an element, as
+        compiling does, so the laws that read it are counted.
+        """
         self._set_passes()
-        compilation = self._run_passes(self._get_new_compilation(system), until='census')
+        compilation = self._run_passes(self._get_new_compilation(system), until='nodes')
+        held = ObservableEvaluator._get_held_observables(system, Compilation._get_required(compilation.nodes, 'nodes'))
+        if held:
+            tree, paths = ObservableEvaluator._copy_with_held_observables(system, held)
+            compilation = self._get_new_compilation(tree, held=tuple(paths))
+        compilation = self._run_passes(compilation, until='census')
         return self._run_passes(compilation, until='layout')
 
     def _get_declared_system(self, system: CompositeSystem) -> CompositeSystem:
@@ -1187,6 +1197,27 @@ class PassCompiler(BaseCompiler):
                 classes = ' or '.join(f'`{TIME_CLASSES[item]}`' for item in requires.time)
                 fix = f'Declare {classes} for its system, or use laws that run in {time.__name__}.'
                 issues.append(IssueSpec('law-time', record.path, message, fix))
+            issues += PassCompiler._get_finite_rate_issues(record, name)
+        return issues
+
+    @staticmethod
+    def _get_finite_rate_issues(record: _CensusRecordSpec, name: str) -> list[IssueSpec]:
+        """Return the issues of a rate or noise law on a value of a finite set.
+
+        A rate moves a value continuously, so it leaves any finite set of allowed values, such as `{0, 1}`.
+        """
+        if not isinstance(record.law, RateLaw | NoiseLaw):
+            return []
+        issues = []
+        for entry in record.targets:
+            if isinstance(entry.domain, FiniteEnumeratedSet):
+                values = ', '.join(map(str, entry.domain))
+                message = (
+                    f'The {name} changes {LayoutSpec._get_display_name(entry.name)} continuously, but its allowed '
+                    f'values are the finite set {{{values}}}.'
+                )
+                fix = 'Change the value with an UpdateLaw or a JumpLaw, or allow it a range of real numbers.'
+                issues.append(IssueSpec('law-domain', record.path, message, fix))
         return issues
 
     @staticmethod

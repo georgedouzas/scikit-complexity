@@ -1,12 +1,13 @@
 """Test the `_base` module of `skcomplex.core.components.interactions`."""
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import function, oo, var
+from sage.all__sagemath_symbolics import I, function, oo, var
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.components import interactions
@@ -53,7 +54,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.enums import ElementKind
-from skcomplex.core.errors import SpaceError, ValidationError
+from skcomplex.core.errors import ParameterShapeError, SpaceError, ValidationError
 from skcomplex.core.specs import BaseSpec, ParameterSpec, Role, RoleSpec, StateSpec
 from skcomplex.core.systems import System
 from skcomplex.systems.general.agents import (
@@ -970,3 +971,52 @@ def test_a_delay_that_reads_the_state_is_bounded_by_its_clip():
     assert 'where(n.tau*n.x < 0.6, 0.6, n.tau*n.x)' in system.equations_['n.x']
     _, fixed = _get_delayed_decay(lambda target: 0.6)
     np.testing.assert_allclose(clipped, fixed, rtol=1e-12)
+
+
+def _get_rotated(target: Callable[[SimpleNamespace], object]) -> object:
+    """Return the last value of a complex point whose derivative of an order is `i z`."""
+    rotate = Interaction(
+        'rotate',
+        roles={'point': 'point'},
+        laws=lambda s: [RateLaw(target(s), I * s.point.z)],
+    )
+    system = System(elements=[Element('point', values={'z': 1.0 + 0.0j})], interactions=[rotate]).prepare()
+    return system.simulate(until=1.0).get_values('point.z')[-1]
+
+
+def test_rate_of_the_derivative_of_a_complex_state_is_its_rate():
+    """Test that `RateLaw(z.diff(t), f)` of a complex state turns it as `RateLaw(z, f)` does, by `exp(i t)`."""
+    by_derivative = _get_rotated(lambda s: s.point.z.diff(s.t))
+    assert by_derivative == pytest.approx(_get_rotated(lambda s: s.point.z))
+    assert by_derivative == pytest.approx(np.exp(1j), rel=1e-5)
+
+
+def test_second_derivative_of_a_complex_state_gives_it_a_second_order():
+    """Test that `z'' = i z` from rest at one gives `cosh(sqrt(i) t)` at the end."""
+    assert _get_rotated(lambda s: s.point.z.diff(s.t, 2)) == pytest.approx(np.cosh(np.sqrt(1j)), rel=1e-5)
+
+
+class Contraction(Interaction):
+    """Decay `x' = -a[0, 0, 0] x` of one element at a rate read from a tensor."""
+
+    def __init__(self, label: str, *, target: Role = 'ball', a: object = None) -> None:
+        super().__init__(label)
+        self.target = target
+        self.a = a
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the decay at the first entry of the tensor."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [RateLaw(context.target.x, -context.a[0][0][0] * context.target.x)]
+
+
+def test_array_argument_no_group_shapes_is_an_issue_of_the_shape_of_a_parameter():
+    """Test that a tensor argument read by the laws of one element is named as an issue, not an attribute error."""
+    contraction = Contraction('contraction', a=np.ones((2, 2, 2)))
+    system = System(elements=[Element('ball', values={'x': 1.0})], interactions=[contraction])
+    with pytest.raises(
+        ParameterShapeError,
+        match=r'contraction\.a is an array of shape \(2, 2, 2\).*\[parameter-shape\]',
+    ):
+        system.prepare()

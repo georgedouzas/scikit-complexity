@@ -74,10 +74,10 @@ class OperatorCompiler(BaseCompiler):
             The largest dimension of the Hilbert space, for a solver without a largest dimension of its own.
 
     Examples:
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.core.engine.compile import OperatorCompiler
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
-        >>> OperatorCompiler().prepare(CompositeSystem(elements=[PopulationElement('rabbits')])).report_.ok
+        >>> OperatorCompiler().prepare(System(elements=[PopulationElement('rabbits')])).report_.ok
         False
     """
 
@@ -279,7 +279,7 @@ class OperatorCompiler(BaseCompiler):
         hints = element._get_hints()
         for name, value in values.items():
             annotation = hints.get(name, inspect.Parameter.empty)
-            if OperatorCompiler._is_complex(_StateInference._get_domain(annotation, value)):
+            if OperatorCompiler._is_complex(Element._get_domain_of(annotation, value)):
                 return name
         return next(iter(values)) if len(values) == 1 else None
 
@@ -567,7 +567,7 @@ class OperatorCompiler(BaseCompiler):
                     'the group whose neighbours it couples.'
                 )
                 raise ValidationError(error_msg)
-            path = f'{node.scope}{getattr(interaction, role_names[0])}'
+            path = f"{node.scope}{interaction._get_binding(role_names[0])}"
             if path not in groups:
                 error_msg = f'Neighbour interaction {node.path} binds {path}, which is not an operator group.'
                 raise ValidationError(error_msg)
@@ -585,7 +585,7 @@ class OperatorCompiler(BaseCompiler):
                 )
             return
         roles = {
-            name: OperatorCompiler._get_role_namespace(node, getattr(interaction, name), members, set(groups))
+            name: OperatorCompiler._get_role_namespace(node, str(interaction._get_binding(name)), members, set(groups))
             for name in declarations_of(interaction, VariableKind.ROLE)
         }
         self._collect_laws(
@@ -827,7 +827,8 @@ class OperatorCompiler(BaseCompiler):
         """
         component = node.as_interaction
         roles = {
-            name: f'{node.scope}{getattr(component, name)}' for name in declarations_of(component, VariableKind.ROLE)
+            name: f'{node.scope}{component._get_binding(name)}'
+            for name in declarations_of(component, VariableKind.ROLE)
         }
         return _CompiledInteractionSpec(node.path, component, roles)
 

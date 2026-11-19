@@ -1,28 +1,29 @@
 """Define spin sampling.
 
-Monte Carlo sweeps sample spins at the temperature the spins hold.
+The Boltzmann weight of the energy of spins is sampled at the temperature the spins hold.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from types import SimpleNamespace
 
-from .....core.components.laws import ArrayUpdateLaw, BaseLaw, SampleLaw
-from .....core.components.spaces import BaseNeighborhood
+from .....core.components.base import BaseComponent
+from .....core.components.interactions import Interaction
+from .....core.components.laws import ObjectiveLaw
+from .....core.components.spaces import BaseSpace
 from .....core.specs import Role
-from ._thermal_sampling import ThermalSamplingInteraction
 
 
-class SpinSamplingInteraction(ThermalSamplingInteraction):
-    """Monte Carlo sweeps of the spins of a lattice or network group.
+class SpinSamplingInteraction(Interaction):
+    """Boltzmann weight of the spins of a lattice or network group, at the temperature of the spins.
 
-    The sweeps run at the temperature of the spins.
-
-    The temperature is the parameter `temperature` of the spins, so it lives with the couplings and fields of the
-    spins, and a schedule of `<group>.temperature` changes it during a run. The local energy reads the states and
-    parameters of the spin as `namespace.target`.
+    The objective of every spin is its local energy over the value `temperature` of the spins, `E / T`, so the
+    temperature lives with the couplings and fields of the spins, and a schedule of `<group>.temperature` changes it
+    during a run. The `MetropolisSolver` of the system moves the spins, such as
+    `MetropolisSolver(moves={'spins.spin': 'flip'})`. The local energy reads the spin as `namespace.target` and a
+    neighbour as `namespace.target.other`.
 
     Args:
         label:
@@ -37,33 +38,13 @@ class SpinSamplingInteraction(ThermalSamplingInteraction):
         energy:
             The function `energy(namespace)` of the local energy of a spin.
 
-        move:
-            `'flip'`, `'random-value'`, `'rotate'`, `'gaussian'`, or a function that proposes values.
-
-        rule:
-            The acceptance, `'metropolis'`, `'glauber'`, or `'heat-bath'`.
-
-        schedule:
-            `'checkerboard'`, `'colored'`, or `'random-sequential'`.
-
-        neighborhood:
-            The neighbourhood the energy reduces over, or `None` for the von Neumann neighbourhood.
-
-        values:
-            The values a random-value move draws from.
-
-        width:
-            The largest change of a rotation, or the standard deviation of a Gaussian move.
-
     Examples:
         >>> from skcomplex.core.components.laws.utils import neighbors
         >>> from skcomplex.systems.physics.common.spins import SpinSamplingInteraction
         >>> energy = lambda n: -n.target.spin * neighbors(n.target.other.spin)
-        >>> SpinSamplingInteraction('ising', target='spins', state='spin', energy=energy).rule
-        'metropolis'
+        >>> SpinSamplingInteraction('ising', target='spins', state='spin', energy=energy).state
+        'spin'
     """
-
-    law_classes = (ArrayUpdateLaw, SampleLaw)
 
     def __init__(
         self,
@@ -72,35 +53,21 @@ class SpinSamplingInteraction(ThermalSamplingInteraction):
         target: Role,
         state: str,
         energy: Callable[[SimpleNamespace], object],
-        move: str | Callable[..., object] = 'flip',
-        rule: str = 'metropolis',
-        schedule: str = 'checkerboard',
-        neighborhood: BaseNeighborhood | None = None,
-        values: Sequence[float] = (),
-        width: float = 1.0,
     ) -> None:
-        super().__init__(
-            label,
-            target=target,
-            state=state,
-            energy=energy,
-            move=move,
-            rule=rule,
-            schedule=schedule,
-            neighborhood=neighborhood,
-            values=values,
-            width=width,
-        )
+        super().__init__(label)
+        self.target = target
+        self.state = state
+        self.energy = energy
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the sample law of the state at the temperature of the spins.
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the objective of every spin, its local energy over its temperature.
 
         Args:
-            namespace:
-                The namespace of the symbols the laws can use, with `namespace.target`.
-
-        Returns:
-            laws:
-                The sample law.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        return super()._get_laws(SimpleNamespace(**vars(namespace), temperature=namespace.target.temperature))
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            spins = self._get_member(context, 'target')
+            objective = self.energy(context) / spins.temperature
+            self.laws_: list[BaseComponent] = [ObjectiveLaw(objective, getattr(spins, self.state))]

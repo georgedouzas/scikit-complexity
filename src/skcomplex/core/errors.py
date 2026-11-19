@@ -82,6 +82,14 @@ class ParameterError(ValidationError):
     """
 
 
+class ParameterShapeError(ParameterError):
+    """An error for an array argument of an interaction that no group shapes.
+
+    An array argument is a parameter when it is a vector, a square matrix of 2 or 3 rows, or an array with one axis
+    per role whose group has as many members. Bind the roles of its axes to groups of those lengths.
+    """
+
+
 class LabelError(ValidationError):
     """An error for a label that is missing, duplicated, or collides with a name.
 

@@ -10,7 +10,7 @@ from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import JumpLaw, TopologyRequestSpec, UpdateLaw
+from skcomplex.core.components.laws import JumpLaw, RateLaw, TopologyRequestSpec, UpdateLaw
 from skcomplex.core.components.laws.utils import count, total, where
 from skcomplex.core.components.spaces import LatticeSpace, NetworkSpace
 from skcomplex.core.errors import ValidationError
@@ -167,3 +167,14 @@ def test_a_law_counts_the_members_of_a_group_with_no_values():
     )
     system = System(elements=[Element('nodes', space=space)], interactions=[growth], space=space).prepare()
     assert len(system.simulate(until=50, random_state=0).get_network(-1).nodes) == 5
+
+
+def test_a_law_counts_the_members_of_a_group_with_no_values_off_a_network():
+    """Test that a rate that counts the members of a bare group with no space reads their number."""
+    counting = Interaction(
+        'counting',
+        roles={'target': 'stock', 'source': 'cells'},
+        laws=lambda s: [RateLaw(s.target.x, count(over=s.source))],
+    )
+    system = System(elements=[Element('stock', values={'x': 0.0}), Element('cells', size=4)], interactions=[counting])
+    assert system.prepare().simulate(until=1).get_values('stock.x')[-1] == pytest.approx(4.0)

@@ -119,8 +119,9 @@ The ball reaches `(1, 1.5)` after one second and `(2, 2)` after two, the parabol
 equations of the pair `x` and `x'`. A backend for molecular dynamics, such as LAMMPS, reads the velocity of a point
 from `x'`, and the boundary of the space acts on `x`.
 
-**How it combines.** It lives in a [`ContinuousSpace`](spaces.md#continuousspace). A
-[`PairInteraction`](interactions.md#pairinteraction) adds forces between points, such as those of a gas or of a flock.
+**How it combines.** It lives in a [`ContinuousSpace`](spaces.md#continuousspace). An
+[`Interaction`](interactions.md#interaction) with `within=RadiusNeighborhood(r)` adds forces between points, such as
+those of a gas or of a flock.
 
 **A field realization.** Physics names the point with a mass a `MassPointElement`, whose forces divide by `m`.
 
@@ -129,37 +130,36 @@ See its [API entry][skcomplex.systems.general.elements].
 ## ReactionInteraction
 
 A `ReactionInteraction` moves units from its reactants to its products, at a propensity that is the rate constant `k`
-times the product of the reactant amounts, each raised to its coefficient. It is a
-[`JumpInteraction`](interactions.md#jumpinteraction) whose changes are the stoichiometric vector, the number of units
-each reaction takes from or gives to every species. A species is a pair of the path of an element and a state name.
-Here an epidemic runs as two reactions, infection `S + I -> 2 I` and recovery `I -> R`.
+times the product of the reactant amounts, each raised to its coefficient. It is an
+[`Interaction`](interactions.md#interaction) whose laws move the units of the stoichiometric vector, the number of units
+each reaction takes from or gives to every species. A species is a pair of the path of an element and a state name. Here
+an epidemic runs as two reactions, infection `S + I -> 2 I` and recovery `I -> R`.
 
 ```python
-from skcomplex.core.components.interactions import JumpInteraction
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.systems import System
 from skcomplex.systems.general.elements import NonnegativeElement
 from skcomplex.systems.general.reactions import ReactionInteraction
 
 infection = ReactionInteraction('infection', reactants={('S', 'x'): 1, ('I', 'x'): 1}, products={('I', 'x'): 2}, k=5e-4)
 recovery = ReactionInteraction('recovery', reactants={('I', 'x'): 1}, products={('R', 'x'): 1}, k=0.1)
 people = [NonnegativeElement('S', x=990), NonnegativeElement('I', x=10), NonnegativeElement('R')]
-sir = CompositeSystem(elements=people, interactions=[infection, recovery])
-trajectory = simulate(sir, until=50, dt=10.0)
+sir = System(elements=people, interactions=[infection, recovery]).prepare()
+trajectory = sir.simulate(until=50, dt=10.0)
 infected = trajectory.get_values('I.x').round(1).tolist()
-infected, float(trajectory.states[-1].sum()), issubclass(ReactionInteraction, JumpInteraction)
+infected, float(trajectory.states[-1].sum()), issubclass(ReactionInteraction, Interaction)
 ```
 
 The infected rise from 10 to 400.3 at day 20 and fall to 26.4 at day 50, while the population stays at 1000. The last
-value confirms that the class is a `JumpInteraction`.
+value confirms that the class is an `Interaction`.
 
 In chemistry the same class is the law of mass action. Two species bind into a complex, `A + B -> C`.
 
 ```python continuation
 binding = ReactionInteraction('binding', reactants={('A', 'x'): 1, ('B', 'x'): 1}, products={('C', 'x'): 1}, k=0.01)
 species = [NonnegativeElement('A', x=100.0), NonnegativeElement('B', x=50.0), NonnegativeElement('C')]
-reactor = CompositeSystem(elements=species, interactions=[binding])
-simulate(reactor, until=10, dt=5.0).get_values('C.x').round(2).tolist()
+reactor = System(elements=species, interactions=[binding]).prepare()
+reactor.simulate(until=10, dt=5.0).get_values('C.x').round(2).tolist()
 ```
 
 The complex reaches 47.86 after five seconds and 49.83 after ten, close to the 50 units of `B`, the reactant that
@@ -199,19 +199,15 @@ message
 The message reads "Reaction 'nothing' has neither reactants nor products. Give at least one of them." The fix is a
 reactant, such as `reactants={('A', 'x'): 1}` for a decay.
 
-**A field realization.** Epidemiology binds the species under roles of its own names. The subclass declares the roles
-with `RoleSpec` and returns the stoichiometry from the hooks `_get_reactants` and `_get_products`.
+**A field realization.** Epidemiology binds the species under roles of its own names. The subclass types the roles
+with `Role` and returns the stoichiometry from the hooks `_get_reactants` and `_get_products`.
 
 ```python continuation
-from typing import Annotated
-
-from skcomplex.core.specs import RoleSpec
+from skcomplex.core.specs import Role
 
 
 class InfectionInteraction(ReactionInteraction):
-    def __init__(
-        self, label, *, susceptible: Annotated[str, RoleSpec()], infected: Annotated[str, RoleSpec()], k=5e-4
-    ):
+    def __init__(self, label, *, susceptible: Role, infected: Role, k=5e-4):
         super().__init__(label, k=k)
         self.susceptible = susceptible
         self.infected = infected
@@ -225,8 +221,8 @@ class InfectionInteraction(ReactionInteraction):
 
 spread = InfectionInteraction('infection', susceptible='S', infected='I')
 compartments = [NonnegativeElement('S', x=990), NonnegativeElement('I', x=10)]
-outbreak = CompositeSystem(elements=compartments, interactions=[spread])
-simulate(outbreak, until=10, dt=10.0).get_values('I.x').round(1).tolist()
+outbreak = System(elements=compartments, interactions=[spread]).prepare()
+outbreak.simulate(until=10, dt=10.0).get_values('I.x').round(1).tolist()
 ```
 
 Without recovery the infected reach 599.9 after ten days.
@@ -240,7 +236,6 @@ takes the initial amount of every species and maps the label of every reaction t
 rate constant. Here `A` and `B` convert into each other.
 
 ```python
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.general.reactions import ReactionNetworkSystem
 
 isomerization = ReactionNetworkSystem(
@@ -255,7 +250,6 @@ The amount of `A` relaxes to 2.5, which is `0.1 / (0.3 + 0.1)` of the total.
 An epidemic of susceptible, infected, and recovered people is the same table with other names.
 
 ```python
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.general.reactions import ReactionNetworkSystem
 
 sir = ReactionNetworkSystem(
@@ -268,7 +262,7 @@ sir.prepare().simulate(until=50, dt=10.0).get_values('I.x').round(1).tolist()
 The infected follow the curve of the epidemic of the previous section, 10, 294.4, 400.3, 175.0, 68.6, and 26.4 every
 ten days.
 
-**How the engine runs it.** `prepare` builds a [`CompositeSystem`](systems.md#compositesystem) with one
+**How the engine runs it.** `prepare` builds a [`System`](systems.md#system) with one
 `NonnegativeElement` per species, named after it with its amount in `x`, and one `ReactionInteraction` per reaction.
 The `mode` writes the reactions as rate equations, `'rate'`, as random events of single units, `'jump'`, or as
 chemical Langevin equations, `'langevin'`.
@@ -635,7 +629,9 @@ deaths = FlowInteraction(
     amount=lambda s: s.target.d * s.target.alive,
 )
 trajectory = System(elements=[population], interactions=[deaths]).prepare().simulate(until=10.0, dt=10.0)
-trajectory.get_values('population.alive').round(2).tolist(), trajectory.get_values('population.deaths').round(2).tolist()
+trajectory.get_values('population.alive').round(2).tolist(), trajectory.get_values('population.deaths').round(
+    2
+).tolist()
 ```
 
 The living fall from 100 to 60.65, the curve `100 exp(-t / 20)`, the dead hold the other 39.35, and the flow
@@ -683,7 +679,6 @@ in neuroscience are rates.
 ```python
 from sage.all__sagemath_symbolics import exp
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.general.dynamics import DynamicalSystem
 
 populations = DynamicalSystem(
@@ -785,7 +780,6 @@ sum over the neighbours `sum_j A_ij g(x_i, x_j)`. Cells of a tissue exchange ion
 ```python
 import networkx as nx
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.general.dynamics import NetworkDynamicalSystem
 
 cells = NetworkDynamicalSystem(
@@ -817,10 +811,11 @@ rooms.prepare().simulate(until=10.0, dt=10.0).get_values('rooms.u')[-1].round(3)
 
 The rooms reach the same temperature, 1.0 each, and the total stays 3.
 
-**How the engine runs it.** The states are those of a `DeclaredElement` that is the member of a
-[`FieldElement`](elements.md#fieldelement) on the [`NetworkSpace`](spaces.md#networkspace) of the graph. The equations
-are `RateInteraction` components, and the coupling is a [`CouplingInteraction`](interactions.md#couplinginteraction)
-that reads node `i` as `s.member` and its neighbour as `s.other`. The system runs in continuous time.
+**How the engine runs it.** The states are the values of an [`Element`](elements.md#element) with one member on
+every node of the [`NetworkSpace`](spaces.md#networkspace) of the graph. The equations are
+[`EquationInteraction`](#equationinteraction) components, and every coupling is one more whose rate is the reduction
+`neighbors` of its term, which reads node `i` as `s.member` and its neighbour as `s.other`. The rate laws make the
+time continuous.
 
 **How it combines.** A subclass returns the graph from `_get_graph` and the couplings from `_get_coupling`, besides
 the hooks of `DynamicalSystem`. A local equation may also read the graph Laplacian, as network diffusion does.
@@ -851,7 +846,6 @@ empty line.
 ```python
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.general.dynamics import ReactionDiffusionSystem
 
 initial = np.zeros(50)
@@ -888,9 +882,9 @@ round(float(channel.prepare().simulate(until=5.0, dt=5.0).get_values('medium.u')
 
 The total falls to 0.607, which is `exp(-0.5)`, since diffusion keeps the total and only the decay removes it.
 
-**How the engine runs it.** The states are those of a `DeclaredElement` that is the member of a `FieldElement` on a
-`LatticeSpace`. The diffusion of every field is a separate `RateInteraction`, so a split solver can treat it apart from
-the kinetics, and the compiler turns the Laplacian into a stencil of the lattice.
+**How the engine runs it.** The states are the values of an `Element` with one member on every site of a
+`LatticeSpace`. The diffusion of every field is a separate `EquationInteraction`, so a split solver can treat it apart
+from the kinetics, and the compiler turns the Laplacian into a stencil of the lattice.
 
 **How it combines.** A subclass returns the diffusivities from `_get_diffusivities`, the lattice from `_get_space`, and
 the boundary of every field from `_get_boundaries`, besides the hooks of `DynamicalSystem`. A chemistry system whose
@@ -1006,21 +1000,21 @@ See its [API entry][skcomplex.systems.general.dynamics].
 
 ## MovementInteraction
 
-A `MovementInteraction` moves the agents of a group by steps at every step of discrete time. It returns a
-[`RuleLaw`](laws.md#rulelaw), an agent rule that the agent solver runs on every agent. Here two sheep start in the
-middle of a pasture of 5 by 5 cells and each takes one step to a neighbouring cell.
+A `MovementInteraction` moves the agents of a group by steps at every step of discrete time. It returns an
+[`UpdateLaw`](laws.md#updatelaw) whose value is an agent rule, which the agent solver runs on every agent. Here two
+sheep start in the middle of a pasture of 5 by 5 cells, at the cell their values `x` and `y` give, and each takes one
+step to a neighbouring cell.
 
 ```python
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.systems import System
 from skcomplex.systems.general.agents import MovementInteraction
 
-sheep = GroupElement('sheep', element=Element, size=2, location=[(2, 2), (2, 2)])
+pasture = LatticeSpace((5, 5), metric='manhattan')
+sheep = Element('sheep', values={'x': [2, 2], 'y': [2, 2]}, size=2, space=pasture)
 walk = MovementInteraction('walk', target='sheep', step='neighbor')
-pasture = CompositeSystem(elements=[sheep], interactions=[walk], space=LatticeSpace((5, 5), metric='manhattan'))
-trajectory = simulate(pasture, until=1, random_state=0)
+trajectory = System(elements=[sheep], interactions=[walk], space=pasture).prepare().simulate(until=1, random_state=0)
 [int(abs(cell - 2).sum()) for cell in trajectory.get_agents('sheep', 1).locations]
 ```
 
@@ -1029,17 +1023,15 @@ Each sheep stands one cell away from the middle.
 Divers swim in a box of three dimensions by Gaussian steps, the random walk of physics.
 
 ```python
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.systems import System
 from skcomplex.systems.general.agents import MovementInteraction
 
-divers = GroupElement('divers', element=Element, size=4)
+divers = Element('divers', values={}, size=4)
 swim = MovementInteraction('swim', target='divers', step='gaussian', scale=0.1)
 space = ContinuousSpace(extent=(10.0, 5.0, 2.0), boundary='periodic')
-system = CompositeSystem(elements=[divers], interactions=[swim], space=space)
-trajectory = simulate(system, until=5, random_state=0)
+trajectory = System(elements=[divers], interactions=[swim], space=space).prepare().simulate(until=5, random_state=0)
 trajectory.get_agents('divers', 5).locations.shape
 ```
 
@@ -1057,9 +1049,9 @@ the order of `schedule`. The `step` chooses where an agent goes:
 An agent takes a step with the probability `probability` and then with the probability `accept(agent, destination,
 system)`. An exclusive movement never enters a cell held by another agent, and every step charges its `cost`.
 
-**How it combines.** It moves the members of a `GroupElement` on a `LatticeSpace`, a `NetworkSpace`, or a
-`ContinuousSpace` of two or three sides, and it changes where agents stand, while a
-[`TopologyInteraction`](interactions.md#topologyinteraction) changes the space itself. In three dimensions, placement,
+**How it combines.** It moves the members of a group on a `LatticeSpace`, a `NetworkSpace`, or a
+`ContinuousSpace` of two or three sides, and it changes where agents stand, while an `UpdateLaw` of a
+`TopologyRequestSpec` changes the space itself. In three dimensions, placement,
 steps, radius queries, the minimum image of a periodic box, and the locations of a trajectory use every side, and
 `system.dimensions` returns every side. The solver rejects a continuous space with any other number of sides, or
 without an extent, before the first frame, and the compile report holds the issue `location-dimension` for an initial
@@ -1098,35 +1090,34 @@ See its [API entry][skcomplex.systems.general.agents].
 
 ### Agents on region layers
 
-Agents can move between named regions, such as census tracts. A space of two sides takes layers of polygons, and a
-step that returns the polygon of a region moves an agent into it.
+Agents can move between named regions, such as census tracts. A space of two sides takes named polygons and layers
+of polygons. An agent whose value `region` names a polygon starts inside it, and a step that returns the polygon of a
+region moves an agent into it.
 
 ```python
 from shapely import Point, box
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.systems import System
 from skcomplex.systems.general.agents import MovementInteraction
 
-census = [box(0.0, 0.0, 4.0, 4.0), box(5.0, 0.0, 9.0, 4.0)]
+homes = {'home_0': box(0.0, 0.0, 4.0, 4.0), 'home_1': box(5.0, 0.0, 9.0, 4.0)}
 places = [box(1.0, 6.0, 3.0, 8.0)]
-people = GroupElement('people', element=Element, size=3, location=[census[0], census[0], census[1]])
+people = Element('people', values={'region': ['home_0', 'home_0', 'home_1']}, size=3)
 outing = MovementInteraction('outing', target='people', step=lambda agent, system: system.get_region('places', 0))
-space = ContinuousSpace(extent=(10.0, 10.0), regions={'census': census, 'places': places})
-system = CompositeSystem(elements=[people], interactions=[outing], space=space)
-trajectory = simulate(system, until=1, random_state=0)
+space = ContinuousSpace(extent=(10.0, 10.0), regions={**homes, 'places': places})
+trajectory = System(elements=[people], interactions=[outing], space=space).prepare().simulate(until=1, random_state=0)
 all(places[0].contains(Point(point)) for point in trajectory.get_agents('people', 1).locations)
 ```
 
 Every person stands inside the place after one step.
 
-`ContinuousSpace(regions=...)` maps the name of a layer to a sequence of Shapely polygons in the coordinates of the
-space. `prepare` keeps one `STRtree` per layer in `regions_`, and it raises `SpaceError`, naming the layer and the
-region, for a region that is not a valid polygon.
+`ContinuousSpace(regions=...)` maps the name of a region to a Shapely polygon, or the name of a layer to a sequence of
+polygons, in the coordinates of the space. `prepare` keeps one `STRtree` per layer in `regions_`, and it raises
+`SpaceError`, naming the layer and the region, for a region that is not a valid polygon.
 
-- A polygon is a location in `GroupElement(location=...)`, `SystemView.create`, and `AgentView.move_to`. The solver
+- A polygon is a location in the value `region` of an element, `SystemView.create`, and `AgentView.move_to`. The solver
   draws a uniform point inside it from the generator of the run. It chooses a triangle of the constrained Delaunay
   triangulation of the polygon with a probability proportional to its area.
 - `AgentView.get_regions_here(layer)` returns the indices of the regions of a layer that contain the agent.
@@ -1178,8 +1169,8 @@ system = KauaiPopulationSystem(populations=(10, 5, 0)).prepare().system_
 system.elements[0].size, list(system.space.regions), Boids3dSystem(n_boids=10).prepare().system_.space.extent
 ```
 
-The island holds 15 agents, its space has the layers `boundary`, `census`, `places`, and `facilities`, and the
-boids fly in a cube of side 20.
+The island holds 15 agents, its space has the layers `boundary`, `places`, and `facilities` and one region per census
+tract, `census_0` to `census_2`, and the boids fly in a cube of side 20.
 
 ## ChoiceInteraction
 
@@ -1189,31 +1180,19 @@ choice. Here 500 members prefer to agree with the mean of the group, and a small
 a consensus.
 
 ```python
-from typing import Annotated
-
 import numpy as np
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws.utils import mean
-from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.general.agents import ChoiceInteraction
-
-
-class ChooserElement(Element):
-    def __init__(self, label, *, option: Annotated[float, StateSpec()] = 1.0):
-        super().__init__(label)
-        self.option = option
-
 
 utility = lambda s, option: 2.0 * option * mean(s.target.option)
 choice = ChoiceInteraction('choice', target='members', state='option', options=(-1, 1), utility=utility)
 initial = np.where(np.random.default_rng(0).random(500) < 0.6, 1.0, -1.0)
-members = GroupElement('members', element=ChooserElement, size=500, values={'option': initial})
-system = CompositeSystem(elements=[members], interactions=[choice], time=DiscreteTime())
-values = simulate(system, until=10, random_state=0).get_values('members.option')
+members = Element('members', values={'option': initial}, size=500)
+system = System(elements=[members], interactions=[choice]).prepare()
+values = system.simulate(until=10, random_state=0).get_values('members.option')
 round(float(initial.mean()), 2), round(float(values[-1].mean()), 2)
 ```
 
@@ -1224,29 +1203,24 @@ In transport economics commuters choose between the bus, option 0, and the car, 
 higher. The logit rule gives the car the share `e / (1 + e)`, about 0.73.
 
 ```python continuation
-class CommuterElement(Element):
-    def __init__(self, label, *, mode: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.mode = mode
-
-
 modes = (0, 1)
 commute = ChoiceInteraction('commute', target='commuters', state='mode', options=modes, utility=lambda s, k: k)
-commuters = GroupElement('commuters', element=CommuterElement, size=1000)
-city = CompositeSystem(elements=[commuters], interactions=[commute], time=DiscreteTime())
-float(simulate(city, until=1, random_state=0).get_values('commuters.mode')[-1].mean())
+commuters = Element('commuters', values={'mode': 0.0}, size=1000)
+city = System(elements=[commuters], interactions=[commute]).prepare()
+float(city.simulate(until=1, random_state=0).get_values('commuters.mode')[-1].mean())
 ```
 
 In one draw 0.75 of the commuters take the car, close to the share of the logit rule.
 
 **How the engine runs it.** In the symbolic form `utility(namespace, option)` returns an expression, and the
 interaction returns an [`UpdateLaw`](laws.md#updatelaw) that draws a new option for every member at once. In the
-agent form `utility(agent, system, option)` returns a number, and a `RuleLaw` draws for the members one after another.
+agent form `utility(agent, system, option)` returns a number, and an agent rule draws for the members one after
+another.
 The rule `'metropolis'` or `'fermi'` accepts a proposed option, and the rule `'best'` takes an option of largest
 utility.
 
-**How it combines.** It writes a discrete state of the members of a `GroupElement` in
-[`DiscreteTime`](spaces.md#discretetime), and the utility may read any state of the group, such as its mean, or of
+**How it combines.** It writes a discrete state of the members of a group, in discrete time since its laws are
+updates, and the utility may read any state of the group, such as its mean, or of
 neighbours. Each member revises with the probability `activity`.
 
 **Limits and errors.** A choice needs at least two options, and `prepare` raises a `ValidationError` otherwise.
@@ -1288,34 +1262,23 @@ See its [API entry][skcomplex.systems.general.agents].
 ## ImitationInteraction
 
 An `ImitationInteraction` lets members copy a discrete state from their neighbours. It is a
-[`NeighborInteraction`](interactions.md#neighborinteraction) whose `rule` says whom a member copies: a random
+interaction on the neighbours of a lattice or a network whose `rule` says whom a member copies: a random
 neighbour, the local majority, the neighbour with the best payoff, or a neighbour chosen by the Fermi rule. Here
 voters on a ring of twelve follow the majority of their two neighbours.
 
 ```python
-from typing import Annotated
-
 import numpy as np
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.spaces import LatticeSpace
+from skcomplex.core.systems import System
 from skcomplex.systems.general.agents import ImitationInteraction
-
-
-class VoterElement(Element):
-    def __init__(self, label, *, state: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.state = state
-
 
 initial = np.array([1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0], dtype=float)
 majority = ImitationInteraction('majority', target='voters', rule='majority', form='probability')
-voters = GroupElement('voters', element=VoterElement, space=LatticeSpace(12), values={'state': initial}, on='sites')
-system = CompositeSystem(elements=[voters], interactions=[majority], time=DiscreteTime())
-simulate(system, until=1, random_state=0).get_values('voters.state')[-1].tolist()
+voters = Element('voters', values={'state': initial}, space=LatticeSpace(12))
+system = System(elements=[voters], interactions=[majority]).prepare()
+system.simulate(until=1, random_state=0).get_values('voters.state')[-1].tolist()
 ```
 
 After one step the lone 0 at the fourth site has joined its neighbours, and the votes read
@@ -1329,11 +1292,10 @@ import networkx as nx
 
 from skcomplex.core.components.spaces import NetworkSpace
 
-crops = {'state': [1, 0, 0, 0, 0]}
-farms = GroupElement('farms', element=VoterElement, space=NetworkSpace(nx.star_graph(4)), values=crops, on='sites')
+farms = Element('farms', values={'state': [1, 0, 0, 0, 0]}, space=NetworkSpace(nx.star_graph(4)))
 adoption = ImitationInteraction('adoption', target='farms', rule='random', form='probability')
-village = CompositeSystem(elements=[farms], interactions=[adoption], time=DiscreteTime())
-simulate(village, until=1, random_state=0).get_values('farms.state')[-1].tolist()
+village = System(elements=[farms], interactions=[adoption]).prepare()
+village.simulate(until=1, random_state=0).get_values('farms.state')[-1].tolist()
 ```
 
 The four farms take the crop of the hub, and the hub takes the old crop of a farm, so the states read
@@ -1341,15 +1303,15 @@ The four farms take the crop of the hub, and the hub takes the old crop of a far
 
 **How the engine runs it.** The `form` chooses the laws. With `'rate'` imitation is a [`JumpLaw`](laws.md#jumplaw) at
 the rate `rate` in continuous time. With `'probability'` it is an `UpdateLaw` that every member applies with the
-probability `probability` per step, all at once. With `'agent'` it is a `RuleLaw` that runs the members in the order
-of `schedule`.
+probability `probability` per step, all at once. With `'agent'` it is an `UpdateLaw` whose value is an agent rule,
+which runs the members in the order of `schedule`.
 
 **How it combines.** Its neighbours come from the space of the group, a `LatticeSpace` or a `NetworkSpace`, or from
 the `layer` of a network with several layers. The rules `'best'` and `'fermi'` read the payoff state, which another
 interaction, such as a game, writes.
 
-**Limits and errors.** It copies one discrete value, while a
-[`CouplingInteraction`](interactions.md#couplinginteraction) averages numeric states. The rule `'better'` runs in the
+**Limits and errors.** It copies one discrete value, while a rate law along the edges, such as
+`RateLaw(s.target.x.diff(s.t), s.source.x - s.target.x)`, averages numeric states. The rule `'better'` runs in the
 agent form only, and `prepare` raises a `ValidationError` in another form.
 
 ```python continuation
@@ -1381,48 +1343,33 @@ See its [API entry][skcomplex.systems.general.agents].
 
 An `EvolutionInteraction` breeds the strategies of a group by selection, crossover, and mutation, as a genetic
 algorithm does. Every `period` steps it selects parents by their fitness and replaces strategies by offspring. Here the
-fitness of a bit string is its number of ones, which a rule of the element writes in a phase before the breeding.
+fitness of a bit string is its number of ones, which an agent rule writes in a phase before the breeding.
 
 ```python
-from typing import Annotated
-
 import numpy as np
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import RuleLaw
-from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
-from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.engine.compile import PhaseSpec
+from skcomplex.core.engine.solvers import MesaSolver
+from skcomplex.core.systems import System
 from skcomplex.systems.general.agents import EvolutionInteraction
 
 
-class BitStringElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        strategy: Annotated[object, StateSpec()] = 0.0,
-        fitness: Annotated[float, StateSpec()] = 0.0,
-    ):
-        super().__init__(label)
-        self.strategy = strategy
-        self.fitness = fitness
-
-    def _get_laws(self, s):
-        return [RuleLaw(self.score, phase='scoring')]
-
-    def score(self, agent, system):
-        agent.fitness = float(np.sum(agent.strategy))
+def score(agent, system):
+    agent.fitness = float(np.sum(agent.strategy))
 
 
 initial = np.random.default_rng(0).integers(0, 2, size=(40, 20)).astype(float)
-agents = GroupElement('agents', element=BitStringElement, size=40, values={'strategy': initial})
+agents = Element('agents', values={'strategy': initial, 'fitness': 0.0}, size=40)
+scoring = Interaction(
+    'scoring', roles={'target': 'agents'}, laws=lambda s: [UpdateLaw(s.target, score, phase='scoring')]
+)
 evolution = EvolutionInteraction('evolution', target='agents', phase='evolution')
-schedule = PhasesScheduleSpec([PhaseSpec('scoring'), PhaseSpec('evolution')])
-system = CompositeSystem(elements=[agents], interactions=[evolution], time=DiscreteTime(schedule=schedule))
-trajectory = simulate(system, until=30, random_state=0)
+solver = MesaSolver(phases=[PhaseSpec('scoring'), PhaseSpec('evolution')])
+system = System(elements=[agents], interactions=[scoring, evolution], solver=solver).prepare()
+trajectory = system.simulate(until=30, random_state=0)
 final = np.array(trajectory.get_agents('agents', 30).values['strategy'].tolist())
 float(initial.sum(axis=1).mean()), float(final.sum(axis=1).mean())
 ```
@@ -1434,14 +1381,8 @@ In economics firms learn a price by imitation of the profitable ones and by smal
 price, highest at 3.
 
 ```python continuation
-class FirmElement(Element):
-    def __init__(self, label, *, strategy: Annotated[object, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.strategy = strategy
-
-
 prices = np.random.default_rng(0).uniform(0, 6, size=(30, 1))
-firms = GroupElement('firms', element=FirmElement, size=30, values={'strategy': prices})
+firms = Element('firms', values={'strategy': prices}, size=30)
 learning = EvolutionInteraction(
     'learning',
     target='firms',
@@ -1451,20 +1392,22 @@ learning = EvolutionInteraction(
     mutation=0.5,
     evaluate=lambda strategies, system: -((strategies[:, 0] - 3.0) ** 2),
 )
-market = CompositeSystem(elements=[firms], interactions=[learning], time=DiscreteTime())
-learned = np.array(simulate(market, until=20, random_state=0).get_agents('firms', 20).values['strategy'].tolist())
+market = System(elements=[firms], interactions=[learning]).prepare()
+learned = np.array(market.simulate(until=20, random_state=0).get_agents('firms', 20).values['strategy'].tolist())
 round(float(prices.std()), 2), round(float(learned.mean()), 2), round(float(learned.std()), 2)
 ```
 
 The prices start spread with a deviation of 1.9 and gather near 3.01 with a deviation of 0.14 after twenty steps.
 
-**How the engine runs it.** It returns one `RuleLaw` that the agent solver runs once per `period`. The `selection`
+**How the engine runs it.** It returns one `UpdateLaw` whose value is a rule of the system, which the agent solver
+runs once per `period`. The `selection`
 picks parents by tournament, roulette, proportion, or rank. The `replacement` replaces the whole generation, or one
 member at a time by the process of Moran, or by death and birth, truncation, or the best mutant.
 
-**How it combines.** The strategies and the fitness are states of the members of a `GroupElement`. A rule of the
-element, a game, or the function `evaluate` writes the fitness, and a [`PhasesScheduleSpec`](spaces.md#discretetime)
-of `DiscreteTime` orders the scoring before the breeding.
+**How it combines.** The strategies and the fitness are values of the members of a group. An agent rule, a game, or
+the function `evaluate` writes the fitness, and the phases of
+[`MesaSolver`](../build_a_custom_system/agent_based_systems.md#activation-and-phases) order the scoring before the
+breeding.
 
 **Limits and errors.** It replaces strategies across the whole group, while `ImitationInteraction` copies neighbours.
 The counts must be valid, and `prepare` raises a `ValidationError` for a negative elite.
@@ -1502,26 +1445,15 @@ A `BirthDeathInteraction` creates and removes the agents of a group. At every st
 mass 8 divides twice, and each division splits the mass between the parent and its offspring.
 
 ```python
-from typing import Annotated
-
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.general.agents import BirthDeathInteraction
 
-
-class CellElement(Element):
-    def __init__(self, label, *, mass: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.mass = mass
-
-
-cells = GroupElement('cells', element=CellElement, size=1, values={'mass': 8.0}, variable=True)
+cells = Element('cells', values={'mass': 8.0}, size=1)
 division = BirthDeathInteraction('division', target='cells', birth=1.0, split=('mass',))
-system = CompositeSystem(elements=[cells], interactions=[division], space=LatticeSpace((3, 3)))
-simulate(system, until=2, random_state=0).get_agents('cells', 2).values['mass'].tolist()
+system = System(elements=[cells], interactions=[division], space=LatticeSpace((3, 3))).prepare()
+system.simulate(until=2, random_state=0).get_agents('cells', 2).values['mass'].tolist()
 ```
 
 After two steps four cells of mass 2.0 share the mass 8 of the first.
@@ -1530,23 +1462,23 @@ Rabbits in a warren breed with the probability 0.3 and die with the probability 
 the births and deaths of every step.
 
 ```python continuation
-rabbits = GroupElement('rabbits', element=CellElement, size=10, variable=True)
+rabbits = Element('rabbits', values={'mass': 0.0}, size=10)
 breeding = BirthDeathInteraction('breeding', target='rabbits', birth=0.3, death=0.1)
-field = CompositeSystem(elements=[rabbits], interactions=[breeding], space=LatticeSpace((10, 10)))
-warren = simulate(field, until=5, random_state=0)
+field = System(elements=[rabbits], interactions=[breeding], space=LatticeSpace((10, 10))).prepare()
+warren = field.simulate(until=5, random_state=0)
 warren.get_values('breeding.births')[1:].tolist(), warren.get_values('breeding.deaths')[1:].tolist()
 ```
 
 Over five steps 15 rabbits are born and 6 die.
 
-**How the engine runs it.** It returns one `RuleLaw`, and the agent solver runs it for every agent in the order of
-`schedule`. Offspring stand where `placement` says, copy the states of `inherit`, take the values of `values`, share
-the states of `split` with the parent, and may then mutate.
+**How the engine runs it.** It returns one `UpdateLaw` whose value is a rule, and the agent solver runs it for every
+agent in the order of `schedule`. Offspring stand where `placement` says, copy the states of `inherit`, take the values
+of `values`, share the states of `split` with the parent, and may then mutate.
 
-**How it combines.** Its group must be a `GroupElement` with `variable=True`, since members come and go. Further
-options reset or replace the parent, renew a dying agent in place, cull a member of a kin group, and add arrivals
-without a parent. A `JumpInteraction` changes numeric states of a fixed set of members, while this interaction adds
-and removes the members themselves.
+**How it combines.** Its group grows and shrinks as members come and go, with no setting. Further options reset or
+replace the parent, renew a dying agent in place, cull a member of a kin group, and add arrivals without a parent. A
+[`JumpLaw`](laws.md#jumplaw) changes numeric states of a fixed set of members, while this interaction adds and removes
+the members themselves.
 
 **Limits and errors.** Births come by a probability or by a rate, not both, and `prepare` raises a
 `ValidationError` when both are given.
@@ -1585,46 +1517,21 @@ value they accept and the quantity they offer. Every match lowers the quantities
 under a given rule.
 
 ```python
-from typing import Annotated
-
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.elements import Element
+from skcomplex.core.systems import System
 from skcomplex.systems.general.matching import BatchMatchingSpec, MatchingInteraction
 
 
-class TraderElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        reserve: Annotated[float, StateSpec()] = 0.0,
-        quantity: Annotated[float, StateSpec()] = 1.0,
-        money: Annotated[float, StateSpec()] = 0.0,
-        goods: Annotated[float, StateSpec()] = 0.0,
-        partner: Annotated[float, StateSpec()] = -1.0,
-    ):
-        super().__init__(label)
-        self.reserve = reserve
-        self.quantity = quantity
-        self.money = money
-        self.goods = goods
-        self.partner = partner
-
-
 def trade(rule, on_match=None):
-    bids = {'reserve': [10.0, 8.0, 6.0, 4.0], 'money': 20.0}
-    asks = {'reserve': [3.0, 5.0, 7.0, 9.0], 'goods': 1.0}
-    buyers = GroupElement('buyers', element=TraderElement, size=4, values=bids)
-    sellers = GroupElement('sellers', element=TraderElement, size=4, values=asks)
+    bids = {'reserve': [10.0, 8.0, 6.0, 4.0], 'quantity': 1.0, 'money': 20.0, 'goods': 0.0, 'partner': -1.0}
+    asks = {'reserve': [3.0, 5.0, 7.0, 9.0], 'quantity': 1.0, 'money': 0.0, 'goods': 1.0, 'partner': -1.0}
+    buyers = Element('buyers', values=bids, size=4)
+    sellers = Element('sellers', values=asks, size=4)
     transfers = (('money', -1), ('goods', 1))
     market = MatchingInteraction(
         'market', requesters='buyers', providers='sellers', rule=rule, transfers=transfers, on_match=on_match
     )
-    system = CompositeSystem(elements=[buyers, sellers], interactions=[market], time=DiscreteTime())
-    trajectory = simulate(system, until=1, random_state=0)
+    trajectory = System(elements=[buyers, sellers], interactions=[market]).prepare().simulate(until=1, random_state=0)
     value, volume = trajectory.get_values('market.value')[-1], trajectory.get_values('market.volume')[-1]
     return round(float(value), 2), float(volume)
 
@@ -1640,18 +1547,18 @@ accept a wage above theirs. The same interaction with `transfers=(('money', -1),
 worker for every match, and the section [A market in two phases](#a-market-in-two-phases) below runs a market over
 several rounds.
 
-**How the engine runs it.** It returns a [`RuleLaw`](laws.md#rulelaw) that pairs the two groups with `pairs`, the
-primitive of the core that pairs agents, and settles the matches. The matching runs once per round of its phase, runs the algorithm of
-its rule on the offers, and reports `<label>.value`, the clearing value weighted by quantity, `<label>.volume`, and
-`<label>.unmatched`. With `('money', -1)` the value times the quantity moves from the requester to the provider, and
-with `('goods', 1)` the quantity moves back, so the totals stay the same. `on_match(match, system)` adds any other
-effect.
+**How the engine runs it.** It returns an [`UpdateLaw`](laws.md#updatelaw) whose value is a rule of the system, which
+pairs the two groups with `pairs`, the primitive of the core that pairs agents, and settles the matches. The matching
+runs once per round of its phase, runs the algorithm of its rule on the offers, and reports `<label>.value`, the
+clearing value weighted by quantity, `<label>.volume`, and `<label>.unmatched`. With `('money', -1)` the value times the
+quantity moves from the requester to the provider, and with `('goods', 1)` the quantity moves back, so the totals stay
+the same. `on_match(match, system)` adds any other effect.
 
 **How it combines.** The rule is one of the specs below, or a function `rule(requesters, providers, rng, capacity)`
 that returns pairs, which match at the midpoint of both limits. A name given as a pair, such as
-`reserve=('bid', 'ask')`, names the state of the requesters and of the providers. A
-[`TransferInteraction`](interactions.md#transferinteraction) moves amounts between given pairs, while this interaction
-forms the pairs first.
+`reserve=('bid', 'ask')`, names the state of the requesters and of the providers. A labelled
+[`RateLaw`](laws.md#ratelaw) flow map moves amounts between given stocks, while this interaction forms the pairs
+first.
 
 **Limits and errors.** A transfer moves value with the sign -1 or quantity with the sign 1, and `prepare` raises a
 `ValidationError` for another sign.
@@ -1830,50 +1737,32 @@ See its [API entry][skcomplex.systems.general.matching].
 ### A market in two phases
 
 Traders quote prices in one phase and trade in a batch auction in the next, while a clerk sets a fee from the volume
-traded. The phases and the clerk are components of the core, which the section
+traded. The quotes are agent rules, the clerk is a rule of the whole system, `UpdateLaw(s, rule)`, and the phases are
+a setting of `MesaSolver`, which the section
 [Activation and phases](../build_a_custom_system/agent_based_systems.md#activation-and-phases)
 explains.
 
 ```python
-from typing import Annotated, ClassVar
-
 import numpy as np
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import RuleLaw
-from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
-from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
+from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.engine.compile import PhaseSpec
+from skcomplex.core.engine.solvers import MesaSolver
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 from skcomplex.systems.general.matching import BatchMatchingSpec, MatchingInteraction
 
 
-class QuotingElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        value: Annotated[float, StateSpec()] = 0.0,
-        bid: Annotated[float, StateSpec()] = 0.0,
-        ask: Annotated[float, StateSpec()] = 0.0,
-        demand: Annotated[float, StateSpec()] = 0.0,
-        supply: Annotated[float, StateSpec()] = 0.0,
-        money: Annotated[float, StateSpec()] = 0.0,
-        goods: Annotated[float, StateSpec()] = 0.0,
-    ):
+class QuoteInteraction(Interaction):
+    def __init__(self, label, *, target: Role):
         super().__init__(label)
-        self.value = value
-        self.bid = bid
-        self.ask = ask
-        self.demand = demand
-        self.supply = supply
-        self.money = money
-        self.goods = goods
+        self.target = target
 
-    def _get_laws(self, s):
-        return [RuleLaw(self.quote, phase='quote')]
+    def _prepare(self, s):
+        super()._prepare(s)
+        self.laws_ = [UpdateLaw(s.target, self.quote, phase='quote')]
 
     def quote(self, agent, system):
         agent.bid = system.rng.uniform(0, agent.value) if agent.demand else 0.0
@@ -1881,15 +1770,16 @@ class QuotingElement(Element):
 
 
 class ClerkInteraction(Interaction):
-    law_classes: ClassVar[tuple[type, ...]] = (RuleLaw,)
-    reports: ClassVar[tuple[str, ...]] = ('traded',)
+    reports = ('traded',)
 
-    def __init__(self, label, *, fee: Annotated[float, ParameterSpec()] = 0.0):
+    def __init__(self, label, *, buyers: Role = 'buyers', fee=0.0):
         super().__init__(label)
+        self.buyers = buyers
         self.fee = fee
 
-    def _get_laws(self, s):
-        return [RuleLaw(self.act, phase='trade')]
+    def _prepare(self, s):
+        super()._prepare(s)
+        self.laws_ = [UpdateLaw(s, self.act, phase='trade')]
 
     def act(self, system):
         traded = sum(agent.goods for agent in system.get_agents('buyers'))
@@ -1898,14 +1788,14 @@ class ClerkInteraction(Interaction):
 
 
 rng = np.random.default_rng(0)
-buyers = {'value': rng.uniform(0.5, 2, 20), 'demand': 1.0, 'money': 2.0}
-sellers = {'value': rng.uniform(0, 1.5, 20), 'supply': 1.0}
-auction = CompositeSystem(
-    elements=[
-        GroupElement('buyers', element=QuotingElement, size=20, values=buyers),
-        GroupElement('sellers', element=QuotingElement, size=20, values=sellers),
-    ],
+quotes = {'bid': 0.0, 'ask': 0.0, 'demand': 0.0, 'supply': 0.0, 'money': 0.0, 'goods': 0.0}
+buyers = {**quotes, 'value': rng.uniform(0.5, 2, 20), 'demand': 1.0, 'money': 2.0}
+sellers = {**quotes, 'value': rng.uniform(0, 1.5, 20), 'supply': 1.0}
+auction = System(
+    elements=[Element('buyers', values=buyers, size=20), Element('sellers', values=sellers, size=20)],
     interactions=[
+        QuoteInteraction('buyer_quotes', target='buyers'),
+        QuoteInteraction('seller_quotes', target='sellers'),
         MatchingInteraction(
             'auction',
             requesters='buyers',
@@ -1919,9 +1809,9 @@ auction = CompositeSystem(
         ),
         ClerkInteraction('clerk'),
     ],
-    time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('quote'), PhaseSpec('trade')])),
-)
-trajectory = simulate(auction, until=5, random_state=0)
+    solver=MesaSolver(phases=[PhaseSpec('quote'), PhaseSpec('trade')]),
+).prepare()
+trajectory = auction.simulate(until=5, random_state=0)
 prices = [round(float(price), 3) for price in trajectory.get_values('auction.value')[1:]]
 prices, trajectory.get_values('auction.volume')[1:].tolist(), round(float(trajectory.get_values('clerk.fee')[-1]), 3)
 ```
@@ -2300,11 +2190,11 @@ A field with its own term names its recipe, and `general` uses neutral names. On
 [`Interaction`](interactions.md#interaction) with `along='hyperedges'` runs its laws once per hyperedge, and `System`
 holds the components of a system. Components of every field build on them.
 
-**A component the engine handles by type.** A law that a kernel lowers goes to the core under a mathematical name.
-[`GroupingInteraction`](interactions.md#groupinginteraction) stays in the core, since a compile pass lowers it by type
-to kernels over random groups, and economics and social science both form groups. The operator `bilinear` is in the
-core because the compiler lowers it, while `EncounterInteraction`, which only builds rate laws of bilinear forms, is a
-recipe.
+**A component the engine handles by type.** A law that a kernel lowers goes to the core under a mathematical name. The
+binding `along=RandomPartition(k)` of [`Interaction`](interactions.md#interaction) stays in the core, since a compile
+pass lowers it to kernels over random groups, and economics and social science both form groups. The operator `bilinear`
+is in the core because the compiler lowers it, while `EncounterInteraction`, which only builds rate laws of bilinear
+forms, is a recipe.
 
 **A recipe of several fields.** An agent rule that economics and social science both use goes to a concept subpackage
 of `skcomplex.systems.general`. `ChoiceInteraction` returns only laws the core already runs, and the oligopoly markets
@@ -2317,11 +2207,11 @@ family `avalanches` of the physics `common` package, under the physics name `Top
 `SatisfiabilityInteraction` lives in the module of `PerceptronSatisfiabilitySystem`.
 
 ```python
-from skcomplex.core.components.interactions import GroupingInteraction, HyperedgeInteraction
+from skcomplex.core.components.interactions import Interaction, RandomPartition
 from skcomplex.core.components.laws.utils import bilinear
 from skcomplex.systems.general.agents import ChoiceInteraction
 
-components = [HyperedgeInteraction, GroupingInteraction, bilinear, ChoiceInteraction]
+components = [Interaction, RandomPartition, bilinear, ChoiceInteraction]
 [component.__module__.rsplit('.', 1)[0] for component in components]
 ```
 
@@ -2331,52 +2221,43 @@ them without importing them, since only system classes are imported from a field
 
 **A recipe that reveals a missing primitive.** A recipe that needs an operation the engine cannot lower reveals a
 missing primitive, which enters the core by the second step, and the recipe keeps no engine code. The satisfiability
-once had a check of its own in the compiler, engine support inside a recipe. The check that a role accepts only
-Boolean states became a primitive of the core, `RoleSpec(domains=...)`, so the recipe declares its role with it and
-the compiler keeps no code for the class. Any interaction declares such a role the same way. Here a rule on bits
-accepts only Boolean states, and a group of real states fails the check of the role before any run.
+once had a check of its own in the compiler, engine support inside a recipe. The check that a role accepts only Boolean
+states became a primitive of the core, a word after the role in `Annotated`, such as `Annotated[Role, 'boolean']`, so
+the recipe types its role with it and the compiler keeps no code for the class. Any interaction declares such a role the
+same way. Here a rule on bits accepts only Boolean states, and a group of real states fails the check of the role before
+any run.
 
 ```python continuation
 from typing import Annotated
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.errors import RoleElementError
-from skcomplex.core.specs import RoleSpec, StateSpec
-from skcomplex.core.enums import ElementKind
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 
 
 class BitRuleInteraction(Interaction):
-    def __init__(
-        self,
-        label,
-        *,
-        target: Annotated[str, RoleSpec(elements=(ElementKind.GROUP,), states=('state',), domains=('boolean',))],
-        state,
-    ):
+    def __init__(self, label, *, target: Annotated[Role, 'boolean']):
         super().__init__(label)
         self.target = target
-        self.state = state
+
+    def _prepare(self, s):
+        super()._prepare(s)
+        self.laws_ = [UpdateLaw(s.target.bit, 1 - s.target.bit)]
 
 
-class BitElement(Element):
-    def __init__(self, label, *, on: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.on = on
-
-
-rule = BitRuleInteraction('sat', target='bits', state='on')
+rule = BitRuleInteraction('sat', target='bits')
 try:
-    CompositeSystem(elements=[GroupElement('bits', element=BitElement, size=2)], interactions=[rule]).prepare()
+    System(elements=[Element('bits', values={'bit': 0.0}, size=2)], interactions=[rule]).prepare()
 except RoleElementError as error:
     message = str(error)
 message
 ```
 
 The message says that the role `target` of `sat` accepts the domain `boolean`, but the element `bits` has the state
-`on` of the domain `real`. The fix is a state of the domain `{0, 1}`, declared with
-`StateSpec(domain=FiniteEnumeratedSet([0, 1]))`.
+`bit` of the domain `real`. The fix is a Boolean value, such as `values={'bit': False}`.
 
 Finally, `sparse_identification` of the core returns a `CompositeSystem` of core components, never a class of
 `skcomplex.systems`, so the core runs without the catalog.
@@ -2393,8 +2274,8 @@ examples to read, and the gallery example of each system runs it.
   `TrimorphicMultilevelSelectionSystem` of `skcomplex.systems.social.cooperation`. The section
   [Simplex domains](../build_a_custom_system/phase_space_fields.md#simplex-domains) runs it.
 - `PolicyRuleInteraction` sets parameters once per round of its phase from what happened in the round, as in
-  `BrockHommesSystem` of `skcomplex.systems.economics.markets`. A plain `Interaction` that returns
-  `RuleLaw(self.act, phase=...)` does the same, as the clerk of the market above shows.
+  `BrockHommesSystem` of `skcomplex.systems.economics.markets`. A plain `Interaction` that sets
+  `UpdateLaw(s, self.act, phase=...)` does the same, as the clerk of the market above shows.
 - `SpacetimeSpace` and `GeodesicInteraction` move a particle along the geodesics of a metric, as in
   `SchwarzschildPrecessionSystem` of `skcomplex.systems.physics.celestial_mechanics`. They need the extra
   `relativity`, which installs EinsteinPy.

@@ -63,3 +63,12 @@ def test_replicate_prepared_gives_every_member_its_own_parameter():
     for index, rate in enumerate(rates):
         single = LogisticMapSystem(r=float(rate)).prepare().simulate(20, dt=1)
         np.testing.assert_allclose(values[:, index], np.ravel(single.get_values('map.x')), atol=1e-12)
+
+
+def test_replicate_prepared_runs_elements_whose_class_takes_no_size():
+    """Test that populations whose class takes no `size` replicate, member i starting from the i-th prey."""
+    system = LotkaVolterraSystem().prepare().system_
+    replicated = _replicate_prepared(system, 2, {'prey.x': [20.0, 40.0]}).prepare()
+    values = np.asarray(replicated.simulate(1.0, dt=0.5).get_values('prey.x'))
+    single = LotkaVolterraSystem(prey=40.0).prepare().simulate(1.0, dt=0.5)
+    np.testing.assert_allclose(values[:, 1], np.ravel(single.get_values('prey.x')), rtol=1e-5)

@@ -19,6 +19,7 @@ import rerun.blueprint as rrb
 from rerun import bindings
 from sage.all__sagemath_symbolics import SR
 
+from ...components.elements import DeclaredElement, GroupElement
 from ...components.spaces import NetworkSpace
 from ...errors import ValidationError
 from ...specs import VisualSpec
@@ -140,20 +141,19 @@ class RerunObserver(BaseObserver):
     Examples:
         >>> import tempfile
         >>> from pathlib import Path
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.viz import RerunObserver
-        >>> system = CompositeSystem(
+        >>> system = System(
         ...     elements=[PopulationElement('a', x=1)],
         ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ... )
         >>> path = Path(tempfile.mkdtemp()) / 'growth.rrd'
-        >>> _ = simulate(system, until=1, dt=0.1, observers=[RerunObserver('growth', save_path=path)])
+        >>> _ = system.prepare().simulate(until=1, dt=0.1, observers=[RerunObserver('growth', save_path=path)])
         >>> path.exists()
         True
         >>> observer = RerunObserver('growth', save_path=path, blueprint='default')
-        >>> _ = simulate(system, until=1, dt=0.1, observers=[observer])
+        >>> _ = system.prepare().simulate(until=1, dt=0.1, observers=[observer])
         >>> path.with_suffix('.rbl').exists()
         True
 
@@ -640,9 +640,14 @@ class RerunObserver(BaseObserver):
 
     @staticmethod
     def _get_type_name(element: CompiledElementSpec) -> str:
-        """Return the name of the element type of an element or of the members of a group."""
-        kind = getattr(element.element, 'element', None) or type(element.element)
-        return str(getattr(kind, '__name__', type(element.element).__name__))
+        """Return the name of the element type of an element or of the members of a group.
+
+        An element declared from a plain element is named after the class of that element, such as `PopulationElement`.
+        """
+        component = element.element
+        member = component._get_member() if isinstance(component, GroupElement) else component
+        declared = isinstance(member, DeclaredElement) and member.kind is not None
+        return str(member.kind) if declared else type(member).__name__
 
     @staticmethod
     def _get_chunks(

@@ -11,8 +11,7 @@ from collections.abc import Callable, Collection, Mapping
 from typing import Annotated, get_args, get_origin
 
 import numpy as np
-from sage.all__sagemath_symbolics import CC, RR, SR, ZZ, Expression
-from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.all__sagemath_symbolics import RR, SR, Expression
 from shapely import Polygon
 
 from ...components.base import BaseComponent
@@ -44,7 +43,14 @@ from ...components.spaces import BaseSpace, CellComplexSpace, ContinuousSpace, L
 from ...components.systems import CompositeSystem
 from ...enums import TopologyKind, VariableKind
 from ...errors import ValidationError
-from ...specs import BaseSpec, DeclaredVariableSpec, MatrixGroupSpec, ParameterSpec, StateSpec, SubshiftSpec, VisualSpec
+from ...specs import (
+    BaseSpec,
+    DeclaredVariableSpec,
+    MatrixGroupSpec,
+    ParameterSpec,
+    StateSpec,
+    VisualSpec,
+)
 from .._utils import binding_of, bound_labels, declarations_of
 from ..problems._bilinear_law import BilinearLaw
 from ._compilation import Compilation
@@ -54,7 +60,6 @@ REGION = 'region'
 LINKS = ('edges', 'hyperedges')
 MIN_RANK = 2
 OTHER = '__other'
-BOOLEAN = FiniteEnumeratedSet([0, 1])
 MEMBERSHIP = frozenset(
     {
         TopologyKind.ADD_NODE,
@@ -237,6 +242,22 @@ class _StateInference:
         return ()
 
     @staticmethod
+    def _is_single(element: Element) -> bool:
+        """Return whether an element is one member whose values, even arrays, are its own.
+
+        Such an element has no size and lies in no space or in a space without sites, such as a ball in the plane or
+        a walker on a line, whose position `[0.25]` is a vector of one component and not one value per member.
+        """
+        space = element.space
+        no_sites = space is None or not space._has_sites()
+        return element.size is None and no_sites and _StateInference._get_link(element) is None
+
+    @staticmethod
+    def _get_rows(element: Element, value: object) -> object:
+        """Return the values of the members of an element, one row for a single element."""
+        return [value] if _StateInference._is_single(element) else value
+
+    @staticmethod
     def _get_member_value(element: Element, name: str, value: object, count: int | None) -> object:
         """Return the value of one member, checking an array holds one per member.
 
@@ -247,7 +268,7 @@ class _StateInference:
         cell of a plate.
         """
         array = np.asarray(value, dtype=object)
-        if count is None or array.ndim == 0:
+        if count is None or array.ndim == 0 or _StateInference._is_single(element):
             return value
         space = element.space
         if isinstance(space, LatticeSpace) and element.size is None and len(space.prepare().shape_) > 1:
@@ -318,35 +339,6 @@ class _StateInference:
             return False
         specs = type(component)._get_specs()
         return not any(isinstance(spec, StateSpec | ParameterSpec) for spec in specs.values())
-
-    @staticmethod
-    def _get_domain(annotation: object, value: object) -> object:
-        """Return the domain of a value from its annotation or its Python type.
-
-        A value without an annotation, such as one given through `values`, takes the domain of its type, so `3` is an
-        integer and `0.5 + 1j` is complex. The annotation `object` says nothing of the kind, so a value annotated so,
-        such as a point that may be one number or an array of complex numbers, also takes the domain of its type, and
-        so does a value of one of several types, such as `float | Sequence[float]`. A subshift, such as
-        `Annotated[int, SubshiftSpec(LatticeNeighborhood(((0,), (1,))), ((1, 1),))]`, is the domain of the cells of a
-        lattice whose configurations hold no forbidden word.
-        """
-        if get_origin(annotation) is Annotated:
-            for item in get_args(annotation)[1:]:
-                if isinstance(item, set | frozenset):
-                    return FiniteEnumeratedSet(sorted(item, key=str))
-                allowed = hasattr(item, '__contains__') and not isinstance(item, str | MatrixGroupSpec)
-                if allowed or isinstance(item, SubshiftSpec):
-                    return item
-            annotation = get_args(annotation)[0]
-        annotated = isinstance(annotation, type) and annotation not in {inspect.Parameter.empty, object}
-        kind = annotation if annotated else type(value)
-        if kind is bool:
-            return BOOLEAN
-        if kind is int:
-            return ZZ
-        if kind is complex or (isinstance(kind, type) and issubclass(kind, np.complexfloating)):
-            return CC
-        return RR
 
     @staticmethod
     def _get_quantity(annotation: object) -> str | None:
@@ -434,7 +426,7 @@ class _StateInference:
                 A starting value is given for a parameter, or for a derivative or past value no law reads.
         """
         annotation = element._get_hints().get(name, inspect.Parameter.empty)
-        domain = self._get_domain(annotation, value)
+        domain = Element._get_domain_of(annotation, value)
         quantity = self._get_quantity(annotation)
         period = self._get_period(annotation)
         member = self._get_member(annotation)
@@ -837,18 +829,23 @@ class _StateInference:
         """Return the paths of the groups whose members are agents.
 
         Their members run agent rules, or a rule reads them through the roles of its interaction, such as the traders a
-        market clears with `UpdateLaw(s, clear)` or the balls an urn draws from with `UpdateLaw(s.target, draw)`.
+        market clears with `UpdateLaw(s, clear)` or the balls an urn draws from with `UpdateLaw(s.target, draw)`. An
+        element whose values rate or noise laws change flows in continuous time, so it is no agent even when a rule of
+        the same interaction reads it, as the soil that farmers tend.
         """
         census = Compilation._get_required(compilation.census, 'census')
         nodes = {node.path: node for node in Compilation._get_required(compilation.nodes, 'nodes')}
         groups: set[str] = set()
+        flowing: set[str] = set()
         for record in census.records:
+            if isinstance(record.law, RateLaw | NoiseLaw):
+                flowing.update(entry.name.rpartition('.')[0] for entry in record.targets)
             node = nodes.get(record.path)
             if not isinstance(record.law, RuleLaw) or node is None:
                 continue
             for role in declarations_of(node.component, VariableKind.ROLE):
                 groups.update(f'{node.scope}{label}' for label in bound_labels(binding_of(node.component, role)))
-        return groups
+        return groups - flowing
 
     @staticmethod
     def _get_field(label: str, space: LatticeSpace | NetworkSpace, values: Mapping[str, object]) -> FieldElement:
@@ -1114,26 +1111,36 @@ class _StateInference:
             tensor = None if self._get_symmetry(annotation) else element._get_shape_of(member)[2]
             if count is not None and np.ndim(np.asarray(value, dtype=object)) > 0:
                 variables[name] = self._get_new_member_default(element, name, variables[name], member)
-                arrays[name] = element._get_matrix_entries(value, tensor)
+                arrays[name] = self._get_rows(element, element._get_matrix_entries(value, tensor))
                 arrays |= self._get_past_arrays(name, arrays[name], 0 if count is None or probing else lags(name))
             for index, given in starting.get(name, {}).items():
                 if count is not None and np.ndim(np.asarray(given, dtype=object)) > 0:
-                    arrays[f'{name}_lag{index}' if lags(name) else f'{name}_d{index}'] = element._get_matrix_entries(
-                        given,
-                        tensor,
+                    arrays[f'{name}_lag{index}' if lags(name) else f'{name}_d{index}'] = self._get_rows(
+                        element,
+                        element._get_matrix_entries(given, tensor),
                     )
         if not probing:
             variables |= self._get_rule_derivative_specs(element, derivatives, count, axes)
             arrays |= {
-                name: given for name, (_, _, given) in derivatives.items() if np.ndim(np.asarray(given, dtype=object))
+                name: self._get_rows(element, given)
+                for name, (_, _, given) in derivatives.items()
+                if np.ndim(np.asarray(given, dtype=object))
             }
         visual = element._get_visual()
         drawing = None if visual == VisualSpec() or (visual.kind == 'agents' and not agents) else visual
         view = element._get_view()
+        kind = type(element).__name__
         if count is None:
-            return [DeclaredElement(element.label, variables=variables, drawing=drawing, view=view)]
+            return [DeclaredElement(element.label, variables=variables, drawing=drawing, view=view, kind=kind)]
         defaults = self._get_class_defaults(element, variables) if agents else None
-        values = {'variables': variables, 'drawing': drawing, 'view': view, 'defaults': defaults, **arrays}
+        values = {
+            'variables': variables,
+            'drawing': drawing,
+            'view': view,
+            'defaults': defaults,
+            'kind': kind,
+            **arrays,
+        }
         if network:
             nodes = GroupElement(
                 element.label,

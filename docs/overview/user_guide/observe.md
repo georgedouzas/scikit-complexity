@@ -10,7 +10,6 @@ matplotlib. It follows the hare and lynx model of the tutorial [Build a custom s
 with the rates of Carpenter (2018). It starts from the pelt records of 1900, 30.0 thousand hares and 4.0 thousand lynx.
 
 ```python
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 system = LotkaVolterraSystem(prey=30.0, predators=4.0, r=0.55, a=0.028, b=0.024, d=0.80)
@@ -95,33 +94,18 @@ parameter, its modulus, is an expression that reads the earlier observable by it
 near 1 means the phases sit together, and near 0 that they spread around the circle.
 
 ```python
-from typing import Annotated
-
 import numpy as np
-from sage.all__sagemath_symbolics import I, exp, pi
+from sage.all__sagemath_symbolics import I, exp
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.core.components import Observable
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.systems import System
 
 
-class OscillatorElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
-        omega: Annotated[float, ParameterSpec()] = 1.0,
-    ):
-        super().__init__(label)
-        self.theta = theta
-        self.omega = omega
-
-    def _get_laws(self, s):
-        return [RateLaw(s.theta, s.omega)]
+def turn(s):
+    return [RateLaw(s.target.theta, s.target.omega)]
 
 
 def phase_vector(member):
@@ -133,9 +117,12 @@ def order_parameter(s):
 
 
 values = {'theta': np.linspace(0, 1, 100), 'omega': np.linspace(0.9, 1.1, 100)}
-oscillators = CompositeSystem(elements=[GroupElement('phases', element=OscillatorElement, size=100, values=values)])
+oscillators = System(
+    elements=[Element('phases', values=values, size=100)],
+    interactions=[Interaction('turn', roles={'target': 'phases'}, laws=turn)],
+).prepare()
 observables = [Observable('z', phase_vector, group='phases'), Observable('order', order_parameter)]
-order = simulate(oscillators, until=50, dt=1.0, observables=observables).get_values('order')
+order = oscillators.simulate(until=50, dt=1.0, observables=observables).get_values('order')
 round(float(order[0]), 3), round(float(order[-1]), 3)
 ```
 
@@ -146,33 +133,27 @@ from 0.958 to 0.12.
 
 A law may react to a quantity of the whole system, such as the mean field of all oscillators. It reads an observable
 through a role bound to the label of the observable, as `s.<role>.value`. The interaction below pulls every oscillator
-towards the mean phase, with the means `X` of `cos theta` and `Y` of `sin theta` as its roles.
+towards the mean phase, with the means `X` of `cos theta` and `Y` of `sin theta` as its roles. The laws need the
+observables when they are compiled, so `prepare(observables)` takes them before `simulate` records them.
 
 ```python continuation
 from sage.all__sagemath_symbolics import cos, sin
 
-from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.specs import RoleSpec
+from skcomplex.core.specs import Role
 
 
-class MeanFieldInteraction(Interaction):
-    def __init__(
-        self,
-        label,
-        *,
-        target: Annotated[str, RoleSpec()],
-        X: Annotated[str, RoleSpec()],
-        Y: Annotated[str, RoleSpec()],
-        K: Annotated[float, ParameterSpec()] = 1.0,
-    ):
+class MeanField(Interaction):
+    def __init__(self, label, *, target: Role, X: Role, Y: Role, K=1.0):
         super().__init__(label)
         self.target = target
         self.X = X
         self.Y = Y
         self.K = K
 
-    def _get_laws(self, s):
-        return [RateLaw(s.target.theta, s.K * (s.Y.value * cos(s.target.theta) - s.X.value * sin(s.target.theta)))]
+    def _prepare(self, s):
+        super()._prepare(s)
+        theta = s.target.theta
+        self.laws_ = [RateLaw(theta, s.K * (s.Y.value * cos(theta) - s.X.value * sin(theta)))]
 
 
 def cosine(member):
@@ -184,12 +165,15 @@ def sine(member):
 
 
 values = {'theta': np.linspace(0, 6, 100), 'omega': np.linspace(0.9, 1.1, 100)}
-coupled = CompositeSystem(
-    elements=[GroupElement('phases', element=OscillatorElement, size=100, values=values)],
-    interactions=[MeanFieldInteraction('coupling', target='phases', X='X', Y='Y', K=2.0)],
+coupled = System(
+    elements=[Element('phases', values=values, size=100)],
+    interactions=[
+        Interaction('turn', roles={'target': 'phases'}, laws=turn),
+        MeanField('coupling', target='phases', X='X', Y='Y', K=2.0),
+    ],
 )
 observables = [Observable('X', cosine, group='phases'), Observable('Y', sine, group='phases')]
-synchronised = simulate(coupled, until=20, dt=1.0, observables=observables)
+synchronised = coupled.prepare(observables).simulate(until=20, dt=1.0, observables=observables)
 X, Y = synchronised.get_values('X'), synchronised.get_values('Y')
 round(float(np.hypot(X[0], Y[0])), 2), round(float(np.hypot(X[-1], Y[-1])), 2)
 ```
@@ -217,7 +201,6 @@ save to a temporary file, so they run without a viewer.
 import tempfile
 from pathlib import Path
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
@@ -286,46 +269,34 @@ The default visuals follow the kind of element:
 An element class gives its default drawing in its class attribute `visual`, such as
 `visual = VisualSpec('points', {'position': 'x'})`. The observer draws chosen elements otherwise with `visuals`, a
 mapping from the path of an element to its drawing. Below, two atoms joined by a spring move in three dimensions, and
-the observer draws the second atom as points coloured by its velocity `x_d1` with
-`visuals={'b': VisualSpec('points', {'position': 'x', 'color_by': 'x_d1'})}`.
+the observer draws the second atom as points coloured by its velocity `x'` with
+`visuals={'b': VisualSpec('points', {'position': 'x', 'color_by': "x'"})}`.
 
 ```python continuation
-from typing import Annotated
-
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import RateInteraction
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.specs import VisualSpec
+from skcomplex.core.systems import System
 
 
-class AtomElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        x: Annotated[object, StateSpec(vector=True, order=2, role='position')] = 0.0,
-        x_d1: object = 0.0,
-    ):
-        super().__init__(label)
-        self.x = x
-        self.x_d1 = x_d1
+def spring(s):
+    pull = 4.0 * (s.b.x - s.a.x)
+    return [RateLaw(s.a.x.diff(s.t, 2), pull), RateLaw(s.b.x.diff(s.t, 2), -pull)]
 
 
-speed = VisualSpec('points', {'position': 'x', 'color_by': 'x_d1'})
-molecule = CompositeSystem(
+speed = VisualSpec('points', {'position': 'x', 'color_by': "x'"})
+molecule = System(
     elements=[
-        AtomElement('a', x=[0.0, 0.0, 0.0]),
-        AtomElement('b', x=[1.5, 0.0, 0.0], x_d1=[0.0, 0.5, 0.0]),
+        Element('a', values={'x': [0.0, 0.0, 0.0]}),
+        Element('b', values={'x': [1.5, 0.0, 0.0], "x'": [0.0, 0.5, 0.0]}),
     ],
-    interactions=[
-        RateInteraction('pull', target='a', sources=['b'], rate=lambda s: 4.0 * (s.sources[0].x - s.target.x)),
-        RateInteraction('push', target='b', sources=['a'], rate=lambda s: 4.0 * (s.sources[0].x - s.target.x)),
-    ],
+    interactions=[Interaction('spring', roles={'a': 'a', 'b': 'b'}, laws=spring)],
     space=ContinuousSpace(n_dim=3),
 )
 atoms = RerunObserver('molecule', save_path=folder / 'molecule.rrd', visuals={'b': speed})
-simulate(molecule, until=5, dt=0.02, observers=[atoms])
+molecule.prepare().simulate(until=5, dt=0.02, observers=[atoms])
 [type(visual).__name__ for visual in atoms.visuals_], type(atoms.views_[0]).__name__
 ```
 

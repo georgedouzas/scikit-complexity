@@ -8,41 +8,20 @@ on a loss of the runs of the inner system.
 ## Training a system
 
 This section fits the decay rate of the map `x -> a x` to the series `0.8^k`, starting from the guess `a = 0.5`. The
-[`Element`](../core_components/elements.md#element) declares the trained rate with `ParameterSpec(adaptive=True)` and
-returns an [`UpdateLaw`](../core_components/laws.md#updatelaw), and a nested system `decay` holds it. A
-[`TrainingInteraction`](../core_components/interactions.md#traininginteraction) binds the nested system, reads the
-observed series from a `DatasetSpec`, and minimises the squared error over 300 epochs.
+[`Element`](../core_components/elements.md#element) `unit` holds the value `x`, the rate `a`, and the observed value,
+the interaction `decay` sets an [`UpdateLaw`](../core_components/laws.md#updatelaw), and a nested system `decay` holds
+both. A [`TrainingInteraction`](../core_components/interactions.md#traininginteraction) binds the nested system, names
+the trained rate by its path `unit.a`, reads the observed series from a `DatasetSpec`, and minimises the squared error
+over 300 epochs.
 
 ```python
-from typing import Annotated
-
 import numpy as np
 
-from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import TrainingInteraction
-from skcomplex.core.components.laws import UpdateLaw
-from skcomplex.core.specs import ParameterSpec, StateSpec
-from skcomplex.core.components.laws import DatasetSpec
 from skcomplex.core.components import Observable
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction, TrainingInteraction
+from skcomplex.core.components.laws import DatasetSpec, UpdateLaw
 from skcomplex.core.systems import System
-
-
-class DecayElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        x: Annotated[float, StateSpec()] = 1.0,
-        a: Annotated[float, ParameterSpec(adaptive=True)] = 0.5,
-        observed: Annotated[float, ParameterSpec()] = 0.0,
-    ):
-        super().__init__(label)
-        self.x = x
-        self.a = a
-        self.observed = observed
-
-    def _get_laws(self, s):
-        return [UpdateLaw(s.x, s.a * s.x)]
 
 
 def squared_error(s):
@@ -50,7 +29,9 @@ def squared_error(s):
 
 
 series = 0.8 ** np.arange(1, 11)
-system = System('decay', elements=[DecayElement('unit')])
+unit = Element('unit', values={'x': 1.0, 'a': 0.5, 'observed': 0.0})
+decay = Interaction('decay', roles={'target': 'unit'}, laws=lambda s: [UpdateLaw(s.target.x, s.target.a * s.target.x)])
+system = System('decay', elements=[unit], interactions=[decay])
 training = TrainingInteraction(
     'fit',
     system='decay',
@@ -69,7 +50,8 @@ The trained rate is 0.8, the rate of the data, and the loss of the last epoch is
 `TrainingInteraction`, of `skcomplex.core.components.interactions`, writes this with the existing components.
 
 - The inner system is a nested system, such as `decay` above.
-- Its trained parameters are declared `ParameterSpec(adaptive=True)`.
+- The interaction names the trained parameters by their paths in `trained`, such as `unit.a`, and no mark goes on the
+  value.
 - The interaction binds the inner system through its role `system`.
 - Each system keeps the time its laws imply. The inner map steps through its inputs, and the outer system steps once
   per epoch, so no time is given to either.
@@ -79,7 +61,7 @@ from [`GradientInteraction`](../core_components/general.md#gradientinteraction).
 
 - `GradientInteraction` moves the states of its target down the gradient of a potential, in the own time of the
   system, and compiles to rate laws.
-- `TrainingInteraction` takes optimizer steps on the adaptive parameters of a nested system once per epoch. It follows
+- `TrainingInteraction` takes optimizer steps on the trained parameters of a nested system once per epoch. It follows
   the gradient of a loss over unrolled runs of that system, computed by automatic differentiation with JAX.
 
 ## The components of training
@@ -125,61 +107,42 @@ chosen by `VisualSpec('matrix')`.
 
 ## Shaped parameters
 
-This section gives an interaction a weight matrix whose shape follows the groups it binds.
-`ParameterSpec(shape=('target', 'source'))` declares a parameter of an interaction whose shape is the sizes of the
-groups its roles bind, here one row per target member and one column per source member. Three cells, each a member of
-a [`GroupElement`](../core_components/elements.md#groupelement), relax towards the weighted sum of two inputs through an
-[`Interaction`](../core_components/interactions.md#interaction) subclass with a
+This section gives an interaction a weight matrix whose shape follows the groups it binds. A parameter of an
+interaction given as an array keeps its shape, here one row per target member and one column per source member. Three
+cells, the members of an [`Element`](../core_components/elements.md#element) with `size=3`, relax towards the weighted
+sum of two inputs through an [`Interaction`](../core_components/interactions.md#interaction) subclass with a
 [`RateLaw`](../core_components/laws.md#ratelaw). A schedule doubles the weights at time 20.
 
 ```python
-from typing import Annotated
-
 import numpy as np
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import contraction, count, total
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 
 
-class NodeElement(Element):
-    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.x = x
-
-
-class DriveInteraction(Interaction):
-    def __init__(
-        self,
-        label,
-        *,
-        target: Annotated[str, RoleSpec()],
-        source: Annotated[str, RoleSpec()],
-        W: Annotated[object, ParameterSpec(shape=('target', 'source'))] = 0.0,
-    ):
+class Drive(Interaction):
+    def __init__(self, label, *, target: Role, source: Role, W=0.0):
         super().__init__(label)
         self.target = target
         self.source = source
         self.W = W
 
-    def _get_laws(self, s):
-        return [RateLaw(s.target.x, -s.target.x + total(s.source.x, weights=s.W))]
+    def _prepare(self, s):
+        super()._prepare(s)
+        self.laws_ = [RateLaw(s.target.x, -s.target.x + total(s.source.x, weights=s.W))]
 
 
 W = np.array([[1.0, 0.0], [0.5, 0.5], [0.0, 2.0]])
-system = CompositeSystem(
-    elements=[
-        GroupElement('cells', element=NodeElement, size=3),
-        GroupElement('inputs', element=NodeElement, size=2, values={'x': [1.0, 2.0]}),
-    ],
-    interactions=[DriveInteraction('drive', target='cells', source='inputs', W=W)],
-)
+system = System(
+    elements=[Element('cells', values={'x': 0.0}, size=3), Element('inputs', values={'x': [1.0, 2.0]}, size=2)],
+    interactions=[Drive('drive', target='cells', source='inputs', W=W)],
+).prepare()
 schedule = {'drive.W': lambda t: W if t < 20 else 2 * W}
-trajectory = simulate(system, until=40, dt=0.1, schedule=schedule)
+trajectory = system.simulate(until=40, dt=0.1, schedule=schedule)
 trajectory.get_values('cells.x')[200].round(3).tolist(), trajectory.get_values('cells.x')[-1].round(3).tolist()
 ```
 
@@ -189,43 +152,34 @@ doubling, they sit at 2.0, 3.0, and 8.0. A shaped parameter behaves like any par
 - It holds a block of the parameter vector in row-major order.
 - Trajectories read it with its shape, and a schedule, such as the doubling of `W` above, or an experiment sets it
   with its shape.
-- With `adaptive=True`, a training interaction trains it.
-- The weights of `total` and `mean`, and of
-  [`CouplingInteraction`](../core_components/interactions.md#couplinginteraction) with `mode='group'`, read it.
-
-A shaped parameter whose role binds a single element reports the issue `parameter-shape`, with the fix of binding a
-group.
+- A training interaction trains it when it names it in `trained`.
+- The weights of `total` and `mean` read it.
 
 ## Coupling tensors
 
-This section couples the members of a group by a tensor of higher order. A role repeated `k` times,
-`shape=('target',) * k`, gives a coupling tensor of order `k` among the members of a group.
+This section couples the members of a group by a tensor of higher order. An array with `k` indices, one per member,
+gives a coupling tensor of order `k` among the members of a group.
 `contraction(T, a, b)`, of `skcomplex.core.components.laws.utils`, returns `sum_jk T_ijk a_j b_k` for every member
 `i`, with one expression per index after the first. Matrices keep `total(x, weights=W)`. Four species grow
 logistically and compete in triplets, each triplet with the coefficient -1.
 
 ```python continuation
-class TripletInteraction(Interaction):
-    def __init__(
-        self,
-        label,
-        *,
-        target: Annotated[str, RoleSpec()],
-        T: Annotated[object, ParameterSpec(shape=('target',) * 3)] = 0.0,
-    ):
+class Triplets(Interaction):
+    def __init__(self, label, *, target: Role, T=0.0):
         super().__init__(label)
         self.target = target
         self.T = T
 
-    def _get_laws(self, s):
+    def _prepare(self, s):
+        super()._prepare(s)
         x = s.target.x
-        return [RateLaw(x, x * (1 - x) + x * contraction(s.T, x, x) / count(over=s.target))]
+        self.laws_ = [RateLaw(x, x * (1 - x) + x * contraction(s.T, x, x) / count(over=s.target))]
 
 
-species = GroupElement('species', element=NodeElement, size=4, values={'x': 0.1})
-triplets = TripletInteraction('triplets', target='species', T=-np.ones((4, 4, 4)))
-community = CompositeSystem(elements=[species], interactions=[triplets])
-trajectory = simulate(community, until=50, dt=0.1)
+species = Element('species', values={'x': 0.1}, size=4)
+triplets = Triplets('triplets', target='species', T=-np.ones((4, 4, 4)))
+community = System(elements=[species], interactions=[triplets]).prepare()
+trajectory = community.simulate(until=50, dt=0.1)
 trajectory.get_values('species.x')[-1].round(3).tolist()
 ```
 

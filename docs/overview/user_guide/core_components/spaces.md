@@ -10,41 +10,49 @@ page takes the spaces first, then the neighbourhoods, then the times, and each f
 ## LatticeSpace
 
 A `LatticeSpace` is a box of a regular grid, such as a row of cells or a square of sites, with a boundary. Here a ring
-of five cells conducts heat. The first cell starts at 10 degrees, and each cell gains the difference between each
-neighbour and itself.
+of five cells conducts heat. An `Element` with `space=` holds one member per site, here the temperature `u` of
+each cell. The first cell starts at 10 degrees, and along every edge of the lattice, `along=True`, heat flows from the
+warmer end to the cooler one at the rate of their difference.
 
 ```python
-from skcomplex.core.components.elements import DeclaredElement, GroupElement
-from skcomplex.core.components.interactions import CouplingInteraction
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
+from skcomplex.core.systems import System
 
-heat = {'variables': {'u': DeclaredVariableSpec(0.0, StateSpec())}, 'u': [10.0, 0.0, 0.0, 0.0, 0.0]}
 ring = LatticeSpace(5, boundary='periodic')
-rod = GroupElement('rod', element=DeclaredElement, space=ring, on='sites', values=heat)
-conduction = CouplingInteraction('conduction', target='rod', read='u', write='u')
-system = CompositeSystem(elements=[rod], interactions=[conduction])
-simulate(system, until=4, dt=2.0).get_values('rod.u').round(2).tolist()
+rod = Element('rod', values={'u': [10.0, 0.0, 0.0, 0.0, 0.0]}, space=ring)
+
+
+def conduct(s):
+    flow = s.source.u - s.target.u
+    return [RateLaw(s.target.u.diff(s.t), flow), RateLaw(s.source.u.diff(s.t), -flow)]
+
+
+conduction = Interaction('conduction', among='rod', laws=conduct, along=True)
+system = System(elements=[rod], interactions=[conduction]).prepare()
+system.simulate(until=4, dt=2.0).get_values('rod.u').round(2).tolist()
 ```
 
 The heat spreads around the ring. After four time units every cell is within 0.02 of the mean, 2 degrees.
 
 The same lattice holds the cells of a cellular automaton in computer science. In rule 90 of Wolfram a cell becomes
-live when exactly one of its two neighbours is live, and a single live cell grows into the Sierpinski triangle.
+live when exactly one of its two neighbours is live, and a single live cell grows into the Sierpinski triangle. An
+`UpdateLaw` with `neighborhood=` is a local rule: it reads the neighbours of every cell, and an update law makes the
+system step in discrete time.
 
 ```python continuation
-from skcomplex.core.components.interactions import LocalRuleInteraction
-from skcomplex.core.components.spaces import DiscreteTime, LatticeNeighborhood, RadiusNeighborhood
-from skcomplex.core.components.laws import TotalisticSpec
+from skcomplex.core.components.laws import TotalisticSpec, UpdateLaw
+from skcomplex.core.components.spaces import RadiusNeighborhood
 
-start = {'variables': {'c': DeclaredVariableSpec(0.0, StateSpec())}, 'c': [0, 0, 0, 1, 0, 0, 0]}
-cells = GroupElement('cells', element=DeclaredElement, space=LatticeSpace(7), on='sites', values=start)
+cells = Element('cells', values={'c': [0, 0, 0, 1, 0, 0, 0]}, space=LatticeSpace(7))
 pair = RadiusNeighborhood(1, metric='manhattan')
-rule = LocalRuleInteraction('rule', target='cells', state='c', rule=TotalisticSpec({1: 1}), neighborhood=pair)
-automaton = CompositeSystem(elements=[cells], interactions=[rule], time=DiscreteTime())
-simulate(automaton, until=2).get_values('cells.c').astype(int).tolist()
+rule = Interaction(
+    'rule', roles={'target': 'cells'}, laws=lambda s: [UpdateLaw(s.target.c, TotalisticSpec({1: 1}), neighborhood=pair)]
+)
+automaton = System(elements=[cells], interactions=[rule]).prepare()
+automaton.simulate(until=2).get_values('cells.c').astype(int).tolist()
 ```
 
 The live cell at the centre splits into two cells that move one site apart at every step.
@@ -61,13 +69,14 @@ grid.size_, grid.shape_, grid.positions_[:3].tolist()
 
 The grid has 6 sites in the shape `(2, 3)`, and the first row sits at `(0, 0)`, `(0, 1)`, and `(0, 2)`.
 
-**How it combines.** A `GroupElement` with `on='sites'` holds one member per site, and an `Element` with `space=`
-holds a field, whose laws read the operators of space, such as the Laplacian. The lattice says how a field on it becomes
+**How it combines.** An `Element` with `space=` holds one member per site, and its laws may read the operators
+of space, such as the Laplacian. The lattice says how a field on it becomes
 numbers: `discretization` is `'finite-difference'`, `'spectral'`, or `'finite-volume'`, `scheme` is the
 `FiniteVolumeSpec` of a finite-volume field, `symmetry` keeps a state odd or even along an axis, and `boundary` may give
-the edge of each state, such as `LatticeSpace(64, discretization='spectral', boundary={'T': ('fixed', 0.0)})`. `LocalRuleInteraction` reads a `RadiusNeighborhood` or a
-`LatticeNeighborhood` around each site, and `CouplingInteraction` and `SamplingInteraction` read the nearest
-neighbours. `CellComplexSpace` and `PhaseSpace` build on a lattice.
+the edge of each state, such as `LatticeSpace(64, discretization='spectral', boundary={'T': ('fixed', 0.0)})`. A
+local rule reads a `RadiusNeighborhood` or a `LatticeNeighborhood` around each site, an interaction with `along=True`
+reads the two ends of every edge, and the `neighbors` reduction reads the nearest neighbours. `CellComplexSpace` and
+`PhaseSpace` build on a lattice.
 
 **Limits and errors.** Every site has the same pattern of neighbours, so an irregular pattern of links needs a
 `NetworkSpace`, and an irregular domain needs a `CellComplexSpace` of the points and cells of a mesh. The boundary is
@@ -105,26 +114,32 @@ and its [API entry][skcomplex.core.components.spaces.LatticeSpace].
 
 A `NetworkSpace` places the members on the nodes of a graph, so each member has the neighbours its edges give. Here
 an epidemic spreads on a contact network shaped as a star. The person at the hub is infected, and each person is
-infected at a rate of 0.5 times their own susceptibility and the infection of each contact.
+infected at a rate of 0.5 times their own susceptibility and the infection of each contact. The interaction runs
+`along=True`, once for every edge of the network, and its laws read the two ends of the edge as `s.source` and
+`s.target`.
 
 ```python
 import networkx as nx
 
-from skcomplex.core.components.elements import DeclaredElement, GroupElement
-from skcomplex.core.components.interactions import CouplingInteraction
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import NetworkSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
+from skcomplex.core.systems import System
+
+
+def infect(s):
+    return [
+        RateLaw(s.target.x.diff(s.t), 0.5 * (1 - s.target.x) * s.source.x),
+        RateLaw(s.source.x.diff(s.t), 0.5 * (1 - s.source.x) * s.target.x),
+    ]
+
 
 contacts = NetworkSpace(nx.star_graph(3))
-sick = {'variables': {'x': DeclaredVariableSpec(0.0, StateSpec())}, 'x': [1.0, 0.0, 0.0, 0.0]}
-people = GroupElement('people', element=DeclaredElement, space=contacts, on='sites', values=sick)
-infection = CouplingInteraction(
-    'infection', target='people', read='x', write='x', function=lambda s: 0.5 * (1 - s.member.x) * s.other.x
-)
-system = CompositeSystem(elements=[people], interactions=[infection])
-simulate(system, until=4, dt=2.0).get_values('people.x').round(2).tolist()
+people = Element('people', values={'x': [1.0, 0.0, 0.0, 0.0]}, space=contacts)
+infection = Interaction('infection', among='people', laws=infect, along=True)
+system = System(elements=[people], interactions=[infection]).prepare()
+system.simulate(until=4, dt=2.0).get_values('people.x').round(2).tolist()
 ```
 
 The three leaves catch the infection from the hub, and their share of infection reaches 0.63 after two days and 0.86
@@ -136,26 +151,31 @@ the generators it is wired to by the sine of their difference, as in the model o
 ```python continuation
 from sage.all__sagemath_symbolics import sin
 
+
+def pull(s):
+    gap = sin(s.source.theta - s.target.theta)
+    return [RateLaw(s.target.theta.diff(s.t), gap), RateLaw(s.source.theta.diff(s.t), -gap)]
+
+
 grid = NetworkSpace(nx.cycle_graph(4))
-phases = {'variables': {'theta': DeclaredVariableSpec(0.0, StateSpec())}, 'theta': [0.0, 0.4, 0.8, 1.2]}
-generators = GroupElement('generators', element=DeclaredElement, space=grid, on='sites', values=phases)
-pull = lambda s: sin(s.other.theta - s.member.theta)
-sync = CouplingInteraction('sync', target='generators', read='theta', write='theta', function=pull)
-system = CompositeSystem(elements=[generators], interactions=[sync])
-simulate(system, until=6, dt=3.0).get_values('generators.theta').round(2).tolist()
+generators = Element('generators', values={'theta': [0.0, 0.4, 0.8, 1.2]}, space=grid)
+sync = Interaction('sync', among='generators', laws=pull, along=True)
+system = System(elements=[generators], interactions=[sync]).prepare()
+system.simulate(until=6, dt=3.0).get_values('generators.theta').round(2).tolist()
 ```
 
 The generators lock to the common phase 0.6, the mean of their initial phases.
 
 **How the engine runs it.** `prepare` numbers the nodes in the order of `graph.nodes` and stores the neighbours of
-every node in compressed sparse row form, the attribute `adjacency_`. A coupling over edges writes its laws once per
-edge, and each law reads the states of both ends. A local rule reads the neighbours of every node padded to the
+every node in compressed sparse row form, the attribute `adjacency_`. An interaction along the edges writes its
+laws once per edge, and each law reads the states of both ends. A local rule reads the neighbours of every node padded to the
 largest degree, the largest number of edges at a node.
 
-**How it combines.** Groups sit on its nodes with `on='sites'`, on its edges with `on='edges'`, and on its
-hyperedges, links of more than two nodes, with `on='hyperedges'`. A `LayerSpec` adds a named relation over the same
-nodes, such as the colleagues of each person at work, which an `AdjacencyNeighborhood` or a coupling reads by its
-label. A `TopologyInteraction` adds and removes edges during a run.
+**How it combines.** An element with `space=` sits on its nodes, with `on='edges'` on its edges, and with
+`on='hyperedges'` on its hyperedges, links of more than two nodes. A `LayerSpec` adds a named relation over the same
+nodes, such as the colleagues of each person at work, which an `AdjacencyNeighborhood` reads by its label and an
+interaction runs along with `along='work'`. An `UpdateLaw` of a `TopologyRequestSpec` adds and removes edges during a
+run.
 
 **Limits and errors.** The nodes are fixed for a run, and a node has no position of its own beyond the layout of the
 graph. Every layer holds the nodes of the graph, and `prepare` raises a `ValidationError` for a layer with other
@@ -193,25 +213,28 @@ and its [API entry][skcomplex.core.components.spaces.NetworkSpace].
 ## ContinuousSpace
 
 A `ContinuousSpace` is a box of real positions, or the whole of `R^d`, through which members move. The positions are
-states of the members, so the space has no sites. Here two atoms of a gas move in a periodic unit box, one toward
-the right wall and one upward.
+states of the members, so the space has no sites. A value named after an axis of the space, here `x`, is a position,
+and a vector `x` of two entries is a position in the plane. Here two atoms of a gas coast in a periodic unit box, one
+toward the right wall and one upward.
 
 ```python
-from skcomplex.core.components.elements import DeclaredElement, GroupElement
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
+from skcomplex.core.systems import System
 
-position = DeclaredVariableSpec(0.0, StateSpec(vector=True, order=2, role='position'))
-start = {'variables': {'x': position}, 'x': [[0.9, 0.5], [0.2, 0.5]], 'x_d1': [[1.0, 0.0], [0.0, 1.0]]}
-atoms = GroupElement('atoms', element=DeclaredElement, size=2, values=start)
+moving = {'x': [[0.9, 0.5], [0.2, 0.5]], "x'": [[1.0, 0.0], [0.0, 1.0]]}
+coast = Interaction('coast', roles={'target': 'atoms'}, laws=lambda s: [RateLaw(s.target.x.diff(s.t, 2), 0.0)])
 box = ContinuousSpace(extent=(1.0, 1.0), boundary='periodic')
-simulate(CompositeSystem(elements=[atoms], space=box), until=0.2, dt=0.2).get_values('atoms.x')[-1].round(2).tolist()
+atoms = Element('atoms', values=moving, size=2, space=box)
+gas = System(elements=[atoms], interactions=[coast]).prepare()
+gas.simulate(until=0.2, dt=0.2).get_values('atoms.x')[-1].round(2).tolist()
 ```
 
-The position `x` is a vector state of order 2, so it has a velocity `x_d1`. The first atom leaves through the right
-wall at 1.1 and enters again at 0.1, and the second moves from 0.5 to 0.7.
+The law `x.diff(t, 2) = 0` makes the position a state of order 2, so it has a velocity `"x'"`, given with the
+starting values. The first atom leaves through the right wall at 1.1 and enters again at 0.1, and the second moves
+from 0.5 to 0.7.
 
 In geography the same space holds the districts of a city as polygons, called regions, which agents ask about.
 
@@ -258,17 +281,19 @@ Pair distances in a periodic box use the nearest periodic image.
 
 ```python continuation
 walls = ContinuousSpace(extent=(1.0, 1.0), boundary='reflecting')
-trajectory = simulate(CompositeSystem(elements=[atoms], space=walls), until=0.2, dt=0.2)
-trajectory.get_values('atoms.x')[-1].round(2).tolist(), trajectory.get_values('atoms.x_d1')[-1].round(2).tolist()
+atoms = Element('atoms', values=moving, size=2, space=walls)
+trajectory = System(elements=[atoms], interactions=[coast]).prepare().simulate(until=0.2, dt=0.2)
+trajectory.get_values('atoms.x')[-1].round(2).tolist(), trajectory.get_values("atoms.x'")[-1].round(2).tolist()
 ```
 
 In the reflecting box the first atom bounces back to 0.9, and its velocity turns from 1 to -1.
 
-**How it combines.** The members are agents or particles whose positions are states. `PairInteraction` reads pairs
-within a cutoff, and a `CouplingInteraction` reads a `RadiusNeighborhood`, a `NearestNeighborhood`, or a
-`DelaunayNeighborhood`.
+**How it combines.** The members are agents or particles whose positions are states. An interaction with
+`within=RadiusNeighborhood(r)` reads every pair within a cutoff, and the `neighbors` reduction reads a
+`RadiusNeighborhood`, a `NearestNeighborhood`, or a `DelaunayNeighborhood`.
 
-**Limits and errors.** The space has no sites, so it holds no `FieldElement`, and regions need two dimensions. A
+**Limits and errors.** The space has no sites, so it holds no field of one member per site, and regions need two
+dimensions. A
 space needs the sides of its box or a number of dimensions, and `prepare` raises a `ValidationError` otherwise.
 
 ```python continuation
@@ -385,10 +410,9 @@ compile to sparse products. A field on a mesh takes the finite-element discretiz
 matrices come from scikit-fem, so `laplacian(u)` becomes a sparse product, and the fixed values of the argument
 `boundary` hold at the nodes of `boundary_nodes_`. A state without a fixed value has zero flux through the edge.
 
-**How it combines.** A `GroupElement` or a `FieldElement` with `on='edges'` holds a state per link, and one with
-`on='hyperedges'` a state per face. A `CofaceNeighborhood` reads the faces around each link, and
-`SamplingInteraction` samples the links of a gauge field. An `Element` with `space=` a mesh holds a field on its
-nodes, with the same laws as on a lattice.
+**How it combines.** An `Element` with `on='edges'` holds a value per link, and one with `on='hyperedges'` a
+value per face. A `CofaceNeighborhood` reads the faces around each link, as the action of a gauge field on its links
+does. An `Element` with `space=` a mesh holds a field on its nodes, with the same laws as on a lattice.
 
 **Limits and errors.** It takes exactly one source, a square lattice, a network, or the points and cells of a mesh,
 and it has no layers. Cells of degree 3 take part in incidence only, since a group lives on sites, edges, or
@@ -465,12 +489,12 @@ bacteria.size_, bacteria.axes_periodic_
 
 The 80 sites have a periodic position axis, from the ring of the lattice, and a periodic angle axis.
 
-**How the engine runs it.** The position axes come first, so the sites of one position come one after the other. A
-`FieldElement` on the space holds one density per site, and its laws read `coordinate('v')`, the velocity of the site,
+**How the engine runs it.** The position axes come first, so the sites of one position come one after the other. An
+`Element` on the space holds one density per site, and its laws read `coordinate('v')`, the velocity of the site,
 for streaming. Moments such as the density at each position, `moment(u, 0, axes=('v',))`, reduce over the class axes.
 
-**How it combines.** The usual partners are a `FieldElement` with the finite-volume discretization, a
-`ConservationInteraction` for streaming and forces, and a `RateInteraction` for collisions. A phase space whose class
+**How it combines.** The usual partners are an `Element` on the space with the finite-volume discretization, a
+rate law of a divergence, `RateLaw(u, -divergence(flux))`, for streaming and forces, and a rate law for collisions. A phase space whose class
 axes are frequencies that sum to at most one, as in `TrimorphicMultilevelSelectionSystem` of
 `skcomplex.systems.social.cooperation`, cuts the cells along its slanted face.
 
@@ -529,20 +553,20 @@ A `LatticeNeighborhood` takes any list of lattice offsets, in the order a rule r
 elementary cellular automaton reads the left and the right neighbour of each cell and returns their sum modulo 2.
 
 ```python
-from skcomplex.core.components.elements import DeclaredElement, GroupElement
-from skcomplex.core.components.interactions import LocalRuleInteraction
-from skcomplex.core.components.spaces import DiscreteTime, LatticeNeighborhood, LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
+from skcomplex.core.systems import System
 
-start = {'variables': {'c': DeclaredVariableSpec(0.0, StateSpec())}, 'c': [0, 0, 0, 1, 0, 0, 0]}
-cells = GroupElement('cells', element=DeclaredElement, space=LatticeSpace(7), on='sites', values=start)
+cells = Element('cells', values={'c': [0, 0, 0, 1, 0, 0, 0]}, space=LatticeSpace(7))
 sides = LatticeNeighborhood([(-1,), (1,)])
 parity = lambda left, right: (left + right) % 2
-rule = LocalRuleInteraction('rule', target='cells', state='c', rule=parity, neighborhood=sides)
-system = CompositeSystem(elements=[cells], interactions=[rule], time=DiscreteTime())
-simulate(system, until=2).get_values('cells.c').astype(int).tolist()
+rule = Interaction(
+    'rule', roles={'target': 'cells'}, laws=lambda s: [UpdateLaw(s.target.c, parity, neighborhood=sides)]
+)
+system = System(elements=[cells], interactions=[rule]).prepare()
+system.simulate(until=2).get_values('cells.c').astype(int).tolist()
 ```
 
 The rows are those of rule 90 in the `LatticeSpace` section, written here with the two offsets in a chosen order.
@@ -551,12 +575,15 @@ In a model of advection a pulse of pollutant moves one cell downstream at every 
 cell, the cell at offset -1.
 
 ```python continuation
-pulse = {'variables': {'c': DeclaredVariableSpec(0.0, StateSpec())}, 'c': [0, 1, 1, 0, 0, 0]}
-river = GroupElement('river', element=DeclaredElement, space=LatticeSpace(6), on='sites', values=pulse)
+river = Element('river', values={'c': [0, 1, 1, 0, 0, 0]}, space=LatticeSpace(6))
 upwind = LatticeNeighborhood([(-1,)])
-flow = LocalRuleInteraction('flow', target='river', state='c', rule=lambda upstream: upstream, neighborhood=upwind)
-system = CompositeSystem(elements=[river], interactions=[flow], time=DiscreteTime())
-simulate(system, until=2).get_values('river.c').astype(int).tolist()
+flow = Interaction(
+    'flow',
+    roles={'target': 'river'},
+    laws=lambda s: [UpdateLaw(s.target.c, lambda upstream: upstream, neighborhood=upwind)],
+)
+system = System(elements=[river], interactions=[flow]).prepare()
+system.simulate(until=2).get_values('river.c').astype(int).tolist()
 ```
 
 The pulse of two cells moves one cell to the right at each step.
@@ -565,8 +592,8 @@ The pulse of two cells moves one cell to the right at each step.
 table of the neighbour of every site at every offset, following its boundary, and the rule receives one array per
 offset.
 
-**How it combines.** It fills the same places as `RadiusNeighborhood` on a lattice: `LocalRuleInteraction`,
-`SamplingInteraction`, and the `neighbors` reduction on a `LatticeSpace`.
+**How it combines.** It fills the same places as `RadiusNeighborhood` on a lattice: a local rule
+`UpdateLaw(..., neighborhood=...)` and the `neighbors` reduction on a `LatticeSpace`.
 
 **Limits and errors.** Every offset has the number of dimensions of the lattice, and `prepare` raises a
 `ValidationError` for offsets of different lengths.
@@ -607,25 +634,25 @@ different number of neighbours. Here people in a line of contacts catch a diseas
 import networkx as nx
 import numpy as np
 
-from skcomplex.core.components.elements import DeclaredElement, GroupElement
-from skcomplex.core.components.interactions import LocalRuleInteraction
-from skcomplex.core.components.spaces import AdjacencyNeighborhood, DiscreteTime, NetworkSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.components.spaces import AdjacencyNeighborhood, LatticeSpace, LayerSpec, NetworkSpace
+from skcomplex.core.systems import System
 
 
 def catch(infected, *contacts):
     return np.maximum(infected, sum(contacts) > 0)
 
 
-sick = {'variables': {'x': DeclaredVariableSpec(0.0, StateSpec())}, 'x': [1, 0, 0, 0, 0]}
-people = GroupElement('people', element=DeclaredElement, space=NetworkSpace(nx.path_graph(5)), on='sites', values=sick)
-spread = LocalRuleInteraction(
-    'spread', target='people', state='x', rule=catch, neighborhood=AdjacencyNeighborhood(center=True)
-)
-system = CompositeSystem(elements=[people], interactions=[spread], time=DiscreteTime())
-simulate(system, until=2).get_values('people.x').astype(int).tolist()
+def spread_over(neighborhood):
+    return lambda s: [UpdateLaw(s.target.x, catch, neighborhood=neighborhood)]
+
+
+people = Element('people', values={'x': [1, 0, 0, 0, 0]}, space=NetworkSpace(nx.path_graph(5)))
+spread = Interaction('spread', roles={'target': 'people'}, laws=spread_over(AdjacencyNeighborhood(center=True)))
+system = System(elements=[people], interactions=[spread]).prepare()
+system.simulate(until=2).get_values('people.x').astype(int).tolist()
 ```
 
 With `center=True` the rule receives the node itself first. The infection moves one person along the line at every
@@ -635,16 +662,14 @@ At work the same people have other contacts. A `LayerSpec` adds the network of c
 the neighbourhood reads it by its label.
 
 ```python continuation
-from skcomplex.core.components.spaces import LayerSpec
-
 office = nx.empty_graph(5)
 office.add_edges_from([(0, 4), (4, 3)])
 town = NetworkSpace(nx.path_graph(5), layers=[LayerSpec('work', office)])
-colleagues = GroupElement('people', element=DeclaredElement, space=town, on='sites', values=sick)
+colleagues = Element('people', values={'x': [1, 0, 0, 0, 0]}, space=town)
 at_work = AdjacencyNeighborhood(center=True, layer='work')
-spread = LocalRuleInteraction('spread', target='people', state='x', rule=catch, neighborhood=at_work)
-system = CompositeSystem(elements=[colleagues], interactions=[spread], time=DiscreteTime())
-simulate(system, until=2).get_values('people.x').astype(int).tolist()
+spread = Interaction('spread', roles={'target': 'people'}, laws=spread_over(at_work))
+system = System(elements=[colleagues], interactions=[spread]).prepare()
+system.simulate(until=2).get_values('people.x').astype(int).tolist()
 ```
 
 At work the infection goes from person 0 to person 4 and then to person 3, along the edges of the layer.
@@ -653,20 +678,19 @@ At work the infection goes from person 0 to person 4 and then to person 3, along
 form. A local rule receives their values padded to the largest degree with the value `fill` of the network. The
 default fill is 0, so a sum is not changed by the padding.
 
-**How it combines.** It is the neighbourhood of `LocalRuleInteraction` and `TransitionInteraction` on a
-`NetworkSpace`, and the default of the `neighbors` reduction on a network.
+**How it combines.** It is the neighbourhood of a local rule on a `NetworkSpace`, and the default of the
+`neighbors` reduction on a network.
 
 **Limits and errors.** It reads a network, not a lattice, and a local rule on a lattice raises a `ValidationError`
 when it is given one.
 
 ```python continuation
-from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.errors import ValidationError
 
-row = GroupElement('people', element=DeclaredElement, space=LatticeSpace(5), on='sites', values=sick)
-spread = LocalRuleInteraction('spread', target='people', state='x', rule=catch, neighborhood=AdjacencyNeighborhood())
+row = Element('people', values={'x': [1, 0, 0, 0, 0]}, space=LatticeSpace(5))
+spread = Interaction('spread', roles={'target': 'people'}, laws=spread_over(AdjacencyNeighborhood()))
 try:
-    simulate(CompositeSystem(elements=[row], interactions=[spread], time=DiscreteTime()), until=1)
+    System(elements=[row], interactions=[spread]).prepare().simulate(until=1)
 except ValidationError as error:
     message = str(error)
 message
@@ -698,24 +722,22 @@ circulation of a face is the oriented sum of the link values around it, which `e
 ```python
 import networkx as nx
 
-from skcomplex.core.components.elements import DeclaredElement, GroupElement
-from skcomplex.core.components.interactions import MapInteraction
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.laws.utils import exterior_derivative, neighbors
-from skcomplex.core.components.spaces import CellComplexSpace, CofaceNeighborhood, DiscreteTime, NetworkSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
+from skcomplex.core.components.spaces import CellComplexSpace, CofaceNeighborhood, NetworkSpace
+from skcomplex.core.systems import System
 
 ring = nx.cycle_graph(4)
 ring.add_edge(0, 2)
-complex_ = CellComplexSpace(NetworkSpace(ring))
-variables = {'a': DeclaredVariableSpec(0.0, StateSpec()), 'n': DeclaredVariableSpec(0.0, StateSpec())}
-unit = {'variables': variables, 'a': [1, 0, 0, 0, 0]}
-flows = GroupElement('flows', element=DeclaredElement, space=complex_, on='edges', values=unit)
+flows = Element(
+    'flows', values={'a': [1, 0, 0, 0, 0], 'n': 0.0}, space=CellComplexSpace(NetworkSpace(ring)), on='edges'
+)
 circulation = lambda s: neighbors(exterior_derivative(s.target.a), over=CofaceNeighborhood(), reduce='sum')
-around = MapInteraction('around', target='flows', state='n', function=circulation)
-system = CompositeSystem(elements=[flows], interactions=[around], time=DiscreteTime())
-simulate(system, until=1).get_values('flows.n')[-1].tolist()
+around = Interaction('around', roles={'target': 'flows'}, laws=lambda s: [UpdateLaw(s.target.n, circulation(s))])
+system = System(elements=[flows], interactions=[around]).prepare()
+system.simulate(until=1).get_values('flows.n')[-1].tolist()
 ```
 
 A unit of flow runs on the first edge, from node 0 to node 1, so only the triangle `(0, 1, 2)` circulates. Its three
@@ -727,12 +749,10 @@ them.
 ```python continuation
 from skcomplex.core.components.spaces import LatticeSpace
 
-plaquettes = CellComplexSpace(LatticeSpace((3, 3)))
-links = GroupElement('links', element=DeclaredElement, space=plaquettes, on='edges', values={'variables': variables})
-count = MapInteraction(
-    'count', target='links', state='n', function=lambda s: neighbors(1.0, over=CofaceNeighborhood(), reduce='sum')
-)
-counts = simulate(CompositeSystem(elements=[links], interactions=[count], time=DiscreteTime()), until=1)
+count_cofaces = lambda s: [UpdateLaw(s.target.n, neighbors(1.0, over=CofaceNeighborhood(), reduce='sum'))]
+links = Element('links', values={'n': 0.0}, space=CellComplexSpace(LatticeSpace((3, 3))), on='edges')
+count = Interaction('count', roles={'target': 'links'}, laws=count_cofaces)
+counts = System(elements=[links], interactions=[count]).prepare().simulate(until=1)
 set(counts.get_values('links.n')[-1].tolist())
 ```
 
@@ -742,8 +762,8 @@ Every one of the 18 links reads 2.
 The reduction runs over them, and inside it `exterior_derivative` is the oriented sum around the one coface. Every
 coface counts with weight one.
 
-**How it combines.** It needs a `CellComplexSpace`, and a group on its edges or sites. `SamplingInteraction` reads it
-in the Wilson action of a lattice gauge field, and `MapInteraction` or `RateInteraction` in any law on the links.
+**How it combines.** It needs a `CellComplexSpace`, and an element on its edges or sites. The Wilson action of a
+lattice gauge field reads it, and so may an update or a rate law of any value on the links.
 
 **Limits and errors.** It reads the cells of the next degree only, so the cells of the same degree need an
 `AdjacencyNeighborhood`. Outside a cell complex the run raises a `ValidationError`.
@@ -751,13 +771,10 @@ in the Wilson action of a lattice gauge field, and `MapInteraction` or `RateInte
 ```python continuation
 from skcomplex.core.errors import ValidationError
 
-plain = NetworkSpace(ring)
-nodes = GroupElement('nodes', element=DeclaredElement, space=plain, on='sites', values={'variables': variables})
-count = MapInteraction(
-    'count', target='nodes', state='n', function=lambda s: neighbors(1.0, over=CofaceNeighborhood(), reduce='sum')
-)
+nodes = Element('nodes', values={'n': 0.0}, space=NetworkSpace(ring))
+count = Interaction('count', roles={'target': 'nodes'}, laws=count_cofaces)
 try:
-    simulate(CompositeSystem(elements=[nodes], interactions=[count], time=DiscreteTime()), until=1)
+    System(elements=[nodes], interactions=[count]).prepare().simulate(until=1)
 except ValidationError as error:
     message = str(error)
 message
@@ -787,25 +804,24 @@ the members whose positions lie within the radius, so the number of neighbours v
 with the flockmates they see within a range. Here each bird counts the birds within one unit.
 
 ```python
-from skcomplex.core.components.elements import DeclaredElement, GroupElement
-from skcomplex.core.components.interactions import CouplingInteraction
-from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime, RadiusNeighborhood
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.components.laws.utils import neighbors
+from skcomplex.core.components.spaces import ContinuousSpace, RadiusNeighborhood
+from skcomplex.core.systems import System
 
-variables = {
-    'x': DeclaredVariableSpec(0.0, StateSpec(vector=True, role='position')),
-    'seen': DeclaredVariableSpec(0.0, StateSpec()),
-}
-positions = [[1.0, 1.0], [1.5, 1.0], [2.0, 1.2], [6.0, 6.0], [9.8, 1.0]]
-flock = GroupElement('flock', element=DeclaredElement, size=5, values={'variables': variables, 'x': positions})
-sight = CouplingInteraction(
-    'sight', target='flock', write='seen', function=lambda s: 1.0, neighborhood=RadiusNeighborhood(1.0), form='map'
-)
+
+def counting(neighborhood):
+    return lambda s: [UpdateLaw(s.target.seen, neighbors(1.0, over=neighborhood))]
+
+
+birds = {'x': [1.0, 1.5, 2.0, 6.0, 9.8], 'y': [1.0, 1.0, 1.2, 6.0, 1.0], 'seen': 0.0}
 sky = ContinuousSpace(extent=(10.0, 10.0))
-system = CompositeSystem(elements=[flock], interactions=[sight], space=sky, time=DiscreteTime())
-simulate(system, until=1).get_values('flock.seen')[-1].tolist()
+flock = Element('flock', values=birds, size=5, space=sky)
+sight = Interaction('sight', roles={'target': 'flock'}, laws=counting(RadiusNeighborhood(1.0)))
+system = System(elements=[flock], interactions=[sight]).prepare()
+system.simulate(until=1).get_values('flock.seen')[-1].tolist()
 ```
 
 The middle bird of the three on the left sees both others, the outer two see only the middle one, and the last two
@@ -815,12 +831,11 @@ In physics atoms interact with every atom within a cutoff, and in a periodic box
 periodic image. With a cutoff of 1.5 the atom at `x = 9.8` reaches the atom at `x = 1.0` across the wall.
 
 ```python continuation
-cutoff = CouplingInteraction(
-    'cutoff', target='flock', write='seen', function=lambda s: 1.0, neighborhood=RadiusNeighborhood(1.5), form='map'
-)
 crystal = ContinuousSpace(extent=(10.0, 10.0), boundary='periodic')
-system = CompositeSystem(elements=[flock], interactions=[cutoff], space=crystal, time=DiscreteTime())
-simulate(system, until=1).get_values('flock.seen')[-1].tolist()
+atoms = Element('flock', values=birds, size=5, space=crystal)
+cutoff = Interaction('cutoff', roles={'target': 'flock'}, laws=counting(RadiusNeighborhood(1.5)))
+system = System(elements=[atoms], interactions=[cutoff]).prepare()
+system.simulate(until=1).get_values('flock.seen')[-1].tolist()
 ```
 
 The first atom now reaches three others, the atom at `x = 9.8` among them, and that atom reaches the first.
@@ -831,25 +846,25 @@ of the Moore neighbourhood. In a sandpile a site with four grains or more topple
 neighbours, and grains that leave the grid are lost.
 
 ```python
-from skcomplex.core.components.elements import DeclaredElement, GroupElement
-from skcomplex.core.components.interactions import LocalRuleInteraction
-from skcomplex.core.components.spaces import DiscreteTime, LatticeNeighborhood, LatticeSpace, RadiusNeighborhood
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.components.spaces import LatticeSpace, RadiusNeighborhood
+from skcomplex.core.systems import System
 
 
 def topple(height, *neighbours):
     return height - 4 * (height >= 4) + sum(neighbour >= 4 for neighbour in neighbours)
 
 
-grains = {'variables': {'h': DeclaredVariableSpec(0.0, StateSpec())}, 'h': [0, 0, 0, 0, 4, 0, 0, 0, 0]}
 board = LatticeSpace((3, 3), boundary='fixed')
-pile = GroupElement('pile', element=DeclaredElement, space=board, on='sites', values=grains)
+pile = Element('pile', values={'h': [0, 0, 0, 0, 4, 0, 0, 0, 0]}, space=board)
 cross = RadiusNeighborhood(1, metric='manhattan', center=True)
-toppling = LocalRuleInteraction('toppling', target='pile', state='h', rule=topple, neighborhood=cross)
-sandpile = CompositeSystem(elements=[pile], interactions=[toppling], time=DiscreteTime())
-simulate(sandpile, until=1).get_values('pile.h')[-1].reshape(3, 3).tolist()
+toppling = Interaction(
+    'toppling', roles={'target': 'pile'}, laws=lambda s: [UpdateLaw(s.target.h, topple, neighborhood=cross)]
+)
+sandpile = System(elements=[pile], interactions=[toppling]).prepare()
+sandpile.simulate(until=1).get_values('pile.h')[-1].reshape(3, 3).tolist()
 ```
 
 With `center=True` the rule receives the site itself before its four neighbours. The centre topples, and each of
@@ -869,11 +884,12 @@ def majority(opinion, *neighbours):
 
 camps = [1, 1, 0, 0] * 4
 camps[5] = 0
-voters = {'variables': {'o': DeclaredVariableSpec(0.0, StateSpec())}, 'o': camps}
-people = GroupElement('people', element=DeclaredElement, space=LatticeSpace((4, 4)), on='sites', values=voters)
+people = Element('people', values={'o': camps}, space=LatticeSpace((4, 4)))
 moore = RadiusNeighborhood(1, metric='chebyshev', center=True)
-vote = LocalRuleInteraction('vote', target='people', state='o', rule=majority, neighborhood=moore)
-opinions = simulate(CompositeSystem(elements=[people], interactions=[vote], time=DiscreteTime()), until=1)
+vote = Interaction(
+    'vote', roles={'target': 'people'}, laws=lambda s: [UpdateLaw(s.target.o, majority, neighborhood=moore)]
+)
+opinions = System(elements=[people], interactions=[vote]).prepare().simulate(until=1)
 opinions.get_values('people.o')[-1].reshape(4, 4).astype(int).tolist()
 ```
 
@@ -888,9 +904,9 @@ Chebyshev metrics and ring by ring for the hexagonal one, with the site first wh
 them into a table of the neighbour of every site in every slot, and a rule receives the values in that order. The
 sandpile rule above receives the site first, at `(0, 0)`, and its four neighbours in lexicographic order.
 
-**How it combines.** It is the neighbourhood of `CouplingInteraction`, of `LocalRuleInteraction`, of
-`SamplingInteraction`, of the `neighbors` reduction, and of the hyperedges of a continuous space. Its partners are
-groups with a vector position state on a `ContinuousSpace`, or groups on the sites of a `LatticeSpace`. A neighbourhood
+**How it combines.** It is the neighbourhood of local rules, of the `neighbors` reduction, of the pairs of an
+interaction with `within=`, and of the hyperedges of a continuous space. Its partners are groups with positions on a
+`ContinuousSpace`, or elements on the sites of a `LatticeSpace`. A neighbourhood
 of one direction, or of an order of its own, such as a cell and its two neighbours from left to right, needs a
 `LatticeNeighborhood`.
 
@@ -934,27 +950,26 @@ Starlings in a flock follow a fixed number of nearest birds. Here each bird take
 bird.
 
 ```python
-from skcomplex.core.components.elements import DeclaredElement, GroupElement
-from skcomplex.core.components.interactions import CouplingInteraction
-from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime, NearestNeighborhood
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.components.laws.utils import neighbors
+from skcomplex.core.components.spaces import ContinuousSpace, NearestNeighborhood
+from skcomplex.core.systems import System
 
-variables = {
-    'x': DeclaredVariableSpec(0.0, StateSpec(vector=True, role='position')),
-    'heading': DeclaredVariableSpec(0.0, StateSpec()),
-}
-positions = [[1.0, 1.0], [1.5, 1.0], [2.0, 1.2], [6.0, 6.0], [9.8, 1.0]]
-starlings = {'variables': variables, 'x': positions, 'heading': [0.0, 0.5, 1.0, 2.0, 3.0]}
-flock = GroupElement('flock', element=DeclaredElement, size=5, values=starlings)
-follow = CouplingInteraction(
-    'follow', target='flock', write='heading', function=lambda s: s.other.heading, reduce='mean',
-    neighborhood=NearestNeighborhood(1), form='map',
-)
+
+def following(k):
+    return lambda s: [
+        UpdateLaw(s.target.heading, neighbors(s.target.other.heading, over=NearestNeighborhood(k), reduce='mean'))
+    ]
+
+
+starlings = {'x': [1.0, 1.5, 2.0, 6.0, 9.8], 'y': [1.0, 1.0, 1.2, 6.0, 1.0], 'heading': [0.0, 0.5, 1.0, 2.0, 3.0]}
 sky = ContinuousSpace(extent=(10.0, 10.0))
-system = CompositeSystem(elements=[flock], interactions=[follow], space=sky, time=DiscreteTime())
-simulate(system, until=1).get_values('flock.heading')[-1].tolist()
+flock = Element('flock', values=starlings, size=5, space=sky)
+follow = Interaction('follow', roles={'target': 'flock'}, laws=following(1))
+system = System(elements=[flock], interactions=[follow]).prepare()
+system.simulate(until=1).get_values('flock.heading')[-1].tolist()
 ```
 
 Unlike a radius, the nearest bird always exists, so the lone birds on the right also follow one: the bird at
@@ -963,12 +978,9 @@ Unlike a radius, the nearest bird always exists, so the lone birds on the right 
 Robots of a swarm align with their two nearest robots, which here means the mean heading of two neighbours.
 
 ```python continuation
-swarm = CouplingInteraction(
-    'swarm', target='flock', write='heading', function=lambda s: s.other.heading, reduce='mean',
-    neighborhood=NearestNeighborhood(2), form='map',
-)
-system = CompositeSystem(elements=[flock], interactions=[swarm], space=sky, time=DiscreteTime())
-simulate(system, until=1).get_values('flock.heading')[-1].tolist()
+swarm = Interaction('swarm', roles={'target': 'flock'}, laws=following(2))
+system = System(elements=[flock], interactions=[swarm]).prepare()
+system.simulate(until=1).get_values('flock.heading')[-1].tolist()
 ```
 
 The headings become 0.75, 0.5, 0.25, 2.0, and 1.5. Each of the two lone birds takes the mean of the other lone bird
@@ -978,8 +990,8 @@ and the bird at `(2, 1.2)`.
 their current position states, by the nearest periodic image in a periodic box, and keeps the first `k`. A group of
 at most `k` other members gives each member all the others.
 
-**How it combines.** It is the neighbourhood of `CouplingInteraction` and of the `neighbors` reduction, on a group
-with a vector position state in a `ContinuousSpace`.
+**How it combines.** It is the neighbourhood of the `neighbors` reduction, on a group with positions in a
+`ContinuousSpace`.
 
 **Limits and errors.** The number of neighbours is a whole number of at least 1, and `prepare` raises a
 `ValidationError` otherwise.
@@ -1018,25 +1030,24 @@ them than to any other member. In a tissue each cell pushes on the cells that to
 corners of a square and one at its centre.
 
 ```python
-from skcomplex.core.components.elements import DeclaredElement, GroupElement
-from skcomplex.core.components.interactions import CouplingInteraction
-from skcomplex.core.components.spaces import ContinuousSpace, DelaunayNeighborhood, DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.components.laws.utils import neighbors
+from skcomplex.core.components.spaces import ContinuousSpace, DelaunayNeighborhood, LatticeSpace
+from skcomplex.core.systems import System
 
-variables = {
-    'x': DeclaredVariableSpec(0.0, StateSpec(vector=True, role='position')),
-    'touching': DeclaredVariableSpec(0.0, StateSpec()),
-}
-positions = [[0.5, 0.5], [1.5, 0.5], [1.5, 1.5], [0.5, 1.5], [1.0, 1.0]]
-tissue = GroupElement('tissue', element=DeclaredElement, size=5, values={'variables': variables, 'x': positions})
-touch = CouplingInteraction(
-    'touch', target='tissue', write='touching', function=lambda s: 1.0, neighborhood=DelaunayNeighborhood(), form='map'
-)
+
+def touching(neighborhood):
+    return lambda s: [UpdateLaw(s.target.touching, neighbors(1.0, over=neighborhood))]
+
+
+cells = {'x': [0.5, 1.5, 1.5, 0.5, 1.0], 'y': [0.5, 0.5, 1.5, 1.5, 1.0], 'touching': 0.0}
 dish = ContinuousSpace(extent=(2.0, 2.0))
-system = CompositeSystem(elements=[tissue], interactions=[touch], space=dish, time=DiscreteTime())
-simulate(system, until=1).get_values('tissue.touching')[-1].tolist()
+tissue = Element('tissue', values=cells, size=5, space=dish)
+touch = Interaction('touch', roles={'target': 'tissue'}, laws=touching(DelaunayNeighborhood()))
+system = System(elements=[tissue], interactions=[touch]).prepare()
+system.simulate(until=1).get_values('tissue.touching')[-1].tolist()
 ```
 
 Each corner touches its two neighbouring corners and the centre, and the centre touches all four corners.
@@ -1045,12 +1056,9 @@ Bubbles of a foam share walls in the same way. With `center=True` each bubble al
 bubble and its neighbours needs.
 
 ```python continuation
-foam = CouplingInteraction(
-    'foam', target='tissue', write='touching', function=lambda s: 1.0,
-    neighborhood=DelaunayNeighborhood(center=True), form='map',
-)
-system = CompositeSystem(elements=[tissue], interactions=[foam], space=dish, time=DiscreteTime())
-simulate(system, until=1).get_values('tissue.touching')[-1].tolist()
+foam = Interaction('foam', roles={'target': 'tissue'}, laws=touching(DelaunayNeighborhood(center=True)))
+system = System(elements=[tissue], interactions=[foam]).prepare()
+system.simulate(until=1).get_values('tissue.touching')[-1].tolist()
 ```
 
 Each count grows by one: 4 for every corner and 5 for the centre.
@@ -1059,23 +1067,19 @@ Each count grows by one: 4 for every corner and 5 for the centre.
 neighbours follow moving members. In a periodic box the triangulation covers the periodic images. The neighbourhood
 runs on the NumPy backend only.
 
-**How it combines.** It is the neighbourhood of `CouplingInteraction` and of the `neighbors` reduction, on a group
-with a vector position state in a `ContinuousSpace`.
+**How it combines.** It is the neighbourhood of the `neighbors` reduction, on a group with positions in a
+`ContinuousSpace`.
 
 **Limits and errors.** A group with too few members to triangulate gives each member all the others. On a lattice or
 a network the run raises a `ValidationError`, since members there have no positions to triangulate.
 
 ```python continuation
-from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.errors import ValidationError
 
-counts = {'variables': {'touching': DeclaredVariableSpec(0.0, StateSpec())}}
-row = GroupElement('row', element=DeclaredElement, space=LatticeSpace(4), on='sites', values=counts)
-touch = CouplingInteraction(
-    'touch', target='row', write='touching', function=lambda s: 1.0, neighborhood=DelaunayNeighborhood(), form='map'
-)
+row = Element('row', values={'touching': 0.0}, space=LatticeSpace(4))
+touch = Interaction('touch', roles={'target': 'row'}, laws=touching(DelaunayNeighborhood()))
 try:
-    simulate(CompositeSystem(elements=[row], interactions=[touch], time=DiscreteTime()), until=1)
+    System(elements=[row], interactions=[touch]).prepare().simulate(until=1)
 except ValidationError as error:
     message = str(error)
 message
