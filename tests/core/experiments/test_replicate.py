@@ -3,9 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.elements import Element
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.experiments._replicate import _replicate, _replicate_prepared
 from skcomplex.core.systems import System
@@ -27,8 +25,8 @@ def test_replicate_runs_many_initial_conditions_at_once():
 def test_replicate_runs_systems_with_interactions():
     """Test that member i of replicated predators and prey follows the single system from the i-th initial prey."""
     starts = np.asarray([20.0, 40.0, 60.0])
-    replicated = _replicate(LotkaVolterraSystem().prepare().system_, 3, {'prey.x': starts})
-    values = np.asarray(simulate(replicated, until=5, dt=0.1).get_values('predators.x'))
+    replicated = _replicate_prepared(LotkaVolterraSystem().prepare().system_, 3, {'prey.x': starts})
+    values = np.asarray(replicated.prepare().simulate(until=5, dt=0.1).get_values('predators.x'))
     for index, start in enumerate(starts):
         single = LotkaVolterraSystem(prey=float(start)).prepare().simulate(until=5, dt=0.1)
         np.testing.assert_allclose(values[:, index], np.ravel(single.get_values('predators.x')), rtol=1e-5)
@@ -36,8 +34,8 @@ def test_replicate_runs_systems_with_interactions():
 
 def test_replicate_rejects_systems_with_groups():
     """Test that a system with a group does not replicate and the error says why."""
-    with pytest.raises(ValidationError, match='Only systems of plain single elements and their interactions'):
-        _replicate(CompositeSystem(elements=[GroupElement('particles', element=WeakeningParticleElement, size=4)]), 3)
+    with pytest.raises(ValidationError, match='Only systems of single elements and their interactions'):
+        _replicate(System(elements=[WeakeningParticleElement('particles', size=4)]), 3)
 
 
 def test_replicate_checks_paths_and_rows():
