@@ -1,7 +1,6 @@
 """Test the `_elementary_modes` module of `skcomplex.core.analysis`."""
 
 from fractions import Fraction
-from typing import Annotated
 
 import networkx as nx
 import numpy as np
@@ -10,11 +9,10 @@ from scipy.optimize import nnls
 
 from skcomplex.core.analysis import elementary_modes
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.laws import LinearObjectiveSpec, LinearProgramLaw
-from skcomplex.core.components.spaces import StaticTime
-from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import ConstraintLaw, ObjectiveLaw
 from skcomplex.core.errors import AnalysisError, EnumerationLimitError
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.systems import System
 
 NAMES = ('v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'b1', 'b2', 'vbio')
 REVERSIBLE = ('v4', 'v6', 'b2')
@@ -33,51 +31,30 @@ MATRIX = np.array(
 )
 
 
-Flux = Annotated[float, StateSpec(algebraic=True)]
+def _network_laws(s):
+    """Return the balances and bounds of the toy network of Table 8.2 of Raman (2021), maximising `vbio`.
+
+    The switch on `v1` scales its upper bound, and `side` is the right side of the balance of `A`.
+    """
+    net = s.target
+    variables = [getattr(net, name) for name in NAMES]
+    balances = [
+        sum(float(coefficient) * item for coefficient, item in zip(row, variables, strict=True)) == 0
+        for row in MATRIX[1:]
+    ]
+    first = sum(float(coefficient) * item for coefficient, item in zip(MATRIX[0], variables, strict=True))
+    bounds = [item <= 1000 for item in variables[1:]]
+    bounds += [net.v1 <= 1000 * net.switch]
+    bounds += [getattr(net, name) >= (-1000 if name in REVERSIBLE else 0) for name in NAMES]
+    constraints = [first == net.side, *balances, *bounds]
+    return [ObjectiveLaw([-net.vbio], variables), *(ConstraintLaw(item) for item in constraints)]
 
 
-class ToyElement(Element):
-    """Toy network of Table 8.2 of Raman (2021), with a switch on `v1` and a right side of the balance of `A`."""
-
-    def __init__(
-        self,
-        label,
-        *,
-        v1: Flux = 0.0,
-        v2: Flux = 0.0,
-        v3: Flux = 0.0,
-        v4: Flux = 0.0,
-        v5: Flux = 0.0,
-        v6: Flux = 0.0,
-        v7: Flux = 0.0,
-        b1: Flux = 0.0,
-        b2: Flux = 0.0,
-        vbio: Flux = 0.0,
-        switch: Annotated[float, ParameterSpec()] = 1.0,
-        side: Annotated[float, ParameterSpec()] = 0.0,
-    ):
-        super().__init__(label)
-        self.v1, self.v2, self.v3, self.v4, self.v5 = v1, v2, v3, v4, v5
-        self.v6, self.v7, self.b1, self.b2, self.vbio = v6, v7, b1, b2, vbio
-        self.switch, self.side = switch, side
-
-    def _get_laws(self, s):
-        variables = [getattr(s, name) for name in NAMES]
-        balances = [
-            sum(float(coefficient) * item for coefficient, item in zip(row, variables, strict=True)) == 0
-            for row in MATRIX[1:]
-        ]
-        first = sum(float(coefficient) * item for coefficient, item in zip(MATRIX[0], variables, strict=True))
-        bounds = [item <= 1000 for item in variables[1:]]
-        bounds += [s.v1 <= 1000 * s.switch]
-        bounds += [getattr(s, name) >= (-1000 if name in REVERSIBLE else 0) for name in NAMES]
-        constraints = [first == s.side, *balances, *bounds]
-        return [LinearProgramLaw(variables, constraints, [LinearObjectiveSpec(s.vbio)])]
-
-
-def _toy(**values):
+def _toy(switch=1.0, side=0.0):
     """Return the system of the toy network."""
-    return CompositeSystem(elements=[ToyElement('net', **values)], time=StaticTime())
+    net = Element('net', values={**dict.fromkeys(NAMES, 0.0), 'switch': switch, 'side': side})
+    program = Interaction('program', roles={'target': 'net'}, laws=_network_laws)
+    return System(elements=[net], interactions=[program])
 
 
 def _column(analysis, name):

@@ -35,7 +35,7 @@ def _fit(source, **settings):
 def _lorenz_trajectory():
     """Return a noise-free trajectory of the Lorenz system, sampled every 0.002 for 10 time units."""
     solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-10)
-    return simulate(LorenzSystem().prepare().system_, until=10.0, solver=solver, dt=0.002)
+    return LorenzSystem().prepare().system_.set_params(solver=solver).prepare().simulate(until=10.0, dt=0.002)
 
 
 def test_sparse_identification_rediscovers_lorenz():
