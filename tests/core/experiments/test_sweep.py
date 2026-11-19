@@ -1,37 +1,27 @@
 """Test the `_sweep` module of `skcomplex.core.experiments`."""
 
-from typing import Annotated
-
 import numpy as np
 
 from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import UpdateLaw
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.experiments import sweep
-from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.core.systems import System
 from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 from skcomplex.systems.biology.epidemiology import SIRSystem
 from skcomplex.systems.mathematics.dynamical_systems import HenonMapInteraction, HenonMapSystem
 
 
-class LogisticMapElement(Element):
-    """Logistic map element."""
+def _logistic(s):
+    """Return the logistic map `x -> r x (1 - x)`."""
+    x = s.target.x
+    return [UpdateLaw(x, s.target.r * x * (1 - x))]
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[object, StateSpec()] = 0.2,
-        r: Annotated[object, ParameterSpec()] = 3.0,
-    ) -> None:
-        super().__init__(label)
-        self.x = x
-        self.r = r
 
-    def _get_laws(self, s):
-        """Return the laws of the logistic map element."""
-        return [UpdateLaw(s.x, s.r * s.x * (1 - s.x))]
+def logistic_map():
+    """Return the logistic map of the element `map`, with `x = 0.2` and `r = 3`."""
+    logistic = Interaction('logistic', roles={'target': 'map'}, laws=_logistic)
+    return System(elements=[Element('map', values={'x': 0.2, 'r': 3.0})], interactions=[logistic])
 
 
 def henon():
@@ -71,7 +61,7 @@ def test_sweep_of_one_parameter_gives_one_row_per_value():
 
 def test_orbit_diagram_sweep():
     """Test that a sweep of 200 growth rates of the logistic map keeps the last 100 values of each run."""
-    system = CompositeSystem(elements=[LogisticMapElement('map')])
+    system = logistic_map()
     rates = np.linspace(2.8, 4.0, 200)
     result = sweep(system, {'map.r': rates}, until=400, warmup=301, outputs=['map.x'])
     assert len(result.rows) == 200
