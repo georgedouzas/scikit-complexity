@@ -137,62 +137,58 @@ sites that count as updates, such as the toppling sites of a sandpile.
 
 This section draws the configurations of a lattice at a temperature. In the Ising magnet each site holds a spin of
 plus or minus one, and the energy falls when neighbouring spins align. Below the critical temperature, about 2.27 on the
-square lattice, most spins align. A [`SampleLaw`](../core_components/laws.md#samplelaw) proposes changes of a state and
-accepts them by their change of energy. Here the spins of a periodic grid of 32 by 32 start aligned and evolve at the
-temperature 1.5.
+square lattice, most spins align. An interaction gives the energy of every site over the temperature as an
+[`ObjectiveLaw`](../core_components/laws.md#objectivelaw), and a
+[`MetropolisSolver`](../core_components/interactions.md#samplinginteraction) proposes changes of a state and accepts them by
+their change of energy. Here the spins of a periodic grid of 32 by 32 start aligned and evolve at the temperature 1.5.
 
 ```python
-from typing import Annotated
+import numpy as np
 
-from sage.all__sagemath_symbolics import ZZ
-
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import SampleLaw
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import ObjectiveLaw
 from skcomplex.core.components.laws.utils import neighbors
-from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace, RadiusNeighborhood
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
-from skcomplex.core.components.laws import MoveSpec, ObjectiveSpec, SamplerSpec
+from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
+from skcomplex.core.engine.solvers import MetropolisSolver
+from skcomplex.core.systems import System
 
 nearest = LatticeNeighborhood(((-1, 0), (0, -1), (0, 1), (1, 0)))
 
 
-class SpinElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        spin: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
-        J: Annotated[float, ParameterSpec()] = 1.0,
-        temperature: Annotated[float, ParameterSpec()] = 1.5,
-    ):
-        super().__init__(label)
-        self.spin = spin
-        self.J = J
-        self.temperature = temperature
-
-    def _get_laws(self, s):
-        energy = -s.J * s.spin * sum(neighbors(s.spin, nearest, reduce='each'))
-        sampler = SamplerSpec('metropolis', 1 / s.temperature)
-        return [SampleLaw(ObjectiveSpec(energy, nearest), MoveSpec(s.spin, 'flip'), sampler)]
+def ising(s):
+    spin = s.target.spin
+    energy = -s.target.J * spin * sum(neighbors(spin, nearest, reduce='each'))
+    return [ObjectiveLaw(energy / s.target.temperature, spin)]
 
 
-spins = CompositeSystem(elements=[GroupElement('spins', element=SpinElement, space=LatticeSpace((32, 32)), on='sites')])
-abs(simulate(spins, until=200, dt=50, random_state=0).states[-1].mean()) > 0.9
+spins = Element('spins', values={'spin': np.ones(1024), 'J': 1.0, 'temperature': 1.5}, space=LatticeSpace((32, 32)))
+magnet = Interaction('ising', roles={'target': 'spins'}, laws=ising)
+solver = MetropolisSolver(moves={'spins.spin': 'flip'}, neighborhood=nearest)
+system = System(elements=[spins], interactions=[magnet], solver=solver).prepare()
+abs(system.simulate(until=200, dt=50, random_state=0).get_values('spins.spin')[-1].mean()) > 0.9
 ```
 
 After 200 units of time the mean spin stays above 0.9 in absolute value, so the magnet stays ordered.
 
-`SampleLaw(objective, move, sampler)` has three parts.
+The solver lowers the objective to a sweep of the lattice with three parts.
 
-- `ObjectiveSpec(expression, over)` is the local objective of a site, every term of the total objective that involves
-  it. The law reads the values of the neighbours through `neighbors`.
-- `MoveSpec(target, kind)` proposes changes, with the kinds `'flip'`, `'random-value'`, and `'rotate'`.
-- `SamplerSpec(kind, intensity)` accepts them, with the kinds `'metropolis'`, `'glauber'`, and `'heat-bath'`.
+- The local objective of a site is every term of the total objective that involves it. It reads the values of the
+  neighbours through `neighbors`, over the `neighborhood` of the solver.
+- The `moves` of the solver propose changes, with the kinds `'flip'`, `'random-value'`, `'rotate'`, `'gaussian'`, and
+  `'cluster'`.
+- The `rule` accepts them, `'metropolis'`, `'glauber'`, or `'heat-bath'`.
 
-The change of the objective is derived symbolically, and sweeps update the two sublattices in turn. The intensity is an
-expression of parameters, so the `schedule` of `simulate` can change it during a run.
+The change of the objective is derived symbolically, and sweeps update the two sublattices in turn. The temperature is
+a value of the system, so the `schedule` of `simulate` can change it during a run.
+
+```python continuation
+heating = {'spins.temperature': lambda t: 1.5 if t < 100 else 5.0}
+hot = system.simulate(until=200, dt=50, random_state=0, schedule=heating)
+round(float(abs(hot.get_values('spins.spin')[-1].mean())), 2)
+```
+
+Heated to the temperature 5 halfway through the run, the magnet loses its order, with a mean spin of 0.04 in size.
 
 ## Triangular lattices
 
@@ -309,8 +305,8 @@ graph stays ordered too.
 
 This section names the recipe for sites that copy labels, so that the sites of one label form a region whose total size
 matters. The cellular Potts model of biology works this way, with one label per biological cell.
-`RegionSamplingInteraction` of `skcomplex.systems.biology.physiology` subclasses
-[`SamplingInteraction`](../core_components/interactions.md#samplinginteraction) with the objective
+`RegionSamplingInteraction` of `skcomplex.systems.biology.physiology` returns its own sweep of label copies with the
+objective
 `sum_<i,j> w_ij contact(l_i, l_j) [l_i != l_j] + sum_l a_l (V_l - A_l)^2 + b_l (S_l - B_l)^2` over integer labels. It
 keeps the volume `V_l` and the surface `S_l` of every region up to date on every accepted copy. The catalog class
 `CellularPottsSystem` of the same module sorts cells of two kinds by differential adhesion on square, triangular, and

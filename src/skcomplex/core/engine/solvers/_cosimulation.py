@@ -45,6 +45,7 @@ from ..problems._reduction_kernel import ReductionKernel
 from ._agent_state_spec import _AgentStateSpec
 from ._base import BaseSolver
 from ._defaults import DEFAULT_SOLVERS
+from ._metropolis import MetropolisSolver
 from ._solver import Solver
 from ._step_spec import StepSpec
 
@@ -69,7 +70,8 @@ class CoSimulationSolver(Solver):
 
     Args:
         solvers:
-            The solver of a partition by its name, with the default solver of its form for the others.
+            The solver of a partition by its name, with the solver of its nested system or the default solver of its
+            form for the others.
 
         sync_dt:
             The time between synchronisation points, which must divide the frame duration, or `None` for one
@@ -210,7 +212,9 @@ class CoSimulationSolver(Solver):
         given = dict(self.solvers or {})
         self.steppers_: dict[str, Solver] = {}
         for partition, generator in zip(problem.partitions, generators, strict=True):
-            solver = given.get(partition.name)
+            solver = given.get(partition.name, partition.solver)
+            if isinstance(solver, MetropolisSolver) and solver.moves:
+                solver = solver._get_member_solver()
             form = partition.problem.form
             if solver is None and not isinstance(form, FormKind):
                 error_msg = f'Partition {partition.name} has the {form} form, which has no default solver. Give one.'

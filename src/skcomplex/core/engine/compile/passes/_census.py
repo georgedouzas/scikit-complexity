@@ -210,17 +210,18 @@ class CensusPass(BasePass):
         agents: set[str],
         *,
         solver: object = None,
+        scope: str = '',
     ) -> list[_CensusRecordSpec]:
         """Return the census records of the laws of one component.
 
         A linear program has as many members as the rows its laws settle, such as the members of two groups it reads
-        row by row.
+        row by row. The moves of the solver name states relative to `scope`, the path of the system that holds it.
         """
         records = []
         specs, _ = SpecsPass._get_specs_of(block, elements, declarations, observer)
         for spec in specs:
             component = CensusPass._get_component_of(block.node)
-            laws = CensusPass._get_declared_laws(spec, component, solver)
+            laws = CensusPass._get_declared_laws(spec, component, solver, scope)
             programs = any(isinstance(law, LinearProgramLaw) for law in laws)
             rows = RowsPass._get_settled(spec, list(laws)).rows if programs else spec.rows
             for law in laws:
@@ -297,10 +298,20 @@ class CensusPass(BasePass):
         live = ObservableEvaluator._get_lowerable_observables(system, nodes)
         observer = Observer(declarations, live).prepare()
         agents = {block.node.path for block in blocks if block.node.is_agent}
+        solvers = CensusPass._get_solvers(system, (solver, ''))
         records = []
         for block in blocks:
+            nested, scope = solvers.get(block.node.scope, (solver, ''))
             try:
-                records += CensusPass._get_records_of(block, elements, observer, declarations, agents, solver=solver)
+                records += CensusPass._get_records_of(
+                    block,
+                    elements,
+                    observer,
+                    declarations,
+                    agents,
+                    solver=nested,
+                    scope=scope,
+                )
             except SkcomplexError as error:
                 errors.append((block.node.path, error))
         flowing = CensusPass._get_flowing(records)
@@ -308,6 +319,26 @@ class CensusPass(BasePass):
             replace(record, law=CensusPass._get_corrected(record.law, record.owner, flowing)) for record in records
         ]
         return _CensusSpec(system, records, errors, declarations.agents)
+
+    @staticmethod
+    def _get_solvers(
+        system: CompositeSystem,
+        held: tuple[object, str],
+        scope: str = '',
+    ) -> dict[str, tuple[object, str]]:
+        """Return the solver of every system of a tree, with the path of its holder.
+
+        The result maps the path of every system to its solver and the path of the system that gives it. A nested system
+        keeps its own solver, as it keeps its own time, and one without a solver takes `held`, the solver of the system
+        that holds it.
+        """
+        own = getattr(system, 'solver', None)
+        if scope and own is not None:
+            held = (own, scope)
+        solvers = {scope: held}
+        for child in getattr(system, 'systems', ()):
+            solvers.update(CensusPass._get_solvers(child, held, f'{scope}{child.label}/'))
+        return solvers
 
     @staticmethod
     def _get_flowing(records: Sequence[_CensusRecordSpec]) -> frozenset[str]:
@@ -970,7 +1001,12 @@ class CensusPass(BasePass):
             raise RoleElementError(error_msg) from error
 
     @staticmethod
-    def _get_declared_laws(spec: KernelSpec, component: BaseComponent, solver: object = None) -> list[BaseLaw]:
+    def _get_declared_laws(
+        spec: KernelSpec,
+        component: BaseComponent,
+        solver: object = None,
+        scope: str = '',
+    ) -> list[BaseLaw]:
         """Return the laws a component returns for its namespace.
 
         It first checks their classes against its binding.
@@ -985,6 +1021,9 @@ class CensusPass(BasePass):
             solver:
                 The solver of the compilation, whose moves turn objectives of members into sweeps, or `None`.
 
+            scope:
+                The path of the system that holds the solver, which the names of its moves are relative to.
+
         Returns:
             laws:
                 The laws as declared.
@@ -998,7 +1037,7 @@ class CensusPass(BasePass):
         if not isinstance(returned, list | tuple) or len(laws) < len(returned):
             error_msg = f'`_get_laws` of {spec.owner} must return a list of laws.'
             raise ValidationError(error_msg)
-        laws = [CensusPass._get_sampled(spec, law, solver) for law in laws]
+        laws = [CensusPass._get_sampled(spec, law, solver, scope) for law in laws]
         lowered = [BilinearLaw._get_lowered(law) for law in CensusPass._get_programs(laws, spec.owner)]
         split = [item for law in lowered for item in CensusPass._get_component_rates(spec, law)]
         declared = [CensusPass._get_relaxation(law).prepare(spec.owner) for law in split]
@@ -1137,19 +1176,20 @@ class CensusPass(BasePass):
         return True
 
     @staticmethod
-    def _get_sampled(spec: KernelSpec, law: BaseLaw, solver: object) -> BaseLaw:
+    def _get_sampled(spec: KernelSpec, law: BaseLaw, solver: object, scope: str = '') -> BaseLaw:
         """Return the objective of members a Metropolis solver moves, as a sweep.
 
         The objective is the local objective of a member, such as its energy over the temperature, and the moves, the
         rule, the schedule, and the neighbourhood are the settings of the solver, so the sweep accepts a move with the
-        weight `exp(-change)` of the objective.
+        weight `exp(-change)` of the objective. The moves name states relative to `scope`, the path of the system that
+        holds the solver.
         """
-        metropolis = getattr(solver, 'metropolis', None)
+        metropolis = getattr(solver, 'metropolis', solver)
         moves = getattr(metropolis, 'moves', None)
         if not isinstance(law, ObjectiveLaw) or not moves or not isinstance(law.targets, Expression):
             return law
         reference = spec.references.get(law.targets)
-        name = reference.entry.name if reference is not None else None
+        name = reference.entry.name.removeprefix(scope) if reference is not None else None
         if name not in moves:
             return law
         kind = moves[name]

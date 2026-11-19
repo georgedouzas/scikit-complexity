@@ -100,9 +100,10 @@ weight one. The next section uses it for the Wilson action.
 ## Sampling links
 
 This section samples a lattice gauge field at equilibrium, link by link. In compact U(1) gauge theory every link holds
-an angle, and the Wilson action sums the cosine of the oriented sum of the angles around every plaquette. A
-[`SamplingInteraction`](../core_components/interactions.md#samplinginteraction) draws new angles by Metropolis moves
-against this objective, in a [`DiscreteTime`](../core_components/spaces.md#discretetime) of 200 sweeps.
+an angle, and the Wilson action sums the cosine of the oriented sum of the angles around every plaquette. An
+interaction gives this action as the `ObjectiveLaw` of every link, and a
+[`MetropolisSolver`](../core_components/interactions.md#samplinginteraction) draws new angles by Metropolis moves against it, one
+sweep per unit of time for 200 sweeps.
 
 ```python
 from typing import Annotated
@@ -110,41 +111,39 @@ from typing import Annotated
 import numpy as np
 from sage.all__sagemath_symbolics import cos, pi
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import SamplingInteraction
+from skcomplex.core.components.elements import Element, Period
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import ObjectiveLaw
 from skcomplex.core.components.laws.utils import exterior_derivative, neighbors
-from skcomplex.core.components.spaces import CellComplexSpace, CofaceNeighborhood, DiscreteTime, LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.spaces import CellComplexSpace, CofaceNeighborhood, LatticeSpace
+from skcomplex.core.engine.solvers import MetropolisSolver
+from skcomplex.core.systems import System
 
 
 class AngleLinkElement(Element):
-    def __init__(self, label, *, theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0):
-        super().__init__(label)
+    def __init__(self, label, *, theta: Annotated[object, Period(2 * pi)] = 0.0, space=None, on=None):
+        super().__init__(label, space=space, on=on)
         self.theta = theta
 
 
+def wilson(s):
+    theta = s.target.theta
+    return [ObjectiveLaw(-2.0 * neighbors(cos(exterior_derivative(theta)), over=CofaceNeighborhood()), theta)]
+
+
 space = CellComplexSpace(LatticeSpace((8, 8))).prepare()
-links = GroupElement('links', element=AngleLinkElement, space=space, on='edges')
-sampling = SamplingInteraction(
-    'wilson',
-    target='links',
-    state='theta',
-    objective=lambda n: -2.0 * neighbors(cos(exterior_derivative(n.target.theta)), over=CofaceNeighborhood()),
-    move='rotate',
-    width=1.5,
-    schedule='colored',
-)
-system = CompositeSystem(elements=[links], interactions=[sampling], time=DiscreteTime())
-states = simulate(system, until=200, random_state=0).get_values('links.theta')
+links = AngleLinkElement('links', theta=np.zeros(128), space=space, on='edges')
+action = Interaction('wilson', roles={'target': 'links'}, laws=wilson)
+solver = MetropolisSolver(moves={'links.theta': 'rotate'}, schedule='colored', width=1.5)
+system = System(elements=[links], interactions=[action], solver=solver)
+states = system.prepare().simulate(until=200, random_state=0).get_values('links.theta')
 round(float(np.cos(space.incidences_[1] @ states[-50:].T).mean()), 1)
 ```
 
 The mean plaquette over the last 50 sweeps, the average cosine of the oriented sum of the angles around every face, is
 0.7. The sampler follows these rules.
 
-- `SamplingInteraction` samples a group on the edges of a cell complex with a local objective over cofaces.
+- The `MetropolisSolver` samples a group on the edges of a cell complex with a local objective over cofaces.
 - Its `'colored'` schedule updates together only links that share no face, and every draw comes from the generator of
   the simulation.
 - The move is `'rotate'` for U(1), and `'random-value'` for Z_N with the `'heat-bath'` rule.
@@ -181,8 +180,8 @@ element of SU(3) must.
   the loop only up to a cyclic shift, which leaves it unchanged.
 
 Sampling matrix links by a class function of the holonomy of every face, such as the real part of the trace for the
-Wilson action, is a recipe of physics. `WilsonSamplingInteraction` subclasses `SamplingInteraction` and reads the
-holonomies of the faces around a link with `get_holonomy_of`. It proposes Metropolis or Glauber moves that rotate a
+Wilson action, is a recipe of physics. `WilsonSamplingInteraction` reads the holonomies of the faces around a link
+with `get_holonomy_of`. It proposes Metropolis or Glauber moves that rotate a
 link by a random matrix of the group near the identity, or draw a new one from the Haar measure.
 `LatticeYangMillsSystem` and the analysis `gauge_observables` with a `group`, both of `skcomplex.systems.physics.waves`,
 realize SU(2) and SU(3) lattice gauge theory with its average plaquette, Wilson loops, and Polyakov loop.

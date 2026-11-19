@@ -6,7 +6,7 @@
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import ClassVar, cast
+from typing import Annotated, ClassVar, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -17,17 +17,18 @@ from pymoo.algorithms.soo.nonconvex.pso import PSO
 from pymoo.core.algorithm import Algorithm
 from pymoo.core.problem import Problem
 from pymoo.core.termination import NoTermination
-from sage.all__sagemath_symbolics import Expression, cos, pi
+from sage.all__sagemath_symbolics import SR, Expression, cos, oo, pi
+from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import Interaction, SamplingInteraction
-from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, ObjectiveLaw, UpdateLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import BaseSpace, LatticeSpace, RadiusNeighborhood
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import BaseSolver
+from ....core.engine.solvers import BaseSolver, MetropolisSolver
 from ....core.errors import ValidationError
 from ....core.specs import BaseSpec
 from ....core.systems import BaseSystem, System
@@ -350,6 +351,72 @@ class AnnealedCandidateElement(Element):
         self.y = y
 
 
+class AnnealingInteraction(Interaction):
+    """Boltzmann weight of the energy of candidates at a temperature that falls geometrically.
+
+    The objective of every candidate is its energy over the temperature of the time `t`,
+    `E / (T * 1e-3 ** (t / generations))`, so the temperature falls to 1e-3 of its start over `generations` steps,
+    and the `MetropolisSolver` of the system moves the state, such as
+    `MetropolisSolver(moves={'candidates.x': 'gaussian'})`.
+    It anneals a route of a salesman, the placement of a circuit, or the weights of a model.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of candidates on the sites of a lattice.
+
+        state:
+            The name of the state the moves change.
+
+        energy:
+            The function `energy(namespace)` of the energy of a candidate, which reads it as `namespace.target`.
+
+        temperature:
+            The temperature at the start.
+
+        generations:
+            The number of steps over which the temperature falls to 1e-3 of its start.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.evolutionary_computation import AnnealingInteraction
+        >>> energy = lambda s: s.target.x**2
+        >>> AnnealingInteraction('anneal', target='candidates', state='x', energy=energy, temperature=5.0).temperature
+        5.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Role,
+        state: str,
+        energy: Callable[[SimpleNamespace], Expression],
+        temperature: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        generations: Annotated[float, RealSet.open(0, oo)] = 100.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.state = state
+        self.energy = energy
+        self.temperature = temperature
+        self.generations = generations
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the objective of every candidate, its energy over the temperature of the time.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            state = getattr(self._get_member(context, 'target'), self.state)
+            cooled = SR(context.temperature) * COOLED ** (context.t / context.generations)
+            self.laws_: list[BaseLaw] = [ObjectiveLaw(SR(self.energy(context)) / cooled, state)]
+
+
 class RunningBestElement(Element):
     """Lowest objective value of a search so far.
 
@@ -495,10 +562,10 @@ class EvolutionaryOptimisersSystem(BaseSystem):
     """A population of candidates that searches a two-dimensional landscape.
 
     Each step is one generation. A population optimiser moves the candidates through `OptimizationInteraction`, and
-    reports `search.best`. Simulated annealing samples every coordinate through `SamplingInteraction` at a temperature
-    that falls geometrically to 1e-3 of its start over `generations` steps, and `tracker/record.best` holds the lowest
-    energy it has reached, from the observable `search/lowest` that the catalog lists, so a run passes it in
-    `observables` (Raman 2021 §6.3.3.3, §6.3.4). The system has the group `candidates`.
+    reports `search.best`. Simulated annealing samples every coordinate through `AnnealingInteraction` at a temperature
+    that falls geometrically to 1e-3 of its start over `generations` steps, moved by a `MetropolisSolver`, and
+    `tracker/record.best` holds the lowest energy it has reached, from the observable `search/lowest` that the catalog
+    lists, so a run passes it in `observables` (Raman 2021 §6.3.3.3, §6.3.4). The system has the group `candidates`.
 
     Args:
         n_candidates:
@@ -576,7 +643,6 @@ class EvolutionaryOptimisersSystem(BaseSystem):
         The search and the tracker of the best energy run side by side, and the tracker reads the lowest energy the
         candidates reach, the observable `search/lowest`.
         """
-        generations = self.generations
         candidates = AnnealedCandidateElement(
             'candidates',
             x=start[:, 0],
@@ -584,24 +650,26 @@ class EvolutionaryOptimisersSystem(BaseSystem):
             space=LatticeSpace((len(start),)),
         )
         samplers = [
-            SamplingInteraction(
+            AnnealingInteraction(
                 f'anneal_{state}',
                 target='candidates',
                 state=state,
-                objective=energy,
-                move='gaussian',
-                width=self.width,
-                intensity=1 / self.temperature,
-                schedule='colored',
-                neighborhood=RadiusNeighborhood(1, metric='manhattan'),
-                cooling=lambda t: COOLED ** (t / generations),
+                energy=energy,
+                temperature=self.temperature,
+                generations=self.generations,
             )
             for state in ('x', 'y')
         ]
+        solver = MetropolisSolver(
+            moves={'candidates.x': 'gaussian', 'candidates.y': 'gaussian'},
+            schedule='colored',
+            neighborhood=RadiusNeighborhood(1, metric='manhattan'),
+            width=self.width,
+        )
         return System(
             self.label,
             systems=[
-                System('search', elements=[candidates], interactions=samplers),
+                System('search', elements=[candidates], interactions=samplers, solver=solver),
                 System('tracker', elements=[RunningBestElement('record')]),
             ],
             interactions=[RunningBestInteraction('update', target='tracker/record', source='search/lowest')],

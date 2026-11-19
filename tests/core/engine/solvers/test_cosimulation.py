@@ -6,11 +6,12 @@ import pytest
 from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import RateLaw, UpdateLaw
-from skcomplex.core.components.laws.utils import count, maximum, mean, total
+from skcomplex.core.components.laws import ObjectiveLaw, RateLaw, UpdateLaw
+from skcomplex.core.components.laws.utils import count, maximum, mean, neighbors, total
+from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.engine.compile._observables import ObservableEvaluator
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.solvers import CoSimulationSolver, ScipyODESolver
+from skcomplex.core.engine.solvers import CoSimulationSolver, MetropolisSolver, ScipyODESolver
 from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import IncompatibleLawsError, SolverError, ValidationError
 from skcomplex.core.systems import System
@@ -358,3 +359,32 @@ def test_live_parameter_reaches_partitions():
     )
     stock = trajectory.get_values('land/stock.n')
     assert stock[-1] > stock[10]
+
+
+def _ising(s):
+    """Return the objective of an Ising spin, minus its aligned neighbours over the temperature."""
+    return [ObjectiveLaw(-s.target.s * neighbors(s.target.other.s) / s.target.T, s.target.s)]
+
+
+def _tick(s):
+    """Return the rate of a clock, one per unit of time."""
+    return [RateLaw(s.target.n, 1)]
+
+
+@pytest.mark.parametrize(('temperature', 'ordered'), [(0.1, True), (100.0, False)])
+def test_cosimulation_nested_system_keeps_its_metropolis_solver(temperature, ordered):
+    """Test that a magnet nested beside a clock is sampled by its own Metropolis solver, ordered only when cold."""
+    ring = Element('ring', values={'s': np.ones(16), 'T': temperature}, space=LatticeSpace(16))
+    ising = Interaction('ising', roles={'target': 'ring'}, laws=_ising)
+    tick = Interaction('tick', roles={'target': 'clock'}, laws=_tick)
+    solver = MetropolisSolver(moves={'ring.s': 'flip'})
+    system = System(
+        systems=[
+            System('magnet', elements=[ring], interactions=[ising], solver=solver),
+            System('timer', elements=[Element('clock', values={'n': 0.0})], interactions=[tick]),
+        ],
+    ).prepare()
+    trajectory = system.simulate(until=20, random_state=0)
+    assert isinstance(system.solver_, CoSimulationSolver)
+    assert trajectory.get_values('timer/clock.n')[-1] == pytest.approx(20.0)
+    assert bool(trajectory.get_values('magnet/ring.s')[-1].mean() == 1.0) is ordered
