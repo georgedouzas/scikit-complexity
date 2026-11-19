@@ -6,19 +6,20 @@ from typing import Annotated
 import numpy as np
 import pytest
 import scipy.linalg
+from sage.sets.real_set import RealSet
 from sklearn.preprocessing import PolynomialFeatures
 
 from skcomplex.core.analysis import bind_analysis, mode_decomposition
 from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import ContinuousTime
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.solvers._defaults import DEFAULT_SOLVERS
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.systems import System
 
 from .conftest import _damped_rotation, _last_values
 
@@ -29,29 +30,23 @@ STEP = 0.1
 NAMES = ['linear.x', 'linear.y', 'linear.z']
 
 
-class LinearElement(Element):
-    """Linear element."""
+def _linear_rates(s):
+    """Return the rates of the linear system `dx/dt = A x`."""
+    x, y, z = s.target.x, s.target.y, s.target.z
+    return [
+        RateLaw(x, float(MATRIX[0, 0]) * x + float(MATRIX[0, 1]) * y),
+        RateLaw(y, float(MATRIX[1, 0]) * x + float(MATRIX[1, 1]) * y + float(MATRIX[1, 2]) * z),
+        RateLaw(z, float(MATRIX[2, 2]) * z),
+    ]
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[object, StateSpec()] = 1.0,
-        y: Annotated[object, StateSpec()] = 0.5,
-        z: Annotated[object, StateSpec()] = -1.0,
-    ) -> None:
-        super().__init__(label)
-        self.x = x
-        self.y = y
-        self.z = z
 
-    def _get_laws(self, s):
-        """Return the laws of the linear element."""
-        return [
-            RateLaw(s.x, float(MATRIX[0, 0]) * s.x + float(MATRIX[0, 1]) * s.y),
-            RateLaw(s.y, float(MATRIX[1, 0]) * s.x + float(MATRIX[1, 1]) * s.y + float(MATRIX[1, 2]) * s.z),
-            RateLaw(s.z, float(MATRIX[2, 2]) * s.z),
-        ]
+def _driven_rates(s):
+    """Return the rates of the linear system driven by the bounded input `u`."""
+    x, y, u = s.target.x, s.target.y, s.target.u
+    return [
+        RateLaw(x, float(DRIVEN[0, 0]) * x + float(DRIVEN[0, 1]) * y + float(DRIVE[0]) * u),
+        RateLaw(y, float(DRIVEN[1, 0]) * x + float(DRIVEN[1, 1]) * y + float(DRIVE[1]) * u),
+    ]
 
 
 class DrivenElement(Element):
@@ -61,21 +56,14 @@ class DrivenElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[object, StateSpec()] = 1.0,
-        y: Annotated[object, StateSpec()] = 0.0,
-        u: Annotated[object, ParameterSpec(adaptive=True, bounds=(-1.0, 1.0))] = 0.0,
+        x: float = 1.0,
+        y: float = 0.0,
+        u: Annotated[float, RealSet.closed(-1.0, 1.0)] = 0.0,
     ) -> None:
         super().__init__(label)
         self.x = x
         self.y = y
         self.u = u
-
-    def _get_laws(self, s):
-        """Return the laws of the driven element."""
-        return [
-            RateLaw(s.x, float(DRIVEN[0, 0]) * s.x + float(DRIVEN[0, 1]) * s.y + float(DRIVE[0]) * s.u),
-            RateLaw(s.y, float(DRIVEN[1, 0]) * s.x + float(DRIVEN[1, 1]) * s.y + float(DRIVE[1]) * s.u),
-        ]
 
 
 def _held_input(seed):
@@ -88,13 +76,13 @@ def _driven_runs():
     """Return runs of the driven element under different random inputs, from different states."""
     solver = ScipyODESolver(method='DOP853', rtol=1e-12, atol=1e-12)
     return [
-        simulate(
-            CompositeSystem(elements=[DrivenElement('driven', x=start)]),
-            until=20.0,
+        System(
+            elements=[DrivenElement('driven', x=start)],
+            interactions=[Interaction('flow', roles={'target': 'driven'}, laws=_driven_rates)],
             solver=solver,
-            dt=STEP,
-            schedule={'driven.u': _held_input(seed)},
         )
+        .prepare()
+        .simulate(until=20.0, dt=STEP, schedule={'driven.u': _held_input(seed)})
         for seed, start in enumerate((1.0, -2.0, 0.5))
     ]
 
@@ -111,7 +99,9 @@ def _one_sample_map():
 def _linear_trajectory():
     """Return a trajectory of the linear system `dx/dt = A x`, sampled every 0.05 for 10 time units."""
     solver = ScipyODESolver(method='DOP853', rtol=1e-12, atol=1e-12)
-    return simulate(CompositeSystem(elements=[LinearElement('linear')]), until=10.0, solver=solver, dt=0.05)
+    linear = Element('linear', values={'x': 1.0, 'y': 0.5, 'z': -1.0})
+    flow = Interaction('flow', roles={'target': 'linear'}, laws=_linear_rates)
+    return System(elements=[linear], interactions=[flow], solver=solver).prepare().simulate(until=10.0, dt=0.05)
 
 
 def _fit(source, **settings):
