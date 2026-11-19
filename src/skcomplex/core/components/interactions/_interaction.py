@@ -11,7 +11,7 @@ from types import SimpleNamespace
 from ...errors import ValidationError
 from ...specs import DeclaredVariableSpec, RoleSpec
 from ..base import BaseComponent
-from ..spaces import BaseSpace
+from ..spaces import BaseSpace, RadiusNeighborhood
 from ._base import BaseInteraction
 from ._random_partition import RandomPartition
 
@@ -79,6 +79,11 @@ class Interaction(BaseInteraction):
             members, `RandomPartition(k)` for random groups of `k` members drawn at every step, `'neighborhoods'` for
             every member with the members around it, or `None` for no edges.
 
+        within:
+            A `RadiusNeighborhood(r)` for laws that run once for every pair of members of the roles `first` and
+            `second` closer than `r`, which read `s.first` and `s.second` and give the laws of both, such as the
+            repulsion of walkers of two crowds, or `None` for no pairs.
+
     Examples:
         >>> from typing import Annotated
         >>> from skcomplex.core.components.interactions import Interaction
@@ -123,12 +128,14 @@ class Interaction(BaseInteraction):
         laws: Callable[[SimpleNamespace], Sequence[BaseComponent]] | Sequence[BaseComponent] | None = None,
         among: str | None = None,
         along: bool | str | tuple[str, int] | RandomPartition | None = None,
+        within: RadiusNeighborhood | None = None,
     ) -> None:
         super().__init__(label)
         self.roles = roles
         self.laws = laws
         self.among = among
         self.along = along
+        self.within = within
 
     def _get_declared(self) -> Mapping[str, DeclaredVariableSpec]:
         """Return the numeric arguments as parameters, and `roles` and `among` as roles."""
@@ -224,6 +231,10 @@ class Interaction(BaseInteraction):
     def _get_hyperedge_size(self) -> int | None:
         """Return the size `along` gives the hyperedges, or `None` for every size."""
         return int(self.along[-1]) if isinstance(self.along, tuple) and self._runs_on_hyperedges() else None
+
+    def _get_within(self) -> RadiusNeighborhood | None:
+        """Return the neighbourhood of the pairs the laws run for, or `None` for no pairs."""
+        return self.within
 
     def _get_layer(self) -> str | None:
         """Return the layer `along` names, or `None` for no layer."""
