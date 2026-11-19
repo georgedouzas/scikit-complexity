@@ -281,6 +281,10 @@ Two kinds of model need forms that the table above does not name yet.
 - A field or group bound to rules keeps as states only the values the rules change, found by running the rule once as
   for agents. Its other values stay parameters, as for every other element.
 
+- Sampling. A sampled system is an `ObjectiveLaw` run by a sampling solver such as `MetropolisSolver`, which says only
+  how states move. The temperature is a value of the system that the objective reads, such as
+  `ObjectiveLaw(energy / s.target.T)`, so sweeps and annealing schedules change it like any other value.
+
 A field law first becomes a recipe of the seven kinds and the core reductions where it can, such as Bak-Sneppen as an
 `UpdateLaw` on the site where `argmin` falls, so it needs no engine code. A law that truly needs numerics of its own,
 such as the Lindblad equation, finite volumes, Cayley graphs, or rewriting, moves with that support: the field package
