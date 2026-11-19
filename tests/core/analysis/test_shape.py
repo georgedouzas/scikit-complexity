@@ -1,20 +1,16 @@
 """Test the `_shape` module of `skcomplex.core.analysis`."""
 
-from typing import Annotated
-
 import numpy as np
 import pytest
 from scipy.spatial.transform import Rotation
 
 from skcomplex.core.analysis import chain_shape
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import ArrayUpdateLaw
-from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.specs import RoleSpec, StateSpec
+from skcomplex.core.systems import System
 
 
 def _freely_rotating_chains(chains, points, bond_angle, rng):
@@ -80,47 +76,27 @@ def test_shape_rejects_positions_of_another_rank():
         chain_shape(np.zeros((2, 3)))
 
 
-class CoordinateElement(Element):
-    """Coordinate of a point of a chain."""
-
-    def __init__(self, label, x: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.x = x
-
-
-class StretchInteraction(Interaction):
-    """Drive that scales a chain by the time of the step."""
-
-    def __init__(self, label, *, target: Annotated[str, RoleSpec()]):
-        super().__init__(label)
-        self.target = target
-
-    def _get_laws(self, namespace):
-        """Return the drive."""
-
-        def stretch(values, *, time):
-            """Return points on a line, spaced by the time."""
-            return np.outer(np.arange(values.shape[0]), [time, 0.0, 0.0])
-
-        return [ArrayUpdateLaw(self._get_member(namespace, 'target').x, stretch)]
+def _chain():
+    """Return a chain of four points of three coordinates, one coordinate per site of a lattice, all at the origin."""
+    stretch = np.outer(np.arange(4.0), [1.0, 0.0, 0.0])
+    space = LatticeSpace((4, 3), boundary='fixed')
+    return Element('chain', values={'x': np.zeros((4, 3)), 'stretch': stretch}, space=space)
 
 
 def test_shape_reads_a_lattice_state_of_a_trajectory():
     """Test that a lattice state whose last axis holds coordinates is read as frames by points by dimensions."""
-    chain = GroupElement('chain', element=CoordinateElement, space=LatticeSpace((4, 3), boundary='fixed'), on='sites')
-    system = CompositeSystem(
-        elements=[chain],
-        interactions=[StretchInteraction('s', target='chain')],
-        time=DiscreteTime(),
+    drive = Interaction(
+        's',
+        roles={'target': 'chain'},
+        laws=lambda s: [UpdateLaw(s.target.x, s.target.x + s.target.stretch)],
     )
-    trajectory = simulate(system, until=2, random_state=0)
+    trajectory = System(elements=[_chain()], interactions=[drive]).prepare().simulate(until=2, random_state=0)
     values = chain_shape(trajectory, kind='end-to-end', group='chain.x').values
     assert values.tolist() == [0.0, 3.0, 6.0]
 
 
 def test_shape_reports_a_group_it_cannot_find():
     """Test that a trajectory without the group raises an error."""
-    chain = GroupElement('chain', element=CoordinateElement, space=LatticeSpace((4, 3), boundary='fixed'), on='sites')
-    trajectory = simulate(CompositeSystem(elements=[chain], time=DiscreteTime()), until=1, random_state=0)
+    trajectory = System(elements=[_chain()]).prepare().simulate(until=1, random_state=0)
     with pytest.raises(AnalysisError):
         chain_shape(trajectory, group='nothing')
