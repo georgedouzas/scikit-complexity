@@ -8,7 +8,6 @@ import pytest
 from scipy.spatial import cKDTree
 
 from skcomplex.core.analysis import AlignmentResult, alignment
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.systems.biology.collective_behaviour import BoidsSystem
 from skcomplex.systems.engineering.traffic import OptimalVelocitySystem
@@ -103,7 +102,7 @@ def test_mean_rotation_of_a_mill():
 
 def test_alignment_of_every_frame_of_a_trajectory():
     """Test that a flock gives one mean-vector, mean-rotation, and axial order per frame between 0 and 1."""
-    trajectory = simulate(BoidsSystem(), until=3, random_state=0)
+    trajectory = BoidsSystem().prepare().simulate(until=3, random_state=0)
     for kind in ('mean-vector', 'mean-rotation', 'axial'):
         order = _order(kind, trajectory)
         assert order.shape == (len(trajectory.times),)

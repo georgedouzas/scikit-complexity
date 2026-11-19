@@ -4,7 +4,6 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import signatures
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.systems.biology.collective_behaviour import BoidsSystem, PheromoneForagingSystem
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
@@ -58,7 +57,7 @@ def test_signature_analysis_of_a_field():
 
 def test_signature_analysis_of_agents():
     """Test that agents with velocities give their polar and milling orders over time."""
-    trajectory = simulate(BoidsSystem(), until=5, random_state=0)
+    trajectory = BoidsSystem().prepare().simulate(until=5, random_state=0)
     signature = _signatures(trajectory)[0]
     assert signature.kind == 'agents'
     assert set(signature.curves) == {'polar order', 'milling order'}
@@ -81,7 +80,7 @@ def test_signature_analysis_of_a_network():
 
 def test_signature_analysis_of_group_states():
     """Test that the scalar states of a group without positions give a series signature with one curve per member."""
-    (signature,) = _signatures(simulate(ReplicatorDynamicsSystem(), until=5.0, random_state=0))
+    (signature,) = _signatures(ReplicatorDynamicsSystem().prepare().simulate(until=5.0, random_state=0))
     assert signature.kind == 'series'
     assert set(signature.curves) == {'population.x[0]', 'population.x[1]'}
 
@@ -102,6 +101,6 @@ def test_signature_analysis_reads_a_trajectory():
 
 def test_signature_analysis_of_a_system_with_several_kinds():
     """Test that an agent system on a lattice with reporters gives agents, field, then series signatures."""
-    trajectory = simulate(PheromoneForagingSystem(), until=5, random_state=0)
+    trajectory = PheromoneForagingSystem().prepare().simulate(until=5, random_state=0)
     kinds = [signature.kind for signature in _signatures(trajectory)]
     assert kinds == ['agents', 'field', 'series']
