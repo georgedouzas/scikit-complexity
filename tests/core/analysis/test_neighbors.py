@@ -7,7 +7,6 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import NeighborsResult, neighbors
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.systems.biology.collective_behaviour import BoidsSystem
 from skcomplex.systems.physics.statistical_mechanics import IsingSystem, LennardJonesFluidSystem
@@ -56,7 +55,7 @@ def test_radial_distribution_of_a_gas_and_a_fluid():
     gas = rng.random((20, 4000, 2)) * 20
     density = _neighbors('radial-distribution', gas, box=[20.0, 20.0], bins=20).distribution
     assert np.all(np.abs(density - 1) < 0.05)
-    trajectory = simulate(LennardJonesFluidSystem(), random_state=0)
+    trajectory = LennardJonesFluidSystem().prepare().simulate(random_state=0)
     box = np.asarray(trajectory.problem.system.space.extent_, dtype=float)
     positions = np.mod(np.asarray(trajectory.get_values('fluid.x'), dtype=float)[-10:], box)
     fluid = _neighbors('radial-distribution', positions, box=box, bins=150, r_max=3.0)
@@ -65,7 +64,7 @@ def test_radial_distribution_of_a_gas_and_a_fluid():
 
 def test_neighbor_distances_of_every_frame_of_a_trajectory():
     """Test that a flock in a periodic box gives one distance per agent and frame and one ratio per frame."""
-    trajectory = simulate(BoidsSystem(), until=3, random_state=0)
+    trajectory = BoidsSystem().prepare().simulate(until=3, random_state=0)
     distances = _neighbors('distances', trajectory).distances
     assert distances.shape == (len(trajectory.times), trajectory.get_agents('flock', 0).ids.size)
     assert np.all(distances > 0)

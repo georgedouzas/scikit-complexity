@@ -4,7 +4,6 @@ import numpy as np
 
 from skcomplex.core import analysis
 from skcomplex.core.analysis import ApplicableAnalysesResult, applicable_analyses, markov
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.collective_behaviour import PheromoneForagingSystem
 from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 from skcomplex.systems.mathematics.stochastic_processes import OnOffIntermittencySystem, PoissonProcessSystem
@@ -38,7 +37,7 @@ def test_discovery_of_a_lattice_system():
 
 def test_discovery_of_a_system_with_several_kinds():
     """Test that an agent system on a lattice that records reporters lists agent, field, and series analyses."""
-    discovery = _discover(simulate(PheromoneForagingSystem(), until=2, random_state=0))
+    discovery = _discover(PheromoneForagingSystem().prepare().simulate(until=2, random_state=0))
     assert discovery.kinds == ['agents', 'field', 'series']
     assert ('spectrum', 'structure-factor') in _names(discovery.analyses['field'])
     assert ('spectrum', 'power') in _names(discovery.analyses['series'])
