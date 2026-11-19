@@ -6,13 +6,12 @@ import numpy as np
 import pytest
 from scipy.special import comb
 
-from skcomplex.core.components.elements import GroupElement
-from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.components.elements import Element
 from skcomplex.core.engine.backends import NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.experiments import sweep
-from skcomplex.systems.biology.common.populations import PopulationElement
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.ecology import HigherOrderRandomLotkaVolterraSystem, TripletInteraction
 
 from ..conftest import SYSTEMS_PRECISE, _run_with_solver
@@ -109,11 +108,11 @@ def test_triplet_interaction_sums_over_the_pairs_of_other_species():
         for j, k in combinations(set(range(size)) - {i}, 2):
             tensor[i, j, k] = tensor[i, k, j] = rng.normal()
     x = rng.random(size)
-    species = GroupElement('species', element=PopulationElement, size=size, values={'x': x})
+    species = Element('species', values={'x': x}, size=size)
     triplets = TripletInteraction('triplets', target='species', a=tensor, state='x')
     problem = (
         PassCompiler(backend=NumpyBackend())
-        .prepare(CompositeSystem(elements=[species], interactions=[triplets]))
+        .prepare(System(elements=[species], interactions=[triplets]))
         .run()
         .problem_
     )
