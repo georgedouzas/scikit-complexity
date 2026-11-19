@@ -34,9 +34,10 @@ trajectory = system.prepare().simulate(until=20, dt=1.0)
 trajectory.get_values('prey.x').round(1)[:6].tolist()
 ```
 
-[simulate][skcomplex.core.engine.runtime.simulate] checks the system, compiles its [laws](glossary.md#law) into one problem, picks a
-solver, and advances the problem from time 0 to `until` in [frames](glossary.md#frame) of `dt`. Here a frame is one year. The simulated hares
-rise from 30.0 to 81.2 thousand in 1903 and fall to 18.6 thousand in 1905, as the records do.
+[prepare][skcomplex.core.systems.System.prepare] checks the system, compiles its [laws](glossary.md#law) into one
+problem, and picks a solver. [simulate][skcomplex.core.systems.System.simulate] advances the problem from time 0 to
+`until` in [frames](glossary.md#frame) of `dt`. Here a frame is one year. The simulated hares rise from 30.0 to 81.2
+thousand in 1903 and fall to 18.6 thousand in 1905, as the records do.
 
 ```python continuation
 fit = np.sqrt(np.mean((trajectory.get_values('prey.x') - hares) ** 2))
