@@ -1,119 +1,57 @@
 """Test the `_history` module of `skcomplex.core.components.laws.utils`."""
 
-from typing import Annotated
-
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import abs_symbolic, cos, sin
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import ConstraintLaw, RateLaw, UpdateLaw
-from skcomplex.core.components.laws.utils import derivative, lag, residence, where
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.laws.utils import residence, where
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
+from skcomplex.core.systems import System
 
 from ..conftest import PRECISE, MassElement
 
 
-class DoublePendulumElement(Element):
-    """Double pendulum element."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        a: Annotated[object, StateSpec(order=2)] = 1.0,
-        a_d1: float = 0.0,
-        b: Annotated[object, StateSpec(order=2)] = 0.5,
-        b_d1: float = 0.0,
-        g: Annotated[object, ParameterSpec()] = 9.81,
-    ) -> None:
-        super().__init__(label)
-        self.a = a
-        self.a_d1 = a_d1
-        self.b = b
-        self.b_d1 = b_d1
-        self.g = g
-
-    def _get_laws(self, s):
-        """Return the laws of the double pendulum element."""
-        return [
-            ConstraintLaw(
-                2 * derivative(s.a, 2) + cos(s.a - s.b) * derivative(s.b, 2)
-                == -(derivative(s.b, 1) ** 2) * sin(s.a - s.b) - 2 * s.g * sin(s.a),
-            ),
-            ConstraintLaw(
-                derivative(s.b, 2) + cos(s.a - s.b) * derivative(s.a, 2)
-                == derivative(s.a, 1) ** 2 * sin(s.a - s.b) - s.g * sin(s.b),
-            ),
-        ]
+def _run(element, laws, until, *, dt=None, solver='auto'):
+    """Return the run of one element under the laws of one interaction, a function of the namespace."""
+    rule = Interaction('laws', roles={'target': element.label}, laws=laws)
+    return System(elements=[element], interactions=[rule], solver=solver).prepare().simulate(until=until, dt=dt)
 
 
-class TooFarElement(Element):
-    """Too far element."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[object, StateSpec(lags=1)] = 1.0,
-        x_lag1: float = 1.0,
-    ) -> None:
-        super().__init__(label)
-        self.x = x
-        self.x_lag1 = x_lag1
-
-    def _get_laws(self, s):
-        """Return the laws of the too far element."""
-        return [UpdateLaw(s.x, lag(s.x, 2))]
+def _double_pendulum(s):
+    """Return the coupled equations of the double pendulum."""
+    a, b, g, t = s.target.a, s.target.b, s.target.g, s.t
+    return [
+        ConstraintLaw(
+            2 * a.diff(t, 2) + cos(a - b) * b.diff(t, 2) == -(b.diff(t) ** 2) * sin(a - b) - 2 * g * sin(a),
+        ),
+        ConstraintLaw(b.diff(t, 2) + cos(a - b) * a.diff(t, 2) == a.diff(t) ** 2 * sin(a - b) - g * sin(b)),
+    ]
 
 
-class JerkElement(Element):
-    """Jerk element."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[object, StateSpec(order=3, initial=(0.0, 1.0))] = 0.0,
-        x_d2: float = 1.0,
-        x_d1: float = 0.0,
-        A: Annotated[object, ParameterSpec()] = 0.6,
-    ) -> None:
-        super().__init__(label)
-        self.x = x
-        self.x_d2 = x_d2
-        self.x_d1 = x_d1
-        self.A = A
-
-    def _get_laws(self, s):
-        """Return the laws of the jerk element."""
-        return [RateLaw(s.x, -s.A * derivative(s.x, 2) - derivative(s.x, 1) + abs_symbolic(s.x) - 1)]
+def _jerk(s):
+    """Return Sprott's jerk equation."""
+    x, t = s.target.x, s.t
+    return [RateLaw(x.diff(t, 3), -s.target.A * x.diff(t, 2) - x.diff(t) + abs_symbolic(x) - 1)]
 
 
 def test_coupled_equations_conserve_energy():
     """Test that the double pendulum's coupled equations are solved jointly and conserve its energy."""
-    trajectory = simulate(CompositeSystem(elements=[DoublePendulumElement('dp')]), until=10, solver=PRECISE, dt=0.05)
+    pendulum = Element('dp', values={'a': 1.0, 'b': 0.5, 'g': 9.81})
+    trajectory = _run(pendulum, _double_pendulum, 10, dt=0.05, solver=PRECISE)
     a, b = trajectory.get_values('dp.a'), trajectory.get_values('dp.b')
-    a_d1, b_d1 = trajectory.get_values('dp.a_d1'), trajectory.get_values('dp.b_d1')
+    a_d1, b_d1 = trajectory.get_values("dp.a'"), trajectory.get_values("dp.b'")
     energy = a_d1**2 + 0.5 * b_d1**2 + a_d1 * b_d1 * np.cos(a - b) - 2 * 9.81 * np.cos(a) - 9.81 * np.cos(b)
     assert np.abs(energy - energy[0]).max() < 1e-7 * abs(energy[0])
 
 
-def test_lag_beyond_kept_values_is_rejected():
-    """Test that reading a lag the state does not keep raises an error naming the lag."""
-    with pytest.raises(ValidationError, match=r'lag\(.*, 2\)'):
-        simulate(CompositeSystem(elements=[TooFarElement('t')]), until=1)
-
-
 def test_third_order_jerk_is_bounded_and_chaotic():
     """Test that Sprott's jerk equation compiles to three equations and gives a bounded, sensitive trajectory."""
-    first = simulate(CompositeSystem(elements=[JerkElement('j')]), until=300, solver=PRECISE, dt=0.5)
+    first = _run(Element('j', values={'x': 0.0, "x''": 1.0, 'A': 0.6}), _jerk, 300, dt=0.5, solver=PRECISE)
     assert first.problem.states.names == ['j.x', 'j.x_d1', 'j.x_d2']
-    second = simulate(CompositeSystem(elements=[JerkElement('j', x=1e-8)]), until=300, solver=PRECISE, dt=0.5)
+    second = _run(Element('j', values={'x': 1e-8, "x''": 1.0, 'A': 0.6}), _jerk, 300, dt=0.5, solver=PRECISE)
     x = first.get_values('j.x')
     assert np.all(np.isfinite(x))
     assert np.abs(x).max() < 10
@@ -122,53 +60,20 @@ def test_third_order_jerk_is_bounded_and_chaotic():
 
 def test_derivative_at_order_is_rejected_in_rates():
     """Test that a rate cannot read the derivative of a state's own order."""
-
-    class BadInteraction(Interaction):
-        """Bad interaction."""
-
-        def __init__(
-            self,
-            label: str,
-            *,
-            target: Annotated[object, RoleSpec()],
-        ) -> None:
-            super().__init__(label)
-            self.target = target
-
-        def _get_laws(self, s):
-            """Return the laws of the bad interaction."""
-            return [RateLaw(s.target.x, derivative(s.target.x, 2))]
-
     with pytest.raises(ValidationError, match='below its declared order'):
-        simulate(
-            CompositeSystem(elements=[MassElement('mass')], interactions=[BadInteraction('bad', target='mass')]),
-            until=1,
-        )
-
-
-class ToggleElement(Element):
-    """Value that switches between 0 and 1 once it has held its value for a given number of steps."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[object, StateSpec()] = 0.0,
-        held: Annotated[object, ParameterSpec()] = 2.0,
-    ) -> None:
-        super().__init__(label)
-        self.x = x
-        self.held = held
-
-    def _get_laws(self, s):
-        """Return the switch of the value after it has held it for `held` steps."""
-        return [UpdateLaw(s.x, where(residence(s.x) >= s.held, 1 - s.x, s.x))]
+        _run(MassElement('mass'), lambda s: [RateLaw(s.target.x.diff(s.t, 2), s.target.x.diff(s.t, 2))], 1)
 
 
 def test_residence_counts_the_steps_a_state_holds_its_value():
     """Test that the residence is 0 in the step a state takes a value and grows by 1 every step it keeps it."""
-    group = GroupElement('toggles', element=ToggleElement, size=2, values={'held': [2.0, 1.0]})
-    trajectory = simulate(CompositeSystem(elements=[group]), until=6)
+    toggles = Element('toggles', values={'x': 0.0, 'held': [2.0, 1.0]}, size=2)
+
+    def switch(s):
+        """Return the switch of the value after it has held it for `held` steps."""
+        x = s.target.x
+        return [UpdateLaw(x, where(residence(x) >= s.target.held, 1 - x, x))]
+
+    trajectory = _run(toggles, switch, 6)
     np.testing.assert_array_equal(
         trajectory.get_values('toggles.x').T,
         [[0, 0, 0, 1, 1, 1, 0], [0, 0, 1, 1, 0, 0, 1]],
@@ -177,26 +82,5 @@ def test_residence_counts_the_steps_a_state_holds_its_value():
 
 def test_residence_outside_update_laws_is_rejected():
     """Test that a law other than an update law cannot read the residence of a state."""
-
-    class ResidenceRateInteraction(Interaction):
-        """Rate that reads a residence."""
-
-        def __init__(
-            self,
-            label: str,
-            *,
-            target: Annotated[object, RoleSpec()],
-        ) -> None:
-            super().__init__(label)
-            self.target = target
-
-        def _get_laws(self, s):
-            """Return a rate that reads the residence of the position."""
-            return [RateLaw(s.target.x, residence(s.target.x))]
-
-    system = CompositeSystem(
-        elements=[MassElement('mass')],
-        interactions=[ResidenceRateInteraction('bad', target='mass')],
-    )
     with pytest.raises(ValidationError, match='only update laws'):
-        simulate(system, until=1)
+        _run(MassElement('mass'), lambda s: [RateLaw(s.target.x, residence(s.target.x))], 1)
