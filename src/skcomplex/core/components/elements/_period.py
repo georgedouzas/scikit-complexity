@@ -46,11 +46,17 @@ class Period(BaseSpec):
     def _check(self) -> None:
         """Raise an error for a length that is not a positive finite number.
 
+        A number of Python, NumPy, or Sage is accepted, such as `2 * pi` with the `pi` of Sage.
+
         Raises:
             ValidationError:
                 The length is not a positive finite number.
         """
-        positive = isinstance(self.length, int | float) and math.isfinite(self.length) and self.length > 0
-        if not positive or isinstance(self.length, bool):
+        try:
+            length = float(self.length)
+        except (TypeError, ValueError):
+            length = math.nan
+        positive = math.isfinite(length) and length > 0
+        if not positive or isinstance(self.length, bool | str):
             error_msg = f'A period has a positive length, such as Period(2 * pi), but it is {self.length!r}.'
             raise ValidationError(error_msg)
