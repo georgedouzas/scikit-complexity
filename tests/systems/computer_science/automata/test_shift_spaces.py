@@ -89,4 +89,3 @@ def test_adding_machine_counts_through_every_residue():
         np.testing.assert_array_equal(numbers, np.arange(base**digits + 1) % base**digits)
     with pytest.raises(ParameterError, match='at least 2'):
         AddingMachineSystem(base=1).prepare()
-
