@@ -8,7 +8,14 @@ import pytest
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import LinearObjectiveSpec, LinearProgramLaw, RateLaw, UpdateLaw
+from skcomplex.core.components.laws import (
+    ConstraintLaw,
+    LinearObjectiveSpec,
+    LinearProgramLaw,
+    ObjectiveLaw,
+    RateLaw,
+    UpdateLaw,
+)
 from skcomplex.core.components.laws.utils import either
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace, StaticTime
 from skcomplex.core.components.systems import CompositeSystem
@@ -20,6 +27,7 @@ from skcomplex.core.engine.solvers import CoSimulationSolver, RK4Solver
 from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import InfeasibleError, ValidationError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
+from skcomplex.core.systems import System
 
 TOY_NAMES = ('v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'b1', 'b2', 'vbio')
 TOY_REVERSIBLE = ('v4', 'v6', 'b2')
@@ -318,6 +326,19 @@ def test_issues_report_two_laws_that_hold_objectives():
     assert len(issues) == 1
     assert 'flows' in issues[0].message
     assert 'second' in issues[0].message
+
+
+def test_issues_name_a_variable_that_no_constraint_bounds():
+    """Test that a target of a program that no constraint reads is an issue of `prepare`."""
+    flows = Element('flows', values={'direct': 0.0, 'detour': 0.0})
+
+    def laws(s):
+        direct, detour = s.target.direct, s.target.detour
+        return [ObjectiveLaw(-(direct + detour), [direct, detour]), ConstraintLaw(direct <= 3, target=direct)]
+
+    routing = Interaction('routing', roles={'target': 'flows'}, laws=laws)
+    with pytest.raises(ValidationError, match=r'flows\.detour, which no constraint bounds.*linear-program-variable'):
+        System(elements=[flows], interactions=[routing]).prepare()
 
 
 def test_merged_laws_use_the_smaller_of_two_upper_bounds():

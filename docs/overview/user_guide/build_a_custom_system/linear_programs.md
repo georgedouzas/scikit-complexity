@@ -18,8 +18,8 @@ constraint names the value it bounds in `target`.
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import ConstraintLaw, ObjectiveLaw
-from skcomplex.core.types import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
 class Routing(Interaction):
@@ -60,7 +60,29 @@ program follows these rules.
 - `infeasible` is `'raise'`, `'zero'`, or `'hold'`. `InfeasibleError` names the program, the time, and the constraints
   and variables of an irreducible infeasible subset, a smallest set of constraints that cannot hold together.
 - A run records the targets under their paths, and the objective values under `<path>.objective_<k>`, the path being
-  that of the element that holds the targets.
+  that of the element that holds the targets. With `duals=True` it also records the duals of the constraints under
+  `<path>.dual_<k>`. The dual of a constraint is the change of the first objective with its right side, such as the
+  shadow price of a metabolite in flux balance analysis.
+
+## Duals
+
+This section reads how much the optimum gains from a looser constraint. `ObjectiveLaw(..., duals=True)` records the dual
+of each constraint of its interaction, in the order of the constraints.
+
+```python continuation
+class PricedRouting(Routing):
+    def _prepare(self, s):
+        super()._prepare(s)
+        direct, detour = s.routes.direct, s.routes.detour
+        self.laws_[0] = ObjectiveLaw(-(direct + detour), [direct, detour], duals=True)
+
+
+priced = System(elements=[routes], interactions=[PricedRouting('routing')]).prepare().simulate(until=0.0)
+[float(priced.get_values(f'flows.dual_{k}')[0]) for k in range(4)]
+```
+
+The duals are -1.0, -1.0, 0.0, and 0.0. Each unit of capacity on either road lowers the objective by one, a unit more of
+total flow, while the lower bounds at zero hold no flow back.
 
 ## Merged programs
 
@@ -174,6 +196,8 @@ The message says that the inequality of `closure` holds in a linear program, so 
 - `linear-program-form`: a relation is not linear in the targets, or a coefficient of a target reads a state.
 - `linear-program-objectives`: two interactions give objectives to one program. One `ObjectiveLaw` with a list of
   objectives holds them instead.
+- `linear-program-variable`: a target of the program is bounded by no constraint, so the program has no bounded
+  optimum. A `ConstraintLaw` that bounds it, such as `ConstraintLaw(v >= 0, target=v)`, fixes it.
 
 ## Elementary modes
 
