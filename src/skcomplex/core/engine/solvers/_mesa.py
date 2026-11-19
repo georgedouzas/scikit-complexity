@@ -1193,6 +1193,7 @@ class MesaSolver(ExternalSolver):
             for spec in problem.agents
         }
         self._positions = {spec.path: self._get_positions_of(spec, problem.agent_space) for spec in problem.agents}
+        self._defaults = {spec.path: self._get_defaults_of(spec) for spec in problem.agents}
         self._classes: dict[type, _CompiledAgentsSpec] = {}
         self._view_classes: dict[type, type[AgentView]] = {}
         self.members_: dict[int, mesa.Agent] = {}
@@ -1481,11 +1482,16 @@ class MesaSolver(ExternalSolver):
 
         Raises:
             SimulationError:
-                The group does not exist, or it is not variable, so its size cannot change.
+                The group does not exist, or it is not variable, so its size cannot change. The values lack some that
+                the group gives per member and its element class gives no default of.
         """
         spec = self._specs[self._resolve_group(group)]
         if not self._populating:
             self._check_variable(spec, 'create')
+        positions = self._positions[spec.path]
+        missing = [name for name in positions if name not in values]
+        defaults = self._defaults[spec.path]
+        self._check_given(spec, [name for name in spec.states if name not in values and name not in missing], defaults)
         agent_class = self._get_agent_class(spec)
         agent = (
             agent_class(self.space_, self.system_)
@@ -1494,13 +1500,10 @@ class MesaSolver(ExternalSolver):
         )
         vars(agent)['view_'] = self._view_classes[agent_class](agent, self)
         self.members_[int(agent.unique_id)] = agent
-        positions = self._positions[spec.path]
-        missing = [name for name in positions if name not in values]
         for name in spec.states:
             if name in missing:
                 continue
-            value = values[name] if name in values else self._get_default(spec, name)
-            setattr(agent, name, value)
+            setattr(agent, name, values[name] if name in values else defaults[name])
         place = self._get_place_of(agent, positions) if positions and location is None and not missing else location
         self._place(agent, place)
         if missing:
@@ -2103,28 +2106,41 @@ class MesaSolver(ExternalSolver):
         return AgentSnapshotSpec(ids, values, np.asarray(locations) if has_locations else None, spec.roles)
 
     @staticmethod
-    def _get_default(spec: _CompiledAgentsSpec, name: str) -> object:
-        """Return the value of a state that a new agent takes when none is given.
+    def _get_defaults_of(spec: _CompiledAgentsSpec) -> dict[str, object]:
+        """Return the state values a new agent takes when none is given, by name.
 
-        An agent of a plain element takes the value its group shares, such as the `innovation` of
-        `Element('words', values={'count': 1.0, 'innovation': 0.1}, size=1)`, and an agent of a declared element type
-        the default of that type.
-
-        Raises:
-            SimulationError:
-                The group of a plain element gives the state one value per member, so it shares none.
+        An agent takes the value its group shares, such as the `innovation` of
+        `Element('words', values={'count': 1.0, 'innovation': 0.1}, size=1)`. For a value its group gives per member, it
+        takes the default of that argument of its element class, such as the `energy` of a subclass of `Element` that
+        takes `energy=5.0`. A plain element has no class default, so such a value has none.
         """
         element_type = MesaSolver._get_agent_type(spec)
         if not issubclass(element_type, DeclaredElement):
-            return default_of(element_type, name)
-        shared = spec.values.get(name)
-        if shared is None or (name not in spec.objects and np.ndim(np.asarray(shared, dtype=object)) > 0):
+            return {name: default_of(element_type, name) for name in spec.states}
+        element = spec.element.get_declaring_element() if isinstance(spec.element, GroupElement) else spec.element
+        defaults = dict((element.defaults or {}) if isinstance(element, DeclaredElement) else {})
+        for name in spec.states:
+            shared = spec.values.get(name)
+            if shared is not None and (name in spec.objects or np.ndim(np.asarray(shared, dtype=object)) == 0):
+                defaults[name] = shared
+        return defaults
+
+    @staticmethod
+    def _check_given(spec: _CompiledAgentsSpec, names: Sequence[str], defaults: Mapping[str, object]) -> None:
+        """Raise an error for the states a new agent is not given and has no default of.
+
+        Raises:
+            SimulationError:
+                The group gives the states one value per member, so it shares none, and the class gives no default.
+        """
+        lacking = [name for name in names if name not in defaults]
+        if lacking:
             error_msg = (
-                f'A new agent of {spec.path} needs a value of {name!r}, which its group gives per member. Give it when '
-                f'the agent is created, such as create({name}=...).'
+                f'A new agent of {spec.path} needs a value of {", ".join(map(repr, lacking))}, which its group gives '
+                'per member and its element class gives no default of. Give them when the agent is created, such as '
+                f'create({", ".join(f"{name}=..." for name in lacking)}).'
             )
             raise SimulationError(error_msg)
-        return shared
 
     @staticmethod
     def _get_state_property(name: str) -> property:

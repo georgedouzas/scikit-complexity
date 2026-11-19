@@ -1962,3 +1962,43 @@ def test_created_agents_need_the_values_their_group_gives_per_member():
     system = System(elements=[people], interactions=[Arrive('arrive')]).prepare()
     with pytest.raises(SimulationError, match="needs a value of 'kind'"):
         system.simulate(until=1)
+
+
+class PersonElement(Element):
+    """A person whose class gives the default of its age and kind."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        age: object = 1.0,
+        kind: object = 7.0,
+        size: int | None = None,
+    ) -> None:
+        super().__init__(label, size=size)
+        self.age = age
+        self.kind = kind
+
+
+def test_created_agents_take_the_defaults_of_their_element_class():
+    """Test that a new agent takes the class default of a value given per member that its creation leaves out."""
+    people = PersonElement('people', age=np.array([5.0, 6.0]), kind=np.array([1.0, 2.0]), size=2)
+    trajectory = System(elements=[people], interactions=[Arrive('arrive')]).prepare().simulate(until=1)
+    agents = trajectory.get_agents('people', 1)
+    assert agents.values['age'].tolist() == [5.0, 6.0, 0.0]
+    assert agents.values['kind'].tolist() == [1.0, 2.0, 7.0]
+
+
+def test_created_agents_take_the_value_their_group_shares_over_the_class_default():
+    """Test that a new agent takes a value its group shares rather than the default of its element class."""
+    people = PersonElement('people', age=np.array([5.0, 6.0]), kind=3.0, size=2)
+    trajectory = System(elements=[people], interactions=[Arrive('arrive')]).prepare().simulate(until=1)
+    assert trajectory.get_agents('people', 1).values['kind'].tolist() == [3.0, 3.0, 3.0]
+
+
+def test_created_agents_of_a_plain_element_name_every_value_they_lack():
+    """Test that creating an agent of a plain element without the values its group gives per member names them all."""
+    people = Element('people', values={'kind': np.array([1.0, 2.0]), 'age': 5.0, 'height': np.ones(2)}, size=2)
+    system = System(elements=[people], interactions=[Arrive('arrive')]).prepare()
+    with pytest.raises(SimulationError, match="needs a value of 'kind', 'height', which its group gives per member"):
+        system.simulate(until=1)

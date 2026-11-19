@@ -158,8 +158,7 @@ class ExchangeInteraction(Interaction):
 
     The law bounds the uptake, the negative flux of the exchange reaction, by `vmax c / (km + c)` and, with an interval,
     by what the medium holds per biomass over the interval (Raman 2021, Section 9.6). The medium changes at the rate
-    `dc/dt = v x`, and a depleted medium loses nothing more. With a threshold, the program of the network is solved only
-    where the biomass lies above it, and the fluxes are zero elsewhere, as at the empty boxes of a plate.
+    `dc/dt = v x`, and a depleted medium loses nothing more.
 
     Args:
         label:
@@ -186,9 +185,6 @@ class ExchangeInteraction(Interaction):
         interval:
             The time over which the medium must last, or `None` for no such bound.
 
-        threshold:
-            The biomass above which the program of the network is solved, or `None` for always.
-
     Examples:
         >>> from skcomplex.systems.biology.common.metabolism import ExchangeInteraction
         >>> ExchangeInteraction('uptake', reaction='EX_glc__D_e').vmax
@@ -206,7 +202,6 @@ class ExchangeInteraction(Interaction):
         vmax: Annotated[float, POSITIVE] = 10.0,
         km: Annotated[float, POSITIVE] = 0.015,
         interval: float | None = None,
-        threshold: float | None = None,
     ) -> None:
         super().__init__(label)
         self.cell = cell
@@ -216,7 +211,6 @@ class ExchangeInteraction(Interaction):
         self.vmax = vmax
         self.km = km
         self.interval = interval
-        self.threshold = threshold
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Set the bounds of the uptake and the rate of the medium.
@@ -234,8 +228,6 @@ class ExchangeInteraction(Interaction):
         laws: list[BaseLaw] = [ConstraintLaw(flux >= -context.vmax * held / (context.km + held), target=flux)]
         if self.interval is not None:
             laws.append(ConstraintLaw(flux >= -held / (biomass * float(self.interval)), target=flux))
-        if self.threshold is not None:
-            laws.append(ObjectiveLaw([], [flux], active=biomass > float(self.threshold), infeasible='zero'))
         laws.append(RateLaw(amount, flux * biomass * where(either(amount > 0, flux > 0), 1, 0)))
         self.laws_ = laws
 

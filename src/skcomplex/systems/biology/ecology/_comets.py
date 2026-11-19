@@ -175,7 +175,13 @@ class CometsSystem(BaseSystem):
         super()._prepare(context)
         source = load_network('textbook', 'cells', needed_by='comets')
         plain = {name: replace(spec, rule='') for name, spec in source.reactions.items()}
-        network = source.set_params(reactions=plain, name='ColonyCell', infeasible='zero')
+        network = source.set_params(
+            reactions=plain,
+            name='ColonyCell',
+            infeasible='zero',
+            biomass='biomass',
+            threshold=0.0,
+        )
         concentration = self.glucose / GLUCOSE_MOLAR_MASS * MMOL_PER_MOL
         volume = self.plate_glucose * self.box**2 / concentration
         initial = np.zeros(self.shape)
@@ -199,7 +205,6 @@ class CometsSystem(BaseSystem):
                     vmax=self.vmax,
                     km=self.km,
                     interval=self.interval,
-                    threshold=0.0,
                 ),
                 GrowthInteraction('growth', cell='cells', biomass='biomass', reaction=GROWTH),
                 Interaction(

@@ -7,7 +7,17 @@ from dataclasses import replace
 
 from sage.all__sagemath_symbolics import Expression
 
-from ....components.laws import BaseLaw, BoundaryLaw, ConstraintLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....components.laws import (
+    BaseLaw,
+    BoundaryLaw,
+    ConstraintLaw,
+    EventLaw,
+    JumpLaw,
+    LinearProgramLaw,
+    NoiseLaw,
+    RateLaw,
+    UpdateLaw,
+)
 from ....components.laws._flow_term import FlowTermLaw
 from ....components.laws.utils._draws import draws_in
 from ....components.laws.utils._reductions import hyperedges_in, neighborhoods_in, reductions_in
@@ -31,7 +41,7 @@ class RowsPass(BasePass):
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
-        return ('lowered', 'apart', 'transfer')
+        return ('lowered', 'apart', 'programs', 'transfer')
 
     def _get_writes(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass writes."""
@@ -41,10 +51,14 @@ class RowsPass(BasePass):
         """Check the draws and settle the rows of every kernel spec.
 
         A spec whose rows change is replaced by a copy with its rows settled in every field of the compilation, such as
-        the laws, the laws set apart, and the flows, which later passes read.
+        the laws, the laws set apart, and the flows, which later passes read. The linear programs of a spec settle its
+        rows with its other laws.
         """
         compilation = self.compilation_
-        apart = Compilation._get_required(compilation.apart, 'apart')
+        apart = [
+            *Compilation._get_required(compilation.apart, 'apart'),
+            *Compilation._get_required(compilation.programs, 'programs'),
+        ]
         lowered = Compilation._get_required(compilation.lowered, 'lowered')
         stepped = self._get_stepped_flows(compilation, [laws for _, laws, _ in lowered])
         settled: dict[int, KernelSpec] = {}
@@ -108,6 +122,19 @@ class RowsPass(BasePass):
         return symbols
 
     @staticmethod
+    def _get_read_values(law: BaseLaw) -> list[object]:
+        """Return the values of a law whose symbols settle the rows of its spec.
+
+        A jump law gives its rate, and a linear program its constraints, its objectives, and the condition under which
+        it is solved.
+        """
+        if isinstance(law, JumpLaw):
+            return [law.rate]
+        if isinstance(law, LinearProgramLaw):
+            return [*law.constraints, *(objective.expression for objective in law.objectives), law.active]
+        return [getattr(law, 'value', None)]
+
+    @staticmethod
     def _get_settled(spec: KernelSpec, laws: list[BaseLaw]) -> KernelSpec:
         """Return a spec with the groups it is evaluated over.
 
@@ -117,12 +144,13 @@ class RowsPass(BasePass):
         receives the sum over the members. Groups of one size that laws read outside reductions are read member by
         member, row `i` of each together.
         """
-        values = [law.rate if isinstance(law, JumpLaw) else getattr(law, 'value', None) for law in laws]
+        values = [value for law in laws for value in RowsPass._get_read_values(law)]
         if not spec.groups or (len(spec.groups) == 1 and not any(reductions_in(value) for value in values)):
             return spec
         read: set[Expression] = set()
-        for law, value in zip(laws, values, strict=True):
+        for value in values:
             read |= RowsPass._get_outside_reductions(value)
+        for law in laws:
             read |= {item for target in law._get_targets() for item in components_of(target)}
         owners = {
             reference.entry.name.rpartition('.')[0]
