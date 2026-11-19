@@ -22,8 +22,8 @@ from .....core.components.laws import ArrayUpdateLaw, BaseLaw
 from .....core.components.spaces import BaseSpace
 from .....core.enums import MoveKind
 from .....core.errors import ValidationError
-from .....core.specs import BaseSpec, ParameterSpec, Role
-from .....core.types import Array
+from .....core.specs import BaseSpec, ParameterSpec
+from .....core.types import Array, Role
 
 MOVES = (MoveKind.FLIP, MoveKind.RANDOM_VALUE, MoveKind.ROTATE, MoveKind.GAUSSIAN)
 RULES = ('metropolis', 'glauber', 'heat-bath')

@@ -8,20 +8,16 @@ import pytest
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import Element, FieldElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import JumpLaw, RateLaw, TopologyRequestSpec, UpdateLaw
 from skcomplex.core.components.laws.utils import count, total, where
 from skcomplex.core.components.spaces import LatticeSpace, NetworkSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec
 from skcomplex.core.systems import System
 from skcomplex.core.types import Role
 
-from ..conftest import PhaseElement, QuadraticElement
+from ..conftest import QuadraticElement, phase_system, quadratic_system
 
 
 class CountElement(Element):
@@ -31,23 +27,33 @@ class CountElement(Element):
         self,
         label: str,
         *,
-        amount: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        events: Annotated[float, StateSpec(domain=NN)] = 0,
-        level: Annotated[float, StateSpec()] = 0.0,
+        amount: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        events: Annotated[float, NN] = 0,
+        level: float = 0.0,
     ) -> None:
         super().__init__(label)
         self.amount = amount
         self.events = events
         self.level = level
 
-    def _get_laws(self, s):
-        """Return constant states."""
-        return [UpdateLaw(s.amount, s.amount), UpdateLaw(s.events, s.events), UpdateLaw(s.level, s.level)]
+
+def _counts(**values):
+    """Return a count element whose three values stay constant."""
+    constant = Interaction(
+        'constant',
+        roles={'target': 'a'},
+        laws=lambda s: [
+            UpdateLaw(s.target.amount, s.target.amount),
+            UpdateLaw(s.target.events, s.target.events),
+            UpdateLaw(s.target.level, s.target.level),
+        ],
+    )
+    return System(elements=[CountElement('a', **values)], interactions=[constant])
 
 
 def test_complex_state_reads_back_its_initial_value():
     """Test that a complex default is stored as a pair of floats and read back as a complex number."""
-    problem = PassCompiler().prepare(CompositeSystem(elements=[PhaseElement('osc', z=1 + 2j)])).run().problem_
+    problem = phase_system(z=1 + 2j).prepare()._problem
     assert problem.initial_state.tolist() == [1.0, 2.0]
     assert problem.states.read(problem.initial_state, 'osc.z') == 1 + 2j
 
@@ -55,7 +61,7 @@ def test_complex_state_reads_back_its_initial_value():
 def test_real_state_rejects_complex_value():
     """Test that a complex value of a real state names the state, its domain, and the complex domain."""
     with pytest.raises(ValidationError, match=r'osc\.omega = 1j.*its domain Real Field.*domain=CC'):
-        PassCompiler().prepare(CompositeSystem(elements=[PhaseElement('osc', omega=1j)])).run()
+        phase_system(omega=1j).prepare()
 
 
 @pytest.mark.parametrize(
@@ -68,30 +74,30 @@ def test_real_state_rejects_complex_value():
 def test_real_value_outside_real_domain_is_reported_outside_it(values, message):
     """Test that a real value outside a real domain is reported as outside it, with no word of an imaginary part."""
     with pytest.raises(ValidationError, match=message) as error:
-        PassCompiler().prepare(CompositeSystem(elements=[CountElement('a', **values)])).run()
+        _counts(**values).prepare()
     assert 'imaginary' not in str(error.value)
 
 
 def test_complex_value_of_real_state_names_its_imaginary_part():
     """Test that a complex value of a real state is reported as having a nonzero imaginary part."""
     with pytest.raises(ValidationError, match=r'a\.level = \(1\+2j\) has a nonzero imaginary part'):
-        PassCompiler().prepare(CompositeSystem(elements=[CountElement('a', level=1 + 2j)])).run()
+        _counts(level=1 + 2j).prepare()
 
 
 def test_real_state_accepts_complex_value_with_zero_imaginary_part():
     """Test that a complex value with a zero imaginary part is a real value."""
-    problem = PassCompiler().prepare(CompositeSystem(elements=[PhaseElement('osc', omega=3 + 0j)])).run().problem_
+    problem = phase_system(omega=3 + 0j).prepare()._problem
     assert problem.parameters.read(problem.initial_parameters, 'osc.omega') == 3.0
 
 
 def test_complex_parameter_per_site_is_read_and_updated():
     """Test that every site reads its own complex parameter, and that an update changes the next step."""
     c = np.arange(16).reshape(4, 4) * (1 + 1j)
-    grid = FieldElement('grid', element=QuadraticElement, space=LatticeSpace((4, 4)), values={'c': c})
-    trajectory = simulate(CompositeSystem(elements=[grid]), until=1, dt=1)
+    system = quadratic_system(QuadraticElement('grid', c=c, space=LatticeSpace((4, 4))))
+    trajectory = system.prepare().simulate(until=1, dt=1)
     assert np.allclose(trajectory.get_lattice('grid.z')[1], c)
-    grid.set_params(values={'c': np.full((4, 4), 2j)})
-    trajectory = simulate(CompositeSystem(elements=[grid]), until=1, dt=1)
+    system.set_params(grid__c=np.full((4, 4), 2j))
+    trajectory = system.prepare().simulate(until=1, dt=1)
     assert np.allclose(trajectory.get_lattice('grid.z')[1], 2j)
 
 

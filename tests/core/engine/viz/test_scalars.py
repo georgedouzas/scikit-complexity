@@ -15,7 +15,7 @@ def _series_color(archetype):
 
 def test_scalars_visual_gives_states_distinct_colors():
     """Test that the white and black daisies of Daisyworld get distinct static series colors."""
-    problem, frame = _first_frame(DaisyworldSystem().prepare().system_._get_composite())
+    problem, frame = _first_frame(DaisyworldSystem())
     logs = Logs()
     visual = ScalarsVisual(path=problem.elements[0].path, recording=logs).prepare(problem)
     visual.run(frame)
@@ -29,7 +29,7 @@ def test_scalars_visual_gives_states_distinct_colors():
 
 def test_scalars_visual_colors_elements_apart():
     """Test that the first states of two elements get distinct series colors."""
-    problem, frame = _first_frame(CoupledPendulumsSystem().prepare()._get_composite())
+    problem, frame = _first_frame(CoupledPendulumsSystem())
     logs = Logs()
     for element in problem.elements:
         ScalarsVisual(path=element.path, recording=logs).prepare(frame.problem).run(frame)
@@ -50,7 +50,7 @@ def test_scalars_visual_leaves_out_lag_companions():
 
 def test_scalars_visual_logs_chosen_components():
     """Test that a scalars visual with chosen components logs only those components of a vector state."""
-    problem, frame = _first_frame(Lorenz96System().prepare()._get_composite())
+    problem, frame = _first_frame(Lorenz96System())
     logs = Logs()
     (ScalarsVisual(components=[0, 1, 2], path=problem.elements[0].path, recording=logs).prepare(problem).run(frame))
     scalars = [item for item in logs.of('ring/x') if type(item).__name__ == 'Scalars']
@@ -59,7 +59,7 @@ def test_scalars_visual_logs_chosen_components():
 
 def test_scalars_visual_names_derivatives_with_primes():
     """Test that the angular velocity of a pendulum is logged under the escaped `left/theta'`, not `left/theta_d1`."""
-    problem, frame = _first_frame(CoupledPendulumsSystem().prepare()._get_composite())
+    problem, frame = _first_frame(CoupledPendulumsSystem())
     logs = Logs()
     ScalarsVisual(path='left', recording=logs).prepare(problem).run(frame)
     paths = {path for path, _ in logs.logs}

@@ -1,28 +1,22 @@
 """Test the `_contractions` module of `skcomplex.core.components.laws.utils`."""
 
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import var
 
 from skcomplex.core.components.base import BaseComponent
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import BaseLaw, RateLaw
+from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import contraction
 from skcomplex.core.components.laws.utils._contractions import contractions_in
 from skcomplex.core.components.spaces import BaseSpace
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import JaxBackend, NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.errors import ParameterError, ValidationError
-from skcomplex.core.specs import ParameterSpec, RoleSpec
 from skcomplex.core.systems import System
 from skcomplex.core.types import Role
-
-from .....conftest import NodeElement
 
 BACKENDS = pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend, JaxBackend], ids=['numpy', 'numba', 'jax'])
 
@@ -59,34 +53,6 @@ def _cubic(tensor, x, target='species', backend='auto'):
     )
 
 
-class ShapedCubicInteraction(Interaction):
-    """Contraction of a tensor whose declared shape follows the members its role binds."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-        T: Annotated[object, ParameterSpec(shape=('target', 'target', 'target'))] = 0.0,
-    ) -> None:
-        super().__init__(label)
-        self.target = target
-        self.T = T
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the contraction of the tensor with the states."""
-        return [RateLaw(s.target.x, contraction(s.T, s.target.x, s.target.x))]
-
-
-def _shaped_cubic(tensor, x, target='species'):
-    """Return a group whose rates contract a tensor of a declared shape with its states."""
-    return CompositeSystem(
-        'community',
-        elements=[GroupElement('species', element=NodeElement, size=len(x), values={'x': x}), NodeElement('single')],
-        interactions=[ShapedCubicInteraction('cubic', target=target, T=tensor)],
-    )
-
-
 def test_contraction_keeps_its_tensor_and_expressions():
     """Test that a contraction keeps the tensor and the expressions as operands."""
     T, x = var('T x')
@@ -119,4 +85,4 @@ def test_contraction_equals_einsum(backend):
 def test_contraction_of_a_tensor_on_an_element(backend):
     """Test that a tensor whose role binds a single element reports the issue `parameter-shape`."""
     with pytest.raises(ParameterError, match='parameter-shape'):
-        PassCompiler(backend=backend()).prepare(_shaped_cubic(np.zeros((1, 1, 1)), np.zeros(3), target='single')).run()
+        _cubic(np.zeros((1, 1, 1)), np.zeros(3), target='single', backend=backend()).prepare()

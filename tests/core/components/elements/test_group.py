@@ -17,8 +17,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.errors import SpaceError, ValidationError
 from skcomplex.core.specs import StateSpec, VisualSpec
-
-from ....conftest import SpinElement
+from skcomplex.systems.physics.statistical_mechanics._quantum_spins import SpinElement
 
 
 class BallElement(Element):

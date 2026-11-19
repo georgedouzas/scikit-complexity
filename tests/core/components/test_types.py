@@ -1,35 +1,19 @@
 """Test the `types` module of `skcomplex.core.components`."""
 
 import typing
-from collections.abc import Callable
 from types import SimpleNamespace
 
 from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import PartnerSpec, RuleLaw
-from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.components.laws import PartnerSpec, UpdateLaw
+from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.types import AgentViewProtocol, Process, SystemViewProtocol, Target
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.systems import System
 from skcomplex.systems.general.matching import RandomSearchSpec
 from skcomplex.systems.general.matching.types import MatchingRule
-
-
-class CensusInteraction(Interaction):
-    """Agent rule that runs a function of the system view once per step."""
-
-    law_classes = (RuleLaw,)
-
-    def __init__(self, label: str, *, rule: Callable[[SystemViewProtocol], None]) -> None:
-        super().__init__(label)
-        self.rule = rule
-
-    def _get_laws(self, namespace):
-        """Return the rule."""
-        return [RuleLaw(self.rule)]
 
 
 def test_targets_are_symbolic_expressions_or_vectors():
@@ -99,8 +83,8 @@ def test_views_of_the_agent_stepper_offer_every_member_of_the_protocols() -> Non
             ),
         )
 
-    walkers = GroupElement('walkers', element=Element, size=2, location=[(0, 0), (1, 1)])
-    census = CensusInteraction('census', rule=read)
-    system = CompositeSystem(elements=[walkers], interactions=[census], space=LatticeSpace((3, 3)), time=DiscreteTime())
-    simulate(system, until=1, random_state=0)
+    walkers = Element('walkers', values={'x': [0, 1], 'y': [0, 1]}, size=2)
+    census = Interaction('census', roles={'walkers': 'walkers'}, laws=lambda s: [UpdateLaw(s, read)])
+    system = System(elements=[walkers], interactions=[census], space=LatticeSpace((3, 3)))
+    system.prepare().simulate(until=1, random_state=0)
     assert readings == [(True, True, 0, 2, 'walkers', [0.0, 0.0], {}, {}, True)]

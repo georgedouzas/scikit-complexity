@@ -11,8 +11,7 @@ from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import BaseElement, Element
 from skcomplex.core.components.interactions import BaseInteraction, Interaction
 from skcomplex.core.components.laws import BaseLaw, RateLaw
-from skcomplex.core.components.spaces import BaseNeighborhood, BaseSpace, BaseTime
-from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.components.spaces import BaseNeighborhood, BaseSpace
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 from skcomplex.core.systems import System
@@ -146,7 +145,7 @@ def test_element_runs_into_its_laws():
 
 def test_components_derive_from_the_component_base():
     """Test that every component of a system is a component, and a component cannot be made without its hooks."""
-    components = (BaseElement, BaseInteraction, BaseLaw, CompositeSystem, BaseSpace, BaseTime, BaseNeighborhood)
+    components = (BaseElement, BaseInteraction, BaseLaw, System, BaseSpace, BaseNeighborhood)
     assert all(issubclass(component, BaseComponent) for component in components)
     with pytest.raises(TypeError, match='abstract'):
         BaseComponent('component')

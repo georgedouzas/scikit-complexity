@@ -4,7 +4,6 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.solvers import MetropolisSolver
 from skcomplex.core.engine.viz import ImageVisual
 from skcomplex.core.errors import ValidationError
@@ -15,7 +14,7 @@ from skcomplex.systems.physics.fluids import BoltzmannEquationSystem, VlasovEqua
 from skcomplex.systems.physics.statistical_mechanics import XYSpinElement
 from skcomplex.systems.physics.statistical_mechanics._spins import XYSamplingInteraction
 
-from .conftest import Logs, _first_frame, _frames
+from .conftest import Logs, _first_frame, _frames, _problem_of
 
 
 def _format(archetype):
@@ -26,14 +25,14 @@ def _format(archetype):
 
 def test_views_of_image_without_history_leave_out_space_time():
     """Test that a history of 0 rows declares no space-time view."""
-    problem = PassCompiler().prepare(ElementaryAutomatonSystem().prepare().system_._get_composite()).run().problem_
+    problem = _problem_of(ElementaryAutomatonSystem())
     views = ImageVisual(history=0, path=problem.elements[0].path).prepare(problem).views_
     assert [str(view.origin) for view in views] == ['cells/alive']
 
 
 def test_image_visual_logs_space_time_of_one_dimensional_lattice():
     """Test that a one-dimensional lattice logs a space-time image that grows by one row per frame."""
-    problem, frames = _frames(ElementaryAutomatonSystem(size=21).prepare().system_._get_composite(), steps=5, dt=1.0)
+    problem, frames = _frames(ElementaryAutomatonSystem(size=21), steps=5, dt=1.0)
     logs = Logs()
     visual = ImageVisual(path=problem.elements[0].path, recording=logs).prepare(problem)
     for frame in frames:
@@ -45,7 +44,7 @@ def test_image_visual_logs_space_time_of_one_dimensional_lattice():
 
 def test_image_visual_bounds_space_time_rows():
     """Test that the space-time image keeps only the most recent rows."""
-    problem, frames = _frames(ElementaryAutomatonSystem(size=21).prepare().system_._get_composite(), steps=5, dt=1.0)
+    problem, frames = _frames(ElementaryAutomatonSystem(size=21), steps=5, dt=1.0)
     logs = Logs()
     visual = ImageVisual(history=3, path=problem.elements[0].path, recording=logs).prepare(problem)
     for frame in frames:
@@ -55,7 +54,7 @@ def test_image_visual_bounds_space_time_rows():
 
 def test_image_visual_logs_one_row_as_rgb_image():
     """Test that the current row of a one-dimensional lattice is an image one pixel high, not a column of grey."""
-    problem, frame = _first_frame(ElementaryAutomatonSystem(size=21).prepare().system_._get_composite())
+    problem, frame = _first_frame(ElementaryAutomatonSystem(size=21))
     logs = Logs()
     ImageVisual(history=0, path=problem.elements[0].path, recording=logs).prepare(problem).run(frame)
     assert [path for path, _ in logs.logs] == ['cells/alive']
@@ -109,6 +108,6 @@ def test_image_visual_rejects_slices_that_leave_other_than_two_axes():
     problem, _ = _first_frame(BoltzmannEquationSystem(positions=4, velocities=8).prepare().system_)
     with pytest.raises(ValidationError, match='every axis but two'):
         ImageVisual(slices={'vx': 1, 'vy': 2}, path='gas').prepare(problem)
-    problem, _ = _first_frame(GrayScottSystem(shape=(4, 4)).prepare().system_._get_composite())
+    problem, _ = _first_frame(GrayScottSystem(shape=(4, 4)))
     with pytest.raises(ValidationError, match='phase space'):
         ImageVisual(slices={0: 1}, path=problem.elements[0].path).prepare(problem)

@@ -1,33 +1,23 @@
 """Test the `_agents_problem` module of `skcomplex.core.engine.compile.passes`."""
 
-from typing import Annotated
-
+import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import CC
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import RuleLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.errors import BackendError
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
+
+
+def _turn(agent, system):
+    """Turn the complex value of an agent by a quarter."""
+    agent.z = agent.z * 1j
 
 
 def test_mesa_backend_rejects_complex_agent_state():
     """Test that an agent type with a complex state names the state and the Mesa backend."""
-
-    class WalkerElement(Element):
-        def __init__(
-            self,
-            label: str,
-            *,
-            z: Annotated[complex, StateSpec(domain=CC)] = 0.0,
-        ) -> None:
-            super().__init__(label)
-            self.z = z
-
-        def _get_laws(self, s):
-            return [RuleLaw(lambda agent, system: None)]
-
+    walkers = Element('walkers', values={'z': np.zeros(3, dtype=complex)}, size=3)
+    rule = Interaction('turn', roles={'target': 'walkers'}, laws=lambda s: [UpdateLaw(s.target, _turn)])
     with pytest.raises(BackendError, match=r'walkers.*complex state z.*Mesa'):
-        PassCompiler().prepare(CompositeSystem(elements=[GroupElement('walkers', element=WalkerElement, size=3)])).run()
+        System(elements=[walkers], interactions=[rule]).prepare()

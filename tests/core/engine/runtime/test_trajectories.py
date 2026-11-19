@@ -5,8 +5,8 @@ import pytest
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.engine.runtime import Trajectory, simulate
-from skcomplex.core.experiments._replicate import _replicate
+from skcomplex.core.engine.runtime import Trajectory
+from skcomplex.core.experiments._replicate import _replicate_prepared
 from skcomplex.core.systems import System
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
@@ -22,8 +22,13 @@ def test_trajectory_reads_values_by_name():
 
 def test_member_keeps_the_parameters_of_interactions():
     """Test that a member of a replicated system reads its own states and the shared parameters of interactions."""
-    ensemble = _replicate(LotkaVolterraSystem().prepare().system_, 2, {'prey.x': [20.0, 40.0]})
-    trajectory = simulate(ensemble, until=1.0, dt=0.1)
+    lotka = LotkaVolterraSystem().prepare().system_
+    plain = System(
+        elements=[Element(element.label, values={'x': element.x}) for element in lotka.elements],
+        interactions=lotka.interactions,
+    )
+    ensemble = _replicate_prepared(plain, 2, {'prey.x': [20.0, 40.0]})
+    trajectory = ensemble.prepare().simulate(until=1.0, dt=0.1)
     member = trajectory.get_member(1, LotkaVolterraSystem().prepare().system_._problem)
     assert float(member.get_values('prey.x')[0]) == 40.0
     assert float(member.get_values('growth.r')[0]) == 1.1

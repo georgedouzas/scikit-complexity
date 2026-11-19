@@ -1,60 +1,38 @@
 """Test the `_pairs` module of `skcomplex.core.components.laws.utils`."""
 
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import PartnerSpec, RuleLaw
+from skcomplex.core.components.laws import PartnerSpec, UpdateLaw
 from skcomplex.core.components.laws.utils import pairs
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 
 
-class TraderElement(Element):
-    """Agent that counts the pairs it was in."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        paired: Annotated[float, StateSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label)
-        self.paired = paired
+def _count(system):
+    """Count every pair of buyers and sellers of the step on both members."""
+    for buyer, seller in pairs(system.get_agents('buyers'), system.get_agents('sellers'), system.rng):
+        buyer.paired += 1
+        seller.paired += 1
 
 
-class ExchangeInteraction(Interaction):
-    """Market that pairs buyers with sellers and counts the pairs."""
-
-    def _get_laws(self, s):
-        """Return the rule that pairs and counts."""
-        return [RuleLaw(self.count)]
-
-    def count(self, system):
-        """Count every pair of the step on both members."""
-        for buyer, seller in pairs(system.get_agents('buyers'), system.get_agents('sellers'), system.rng):
-            buyer.paired += 1
-            seller.paired += 1
+def _count_partners(system):
+    """Count every pair of traders of the step, chosen by a partner spec, on its second member."""
+    spec = PartnerSpec('all', 'score', score=lambda a, b: b.paired)
+    for _, second in pairs(system.get_agents('traders'), None, system.rng, spec):
+        second.paired += 1
 
 
-class PairedInteraction(Interaction):
-    """Market that pairs the members of one group by a partner spec and counts the pairs."""
-
-    def _get_laws(self, s):
-        """Return the rule that pairs and counts."""
-        return [RuleLaw(self.count)]
-
-    def count(self, system):
-        """Count every pair of the step on its second member."""
-        spec = PartnerSpec('all', 'score', score=lambda a, b: b.paired)
-        for _, second in pairs(system.get_agents('traders'), None, system.rng, spec):
-            second.paired += 1
+def _market(groups, rule):
+    """Return the system of groups of traders and a market whose rule pairs them."""
+    roles = {label: label for label in groups}
+    market = Interaction('market', roles=roles, laws=lambda s: [UpdateLaw(s, rule)])
+    elements = [Element(label, values={'paired': paired}, size=size) for label, (size, paired) in groups.items()]
+    return System(elements=elements, interactions=[market])
 
 
 def _members(size):
@@ -71,14 +49,8 @@ def test_pairs_need_a_positive_whole_capacity(capacity):
 
 def test_random_pairs_pair_every_member_at_most_once():
     """Test that 50 buyers and 30 sellers form 30 pairs every step, with no member in two pairs."""
-    system = CompositeSystem(
-        elements=[
-            GroupElement('buyers', element=TraderElement, size=50, variable=True),
-            GroupElement('sellers', element=TraderElement, size=30, variable=True),
-        ],
-        interactions=[ExchangeInteraction('market')],
-    )
-    trajectory = simulate(system, until=1, random_state=0)
+    system = _market({'buyers': (50, 0.0), 'sellers': (30, 0.0)}, _count)
+    trajectory = system.prepare().simulate(until=1, random_state=0)
     sellers = np.asarray(trajectory.get_agents('sellers', 1).values['paired'])
     buyers = np.asarray(trajectory.get_agents('buyers', 1).values['paired'])
     assert sellers.tolist() == [1.0] * 30
@@ -88,9 +60,8 @@ def test_random_pairs_pair_every_member_at_most_once():
 
 def test_partner_spec_sends_every_member_to_the_highest_score():
     """Test that a score sends every member to the one with the most pairs."""
-    traders = GroupElement('traders', element=TraderElement, size=3, values={'paired': [0.0, 5.0, 0.0]})
-    system = CompositeSystem(elements=[traders], interactions=[PairedInteraction('market')])
-    trajectory = simulate(system, until=1, random_state=0)
+    system = _market({'traders': (3, [0.0, 5.0, 0.0])}, _count_partners)
+    trajectory = system.prepare().simulate(until=1, random_state=0)
     assert trajectory.get_agents('traders', 1).values['paired'].sum() == pytest.approx(8.0)
     assert trajectory.get_agents('traders', 1).values['paired'][1] == pytest.approx(7.0)
 

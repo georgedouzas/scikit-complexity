@@ -1,5 +1,6 @@
 """Test the particle solver of encounter laws against the gain and loss equations."""
 
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -7,19 +8,17 @@ import pytest
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import bilinear
-from skcomplex.core.components.spaces import ContinuousTime, LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.components.spaces import BaseSpace, LatticeSpace
 from skcomplex.core.engine.problems._bilinear_law import BilinearLaw
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import KineticSolver
 from skcomplex.core.errors import SolverError
 from skcomplex.core.experiments import ensemble
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
+from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 CLASSES = 9
 HORIZON = 2.0
@@ -33,9 +32,10 @@ class AmountElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        x: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.x = x
 
 
@@ -56,16 +56,20 @@ class ExchangeInteraction(Interaction):
         self,
         label: str,
         *,
-        population: Annotated[str, RoleSpec()],
-        eta: Annotated[float, ParameterSpec()] = 1.0,
+        population: Role,
+        eta: float = 1.0,
     ) -> None:
         super().__init__(label)
         self.population = population
         self.eta = eta
 
-    def _get_laws(self, s):
-        """Return the encounter."""
-        return [RateLaw(s.population.x, bilinear(s.eta, _table(), s.population.x, s.population.x, conserved=True))]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the encounter."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context
+            x = s.population.x
+            self.laws_ = [RateLaw(x, bilinear(s.eta, _table(), x, x, conserved=True))]
 
 
 class TurnoverInteraction(Interaction):
@@ -75,19 +79,22 @@ class TurnoverInteraction(Interaction):
         self,
         label: str,
         *,
-        population: Annotated[str, RoleSpec()],
-        field: Annotated[str, RoleSpec()],
+        population: Role,
+        field: Role,
     ) -> None:
         super().__init__(label)
         self.population = population
         self.field = field
 
-    def _get_laws(self, s):
-        """Return the proliferation and the destruction."""
-        return [
-            RateLaw(s.population.x, bilinear(0.6, None, s.population.x, s.field.x)),
-            RateLaw(s.population.x, bilinear(-0.2, None, s.population.x, s.field.x)),
-        ]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the proliferation and the destruction."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context
+            self.laws_ = [
+                RateLaw(s.population.x, bilinear(0.6, None, s.population.x, s.field.x)),
+                RateLaw(s.population.x, bilinear(-0.2, None, s.population.x, s.field.x)),
+            ]
 
 
 class DecayInteraction(Interaction):
@@ -97,14 +104,16 @@ class DecayInteraction(Interaction):
         self,
         label: str,
         *,
-        population: Annotated[str, RoleSpec()],
+        population: Role,
     ) -> None:
         super().__init__(label)
         self.population = population
 
-    def _get_laws(self, s):
-        """Return the rate."""
-        return [RateLaw(s.population.x, -s.population.x)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rate."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [RateLaw(context.population.x, -context.population.x)]
 
 
 def _profile():
@@ -114,19 +123,20 @@ def _profile():
     return profile / profile.sum()
 
 
-def _system(*others):
+def _system(*others, solver='auto'):
     """Return a wealth distribution over 9 classes with conservative encounters and other interactions."""
-    return CompositeSystem(
-        elements=[GroupElement('wealth', element=AmountElement, on='sites', values={'x': _profile()})],
+    space = LatticeSpace(CLASSES, boundary='fixed')
+    return System(
+        elements=[AmountElement('wealth', x=_profile(), space=space)],
         interactions=[ExchangeInteraction('exchange', population='wealth'), *others],
-        space=LatticeSpace(CLASSES, boundary='fixed'),
-        time=ContinuousTime(),
+        space=space,
+        solver=solver,
     )
 
 
 def _ode_solution(system):
     """Return the densities of the gain and loss equations at the horizon."""
-    return simulate(system, until=HORIZON, dt=HORIZON).get_values('wealth.x')[-1]
+    return system.prepare().simulate(until=HORIZON, dt=HORIZON).get_values('wealth.x')[-1]
 
 
 def _mean_error(system, particles, solution, replicates):
@@ -160,7 +170,7 @@ def test_particles_converge_to_the_ode_solution():
 
 def test_particles_keep_the_density_of_conservative_encounters():
     """Test that conservative encounters keep the number of particles, so the total density stays exact."""
-    trajectory = simulate(_system(), until=2, dt=0.5, solver=KineticSolver(n=2000), random_state=1)
+    trajectory = _system(solver=KineticSolver(n=2000)).prepare().simulate(until=2, dt=0.5, random_state=1)
     totals = np.asarray(trajectory.get_values('wealth.x')).sum(axis=1)
     np.testing.assert_allclose(totals, totals[0], rtol=1e-12)
     assert np.all(np.asarray(trajectory.get_values('wealth.x')) >= 0)
@@ -168,32 +178,32 @@ def test_particles_keep_the_density_of_conservative_encounters():
 
 def test_particles_sample_proliferation_and_destruction():
     """Test that proliferation and destruction change the particle density at the net rate of the equations."""
-    system = CompositeSystem(
+    space = LatticeSpace(CLASSES, boundary='fixed')
+    system = System(
         elements=[
-            GroupElement('wealth', element=AmountElement, on='sites', values={'x': _profile()}),
-            GroupElement('field', element=AmountElement, on='sites', values={'x': np.full(CLASSES, 1 / CLASSES)}),
+            AmountElement('wealth', x=_profile(), space=space),
+            AmountElement('field', x=np.full(CLASSES, 1 / CLASSES), space=space),
         ],
         interactions=[TurnoverInteraction('turnover', population='wealth', field='field')],
-        space=LatticeSpace(CLASSES, boundary='fixed'),
-        time=ContinuousTime(),
+        space=space,
+        solver=KineticSolver(n=50_000),
     )
-    trajectory = simulate(system, until=1, dt=1.0, solver=KineticSolver(n=50_000), random_state=2)
+    trajectory = system.prepare().simulate(until=1, dt=1.0, random_state=2)
     total = float(np.sum(trajectory.get_values('wealth.x')[-1]))
     assert total == pytest.approx(np.exp(0.4), rel=0.02)
 
 
 def test_particle_solver_rejects_rate_laws_in_validation():
     """Test that validation reports a rate law with the particle solver."""
-    system = _system(DecayInteraction('decay', population='wealth'))
-    report = PassCompiler(solver=KineticSolver()).prepare(system).report_
-    issue = next(item for item in report.errors if item.code == 'solver-unsupported')
-    assert 'KineticSolver does not support the laws RateLaw' in issue.message
-    assert PassCompiler(solver=KineticSolver()).prepare(_system()).report_.ok
+    system = _system(DecayInteraction('decay', population='wealth'), solver=KineticSolver())
+    with pytest.raises(SolverError, match=r'KineticSolver does not support the laws RateLaw.*\[solver-unsupported\]'):
+        system.prepare()
+    assert isinstance(_system(solver=KineticSolver()).prepare().solver_, KineticSolver)
 
 
 def test_particle_solver_rejects_rate_laws_when_run():
     """Test that the particle solver refuses a compiled problem with rate laws."""
-    problem = PassCompiler().prepare(_system(DecayInteraction('decay', population='wealth'))).run().problem_
+    problem = _system(DecayInteraction('decay', population='wealth')).prepare()._problem
     with pytest.raises(SolverError, match='encounter laws alone'):
         KineticSolver(random_state=0).prepare(problem)
 

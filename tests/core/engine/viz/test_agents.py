@@ -5,32 +5,25 @@ import pytest
 import rerun as rr
 from shapely import Polygon
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import RuleLaw
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems import AgentSnapshotSpec
 from skcomplex.core.engine.viz import AgentsVisual
+from skcomplex.core.systems import System
 from skcomplex.systems.social.organizations import ObesitySystem
 
 from .conftest import Logs, _frames, _radius
 
 
-class RestingElement(Element):
-    """Test helper agent whose rule does nothing."""
-
-    def _get_laws(self, namespace):
-        """Test helper laws."""
-        return [RuleLaw(self.rest)]
-
-    def rest(self, agent, system):
-        """Test helper rule."""
+def _rest(agent, system):
+    """Test helper rule that does nothing."""
 
 
 def test_agents_visual_radius_scales_with_continuous_space(log_agents):
     """Test that agents in a continuous space take a share of its side, and agents on a grid 0.4 cells."""
-    problem, frames = _frames(ObesitySystem(n_people=10, n_places=4, random_state=0).prepare().system_, steps=1, dt=1.0)
+    problem, frames = _frames(ObesitySystem(n_people=10, n_places=4, random_state=0), steps=1, dt=1.0)
     space = problem.agent_space
     assert isinstance(space, ContinuousSpace)
     logs = Logs()
@@ -60,7 +53,7 @@ def test_agents_visual_draws_continuous_spaces_with_vertical_axis_up(log_agents)
     logs = Logs()
     log_agents(AgentsVisual(), logs, 'birds', [snapshot], space)
     assert logs.of('birds')[0].positions.as_arrow_array().to_pylist() == [[3.0, -4.0]]
-    problem, _ = _frames(ObesitySystem(n_people=10, n_places=4, random_state=0).prepare().system_, steps=1, dt=1.0)
+    problem, _ = _frames(ObesitySystem(n_people=10, n_places=4, random_state=0), steps=1, dt=1.0)
     view = AgentsVisual(path=problem.agents[0].path).prepare(problem).views_[0]
     bounds = view.properties['VisualBounds2D']
     assert bounds is not None
@@ -84,9 +77,13 @@ def test_agents_visual_draws_boids_in_three_dimensions(log_agents):
 
 def test_agents_visual_has_a_three_dimensional_view():
     """Test that the view of agents in a three-dimensional space is a 3D spatial view with their path as origin."""
-    flock = GroupElement('flock', element=RestingElement, size=2)
-    system = CompositeSystem(elements=[flock], space=ContinuousSpace(extent=(5.0, 5.0, 5.0)))
-    problem = PassCompiler().prepare(system).run().problem_
+    resting = Interaction('resting', roles={'target': 'flock'}, laws=lambda s: [UpdateLaw(s.target, _rest)])
+    system = System(
+        elements=[Element('flock', size=2)],
+        interactions=[resting],
+        space=ContinuousSpace(extent=(5.0, 5.0, 5.0)),
+    )
+    problem = system.prepare()._problem
     view = AgentsVisual(path='flock').prepare(problem).views_[0]
     assert type(view).__name__ == 'Spatial3DView'
 

@@ -13,11 +13,11 @@ from skcomplex.core.components.laws import (
     ConstraintLaw,
     EventLaw,
     JumpLaw,
-    LocalRuleLaw,
     NoiseLaw,
     RateLaw,
     RequirementSpec,
     TotalisticSpec,
+    UpdateLaw,
 )
 from skcomplex.core.components.spaces import LatticeNeighborhood
 from skcomplex.core.enums import LawTag
@@ -58,7 +58,11 @@ def test_targets_are_a_tuple_once_prepared():
     """Test that preparing a law sets its targets as a tuple, and that laws without targets have none."""
     x, y = var('x y')
     assert RateLaw(x, 1).prepare().targets_ == (x,)
-    assert LocalRuleLaw(y, LatticeNeighborhood(((-1,), (0,), (1,))), TotalisticSpec({2: 1})).prepare().targets_ == (y,)
+    assert UpdateLaw(
+        y,
+        TotalisticSpec({2: 1}),
+        neighborhood=LatticeNeighborhood(((-1,), (0,), (1,))),
+    ).prepare().targets_ == (y,)
     assert EventLaw(x - 1).prepare().targets_ == ()
 
 

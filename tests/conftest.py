@@ -1,26 +1,25 @@
 """Configuration for the pytest test suite."""
 
 import importlib
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 import numpy as np
 import numpy.typing as npt
 import pytest
-import qutip
-from sage.all__sagemath_symbolics import CC, oo, pi
+from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction, WienerProcessSpec
-from skcomplex.core.components.laws import BaseLaw, NoiseLaw, RateLaw, RuleLaw, UpdateLaw
+from skcomplex.core.components.laws import NoiseLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import mean, total
-from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import Trajectory, simulate
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from skcomplex.systems.physics.common.quantum import HilbertSpec
+from skcomplex.core.components.spaces import BaseSpace
+from skcomplex.core.engine.runtime import Trajectory
+from skcomplex.core.specs import VisualSpec
+from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 QUEUE_LENGTH = 2
 
@@ -59,51 +58,58 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 
 
 class BodyElement(Element):
-    """Body with a declared vector position of order 2, its velocity `x_d1`, and its mass `m`."""
+    """Body at the vector position `x` with the mass `m`, whose velocity is the value `x'`."""
 
     visual = VisualSpec('points', {'position': 'x'})
 
     def __init__(
         self,
         label: str,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, order=2, role='position')] = 0.0,
-        x_d1: npt.ArrayLike = 0.0,
+        x: npt.ArrayLike = 0.0,
         *,
-        m: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        m: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.x = x
-        self.x_d1 = x_d1
         self.m = m
 
 
 class NodeElement(Element):
-    """Node element."""
+    """Node element with the value `x`."""
 
     def __init__(
         self,
         label: str,
         *,
-        x: Annotated[object, StateSpec()] = 0.0,
+        x: object = 0.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.x = x
 
 
 class HoldingElement(Element):
-    """Holding element."""
+    """Holding element with the amount `n`."""
 
     def __init__(
         self,
         label: str,
         *,
-        n: Annotated[object, StateSpec()] = 0.0,
+        n: object = 0.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.n = n
 
 
-def _summed(inputs: str | Sequence[str], weights: float | Sequence[float] = 1.0) -> CompositeSystem:
+def _summed(inputs: str | Sequence[str], weights: float | Sequence[float] = 1.0) -> System:
     """Return the system of a weighted sum of inputs read from three elements and a group of ten nodes."""
     elements = [
         NodeElement('a', x=1.0),
@@ -111,17 +117,17 @@ def _summed(inputs: str | Sequence[str], weights: float | Sequence[float] = 1.0)
         NodeElement('c', x=4.0),
         NodeElement('hub', x=8.0),
         NodeElement('target'),
-        GroupElement('nodes', element=NodeElement, size=10, values={'x': np.arange(10.0)}),
+        NodeElement('nodes', x=np.arange(10.0), size=10),
     ]
-    return CompositeSystem(
+    return System(
         elements=elements,
         interactions=[WeightedSumInteraction('sum', target='target', inputs=inputs, weights=weights)],
     )
 
 
-def _correlated(covariance: npt.ArrayLike | None) -> CompositeSystem:
+def _correlated(covariance: npt.ArrayLike | None) -> System:
     """Return two holdings driven by a `WienerProcessSpec` of a covariance."""
-    return CompositeSystem(
+    return System(
         elements=[HoldingElement('a'), HoldingElement('b')],
         interactions=[
             DriveInteraction(
@@ -137,42 +143,37 @@ def _correlated(covariance: npt.ArrayLike | None) -> CompositeSystem:
 class CallableGrowthInteraction(Interaction):
     """Growth whose rate is a Python callable."""
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-        r: Annotated[float, ParameterSpec()] = 1.0,
-    ) -> None:
+    def __init__(self, label: str, *, target: Role, r: float = 1.0) -> None:
         super().__init__(label)
         self.target = target
         self.r = r
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return a callable rate law."""
-        name = f'{self.target}.n'
-        return [RateLaw(s.target.n, lambda t, values: values[f'{self.label}.r'] * values[name])]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set a callable rate law."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            name = f'{self.target}.n'
+            self.laws_ = [RateLaw(context.target.n, lambda t, values: values[f'{self.label}.r'] * values[name])]
 
 
 class DriveInteraction(Interaction):
     """Unit noise on two elements from the two processes of a `WienerProcessSpec`."""
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        first: Annotated[str, RoleSpec()],
-        second: Annotated[str, RoleSpec()],
-        noise: Annotated[WienerProcessSpec, RoleSpec(noise=True)],
-    ) -> None:
+    def __init__(self, label: str, *, first: Role, second: Role, noise: WienerProcessSpec) -> None:
         super().__init__(label)
         self.first = first
         self.second = second
         self.noise = noise
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the noise of both elements."""
-        return [NoiseLaw(s.first.n, 1.0, process=s.noise.dW[0]), NoiseLaw(s.second.n, 1.0, process=s.noise.dW[1])]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the noise of both elements."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context
+            self.laws_ = [
+                NoiseLaw(s.first.n, 1.0, process=s.noise.dW[0]),
+                NoiseLaw(s.second.n, 1.0, process=s.noise.dW[1]),
+            ]
 
 
 class WeightedSumInteraction(Interaction):
@@ -182,18 +183,23 @@ class WeightedSumInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        inputs: Annotated[str | Sequence[str], RoleSpec(variadic=True)],
-        weights: Annotated[float | Sequence[float], ParameterSpec(per='inputs')] = 1.0,
+        target: Role,
+        inputs: tuple[Role, ...],
+        weights: float | Sequence[float] = 1.0,
     ) -> None:
         super().__init__(label)
         self.target = target
         self.inputs = inputs
         self.weights = weights
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the update of the target."""
-        return [UpdateLaw(s.target.x, sum((w * item.x for w, item in zip(s.weights, s.inputs, strict=True)), 0))]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the update of the target."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context
+            weights = s.weights if isinstance(self.weights, Sequence) else [s.weights] * len(s.inputs)
+            summed = sum((w * item.x for w, item in zip(weights, s.inputs, strict=True)), 0)
+            self.laws_ = [UpdateLaw(s.target.x, summed)]
 
 
 class WeightedInputInteraction(Interaction):
@@ -203,9 +209,9 @@ class WeightedInputInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        source: Annotated[str, RoleSpec()],
-        W: Annotated[object, ParameterSpec(shape=('target', 'source'))] = 0.0,
+        target: Role,
+        source: Role,
+        W: npt.ArrayLike = 0.0,
         reduce: str = 'sum',
     ) -> None:
         super().__init__(label)
@@ -214,25 +220,12 @@ class WeightedInputInteraction(Interaction):
         self.W = W
         self.reduce = reduce
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the weighted input of the target."""
-        reduction = total if self.reduce == 'sum' else mean
-        return [RateLaw(s.target.x, reduction(s.source.x, weights=s.W))]
-
-
-class AdaptiveInputInteraction(WeightedInputInteraction):
-    """Weighted input through an adaptive matrix parameter."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-        source: Annotated[str, RoleSpec()],
-        W: Annotated[object, ParameterSpec(shape=('target', 'source'), adaptive=True)] = 0.0,
-        reduce: str = 'sum',
-    ) -> None:
-        super().__init__(label, target=target, source=source, W=W, reduce=reduce)
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the weighted input of the target."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            reduction = total if self.reduce == 'sum' else mean
+            self.laws_ = [RateLaw(context.target.x, reduction(context.source.x, weights=context.W))]
 
 
 def _weighted(
@@ -241,90 +234,33 @@ def _weighted(
     *,
     source: str = 'inputs',
     reduce: str = 'sum',
-    interaction: type[WeightedInputInteraction] = WeightedInputInteraction,
-) -> CompositeSystem:
+) -> System:
     """Return a hidden group whose rates read a source group through a matrix parameter."""
     matrix, values = np.asarray(weights, dtype=float), np.asarray(inputs, dtype=float)
-    return CompositeSystem(
+    return System(
         'net',
         elements=[
-            GroupElement('hidden', element=NodeElement, size=matrix.shape[0]),
-            GroupElement('inputs', element=NodeElement, size=len(values), values={'x': values}),
+            NodeElement('hidden', size=matrix.shape[0]),
+            NodeElement('inputs', x=values, size=len(values)),
             NodeElement('single'),
         ],
-        interactions=[interaction('input', target='hidden', source=source, W=matrix, reduce=reduce)],
+        interactions=[WeightedInputInteraction('input', target='hidden', source=source, W=matrix, reduce=reduce)],
     )
 
 
-def _spin_space(j: float = 0.5) -> HilbertSpec:
-    """Return the Hilbert space of a spin `j`, with the spin components and the ladder operators, from up to down."""
-    size = int(2 * j + 1)
-    operators = {
-        'x': (qutip.jmat(j, 'x').full(), True),
-        'y': (qutip.jmat(j, 'y').full(), True),
-        'z': (qutip.jmat(j, 'z').full(), True),
-        'plus': (qutip.jmat(j, '+').full(), False),
-        'minus': (qutip.jmat(j, '-').full(), False),
-    }
-    return HilbertSpec(size, operators, basis={'up': 0, 'down': size - 1})
+class GrowthInteraction(Interaction):
+    """Growth of the amount `n` of a target at the rate `r`."""
 
-
-SPIN_HALF = _spin_space()
-
-
-class SpinElement(Element):
-    """Spin of the Hilbert space it takes, by default a spin one half."""
-
-    visual = VisualSpec('expectations')
-
-    def __init__(
-        self,
-        label: str,
-        psi: Annotated[object, StateSpec(domain=CC)] = 'up',
-        *,
-        hilbert: HilbertSpec = SPIN_HALF,
-    ) -> None:
+    def __init__(self, label: str, *, target: Role, r: float = 0.0) -> None:
         super().__init__(label)
-        self.psi = psi
-        self.hilbert = hilbert
-
-
-class RotorElement(Element):
-    """Rotor whose angle turns at a constant rate."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        theta: Annotated[object, StateSpec(period=2 * pi)] = 0.0,
-        omega: Annotated[object, ParameterSpec()] = 1.0,
-    ) -> None:
-        super().__init__(label)
-        self.theta = theta
-        self.omega = omega
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the turning of the angle."""
-        return [RateLaw(s.theta, s.omega)]
-
-
-class GrowingPopulationElement(Element):
-    """Population that grows at a rate."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        n: Annotated[object, StateSpec()] = 1.0,
-        r: Annotated[object, ParameterSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label)
-        self.n = n
+        self.target = target
         self.r = r
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the growth of the population."""
-        return [RateLaw(s.n, s.r * s.n)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the growth of the amount."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [RateLaw(context.target.n, context.r * context.target.n)]
 
 
 def _total(s: SimpleNamespace) -> object:
@@ -332,30 +268,28 @@ def _total(s: SimpleNamespace) -> object:
     return s.a.n + s.b.n
 
 
-def _two_populations() -> CompositeSystem:
+def _two_populations() -> System:
     """Return two populations, the first growing at rate 1."""
-    return CompositeSystem(
-        elements=[GrowingPopulationElement('a', n=2.0, r=1.0), GrowingPopulationElement('b', n=6.0)],
+    return System(
+        elements=[HoldingElement('a', n=2.0), HoldingElement('b', n=6.0)],
+        interactions=[GrowthInteraction('growth_a', target='a', r=1.0), GrowthInteraction('growth_b', target='b')],
     )
 
 
-class QueueElement(Element):
-    """Agent with a queue of pending orders that it appends to and pops from, each order an id."""
+class QueueInteraction(Interaction):
+    """Rule of agents with a queue of pending orders that they append to and pop from, each order an id."""
 
-    reports = ('longest',)
+    reports: ClassVar[tuple[str, ...]] = ('longest',)
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        orders: Annotated[object, StateSpec(domain=None)] = (),
-    ) -> None:
+    def __init__(self, label: str, *, target: Role) -> None:
         super().__init__(label)
-        self.orders = orders
+        self.target = target
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule of the queue."""
-        return [RuleLaw(self._step)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rule of the queue."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [UpdateLaw(context.target, self._step)]
 
     def _step(self, agent: SimpleNamespace, system: SimpleNamespace) -> None:
         """Append the order of the step, and pop the oldest of a full queue."""
@@ -366,6 +300,8 @@ class QueueElement(Element):
 
 def _queue_run(until: int = 3) -> Trajectory:
     """Return the trajectory of two queues."""
-    group = GroupElement('queues', element=QueueElement, size=2, values={'orders': [(), (7,)]})
-    system = CompositeSystem(elements=[group], time=DiscreteTime())
-    return simulate(system, until=until, random_state=0)
+    orders = np.empty(2, dtype=object)
+    orders[:] = [(), (7,)]
+    queues = Element('queues', values={'orders': orders}, size=2)
+    system = System(elements=[queues], interactions=[QueueInteraction('queue', target='queues')])
+    return system.prepare().simulate(until=until, random_state=0)

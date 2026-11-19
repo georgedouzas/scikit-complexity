@@ -6,7 +6,6 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components import Observable
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 
 from ...conftest import _total, _two_populations
@@ -24,6 +23,6 @@ def test_observable_module_function_pickles():
     """Test that a module-level observable pickles and records the same values once restored."""
     observables = [Observable('total', _total)]
     restored = ForkingPickler.loads(ForkingPickler.dumps(observables))
-    expected = simulate(_two_populations(), until=1, dt=0.5, observables=observables).get_values('total')
-    values = simulate(_two_populations(), until=1, dt=0.5, observables=restored).get_values('total')
+    expected = _two_populations().prepare().simulate(until=1, dt=0.5, observables=observables).get_values('total')
+    values = _two_populations().prepare().simulate(until=1, dt=0.5, observables=restored).get_values('total')
     assert np.allclose(values, expected)

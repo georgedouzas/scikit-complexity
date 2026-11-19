@@ -1,5 +1,6 @@
 """Test the `_moments` module of `skcomplex.core.components.laws.utils`."""
 
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -8,47 +9,34 @@ from sage.all__sagemath_symbolics import oo, var
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.components import Observable
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import bilinear, moment
-from skcomplex.core.components.spaces import ContinuousTime, LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.components.spaces import BaseSpace, LatticeSpace
 from skcomplex.core.engine.backends import NumpyBackend
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
+from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 CLASSES = 9
 ACTIVITIES = np.linspace(0.0, 1.0, CLASSES)
 PROFILE = np.array([0.05, 0.2, 0.3, 0.2, 0.1, 0.05, 0.05, 0.03, 0.02])
+CLASSES_SPACE = LatticeSpace(CLASSES, boundary='fixed')
 
 
 class AmountElement(Element):
-    """Element that holds one nonnegative scalar `x`, an amount."""
+    """Element that holds one nonnegative scalar `x`, an amount, at every site of its space."""
 
     def __init__(
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        x: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.x = x
-
-
-class RecorderElement(Element):
-    """Element whose rate is the mean activity of a distribution."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        y: Annotated[float, StateSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label)
-        self.y = y
 
 
 class UpwardInteraction(Interaction):
@@ -58,20 +46,25 @@ class UpwardInteraction(Interaction):
         self,
         label: str,
         *,
-        population: Annotated[str, RoleSpec()],
-        eta: Annotated[float, ParameterSpec()] = 1.0,
+        population: Role,
+        eta: float = 1.0,
     ) -> None:
         super().__init__(label)
         self.population = population
         self.eta = eta
 
-    def _get_laws(self, s):
-        """Return the encounter."""
-        table = np.zeros((CLASSES, CLASSES, CLASSES))
-        for candidate in range(CLASSES):
-            table[candidate, :, min(candidate + 1, CLASSES - 1)] += 0.5
-            table[candidate, :, candidate] += 0.5
-        return [RateLaw(s.population.x, bilinear(s.eta, table, s.population.x, s.population.x, conserved=True))]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the encounter."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context
+            table = np.zeros((CLASSES, CLASSES, CLASSES))
+            for candidate in range(CLASSES):
+                table[candidate, :, min(candidate + 1, CLASSES - 1)] += 0.5
+                table[candidate, :, candidate] += 0.5
+            self.laws_ = [
+                RateLaw(s.population.x, bilinear(s.eta, table, s.population.x, s.population.x, conserved=True)),
+            ]
 
 
 class ReadMeanInteraction(Interaction):
@@ -81,16 +74,19 @@ class ReadMeanInteraction(Interaction):
         self,
         label: str,
         *,
-        recorder: Annotated[str, RoleSpec()],
-        population: Annotated[str, RoleSpec()],
+        recorder: Role,
+        population: Role,
     ) -> None:
         super().__init__(label)
         self.recorder = recorder
         self.population = population
 
-    def _get_laws(self, s):
-        """Return the rate."""
-        return [RateLaw(s.recorder.y, moment(s.population.x, 1, ACTIVITIES, normalized=True))]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rate."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context
+            self.laws_ = [RateLaw(s.recorder.y, moment(s.population.x, 1, ACTIVITIES, normalized=True))]
 
 
 def density(s):
@@ -117,11 +113,9 @@ OBSERVABLES = [
 
 def _system():
     """Return a distribution of wealth over 9 classes as a site group on a lattice of 9 sites."""
-    return CompositeSystem(
-        elements=[GroupElement('wealth', element=AmountElement, on='sites', values={'x': PROFILE})],
+    return System(
+        elements=[AmountElement('wealth', x=PROFILE, space=CLASSES_SPACE)],
         interactions=[UpwardInteraction('upward', population='wealth')],
-        space=LatticeSpace(CLASSES, boundary='fixed'),
-        time=ContinuousTime(),
     )
 
 
@@ -141,14 +135,14 @@ def test_moment_rejects_bad_orders_and_coordinates(order, coordinates):
 
 def test_normalised_start_holds_the_profile():
     """Test that a distribution starts at its profile and its order-0 moment equals the profile's sum."""
-    trajectory = simulate(_system(), until=0, observables=OBSERVABLES, dt=1.0)
+    trajectory = _system().prepare().simulate(until=0, observables=OBSERVABLES, dt=1.0)
     np.testing.assert_allclose(trajectory.get_values('wealth.x')[0], PROFILE)
     assert trajectory.get_values('density')[0] == pytest.approx(PROFILE.sum())
 
 
 def test_mean_activity_is_recorded_at_every_frame():
     """Test that the mean activity moment is the activity-weighted sum divided by the density at every frame."""
-    trajectory = simulate(_system(), until=5, observables=OBSERVABLES, dt=0.5)
+    trajectory = _system().prepare().simulate(until=5, observables=OBSERVABLES, dt=0.5)
     states = np.asarray(trajectory.get_values('wealth.x'))
     expected = states @ ACTIVITIES / states.sum(axis=1)
     np.testing.assert_allclose(trajectory.get_values('mean_activity'), expected, rtol=1e-12)
@@ -159,16 +153,12 @@ def test_mean_activity_is_recorded_at_every_frame():
 
 def test_law_reads_a_moment():
     """Test that a rate law reads the mean activity moment of a distribution."""
-    system = CompositeSystem(
-        elements=[
-            GroupElement('wealth', element=AmountElement, on='sites', values={'x': PROFILE}),
-            RecorderElement('recorder'),
-        ],
+    system = System(
+        elements=[AmountElement('wealth', x=PROFILE, space=CLASSES_SPACE), Element('recorder', values={'y': 0.0})],
         interactions=[ReadMeanInteraction('read', recorder='recorder', population='wealth')],
-        space=LatticeSpace(CLASSES, boundary='fixed'),
-        time=ContinuousTime(),
+        backend=NumpyBackend(),
     )
-    problem = PassCompiler(backend=NumpyBackend()).prepare(system).run().problem_
+    problem = system.prepare()._problem
     rates = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     expected = float(PROFILE @ ACTIVITIES / PROFILE.sum())
     assert rates[problem.states.get_entry('recorder.y').start] == pytest.approx(expected)
@@ -184,21 +174,23 @@ def test_moment_inside_a_group_law_is_shared():
             self,
             label: str,
             *,
-            population: Annotated[str, RoleSpec()],
+            population: Role,
         ) -> None:
             super().__init__(label)
             self.population = population
 
-        def _get_laws(self, s):
-            """Return the rate."""
-            return [RateLaw(s.population.x, moment(s.population.x, 1, ACTIVITIES))]
+        def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+            """Set the rate."""
+            super()._prepare(context)
+            if isinstance(context, SimpleNamespace):
+                s = context
+                self.laws_ = [RateLaw(s.population.x, moment(s.population.x, 1, ACTIVITIES))]
 
-    system = CompositeSystem(
-        elements=[GroupElement('wealth', element=AmountElement, on='sites', values={'x': PROFILE})],
+    system = System(
+        elements=[AmountElement('wealth', x=PROFILE, space=CLASSES_SPACE)],
         interactions=[RelaxInteraction('relax', population='wealth')],
-        space=LatticeSpace(CLASSES, boundary='fixed'),
-        time=ContinuousTime(),
+        backend=NumpyBackend(),
     )
-    problem = PassCompiler(backend=NumpyBackend()).prepare(system).run().problem_
+    problem = system.prepare()._problem
     rates = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     np.testing.assert_allclose(rates, np.full(CLASSES, PROFILE @ ACTIVITIES))

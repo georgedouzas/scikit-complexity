@@ -38,9 +38,9 @@ from ....core.components.spaces import (
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec, ParameterSpec, Role
+from ....core.specs import BaseSpec, ParameterSpec
 from ....core.systems import BaseSystem, System
-from ....core.types import Array, Indices
+from ....core.types import Array, Indices, Role
 
 MATRIX_AXES = 2
 LATTICES = ('square', 'triangular', 'disordered')

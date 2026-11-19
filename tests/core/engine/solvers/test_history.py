@@ -2,7 +2,6 @@
 
 import math
 import warnings
-from typing import Annotated
 
 import numpy as np
 import pytest
@@ -11,10 +10,8 @@ from sklearn.base import clone
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import EventLaw, NoiseLaw, RateLaw
-from skcomplex.core.components.laws.utils import delayed, pulse_train, series, step
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.runtime import BaseObserver, simulate
+from skcomplex.core.components.laws.utils import pulse_train, series, step
+from skcomplex.core.engine.runtime import BaseObserver
 from skcomplex.core.engine.solvers import (
     EulerMaruyamaSolver,
     GillespieSolver,
@@ -26,7 +23,6 @@ from skcomplex.core.engine.solvers import (
     VelocityVerletSolver,
 )
 from skcomplex.core.errors import SolverError, ValidationError
-from skcomplex.core.specs import StateSpec
 from skcomplex.core.systems import System
 from skcomplex.systems.biology.ecology import HutchinsonSystem
 from skcomplex.systems.biology.physiology import MackeyGlassSystem
@@ -158,56 +154,15 @@ def test_delayed_decay_matches_method_of_steps(solver):
     assert trajectory.get_values('d.x') == pytest.approx(exact, abs=1e-6)
 
 
-def _with_history(s):
-    """Return a decay driven by the state one unit of time ago."""
-    return [RateLaw(s.x, -delayed(s.x, 1.0))]
-
-
 def test_declared_history_is_read_before_the_start():
-    """Test that a history the state declares as a function of time feeds the delayed state before the start."""
-
-    class RememberedElement(Element):
-        """Remembered element."""
-
-        def __init__(
-            self,
-            label: str,
-            *,
-            x: Annotated[object, StateSpec(history=lambda t: 1 + t)] = 1.0,
-        ) -> None:
-            super().__init__(label)
-            self.x = x
-
-        def _get_laws(self, s):
-            """Return the laws of the remembered element."""
-            return _with_history(s)
-
-    trajectory = simulate(CompositeSystem(elements=[RememberedElement('d')]), until=1, dt=0.1)
+    """Test that a history given as a function of time feeds the delayed state before the start."""
+    trajectory = _system('d', _delayed, x=1.0, **{'x[-1]': lambda t: 1 + t}).prepare().simulate(until=1, dt=0.1)
     assert trajectory.get_values('d.x')[-1] == pytest.approx(1 - 0.5, abs=1e-5)
 
 
 def test_history_is_keyed_by_state():
-    """Test that the history a state declares is compiled under the name of its state."""
-
-    class RememberedElement(Element):
-        """Remembered element."""
-
-        def __init__(
-            self,
-            label: str,
-            *,
-            x: Annotated[object, StateSpec(history=2.0)] = 1.0,
-        ) -> None:
-            super().__init__(label)
-            self.x = x
-
-        def _get_laws(self, s):
-            """Return the laws of the remembered element."""
-            return _with_history(s)
-
-    assert PassCompiler().prepare(CompositeSystem(elements=[RememberedElement('d')])).run().problem_.history == {
-        'd.x': 2.0,
-    }
+    """Test that the history of a state is compiled under the name of its state."""
+    assert _system('d', _delayed, x=1.0, **{'x[-1]': 2.0}).prepare()._problem.history == {'d.x': 2.0}
 
 
 @pytest.mark.parametrize('solver', [ScipyODESolver, RK4Solver])

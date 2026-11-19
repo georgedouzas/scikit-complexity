@@ -8,13 +8,12 @@ import qutip
 from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.physics.common.quantum import HilbertSpec, ModeElement, QubitElement, mode_space
-
-from ....conftest import SpinElement, _spin_space
+from skcomplex.systems.physics.statistical_mechanics._quantum_spins import SpinElement, _get_spin_space
 
 
 def test_spin_local_operators_match_qutip():
     """Test that spin operators are QuTiP's angular momentum matrices."""
-    operators = OperatorCompiler._get_view_of(SpinElement('s', hilbert=_spin_space(1))).get_local_operators()
+    operators = OperatorCompiler._get_view_of(SpinElement('s', hilbert=_get_spin_space(1))).get_local_operators()
     for name, component in (('x', 'x'), ('y', 'y'), ('z', 'z'), ('plus', '+'), ('minus', '-')):
         assert np.allclose(operators[name].matrix.toarray(), qutip.jmat(1, component).full())
 
