@@ -2118,8 +2118,7 @@ class PassCompiler(BaseCompiler):
     def _get_census_issues(compilation: Compilation) -> list[IssueSpec]:
         """Return the issues of the components that fail to declare or collect.
 
-        Components whose binding is the problem are left out. An array argument that the laws read but that no group
-        shapes is an issue of the shape of a parameter.
+        Components whose binding is the problem are left out.
         """
         census = Compilation._get_required(compilation.census, 'census')
         nodes = Compilation._get_required(compilation.nodes, 'nodes')
@@ -2132,8 +2131,6 @@ class PassCompiler(BaseCompiler):
             if path in unbound:
                 continue
             code, fix = FIXES.get(type(failure), ('value', 'Correct the component as the message describes.'))
-            if isinstance(failure, ParameterError) and isinstance(failure.__cause__, AttributeError):
-                code, fix = 'parameter-shape', 'Bind the roles of the axes of the array to groups of their lengths.'
             issues.append(IssueSpec(code, path, str(failure), fix, error=type(failure)))
         return issues + bindings + shapes + roles
 

@@ -23,7 +23,7 @@ from sage.symbolic.operators import FDerivativeOperator
 from sklearn.base import clone
 
 from ...enums import DomainKind
-from ...errors import ParameterError, SpaceError, ValidationError
+from ...errors import ParameterShapeError, SpaceError, ValidationError
 from ...specs import BaseSpec, DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec
 from .._tags import Tags
 from ..base import BaseComponent
@@ -547,7 +547,7 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
             laws.extend(self._get_local_rule(self._get_normalized(term)) for term in terms)
         return laws
 
-    def _get_unshaped_error(self, name: str) -> ParameterError:
+    def _get_unshaped_error(self, name: str) -> ParameterShapeError:
         """Return the error of an array argument the laws read but no group shapes.
 
         An array argument is a parameter when it is a vector, a square matrix of 2 or 3 rows, or an array with one
@@ -558,7 +558,7 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
             f'{self.label}.{name} is an array of shape {shape}, which no group bound to a role of {self.label} shapes. '
             'Give a vector, a square matrix of 2 or 3 rows, or one axis per role whose group has as many members.'
         )
-        return ParameterError(error_msg)
+        return ParameterShapeError(error_msg)
 
     @staticmethod
     def _get_local_rule(law: BaseComponent) -> BaseComponent:

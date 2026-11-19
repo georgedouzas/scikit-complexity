@@ -19,6 +19,7 @@ from ...enums import FormKind
 from ...errors import (
     LabelError,
     ParameterError,
+    ParameterShapeError,
     RoleElementError,
     RoleError,
     SkcomplexError,
@@ -49,6 +50,7 @@ FIXES: dict[type[SkcomplexError], tuple[str, str]] = {
     ),
     SpaceError: ('space-missing', 'Give the system a space whose kind the component supports.'),
     ParameterError: ('parameter', 'Give the parameter a value inside its domain.'),
+    ParameterShapeError: ('parameter-shape', 'Bind the roles of the axes of the array to groups of their lengths.'),
     TensorShapeError: ('law-domain', 'Give the tensor operation a matrix or a vector of the shape it reads.'),
     TensorSymmetryError: ('tensor-symmetry', 'Give the state a rate of its declared symmetry.'),
 }

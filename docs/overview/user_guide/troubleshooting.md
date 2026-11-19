@@ -307,6 +307,54 @@ The message lists the valid names, `growth.r`, `predation.a`, `predation.b`, and
 `schedule={'predation.a': lambda t: 0.0}`. `get_params` of a system lists its model parameters, and `names` of a
 trajectory lists the paths of the built components.
 
+## ParameterShapeError
+
+An array argument of an interaction is a parameter when it is a vector, a square matrix of 2 or 3 rows, or an array
+with one axis per role whose group has as many members, such as the coupling matrix of a group of oscillators. An
+array that no group shapes, such as a matrix of four rows read by the laws of one element, raises this error.
+
+```python
+import numpy as np
+
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws.utils import total
+from skcomplex.core.errors import ParameterShapeError
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
+
+
+class CouplingInteraction(Interaction):
+    def __init__(self, label, *, target: Role = 'nodes', a=1.0):
+        super().__init__(label)
+        self.target = target
+        self.a = a
+
+    def _prepare(self, context):
+        super()._prepare(context)
+        x = context.target.x
+        self.laws_ = [RateLaw(x, total(x, weights=context.a) - x)]
+
+
+coupling = CouplingInteraction('coupling', a=np.ones((4, 4)) / 4)
+try:
+    System(elements=[Element('nodes', values={'x': 1.0})], interactions=[coupling]).prepare()
+except ParameterShapeError as error:
+    message = str(error)
+message.splitlines()[-1]
+```
+
+The code is `parameter-shape`. The message names `coupling.a` and its shape `(4, 4)`. The fix gives the element one
+member per row and column, so the group of four nodes shapes the matrix.
+
+```python continuation
+nodes = Element('nodes', values={'x': [1.0, 2.0, 3.0, 4.0]}, size=4)
+System(elements=[nodes], interactions=[coupling]).prepare().form_
+```
+
+The system prepares as ordinary differential equations.
+
 ## LabelError
 
 Every component of a system needs a label of its own, because roles, states, and parameters are named by it. Two
