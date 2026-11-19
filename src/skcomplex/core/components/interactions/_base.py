@@ -548,7 +548,7 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         return laws
 
     def _get_unshaped_error(self, name: str) -> ParameterError:
-        """Return the error of an array argument that the laws read but that no group shapes.
+        """Return the error of an array argument the laws read but no group shapes.
 
         An array argument is a parameter when it is a vector, a square matrix of 2 or 3 rows, or an array with one
         axis per role whose group has as many members, such as the interaction matrix of the species of a community.
