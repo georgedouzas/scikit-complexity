@@ -4,12 +4,12 @@ from typing import Annotated
 
 import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import ZZ
+from sage.all__sagemath_symbolics import ZZ, var
 
 from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import (
     ArrayUpdateLaw,
-    LocalRuleLaw,
     MoveSpec,
     ObjectiveSpec,
     OuterTotalisticSpec,
@@ -28,61 +28,33 @@ from skcomplex.core.components.spaces import (
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import SolverError, ValidationError
 from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.computer_science.automata import ElementaryAutomatonSystem, GameOfLifeSystem
 from skcomplex.systems.physics.criticality import ForestFireSystem
 from skcomplex.systems.physics.statistical_mechanics import IsingSystem, XYSystem
 
 
-class ShiftElement(Element):
-    """Shift element."""
+def _cells(space, laws, label='cells', **values):
+    """Return cells at the sites of a lattice whose laws are a function of the namespace of the role `target`."""
+    rule = Interaction('rule', roles={'target': label}, laws=laws)
+    return System(elements=[Element(label, values=values, space=space)], interactions=[rule])
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        value: Annotated[object, StateSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label)
-        self.value = value
 
-    def _get_laws(self, s):
-        """Return the laws of the shift element."""
-        return [LocalRuleLaw(s.value, LatticeNeighborhood(((-1,),)), lambda left: left)]
+def _symbolic(s):
+    """Return the target of a namespace with its states as symbols, which the rules inside a relaxation read."""
+    return Interaction._get_symbolic(s.target, s.t)
+
+
+def _copy(s, schedule=None):
+    """Return the rule that copies the value of the left neighbour."""
+    return [UpdateLaw(s.target.value, lambda left: left, neighborhood=LatticeNeighborhood(((-1,),)), schedule=schedule)]
 
 
 def _shift(schedule):
-    """Return a ring of five cells whose rule copies the left neighbour on a schedule."""
-
-    class CopyElement(Element):
-        """Copy element."""
-
-        def __init__(
-            self,
-            label: str,
-            *,
-            value: Annotated[object, StateSpec()] = 0.0,
-        ) -> None:
-            super().__init__(label)
-            self.value = value
-
-        def _get_laws(self, s):
-            """Return the laws of the copy element."""
-            return [LocalRuleLaw(s.value, LatticeNeighborhood(((-1,),)), lambda left: left, schedule=schedule)]
-
-    return CompositeSystem(
-        elements=[
-            GroupElement(
-                'ring',
-                element=CopyElement,
-                space=LatticeSpace(6),
-                values={'value': [1, 2, 3, 4, 5, 6]},
-                on='sites',
-            ),
-        ],
-    )
+    """Return a ring of six cells whose rule copies the left neighbour on a schedule."""
+    return _cells(LatticeSpace(6), lambda s: _copy(s, schedule), label='ring', value=[1, 2, 3, 4, 5, 6])
 
 
 def _rule_30(n_steps, size):
@@ -114,46 +86,10 @@ def test_fixed_and_reflecting_edges():
         0,
     ]
 
-    class EdgeElement(Element):
-        """Edge element."""
-
-        def __init__(
-            self,
-            label: str,
-            *,
-            value: Annotated[object, StateSpec()] = 0.0,
-        ) -> None:
-            super().__init__(label)
-            self.value = value
-
-        def _get_laws(self, s):
-            """Return the laws of the edge element."""
-            return [LocalRuleLaw(s.value, LatticeNeighborhood(((-1,),)), lambda left: left)]
-
-    fixed = CompositeSystem(
-        elements=[
-            GroupElement(
-                'cells',
-                element=EdgeElement,
-                space=LatticeSpace(3, boundary='fixed', fill=9),
-                values={'value': [1, 2, 3]},
-                on='sites',
-            ),
-        ],
-    )
-    assert simulate(fixed, until=1, dt=1).states[-1].tolist() == [9, 1, 2]
-    mirror = CompositeSystem(
-        elements=[
-            GroupElement(
-                'cells',
-                element=EdgeElement,
-                space=LatticeSpace(3, boundary='reflecting'),
-                values={'value': [1, 2, 3]},
-                on='sites',
-            ),
-        ],
-    )
-    assert simulate(mirror, until=1, dt=1).states[-1].tolist() == [1, 1, 2]
+    fixed = _cells(LatticeSpace(3, boundary='fixed', fill=9), _copy, value=[1, 2, 3])
+    assert fixed.prepare().simulate(until=1, dt=1).states[-1].tolist() == [9, 1, 2]
+    mirror = _cells(LatticeSpace(3, boundary='reflecting'), _copy, value=[1, 2, 3])
+    assert mirror.prepare().simulate(until=1, dt=1).states[-1].tolist() == [1, 1, 2]
 
 
 def test_neighborhoods_are_ordered():
@@ -168,7 +104,7 @@ def test_neighborhoods_are_ordered():
 
 def test_rule_30_matches_published_pattern():
     """Test that rule 30 from a single live cell reproduces its space-time diagram for 15 steps."""
-    trajectory = simulate(ElementaryAutomatonSystem(30, size=41).prepare().system_._get_composite(), until=15, dt=1)
+    trajectory = ElementaryAutomatonSystem(30, size=41).prepare().simulate(until=15, dt=1)
     assert np.array_equal(trajectory.get_lattice('cells.alive').astype(int), _rule_30(15, 41))
 
 
@@ -176,7 +112,7 @@ def test_glider_moves_diagonally():
     """Test that a glider on a periodic 20 x 20 lattice has the same shape one cell further after 4 steps."""
     glider = np.zeros((20, 20))
     glider[1, 2] = glider[2, 3] = glider[3, 1] = glider[3, 2] = glider[3, 3] = 1
-    trajectory = simulate(GameOfLifeSystem((20, 20), initial=glider).prepare().system_._get_composite(), until=4, dt=1)
+    trajectory = GameOfLifeSystem((20, 20), initial=glider).prepare().simulate(until=4, dt=1)
     cells = trajectory.get_lattice('cells.alive')
     assert np.array_equal(cells[-1], np.roll(glider, (1, 1), axis=(0, 1)))
     assert not np.array_equal(cells[2], cells[0])
@@ -185,116 +121,50 @@ def test_glider_moves_diagonally():
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 def test_lookup_rules_agree_across_backends(backend):
     """Test that the fused and the NumPy lookup rules give the same Game of Life."""
-    trajectory = simulate(
-        GameOfLifeSystem((30, 30)).prepare().system_._get_composite(),
-        until=20,
-        dt=1,
-        backend=backend(),
-    )
-    reference = simulate(
-        GameOfLifeSystem((30, 30)).prepare().system_._get_composite(),
-        until=20,
-        dt=1,
-        backend=NumpyBackend(),
-    )
+    trajectory = GameOfLifeSystem((30, 30), backend=backend()).prepare().simulate(until=20, dt=1)
+    reference = GameOfLifeSystem((30, 30), backend=NumpyBackend()).prepare().simulate(until=20, dt=1)
     assert np.array_equal(trajectory.states, reference.states)
 
 
 def test_table_and_totalistic_rules():
     """Test that tables, totalistic, and outer totalistic rules give their documented next values."""
 
-    class ParityElement(Element):
-        """Parity element."""
-
-        def __init__(
-            self,
-            label: str,
-            *,
-            bit: Annotated[object, StateSpec()] = 0.0,
-        ) -> None:
-            super().__init__(label)
-            self.bit = bit
-
-        def _get_laws(self, s):
-            """Return the laws of the parity element."""
-            return [LocalRuleLaw(s.bit, LatticeNeighborhood(((-1,), (0,), (1,))), TotalisticSpec({1: 1, 3: 1}))]
-
-    ring = CompositeSystem(
-        elements=[
-            GroupElement(
-                'ring',
-                element=ParityElement,
-                space=LatticeSpace(5),
-                values={'bit': [0, 1, 0, 0, 0]},
-                on='sites',
-            ),
-        ],
+    three = LatticeNeighborhood(((-1,), (0,), (1,)))
+    ring = _cells(
+        LatticeSpace(5),
+        lambda s: [UpdateLaw(s.target.bit, TotalisticSpec({1: 1, 3: 1}), neighborhood=three)],
+        label='ring',
+        bit=[0, 1, 0, 0, 0],
     )
-    assert simulate(ring, until=1, dt=1).states[-1].tolist() == [1, 1, 1, 0, 0]
-
-    class SwapElement(Element):
-        """Swap element."""
-
-        def __init__(
-            self,
-            label: str,
-            *,
-            bit: Annotated[object, StateSpec()] = 0.0,
-        ) -> None:
-            super().__init__(label)
-            self.bit = bit
-
-        def _get_laws(self, s):
-            """Return the laws of the swap element."""
-            return [LocalRuleLaw(s.bit, LatticeNeighborhood(((0,),)), TableSpec({(0,): 1, (1,): 0}))]
-
-    flip = CompositeSystem(
-        elements=[
-            GroupElement('ring', element=SwapElement, space=LatticeSpace(3), values={'bit': [0, 1, 0]}, on='sites'),
-        ],
+    assert ring.prepare().simulate(until=1, dt=1).states[-1].tolist() == [1, 1, 1, 0, 0]
+    swap = TableSpec({(0,): 1, (1,): 0})
+    flip = _cells(
+        LatticeSpace(3),
+        lambda s: [UpdateLaw(s.target.bit, swap, neighborhood=LatticeNeighborhood(((0,),)))],
+        label='ring',
+        bit=[0, 1, 0],
     )
-    assert simulate(flip, until=1, dt=1).states[-1].tolist() == [1, 0, 1]
-
-    class CountElement(Element):
-        """Count element."""
-
-        def __init__(
-            self,
-            label: str,
-            *,
-            bit: Annotated[object, StateSpec()] = 0.0,
-        ) -> None:
-            super().__init__(label)
-            self.bit = bit
-
-        def _get_laws(self, s):
-            """Return the laws of the count element."""
-            return [
-                LocalRuleLaw(
-                    s.bit,
-                    LatticeNeighborhood(((-1,), (1,))),
-                    OuterTotalisticSpec(lambda center, total: (center + total) % 2),
-                ),
-            ]
-
-    count = CompositeSystem(
-        elements=[
-            GroupElement('ring', element=CountElement, space=LatticeSpace(4), values={'bit': [1, 0, 0, 0]}, on='sites'),
-        ],
+    assert flip.prepare().simulate(until=1, dt=1).states[-1].tolist() == [1, 0, 1]
+    odd = OuterTotalisticSpec(lambda center, total: (center + total) % 2)
+    count = _cells(
+        LatticeSpace(4),
+        lambda s: [UpdateLaw(s.target.bit, odd, neighborhood=LatticeNeighborhood(((-1,), (1,))))],
+        label='ring',
+        bit=[1, 0, 0, 0],
     )
-    assert simulate(count, until=1, dt=1).states[-1].tolist() == [1, 1, 0, 1]
+    assert count.prepare().simulate(until=1, dt=1).states[-1].tolist() == [1, 1, 0, 1]
 
 
 def test_synchronous_rule_shifts_whole_configuration():
     """Test that one synchronous step of a rule that copies the left neighbour shifts every cell by one."""
-    assert simulate(_shift('synchronous'), until=1, dt=1).states[-1].tolist() == [6, 1, 2, 3, 4, 5]
+    assert _shift('synchronous').prepare().simulate(until=1, dt=1).states[-1].tolist() == [6, 1, 2, 3, 4, 5]
 
 
 @pytest.mark.parametrize('schedule', ['random-sequential', 'random-site'])
 def test_asynchronous_schedules_are_reproducible(schedule):
     """Test that asynchronous schedules copy values from neighbours and repeat with the same seed."""
-    first = simulate(_shift(schedule), until=2, dt=1, random_state=3).states[-1]
-    second = simulate(_shift(schedule), until=2, dt=1, random_state=3).states[-1]
+    first = _shift(schedule).prepare().simulate(until=2, dt=1, random_state=3).states[-1]
+    second = _shift(schedule).prepare().simulate(until=2, dt=1, random_state=3).states[-1]
     assert first.tolist() == second.tolist()
     assert set(first) <= {1, 2, 3, 4, 5, 6}
     assert first.tolist() != [5, 6, 1, 2, 3, 4]
@@ -302,49 +172,30 @@ def test_asynchronous_schedules_are_reproducible(schedule):
 
 def test_checkerboard_schedule_updates_sublattices_in_turn():
     """Test that a checkerboard update of the copy rule on a ring moves even sites first, then odd sites."""
-    assert simulate(_shift('checkerboard'), until=1, dt=1).states[-1].tolist() == [6, 6, 2, 2, 4, 4]
+    assert _shift('checkerboard').prepare().simulate(until=1, dt=1).states[-1].tolist() == [6, 6, 2, 2, 4, 4]
 
 
 def test_checkerboard_needs_bipartite_neighbourhood():
     """Test that a checkerboard schedule on a Moore neighbourhood is rejected."""
 
-    class CellElement(Element):
-        """Cell element."""
+    moore = RadiusNeighborhood(1, metric='chebyshev')
 
-        def __init__(
-            self,
-            label: str,
-            *,
-            alive: Annotated[object, StateSpec()] = 0.0,
-        ) -> None:
-            super().__init__(label)
-            self.alive = alive
+    def laws(s):
+        """Return a rule that keeps the first neighbour, on a checkerboard."""
+        return [UpdateLaw(s.target.alive, lambda *values: values[0], neighborhood=moore, schedule='checkerboard')]
 
-        def _get_laws(self, s):
-            """Return the laws of the cell element."""
-            return [
-                LocalRuleLaw(
-                    s.alive,
-                    RadiusNeighborhood(1, metric='chebyshev'),
-                    lambda *values: values[0],
-                    schedule='checkerboard',
-                ),
-            ]
-
-    system = CompositeSystem(
-        elements=[GroupElement('cells', element=CellElement, space=LatticeSpace((4, 4)), on='sites')],
-    )
+    system = _cells(LatticeSpace((4, 4)), laws, alive=0.0)
     with pytest.raises(ValidationError, match='random-sequential'):
-        PassCompiler().prepare(system).run()
+        system.prepare()
 
 
 def test_unknown_schedule_is_rejected():
     """Test that an unknown schedule names the known ones."""
     with pytest.raises(ValidationError, match='synchronous'):
-        LocalRuleLaw(
-            None,
-            LatticeNeighborhood(((-1,), (0,), (1,))),
+        UpdateLaw(
+            var('x'),
             lambda *values: values[0],
+            neighborhood=LatticeNeighborhood(((-1,), (0,), (1,))),
             schedule='parallel',
         ).prepare()
 
@@ -361,29 +212,16 @@ def test_forest_fire_is_reproducible():
 def test_rule_reads_parameters_by_keyword():
     """Test that a function rule receives the parameters it names, which change live."""
 
-    class GrowthElement(Element):
-        """Growth element."""
+    def grow(s):
+        """Return the rule that adds the rate to the value."""
+        return [
+            UpdateLaw(s.target.value, lambda value, *, rate: value + rate, neighborhood=LatticeNeighborhood(((0,),))),
+        ]
 
-        def __init__(
-            self,
-            label: str,
-            *,
-            value: Annotated[object, StateSpec()] = 0.0,
-            rate: Annotated[object, ParameterSpec()] = 1.0,
-        ) -> None:
-            super().__init__(label)
-            self.value = value
-            self.rate = rate
-
-        def _get_laws(self, s):
-            """Return the laws of the growth element."""
-            return [LocalRuleLaw(s.value, LatticeNeighborhood(((0,),)), lambda value, *, rate: value + rate)]
-
-    trajectory = simulate(
-        CompositeSystem(elements=[GroupElement('cells', element=GrowthElement, space=LatticeSpace(2), on='sites')]),
-        until=3,
-        dt=1,
-        schedule={'cells.rate': lambda t: 1.0 if t < 2 else 5.0},
+    trajectory = (
+        _cells(LatticeSpace(2), grow, value=[0.0, 0.0], rate=[1.0, 1.0])
+        .prepare()
+        .simulate(until=3, dt=1, schedule={'cells.rate': lambda t: 1.0 if t < 2 else 5.0})
     )
     assert trajectory.states[2].tolist() == [2.0, 2.0]
     assert trajectory.parameters[-1].tolist() == [5.0, 5.0]
@@ -393,49 +231,30 @@ def test_rule_reads_parameters_by_keyword():
 def test_relaxation_records_avalanches():
     """Test that a relaxation records the size, duration, and area of a toppling avalanche."""
 
-    class PileElement(Element):
-        """Pile element."""
+    three = LatticeNeighborhood(((-1,), (0,), (1,)))
 
-        def __init__(
-            self,
-            label: str,
-            *,
-            height: Annotated[object, StateSpec()] = 0.0,
-        ) -> None:
-            super().__init__(label)
-            self.height = height
+    def laws(s):
+        """Return the relaxation of the pile after one grain falls on its middle site."""
+        height = _symbolic(s).height
+        topple = UpdateLaw(
+            height,
+            lambda left, height, right: height - 2 * (height >= 2) + (left >= 2) + (right >= 2),
+            neighborhood=three,
+        )
+        drop = ArrayUpdateLaw(height, lambda z, *, random: z + (np.arange(z.size) == 2))
+        value = relax(
+            height,
+            topple,
+            lambda heights: bool((heights < 2).all()),
+            drive=drop,
+            activity=lambda heights: heights >= 2,
+        )
+        return [UpdateLaw(height, value)]
 
-        def _get_laws(self, s):
-            """Return the laws of the pile element."""
-            return [
-                UpdateLaw(
-                    s.height,
-                    relax(
-                        s.height,
-                        LocalRuleLaw(
-                            s.height,
-                            LatticeNeighborhood(((-1,), (0,), (1,))),
-                            lambda left, height, right: height - 2 * (height >= 2) + (left >= 2) + (right >= 2),
-                        ),
-                        lambda height: bool((height < 2).all()),
-                        drive=ArrayUpdateLaw(s.height, lambda z, *, random: z + (np.arange(z.size) == 2)),
-                        activity=lambda height: height >= 2,
-                    ),
-                ),
-            ]
-
-    space = LatticeSpace(5, boundary='fixed')
-    trajectory = simulate(
-        CompositeSystem(
-            elements=[
-                GroupElement('pile', element=PileElement, space=space, values={'height': [1, 1, 1, 1, 1]}, on='sites'),
-            ],
-        ),
-        until=1,
-        dt=1,
-    )
+    pile = _cells(LatticeSpace(5, boundary='fixed'), laws, label='pile', height=[1, 1, 1, 1, 1])
+    trajectory = pile.prepare().simulate(until=1, dt=1)
     (record,) = trajectory.events
-    assert (record.label, record.time) == ('pile', 1.0)
+    assert (record.label, record.time) == ('rule', 1.0)
     assert (record.size, record.duration, record.area) == (9, 5, 5)
     assert np.all(trajectory.states[-1] < 2)
 
@@ -443,46 +262,22 @@ def test_relaxation_records_avalanches():
 def test_relaxation_without_end_raises():
     """Test that a relaxation that never becomes stable raises an error after its largest number of iterations."""
 
-    class RestlessElement(Element):
-        """Restless element."""
-
-        def __init__(
-            self,
-            label: str,
-            *,
-            value: Annotated[object, StateSpec()] = 0.0,
-        ) -> None:
-            super().__init__(label)
-            self.value = value
-
-        def _get_laws(self, s):
-            """Return the laws of the restless element."""
-            return [
-                UpdateLaw(
-                    s.value,
-                    relax(
-                        s.value,
-                        LocalRuleLaw(s.value, LatticeNeighborhood(((0,),)), lambda value: value + 1),
-                        lambda _: False,
-                        max_iterations=10,
-                    ),
-                ),
-            ]
+    def laws(s):
+        """Return a relaxation that grows every value and is never stable."""
+        value = _symbolic(s).value
+        grow = UpdateLaw(value, lambda value: value + 1, neighborhood=LatticeNeighborhood(((0,),)))
+        return [UpdateLaw(value, relax(value, grow, lambda _: False, max_iterations=10))]
 
     with pytest.raises(SolverError, match='not stable after 10 iterations'):
-        simulate(
-            CompositeSystem(
-                elements=[GroupElement('cells', element=RestlessElement, space=LatticeSpace(2), on='sites')],
-            ),
-            until=1,
-            dt=1,
-        )
+        _cells(LatticeSpace(2), laws, value=0.0).prepare().simulate(until=1, dt=1)
 
 
 def test_local_rule_needs_lattice_group():
     """Test that a local rule on a state outside a lattice group is rejected."""
-    with pytest.raises(ValidationError, match='LocalRuleLaw of cells needs a LatticeSpace'):
-        PassCompiler().prepare(CompositeSystem(elements=[GroupElement('cells', element=ShiftElement, size=3)])).run()
+    cells = Element('cells', values={'value': [0.0, 0.0, 0.0]}, size=3)
+    system = System(elements=[cells], interactions=[Interaction('rule', roles={'target': 'cells'}, laws=_copy)])
+    with pytest.raises(ValidationError, match='LocalRuleLaw of rule needs a LatticeSpace'):
+        system.prepare()
 
 
 def test_monte_carlo_energy_change_is_symbolic():
@@ -585,46 +380,24 @@ def _pile(activity, evaluated):
         following[tuple(random.integers(size) for size in heights.shape)] += 1
         return following
 
-    class PileElement(Element):
-        """Pile element."""
-
-        def __init__(
-            self,
-            label: str,
-            *,
-            height: Annotated[object, StateSpec()] = 0.0,
-        ) -> None:
-            super().__init__(label)
-            self.height = height
-
-        def _get_laws(self, s):
-            """Return the laws of the pile element."""
-            return [
-                UpdateLaw(
-                    s.height,
-                    relax(
-                        s.height,
-                        LocalRuleLaw(s.height, RadiusNeighborhood(1, metric='manhattan', center=True), topple),
-                        lambda heights: bool((heights < 4).all()),
-                        drive=ArrayUpdateLaw(s.height, drop),
-                        activity=activity,
-                    ),
-                    label='avalanche',
-                ),
-            ]
+    def laws(s):
+        """Return the relaxation of the pile after one grain falls on a random site."""
+        height = _symbolic(s).height
+        cross = RadiusNeighborhood(1, metric='manhattan', center=True)
+        rules = UpdateLaw(height, topple, neighborhood=cross)
+        drive = ArrayUpdateLaw(height, drop)
+        value = relax(height, rules, lambda heights: bool((heights < 4).all()), drive=drive, activity=activity)
+        return [UpdateLaw(height, value, label='avalanche')]
 
     heights = np.random.default_rng(0).integers(0, 4, size=(32, 32)).astype(float)
-    space = LatticeSpace((32, 32), boundary='fixed')
-    return CompositeSystem(
-        elements=[GroupElement('pile', element=PileElement, space=space, values={'height': heights}, on='sites')],
-    )
+    return _cells(LatticeSpace((32, 32), boundary='fixed'), laws, label='pile', height=heights)
 
 
 def test_relaxation_over_active_sites_matches_the_full_update():
     """Test that relaxing only active sites and their neighbours gives the heights and durations of full updates."""
     sparse_sites, full_sites = [], []
-    sparse = simulate(_pile(lambda heights: heights >= 4, sparse_sites), until=5000, dt=5000, random_state=0)
-    full = simulate(_pile(None, full_sites), until=5000, dt=5000, random_state=0)
+    sparse = _pile(lambda heights: heights >= 4, sparse_sites).prepare().simulate(until=5000, dt=5000, random_state=0)
+    full = _pile(None, full_sites).prepare().simulate(until=5000, dt=5000, random_state=0)
     np.testing.assert_array_equal(sparse.get_values('pile.height')[-1], full.get_values('pile.height')[-1])
     assert [event.duration for event in sparse.events] == [event.duration for event in full.events]
     assert [event.time for event in sparse.events] == [event.time for event in full.events]
