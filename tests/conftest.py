@@ -197,7 +197,8 @@ class WeightedSumInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             s = context
             weights = s.weights if isinstance(self.weights, Sequence) else [s.weights] * len(s.inputs)
-            self.laws_ = [UpdateLaw(s.target.x, sum((w * item.x for w, item in zip(weights, s.inputs, strict=True)), 0))]
+            summed = sum((w * item.x for w, item in zip(weights, s.inputs, strict=True)), 0)
+            self.laws_ = [UpdateLaw(s.target.x, summed)]
 
 
 class WeightedInputInteraction(Interaction):
