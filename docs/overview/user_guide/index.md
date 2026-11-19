@@ -5,7 +5,6 @@ your own, and then simulates, analyses, evaluates, calibrates, and shares it. Ea
 The first run takes three lines.
 
 ```python
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.epidemiology import SIRSystem
 
 SIRSystem().prepare().simulate().get_values('I.x').max().round()
@@ -21,29 +20,31 @@ to it is a function.
 | scikit-learn | scikit-complexity |
 | --- | --- |
 | an estimator, such as `Ridge`, with `get_params`, `set_params`, and `clone` | a component of a system, an element, an interaction, a law, or a system, such as `SIRSystem` |
-| `Pipeline` | `CompositeSystem`, the composite of elements, interactions, and nested systems |
-| `fit` | `prepare` |
+| `Pipeline` | `System`, the composite of elements, interactions, and nested systems, with nested parameters such as `gravity__g` |
+| `fit` | `prepare`, which checks and compiles a system once |
+| `predict` | `simulate`, which returns a `Trajectory` |
 | estimator tags | capability tags, from `get_tags()` |
 | `all_estimators()` | `all_systems()` |
-| `cross_validate(model, X, y, cv=...)` | `simulate(system, solver=...)`, which returns a `Trajectory` |
 | `n_jobs` | `backend=` |
 | `sklearn.metrics` | the analysis functions, such as `lyapunov` and `entropy` |
 | `validation_curve` and repeated cross-validation | the experiment functions, such as `sweep` and `ensemble` |
 | `GridSearchCV` | `calibrate`, which returns the fitted system in its result |
 
 A [system](glossary.md#system) is a class whose constructor takes the parameters of its model and stores them.
-`set_params` changes them, and `clone` copies them. `simulate`, the analyses, and the experiments read the system and
-return frozen results. They never change it.
+`set_params` changes them, and `clone` copies them. `prepare` compiles the system once, and `simulate`, the analyses,
+and the experiments read it and return frozen results. They never change its parameters.
 
 ## Two ways in
 
 You can start from the catalog or from the core.
 
 - **Select a ready-made system.** Import a system class from its subfield, such as `SIRSystem` from
-  `skcomplex.systems.biology.epidemiology`, build it with the parameters you choose, and run it with `simulate`.
+  `skcomplex.systems.biology.epidemiology`, build it with the parameters you choose, and run it with
+  `prepare().simulate()`.
   `all_systems` lists the classes of the catalog by field, topic, or tag.
-- **Build a custom system.** Write elements and interactions with `skcomplex.core.components` and the specs of
-  `skcomplex.core.specs`, run them with `skcomplex.core.engine`, and study the results with `skcomplex.core.analysis`.
+- **Build a custom system.** Write elements and interactions with `skcomplex.core.components`, put them in a `System`
+  of `skcomplex.core.systems`, run it with `prepare().simulate()`, and study the results with
+  `skcomplex.core.analysis`.
 
 Every ready-made system is written with the same classes as a custom one, so the page of a system under
 [Systems](../../systems/index.md) also serves as a pattern.
