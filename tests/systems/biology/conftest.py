@@ -3,8 +3,7 @@
 from collections.abc import Callable, Mapping, Sequence
 
 from skcomplex.core.components import Observable
-from skcomplex.core.components.systems import BaseSystem as OldBaseSystem
-from skcomplex.core.engine.runtime import Trajectory, simulate
+from skcomplex.core.engine.runtime import Trajectory
 from skcomplex.core.engine.solvers import BaseSolver, ScipyODESolver
 from skcomplex.core.systems import BaseSystem
 
@@ -14,7 +13,7 @@ SYSTEMS_PRECISE = ScipyODESolver(rtol=1e-9, atol=1e-11)
 
 
 def _simulate(
-    system: BaseSystem | OldBaseSystem,
+    system: BaseSystem,
     solver: BaseSolver | None = None,
     *,
     until: float | None,
@@ -24,23 +23,12 @@ def _simulate(
     invariants: Mapping[str, float] | None = None,
     random_state: int | None = None,
 ) -> Trajectory:
-    """Return the trajectory of a system, prepared and simulated with a solver if given when it has the new base."""
-    if isinstance(system, BaseSystem):
-        if solver is not None:
-            system.set_params(solver=solver)
-        return system.prepare().simulate(
-            until,
-            dt=dt,
-            observables=observables,
-            schedule=schedule,
-            invariants=invariants,
-            random_state=random_state,
-        )
-    return simulate(
-        system,
-        until=until,
+    """Return the trajectory of a system, prepared and simulated with a solver if given."""
+    if solver is not None:
+        system.set_params(solver=solver)
+    return system.prepare().simulate(
+        until,
         dt=dt,
-        solver=solver,
         observables=observables,
         schedule=schedule,
         invariants=invariants,
@@ -48,13 +36,13 @@ def _simulate(
     )
 
 
-def _run(system: BaseSystem | OldBaseSystem, until: float, dt: float) -> Trajectory:
+def _run(system: BaseSystem, until: float, dt: float) -> Trajectory:
     """Return the trajectory of a system run with its tuned solver and a fixed seed."""
     return _simulate(system, until=until, dt=dt, random_state=1)
 
 
 def _run_until(
-    system: BaseSystem | OldBaseSystem,
+    system: BaseSystem,
     until: float,
     *,
     dt: float | None = None,
@@ -65,13 +53,13 @@ def _run_until(
     return _simulate(system, solver, until=until, dt=dt, random_state=random_state)
 
 
-def _run_precise(system: BaseSystem | OldBaseSystem, until: float, dt: float) -> Trajectory:
+def _run_precise(system: BaseSystem, until: float, dt: float) -> Trajectory:
     """Return the trajectory of a system integrated tightly."""
     return _simulate(system, PRECISE, until=until, dt=dt)
 
 
 def _run_seeded(
-    system: BaseSystem | OldBaseSystem,
+    system: BaseSystem,
     until: float,
     dt: float,
     solver: BaseSolver = PRECISE,
@@ -81,7 +69,7 @@ def _run_seeded(
 
 
 def _run_with_solver(
-    system: BaseSystem | OldBaseSystem,
+    system: BaseSystem,
     until: float,
     dt: float,
     solver: BaseSolver | None = None,

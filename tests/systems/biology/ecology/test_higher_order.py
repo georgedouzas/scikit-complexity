@@ -111,10 +111,7 @@ def test_triplet_interaction_sums_over_the_pairs_of_other_species():
     species = Element('species', values={'x': x}, size=size)
     triplets = TripletInteraction('triplets', target='species', a=tensor, state='x')
     problem = (
-        PassCompiler(backend=NumpyBackend())
-        .prepare(System(elements=[species], interactions=[triplets]))
-        .run()
-        .problem_
+        PassCompiler(backend=NumpyBackend()).prepare(System(elements=[species], interactions=[triplets])).run().problem_
     )
     rate = problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 'species.x')
     expected = [
