@@ -5,7 +5,6 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.core.components.interactions import PairInteraction
 from skcomplex.core.components.spaces import ContinuousSpace, RadiusNeighborhood
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.errors import ValidationError
@@ -49,11 +48,11 @@ def test_kuramoto_synchronizes_above_the_critical_coupling(K, synchronized):
 
 
 def test_kuramoto_in_linear_time():
-    """Test that Kuramoto has no space and no pair interaction, and its drift is the all-to-all sum."""
+    """Test that Kuramoto has no space and no interaction along pairs, and its drift is the all-to-all sum."""
     system = KuramotoSystem(50)
     components = system.prepare().system_
     assert components.space is None
-    assert not any(isinstance(interaction, PairInteraction) for interaction in components.interactions)
+    assert all(interaction.along is None for interaction in components.interactions)
     problem, theta, rates = _random_drift(system)
     omega = problem.parameters.read(problem.initial_parameters, 'oscillators.omega')
     expected = omega + 4.0 / 50 * np.sin(theta[np.newaxis, :] - theta[:, np.newaxis]).sum(axis=1)
