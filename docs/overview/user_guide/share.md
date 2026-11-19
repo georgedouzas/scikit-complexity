@@ -7,9 +7,10 @@ follows its placement rule.
 
 ## The system class
 
-A system of the catalog is a subclass of [`BaseSystem`][skcomplex.core.components.systems.BaseSystem] whose name ends
+A system of the catalog is a subclass of [`BaseSystem`][skcomplex.core.systems.BaseSystem] whose name ends
 in `System`. It takes its model parameters as arguments, stores each under its own name, and builds its components in
-`_build_system`. Four class variables describe it:
+`_prepare`, which sets `system_`, the [`System`][skcomplex.core.systems.System] of its components. Four class
+variables describe it:
 
 - `field` is the field path, a field and a subfield of the catalog, such as `'biology/ecology'`.
 - `topics` are the words that `all_systems` filters by, such as `'predator-prey'`.
@@ -17,17 +18,20 @@ in `System`. It takes its model parameters as arguments, stores each under its o
 - `until` and `dt` are the tuned run settings, which `simulate` reads when a call leaves them out.
 
 The tutorial [Build a custom system](build_a_custom_system/index.md) wrote the model as `PeltSystem` from core
-components. The class below builds it from the same core components. A class of the catalog would build it from the
-components that the systems of ecology share in `skcomplex.systems.biology.common`, a population element and the growth,
-predation, and mortality interactions, so that one model has one implementation. Its defaults are the rates of Carpenter
+components. A class of the catalog builds it from the components that the systems of ecology share in
+`skcomplex.systems.biology.common`, a population element and the growth, predation, and mortality interactions, so
+that one model has one implementation. The class below does so. Its defaults are the rates of Carpenter
 (2018) and the pelt records of 1900, and its docstring follows the style of the catalog: a summary, a paragraph on what
 the model shows, the arguments, and an example.
 
 ```python
-from skcomplex.core.components.elements import DeclaredElement
-from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.systems import BaseSystem, CompositeSystem
-from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
+from skcomplex.core.systems import BaseSystem, System
+from skcomplex.systems.biology.common.populations import (
+    ExponentialGrowthInteraction,
+    MortalityInteraction,
+    PopulationElement,
+    PredationInteraction,
+)
 
 
 class HareLynxSystem(BaseSystem):
@@ -89,30 +93,15 @@ class HareLynxSystem(BaseSystem):
         self.gamma = gamma
         self.delta = delta
 
-    def _build_system(self):
-        hares = DeclaredElement('hares', variables={'x': DeclaredVariableSpec(self.hares, StateSpec())})
-        lynx = DeclaredElement('lynx', variables={'x': DeclaredVariableSpec(self.lynx, StateSpec())})
-        alpha, beta, gamma, delta = self.alpha, self.beta, self.gamma, self.delta
+    def _prepare(self, context=None):
+        super()._prepare(context)
+        elements = [PopulationElement('hares', x=self.hares), PopulationElement('lynx', x=self.lynx)]
         interactions = [
-            RateInteraction('births', target='hares', state='x', rate=lambda s: alpha * s.target.x),
-            RateInteraction(
-                'hunting',
-                target='hares',
-                state='x',
-                sources=['lynx'],
-                rate=lambda s: -beta * s.target.x * s.sources[0].x,
-            ),
-            RateInteraction(
-                'feeding',
-                target='lynx',
-                state='x',
-                sources=['hares'],
-                rate=lambda s: delta * s.target.x * s.sources[0].x,
-            ),
-            RateInteraction('deaths', target='lynx', state='x', rate=lambda s: -gamma * s.target.x),
+            ExponentialGrowthInteraction('births', target='hares', r=self.alpha),
+            PredationInteraction('predation', predator='lynx', prey='hares', a=self.beta, b=self.delta),
+            MortalityInteraction('deaths', target='lynx', d=self.gamma),
         ]
-        return CompositeSystem(self.label, elements=[hares, lynx], interactions=interactions)
-
+        self.system_ = System(self.label, elements=elements, interactions=interactions)
 
 HareLynxSystem().get_params()
 ```
@@ -134,13 +123,11 @@ from pathlib import Path
 
 from sklearn.base import clone
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 
-system = HareLynxSystem()
-settings = system.get_run_settings()
+system = HareLynxSystem().prepare()
 observer = RerunObserver('hare_lynx', save_path=Path(tempfile.mkdtemp()) / 'run.rrd')
-trajectory = simulate(system, until=10 * settings['dt'], observers=[observer], random_state=0)
+trajectory = system.simulate(until=10 * system.dt, observers=[observer], random_state=0)
 copy = clone(system)
 hares = trajectory.get_values('hares.x').round(1)[:4].tolist()
 observer.logged_frames_ == len(trajectory.times), copy is not system, hares
@@ -159,7 +146,7 @@ import numpy as np
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 reference = LotkaVolterraSystem(prey=30.0, predators=4.0, r=0.55, a=0.028, b=0.024, d=0.80)
-difference = simulate(system, until=20).states - reference.prepare().simulate(until=20, dt=1.0).states
+difference = system.simulate(until=20).states - reference.prepare().simulate(until=20, dt=1.0).states
 tags = system.get_tags()
 bool(np.abs(difference).max() < 1e-9), sorted(tags.time), tags.randomness, sorted(tags.laws)
 ```
@@ -251,14 +238,13 @@ by a peak of the lynx a year later.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import HareLynxSystem
 
 SYSTEM = 'hare_lynx'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(HareLynxSystem(), observers=[observer])
+trajectory = HareLynxSystem().prepare().simulate(observers=[observer])
 
 # %%
 # The phase plane
