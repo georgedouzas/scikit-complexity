@@ -11,7 +11,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import Role
+from ....core.types import Role
 from ...general.reactions import ReactionInteraction, ReactionNetworkSystem
 from ...general.reactions.types import Stoichiometry
 

@@ -10,8 +10,8 @@ from scipy.special import expit
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.spaces import BaseSpace, LatticeSpace, LayerSpec, NetworkSpace
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.general.agents import ImitationInteraction
 
 SIZE = 50

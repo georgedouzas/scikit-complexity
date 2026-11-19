@@ -22,9 +22,9 @@ from ....core.components.laws.utils import shift_member, where
 from ....core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend, NumbaBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import Role, StateSpec, VisualSpec
+from ....core.specs import StateSpec, VisualSpec
 from ....core.systems import BaseSystem, System
-from ....core.types import Array
+from ....core.types import Array, Role
 
 TREE_ASPECT = 0.7
 

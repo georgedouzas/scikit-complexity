@@ -27,8 +27,9 @@ from skcomplex.core.engine.solvers import GillespieSolver, RK4Solver, ScipyODESo
 from skcomplex.core.engine.solvers._defaults import DEFAULT_SOLVERS
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.errors import CapacityError, ParameterError, SimulationError, SolverError, ValidationError
-from skcomplex.core.specs import ParameterSpec, Role, RoleSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.biology.collective_behaviour import BoidsSystem
 from skcomplex.systems.biology.common.populations import (
     ExponentialGrowthInteraction,

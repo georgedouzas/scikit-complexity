@@ -17,8 +17,8 @@ whose value is a function is a rule: every walker runs `move(agent, system)` onc
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import UpdateLaw
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
 class Walk(Interaction):
@@ -65,8 +65,8 @@ branching process every individual has a random number of offspring with mean `m
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import UpdateLaw
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
 class Branching(Interaction):
@@ -115,8 +115,8 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
 class Forage(Interaction):
@@ -173,8 +173,8 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
 class Drift(Interaction):
@@ -219,8 +219,8 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
 class Drive(Interaction):
@@ -285,8 +285,8 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.engine.compile import PhaseSpec
 from skcomplex.core.engine.solvers import MesaSolver
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
 class Quote(Interaction):
@@ -347,8 +347,8 @@ flip ten times each with the bias 0.5.
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import UpdateLaw
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
 class Flip(Interaction):

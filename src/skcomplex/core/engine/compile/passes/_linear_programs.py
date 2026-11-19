@@ -246,6 +246,29 @@ class LinearProgramsPass(BasePass):
         return issues
 
     @staticmethod
+    def _get_unbounded_issues(group: Sequence[_BoundLawSpec]) -> list[IssueSpec]:
+        """Return the variables of a program that no constraint bounds."""
+        columns = LinearProgramsPass._get_columns_of(group)
+        bounded = {
+            column
+            for bound in group
+            for constraint in bound.law.constraints
+            for column in LinearProgramsPass._get_symbols_in(
+                bound.spec,
+                constraint.lhs() - constraint.rhs(),
+                columns,
+            ).values()
+        }
+        owner = next((bound.spec.owner for bound in group if bound.law.objectives), group[0].spec.owner)
+        issues = []
+        for (name, _), column in columns.items():
+            if column not in bounded:
+                message = f'The linear program of {owner} sets {name}, which no constraint bounds.'
+                fix = f'Add a `ConstraintLaw` that bounds {name}, such as `ConstraintLaw(v >= 0, target=v)`.'
+                issues.append(IssueSpec('linear-program-variable', owner, message, fix))
+        return issues
+
+    @staticmethod
     def _get_objective_issues(group: Sequence[_BoundLawSpec]) -> list[IssueSpec]:
         """Return the issue of a program with two laws that hold objectives."""
         holders = [bound.spec.owner for bound in group if bound.law.objectives]
@@ -277,6 +300,7 @@ class LinearProgramsPass(BasePass):
         for group in LinearProgramsPass._get_merged(bounds):
             issues += LinearProgramsPass._get_form_issues(group)
             issues += LinearProgramsPass._get_objective_issues(group)
+            issues += LinearProgramsPass._get_unbounded_issues(group)
         return issues
 
     @staticmethod

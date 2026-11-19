@@ -25,9 +25,8 @@ from ....core.components.spaces import BaseSpace, LatticeNeighborhood, LatticeSp
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import Role
 from ....core.systems import BaseSystem, System
-from ....core.types import Array, Pair
+from ....core.types import Array, Pair, Role
 from ...general.agents import ImitationInteraction
 from ._contributor import ContributorElement
 

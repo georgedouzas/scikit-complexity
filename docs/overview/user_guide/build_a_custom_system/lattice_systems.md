@@ -52,7 +52,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import OuterTotalisticSpec, UpdateLaw
 from skcomplex.core.components.spaces import LatticeSpace, RadiusNeighborhood
-from skcomplex.core.specs import Role
+from skcomplex.core.types import Role
 from skcomplex.core.systems import System
 
 MOORE = RadiusNeighborhood(1, metric='chebyshev')
@@ -204,7 +204,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.spaces import LatticeSpace, RadiusNeighborhood
-from skcomplex.core.specs import Role
+from skcomplex.core.types import Role
 from skcomplex.core.systems import System
 
 

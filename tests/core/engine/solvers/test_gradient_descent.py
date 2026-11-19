@@ -17,8 +17,8 @@ from skcomplex.core.engine.backends import NumpyBackend
 from skcomplex.core.engine.solvers import GradientDescentSolver, StepSpec
 from skcomplex.core.engine.solvers._defaults import DEFAULT_SOLVERS
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.computer_science.neural_networks import ElmanNetworkSystem
 
 RATES = {'alpha': 1.1, 'beta': 0.4, 'gamma': 0.4, 'delta': 0.1}

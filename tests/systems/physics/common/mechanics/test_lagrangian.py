@@ -4,8 +4,8 @@ import numpy as np
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.engine.solvers import ScipyODESolver
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.physics.common.mechanics import LagrangianInteraction
 
 SOLVER = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-12)

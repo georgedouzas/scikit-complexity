@@ -23,9 +23,8 @@ from ....core.components.laws.utils import total, where
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import Role
 from ....core.systems import BaseSystem, System
-from ....core.types import Array
+from ....core.types import Array, Role
 
 UNIT = RealSet.closed(0, 1)
 CLIQUES = ((0, 1), (0, 6), (3, 6), (1, 2, 3), (4, 5, 6), (1, 2, 4, 5))

@@ -20,8 +20,8 @@ from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, ScipyODESolver
 from ....core.errors import ParameterError
-from ....core.specs import Role
 from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ..common.signals import PulseInteraction

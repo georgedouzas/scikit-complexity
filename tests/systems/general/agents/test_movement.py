@@ -11,8 +11,8 @@ from skcomplex.core.components.laws import PartnerSpec
 from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace, NetworkSpace
 from skcomplex.core.engine.runtime import Trajectory
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.general.agents import MovementInteraction
 
 

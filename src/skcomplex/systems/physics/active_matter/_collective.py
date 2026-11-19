@@ -23,9 +23,9 @@ from ....core.components.laws.utils import advection, divergence, gradient, lapl
 from ....core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace, RadiusNeighborhood
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver, RK4Solver
-from ....core.specs import Role, VisualSpec
+from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
-from ....core.types import Array
+from ....core.types import Array, Role
 from ...general.elements import PointElement
 from ..common.particles import ActiveDiffusionInteraction, ActiveParticleElement, SelfPropulsionInteraction
 

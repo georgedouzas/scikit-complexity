@@ -23,8 +23,8 @@ from ....core.components.laws.utils import clip, distributed_delay, minimum, ser
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import Role
 from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 MONTHS_PER_YEAR = 12.0
 HUSK_SHARE = 0.2

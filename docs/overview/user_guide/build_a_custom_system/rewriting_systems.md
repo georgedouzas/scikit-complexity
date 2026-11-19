@@ -51,8 +51,8 @@ from types import SimpleNamespace
 from sage.all__sagemath_symbolics import var
 
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.general.rewriting import ModuleSpec, ProductionLaw, WordElement
 
 x = var('x')

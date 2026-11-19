@@ -20,8 +20,8 @@ from .....core.components.laws import ArrayUpdateLaw, BaseLaw, UpdateLaw
 from .....core.components.laws.utils import relax
 from .....core.components.spaces import BaseNeighborhood, BaseSpace, LatticeNeighborhood, RadiusNeighborhood
 from .....core.errors import ValidationError
-from .....core.specs import BaseSpec, Role
-from .....core.types import Array
+from .....core.specs import BaseSpec
+from .....core.types import Array, Role
 
 MODES = ('redistribute', 'reset', 'random')
 

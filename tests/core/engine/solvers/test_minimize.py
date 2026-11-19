@@ -11,8 +11,8 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import ConstraintLaw, ObjectiveLaw
 from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine.solvers import MinimizeSolver
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
 class PointElement(Element):

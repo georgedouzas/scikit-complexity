@@ -167,9 +167,9 @@ Euler drifts off it.
 ```python
 import numpy as np
 
+from skcomplex.core.components import Observable
 from skcomplex.core.engine.solvers import EulerSolver
 from skcomplex.core.errors import ConservationError
-from skcomplex.core.components import Observable
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 system = LotkaVolterraSystem(prey=30.0, predators=4.0, r=0.55, a=0.028, b=0.024, d=0.80)
@@ -327,8 +327,8 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import total
 from skcomplex.core.errors import ParameterShapeError
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
 class Coupling(Interaction):
@@ -536,8 +536,8 @@ is the product of all of them. `limit` guards the memory.
 
 ```python
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
-from skcomplex.core.errors import PhaseSpaceTooLargeError
 from skcomplex.core.components.spaces import AxisSpec
+from skcomplex.core.errors import PhaseSpaceTooLargeError
 
 try:
     PhaseSpace(LatticeSpace((100, 100)), [AxisSpec('v', 64, -4.0, 4.0)], limit=100_000).prepare()
@@ -748,11 +748,11 @@ import networkx as nx
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.components.laws import TopologyRequestSpec
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import CapacityError
-from skcomplex.core.components.laws import TopologyRequestSpec
 
 
 class GrowthElement(Element):

@@ -25,8 +25,8 @@ from .....core.components.laws import ArrayUpdateLaw, ObjectiveLaw
 from .....core.components.laws.utils import exterior_derivative, neighbors
 from .....core.components.spaces import BaseSpace, CellComplexSpace, CofaceNeighborhood
 from .....core.errors import ValidationError
-from .....core.specs import BaseSpec, MatrixGroupSpec, Role
-from .....core.types import Array, ComplexArray, Indices
+from .....core.specs import BaseSpec, MatrixGroupSpec
+from .....core.types import Array, ComplexArray, Indices, Role
 
 HOLONOMY_MOVES = ('rotate', 'random-value')
 HOLONOMY_SCHEDULES = ('colored', 'random-sequential')

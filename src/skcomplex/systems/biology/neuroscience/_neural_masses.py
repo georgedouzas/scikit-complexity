@@ -21,8 +21,9 @@ from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, Role, StateSpec
+from ....core.specs import ParameterSpec, StateSpec
 from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 FIELDS = ('r', 's')
 SETUPS = ('ping', 'ing')

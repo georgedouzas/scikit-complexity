@@ -25,8 +25,9 @@ from ....core.components.laws.utils import bernoulli, components, where
 from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import Role, VisualSpec
+from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 CHUNK = 500
 ACTIVITY_VISUAL = VisualSpec('sites', {'states': ['active'], 'low': 0.0, 'high': 1.0})

@@ -18,7 +18,7 @@ from .....core.components.laws import PartnerSpec, UpdateLaw
 from .....core.components.laws.utils import pairs
 from .....core.components.spaces import BaseSpace
 from .....core.components.types import AgentViewProtocol, SystemViewProtocol
-from .....core.specs import Role
+from .....core.types import Role
 from ._exchange import trade_goods
 
 GOODS = ('sugar', 'spice', 'salt')

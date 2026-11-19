@@ -25,8 +25,8 @@ from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
 from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
 from ....core.errors import SimulationError
-from ....core.specs import Role
 from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ..common.policy import PolicyRuleInteraction
 
 TOLERANCE = 1e-9

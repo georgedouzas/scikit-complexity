@@ -55,8 +55,8 @@ population. A rate law runs in continuous time, so the system needs no setting f
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import bilinear
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
 def exchange_table(cooperation, competition):

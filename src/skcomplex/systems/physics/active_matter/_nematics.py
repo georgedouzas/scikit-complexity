@@ -36,8 +36,8 @@ from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend, NumbaBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver
 from ....core.errors import TensorShapeError, ValidationError
-from ....core.specs import Role
 from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ...general.gradients import GradientInteraction
 
 GEL_ORDERS = ('nematic', 'polar')

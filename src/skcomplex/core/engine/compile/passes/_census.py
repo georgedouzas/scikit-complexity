@@ -1151,6 +1151,7 @@ class CensusPass(BasePass):
                 [LinearObjectiveSpec(value, sense='min') for value in law._get_values_in_order()],
                 active=law.active,
                 infeasible=law.infeasible,
+                duals=law.duals,
                 label=law.label,
             )
             for position, law in enumerate(programs.values())

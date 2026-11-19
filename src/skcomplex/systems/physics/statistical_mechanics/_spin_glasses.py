@@ -23,7 +23,8 @@ from ....core.components.spaces import BaseSpace, LatticeNeighborhood, LatticeSp
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, MetropolisSolver
 from ....core.errors import ValidationError
-from ....core.specs import Role, VisualSpec
+from ....core.specs import VisualSpec
+from ....core.types import Role
 from ..common.spins import SpinSamplingInteraction
 
 NEAREST = LatticeNeighborhood(((-1, 0), (0, -1), (0, 1), (1, 0)))

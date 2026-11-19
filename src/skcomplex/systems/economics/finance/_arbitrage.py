@@ -23,8 +23,8 @@ from ....core.components.laws.utils import advection, laplacian
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import Role
 from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 
 class ArbitrageDensityElement(Element):

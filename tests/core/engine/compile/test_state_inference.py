@@ -47,8 +47,9 @@ from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
 from skcomplex.core.engine.runtime import ConservationObserver, simulate
 from skcomplex.core.engine.solvers import AgentView, ETDRK4Solver, IMEXEulerSolver, RK4Solver, SSPRKSolver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import BaseSpec, Role, StateSpec, VisualSpec
+from skcomplex.core.specs import BaseSpec, StateSpec, VisualSpec
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.mathematics.networks import TriadicPercolationSystem
 
 SITES = 16

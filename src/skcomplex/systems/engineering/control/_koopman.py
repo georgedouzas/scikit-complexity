@@ -31,9 +31,8 @@ from ....core.engine.backends import BaseBackend
 from ....core.engine.runtime import Trajectory
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import Role
 from ....core.systems import BaseSystem, System
-from ....core.types import Array
+from ....core.types import Array, Role
 
 DUFFING_A, DUFFING_B, DUFFING_D = 1.0, -1.0, -0.3
 DUFFING_FORCE, DUFFING_FREQUENCY = 0.5, 1.2

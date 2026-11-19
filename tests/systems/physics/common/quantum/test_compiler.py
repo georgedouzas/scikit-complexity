@@ -12,8 +12,8 @@ from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine._utils import symbol
 from skcomplex.core.engine.compile import OperatorCompiler
 from skcomplex.core.errors import IncompatibleLawsError
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.physics.common.quantum import (
     DissipatorLaw,
     GeneratorLaw,

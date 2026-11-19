@@ -23,9 +23,9 @@ from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
 from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
-from ....core.specs import Role, VisualSpec
+from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
-from ....core.types import Array
+from ....core.types import Array, Role
 from ...general.agents import MovementInteraction
 from ._zones import ClampSpec, RadiusSpec, ZoneCouplingInteraction
 

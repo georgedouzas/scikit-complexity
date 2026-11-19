@@ -11,8 +11,8 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, UpdateLaw
 from skcomplex.core.errors import AnalysisError, ValidationError
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
 def _system(label, laws, **values):

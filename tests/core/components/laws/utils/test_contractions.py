@@ -18,8 +18,9 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import JaxBackend, NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.errors import ParameterError, ValidationError
-from skcomplex.core.specs import ParameterSpec, Role, RoleSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 from .....conftest import NodeElement
 

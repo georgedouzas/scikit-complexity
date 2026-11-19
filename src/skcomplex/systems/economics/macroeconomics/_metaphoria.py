@@ -27,9 +27,9 @@ from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
 from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
-from ....core.specs import BaseSpec, Role
+from ....core.specs import BaseSpec
 from ....core.systems import BaseSystem, System
-from ....core.types import Array
+from ....core.types import Array, Role
 from ...general.matching import MatchingInteraction, MatchSpec, PartnerMatchingSpec
 from ..common.resources import RegrowthInteraction
 

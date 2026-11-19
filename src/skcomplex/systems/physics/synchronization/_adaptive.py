@@ -21,8 +21,9 @@ from ....core.components.laws import RateLaw
 from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import Role, VisualSpec
+from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ..common.oscillators import PhaseOscillatorElement, PhaseRotationInteraction
 
 

@@ -24,7 +24,8 @@ from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import Role, VisualSpec
+from ....core.specs import VisualSpec
+from ....core.types import Role
 from ..common.mechanics import LagrangianInteraction, PendulumSwingInteraction
 from ..common.particles import LinearDragInteraction, RestoringForceInteraction
 

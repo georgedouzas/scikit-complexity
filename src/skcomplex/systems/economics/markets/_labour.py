@@ -23,8 +23,8 @@ from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
 from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
-from ....core.specs import Role
 from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ...general.matching import MatchingInteraction, MatchSpec, StableMatchingSpec
 
 

@@ -24,8 +24,8 @@ from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver
 from ....core.errors import ValidationError
-from ....core.specs import Role
 from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 C0 = 1.10869e-8
 C1 = 9.7137e9

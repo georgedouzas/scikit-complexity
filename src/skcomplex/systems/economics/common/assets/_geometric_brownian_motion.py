@@ -16,7 +16,7 @@ from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction, WienerProcessSpec
 from .....core.components.laws import NoiseLaw, RateLaw
 from .....core.components.spaces import BaseSpace
-from .....core.specs import Role
+from .....core.types import Role
 
 
 class GeometricBrownianMotionInteraction(Interaction):

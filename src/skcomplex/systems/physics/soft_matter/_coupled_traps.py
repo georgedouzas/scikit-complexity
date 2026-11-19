@@ -21,8 +21,9 @@ from ....core.components.laws.utils import pulse_train
 from ....core.components.spaces import BaseSpace, ContinuousSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import Role, VisualSpec
+from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ..common.particles import StokesianMobilityInteraction
 
 SPHERES = VisualSpec('points', {'position': 'x', 'radius': 1.0})

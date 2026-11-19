@@ -25,8 +25,9 @@ from ....core.components.laws.utils import neighbors, where
 from ....core.components.spaces import AdjacencyNeighborhood, BaseSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver, SystemView
-from ....core.specs import Role, VisualSpec
+from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ._random_pairs import RandomPairsInteraction
 
 PAIR = 2

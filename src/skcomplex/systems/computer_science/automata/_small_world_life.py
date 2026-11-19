@@ -21,9 +21,8 @@ from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ParameterError
-from ....core.specs import Role
 from ....core.systems import BaseSystem, System
-from ....core.types import AnyArray
+from ....core.types import AnyArray, Role
 from ._binary_cell import BinaryCellElement
 
 MOORE_OFFSETS = ((0, 1), (1, -1), (1, 0), (1, 1))

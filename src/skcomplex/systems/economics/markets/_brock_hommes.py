@@ -19,9 +19,9 @@ from ....core.components.elements import Element
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
 from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
-from ....core.specs import BaseSpec, Role
+from ....core.specs import BaseSpec
 from ....core.systems import BaseSystem, System
-from ....core.types import Array
+from ....core.types import Array, Role
 from ...general.agents import ChoiceInteraction
 from ..common.forecasting import heuristics
 from ..common.learning import PayoffLearningInteraction

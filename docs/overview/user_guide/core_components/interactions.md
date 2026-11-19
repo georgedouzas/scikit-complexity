@@ -1677,7 +1677,7 @@ temperature `T`.
 ```python continuation
 from types import SimpleNamespace
 
-from skcomplex.core.specs import Role
+from skcomplex.core.types import Role
 
 
 class IsingInteraction(Interaction):

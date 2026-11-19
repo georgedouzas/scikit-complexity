@@ -10,8 +10,8 @@ from skcomplex.core.components.elements import Element, Quantity
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.errors import ConservationError, LabelError, ValidationError
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 RATES = {'births': 0.1, 'deaths': 0.05}
 

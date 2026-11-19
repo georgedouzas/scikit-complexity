@@ -21,9 +21,9 @@ from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver, SystemView
-from ....core.specs import Role, VisualSpec
+from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
-from ....core.types import Array, IntArray
+from ....core.types import Array, IntArray, Role
 
 SUSCEPTIBLE, INFECTED, RECOVERED = 0.0, 1.0, 2.0
 

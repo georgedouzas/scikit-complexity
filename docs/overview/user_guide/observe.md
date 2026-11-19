@@ -139,7 +139,7 @@ observables when they are compiled, so `prepare(observables)` takes them before 
 ```python continuation
 from sage.all__sagemath_symbolics import cos, sin
 
-from skcomplex.core.specs import Role
+from skcomplex.core.types import Role
 
 
 class MeanField(Interaction):

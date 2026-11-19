@@ -17,7 +17,7 @@ from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, UpdateLaw
 from .....core.components.laws.utils import normal, uniform, where
 from .....core.components.spaces import BaseSpace
-from .....core.specs import Role
+from .....core.types import Role
 
 
 class EdgeDrawInteraction(Interaction):

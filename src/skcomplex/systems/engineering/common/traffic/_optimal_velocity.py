@@ -13,7 +13,7 @@ from sage.all__sagemath_symbolics import Expression, oo, tanh
 from sage.sets.real_set import RealSet
 
 from .....core.components.laws.utils import mod, shift_member
-from .....core.specs import Role
+from .....core.types import Role
 from ._speed_adaptation import SpeedAdaptationInteraction
 
 

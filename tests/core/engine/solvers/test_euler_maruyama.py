@@ -15,8 +15,8 @@ from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver, HeunSolver, StepSpec
 from skcomplex.core.errors import SolverError
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.economics.finance import (
     AssetElement,
     GeometricBrownianMotionInteraction,

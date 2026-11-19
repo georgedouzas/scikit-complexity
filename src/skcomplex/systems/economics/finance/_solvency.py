@@ -15,9 +15,8 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, SystemView
-from ....core.specs import Role
 from ....core.systems import BaseSystem, System
-from ....core.types import Array
+from ....core.types import Array, Role
 from ..common.banking import BalanceSheetElement
 from ..common.banking._balance_sheet import DEFAULTED, DEFAULTING, SOLVENT, BalanceSheetView
 from ..common.policy import PolicyRuleInteraction

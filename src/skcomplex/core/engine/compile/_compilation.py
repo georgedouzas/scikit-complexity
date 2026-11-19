@@ -12,7 +12,15 @@ from sage.all__sagemath_symbolics import SR, Expression
 from sage.symbolic.function import SymbolicFunction
 from sage.symbolic.operators import FDerivativeOperator
 
-from ...components.laws import BaseLaw, ConstraintLaw, EventLaw, ObjectiveLaw, RuleLaw, TopologyRequestSpec
+from ...components.laws import (
+    BaseLaw,
+    ConstraintLaw,
+    EventLaw,
+    LinearProgramLaw,
+    ObjectiveLaw,
+    RuleLaw,
+    TopologyRequestSpec,
+)
 from ...components.spaces import StaticTime
 from ...components.systems import CompositeSystem
 from ...enums import FormKind, VariableKind
@@ -410,8 +418,9 @@ class Compilation:
     def is_static(self) -> bool:
         """Return whether the system is static.
 
-        It is static by its time, by an objective law without controls, by constraint laws alone, or by having no laws
-        at all. An objective law with controls steers a run in time.
+        It is static by its time, by an objective law without controls, by constraint laws and linear programs alone,
+        or by having no laws at all. An objective law with controls steers a run in time, and a linear program beside
+        rate or update laws is solved at every time of the run.
 
         A system with no laws and no time of its own, such as `System(elements=[Element('ball', values={'x': 1.0})])`
         or disks placed in a square, changes nothing, so it is static and records one frame. A point given a starting
@@ -435,7 +444,9 @@ class Compilation:
         if (
             census.records
             and self.system.time is None
-            and all(self._is_balance(record.law) for record in census.records)
+            and all(
+                isinstance(record.law, LinearProgramLaw) or self._is_balance(record.law) for record in census.records
+            )
         ):
             return True
         return any(isinstance(record.law, ObjectiveLaw) and record.law.controls is None for record in census.records)

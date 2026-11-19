@@ -19,7 +19,7 @@ from ....core.components.laws.utils import pairs, transfer
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, Pairing, SystemViewProtocol
 from ....core.errors import ValidationError
-from ....core.specs import Role
+from ....core.types import Role
 from ._batch_matching_spec import BatchMatchingSpec
 from ._continuous_matching_spec import ContinuousMatchingSpec
 from ._iterative_matching_spec import IterativeMatchingSpec

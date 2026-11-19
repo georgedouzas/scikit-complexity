@@ -19,8 +19,8 @@ from ....core.components.laws.utils import coordinate
 from ....core.components.spaces import AxisSpec, LatticeSpace, PhaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver
-from ....core.specs import Role
 from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ...general.kinetics import EncounterInteraction
 from ..common.fields import AdvectionInteraction, PhaseSpaceDensityElement
 

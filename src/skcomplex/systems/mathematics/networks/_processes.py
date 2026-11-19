@@ -24,8 +24,9 @@ from ....core.components.laws.utils import laplacian, neighbors
 from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver, SystemView
-from ....core.specs import Role, VisualSpec
+from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ...general.dynamics import NetworkDynamicalSystem
 from ...general.dynamics.types import Equations
 

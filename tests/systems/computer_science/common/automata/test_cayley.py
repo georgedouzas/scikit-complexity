@@ -17,8 +17,8 @@ from skcomplex.core.components.spaces import BaseSpace, LatticeNeighborhood, Lat
 from skcomplex.core.engine.problems import FrameSpec
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.errors import SpaceError, SpaceTooLargeError, ValidationError
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.computer_science.common.automata import (
     CayleySpace,
     CayleyVisual,

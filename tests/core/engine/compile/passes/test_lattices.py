@@ -40,9 +40,9 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver, SiteVisual
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.experiments import sweep
-from skcomplex.core.specs import ParameterSpec, Role, StateSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.core.systems import System
-from skcomplex.core.types import Array
+from skcomplex.core.types import Array, Role
 from skcomplex.systems.physics.criticality import HexagonalForestFireSystem
 from skcomplex.systems.physics.statistical_mechanics import GraphIsingSystem
 

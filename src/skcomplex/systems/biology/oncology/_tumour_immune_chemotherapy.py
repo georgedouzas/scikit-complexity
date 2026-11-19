@@ -16,7 +16,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import BaseSpace
-from ....core.specs import Role
+from ....core.types import Role
 
 
 class TumourImmuneChemotherapyElement(Element):

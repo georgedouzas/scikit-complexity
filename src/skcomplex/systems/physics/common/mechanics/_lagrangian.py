@@ -32,7 +32,7 @@ class LagrangianInteraction(Interaction):
     Examples:
         >>> from sage.all__sagemath_symbolics import cos
         >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.specs import Role
+        >>> from skcomplex.core.types import Role
         >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.physics.common.mechanics import LagrangianInteraction
         >>> class SwingInteraction(LagrangianInteraction):

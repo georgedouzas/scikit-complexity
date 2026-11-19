@@ -10,7 +10,7 @@ It grows on A alone.
 
 from collections.abc import Mapping
 
-from .....core.specs import Role
+from .....core.types import Role
 from ._flux_balance import FluxBalanceInteraction
 from ._reaction_spec import ReactionSpec
 

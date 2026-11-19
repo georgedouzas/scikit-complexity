@@ -13,7 +13,7 @@ from .....core.components.interactions import Interaction
 from .....core.components.laws import UpdateLaw
 from .....core.components.spaces import BaseSpace
 from .....core.components.types import SystemViewProtocol
-from .....core.specs import Role
+from .....core.types import Role
 
 
 class RegrowthInteraction(Interaction):

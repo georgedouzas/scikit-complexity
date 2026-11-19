@@ -24,8 +24,7 @@ from .....core.components.laws import BaseLaw, CallSpec, RateLaw, UpdateLaw
 from .....core.components.spaces import BaseSpace
 from .....core.components.types import NamespaceFunction, PairPotential, Target
 from .....core.errors import ValidationError
-from .....core.specs import Role
-from .....core.types import Array
+from .....core.types import Array, Role
 
 TENSORS = ('free-draining', 'oseen', 'rotne-prager-yamakawa')
 FORMS = ('rate', 'map')

@@ -16,8 +16,8 @@ from skcomplex.core.engine.backends import BaseBackend, NumbaBackend, NumpyBacke
 from skcomplex.core.engine.runtime import Trajectory
 from skcomplex.core.engine.solvers import BaseSolver, RK4Solver
 from skcomplex.core.errors import NotPreparedError
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import BaseSystem, System
+from skcomplex.core.types import Role
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 

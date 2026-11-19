@@ -18,7 +18,7 @@ from .....core.components.laws import BaseLaw, JumpLaw
 from .....core.components.laws.utils import neighbors, where
 from .....core.components.spaces import AdjacencyNeighborhood, BaseSpace
 from .....core.errors import ValidationError
-from .....core.specs import Role
+from .....core.types import Role
 
 FORMS = ('number', 'fraction')
 

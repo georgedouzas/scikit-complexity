@@ -18,14 +18,19 @@ def test_jump_targets_its_changes_or_its_reset():
     assert (waiting.targets_, waiting.run({'k': 4.0}).value_) == ((N,), {N: 4.0})
 
 
+def test_jump_at_a_rate_takes_the_label_of_its_channel():
+    """Test that a jump at a rate takes a label, which names its channel, as an infection of an epidemic."""
+    law = JumpLaw(0.5 * N, {N: -1, K: 1}, label='infection').prepare()
+    assert (law.label, law.targets_) == ('infection', (N, K))
+
+
 @pytest.mark.parametrize(
     ('arguments', 'message'),
     [
         ({}, 'exactly one of them'),
         ({'rate': 1.0, 'waiting': 1.0}, 'exactly one of them'),
         ({'waiting': draw('wait', 'expon'), 'changes': {N: 1}}, 'changes belong to the exponential clock'),
-        ({'rate': 1.0, 'changes': {N: 1}, 'reset': {N: 0}}, 'resets and labels to the waiting'),
-        ({'rate': 1.0, 'changes': {N: 1}, 'label': 'fires'}, 'takes a label'),
+        ({'rate': 1.0, 'changes': {N: 1}, 'reset': {N: 0}}, 'resets to the waiting'),
         ({'rate': 1.0, 'changes': {N: K}}, 'holds a symbol'),
     ],
 )

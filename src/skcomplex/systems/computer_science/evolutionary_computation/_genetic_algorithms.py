@@ -22,9 +22,9 @@ from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver, SystemView
 from ....core.errors import ParameterError
-from ....core.specs import Role, VisualSpec
+from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
-from ....core.types import Array, IntArray
+from ....core.types import Array, IntArray, Role
 from ...general.agents import EvolutionInteraction
 
 N_SITUATIONS = 243

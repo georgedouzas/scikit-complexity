@@ -193,6 +193,19 @@ def test_linear_objective_with_its_constraints_is_solved_as_a_linear_program():
     assert system.parameters_ == ('plant.cap',)
 
 
+def test_linear_program_records_the_duals_of_its_constraints():
+    """Test that `duals=True` records the change of the optimum with the right side of each constraint."""
+
+    def laws(s):
+        v, w = s.target.v, s.target.w
+        bounds = [ConstraintLaw(v >= 0), ConstraintLaw(w >= 0), ConstraintLaw(v <= 3)]
+        return [ObjectiveLaw(-(2 * v + w), [v, w], duals=True), ConstraintLaw(v + w <= s.target.cap), *bounds]
+
+    trajectory = _get_plant(laws, cap=5.0).simulate(until=0.0)
+    duals = [float(trajectory.get_values(f'plant.dual_{index}')[0]) for index in range(4)]
+    assert duals == pytest.approx([-1.0, 0.0, 0.0, -1.0])
+
+
 def test_linear_program_is_solved_at_every_time_of_a_run():
     """Test that a program whose capacity grows in time sets its targets at every time."""
     plant = Element('plant', values={'v': 0.0, 'w': 0.0, 'cap': 1.0})

@@ -20,7 +20,8 @@ from .....core.components.laws import BaseLaw, ConstraintLaw, ObjectiveLaw
 from .....core.components.laws.utils import both, either
 from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
-from .....core.specs import Role, VisualSpec
+from .....core.specs import VisualSpec
+from .....core.types import Role
 from ._reaction_spec import ReactionSpec
 
 SWITCH_THRESHOLD = 0.5

@@ -16,8 +16,8 @@ from skcomplex.core.components.laws.utils._fractional import fractional_of
 from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine.solvers import FractionalABMSolver, L1Solver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
 class AnomalousRelaxation(Interaction):

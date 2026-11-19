@@ -21,9 +21,9 @@ from ....core.components.laws import TotalisticSpec, UpdateLaw
 from ....core.components.spaces import BaseNeighborhood, BaseSpace, LatticeNeighborhood, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import Role, SubshiftSpec
+from ....core.specs import SubshiftSpec
 from ....core.systems import BaseSystem, System
-from ....core.types import Array
+from ....core.types import Array, Role
 from ..common.automata import CayleySpace, MemoryNeighborhood
 from ._binary_cell import BinaryCellElement
 from ._generator_neighborhood import GeneratorNeighborhood

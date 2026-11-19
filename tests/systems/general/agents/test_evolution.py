@@ -12,8 +12,8 @@ from skcomplex.core.engine.compile import PhaseSpec
 from skcomplex.core.engine.runtime import Trajectory
 from skcomplex.core.engine.solvers import AgentView, MesaSolver, SystemView
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.general.agents import EvolutionInteraction
 
 NEUTRAL_RUNS = 100

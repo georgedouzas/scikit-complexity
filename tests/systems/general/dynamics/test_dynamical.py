@@ -15,8 +15,8 @@ from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine.backends import BaseBackend, NumbaBackend
 from skcomplex.core.engine.solvers import BaseSolver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.general.dynamics import DynamicalSystem
 from skcomplex.systems.general.dynamics.types import Equations
 

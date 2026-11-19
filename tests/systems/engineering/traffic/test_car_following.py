@@ -10,8 +10,8 @@ from sage.all__sagemath_symbolics import sqrt, tanh
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.engine.solvers import ScipyODESolver
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.engineering.common.traffic import CarElement
 from skcomplex.systems.engineering.traffic import (
     DelayedCarFollowingSystem,

@@ -20,6 +20,7 @@ from ..base import BaseConfig
 from ..errors import ValidationError
 from ..specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, Spec, StateSpec
 from ..specs._tensor_spec import TENSOR_DIMENSIONS
+from ..types import Role
 from ._tags import STOCHASTIC_LAWS, Tags
 
 MATRIX_AXES = 2
@@ -135,10 +136,10 @@ class BaseComponent[ContextT, InputT](BaseConfig[ContextT, InputT]):
     def _get_annotated(annotation: object) -> object:
         """Return the `Annotated` form an annotation stands for.
 
-        A short annotation such as `State[float]` or `Role` stands for the `Annotated` form it aliases, and any other
-        annotation stands for itself. A short annotation inside `Annotated`, such as `Annotated[Role, 'boolean']`,
-        stands for the form it aliases with the further metadata added. A role that may be `None`, such as
-        `Role | None`, stands for an optional role.
+        A short annotation such as `State[float]` stands for the `Annotated` form it aliases, `Role` stands for a role
+        of one element, and any other annotation stands for itself. A short annotation inside `Annotated`, such as
+        `Annotated[Role, 'boolean']`, stands for the form it aliases with the further metadata added. A role that may
+        be `None`, such as `Role | None`, stands for an optional role.
         """
         others = [item for item in get_args(annotation) if item is not NoneType]
         if get_origin(annotation) in (UnionType, Union) and len(others) == 1 < len(get_args(annotation)):
@@ -155,6 +156,8 @@ class BaseComponent[ContextT, InputT](BaseConfig[ContextT, InputT]):
                 base, *metadata = get_args(aliased)
                 return Annotated[base, *metadata, *extra]
             return annotation
+        if annotation is Role:
+            return Annotated[str, RoleSpec()]
         alias = get_origin(annotation) or annotation
         return getattr(alias, '__value__', annotation) if isinstance(alias, TypeAliasType) else annotation
 

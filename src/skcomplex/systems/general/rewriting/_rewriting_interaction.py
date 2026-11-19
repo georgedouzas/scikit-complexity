@@ -12,7 +12,7 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw
 from ....core.components.spaces import BaseSpace
 from ....core.errors import RewritingError
-from ....core.specs import Role
+from ....core.types import Role
 from ._production import ProductionLaw
 from ._substitution import SubstitutionLaw
 

@@ -13,8 +13,8 @@ from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import laplacian, total
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 from skcomplex.systems.biology.epidemiology import SIRSystem
 from skcomplex.systems.chemistry.common.kinetics import CubicAutocatalysisInteraction

@@ -2,10 +2,10 @@
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import ConstraintLaw
+from skcomplex.core.components.laws import ConstraintLaw, ObjectiveLaw
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
 class BalanceInteraction(Interaction):
@@ -43,3 +43,35 @@ def test_points_placed_in_a_space_with_no_laws_record_one_frame():
     assert system.form_ == 'static solution'
     assert trajectory.times.tolist() == [0.0]
     assert trajectory.get_values('disks.x').tolist() == [[[1.0, 2.0], [3.0, 4.0]]]
+
+
+class RoutingInteraction(Interaction):
+    """The largest total flow over two roads of capacities 3 and 4, as a linear program."""
+
+    def __init__(self, label: str, *, routes: Role = 'flows') -> None:
+        super().__init__(label)
+        self.routes = routes
+
+    def _prepare(self, context=None):
+        """Set the objective and the bounds of both flows as the laws."""
+        super()._prepare(context)
+        direct, detour = context.routes.direct, context.routes.detour
+        self.laws_ = [
+            ObjectiveLaw(-(direct + detour), [direct, detour]),
+            ConstraintLaw(direct <= 3, target=direct),
+            ConstraintLaw(detour <= 4, target=detour),
+            ConstraintLaw(direct >= 0, target=direct),
+            ConstraintLaw(detour >= 0, target=detour),
+        ]
+
+
+def test_a_linear_program_alone_is_static():
+    """Test that a system whose laws form a linear program alone is solved once, as a static system."""
+    system = System(
+        elements=[Element('flows', values={'direct': 0.0, 'detour': 0.0})],
+        interactions=[RoutingInteraction('routing')],
+    ).prepare()
+    trajectory = system.simulate(until=1.0)
+    assert system.form_ == 'static solution'
+    assert trajectory.times.tolist() == [0.0]
+    assert float(trajectory.get_values('flows.objective_0')[0]) == -7.0

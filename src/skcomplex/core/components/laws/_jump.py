@@ -51,7 +51,8 @@ class JumpLaw(BaseLaw):
             With a waiting time, a mapping from state symbol to its new value, which may hold draws, or `None`.
 
         label:
-            With a waiting time, the name of the firings in the trajectory, or the empty string for the path of the
+            The name of the jump channel, such as `'infection'`, or the empty string for a law without one. With a
+            waiting time, it names the firings in the trajectory, and the empty string names them by the path of the
             element.
 
     Examples:
@@ -105,15 +106,15 @@ class JumpLaw(BaseLaw):
             raise ValidationError(error_msg)
         if self.waiting is not None and self.changes:
             given, fix = 'changes', 'Give the new values of the states as `reset`.'
-        elif self.waiting is None and (self.reset is not None or self.label):
-            given = 'a reset' if self.reset is not None else 'a label'
+        elif self.waiting is None and self.reset is not None:
+            given = 'a reset'
             fix = 'Give the increments of the states as `changes`, or a waiting time instead of the rate.'
         else:
             return
         clock = 'a waiting-time clock' if self.waiting is not None else 'an exponential clock'
         error_msg = (
-            f'A jump on {clock} takes {given}, but changes belong to the exponential clock of a rate, and resets and '
-            f'labels to the waiting-time clock. {fix}'
+            f'A jump on {clock} takes {given}, but changes belong to the exponential clock of a rate, and resets to '
+            f'the waiting-time clock. {fix}'
         )
         raise ValidationError(error_msg)
 

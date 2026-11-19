@@ -43,9 +43,11 @@ class BoundaryLawsPass(BasePass):
     def _get_space_boundary_laws(block: BlockSpec, spec: KernelSpec) -> list[BaseLaw]:
         """Return the laws by which a continuous space boundary acts on a component.
 
-        It acts on the position states of the component. A periodic boundary wraps every position component into the
-        box. A reflecting boundary mirrors a position that crossed a wall back into the box and reverses the velocity
-        component across the wall, where the velocity is the first derivative of a position of order 2.
+        It acts on the position states of the component: a vector position, or a scalar value named after an axis of
+        the space, such as `x` and `y` of `Element('walkers', values={'x': [1.0, 9.0], 'y': [5.0, 5.0]}, size=2)`. A
+        periodic boundary wraps every position component into the box. A reflecting boundary mirrors a position that
+        crossed a wall back into the box and reverses the velocity component across the wall, where the velocity is
+        the first derivative of a position of order 2.
         """
         space = block.node.space
         if block.node.interaction or not isinstance(space, ContinuousSpace) or space.boundary == 'open':
@@ -53,7 +55,11 @@ class BoundaryLawsPass(BasePass):
         declarations = declarations_of(block.node.component_type, VariableKind.STATE)
         laws: list[BaseLaw] = []
         for name, declaration in declarations.items():
-            if not declaration.is_place:
+            if declaration.is_place:
+                sides = space.extent_
+            elif declaration.role == 'position' and name in space.axes_:
+                sides = (space.extent_[space.axes_.index(name)],)
+            else:
                 continue
             velocity_name = f'{name}_d1' if declaration.order > 1 else None
             positions = [SR(item) for item in components_of(getattr(spec.namespace, name))]
@@ -62,7 +68,7 @@ class BoundaryLawsPass(BasePass):
                 if velocity_name
                 else [None] * len(positions)
             )
-            for position, velocity, side in zip(positions, velocities, space.extent_, strict=True):
+            for position, velocity, side in zip(positions, velocities, sides, strict=True):
                 if space.boundary == 'periodic':
                     laws.append(BoundaryLaw(position, mod(position, side)))
                     continue

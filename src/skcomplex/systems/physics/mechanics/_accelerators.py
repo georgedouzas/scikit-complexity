@@ -21,8 +21,8 @@ from ....core.components.laws.utils import both, where
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver
-from ....core.specs import Role
 from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 
 class BeamBeamInteraction(Interaction):

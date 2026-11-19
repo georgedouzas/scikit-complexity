@@ -25,8 +25,9 @@ from ....core.components.laws.utils import where
 from ....core.components.spaces import BaseSpace, ContinuousSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import AgentView, BaseSolver, SystemView
-from ....core.specs import Role, VisualSpec
+from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 EDGE_FRACTION = 1e-9
 BEACON_MARGIN = 5.0

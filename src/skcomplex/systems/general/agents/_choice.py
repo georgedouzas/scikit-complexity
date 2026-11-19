@@ -21,7 +21,8 @@ from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.enums import ScheduleKind
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec, Role
+from ....core.specs import BaseSpec
+from ....core.types import Role
 
 RULES = ('logit', 'metropolis', 'fermi', 'best')
 FORMS = ('symbolic', 'agent')

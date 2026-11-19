@@ -68,6 +68,12 @@ class ObjectiveLaw(BaseLaw):
             `'zero'` to set the targets to zero, or `'hold'` to keep their last values, as a culture that stops
             growing when its medium runs out.
 
+        duals:
+            For a linear value, whether a run records the dual value of each constraint of the program, under
+            `<path>.dual_<k>` in the order of the constraints. The dual value of a constraint is the change of the
+            first value with the right side of the constraint, such as the shadow price of a metabolite in flux balance
+            analysis.
+
         label:
             The name of the law, or the empty string for a law without one.
 
@@ -101,6 +107,7 @@ class ObjectiveLaw(BaseLaw):
         terminal: object = 0,
         active: object = None,
         infeasible: str = 'raise',
+        duals: bool = False,
         label: str = '',
     ) -> None:
         super().__init__(label)
@@ -110,6 +117,7 @@ class ObjectiveLaw(BaseLaw):
         self.terminal = terminal
         self.active = active
         self.infeasible = infeasible
+        self.duals = duals
 
     def _get_targets(self) -> tuple[object, ...]:
         """Return the states the minimum is sought over, or the controls."""

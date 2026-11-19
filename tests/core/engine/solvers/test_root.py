@@ -25,8 +25,9 @@ from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import Trajectory
 from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import SolverError
-from skcomplex.core.specs import ParameterSpec, Role, StateSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 VALUES = {'x': 1.0, 'b': 1.0}
 COURNOT = {'q_i': 0.0, 'q_j': 0.0, 'alpha': 10.0, 'c_i': 1.0, 'c_j': 2.0, 'lambda_i': 0.0, 'lambda_j': 0.0}

@@ -27,8 +27,8 @@ from ....core.components.spaces import AdjacencyNeighborhood, BaseSpace, LayerSp
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import Role
 from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ..common.networks import NetworkNodeElement
 from ..common.networks._regulated_node import ACTIVITY_VISUAL
 from ..common.networks._vertex import DEGREE_VISUAL

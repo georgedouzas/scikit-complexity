@@ -17,7 +17,7 @@ from .....core.components.laws import RateLaw
 from .....core.components.laws.utils import divergence
 from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
-from .....core.specs import Role
+from .....core.types import Role
 
 
 class AdvectionInteraction(Interaction):

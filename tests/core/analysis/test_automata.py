@@ -30,8 +30,9 @@ from skcomplex.core.components.spaces import (
     RadiusNeighborhood,
 )
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.specs import Role, SubshiftSpec
+from skcomplex.core.specs import SubshiftSpec
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.computer_science.automata import lamplighter
 from skcomplex.systems.computer_science.common.automata import CayleySpace, MemoryNeighborhood
 

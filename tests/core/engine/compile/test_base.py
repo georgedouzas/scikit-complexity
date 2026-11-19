@@ -15,8 +15,8 @@ from skcomplex.core.engine.compile import BaseCompiler, BasePass, OperatorCompil
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import RoleElementError
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.engineering.control import PidInvertedPendulumSystem
 
 

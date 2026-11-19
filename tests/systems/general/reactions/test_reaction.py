@@ -12,8 +12,8 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import JumpLaw, NoiseLaw, RateLaw
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.general.elements import NonnegativeElement
 from skcomplex.systems.general.reactions import ReactionInteraction
 

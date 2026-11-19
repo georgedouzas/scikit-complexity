@@ -22,8 +22,8 @@ from ....core.components.laws.utils import step
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import Role
 from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 SECTORS = 3
 A_MATRIX = ((-1.0, 0.3, 0.2), (0.2, -0.8, 0.3), (0.1, 0.4, -0.6))
