@@ -3,54 +3,34 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Annotated
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import sin
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import CouplingInteraction
-from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.components.laws.utils import count, total
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.systems import System
 
 from .....conftest import _weighted
 
 
-class ValueElement(Element):
-    """Member with a value and a gain."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[object, StateSpec()] = 0.0,
-        gain: Annotated[object, ParameterSpec()] = 1.0,
-    ) -> None:
-        super().__init__(label)
-        self.x = x
-        self.gain = gain
-
-
 def _step(x, gain, function, reduce):
     """Return the values after one step of a map coupling over every other member of the group."""
-    members = GroupElement('members', element=ValueElement, size=len(x), values={'x': x, 'gain': gain})
-    coupling = CouplingInteraction(
-        'coupling',
-        target='members',
-        read='x',
-        write='x',
-        function=function,
-        mode='group',
-        reduce=reduce,
-        form='map',
-    )
-    system = CompositeSystem(elements=[members], interactions=[coupling], time=DiscreteTime())
-    return simulate(system, until=1).get_values('members.x')[-1]
+
+    def laws(s):
+        """Return the map of every member to the reduction of the pair terms over the other members."""
+        pairs = total(function(SimpleNamespace(member=s.target, other=s.target.other)), over=s.target)
+        reduced = pairs - function(SimpleNamespace(member=s.target, other=s.target))
+        return [UpdateLaw(s.target.x, reduced if reduce == 'sum' else reduced / (count(over=s.target) - 1))]
+
+    members = Element('members', values={'x': x, 'gain': gain}, size=len(x))
+    coupling = Interaction('coupling', roles={'target': 'members'}, laws=laws)
+    return System(elements=[members], interactions=[coupling]).prepare().simulate(until=1).get_values('members.x')[-1]
 
 
 def _separable(s):
@@ -82,7 +62,7 @@ def test_reduction_lowering_weights_of_a_shaped_parameter(backend, reduce):
     """Test that a reduction weighted by a matrix parameter gives every reading member its row times the members."""
     weights = np.random.default_rng(0).normal(size=(4, 2))
     inputs = np.array([1.5, -0.5])
-    problem = PassCompiler(backend=backend()).prepare(_weighted(weights, inputs, reduce=reduce)).run().problem_
+    problem = _weighted(weights, inputs, reduce=reduce).set_params(backend=backend()).prepare()._problem
     rate = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     expected = weights @ inputs / (len(inputs) if reduce == 'mean' else 1)
     np.testing.assert_allclose(problem.states.read(rate, 'hidden.x'), expected, atol=1e-12)
