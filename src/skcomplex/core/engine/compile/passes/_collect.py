@@ -31,9 +31,11 @@ class CollectPass(BasePass):
         census = Compilation._get_required(compilation.census, 'census')
         flowing = CensusPass._get_flowing(census.records)
         agents = {node.path for node in Compilation._get_required(compilation.nodes, 'nodes') if node.is_agent}
+        solvers = CensusPass._get_solvers(compilation.system, (compilation.solver, ''))
         declared = []
         for spec, block in specs:
-            laws = CensusPass._get_declared_laws(spec, CensusPass._get_component_of(block.node), compilation.solver)
+            solver, scope = solvers.get(block.node.scope, (compilation.solver, ''))
+            laws = CensusPass._get_declared_laws(spec, CensusPass._get_component_of(block.node), solver, scope)
             corrected = [
                 CensusPass._get_corrected(law, CensusPass._get_law_owner(spec, law, agents), flowing) for law in laws
             ]

@@ -11,6 +11,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from types import SimpleNamespace
 
+from ...base import BaseConfig
 from ...errors import RoleElementError, TagError
 from .._tags import Tags
 from ..base import BaseComponent
@@ -80,6 +81,7 @@ class CompositeSystem(BaseSystem['CompositeSystem']):
         systems: Sequence[BaseSystem] = (),
         space: BaseSpace | None = None,
         time: BaseTime | None = None,
+        solver: BaseConfig | None = None,
     ) -> None:
         """Store the label and the components of the system.
 
@@ -103,6 +105,10 @@ class CompositeSystem(BaseSystem['CompositeSystem']):
             time:
                 The time the system evolves in, `ContinuousTime`, `DiscreteTime` with its schedule, or `StaticTime`, or
                 `None` to infer it from the laws.
+
+            solver:
+                The solver of the laws of the system, which a nested system keeps as it keeps its time, or `None` for
+                the solver of the system that holds it.
         """
         super().__init__(label)
         self.elements = elements
@@ -110,6 +116,7 @@ class CompositeSystem(BaseSystem['CompositeSystem']):
         self.systems = systems
         self.space = space
         self.time = time
+        self.solver = solver
 
     def _build_system(self) -> CompositeSystem:
         """Return the system itself, whose components are its arguments."""

@@ -518,6 +518,7 @@ class _StateInference:
             systems=systems,
             space=system.space,
             time=system.time,
+            solver=system.solver,
         )
         if hasattr(system, 'observables'):
             replaced.observables = list(system.observables)
