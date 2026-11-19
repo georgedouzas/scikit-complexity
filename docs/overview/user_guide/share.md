@@ -18,20 +18,17 @@ variables describe it:
 - `until` and `dt` are the tuned run settings, which `simulate` reads when a call leaves them out.
 
 The tutorial [Build a custom system](build_a_custom_system/index.md) wrote the model as `PeltSystem` from core
-components. A class of the catalog builds it from the components that the systems of ecology share in
-`skcomplex.systems.biology.common`, a population element and the growth, predation, and mortality interactions, so
-that one model has one implementation. The class below does so. Its defaults are the rates of Carpenter
-(2018) and the pelt records of 1900, and its docstring follows the style of the catalog: a summary, a paragraph on what
-the model shows, the arguments, and an example.
+components. The class below builds it from the same core components. A class of the catalog would build it from the
+components that the systems of ecology share in `skcomplex.systems.biology.common`, a population element and the
+growth, predation, and mortality interactions, so that one model has one implementation. Its defaults are the rates
+of Carpenter (2018) and the pelt records of 1900, and its docstring follows the style of the catalog: a summary, a
+paragraph on what the model shows, the arguments, and an example.
 
 ```python
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.systems import BaseSystem, System
-from skcomplex.systems.biology.common.populations import (
-    ExponentialGrowthInteraction,
-    MortalityInteraction,
-    PopulationElement,
-    PredationInteraction,
-)
 
 
 class HareLynxSystem(BaseSystem):
@@ -95,11 +92,17 @@ class HareLynxSystem(BaseSystem):
 
     def _prepare(self, context=None):
         super()._prepare(context)
-        elements = [PopulationElement('hares', x=self.hares), PopulationElement('lynx', x=self.lynx)]
+        alpha, beta, gamma, delta = self.alpha, self.beta, self.gamma, self.delta
+
+        def predation(s):
+            contacts = s.prey.x * s.predator.x
+            return [RateLaw(s.prey.x, -beta * contacts), RateLaw(s.predator.x, delta * contacts)]
+
+        elements = [Element('hares', values={'x': self.hares}), Element('lynx', values={'x': self.lynx})]
         interactions = [
-            ExponentialGrowthInteraction('births', target='hares', r=self.alpha),
-            PredationInteraction('predation', predator='lynx', prey='hares', a=self.beta, b=self.delta),
-            MortalityInteraction('deaths', target='lynx', d=self.gamma),
+            Interaction('births', roles={'target': 'hares'}, laws=lambda s: [RateLaw(s.target.x, alpha * s.target.x)]),
+            Interaction('predation', roles={'prey': 'hares', 'predator': 'lynx'}, laws=predation),
+            Interaction('deaths', roles={'target': 'lynx'}, laws=lambda s: [RateLaw(s.target.x, -gamma * s.target.x)]),
         ]
         self.system_ = System(self.label, elements=elements, interactions=interactions)
 
@@ -136,9 +139,9 @@ observer.logged_frames_ == len(trajectory.times), copy is not system, hares
 The observer logged all eleven frames, the clone is a new object, and the hares rise from 30.0 to 81.2 thousand in
 1903, as in the build tutorial. The tuned `dt` of one year set the length of the run.
 
-A class of the catalog must also run like the same components put together by hand, and it must say what it is through
-its capability tags. The block below compares the states of a run with those of `LotkaVolterraSystem`, which holds the
-same model with the rates `r`, `a`, `b`, and `d`, and reads the tags.
+A class of the catalog must also run like the same components put together by hand, and it must say what it is, such as
+the kind of problem it is. The block below compares the states of a run with those of `LotkaVolterraSystem`, which holds
+the same model with the rates `r`, `a`, `b`, and `d`, and reads the form of the prepared system.
 
 ```python continuation
 import numpy as np
@@ -147,14 +150,13 @@ from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 reference = LotkaVolterraSystem(prey=30.0, predators=4.0, r=0.55, a=0.028, b=0.024, d=0.80)
 difference = system.simulate(until=20).states - reference.prepare().simulate(until=20, dt=1.0).states
-tags = system.get_tags()
-bool(np.abs(difference).max() < 1e-9), sorted(tags.time), tags.randomness, sorted(tags.laws)
+bool(np.abs(difference).max() < 1e-9), system.form_
 ```
 
 The states of the two systems agree to within rounding error, below 1e-9 thousand animals, so the new class adds the
-data and the names, not a new model. The tags say that
-the system runs in continuous time, is deterministic, and holds rate laws. The catalog test of the tags reads the same
-values, and the inventory takes them from the class rather than repeating them.
+data and the names, not a new model. The form says that the system is an ordinary differential equation. A class of
+the catalog also says what it is through its capability tags, which its catalog test and the inventory read from the
+class rather than repeating them.
 
 A class is listed by `all_systems` when its module lives in the package `skcomplex.systems` and its body sets `field`.
 The listing reads the sources without importing them, so `field`, `topics`, and `references` must be literal values.
