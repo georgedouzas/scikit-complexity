@@ -1050,7 +1050,8 @@ def _get_local_rule_laws(
 def _inverse(automaton: _AutomatonSpec, system: System, max_radius: int = 2) -> System | None:
     """Return the `System` of the inverse of a reversible automaton.
 
-    It holds the elements of the system. Its composition with the automaton is the identity, and it is `None` when there is none.
+    It holds the elements of the system. Its composition with the automaton is the identity, and it is `None` when
+    there is none.
     """
     configurations, codes = _images(automaton)
     if np.unique(codes).size != codes.size:
