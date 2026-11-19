@@ -1,49 +1,70 @@
 """Test the `_birth_death` module of `skcomplex.systems.general.agents`."""
 
-from typing import Annotated
-
 import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import TransferInteraction
 from skcomplex.core.components.laws import PartnerSpec, Sink, Source
-from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace, NetworkSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
-from skcomplex.core.engine.runtime import Trajectory, simulate
+from skcomplex.core.components.spaces import BaseSpace, LatticeSpace, NetworkSpace
+from skcomplex.core.engine.compile import PhaseSpec
+from skcomplex.core.engine.runtime import Trajectory
+from skcomplex.core.engine.solvers import MesaSolver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.general.agents import BirthDeathInteraction
 
 
-class ResourceElement(Element):
-    """Cell that holds a resource."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        resource: Annotated[float, StateSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label)
-        self.resource = resource
-
-
 class ReserveElement(Element):
-    """Member that holds a reserve and a trait."""
+    """Members that hold a reserve and a trait, with places given as values named after the axes of their space."""
 
     def __init__(
         self,
         label: str,
         *,
-        reserve: Annotated[float, StateSpec()] = 0.0,
-        trait: Annotated[float, StateSpec()] = 0.0,
+        reserve: object = 0.0,
+        trait: object = 0.0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
+        values: dict[str, object] | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.reserve = reserve
         self.trait = trait
+
+
+def _places(space: BaseSpace, places: object) -> dict[str, object]:
+    """Return the values named after the axes of a space that place members.
+
+    A list gives one place per member, and a single cell or node places every member there.
+    """
+    axes = space.prepare().axes_
+    if isinstance(places, list):
+        points = [place if isinstance(place, tuple) else (place,) for place in places]
+        return {axis: [point[index] for point in points] for index, axis in enumerate(axes)}
+    point = places if isinstance(places, tuple) else (places,)
+    return dict(zip(axes, point, strict=True))
+
+
+def _members(
+    label: str,
+    size: int,
+    *,
+    space: BaseSpace | None = None,
+    places: object = None,
+    **values: object,
+) -> ReserveElement:
+    """Return members with a reserve and a trait of their own, zero by default, at places of a space if given."""
+    own = {name: np.broadcast_to(np.asarray(value, dtype=float), size).copy() for name, value in values.items()}
+    located = None if space is None or places is None else _places(space, places)
+    return ReserveElement(label, **own, size=size, space=space, values=located)
+
+
+def _resources(space: BaseSpace, places: object, resource: object) -> Element:
+    """Return cells that hold a resource at places of a space, one cell for a single place."""
+    size = len(places) if isinstance(places, list) else 1
+    return Element('cells', values={'resource': resource, **_places(space, places)}, size=size, space=space)
 
 
 def _feeding(uptake: float, gain: float) -> TransferInteraction:
@@ -93,17 +114,11 @@ def _forage(
     size: int = 1,
 ) -> Trajectory:
     """Return the trajectory of foragers in the one cell of a lattice that holds a resource."""
-    cells = GroupElement('cells', element=ResourceElement, size=1, values={'resource': resource}, location=[(0, 0)])
-    foragers = GroupElement(
-        'foragers',
-        element=ReserveElement,
-        size=size,
-        values={'reserve': reserve},
-        location=[(0, 0)] * size,
-        variable=True,
-    )
-    system = CompositeSystem(elements=[cells, foragers], interactions=interactions, space=LatticeSpace((1, 1)))
-    return simulate(system, until=until, random_state=0)
+    space = LatticeSpace((1, 1))
+    cells = _resources(space, (0, 0), resource)
+    foragers = _members('foragers', size, space=space, places=(0, 0), reserve=reserve)
+    system = System(elements=[cells, foragers], interactions=interactions)
+    return system.prepare().simulate(until, random_state=0)
 
 
 def _reserves(trajectory: Trajectory, frame: int) -> list[float]:
@@ -165,33 +180,28 @@ def test_live_splits_the_reserve_above_the_threshold():
 
 def test_live_feeds_foragers_on_the_nodes_of_a_network():
     """Test that foragers on a network take the resource of their own node."""
-    cells = GroupElement('cells', element=ResourceElement, size=2, values={'resource': [1.0, 4.0]}, location=[0, 1])
-    foragers = GroupElement('foragers', element=ReserveElement, size=1, location=[1])
-    system = CompositeSystem(
-        elements=[cells, foragers],
-        interactions=[_feeding(uptake=10.0, gain=1.0)],
-        space=NetworkSpace(nx.path_graph(2)),
-    )
-    trajectory = simulate(system, until=1, random_state=0)
+    space = NetworkSpace(nx.path_graph(2))
+    cells = _resources(space, [0, 1], [1.0, 4.0])
+    foragers = _members('foragers', 1, space=space, places=1)
+    system = System(elements=[cells, foragers], interactions=[_feeding(uptake=10.0, gain=1.0)])
+    trajectory = system.prepare().simulate(1, random_state=0)
     assert _reserves(trajectory, 1) == [4.0]
     assert trajectory.get_agents('cells', 1).values['resource'].tolist() == [1.0, 0.0]
 
 
 def test_live_rate_draws_a_poisson_number_of_births():
     """Test that births at a rate follow a Poisson number of that mean, each with the offspring count."""
-    parents = GroupElement('parents', element=ReserveElement, size=400, variable=True, capacity=4000)
+    parents = _members('parents', 400)
     births = BirthDeathInteraction('births', target='parents', rate=1.5, offspring=2)
-    system = CompositeSystem(elements=[parents], interactions=[births])
-    trajectory = simulate(system, until=1, random_state=0)
+    trajectory = System(elements=[parents], interactions=[births]).prepare().simulate(1, random_state=0)
     assert len(trajectory.get_agents('parents', 1).values['reserve']) / 400 - 1 == pytest.approx(3.0, rel=0.1)
 
 
 def test_live_places_offspring_in_free_neighboring_cells():
     """Test that offspring placed in neighbouring cells take free cells only, and fewer are born when none is free."""
-    parents = GroupElement('parents', element=ReserveElement, size=1, location=[(1, 1)], variable=True)
+    parents = _members('parents', 1, space=LatticeSpace((3, 3), metric='chebyshev'), places=(1, 1))
     births = BirthDeathInteraction('births', target='parents', birth=1.0, offspring=12, placement='neighbor')
-    space = LatticeSpace((3, 3), metric='chebyshev')
-    trajectory = simulate(CompositeSystem(elements=[parents], interactions=[births], space=space), until=1)
+    trajectory = System(elements=[parents], interactions=[births]).prepare().simulate(1)
     locations = {tuple(cell) for cell in np.asarray(trajectory.get_agents('parents', 1).locations).tolist()}
     assert len(locations) == 9
 
@@ -203,30 +213,26 @@ def test_live_inherits_and_mutates_the_states_of_offspring():
         """Raise the inherited trait by one."""
         return {**values, 'trait': values['trait'] + 1.0}
 
-    parents = GroupElement(
-        'parents',
-        element=ReserveElement,
-        size=1,
-        values={'trait': 2.0, 'reserve': 5.0},
-        variable=True,
-    )
+    parents = _members('parents', 1, trait=2.0, reserve=5.0)
     births = BirthDeathInteraction('births', target='parents', birth=1.0, inherit=('trait',), mutate=mutate)
-    trajectory = simulate(CompositeSystem(elements=[parents], interactions=[births]), until=1)
+    trajectory = System(elements=[parents], interactions=[births]).prepare().simulate(1)
     values = trajectory.get_agents('parents', 1).values
     assert values['trait'].tolist() == [2.0, 3.0]
     assert values['reserve'].tolist() == [5.0, 0.0]
 
 
-def _cycle(life: BirthDeathInteraction, *groups: GroupElement, until: int = 1) -> Trajectory:
-    """Return the trajectory of groups of reserve members under a life cycle on a lattice."""
-    system = CompositeSystem(elements=list(groups), interactions=[life], space=LatticeSpace((3, 3)))
-    return simulate(system, until=until, random_state=0)
+LATTICE = LatticeSpace((3, 3))
+
+
+def _cycle(life: BirthDeathInteraction, *groups: Element, until: int = 1) -> Trajectory:
+    """Return the trajectory of groups of reserve members on a lattice under a life cycle."""
+    return System(elements=list(groups), interactions=[life]).prepare().simulate(until, random_state=0)
 
 
 def test_live_creates_offspring_in_another_group_with_given_values():
     """Test that births into another group create members of it with the values of the parent's function."""
-    parents = GroupElement('parents', element=ReserveElement, size=2, values={'trait': [1.0, 2.0]})
-    young = GroupElement('young', element=ReserveElement, size=1, location=[(0, 0)], variable=True)
+    parents = _members('parents', 2, space=LATTICE, trait=[1.0, 2.0])
+    young = _members('young', 1, space=LATTICE, places=(0, 0))
     life = BirthDeathInteraction(
         'life',
         target='parents',
@@ -242,7 +248,7 @@ def test_live_creates_offspring_in_another_group_with_given_values():
 
 def test_live_replaces_parents_by_their_offspring():
     """Test that with replacement a parent is removed after its births, also when it has no offspring."""
-    parents = GroupElement('parents', element=ReserveElement, size=4, variable=True)
+    parents = _members('parents', 4, space=LATTICE)
     life = BirthDeathInteraction(
         'life',
         target='parents',
@@ -257,14 +263,14 @@ def test_live_replaces_parents_by_their_offspring():
 
 def test_live_keeps_a_share_of_the_split_states():
     """Test that a parent keeps the share `keep` of a split state and its offspring take the rest."""
-    parents = GroupElement('parents', element=ReserveElement, size=1, values={'reserve': 8.0}, variable=True)
+    parents = _members('parents', 1, space=LATTICE, reserve=8.0)
     life = BirthDeathInteraction('life', target='parents', birth=1.0, offspring=2, split=('reserve',), keep=0.5)
     assert _reserves_of(_cycle(life, parents)) == [2.0, 2.0, 4.0]
 
 
 def test_live_resets_a_parent_after_its_birth():
     """Test that a parent takes the reset values after it gives birth, and a parent that does not keeps its own."""
-    parents = GroupElement('parents', element=ReserveElement, size=2, values={'reserve': [3.0, 1.0]}, variable=True)
+    parents = _members('parents', 2, space=LATTICE, reserve=[3.0, 1.0])
     life = BirthDeathInteraction(
         'life',
         target='parents',
@@ -277,13 +283,7 @@ def test_live_resets_a_parent_after_its_birth():
 
 def test_live_renews_dying_agents_in_place():
     """Test that a renewed agent keeps its identity and the states the new values leave out."""
-    parents = GroupElement(
-        'parents',
-        element=ReserveElement,
-        size=2,
-        values={'reserve': [-1.0, 2.0], 'trait': [7.0, 8.0]},
-        variable=True,
-    )
+    parents = _members('parents', 2, space=LATTICE, reserve=[-1.0, 2.0], trait=[7.0, 8.0])
     life = BirthDeathInteraction(
         'life',
         target='parents',
@@ -300,8 +300,8 @@ def test_live_renews_dying_agents_in_place():
 
 def test_live_culls_kin_of_another_group():
     """Test that an agent removes the first member of the other group that is its kin."""
-    owners = GroupElement('owners', element=ReserveElement, size=2, values={'trait': [0.0, 1.0]})
-    owned = GroupElement('owned', element=ReserveElement, size=3, values={'trait': [1.0, 0.0, 1.0]}, variable=True)
+    owners = _members('owners', 2, space=LATTICE, trait=[0.0, 1.0])
+    owned = _members('owned', 3, space=LATTICE, trait=[1.0, 0.0, 1.0])
     life = BirthDeathInteraction(
         'life',
         target='owners',
@@ -314,7 +314,7 @@ def test_live_culls_kin_of_another_group():
 
 def test_live_brings_arrivals_at_placed_locations():
     """Test that a Poisson number of arrivals join the group at the placement's locations with drawn values."""
-    members = GroupElement('members', element=ReserveElement, size=1, location=[(2, 1)], variable=True)
+    members = _members('members', 1, space=LATTICE, places=(2, 1))
     life = BirthDeathInteraction(
         'life',
         target='members',
@@ -357,7 +357,7 @@ def test_check_rejects_invalid_arguments(arguments):
 
 def test_live_culls_a_random_member_of_its_group_after_a_replacement():
     """Test that a parent replaced by its offspring still removes a random member of its own group."""
-    parents = GroupElement('parents', element=ReserveElement, size=4, values={'trait': 1.0}, variable=True)
+    parents = _members('parents', 4, space=LATTICE, trait=1.0)
     life = BirthDeathInteraction(
         'life',
         target='parents',
@@ -369,13 +369,12 @@ def test_live_culls_a_random_member_of_its_group_after_a_replacement():
         pick='random',
         schedule='member',
     )
-    system = CompositeSystem(
+    system = System(
         elements=[parents],
         interactions=[life],
-        space=LatticeSpace((3, 3)),
-        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('default', activation='visits', visits=0.5)])),
+        solver=MesaSolver(phases=[PhaseSpec('default', activation='visits', visits=0.5)]),
     )
-    trajectory = simulate(system, until=1, random_state=0)
+    trajectory = system.prepare().simulate(1, random_state=0)
     assert len(trajectory.get_agents('parents', 1).ids) == 4
 
 
