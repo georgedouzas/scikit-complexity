@@ -213,7 +213,7 @@ class MetropolisSolver(BaseObjectiveSolver):
 
 
 class _MemberMetropolisSolver(MonteCarloSolver):
-    """A solver of the sweeps of the members of a group by the moves of a Metropolis solver.
+    """A solver of the sweeps of members by the moves of a Metropolis solver.
 
     The compiler reads the moves of `metropolis` to turn the objective of every member into a Monte Carlo sweep.
 
