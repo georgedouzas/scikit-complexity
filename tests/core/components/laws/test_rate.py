@@ -1,168 +1,163 @@
 """Test the `_rate` module of `skcomplex.core.components.laws`."""
 
+import math
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import oo, pi, sin, var
+from sage.all__sagemath_symbolics import oo, sin, var
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import Element
+from skcomplex.core.components.elements import Element, Period, Quantity
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.laws.utils import derivative
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine.solvers import VelocityVerletSolver
 from skcomplex.core.errors import ConservationError, ValidationError
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 
 from .conftest import PRECISE, MassElement
 
 
 class PendulumElement(Element):
-    """Pendulum whose angle wraps around a turn."""
+    """Pendulum whose angle wraps around a turn, with its angular velocity the value `theta'`."""
 
     def __init__(
         self,
         label: str,
         *,
-        theta: Annotated[object, StateSpec(period=2 * pi, order=2)] = 0.1,
-        theta_d1: float = 0.0,
-        g: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 9.81,
-        l: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        theta: Annotated[float, Period(2 * math.pi)] = 0.1,
+        values: dict[str, object] | None = None,
+    ) -> None:
+        super().__init__(label, values=values)
+        self.theta = theta
+
+
+class SwingInteraction(Interaction):
+    """Swing of a pendulum under gravity."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Role,
+        g: Annotated[float, RealSet.open(0, oo)] = 9.81,
+        l: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
         super().__init__(label)
-        self.theta = theta
-        self.theta_d1 = theta_d1
+        self.target = target
         self.g = g
         self.l = l
 
-    def _get_laws(self, s):
-        """Return the rate of the angular velocity."""
-        return [RateLaw(s.theta, -(s.g / s.l) * sin(s.theta))]
-
-
-class StockElement(Element):
-    """Stock that decays."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        n: Annotated[object, StateSpec()] = 1.0,
-    ) -> None:
-        super().__init__(label)
-        self.n = n
-
-    def _get_laws(self, s):
-        """Return the decay."""
-        return [RateLaw(s.n, -s.n)]
-
-
-class LeakyElement(Element):
-    """Money that a rate law changes outside any flow."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        money: Annotated[object, StateSpec(quantity='money')] = 1.0,
-    ) -> None:
-        super().__init__(label)
-        self.money = money
-
-    def _get_laws(self, s):
-        """Return the leak of money."""
-        return [RateLaw(s.money, -0.1 * s.money)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the angular acceleration."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context
+            self.laws_ = [RateLaw(s.target.theta.diff(s.t, 2), -(s.g / s.l) * sin(s.target.theta))]
 
 
 class SpringInteraction(Interaction):
     """Spring on the mass of its target."""
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[object, RoleSpec()],
-        k: Annotated[object, ParameterSpec()] = 8.0,
-    ) -> None:
+    def __init__(self, label: str, *, target: Role, k: float = 8.0) -> None:
         super().__init__(label)
         self.target = target
         self.k = k
 
-    def _get_laws(self, s):
-        """Return the force of the spring."""
-        return [RateLaw(s.target.x, -s.k * s.target.x / s.target.m)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the force of the spring."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context
+            self.laws_ = [RateLaw(s.target.x.diff(s.t, 2), -s.k * s.target.x / s.target.m)]
 
 
 class DamperInteraction(Interaction):
     """Damper on the mass of its target."""
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[object, RoleSpec()],
-        c: Annotated[object, ParameterSpec()] = 0.4,
-    ) -> None:
+    def __init__(self, label: str, *, target: Role, c: float = 0.4) -> None:
         super().__init__(label)
         self.target = target
         self.c = c
 
-    def _get_laws(self, s):
-        """Return the force of the damper."""
-        return [RateLaw(s.target.x, -s.c * derivative(s.target.x, 1) / s.target.m)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the force of the damper."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context
+            self.laws_ = [RateLaw(s.target.x.diff(s.t, 2), -s.c * s.target.x.diff(s.t) / s.target.m)]
 
 
 class MismatchedInteraction(Interaction):
-    """Rate that asserts the first derivative on a state of order 2."""
+    """Rate that gives the first derivative of a state of order 2."""
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[object, RoleSpec()],
-    ) -> None:
+    def __init__(self, label: str, *, target: Role) -> None:
         super().__init__(label)
         self.target = target
 
-    def _get_laws(self, s):
-        """Return the mismatched rate."""
-        return [RateLaw(s.target.x, -s.target.x, order=1)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the mismatched rate."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context
+            self.laws_ = [RateLaw(s.target.x.diff(s.t), -s.target.x)]
+
+
+class LeakyElement(Element):
+    """Money that a rate law changes outside any flow."""
+
+    def __init__(self, label: str, *, money: Annotated[float, Quantity('money')] = 1.0) -> None:
+        super().__init__(label)
+        self.money = money
+
+
+def _decay(label: str, state: str, rate: float) -> Interaction:
+    """Return the decay of a state of an element at a rate."""
+    return Interaction(
+        f'{label}_decay',
+        roles={'target': label},
+        laws=lambda s: [RateLaw(getattr(s.target, state), rate * getattr(s.target, state))],
+    )
 
 
 def test_rate_runs_into_its_value():
     """Test that a rate law targets its state and runs into its value at given values of the symbols."""
     n, r = var('n r')
-    law = RateLaw(n, r * n, order=1).prepare()
-    assert (law.targets_, law.order) == ((n,), 1)
+    law = RateLaw(n, r * n).prepare()
+    assert law.targets_ == (n,)
     assert law.run({'n': 3.0, 'r': 2.0}).value_ == 6.0
 
 
 def test_initial_angular_velocity():
     """Test that a state of order 2 starts from its angle and its angular velocity, both recorded by path."""
-    system = CompositeSystem(elements=[PendulumElement('bob', theta=0.1, theta_d1=0.5)])
-    trajectory = simulate(system, until=1, dt=0.1)
+    system = System(
+        elements=[PendulumElement('bob', theta=0.1, values={"theta'": 0.5})],
+        interactions=[SwingInteraction('swing', target='bob')],
+    )
+    trajectory = system.prepare().simulate(until=1, dt=0.1)
     assert trajectory.get_values('bob.theta')[0] == pytest.approx(0.1)
-    assert trajectory.get_values('bob.theta_d1')[0] == pytest.approx(0.5)
+    assert trajectory.get_values("bob.theta'")[0] == pytest.approx(0.5)
     assert trajectory.get_values('bob.theta')[1] > 0.1
 
 
 def test_first_order_unchanged():
-    """Test that a state without an order compiles without companion states."""
-    trajectory = simulate(CompositeSystem(elements=[StockElement('a')]), until=1, dt=0.5)
+    """Test that a state without a higher derivative compiles without companion states."""
+    system = System(elements=[Element('a', values={'n': 1.0})], interactions=[_decay('a', 'n', -1.0)])
+    trajectory = system.prepare().simulate(until=1, dt=0.5)
     assert trajectory.problem.states.names == ['a.n']
 
 
 def test_newton_superposition_of_separate_laws():
     """Test that a spring and a damper from separate interactions add up to `m x'' = -k x - c x'`."""
-    system = CompositeSystem(
+    system = System(
         elements=[MassElement('mass')],
         interactions=[SpringInteraction('spring', target='mass'), DamperInteraction('damper', target='mass')],
+        solver=PRECISE,
     )
-    trajectory = simulate(system, until=10, solver=PRECISE, dt=0.1)
+    trajectory = system.prepare().simulate(until=10, dt=0.1)
     gamma = 0.4 / (2 * 2.0)
     omega = np.sqrt(8.0 / 2.0 - gamma**2)
     t = trajectory.times
@@ -171,39 +166,29 @@ def test_newton_superposition_of_separate_laws():
 
 
 def test_order_mismatch_is_rejected():
-    """Test that a law asserting order 1 on a state of order 2 names the law, the state, and both orders."""
-    system = CompositeSystem(
+    """Test that a law of the first derivative of a state of order 2 names the law, the state, and both orders."""
+    system = System(
         elements=[MassElement('mass')],
-        interactions=[MismatchedInteraction('wrong', target='mass')],
+        interactions=[SpringInteraction('spring', target='mass'), MismatchedInteraction('wrong', target='mass')],
     )
     with pytest.raises(ValidationError, match=r'mass\.x gives the derivative of order 1, but the state has order 2'):
-        simulate(system, until=1)
-
-
-class SecondOrderStockElement(StockElement):
-    """Stock whose decay asserts the second derivative on its state of order 1."""
-
-    def _get_laws(self, s):
-        """Return the mismatched decay."""
-        return [RateLaw(s.n, -s.n, order=2)]
-
-
-def test_order_mismatch_of_a_lone_state_is_rejected():
-    """Test that a law of order 2 on the only state, of order 1, is rejected when no other state has a higher order."""
-    system = CompositeSystem(elements=[SecondOrderStockElement('a')])
-    with pytest.raises(ValidationError, match=r'a\.n gives the derivative of order 2, but the state has order 1'):
-        simulate(system, until=1, dt=0.5)
+        system.prepare()
 
 
 def test_velocity_verlet_runs_order_two_position():
     """Test that velocity Verlet recognises a position of order 2 and conserves the oscillator's energy."""
-    system = CompositeSystem(elements=[MassElement('mass')], interactions=[SpringInteraction('spring', target='mass')])
-    trajectory = simulate(system, until=10, solver=VelocityVerletSolver(dt=0.001), dt=0.1)
-    energy = 0.5 * 2.0 * trajectory.get_values('mass.x_d1') ** 2 + 0.5 * 8.0 * trajectory.get_values('mass.x') ** 2
+    system = System(
+        elements=[MassElement('mass')],
+        interactions=[SpringInteraction('spring', target='mass')],
+        solver=VelocityVerletSolver(dt=0.001),
+    )
+    trajectory = system.prepare().simulate(until=10, dt=0.1)
+    energy = 0.5 * 2.0 * trajectory.get_values("mass.x'") ** 2 + 0.5 * 8.0 * trajectory.get_values('mass.x') ** 2
     assert np.allclose(energy, energy[0], rtol=1e-4)
 
 
 def test_undeclared_change_names_the_state_and_the_quantity():
     """Test that a rate law on a state tagged money raises a conservation error naming both."""
+    system = System(elements=[LeakyElement('leaky')], interactions=[_decay('leaky', 'money', -0.1)])
     with pytest.raises(ConservationError, match=r"leaky\.money.*'money'"):
-        PassCompiler().prepare(CompositeSystem(elements=[LeakyElement('leaky')])).run()
+        system.prepare()
