@@ -94,102 +94,102 @@ and its [API entry][skcomplex.core.components.elements.DeclaredElement].
 
 ## Element
 
-An `Element` is the base of an element class of your own. The class declares each state and parameter as an argument
-of its `__init__`, annotated with `StateSpec` or `ParameterSpec`, and may return laws of its own from `_get_laws`.
-Here a population grows at a rate proportional to its size.
+An `Element` holds values. A class of your own is a plain Python class whose arguments are its values, stored
+unmodified, and `Element('label', values={...})` holds values without a class. The element returns no laws: a value
+that some law changes is a state, and any other value is a parameter. Here a population of rabbits grows through an
+interaction at the rate `r x`.
 
 ```python
-from typing import Annotated
-
 from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 
 
-class GrowthElement(Element):
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label,
-        *,
-        x: Annotated[float, StateSpec()] = 1.0,
-        r: Annotated[float, ParameterSpec()] = 0.5,
-    ):
+class Population(Element):
+    def __init__(self, label, *, x=1.0):
         super().__init__(label)
         self.x = x
+
+
+class Growth(Interaction):
+    def __init__(self, label, *, target: Role, r=0.5):
+        super().__init__(label)
+        self.target = target
         self.r = r
 
-    def _get_laws(self, namespace):
-        return [RateLaw(namespace.x, namespace.r * namespace.x)]
+    def _prepare(self, s):
+        super()._prepare(s)
+        x = s.target.x
+        self.laws_ = [RateLaw(x.diff(s.t), s.r * x)]
 
 
-rabbits = GrowthElement('rabbits', x=40.0, r=0.5)
-simulate(CompositeSystem(elements=[rabbits]), until=1, dt=1.0).get_values('rabbits.x').round(1).tolist()
+rabbits = System(elements=[Population('rabbits', x=40.0)], interactions=[Growth('growth', target='rabbits')])
+rabbits.prepare().simulate(until=1, dt=1.0).get_values('rabbits.x').round(1).tolist()
 ```
 
-The same class is a bank deposit that earns interest at 5 percent.
+The rabbits grow from 40 to 65.9 in one unit of time, which is `40 exp(0.5)`. The same classes are a bank deposit that
+earns interest at 5 percent.
 
 ```python continuation
-deposit = GrowthElement('deposit', x=250.0, r=0.05)
-simulate(CompositeSystem(elements=[deposit]), until=1, dt=1.0).get_values('deposit.x').round(2).tolist()
+deposit = System(elements=[Population('deposit', x=250.0)], interactions=[Growth('interest', target='deposit', r=0.05)])
+deposit.prepare().simulate(until=1, dt=1.0).get_values('deposit.x').round(2).tolist()
 ```
 
-**How the engine runs it.** `prepare` reads the annotations to find the states, parameters, and their specs. At
-compile time the element returns its laws for a namespace whose attributes are the symbols of its variables, and the
-class attribute `law_classes` names their kinds, so `get_tags` knows them before a run.
+**How the engine runs it.** `prepare` collects the laws of the interactions and reads which values they change. Those
+values are the states, and the others are the parameters. The kind of a value comes from its Python type hint or its
+value, so `1.0` is real, `1` an integer, and `'S'` a category.
 
 ```python continuation
-sorted(rabbits.get_tags().laws), sorted(rabbits.get_tags().domains)
+deposit.states_, deposit.parameters_
 ```
 
-**How it combines.** An element with laws of its own runs alone, and interactions add laws to its states. As the
-member class of a `GroupElement` or a `FieldElement` it runs on every site of a space. An element whose laws are agent
-rules is an agent, and one that declares `ports` joins others through a `ConnectionInteraction`.
+The balance `deposit.x` is the state, and the rate `interest.r` is a parameter.
 
-**Limits and errors.** A spec must be valid for its state. An order of 0, for example, is neither a whole number of
-at least 1 nor a fraction in `(0, 1)`, and `prepare` raises a `ValidationError`.
+**How it combines.** Interactions add laws to its values, and the laws of several interactions on one value add up.
+`size=N` makes `N` members of one element, and `space=` puts one member on every site of a space, so one class covers
+one member, a group, and a field. An element bound to an interaction that gives it a rule is an agent.
+
+**Limits and errors.** The allowed values of a value are written in `Annotated`, such as a size that is never
+negative, and `prepare` raises a `ValidationError` that names a value outside them.
 
 ```python continuation
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
 from skcomplex.core.errors import ValidationError
 
 
-class BrokenElement(Element):
-    def __init__(self, label, *, x: Annotated[float, StateSpec(order=0)] = 0.0):
+class Herd(Element):
+    def __init__(self, label, *, x: Annotated[float, RealSet.closed_open(0, oo)] = 1.0):
         super().__init__(label)
         self.x = x
 
 
 try:
-    BrokenElement('broken').prepare()
+    System(elements=[Herd('herd', x=-5.0)], interactions=[Growth('growth', target='herd')]).prepare()
 except ValidationError as error:
     message = str(error)
 message
 ```
 
-The message says that the order 0 is neither a whole number of at least 1 nor a real number in `(0, 1)`. The fix is
-`StateSpec(order=1)`, the default, for a state with a first derivative.
+The message reads "herd.x = -5.0 is not in its domain [0, +oo)." The fix is a starting size of zero or more.
 
-**A field realization.** The catalog writes its elements as subclasses that rename the states for one field, such as
-a capacitor whose state is a voltage.
+**A field realization.** The catalog writes its elements as classes that name the values of one field, such as a
+capacitor whose value is a voltage and whose capacitance belongs to it alone.
 
 ```python continuation
-class CapacitorElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        v: Annotated[float, StateSpec()] = 0.0,
-        C: Annotated[float, ParameterSpec()] = 1e-3,
-    ):
+class Capacitor(Element):
+    def __init__(self, label, *, v=0.0, C=1e-3):
         super().__init__(label)
         self.v = v
         self.C = C
 
 
-CapacitorElement('c1', v=5.0).get_params()
+Capacitor('c1', v=5.0).get_params()
 ```
 
 **Members on the links of a network.** `space=` puts one member of an element on every node of a network, and
@@ -267,8 +267,9 @@ and its [API entry][skcomplex.core.components.elements.Element].
 
 A `Quantity` says what a value holds, such as money, water, or energy. It is written in `Annotated` beside the
 allowed values of the value. The total of a quantity changes only through flows in and out of the system, so the
-conservation monitor checks the total at every frame, and a plain rate law that changes the value is rejected. Here a
-tank drains into the ground, and the monitor follows the water that is left.
+conservation monitor checks the total at every frame, and a plain rate law that changes the value is rejected. A flow
+is a labelled `RateLaw` whose target maps each value to the sign of its change, and a flow out of the system names
+only the value it leaves. Here a tank drains into the ground, and the monitor follows the water that is left.
 
 ```python
 from typing import Annotated
@@ -278,7 +279,7 @@ from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import Element, Quantity
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import Sink, TransferLaw
+from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.engine.runtime import ConservationObserver
 from skcomplex.core.specs import Role
 from skcomplex.core.systems import System
@@ -299,7 +300,7 @@ class Drain(Interaction):
     def _prepare(self, s):
         super()._prepare(s)
         level = s.target.level
-        self.laws_ = [TransferLaw(level, Sink('ground'), s.k * level, label='drained')]
+        self.laws_ = [RateLaw({level: -1}, s.k * level, label='drained')]
 
 
 monitor = ConservationObserver()

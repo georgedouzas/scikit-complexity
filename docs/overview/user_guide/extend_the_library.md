@@ -46,88 +46,94 @@ catalog renames nothing: it keeps the arguments of its parent and adds its own.
 
 ### Variants
 
-This section chooses the variant of a general interaction. A variant is given as a named value, a spec, or a function,
-and each argument takes some of these.
+This section chooses the variant of a general binding or law. A variant is given as a named value, a spec, or a
+function, and each argument takes some of these.
 
-- The pairing of a transfer or a grouping takes a `PartnerSpec` or a function.
-- The groups of a grouping, the action of a topology, and the mode of a coupling or a map take their named values or a
-  spec of a subclass.
-- The move of a sampling takes its named values or a function. It takes no spec, because a function already says what
-  a spec would. A spec given to it raises an error that lists what the argument takes.
+- The binding `along` takes `True`, the name of a layer, `'hyperedges'`, `('hyperedges', k)`, `RandomPartition(k)`, or
+  `'neighborhoods'`.
+- The `schedule` of a local rule takes `'synchronous'`, `'random-sequential'`, `'random-site'`, `'checkerboard'`, or
+  `'colored'`, and a `RadiusNeighborhood` takes the `metric` of its distance, such as `'chebyshev'` or `'manhattan'`.
+- The pairing of `pairs` takes a `PartnerSpec` or a function that returns the pairs.
 
-Every other value raises the same error, so the checks of the parent keep working.
+Every other value raises an error that lists what the argument takes, so the checks of the parent keep working.
+
+```python
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.components.spaces import LatticeSpace, RadiusNeighborhood
+from skcomplex.core.errors import ValidationError
+from skcomplex.core.systems import System
+
+try:
+    flip = Interaction(
+        'flip',
+        roles={'target': 'cells'},
+        laws=lambda s: [UpdateLaw(s.target.x, lambda x: 1 - x, neighborhood=RadiusNeighborhood(1), schedule='often')],
+    )
+    System(elements=[Element('cells', values={'x': 0}, space=LatticeSpace(5))], interactions=[flip]).prepare()
+except ValidationError as error:
+    message = str(error)
+message
+```
+
+The message names the unknown schedule `'often'` and lists the five schedules a local rule takes.
 
 ### Partners and settlement
 
-This section says whom an agent pairs with in a transfer, and how both partners settle the amount.
-[`TransferInteraction`](core_components/interactions.md#transferinteraction) moves an amount from a source to a target.
-In the example, three eaters buy a meal of 2 units from one of two providers, each agent a member of a group in a
+This section says whom an agent pairs with, and how both partners settle the amount. A rule of the whole system,
+`UpdateLaw(s, rule)`, reads the agents of two groups with `system.get_agents`, pairs them with `pairs` of
+`skcomplex.core.components.laws.utils`, and settles every pair. In the example, three eaters buy a meal of 2 units
+from one of two providers, each agent a member of a group in a
 [`ContinuousSpace`](core_components/spaces.md#continuousspace) of 10 by 10.
 
 ```python
-from typing import Annotated
-
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import TransferInteraction
-from skcomplex.core.components.laws import RuleLaw
-from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
-from skcomplex.core.components.laws import PartnerSpec
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import PartnerSpec, UpdateLaw
+from skcomplex.core.components.laws.utils import pairs
+from skcomplex.core.components.spaces import ContinuousSpace
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 
 
-class EaterElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        level: Annotated[float, StateSpec()] = 0.0,
-        sold: Annotated[float, StateSpec()] = 0.0,
-    ):
+class Meal(Interaction):
+    def __init__(self, label, *, eaters: Role = 'eaters', providers: Role = 'providers', amount=2.0):
         super().__init__(label)
-        self.level = level
-        self.sold = sold
+        self.eaters = eaters
+        self.providers = providers
+        self.amount = amount
 
-    def _get_laws(self, s):
-        return [RuleLaw(lambda agent, system: None)]
+    def _prepare(self, s):
+        super()._prepare(s)
+        self.laws_ = [UpdateLaw(s, self.serve)]
 
-
-def settle(source, target, amounts, system):
-    source.level += sum(amounts)
-    target.sold += 1.0
+    def serve(self, system):
+        reach = PartnerSpec(1.0, fallback='nearest')
+        for eater, provider in pairs(system.get_agents('eaters'), system.get_agents('providers'), system.rng, reach):
+            eater.level += self.amount
+            provider.sold += 1.0
 
 
 space = ContinuousSpace(extent=(10.0, 10.0))
-eaters = GroupElement('eaters', element=EaterElement, size=3, space=space)
-providers = GroupElement('providers', element=EaterElement, size=2, space=space)
-meal = TransferInteraction(
-    'meal',
-    source='eaters',
-    target='providers',
-    state='level',
-    into='sold',
-    amount=lambda source, target, system: 2.0,
-    pairing=PartnerSpec(1.0, fallback='nearest'),
-    form='agent',
-    settlement=settle,
-)
-system = CompositeSystem(elements=[eaters, providers], interactions=[meal], time=DiscreteTime())
-trajectory = simulate(system, until=1, random_state=0)
+eaters = Element('eaters', values={'level': 0.0, 'sold': 0.0}, size=3, space=space)
+providers = Element('providers', values={'level': 0.0, 'sold': 0.0}, size=2, space=space)
+system = System(elements=[eaters, providers], interactions=[Meal('meal')])
+trajectory = system.prepare().simulate(until=1, random_state=0)
 trajectory.get_agents('eaters', 1).values['level'].tolist()
 ```
 
 Each of the three eaters holds 2.0 after one step. `PartnerSpec(candidates, choice, fallback, capacity, score)` says
 whom an agent pairs with.
 
-- The candidates are `'all'`, `'neighbors'`, `'cell'`, `'local'` for both of these, a distance, or the name of a state
+- The candidates are `'all'`, `'neighbors'`, `'cell'`, `'local'` for both of these, a distance, or the name of a value
   that holds a distance per agent. So it works in continuous space too.
 - The choice is `'uniform'`, `'score'`, `'nearest'`, or `'all'`.
 - The fallback `'nearest'` takes the nearest partner when no one is within reach.
 
 Here the candidates lie within a distance of 1.0, and the fallback pairs an eater with its nearest provider when none
-does. A `settlement(source, target, amounts, system)` of a transfer receives both partners and the drawn amounts, so
-both ends credit one draw.
+does. The rule settles each pair in plain Python, so both partners change in one place, the eater by the amount and
+the provider by one sale.
 
 ### Agent states that hold objects
 

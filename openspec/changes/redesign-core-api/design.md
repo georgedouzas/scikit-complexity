@@ -285,6 +285,12 @@ Two kinds of model need forms that the table above does not name yet.
   how states move. The temperature is a value of the system that the objective reads, such as
   `ObjectiveLaw(energy / s.target.T)`, so sweeps and annealing schedules change it like any other value.
 
+- Public type names. The names users annotate with that are not element specs, such as `Role`, live in one public module
+  of the core, `from skcomplex.core.types import Role`. The element specs `Quantity`, `Period`, `Member`, `Tensor`, and
+  `SubshiftSpec` stay with the elements.
+- Linear programs keep their duals. `ObjectiveLaw(..., duals=True)` records the dual value of each constraint, the
+  shadow prices of flux balance, and a variable of a program that no constraint bounds is a `prepare` issue.
+
 A field law first becomes a recipe of the seven kinds and the core reductions where it can, such as Bak-Sneppen as an
 `UpdateLaw` on the site where `argmin` falls, so it needs no engine code. A law that truly needs numerics of its own,
 such as the Lindblad equation, finite volumes, Cayley graphs, or rewriting, moves with that support: the field package
