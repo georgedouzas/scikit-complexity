@@ -13,6 +13,7 @@ from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from shapely import Polygon
 from sklearn.base import clone
 
@@ -1196,6 +1197,27 @@ class PassCompiler(BaseCompiler):
                 classes = ' or '.join(f'`{TIME_CLASSES[item]}`' for item in requires.time)
                 fix = f'Declare {classes} for its system, or use laws that run in {time.__name__}.'
                 issues.append(IssueSpec('law-time', record.path, message, fix))
+            issues += PassCompiler._get_finite_rate_issues(record, name)
+        return issues
+
+    @staticmethod
+    def _get_finite_rate_issues(record: _CensusRecordSpec, name: str) -> list[IssueSpec]:
+        """Return the issues of a rate or noise law on a value of a finite set, such as `{0, 1}`.
+
+        A rate moves a value continuously, so it leaves any finite set of allowed values.
+        """
+        if not isinstance(record.law, RateLaw | NoiseLaw):
+            return []
+        issues = []
+        for entry in record.targets:
+            if isinstance(entry.domain, FiniteEnumeratedSet):
+                values = ', '.join(map(str, entry.domain))
+                message = (
+                    f'The {name} changes {LayoutSpec._get_display_name(entry.name)} continuously, but its allowed '
+                    f'values are the finite set {{{values}}}.'
+                )
+                fix = 'Change the value with an UpdateLaw or a JumpLaw, or allow it a range of real numbers.'
+                issues.append(IssueSpec('law-domain', record.path, message, fix))
         return issues
 
     @staticmethod
