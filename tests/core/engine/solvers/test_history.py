@@ -9,6 +9,7 @@ import pytest
 from sklearn.base import clone
 
 from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import EventLaw, NoiseLaw, RateLaw
 from skcomplex.core.components.laws.utils import delayed, pulse_train, series, step
 from skcomplex.core.components.systems import CompositeSystem
@@ -25,87 +26,52 @@ from skcomplex.core.engine.solvers import (
     VelocityVerletSolver,
 )
 from skcomplex.core.errors import SolverError, ValidationError
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.ecology import HutchinsonSystem
 from skcomplex.systems.biology.physiology import MackeyGlassSystem
 from skcomplex.systems.engineering.processes import BathtubSystem
 from skcomplex.systems.physics.mechanics import BouncingBallSystem, HuygensClocksSystem
 
 
-class ClockElement(Element):
-    """Clock element."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[object, StateSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label)
-        self.x = x
-
-    def _get_laws(self, s):
-        """Return the laws of the clock element."""
-        return [RateLaw(s.x, 1), EventLaw(s.x - 3.2, terminal=True)]
+def _system(label, laws, solver='auto', **values):
+    """Return one element of values whose interaction `laws` sets the laws, a function of the namespace."""
+    interaction = Interaction('laws', roles={'target': label}, laws=laws)
+    return System(elements=[Element(label, values=values)], interactions=[interaction], solver=solver)
 
 
-class FirstOrderElement(Element):
-    """First order element."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        y: Annotated[object, StateSpec()] = 0.0,
-        k: Annotated[object, ParameterSpec()] = 1.0,
-    ) -> None:
-        super().__init__(label)
-        self.y = y
-        self.k = k
-
-    def _get_laws(self, s):
-        """Return the laws of the first order element."""
-        return [RateLaw(s.y, -s.k * s.y + step(s.t, 5.0))]
+def _clock(s):
+    """Return a clock that ends the run at 3.2."""
+    x = s.target.x
+    return [RateLaw(x.diff(s.t), 1), EventLaw(x - 3.2, terminal=True)]
 
 
-class GeometricElement(Element):
-    """Geometric Brownian motion whose noise follows a convention."""
+def _first_order(s):
+    """Return a first-order response to a step at 5."""
+    y = s.target.y
+    return [RateLaw(y.diff(s.t), -s.target.k * y + step(s.t, 5.0))]
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        convention: str = 'ito',
-        x: Annotated[object, StateSpec()] = 1.0,
-        mu: Annotated[object, ParameterSpec()] = 0.5,
-        sigma: Annotated[object, ParameterSpec()] = 0.8,
-    ) -> None:
-        super().__init__(label)
-        self.convention = convention
-        self.x = x
-        self.mu = mu
-        self.sigma = sigma
 
-    def _get_laws(self, s):
+def _geometric(convention):
+    """Return the laws of a geometric Brownian motion whose noise follows a convention."""
+
+    def laws(s):
         """Return the drift and the noise of the motion."""
-        return [RateLaw(s.x, s.mu * s.x), NoiseLaw(s.x, s.sigma * s.x, convention=self.convention)]
+        x = s.target.x
+        return [RateLaw(x.diff(s.t), s.target.mu * x), NoiseLaw(x, s.target.sigma * x, convention=convention)]
+
+    return laws
 
 
-class DelayedElement(Element):
-    """Delayed element."""
+def _geometric_system(convention, solver='auto'):
+    """Return a geometric Brownian motion whose noise follows a convention."""
+    return _system('g', _geometric(convention), solver, x=1.0, mu=0.5, sigma=0.8)
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[object, StateSpec()] = 1.0,
-    ) -> None:
-        super().__init__(label)
-        self.x = x
 
-    def _get_laws(self, s):
-        """Return the laws of the delayed element."""
-        return [RateLaw(s.x, -delayed(s.x, 1.0))]
+def _delayed(s):
+    """Return a decay driven by the state one unit of time ago."""
+    x = s.target.x
+    return [RateLaw(x.diff(s.t), -x(t=s.t - 1.0))]
 
 
 def _impact_times(n_impacts, h=1.0, g=9.81, e=0.8):
@@ -186,7 +152,7 @@ def test_hutchinson_settles_below_threshold():
 @pytest.mark.parametrize('solver', [ScipyODESolver, RK4Solver])
 def test_delayed_decay_matches_method_of_steps(solver):
     """Test that `x' = -x(t - 1)` with history 1 matches its exact solution `1 - t + (t - 1)^2 / 2` on [1, 2]."""
-    trajectory = simulate(CompositeSystem(elements=[DelayedElement('d')]), until=2, dt=0.1, solver=solver())
+    trajectory = _system('d', _delayed, solver(), x=1.0).prepare().simulate(until=2, dt=0.1)
     times = trajectory.times
     exact = np.where(times <= 1, 1 - times, 1 - times + (times - 1) ** 2 / 2)
     assert trajectory.get_values('d.x') == pytest.approx(exact, abs=1e-6)
@@ -258,32 +224,21 @@ def test_bouncing_ball_impact_times(solver):
 
 def test_terminal_event_ends_the_run():
     """Test that a terminal event at 3.2 ends the run there with the state at the crossing."""
-    trajectory = simulate(CompositeSystem(elements=[ClockElement('clock')]), until=10, dt=0.5)
+    trajectory = _system('clock', _clock, x=0.0).prepare().simulate(until=10, dt=0.5)
     assert trajectory.times[-1] == pytest.approx(3.2)
     assert trajectory.get_values('clock.x')[-1] == pytest.approx(3.2)
-    assert [event.label for event in trajectory.events] == ['clock']
+    assert [event.label for event in trajectory.events] == ['laws']
 
 
 def test_event_without_reset_fires_once():
     """Test that an event that keeps the state fires once at its crossing and the run goes on past it."""
 
-    class MarkerElement(Element):
-        """Marker element."""
+    def marker(s):
+        """Return a decline that marks its crossing of zero."""
+        x = s.target.x
+        return [RateLaw(x.diff(s.t), -1), EventLaw(x, direction=-1)]
 
-        def __init__(
-            self,
-            label: str,
-            *,
-            x: Annotated[object, StateSpec()] = 1.0,
-        ) -> None:
-            super().__init__(label)
-            self.x = x
-
-        def _get_laws(self, s):
-            """Return the laws of the marker element."""
-            return [RateLaw(s.x, -1), EventLaw(s.x, direction=-1)]
-
-    trajectory = simulate(CompositeSystem(elements=[MarkerElement('m')]), until=2, dt=0.5)
+    trajectory = _system('m', marker, x=1.0).prepare().simulate(until=2, dt=0.5)
     assert [event.time for event in trajectory.events] == pytest.approx([1.0])
     assert trajectory.get_values('m.x')[-1] == pytest.approx(-1.0)
 
@@ -292,30 +247,19 @@ def test_event_without_reset_fires_once():
 def test_chattering_event_raises(solver):
     """Test that an event whose reset puts the state back just before the guard, so it fires again, raises an error."""
 
-    class StickyElement(Element):
-        """Sticky element."""
-
-        def __init__(
-            self,
-            label: str,
-            *,
-            x: Annotated[object, StateSpec()] = 1.0,
-        ) -> None:
-            super().__init__(label)
-            self.x = x
-
-        def _get_laws(self, s):
-            """Return the laws of the sticky element."""
-            return [RateLaw(s.x, -1), EventLaw(s.x, {s.x: 1e-12}, direction=-1)]
+    def sticky(s):
+        """Return a decline whose reset puts the state just above zero."""
+        x = s.target.x
+        return [RateLaw(x.diff(s.t), -1), EventLaw(x, {x: 1e-12}, direction=-1)]
 
     with pytest.raises(SolverError, match='chattering'):
-        simulate(CompositeSystem(elements=[StickyElement('c')]), until=2, dt=0.5, solver=solver())
+        _system('c', sticky, solver(), x=1.0).prepare().simulate(until=2, dt=0.5)
 
 
 @pytest.mark.parametrize('solver', [ScipyODESolver, RK4Solver])
 def test_step_response(solver):
     """Test that a first-order system is unforced before a step at 5 and follows the step response after it."""
-    trajectory = simulate(CompositeSystem(elements=[FirstOrderElement('f')]), until=10, dt=0.25, solver=solver())
+    trajectory = _system('f', _first_order, solver(), y=0.0, k=1.0).prepare().simulate(until=10, dt=0.25)
     times, values = trajectory.times, trajectory.get_values('f.y')
     assert np.all(values[times < 5] == 0.0)
     assert values == pytest.approx(np.where(times >= 5, 1 - np.exp(-(times - 5)), 0.0), abs=1e-6)
@@ -324,51 +268,28 @@ def test_step_response(solver):
 def test_pulse_train_and_series_breakpoints():
     """Test that periodic pulses and interpolated series give the breakpoints of their discontinuities."""
 
-    class DrivenElement(Element):
-        """Driven element."""
+    def driven(s):
+        """Return a rate of periodic pulses and an interpolated series."""
+        drive = pulse_train(s.t, 2.0, 0.5) + series(s.t, [1.0, 3.0], [0.0, 1.0], kind='previous')
+        return [RateLaw(s.target.y.diff(s.t), drive)]
 
-        def __init__(
-            self,
-            label: str,
-            *,
-            y: Annotated[object, StateSpec()] = 0.0,
-        ) -> None:
-            super().__init__(label)
-            self.y = y
-
-        def _get_laws(self, s):
-            """Return the laws of the driven element."""
-            return [
-                RateLaw(s.y, pulse_train(s.t, 2.0, 0.5) + series(s.t, [1.0, 3.0], [0.0, 1.0], kind='previous')),
-            ]
-
-    system = CompositeSystem(elements=[DrivenElement('d')])
-    problem = PassCompiler().prepare(system).run().problem_
-    assert problem.breakpoints.get_between(0.0, 5.0) == [0.5, 1.0, 2.0, 2.5, 3.0, 4.0, 4.5]
-    trajectory = simulate(system, until=5, dt=0.5)
+    system = _system('d', driven, y=0.0).prepare()
+    assert system._problem.breakpoints.get_between(0.0, 5.0) == [0.5, 1.0, 2.0, 2.5, 3.0, 4.0, 4.5]
+    trajectory = system.simulate(until=5, dt=0.5)
     assert trajectory.get_values('d.y')[-1] == pytest.approx(1.5 + 2.0, abs=1e-6)
 
 
 def test_schedule_ramps_a_parameter():
     """Test that a scheduled parameter takes the value of its function of time before every frame."""
-    trajectory = simulate(
-        CompositeSystem(elements=[FirstOrderElement('f')]),
-        until=3,
-        dt=1.0,
-        schedule={'f.k': lambda t: 1.0 + t},
-    )
+    system = _system('f', _first_order, y=0.0, k=1.0).prepare()
+    trajectory = system.simulate(until=3, dt=1.0, schedule={'f.k': lambda t: 1.0 + t})
     assert trajectory.parameters[:, 0].tolist() == [1.0, 2.0, 3.0, 4.0]
 
 
 @pytest.mark.parametrize('stepper', [EulerMaruyamaSolver, MilsteinSolver, HeunSolver])
 def test_stratonovich_geometric_brownian_motion(stepper):
     """Test that the Stratonovich mean of geometric Brownian motion at 1 is exp(mu + sigma^2 / 2) within 3 SE."""
-    system = (
-        PassCompiler()
-        .prepare(CompositeSystem(elements=[GeometricElement('g', convention='stratonovich')]))
-        .run()
-        .problem_
-    )
+    system = _geometric_system('stratonovich').prepare()._problem
     values = np.asarray(
         [
             stepper(dt=0.01, random_state=seed)
@@ -385,9 +306,7 @@ def test_stratonovich_geometric_brownian_motion(stepper):
 def test_noise_convention_adds_drift_correction():
     """Test that the Stratonovich and anti-Itô corrections add half and all of `g dg/dx` to the drift."""
     for noise, alpha in [('ito', 0.0), ('stratonovich', 0.5), ('anti-ito', 1.0)]:
-        problem = (
-            PassCompiler().prepare(CompositeSystem(elements=[GeometricElement('g', convention=noise)])).run().problem_
-        )
+        problem = _geometric_system(noise).prepare()._problem
         drift = problem.drift(0.0, np.asarray([2.0]), problem.initial_parameters)
         assert drift[0] == pytest.approx(0.5 * 2 + alpha * 0.8**2 * 2)
 
@@ -395,43 +314,27 @@ def test_noise_convention_adds_drift_correction():
 def test_unknown_noise_convention_is_rejected():
     """Test that a noise convention other than the three is rejected."""
     with pytest.raises(ValidationError, match='noise convention'):
-        PassCompiler().prepare(CompositeSystem(elements=[GeometricElement('g', convention='marcus')])).run()
+        _geometric_system('marcus').prepare()
 
 
 @pytest.mark.slow
 def test_milstein_and_heun_converge_on_additive_noise():
     """Test that Milstein and Heun integrate an Ornstein-Uhlenbeck process to its stationary variance."""
 
-    class OrnsteinElement(Element):
-        """Ornstein element."""
-
-        def __init__(
-            self,
-            label: str,
-            *,
-            x: Annotated[object, StateSpec()] = 0.0,
-        ) -> None:
-            super().__init__(label)
-            self.x = x
-
-        def _get_laws(self, s):
-            """Return the laws of the ornstein element."""
-            return [RateLaw(s.x, -s.x), NoiseLaw(s.x, 1.0)]
+    def ornstein(s):
+        """Return the relaxation and the additive noise of the process."""
+        x = s.target.x
+        return [RateLaw(x.diff(s.t), -x), NoiseLaw(x, 1.0)]
 
     for stepper in (MilsteinSolver(dt=0.01), HeunSolver(dt=0.01)):
-        trajectory = simulate(
-            CompositeSystem(elements=[OrnsteinElement('o')]),
-            until=1000,
-            solver=stepper,
-            dt=1.0,
-            random_state=0,
-        )
+        system = _system('o', ornstein, stepper, x=0.0).prepare()
+        trajectory = system.simulate(until=1000, dt=1.0, random_state=0)
         assert np.var(trajectory.get_values('o.x')[100:]) == pytest.approx(0.5, rel=0.2)
 
 
 def test_steppers_without_hybrid_path_reject_events():
     """Test that velocity Verlet and Gillespie name the steppers to use for events and delays."""
-    problem = PassCompiler().prepare(BouncingBallSystem().prepare()._get_composite()).run().problem_
+    problem = BouncingBallSystem().prepare().system_._problem
     with pytest.raises(SolverError, match='does not integrate delays or events'):
         VelocityVerletSolver(random_state=0).prepare(problem)
     with pytest.raises(SolverError):
@@ -441,7 +344,7 @@ def test_steppers_without_hybrid_path_reject_events():
 def test_fixed_step_longer_than_delay_is_rejected():
     """Test that a fixed step longer than the smallest delay raises an error."""
     with pytest.raises(SolverError, match='smallest delay'):
-        simulate(CompositeSystem(elements=[DelayedElement('d')]), until=2, dt=2.0, solver=RK4Solver(dt=2.0))
+        _system('d', _delayed, RK4Solver(dt=2.0), x=1.0).prepare().simulate(until=2, dt=2.0)
 
 
 def test_events_are_attached_to_frames():
@@ -459,100 +362,44 @@ def test_events_are_attached_to_frames():
 
 def _short_delay(s):
     """Return a decay driven by the state a delay `tau` ago."""
-    return [RateLaw(s.x, -delayed(s.x, s.tau))]
+    x = s.target.x
+    return [RateLaw(x.diff(s.t), -x(t=s.t - s.target.tau))]
 
 
 @pytest.mark.parametrize('tau', [1e-4, 1e-6])
 def test_very_short_delay_with_scipy(tau):
     """Test that ScipyODE integrates a delay shorter than its first step and matches the delay-free decay."""
-
-    class ShortElement(Element):
-        """Short element."""
-
-        def __init__(
-            self,
-            label: str,
-            *,
-            x: Annotated[object, StateSpec(history=1.0)] = 1.0,
-            tau: Annotated[object, ParameterSpec()] = tau,
-        ) -> None:
-            super().__init__(label)
-            self.x = x
-            self.tau = tau
-
-        def _get_laws(self, s):
-            """Return the laws of the short element."""
-            return _short_delay(s)
-
-    system = CompositeSystem(elements=[ShortElement('d')])
-    trajectory = simulate(system, until=0.2, solver=ScipyODESolver())
+    system = _system('d', _short_delay, ScipyODESolver(), x=1.0, tau=tau).prepare()
+    trajectory = system.simulate(until=0.2)
     assert trajectory.get_values('d.x')[-1] == pytest.approx(math.exp(-0.2), abs=1e-3)
 
 
 def _monthly_dose(s):
     """Return a decay with a short dose every 21 days."""
-    return [RateLaw(s.c, -s.k * s.c + pulse_train(s.t, 21, 1 / 24))]
+    c = s.target.c
+    return [RateLaw(c.diff(s.t), -s.target.k * c + pulse_train(s.t, 21, 1 / 24))]
 
 
 def test_periodic_breakpoints_over_unbounded_runs():
     """Test that periodic breakpoints bound a persistent integrator, which looks for the next one without an end."""
-
-    class DosedElement(Element):
-        """Dosed element."""
-
-        def __init__(
-            self,
-            label: str,
-            *,
-            c: Annotated[object, StateSpec()] = 0.0,
-            k: Annotated[object, ParameterSpec()] = 0.1,
-        ) -> None:
-            super().__init__(label)
-            self.c = c
-            self.k = k
-
-        def _get_laws(self, s):
-            """Return the laws of the dosed element."""
-            return _monthly_dose(s)
-
-    system = CompositeSystem(elements=[DosedElement('a')])
-    problem = PassCompiler().prepare(system).run().problem_
-    assert problem.breakpoints.get_next_after(1.0) == 21.0
-    trajectory = simulate(system, until=10, dt=0.5)
+    system = _system('a', _monthly_dose, c=0.0, k=0.1).prepare()
+    assert system._problem.breakpoints.get_next_after(1.0) == 21.0
+    trajectory = system.simulate(until=10, dt=0.5)
     expected = (1 - math.exp(-0.1 / 24)) / 0.1 * math.exp(-0.1 * (10 - 1 / 24))
     assert trajectory.get_values('a.c')[-1] == pytest.approx(expected, rel=1e-5)
 
 
 def _scaled_delay(s):
     """Return a decay driven by the state twice the parameter `tau` ago."""
-    return [RateLaw(s.x, -delayed(s.x, 2 * s.tau))]
+    x = s.target.x
+    return [RateLaw(x.diff(s.t), -x(t=s.t - 2 * s.target.tau))]
 
 
 def test_delay_of_parameter_expression():
     """Test that a delay that is an expression of parameters takes its smallest value from their values."""
-
-    class ScaledElement(Element):
-        """Scaled element."""
-
-        def __init__(
-            self,
-            label: str,
-            *,
-            x: Annotated[object, StateSpec()] = 1.0,
-            tau: Annotated[object, ParameterSpec()] = 0.5,
-        ) -> None:
-            super().__init__(label)
-            self.x = x
-            self.tau = tau
-
-        def _get_laws(self, s):
-            """Return the laws of the scaled element."""
-            return _scaled_delay(s)
-
-    system = CompositeSystem(elements=[ScaledElement('d')])
-    problem = PassCompiler().prepare(system).run().problem_
-    assert problem.delays[0].minimum == 1.0
-    trajectory = simulate(system, until=3, dt=0.5)
+    system = _system('d', _scaled_delay, x=1.0, tau=0.5).prepare()
+    assert system._problem.delays[0].minimum == 1.0
+    trajectory = system.simulate(until=3, dt=0.5)
     assert trajectory.get_values('d.x')[-1] == pytest.approx(-1 / 6, abs=1e-6)
 
 
@@ -567,7 +414,7 @@ def test_state_conditions_restart_the_integrator_without_stalling():
 
 def test_state_conditions_compile_into_hidden_events():
     """Test that the condition of a rate law compiles into a hidden event without a reset."""
-    problem = PassCompiler().prepare(BathtubSystem(water=20.0).prepare().system_).run().problem_
+    problem = BathtubSystem(water=20.0).prepare().system_._problem
     hidden = [event for event in problem.events if event.hidden]
     assert len(hidden) == 1
     assert hidden[0].reset is None
@@ -575,5 +422,5 @@ def test_state_conditions_compile_into_hidden_events():
 
 def test_sign_conditions_compile_into_hidden_events():
     """Test that the escapement `sign(|theta| - theta_c)` of each clock compiles into a hidden event."""
-    problem = PassCompiler().prepare(HuygensClocksSystem().prepare()._get_composite()).run().problem_
+    problem = HuygensClocksSystem().prepare().system_._problem
     assert sum(event.hidden for event in problem.events) == 2
