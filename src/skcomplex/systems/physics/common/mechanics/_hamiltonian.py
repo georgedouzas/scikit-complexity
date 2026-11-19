@@ -55,7 +55,8 @@ class HamiltonianInteraction(Interaction):
     Raises:
         ValidationError:
             A state is not a name, the coordinates and the momenta differ in count, the Hamiltonian is not callable,
-            or a coordinate and its momentum differ in size or are not of order 1.
+            or a coordinate and its momentum differ in size. Preparing a system raises it too when another law gives
+            a coordinate a rate of a higher derivative.
 
     Examples:
         >>> from skcomplex.core.components.elements import Element
@@ -140,18 +141,6 @@ class HamiltonianInteraction(Interaction):
         """
         return [getattr(namespace, name) for name in self._get_roles(single=True)]
 
-    def _get_state(self, member: SimpleNamespace, name: str) -> Target:
-        """Return a canonical state of a member, after checking that it has order 1."""
-        if hasattr(member, f'{name}_d1'):
-            error_msg = (
-                f'{type(self).__name__} {self.label!r} reads the state {name} of order above 1, but canonical '
-                'coordinates and momenta have order 1. Give the rates of a coordinate of order 2 with a RateLaw of '
-                'its second derivative, or derive its equations with `EulerLagrangeInteraction`.'
-            )
-            raise ValidationError(error_msg)
-        state: Target = getattr(member, name)
-        return state
-
     def _get_pairs(self, namespace: SimpleNamespace) -> list[tuple[Target, Target]]:
         """Return the canonical pairs of every member.
 
@@ -161,7 +150,7 @@ class HamiltonianInteraction(Interaction):
         names = list(zip(self._get_names(self.coordinates), self._get_names(self.momenta), strict=True))
         for member in self._get_members(namespace):
             for coordinate, momentum in names:
-                q, p = self._get_state(member, coordinate), self._get_state(member, momentum)
+                q, p = getattr(member, coordinate), getattr(member, momentum)
                 if len(self._get_components(q)) != len(self._get_components(p)):
                     error_msg = (
                         f'The coordinate {coordinate} and the momentum {momentum} of {self.label!r} differ in size. '
