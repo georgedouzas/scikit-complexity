@@ -12,82 +12,37 @@ class reads to let a subclass change one step, and the checks and the laws of it
 
 ### Roles and parameters
 
-This section renames a role or a parameter of a general interaction, or fixes a parameter to a value. A
-[role](glossary.md#role) is the name under which an interaction reads and changes an element. The example renames the
-role `target` of [`RateInteraction`](core_components/interactions.md#rateinteraction) to `stock`, for an inflow that
-fills a tank at a fixed rate.
+This section writes an interaction with the roles and parameters of your field. A [role](glossary.md#role) is the
+name under which an interaction reads and changes an element, an argument typed `Role`. Every other argument is a
+parameter of the relation. So an interaction names its roles and parameters in its own `__init__`, and its `_prepare`
+sets its laws from them. The example fills a tank through a role `stock` at the rate `q`.
 
 ```python
-from typing import Annotated
-
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import RateInteraction, SamplingInteraction
-from skcomplex.core.components.laws.utils import neighbors
-from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.specs import Role
+from skcomplex.core.systems import System
 
 
-class StockElement(Element):
-    def __init__(self, label, *, level: Annotated[float, StateSpec()] = 1.0):
+class Inflow(Interaction):
+    def __init__(self, label, *, stock: Role, q=1.0):
         super().__init__(label)
-        self.level = level
-
-
-class InflowInteraction(RateInteraction):
-    def __init__(self, label, *, stock: Annotated[str, RoleSpec()]):
-        super().__init__(label, target=stock, state='level', rate=lambda s: 1.0)
         self.stock = stock
+        self.q = q
 
-    def _get_role(self, role):
-        return {'target': 'stock'}.get(role, role)
+    def _prepare(self, s):
+        super()._prepare(s)
+        self.laws_ = [RateLaw(s.stock.level, s.q)]
 
 
-inflow = CompositeSystem(elements=[StockElement('tank')], interactions=[InflowInteraction('fill', stock='tank')])
-round(float(simulate(inflow, until=1, dt=0.1).get_values('tank.level')[-1]), 3)
+inflow = System(elements=[Element('tank', values={'level': 1.0})], interactions=[Inflow('fill', stock='tank')])
+round(float(inflow.prepare().simulate(until=1, dt=0.1).get_values('tank.level')[-1]), 3)
 ```
 
-The level rises from 1.0 to 2.0 in one unit of time. `_get_role` renames a role, here `target` to `stock`, in the
-symbolic form and the agent form alike. `_get_parameter` renames a parameter in the same way. An argument that the
-class does not declare as a parameter is a plain value, so a subclass fixes a parameter by setting it, as
-`InflowInteraction` fixes the rate to 1.
-
-The second example renames the intensity of
-[`SamplingInteraction`](core_components/interactions.md#samplinginteraction), which samples the states of the members
-of a group by Monte Carlo moves, to the inverse temperature `beta` of a magnet. The spins sit on the sites of an 8 by 8
-[`LatticeSpace`](core_components/spaces.md#latticespace), each one a member of a
-[`GroupElement`](core_components/elements.md#groupelement), and the system steps in
-[`DiscreteTime`](core_components/spaces.md#discretetime).
-
-```python continuation
-class SpinElement(Element):
-    def __init__(self, label, *, s: Annotated[float, StateSpec()] = 1.0):
-        super().__init__(label)
-        self.s = s
-
-
-class ThermalSamplingInteraction(SamplingInteraction):
-    def __init__(self, label, *, target: Annotated[str, RoleSpec()], beta: Annotated[float, ParameterSpec()] = 1.0):
-        energy = lambda s: -s.target.s * neighbors(s.target.other.s)
-        super().__init__(label, target=target, state='s', objective=energy)
-        self.beta = beta
-
-    def _get_parameter(self, name):
-        return {'intensity': 'beta'}.get(name, name)
-
-
-spins = GroupElement('spins', element=SpinElement, space=LatticeSpace((8, 8)), on='sites')
-magnet = CompositeSystem(
-    elements=[spins],
-    interactions=[ThermalSamplingInteraction('thermal', target='spins')],
-    time=DiscreteTime(),
-)
-abs(simulate(magnet, until=20, random_state=0).states[-1].mean()) > 0.9
-```
-
-The check returns `True`. At `beta = 1`, a low temperature, the spins stay aligned, and the mean magnetization after
-twenty sweeps stays above 0.9.
+The level rises from 1.0 to 2.0 in one unit of time. The laws read the role as `s.stock` and the parameter as `s.q`,
+so `get_params` and `set_params` name the parameter `fill__q` in the system. A subclass of an interaction of the
+catalog renames nothing: it keeps the arguments of its parent and adds its own.
 
 ### Variants
 
@@ -240,19 +195,16 @@ velocities from these roles, not from the names of the states. So a state named 
 This section checks the arguments of a new component. The constructor only stores its arguments, so a component with a
 bad argument is built without error. Preparing it, alone or within its system, raises the error. The check goes at the
 start of the hook `_prepare`, which begins with `super()._prepare(context)`. The base of the components checks the label
-and the declared specs first, and then the component checks its own arguments before it sets any attribute that ends in
-`_`.
+and the allowed values first, and then the component checks its own arguments before it sets any attribute that ends
+in `_`.
 
 ```python
-from typing import Annotated
-
 from skcomplex.core.components.elements import Element
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec
 
 
 class TankElement(Element):
-    def __init__(self, label, *, level: Annotated[float, StateSpec()] = 1.0, capacity=10.0):
+    def __init__(self, label, level=1.0, capacity=10.0):
         super().__init__(label)
         self.level = level
         self.capacity = capacity
@@ -276,9 +228,8 @@ message, hasattr(tank, 'free_'), TankElement('tank').prepare().free_
 The message reads "The capacity of 'tank' is -1.0. Give a positive capacity." The failed tank sets no `free_`, and a
 tank with the default capacity of 10 and level of 1 has 9.0 free. The fix is a positive capacity.
 
-A spec, such as `StateSpec`, is a frozen value, not an estimator, so it has neither `prepare` nor `run`. The component
-that holds a spec checks it through the private hook `_check` of the spec when it reads it, as the base of the
-components does for the specs of the annotated arguments.
+A spec, such as `VisualSpec`, is a frozen value, not an estimator, so it has neither `prepare` nor `run`. The component
+that holds a spec checks it through the private hook `_check` of the spec when it reads it.
 
 ## Package layout
 
@@ -292,15 +243,15 @@ package has two subpackages.
 ```python
 from skcomplex.core.base import BaseConfig
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.systems import BaseSystem, CompositeSystem
+from skcomplex.core.systems import BaseSystem, System
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
-[issubclass(cls, BaseConfig) for cls in (Element, CompositeSystem, LotkaVolterraSystem)]
+[issubclass(cls, BaseConfig) for cls in (Element, System, LotkaVolterraSystem)]
 ```
 
 All three checks return `True`. Every estimator, an element, an interaction, a law, a system, and the engine that runs
-them, derives from one root class, `BaseConfig`. `simulate`, the analyses, and the experiments, calibration among them,
-are functions of these estimators. Every ready-made system belongs to a field and a subfield of the catalog.
+them, derives from one root class, `BaseConfig`. A system is prepared and simulated by its own methods, and the
+analyses and the experiments, calibration among them, are functions of these estimators. Every ready-made system belongs to a field and a subfield of the catalog.
 
 ```python continuation
 issubclass(LotkaVolterraSystem, BaseSystem), LotkaVolterraSystem.field
@@ -346,11 +297,11 @@ Analyses follow the rule by their users too. An analysis that measures what syst
 
 One example for each step follows.
 
-1. [`HyperedgeInteraction`](core_components/interactions.md#hyperedgeinteraction) runs its laws once per hyperedge,
-   and `CompositeSystem` holds the components of a system, so both are structural bases of the core.
-2. [`GroupingInteraction`](core_components/interactions.md#groupinginteraction) stays in the core, since a compile
-   pass lowers its symbolic form by type to kernels over random groups redrawn every step. Its name is the mathematics
-   it does, and economics and social science both form groups.
+1. [`Interaction`](core_components/interactions.md#interaction) binds roles, pairs within a neighbourhood, or the
+   edges of a network, and `System` holds the components of a system, so both are structural bases of the core.
+2. [`RandomPartition`](core_components/interactions.md#randompartition) stays in the core, since a compile pass
+   lowers the binding `along=RandomPartition(k)` by type to kernels over random groups redrawn every step. Its name is
+   the mathematics it does, and economics and social science both form groups.
 3. [`MovementInteraction`](core_components/general.md#movementinteraction) returns agent rules, which the core already
    runs, and systems of biology, economics, engineering, mathematics, and social science use it, so it lives in
    `skcomplex.systems.general.agents`. The toppling of a sandpile serves several systems of physics only, so it lives
@@ -358,8 +309,8 @@ One example for each step follows.
    logical constraints serves one system, so `SatisfiabilityInteraction` lives in the module of
    `PerceptronSatisfiabilitySystem`.
 4. The satisfiability once had a check of its own in the compiler, which is engine support inside a recipe. The check
-   that a role accepts only Boolean states is a primitive of the core, `RoleSpec(domains=...)`, so the recipe declares
-   its role with it and the compiler keeps no code for the class.
+   that a role accepts only Boolean states is a primitive of the core, `Annotated[Role, 'boolean']`, so the recipe
+   declares its role with it and the compiler keeps no code for the class.
 5. `sparse_identification` of the core returns a `CompositeSystem` of core components, never a class of
    `skcomplex.systems`, so the core runs without the catalog.
 
@@ -375,10 +326,8 @@ This section lists the modules that every package of the core shares.
   `RewritingError`.
 - `skcomplex.core.types` holds the types that every layer reads, such as arrays, functions, and keys.
 - `skcomplex.core.enums` holds the kinds that every layer reads, such as `DataKind`, `FormKind`, and `ElementKind`.
-- `skcomplex.core.specs` holds the specs, frozen values that declare, record, or hold what the classes read. These
-  include the specs that annotate states, parameters, and roles, such as `StateSpec`, `ParameterSpec`, and `RoleSpec`,
-  the specs of runs and structures, such as `Observable` and `WienerProcessSpec`, and the specs of rules, domains,
-  and geometries, such as `TableSpec`, `LinearRuleSpec`, and `SubshiftSpec`.
+- `skcomplex.core.specs` holds the specs, frozen values that declare, record, or hold what the classes read, such as
+  `VisualSpec`, and the type `Role` of the arguments that name elements.
 
 ### The core
 
@@ -387,14 +336,15 @@ runs. They are listed in their import order, so a module imports only the module
 
 - `types`: the types of the components, such as the targets of laws and the pairings of transfers.
 - `base`: `BaseComponent`, the base of every component of a system, built on `BaseConfig`.
-- `spaces`: the continuous, lattice, network, mesh, and phase spaces, their neighbourhoods, and the kinds of time.
+- `spaces`: the continuous, lattice, network, cell complex, and phase spaces, and their neighbourhoods.
 - `laws`: the `BaseLaw` base and every law. `laws.utils` holds what laws are written with besides Sage, such as
   `where`, reductions, draws, delays, and calls. The helpers that only the compiler reads, such as `reductions_in`,
   stay in its private modules, and the engine imports them from there.
-- `elements` and `interactions`: `Element`, `GroupElement`, `FieldElement`, and the other elements, and the binding
-  bases `Interaction`, `NeighborInteraction`, `PairInteraction`, and `HyperedgeInteraction`, with the general
-  interactions built on them.
-- `systems`: `BaseSystem` and its `RunSettings`, and the composite `CompositeSystem`.
+- `elements` and `interactions`: `Element`, which covers one member, many members, and one member per site, and
+  `Interaction`, which binds roles, pairs within a neighbourhood, or the edges of a network.
+
+`skcomplex.core.systems` holds `BaseSystem`, the base of the ready-made systems, and `System`, the composite of
+elements, interactions, and nested systems.
 - `specs`: the specs that name classes of the components, as a compilation reads them, such as `ScenarioSpec`.
 
 ### The engine
@@ -406,10 +356,9 @@ too.
 - `problems`: the compiled problems, their layouts of states and parameters, and their numeric functions.
 - `backends`: the NumPy, Numba, and JAX [backends](glossary.md#backend), which lower expressions to numeric functions.
 - `compile`: the compilers and the passes that turn a system into a problem. They are private, except `BaseCompiler`,
-  `BasePass`, and `BaseLowering`, through which a system package brings a form of its own with the `compiler` run
-  setting.
+  `BasePass`, and `BaseLowering`, through which a system package brings a form of its own.
 - `solvers`: the solver contract, `step_count`, and every solver.
-- `runtime`: `simulate`, clocks, observers, and trajectories.
+- `runtime`: clocks, observers, and trajectories.
 - `viz`: the visuals and the Rerun observer.
 - `translators`: the translators of system files of other tools, such as `SystemDynamicsTranslator`.
 
