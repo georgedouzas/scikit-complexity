@@ -243,7 +243,7 @@ class _StateInference:
 
     @staticmethod
     def _is_single(element: Element) -> bool:
-        """Return whether an element is one member whose values are its own, also when they are arrays.
+        """Return whether an element is one member whose values, even arrays, are its own.
 
         Such an element has no size and lies in no space or in a space without sites, such as a ball in the plane or
         a walker on a line, whose position `[0.25]` is a vector of one component and not one value per member.
@@ -254,7 +254,7 @@ class _StateInference:
 
     @staticmethod
     def _get_rows(element: Element, value: object) -> object:
-        """Return the values of the members of an element, one row for the single member of a single element."""
+        """Return the values of the members of an element, one row for a single element."""
         return [value] if _StateInference._is_single(element) else value
 
     @staticmethod
