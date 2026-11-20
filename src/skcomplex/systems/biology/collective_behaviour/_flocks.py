@@ -35,8 +35,6 @@ class BoidView(AgentViewProtocol, Protocol):
     The rules of `BoidElement` read them with checked types.
     """
 
-    x_d1: float
-    y_d1: float
     radius: float
     separation_radius: float
     cohesion: float
@@ -56,8 +54,8 @@ class BoidElement(Element):
     Every step a boid sees the boids within `radius`. `FlockingInteraction` steers it by cohesion toward their center,
     by separation away from those closer than `separation_radius`, and by alignment toward their mean velocity, with
     its speed between `min_speed` and `max_speed`, and `FlightInteraction` moves it on a torus of side `width` by
-    `height`. Its position is `x` and `y`, and its velocity `"x'"` and `"y'"`, which its rules change as `agent.x_d1`
-    and `agent.y_d1`.
+    `height`. Its position is `x` and `y`, and its velocity `"x'"` and `"y'"`, which its rules read and change as
+    `agent.get_value("x'")` and `agent.set_value("x'", value)`.
 
     Args:
         label:
@@ -154,9 +152,6 @@ class SpatialBoidView(AgentViewProtocol, Protocol):
     The rules of `SpatialBoidElement` read them with checked types.
     """
 
-    x_d1: float
-    y_d1: float
-    z_d1: float
     radius: float
     separation_radius: float
     cohesion: float
@@ -173,8 +168,8 @@ class SpatialBoidElement(Element):
 
     Every step `HeadingInteraction` steers a boid by cohesion, separation, and alignment with the boids within `radius`,
     with its speed between `min_speed` and `max_speed`, and `SpatialFlightInteraction` moves it along its velocity. Its
-    position is `x`, `y`, and `z`, and its velocity `"x'"`, `"y'"`, and `"z'"`, which its rules change as `agent.x_d1`,
-    `agent.y_d1`, and `agent.z_d1`.
+    position is `x`, `y`, and `z`, and its velocity `"x'"`, `"y'"`, and `"z'"`, which its rules read and
+    change as `agent.get_value("x'")` and `agent.set_value("x'", value)`.
 
     Args:
         label:
@@ -291,10 +286,15 @@ class FlightInteraction(MovementInteraction):
         super().__init__(label, target=target, step=self._fly, probability=probability, schedule='member')
 
     @staticmethod
+    def _get_velocity(boid: AgentViewProtocol) -> Array:
+        """Return the velocity of a boid as a vector."""
+        return np.array([boid.get_value("x'"), boid.get_value("y'")], dtype=float)
+
+    @staticmethod
     def _fly(agent: AgentViewProtocol, system: SystemViewProtocol) -> tuple[float, ...]:
         """Return the position of a boid after one step along its velocity."""
         boid = cast(BoidView, agent)
-        position = np.asarray(boid.location, dtype=float) + np.array([boid.x_d1, boid.y_d1])
+        position = np.asarray(boid.location, dtype=float) + FlightInteraction._get_velocity(boid)
         return tuple(float(item) for item in np.mod(position, np.array([boid.width, boid.height])))
 
 
@@ -329,7 +329,7 @@ class FlockingInteraction(ZoneCouplingInteraction):
         super().__init__(
             label,
             target=target,
-            write=('x_d1', 'y_d1'),
+            write=("x'", "y'"),
             radii=(
                 RadiusSpec('radius', self._get_cohesion, reduce='mean'),
                 RadiusSpec('separation_radius', self._get_separation),
@@ -357,7 +357,7 @@ class FlockingInteraction(ZoneCouplingInteraction):
     @staticmethod
     def _get_alignment(agent: BoidView, other: BoidView, system: SystemView) -> Array:
         """Return the turn of a boid toward the velocity of another."""
-        return agent.alignment * np.array([other.x_d1 - agent.x_d1, other.y_d1 - agent.y_d1])
+        return agent.alignment * (FlightInteraction._get_velocity(other) - FlightInteraction._get_velocity(agent))
 
 
 class HeadingInteraction(Interaction):
@@ -407,7 +407,7 @@ class HeadingInteraction(Interaction):
     @staticmethod
     def _get_velocity(boid: SpatialBoidView) -> Array:
         """Return the velocity of a boid as a vector."""
-        return np.array([boid.x_d1, boid.y_d1, boid.z_d1], dtype=float)
+        return np.array([boid.get_value(name) for name in ("x'", "y'", "z'")], dtype=float)
 
     @staticmethod
     def _get_steering(boid: SpatialBoidView, others: list[SpatialBoidView]) -> Array:
@@ -440,7 +440,8 @@ class HeadingInteraction(Interaction):
             velocity = velocity + self._get_steering(agent, others)
         speed = float(np.linalg.norm(velocity))
         velocity = velocity * np.clip(speed, agent.min_speed, agent.max_speed) / speed if speed else velocity
-        agent.x_d1, agent.y_d1, agent.z_d1 = (float(item) for item in velocity)
+        for name, item in zip(("x'", "y'", "z'"), velocity, strict=True):
+            agent.set_value(name, float(item))
 
 
 class MorsePotentialInteraction(Interaction):

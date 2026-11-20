@@ -40,6 +40,8 @@ def test_agent_views_have_an_id_a_location_and_a_life():
         'create',
         'get_referenced',
         'get_lags',
+        'get_value',
+        'set_value',
     )
     view = SimpleNamespace(
         id=1,

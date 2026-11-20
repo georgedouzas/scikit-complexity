@@ -1542,9 +1542,9 @@ def test_a_past_value_of_a_value_read_without_delay_is_refused():
 
 def _fly(agent, system):
     """Slow a bird down and move it by its velocity."""
-    agent.x_d1 = 0.5 * agent.x_d1
-    agent.x += agent.x_d1
-    agent.y += agent.y_d1
+    agent.set_value("x'", 0.5 * agent.get_value("x'"))
+    agent.x += agent.get_value("x'")
+    agent.y += agent.get_value("y'")
 
 
 def test_agents_change_their_velocity_named_with_a_prime():

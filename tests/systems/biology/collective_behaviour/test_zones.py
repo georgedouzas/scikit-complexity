@@ -77,3 +77,15 @@ def test_check_agent_coupling_specs_reject_invalid_settings(spec, message):
     """Test that a radius or a clamp with an invalid setting raises an error naming it."""
     with pytest.raises(ValidationError, match=message):
         spec._check()
+
+
+def test_coupling_agents_writes_primed_values():
+    """Test that the agent coupling writes the velocities `x'` and `y'` named with a prime."""
+    space = ContinuousSpace(extent=(10.0, 10.0))
+    values = {'x': np.array([1.0, 1.5]), 'y': np.array([1.0, 1.0]), "x'": np.zeros(2), "y'": np.zeros(2)}
+    agents = Element('agents', values=values, size=2, space=space)
+    radii = (RadiusSpec(1.0, lambda agent, other, system: (1.0, -1.0)),)
+    coupling = ZoneCouplingInteraction('coupling', target='agents', write=("x'", "y'"), radii=radii)
+    system = System(elements=[agents], interactions=[coupling], space=space)
+    snapshot = system.prepare().simulate(until=1, random_state=0).get_agents('agents', 1)
+    np.testing.assert_allclose(np.stack([snapshot.values["x'"], snapshot.values["y'"]], axis=1), [[1.0, -1.0]] * 2)

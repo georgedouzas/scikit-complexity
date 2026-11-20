@@ -11,6 +11,7 @@ from typing import Annotated, Self
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression, I, function
+from sage.modules.free_module_element import FreeModuleElement
 
 from ...components import Observable
 from ...components.elements import Element
@@ -23,13 +24,14 @@ from ...enums import FormKind, VariableKind
 from ...errors import ValidationError
 from ...specs import EntrySpec, StateSpec
 from ...types import Array, Indices
-from .._utils import binding_of, bound_labels, declarations_of, symbol, symbols_of
+from .._utils import binding_of, bound_labels, declarations_of, symbol, symbols_of, vector
 from ..enums import ReadKind
 from ..problems import BaseProblemSpec, ProblemSpec, RunStateSpec
 from ..problems._declarations_spec import ACTIVE
 from ..problems._drive_kernel import DriveKernel
 from ..problems._expression_printer import ExpressionPrinter
 from ..problems._law_kernel import LawKernel
+from ..problems._layout_spec import LayoutSpec
 from ..problems._neighbor_read_spec import _NeighborReadSpec
 from ..problems._node_spec import _NodeSpec
 from ..problems._operator_kernel import OperatorKernel
@@ -355,7 +357,7 @@ class ObservableEvaluator:
     ) -> ObservableFunction:
         """Return a getter that calls a function of time and the system values.
 
-        The values are those of the states and parameters of its system.
+        The values are those of the states and parameters of its system, by the names users read, such as `x'`.
         """
         problem = self.problem
         if not isinstance(problem, ProblemSpec) or problem.agents:
@@ -370,7 +372,11 @@ class ObservableEvaluator:
         def get(t: float, x: Array, p: Array, done: Mapping[str, object]) -> object:
             del done
             values = {**states.get_values(x), **parameters.get_values(p)}
-            local = {name.removeprefix(prefix): item for name, item in values.items() if name.startswith(prefix)}
+            local = {
+                LayoutSpec._get_display_name(name.removeprefix(prefix)): item
+                for name, item in values.items()
+                if name.startswith(prefix)
+            }
             value = np.asarray(function(t, local))
             return float(value) if value.ndim == 0 else value
 
@@ -488,59 +494,101 @@ class ObservableEvaluator:
         namespace = self._get_namespace_of(self.problem, scope)
         for other, item in earlier.items():
             setattr(namespace, other[len(prefix) :], item)
-        expression = self._read_derivatives(path, observable, namespace)
+        expression = self._read_derivatives(path, observable.expression, namespace)
         expression, stages = self._read_delays(path, expression)
         return self._compile(path, expression, {item: other for other, item in earlier.items()}, stages)
 
-    def _get_functional(self, value: object, names: Mapping[str, str], functions: dict[str, Expression]) -> object:
-        """Return a namespace with every scalar state as a function of the time.
+    def _get_state_components(self) -> dict[str, tuple[str, int]]:
+        """Return the state name and column of every scalar state symbol, by its name.
 
-        A state `x` becomes `x(t)`.
+        A state `x` on a plane has two such symbols, at the columns 0 and 1.
+        """
+        problem = self.problem
+        components: dict[str, tuple[str, int]] = {}
+        for name, value in problem.symbols.items():
+            if not problem.states.has(name):
+                continue
+            for column, item in enumerate(list(value) if isinstance(value, FreeModuleElement) else [value]):
+                if isinstance(item, Expression) and item.is_symbol():
+                    components[str(item)] = (name, column)
+        return components
+
+    def _get_functional(
+        self,
+        value: object,
+        components: Mapping[str, tuple[str, int]],
+        functions: dict[str, Expression],
+    ) -> object:
+        """Return a value with every scalar symbol of a state as a function of the time.
+
+        A state `x` becomes `x(t)`, so `x.diff(t)` is its derivative.
         """
         if isinstance(value, SimpleNamespace):
             return SimpleNamespace(
-                **{name: self._get_functional(item, names, functions) for name, item in vars(value).items()},
+                **{name: self._get_functional(item, components, functions) for name, item in vars(value).items()},
             )
-        states = self.problem.states
-        if isinstance(value, Expression) and value.is_symbol() and states.has(names.get(str(value), '')):
+        if isinstance(value, tuple):
+            return tuple(self._get_functional(item, components, functions) for item in value)
+        if isinstance(value, FreeModuleElement):
+            return vector(self._get_functional(item, components, functions) for item in value)
+        if isinstance(value, Expression) and value.is_symbol() and str(value) in components:
             functions[str(value)] = value
             return function(str(value))(self.problem.time)
         return value
 
-    def _read_derivatives(self, path: str, observable: Observable, namespace: SimpleNamespace) -> object:
-        """Return the value of an observable, reading derivatives as states.
+    def _read_derivatives(self, path: str, expression: object, namespace: SimpleNamespace) -> object:
+        """Return the value of an expression of a namespace, reading derivatives as states.
 
-        The observable reads every state as a function of the time, so `s.ball.x.diff(s.t)` is the derivative `ball.x'`,
-        which the problem holds as a state when a law reads the second derivative of `x`.
+        The expression reads every state as a function of the time, so `s.ball.x.diff(s.t)` is the derivative
+        `ball.x'`, which the problem holds as a state when a law reads the second derivative of `x`. It is the same for
+        an expression of one member of a group, such as the mean of `x.diff(t)` over the agents.
 
         Raises:
             ValidationError:
-                The observable reads a derivative that the problem does not hold.
+                The expression reads a derivative that the problem does not hold.
         """
-        if not callable(observable.expression):
-            return observable.expression
+        if not callable(expression):
+            return expression
         if not isinstance(self.problem, ProblemSpec):
-            return observable.expression(namespace)
-        names = {str(item): name for name, item in self.problem.symbols.items() if isinstance(item, Expression)}
+            return expression(namespace)
+        components = self._get_state_components()
         functions: dict[str, Expression] = {}
-        value = observable.expression(self._get_functional(namespace, names, functions))
+        value = expression(self._get_functional(namespace, components, functions))
         if not functions:
             return value
         value = BaseInteraction._get_translated(value, self.problem.time, functions, False)
+        if isinstance(value, FreeModuleElement):
+            return value.apply_map(lambda item: self._get_derivative_states(path, SR(item), components))
+        return self._get_derivative_states(path, value, components)
+
+    def _get_derivative_states(
+        self,
+        path: str,
+        value: object,
+        components: Mapping[str, tuple[str, int]],
+    ) -> object:
+        """Return an expression with every state derivative read from its own state.
+
+        Raises:
+            ValidationError:
+                The expression reads a derivative that the problem does not hold.
+        """
         if not isinstance(value, Expression):
             return value
-        for found in value.find(derivative(SR.wild(0), SR.wild(1))):
+        expression = value
+        for found in expression.find(derivative(SR.wild(0), SR.wild(1))):
             state, order = found.operands()
-            name = f'{names[str(state)]}_d{order}'
-            if name not in self.problem.symbols:
-                read = names[str(state)] + "'" * int(order)
+            name, column = components[str(state)]
+            held = self.problem.symbols.get(f'{name}_d{order}')
+            if held is None:
+                read = name + "'" * int(order)
                 error_msg = (
                     f'Observable {path} reads {read}, a derivative that the system does not hold. Observe the '
                     'derivatives of a state whose laws read a higher derivative.'
                 )
                 raise ValidationError(error_msg)
-            value = value.subs({found: self.problem.symbols[name]})
-        return value
+            expression = expression.subs({found: list(held)[column] if isinstance(held, FreeModuleElement) else held})
+        return expression
 
     def _read_delays(
         self,
@@ -647,7 +695,7 @@ class ObservableEvaluator:
             **{variable: self.problem.symbols[name] for variable, name in names.items()},
             t=self.problem.time,
         )
-        expression = observable.expression(namespace) if callable(observable.expression) else observable.expression
+        expression = self._read_derivatives(path, observable.expression, namespace)
         scalars = {item: _ReadSpec(vector == 'x', index) for item, (vector, index) in self._scalars.items()}
         parameters = len(self.problem.initial_parameters)
         lowering = _MemberReductions(

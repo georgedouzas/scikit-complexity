@@ -126,6 +126,12 @@ class AgentViewProtocol(Protocol):
         The last one comes last.
         """
 
+    def get_value(self, name: str) -> object:
+        """Return a value of the agent by the name users read, such as `x'`."""
+
+    def set_value(self, name: str, value: object) -> None:
+        """Set a state of the agent by the name users read, such as `x'`."""
+
 
 @runtime_checkable
 class SystemViewProtocol(Protocol):
