@@ -6,26 +6,17 @@
 from collections.abc import Mapping
 from dataclasses import replace
 
-from ...components.laws import (
-    BoundaryLaw,
-    ConstraintLaw,
-    EventLaw,
-    JumpLaw,
-    LocalRuleLaw,
-    NoiseLaw,
-    RateLaw,
-    RuleLaw,
-    SampleLaw,
-    TransferLaw,
-    TransitionLaw,
-    UpdateLaw,
-)
-from ...components.spaces import (
-    BaseSpace,
-    ContinuousTime,
-    DiscreteTime,
-    StaticTime,
-)
+from ...components.laws import ConstraintLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ...components.laws._boundary import _BoundaryLaw
+from ...components.laws._local_rule import _LocalRuleLaw
+from ...components.laws._rule import _RuleLaw
+from ...components.laws._sample import _SampleLaw
+from ...components.laws._transfer import _TransferLaw
+from ...components.laws._transition import _TransitionLaw
+from ...components.spaces import BaseSpace
+from ...components.spaces._continuous_time import _ContinuousTime
+from ...components.spaces._discrete_time import _DiscreteTime
+from ...components.spaces._static_time import _StaticTime
 from ...enums import FormKind, NoiseKind, OrderKind
 from ...errors import ValidationError
 from ...types import VectorFunction
@@ -60,21 +51,21 @@ class NumpyBackend(BaseBackend):
         It is the times, spaces, laws, noise, and orders.
         """
         return SupportSpec(
-            time={ContinuousTime, DiscreteTime, StaticTime},
+            time={_ContinuousTime, _DiscreteTime, _StaticTime},
             space={None, BaseSpace},
             laws={
-                BoundaryLaw,
+                _BoundaryLaw,
                 EventLaw,
                 ConstraintLaw,
                 JumpLaw,
-                LocalRuleLaw,
+                _LocalRuleLaw,
                 NoiseLaw,
                 BilinearLaw,
                 RateLaw,
-                RuleLaw,
-                SampleLaw,
-                TransferLaw,
-                TransitionLaw,
+                _RuleLaw,
+                _SampleLaw,
+                _TransferLaw,
+                _TransitionLaw,
                 UpdateLaw,
             },
             noise=frozenset(NoiseKind),
@@ -101,7 +92,7 @@ class NumpyBackend(BaseBackend):
             error_msg = 'A backend runs on the kernels of a problem. Pass a `LoweredKernelsSpec` to `run`.'
             raise ValidationError(error_msg)
         form, size, kernels = inputs.form, inputs.size, inputs.kernels
-        boundary = kernels.get(BoundaryLaw)
+        boundary = kernels.get(_BoundaryLaw)
         lowering = LoweredFunctionsSpec(
             drift=(
                 BaseBackend._get_adding_function(kernels.get(RateLaw, []), size)
@@ -168,7 +159,7 @@ class NumpyBackend(BaseBackend):
             diffusion=NumpyBackend._get_wrapped(lowering.diffusion, NoiseLaw, reductions, kernels),
             propensities=NumpyBackend._get_wrapped(lowering.propensities, JumpLaw, reductions, kernels),
             update=NumpyBackend._get_wrapped(lowering.update, UpdateLaw, reductions, kernels),
-            boundary=NumpyBackend._get_wrapped(lowering.boundary, BoundaryLaw, reductions, kernels),
+            boundary=NumpyBackend._get_wrapped(lowering.boundary, _BoundaryLaw, reductions, kernels),
         )
 
     @staticmethod

@@ -7,8 +7,8 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from multiprocessing.reduction import ForkingPickler
 
+from ..base import BaseSpec
 from ..errors import ValidationError
-from ..specs._base_spec import BaseSpec
 from ..types import AnyArray
 
 

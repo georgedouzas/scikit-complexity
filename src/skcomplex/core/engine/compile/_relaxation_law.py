@@ -7,7 +7,8 @@ from collections.abc import Callable, Sequence
 from typing import ClassVar
 
 from ...components.laws import BaseLaw, RequirementSpec
-from ...components.spaces import DiscreteTime, LatticeSpace, NetworkSpace
+from ...components.spaces import LatticeSpace, NetworkSpace
+from ...components.spaces._discrete_time import _DiscreteTime
 
 
 class RelaxationLaw(BaseLaw):
@@ -40,12 +41,12 @@ class RelaxationLaw(BaseLaw):
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws import LocalRuleLaw
+        >>> from skcomplex.core.components.laws import UpdateLaw
         >>> from skcomplex.core.components.spaces import RadiusNeighborhood
         >>> from skcomplex.core.engine.compile._relaxation_law import RelaxationLaw
         >>> height = var('height')
         >>> cross = RadiusNeighborhood(1, metric='manhattan', center=True)
-        >>> topple = LocalRuleLaw(height, cross, lambda z, *n: z - 4 * (z >= 4))
+        >>> topple = UpdateLaw(height, lambda z, *n: z - 4 * (z >= 4), neighborhood=cross)
         >>> RelaxationLaw([], [topple], lambda z: bool((z < 4).all())).prepare().targets_
         (height,)
     """
@@ -76,7 +77,7 @@ class RelaxationLaw(BaseLaw):
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
         """Return what the relaxation requires: discrete time on a lattice or a network."""
-        return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace, NetworkSpace))
+        return RequirementSpec(time=(_DiscreteTime,), space=(LatticeSpace, NetworkSpace))
 
     def _prepare(self, context: str | None = None) -> None:
         """Check every drive law and every law that relaxes the lattice.

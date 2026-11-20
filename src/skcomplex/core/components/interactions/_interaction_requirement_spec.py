@@ -6,7 +6,7 @@
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
-from ...specs._role_spec import RoleSpec
+from .._role_spec import RoleSpec
 from ..laws import RequirementSpec
 
 

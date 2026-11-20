@@ -15,14 +15,13 @@ from typing import Annotated, cast
 import numpy as np
 import numpy.typing as npt
 
-from ....core.components import Observable
+from ....core.components import MatrixGroupSpec, Observable
 from ....core.components.elements import Element
 from ....core.components.spaces import BaseSpace, CellComplexSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.runtime import Trajectory
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import AnalysisError, ValidationError
-from ....core.specs import MatrixGroupSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Indices
 from ..common.fields import WilsonSamplingInteraction
@@ -192,7 +191,7 @@ def gauge_observables(
         >>> space = CellComplexSpace(LatticeSpace((4, 4))).prepare()
         >>> gauge_observables(np.zeros(32), kind='wilson', space=space).value.tolist()
         [1.0]
-        >>> from skcomplex.core.specs import MatrixGroupSpec
+        >>> from skcomplex.core.components import MatrixGroupSpec
         >>> group = MatrixGroupSpec('SU', 2)
         >>> identity = np.tile(group.identity, (32, 1))
         >>> gauge_observables(identity, kind='polyakov', space=space, group=group).value.tolist()

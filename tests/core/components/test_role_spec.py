@@ -1,10 +1,10 @@
-"""Test the `_role_spec` module of `skcomplex.core.specs`."""
+"""Test the `_role_spec` module of `skcomplex.core.components`."""
 
 import pytest
 
+from skcomplex.core.components import RoleSpec
 from skcomplex.core.enums import ElementKind
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import RoleSpec
 
 
 def test_role_spec_is_variadic_or_a_noise_role():

@@ -5,9 +5,9 @@
 
 from collections.abc import Iterable, Mapping
 
-from ....components.systems import CompositeSystem
 from ....enums import FormKind
 from ....errors import IncompatibleLawsError, UnregisteredLawError
+from ...problems._composite_system import _CompositeSystem
 from .._base import BaseCompiler, BasePass
 from .._census_spec import _CensusSpec
 from .._compilation import Compilation
@@ -130,7 +130,7 @@ class PlanPass(BasePass):
 
     @staticmethod
     def _get_planned(
-        system: CompositeSystem,
+        system: _CompositeSystem,
         owners: _OwnersSpec,
         scope: str = '',
     ) -> tuple[list['_PlannedPartitionSpec'], list[IssueSpec]]:

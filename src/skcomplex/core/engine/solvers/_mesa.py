@@ -20,20 +20,15 @@ from mesa.experimental.continuous_space import ContinuousSpaceAgent
 from scipy import stats
 from shapely import Point, Polygon, STRtree
 
-from ...components.elements import BaseElement, DeclaredElement, GroupElement
-from ...components.laws import BaseLaw, BoundaryLaw, DrawSpec, RuleLaw, TransferLaw
-from ...components.spaces import (
-    BaseSpace,
-    ContinuousSpace,
-    DelaunayNeighborhood,
-    DiscreteTime,
-    LatticeSpace,
-    NetworkSpace,
-)
-from ...components.systems import CompositeSystem
+from ...components.elements import BaseElement
+from ...components.laws import BaseLaw, DrawSpec
+from ...components.laws._boundary import _BoundaryLaw as BoundaryLaw
+from ...components.laws._rule import _RuleLaw as RuleLaw
+from ...components.laws._transfer import _TransferLaw as TransferLaw
+from ...components.spaces import BaseSpace, ContinuousSpace, DelaunayNeighborhood, LatticeSpace, NetworkSpace
+from ...components.spaces._discrete_time import _DiscreteTime as DiscreteTime
 from ...enums import ActivationKind, FormKind, OrderKind, VariableKind
 from ...errors import ConservationError, SimulationError, SpaceError, ValidationError
-from ...specs import VariableSpec
 from ...types import Array
 from .._utils import declarations_of, default_of
 from ..backends import SupportSpec
@@ -42,10 +37,14 @@ from ..compile._observables import ObservableEvaluator
 from ..compile._phases_schedule_spec import DEFAULT_PHASE
 from ..problems import AgentSnapshotSpec, ProblemSpec
 from ..problems._compiled_agents_spec import _CompiledAgentsSpec
+from ..problems._composite_system import _CompositeSystem as CompositeSystem
+from ..problems._declared_element import _DeclaredElement as DeclaredElement
 from ..problems._draw_kernel import DrawKernel
 from ..problems._draw_recorder import KEYWORDS
+from ..problems._group_element import _GroupElement as GroupElement
 from ..problems._layout_spec import LayoutSpec
 from ..problems._metric_search import MetricSearch
+from ..problems._variable_spec import _VariableSpec as VariableSpec
 from ..types import MesaSpace
 from ._agent_state_spec import _AgentStateSpec
 from ._external import ExternalSolver

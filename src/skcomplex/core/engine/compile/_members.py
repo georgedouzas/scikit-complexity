@@ -8,7 +8,8 @@ from collections import defaultdict
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ...components.laws import BaseLaw, BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ...components.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ...components.laws._boundary import _BoundaryLaw
 from ...components.laws.utils import shift_member
 from ...components.laws.utils._draws import draws_in
 from ...components.spaces import LatticeNeighborhood, LatticeSpace
@@ -94,7 +95,7 @@ class MemberLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
                     else:
                         changes[key] += float(SR(increment))
                 result.append(JumpLaw(self._lower(law.rate), {**changes, **functions}))
-            elif isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
+            elif isinstance(law, RateLaw | NoiseLaw | UpdateLaw | _BoundaryLaw):
                 result.append(BasePass._get_replaced(law, value=self._lower(law.value)))
             else:
                 result.append(law)

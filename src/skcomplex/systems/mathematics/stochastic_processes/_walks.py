@@ -15,7 +15,7 @@ from sage.all__sagemath_symbolics import NN, ZZ, sqrt
 
 from ....core.components import Observable
 from ....core.components.base import BaseComponent
-from ....core.components.elements import Element
+from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.components.laws.utils import bernoulli, normal
@@ -23,7 +23,6 @@ from ....core.components.spaces import BaseSpace, ContinuousSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, SystemView
-from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
 

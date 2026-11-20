@@ -13,13 +13,12 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element
+from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import JumpLaw
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend, NumbaBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
 from ..common.populations import NeutralBirthInteraction, NeutralDeathInteraction

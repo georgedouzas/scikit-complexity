@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
-from ...specs._base_spec import BaseSpec
+from ...base import BaseSpec
 from ...types import Array
 from ._control_spec import _ControlSpec
 from ._problem_spec import ProblemSpec

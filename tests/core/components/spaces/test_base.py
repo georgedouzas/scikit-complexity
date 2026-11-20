@@ -9,14 +9,14 @@ import pytest
 from skcomplex.core.components.spaces import (
     BaseNeighborhood,
     BaseSpace,
-    BaseTime,
     CellComplexSpace,
-    ContinuousTime,
     LatticeSpace,
     NetworkSpace,
     PhaseSpace,
-    StaticTime,
 )
+from skcomplex.core.components.spaces._base import _BaseTime
+from skcomplex.core.components.spaces._continuous_time import _ContinuousTime
+from skcomplex.core.components.spaces._static_time import _StaticTime
 from skcomplex.core.errors import SpaceError
 
 
@@ -61,7 +61,7 @@ class EmptySpace(BaseSpace):
         self.size_ = None
 
 
-class TickTime(BaseTime):
+class TickTime(_BaseTime):
     """Time that takes the frames of the base."""
 
     def __init__(self, *, label='time'):
@@ -137,5 +137,5 @@ def test_spaces_and_times_give_their_tags():
     assert NetworkSpace(ring, hyperedges=[[0, 1, 2]]).get_tags().space == {'hypergraph'}
     assert CellComplexSpace(NetworkSpace(ring)).get_tags().space == {'cell complex'}
     assert PhaseSpace.space_tags == ('phase space',)
-    assert ContinuousTime().get_tags().time == {'continuous'}
-    assert StaticTime().get_tags().laws == frozenset()
+    assert _ContinuousTime().get_tags().time == {'continuous'}
+    assert _StaticTime().get_tags().laws == frozenset()

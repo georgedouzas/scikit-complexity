@@ -8,8 +8,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from ....core.base import BaseSpec
 from ....core.errors import RewritingError
-from ....core.specs import BaseSpec
 
 PLANE_DIMENSION = 2
 SEGMENT_VERTICES = 2

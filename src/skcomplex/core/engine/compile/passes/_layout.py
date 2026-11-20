@@ -16,22 +16,24 @@ from sage.all__sagemath_symbolics import CC, RR, ZZ, Expression, I, oo
 from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
-from ....components.elements import FieldElement, GroupElement
+from ....components import EntrySpec, PowerSeriesSpec, TensorSpec
 from ....components.interactions import BaseInteraction, WienerProcessSpec
-from ....components.laws import LinearProgramLaw
+from ....components.laws._linear_program import _LinearProgramLaw
 from ....components.laws.utils import coordinate
 from ....components.laws.utils._phase import COORDINATE_PREFIX
 from ....components.spaces import BaseSpace, ContinuousSpace, LatticeSpace, NetworkSpace, PhaseSpace
 from ....enums import VariableKind
 from ....errors import LabelError, SpaceError, ValidationError
-from ....specs import EntrySpec, PowerSeriesSpec, TensorSpec, VariableSpec
 from ....types import Array
 from ..._utils import binding_of, components_of, declarations_of, default_of, symbol, vector
 from ...enums import ReadKind
 from ...problems._block_spec import BlockSpec
 from ...problems._declarations_spec import ACTIVE, ENDS, MEMBERS, DeclarationsSpec
+from ...problems._field_element import _FieldElement
+from ...problems._group_element import _GroupElement
 from ...problems._node_spec import _NodeSpec
 from ...problems._reference_spec import ReferenceSpec
+from ...problems._variable_spec import _VariableSpec
 from .._base import BasePass
 from .._census_record_spec import _CensusRecordSpec
 from .._compilation import Compilation
@@ -94,7 +96,7 @@ class LayoutPass(BasePass):
         counts: Counter[tuple[str, str]] = Counter()
         for record in records:
             law = record.law
-            if not isinstance(law, LinearProgramLaw):
+            if not isinstance(law, _LinearProgramLaw):
                 continue
             kinds = [('objective', len(law.objectives)), ('dual', len(law.constraints) if law.duals else 0)]
             for kind, count in kinds:
@@ -210,7 +212,7 @@ class LayoutPass(BasePass):
         the nodes of a network before the laws that add nodes make it a growing group, or the agents of a village.
         """
         group = node.component
-        on_nodes = isinstance(group, GroupElement) and group.on not in {'edges', 'hyperedges'}
+        on_nodes = isinstance(group, _GroupElement) and group.on not in {'edges', 'hyperedges'}
         return on_nodes and node.members is not None and not block.symbols
 
     @staticmethod
@@ -263,7 +265,7 @@ class LayoutPass(BasePass):
         declarations: DeclarationsSpec,
         block: BlockSpec,
         variable: str,
-        declaration: VariableSpec,
+        declaration: _VariableSpec,
         is_state: bool,
     ) -> tuple[DeclarationsSpec, BlockSpec]:
         """Return the declarations and the block with one variable of a component added."""
@@ -314,7 +316,7 @@ class LayoutPass(BasePass):
     def _get_role_shape(
         node: _NodeSpec,
         variable: str,
-        declaration: VariableSpec,
+        declaration: _VariableSpec,
         groups: Mapping[str, int],
     ) -> tuple[int, ...]:
         """Return the shape of a shaped parameter.
@@ -357,7 +359,7 @@ class LayoutPass(BasePass):
         return tuple(shape)
 
     @staticmethod
-    def _get_member_shaped(node: _NodeSpec, groups: Mapping[str, int]) -> dict[str, VariableSpec]:
+    def _get_member_shaped(node: _NodeSpec, groups: Mapping[str, int]) -> dict[str, _VariableSpec]:
         """Return the matrix arguments of an interaction shaped by the sizes of its groups.
 
         An argument given as an array of two or more axes, each as long as a group bound to a role of the interaction,
@@ -389,7 +391,7 @@ class LayoutPass(BasePass):
             axes = [next((role for role, size in sizes.items() if size == length), None) for length in array.shape]
             if None not in axes:
                 domain = allowed.get(name, RR)
-                shaped[name] = VariableSpec(VariableKind.PARAMETER, domain, shape=tuple(str(role) for role in axes))
+                shaped[name] = _VariableSpec(VariableKind.PARAMETER, domain, shape=tuple(str(role) for role in axes))
         return shaped
 
     @staticmethod
@@ -398,7 +400,7 @@ class LayoutPass(BasePass):
         block: BlockSpec,
         variable: str,
         shape: tuple[int, ...],
-        declaration: VariableSpec,
+        declaration: _VariableSpec,
     ) -> tuple[DeclarationsSpec, BlockSpec]:
         """Return the declarations and the block with a shaped parameter added.
 
@@ -434,7 +436,7 @@ class LayoutPass(BasePass):
         There is a parameter of every class coordinate at every site.
         """
         component = block.node.component
-        space = component.space if isinstance(component, FieldElement) else None
+        space = component.space if isinstance(component, _FieldElement) else None
         if not isinstance(space, PhaseSpace):
             return declarations, block
         space.prepare()
@@ -520,7 +522,7 @@ class LayoutPass(BasePass):
         """
         node = block.node
         group = node.component
-        if not isinstance(group, GroupElement):
+        if not isinstance(group, _GroupElement):
             error_msg = f'{node.path} has a capacity layout, but it is not a group.'
             raise ValidationError(error_msg)
         rows, active = node.members or 0, node.active or 0
@@ -621,7 +623,7 @@ class LayoutPass(BasePass):
                 The value given by the user or the default.
         """
         component = node.component
-        if not isinstance(component, GroupElement):
+        if not isinstance(component, _GroupElement):
             return LayoutPass._get_plain_value_of(component, variable)
         values = component.values_
         default = default_of(node.component_type, variable)
@@ -642,7 +644,7 @@ class LayoutPass(BasePass):
         return value
 
     @staticmethod
-    def _get_per_entry_shape(node: _NodeSpec, variable: str, declaration: VariableSpec) -> tuple[int, ...]:
+    def _get_per_entry_shape(node: _NodeSpec, variable: str, declaration: _VariableSpec) -> tuple[int, ...]:
         """Return the shape of a parameter with one value per entry of a variadic role.
 
         It first checks its length.
@@ -667,7 +669,7 @@ class LayoutPass(BasePass):
         return (entries,)
 
     @staticmethod
-    def _get_tensor_of(declaration: VariableSpec, space: BaseSpace | None) -> TensorSpec | None:
+    def _get_tensor_of(declaration: _VariableSpec, space: BaseSpace | None) -> TensorSpec | None:
         """Return the independent components of a declared tensor state in its space.
 
         It is `None` for any other state. A tensor of a given number of rows, such as a matrix value, needs no space.
@@ -684,7 +686,7 @@ class LayoutPass(BasePass):
         return tensor
 
     @staticmethod
-    def _get_shape_of(name: str, declaration: VariableSpec, space: BaseSpace | None) -> tuple[int, ...]:
+    def _get_shape_of(name: str, declaration: _VariableSpec, space: BaseSpace | None) -> tuple[int, ...]:
         """Return the shape of a declared variable in its space.
 
         Args:
@@ -732,7 +734,7 @@ class LayoutPass(BasePass):
         return (int(space.n_dim_),) if tensor is None else (len(tensor.indices),)
 
     @staticmethod
-    def _check_position_shape(name: str, declaration: VariableSpec, space: BaseSpace | None) -> None:
+    def _check_position_shape(name: str, declaration: _VariableSpec, space: BaseSpace | None) -> None:
         """Raise an error for a position without one component per axis of its space.
 
         A position `[1, 2, 3]` in a plane has the wrong shape, since the plane has 2 axes.

@@ -8,11 +8,11 @@ from dataclasses import replace
 
 from sage.all__sagemath_symbolics import SR
 
+from ....components import EntrySpec
 from ....components.laws import BaseLaw, JumpLaw, TopologyRequestSpec, UpdateLaw
 from ....components.spaces import NetworkSpace
 from ....enums import VariableKind
 from ....errors import PipelineError, ValidationError
-from ....specs import EntrySpec
 from ....types import Array
 from ..._utils import declarations_of, declared_variables, default_of
 from ...problems import LayoutSpec

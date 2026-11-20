@@ -14,7 +14,6 @@ from sage.all__sagemath_symbolics import Expression
 from ...base import BaseConfig
 from ...components import Observable
 from ...components.laws import BaseLaw
-from ...components.systems import CompositeSystem
 from ...enums import FormKind
 from ...errors import (
     LabelError,
@@ -31,6 +30,7 @@ from ...errors import (
 from ..backends import BaseBackend, NumbaBackend, NumpyBackend, SupportSpec
 from ..backends._base import AUTO_MEMBERS
 from ..problems import BaseProblemSpec
+from ..problems._composite_system import _CompositeSystem
 from ..problems._kernel_spec import KernelSpec
 from ..problems._reference_spec import ReferenceSpec
 from ._compilation import Compilation
@@ -55,7 +55,7 @@ FIXES: dict[type[SkcomplexError], tuple[str, str]] = {
     TensorSymmetryError: ('tensor-symmetry', 'Give the state a rate of its declared symmetry.'),
 }
 
-type Composite = CompositeSystem
+type Composite = _CompositeSystem
 
 
 class BaseCompiler(BaseConfig[Composite, Mapping[str, object]]):
@@ -131,9 +131,9 @@ class BaseCompiler(BaseConfig[Composite, Mapping[str, object]]):
             error_msg = f'The observables hold a {type(wrong[0]).__name__}. Pass observable specs.'
             raise ValidationError(error_msg)
         get_composite = getattr(context, '_get_composite', None)
-        if not isinstance(context, CompositeSystem) and callable(get_composite):
+        if not isinstance(context, _CompositeSystem) and callable(get_composite):
             context = get_composite()
-        if not isinstance(context, CompositeSystem):
+        if not isinstance(context, _CompositeSystem):
             error_msg = f'A compiler prepares on a system, not on a {type(context).__name__}.'
             raise ValidationError(error_msg)
         system = context.prepare().system_ if context._nests_classes() else context
@@ -149,7 +149,7 @@ class BaseCompiler(BaseConfig[Composite, Mapping[str, object]]):
         roles = self._get_domain_issues(self.system_)
         self.report_ = ValidationReportSpec(tuple(roles or self._get_issues(self.system_)))
 
-    def _get_domain_issues(self, system: CompositeSystem, scope: str = '') -> list[IssueSpec]:
+    def _get_domain_issues(self, system: _CompositeSystem, scope: str = '') -> list[IssueSpec]:
         """Return the issue of a role bound to a value of a domain it does not accept.
 
         The values of plain elements have their domains only once the laws show which are states, so a role such as
@@ -160,12 +160,12 @@ class BaseCompiler(BaseConfig[Composite, Mapping[str, object]]):
         except RoleElementError as error:
             return [self._get_issue_of(error, scope or system.label, 'role', 'Bind the role to values of its domains.')]
         for item in system.systems:
-            found = self._get_domain_issues(item, f'{scope}{item.label}/') if isinstance(item, CompositeSystem) else []
+            found = self._get_domain_issues(item, f'{scope}{item.label}/') if isinstance(item, _CompositeSystem) else []
             if found:
                 return found
         return []
 
-    def _get_declared_system(self, system: CompositeSystem) -> CompositeSystem:
+    def _get_declared_system(self, system: _CompositeSystem) -> _CompositeSystem:
         """Return the system with declarations for its plain elements."""
         return system
 
@@ -334,7 +334,7 @@ class BaseCompiler(BaseConfig[Composite, Mapping[str, object]]):
         )
 
     @staticmethod
-    def _get_observables_of(system: CompositeSystem, scope: str = '') -> Iterator[tuple[str, Observable]]:
+    def _get_observables_of(system: _CompositeSystem, scope: str = '') -> Iterator[tuple[str, Observable]]:
         """Yield every observable of a system tree.
 
         Each comes with the path of the system that declares it.
@@ -356,7 +356,7 @@ class BaseCompiler(BaseConfig[Composite, Mapping[str, object]]):
             yield from BaseCompiler._get_observables_of(child, f'{scope}/{child.label}' if scope else child.label)
 
     @staticmethod
-    def _get_system_paths(system: CompositeSystem, scope: str = '') -> Iterator[str]:
+    def _get_system_paths(system: _CompositeSystem, scope: str = '') -> Iterator[str]:
         """Yield the path of every nested system."""
         for child in system.systems:
             path = f'{scope}/{child.label}' if scope else child.label
@@ -365,10 +365,10 @@ class BaseCompiler(BaseConfig[Composite, Mapping[str, object]]):
 
     @staticmethod
     def _get_attached(
-        system: CompositeSystem,
+        system: _CompositeSystem,
         by_scope: dict[str, list[Observable]],
         scope: str,
-    ) -> CompositeSystem:
+    ) -> _CompositeSystem:
         """Return a copy of a system that holds the observables of its scope.
 
         The copy has its nested systems attached.
@@ -382,7 +382,7 @@ class BaseCompiler(BaseConfig[Composite, Mapping[str, object]]):
         return copied
 
     @staticmethod
-    def _copy_with_observables(system: CompositeSystem, observables: Sequence[Observable]) -> CompositeSystem:
+    def _copy_with_observables(system: _CompositeSystem, observables: Sequence[Observable]) -> _CompositeSystem:
         """Return a copy of a system tree with observables in the systems they name.
 
         Every observable is declared in the system its label names.

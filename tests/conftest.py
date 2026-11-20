@@ -11,13 +11,12 @@ import pytest
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import Element
+from skcomplex.core.components.elements import Element, VisualSpec
 from skcomplex.core.components.interactions import Interaction, WienerProcessSpec
 from skcomplex.core.components.laws import NoiseLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import mean, total
 from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine.runtime import Trajectory
-from skcomplex.core.specs import VisualSpec
 from skcomplex.core.systems import System
 from skcomplex.core.types import Role
 

@@ -7,12 +7,12 @@ from dataclasses import dataclass
 
 from sage.all__sagemath_symbolics import RR
 
+from ..base import BaseSpec
 from ..errors import ValidationError
-from ._base_spec import BaseSpec
 
 
 @dataclass(frozen=True)
-class ParameterSpec(BaseSpec):
+class _ParameterSpec(BaseSpec):
     """A spec of a parameter of an element or an interaction.
 
     It is given in the annotation of an argument of the constructor, and the default of the argument is the default of
@@ -50,13 +50,6 @@ class ParameterSpec(BaseSpec):
         tensor:
             The symmetry of a rank-2 tensor parameter, `'full'`, `'symmetric'`, `'antisymmetric'`, or `'traceless'`, or
             `None` for a parameter that is no tensor. Laws read it as a Sage matrix.
-
-    Examples:
-        >>> from sage.all__sagemath_symbolics import oo
-        >>> from sage.sets.real_set import RealSet
-        >>> from skcomplex.core.specs import ParameterSpec
-        >>> 0.5 in ParameterSpec(domain=RealSet.open(0, oo)).domain
-        True
     """
 
     domain: object = RR

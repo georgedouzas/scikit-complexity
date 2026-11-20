@@ -160,7 +160,7 @@ group, and multiplies matrices along paths. Here 32 random SU(3) matrices sit on
 import numpy as np
 
 from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace
-from skcomplex.core.specs import MatrixGroupSpec
+from skcomplex.core.components import MatrixGroupSpec
 
 group = MatrixGroupSpec('SU', 3)
 space = CellComplexSpace(LatticeSpace((4, 4))).prepare()

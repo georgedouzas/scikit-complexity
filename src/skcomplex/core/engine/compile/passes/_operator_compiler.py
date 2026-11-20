@@ -17,20 +17,21 @@ from sage.all__sagemath_symbolics import CC, SR, Expression
 from sage.modules.free_module import FreeModule_generic
 from sklearn.base import clone
 
-from ....components import Observable
-from ....components.elements import BaseElement, DeclaredElement, Element, GroupElement
+from ....components import EntrySpec, Observable
+from ....components.elements import BaseElement, Element
 from ....components.elements._element import RESERVED
 from ....components.interactions import BaseInteraction
 from ....components.laws import BaseLaw
-from ....components.systems import CompositeSystem
 from ....enums import FormKind, VariableKind
 from ....errors import IncompatibleLawsError, SkcomplexError, ValidationError
-from ....specs import EntrySpec
 from ....types import Array
 from ..._utils import declarations_of, symbol, vector
 from ...backends import BaseBackend
 from ...problems import BaseProblemSpec, CompiledElementSpec, LayoutSpec
 from ...problems._compiled_interaction_spec import _CompiledInteractionSpec
+from ...problems._composite_system import _CompositeSystem
+from ...problems._declared_element import _DeclaredElement
+from ...problems._group_element import _GroupElement
 from ...problems._node_spec import _NodeSpec
 from ...problems._operator_kernel import OperatorKernel
 from ...problems._operator_lowering import OperatorLowering
@@ -92,7 +93,7 @@ class OperatorCompiler(BaseCompiler):
         super().__init__(backend, solver, observables)
         self.max_dimension = max_dimension
 
-    def _prepare(self, context: CompositeSystem | None) -> None:
+    def _prepare(self, context: _CompositeSystem | None) -> None:
         """Raise an error for a largest dimension that is not a positive integer.
 
         Args:
@@ -108,7 +109,7 @@ class OperatorCompiler(BaseCompiler):
             raise ValidationError(error_msg)
         super()._prepare(context)
 
-    def _get_issues(self, system: CompositeSystem) -> list[IssueSpec]:
+    def _get_issues(self, system: _CompositeSystem) -> list[IssueSpec]:
         """Return the issue of a system the compiler cannot compile or flatten.
 
         The tree of the system cannot be flattened, or the compiler does not compile it.
@@ -260,7 +261,7 @@ class OperatorCompiler(BaseCompiler):
         for name, declaration in declarations_of(element_type, VariableKind.STATE).items():
             if OperatorCompiler._is_complex(declaration.domain):
                 return name
-        if not issubclass(element_type, Element) or issubclass(element_type, DeclaredElement):
+        if not issubclass(element_type, Element) or issubclass(element_type, _DeclaredElement):
             return None
         parameters = inspect.signature(element_type, eval_str=True).parameters
         return next(
@@ -302,7 +303,7 @@ class OperatorCompiler(BaseCompiler):
     @staticmethod
     def _is_plain(element: object) -> bool:
         """Return whether an element declares no states, so its values say what it holds."""
-        if not isinstance(element, Element) or isinstance(element, DeclaredElement):
+        if not isinstance(element, Element) or isinstance(element, _DeclaredElement):
             return False
         return not declarations_of(type(element), VariableKind.STATE)
 
@@ -358,7 +359,7 @@ class OperatorCompiler(BaseCompiler):
             return OperatorCompiler._get_plain_member(element, 0, count)
         if isinstance(element, Element):
             return element
-        if not isinstance(element, GroupElement) or not isinstance(element.element, type):
+        if not isinstance(element, _GroupElement) or not isinstance(element.element, type):
             return None
         values = {
             name: OperatorCompiler._get_member_value(value, 0, None) for name, value in (element.values or {}).items()
@@ -679,7 +680,7 @@ class OperatorCompiler(BaseCompiler):
 
     @staticmethod
     def _get_system_initial(
-        system: CompositeSystem,
+        system: _CompositeSystem,
         initial: object,
         product: npt.NDArray[np.complex128],
         ground: Callable[[], npt.NDArray[np.complex128]],
@@ -717,7 +718,7 @@ class OperatorCompiler(BaseCompiler):
 
     @staticmethod
     def _get_namespaces(
-        system: CompositeSystem,
+        system: _CompositeSystem,
         members: Mapping[str, tuple[SimpleNamespace, ...]],
         groups: set[str],
     ) -> dict[str, SimpleNamespace]:
@@ -727,7 +728,7 @@ class OperatorCompiler(BaseCompiler):
         """
         namespaces: dict[str, SimpleNamespace] = {}
 
-        def build(current: CompositeSystem, scope: str) -> SimpleNamespace:
+        def build(current: _CompositeSystem, scope: str) -> SimpleNamespace:
             names: dict[str, object] = {'t': symbol('t')}
             for element in current.elements:
                 path = f'{scope}{element.label}'
@@ -798,7 +799,7 @@ class OperatorCompiler(BaseCompiler):
 
     @staticmethod
     def _get_stored_state(
-        system: CompositeSystem,
+        system: _CompositeSystem,
         initial: object,
         *,
         subsystems: Mapping[str, _SubsystemSpec],
@@ -850,7 +851,7 @@ class OperatorCompiler(BaseCompiler):
 
     def _compile_operator(
         self,
-        system: CompositeSystem,
+        system: _CompositeSystem,
         *,
         initial: object = None,
         max_dimension: int = DEFAULT_MAX_DIMENSION,
@@ -1006,7 +1007,7 @@ class OperatorCompiler(BaseCompiler):
         return entries, values, symbols
 
     @staticmethod
-    def _contains_operator(system: CompositeSystem) -> bool:
+    def _contains_operator(system: _CompositeSystem) -> bool:
         """Check whether a system tree holds an operator element or group.
 
         Args:

@@ -8,7 +8,8 @@ import math
 import numpy as np
 
 from ...components.laws import ObjectiveLaw
-from ...components.spaces import ContinuousSpace, LatticeSpace, NetworkSpace, StaticTime
+from ...components.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
+from ...components.spaces._static_time import _StaticTime
 from ...enums import FormKind, OrderKind
 from ...errors import ValidationError
 from ...types import Array
@@ -77,7 +78,7 @@ class GradientFlowSolver(BaseObjectiveSolver):
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
-            time={StaticTime},
+            time={_StaticTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace},
             laws={ObjectiveLaw},
             orders=frozenset({OrderKind.INTEGER}),

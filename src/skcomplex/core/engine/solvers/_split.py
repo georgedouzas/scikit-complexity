@@ -11,16 +11,12 @@ import numpy.typing as npt
 from scipy.sparse import csr_matrix, diags, identity
 from scipy.sparse.linalg import SuperLU, splu
 
-from ...components.elements import FieldElement
-from ...components.laws import BoundaryLaw, LinearProgramLaw, RateLaw, TransferLaw
-from ...components.spaces import (
-    BaseSpace,
-    CellComplexSpace,
-    ContinuousTime,
-    LatticeNeighborhood,
-    LatticeSpace,
-    NetworkSpace,
-)
+from ...components.laws import RateLaw
+from ...components.laws._boundary import _BoundaryLaw
+from ...components.laws._linear_program import _LinearProgramLaw
+from ...components.laws._transfer import _TransferLaw
+from ...components.spaces import BaseSpace, CellComplexSpace, LatticeNeighborhood, LatticeSpace, NetworkSpace
+from ...components.spaces._continuous_time import _ContinuousTime
 from ...enums import FormKind, OrderKind
 from ...errors import SolverError
 from ...types import Array, ComplexArray
@@ -29,6 +25,7 @@ from ..backends import SupportSpec
 from ..compile._field_lowering import FieldLowering
 from ..problems import ProblemSpec
 from ..problems._expression_printer import ExpressionPrinter
+from ..problems._field_element import _FieldElement
 from ..problems._law_kernel import LATTICE_BOUNDARIES
 from ..problems._linear_term_spec import LinearTermSpec
 from ..problems._reference_spec import ReferenceSpec
@@ -68,9 +65,9 @@ class SplitSolver(Solver):
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
-            time={ContinuousTime},
+            time={_ContinuousTime},
             space={None, BaseSpace},
-            laws={LinearProgramLaw, RateLaw, BoundaryLaw, TransferLaw},
+            laws={_LinearProgramLaw, RateLaw, _BoundaryLaw, _TransferLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 
@@ -275,7 +272,7 @@ class SplitSolver(Solver):
         return state
 
     @staticmethod
-    def _get_lattice_operator(name: str, axis: int, place: FieldElement, reference: ReferenceSpec) -> csr_matrix:
+    def _get_lattice_operator(name: str, axis: int, place: _FieldElement, reference: ReferenceSpec) -> csr_matrix:
         """Return the stencil matrix of a finite-difference operator on a field state.
 
         Its boundary values are left out.

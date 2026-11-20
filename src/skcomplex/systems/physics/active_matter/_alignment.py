@@ -16,13 +16,13 @@ from sage.all__sagemath_symbolics import Expression, I, exp, oo, sin
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
+from ....core.components.elements import VisualSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import neighbors
 from ....core.components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver
-from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
 from ..common.particles import ActiveDiffusionInteraction, ActiveParticleElement, SelfPropulsionInteraction

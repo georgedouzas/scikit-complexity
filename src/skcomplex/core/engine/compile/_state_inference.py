@@ -16,48 +16,37 @@ from sage.sets.real_set import RealSet
 from shapely import Polygon
 from sklearn.base import clone
 
+from ...base import BaseSpec
+from ...components import EntrySpec, MatrixGroupSpec
+from ...components._declared_variable_spec import _DeclaredVariableSpec
+from ...components._parameter_spec import _ParameterSpec
+from ...components._state_spec import _StateSpec
 from ...components.base import BaseComponent
-from ...components.elements import (
-    BaseElement,
-    DeclaredElement,
-    Element,
-    FieldElement,
-    GroupElement,
-    Member,
-    Period,
-    Quantity,
-    Tensor,
-)
+from ...components.elements import BaseElement, Element, Member, Period, Quantity, Tensor, VisualSpec
 from ...components.laws import (
     BaseLaw,
     ConstraintLaw,
     JumpLaw,
-    LinearProgramLaw,
-    LocalRuleLaw,
     NoiseLaw,
     ObjectiveLaw,
     RateLaw,
-    RuleLaw,
     TopologyRequestSpec,
     UpdateLaw,
 )
+from ...components.laws._linear_program import _LinearProgramLaw
+from ...components.laws._local_rule import _LocalRuleLaw
+from ...components.laws._rule import _RuleLaw
 from ...components.laws.utils._history import delayed, derivative, lag
 from ...components.spaces import BaseSpace, CellComplexSpace, ContinuousSpace, LatticeSpace, NetworkSpace
-from ...components.systems import CompositeSystem
 from ...enums import TopologyKind, VariableKind
 from ...errors import SkcomplexError, SpaceError, ValidationError
-from ...specs import (
-    BaseSpec,
-    DeclaredVariableSpec,
-    EntrySpec,
-    MatrixGroupSpec,
-    ParameterSpec,
-    StateSpec,
-    VisualSpec,
-)
 from .._utils import binding_of, bound_labels, declarations_of
 from ..problems import ProblemSpec
 from ..problems._bilinear_law import BilinearLaw
+from ..problems._composite_system import _CompositeSystem
+from ..problems._declared_element import _DeclaredElement
+from ..problems._field_element import _FieldElement
+from ..problems._group_element import _GroupElement
 from ._compilation import Compilation
 
 RESERVED = ('label', 'visual', 'size', 'space', 'values', 'on')
@@ -91,7 +80,7 @@ class _StateInference:
     signed links of triadic percolation.
     """
 
-    def __init__(self, census: Callable[[CompositeSystem], Compilation]) -> None:
+    def __init__(self, census: Callable[[_CompositeSystem], Compilation]) -> None:
         self.census = census
 
     @staticmethod
@@ -322,9 +311,9 @@ class _StateInference:
     def _get_new_member_default(
         element: Element,
         name: str,
-        declared: DeclaredVariableSpec,
+        declared: _DeclaredVariableSpec,
         member: object,
-    ) -> DeclaredVariableSpec:
+    ) -> _DeclaredVariableSpec:
         """Return the declaration of a value per member, defaulting to the class default.
 
         A member that the laws add to a group, such as a new species or a new edge, takes the default of the argument
@@ -337,7 +326,7 @@ class _StateInference:
         default = parameter.default
         if np.ndim(np.asarray(default, dtype=object)) != np.ndim(np.asarray(member, dtype=object)):
             return declared
-        return DeclaredVariableSpec(default, declared.spec)
+        return _DeclaredVariableSpec(default, declared.spec)
 
     @staticmethod
     def _get_class_defaults(element: Element, names: Collection[str]) -> dict[str, object]:
@@ -361,7 +350,7 @@ class _StateInference:
         compiler of its own, through its class as a word that productions rewrite does, or through a value as the
         Hilbert space of a spin does, is read by that compiler as it is, so it is not plain.
         """
-        if not isinstance(component, Element) or isinstance(component, DeclaredElement):
+        if not isinstance(component, Element) or isinstance(component, _DeclaredElement):
             return False
         if component._get_compiler() is not None:
             return False
@@ -371,7 +360,7 @@ class _StateInference:
         if valueless and not isinstance(component.space, NetworkSpace):
             return False
         specs = type(component)._get_specs()
-        return not any(isinstance(spec, StateSpec | ParameterSpec) for spec in specs.values())
+        return not any(isinstance(spec, _StateSpec | _ParameterSpec) for spec in specs.values())
 
     @staticmethod
     def _get_quantity(annotation: object) -> str | None:
@@ -449,7 +438,7 @@ class _StateInference:
         control: bool = False,
         objects: bool = False,
         probing: bool = False,
-    ) -> DeclaredVariableSpec:
+    ) -> _DeclaredVariableSpec:
         """Return the declaration of a value as a state or a parameter.
 
         A control of an objective law is an adaptive parameter, bounded by the interval of its allowed values, such as
@@ -496,13 +485,13 @@ class _StateInference:
             )
             raise ValidationError(error_msg)
         if order is None:
-            declared = ParameterSpec(domain=domain, vector=vector, n_dim=n_dim, tensor=tensor)
-            return DeclaredVariableSpec(value, declared)
+            declared = _ParameterSpec(domain=domain, vector=vector, n_dim=n_dim, tensor=tensor)
+            return _DeclaredVariableSpec(value, declared)
         if control:
             bounds = (float(domain.inf()), float(domain.sup())) if isinstance(domain, RealSet) else None
-            return DeclaredVariableSpec(value, ParameterSpec(domain=domain, adaptive=True, bounds=bounds))
+            return _DeclaredVariableSpec(value, _ParameterSpec(domain=domain, adaptive=True, bounds=bounds))
         if order == 0:
-            spec = StateSpec(
+            spec = _StateSpec(
                 domain=domain,
                 vector=vector,
                 n_dim=n_dim,
@@ -511,13 +500,13 @@ class _StateInference:
                 role=role,
                 quantity=quantity,
             )
-            return DeclaredVariableSpec(value, spec)
+            return _DeclaredVariableSpec(value, spec)
         if group is not None:
-            return DeclaredVariableSpec(value, StateSpec(group=group, role=role, quantity=quantity))
+            return _DeclaredVariableSpec(value, _StateSpec(group=group, role=role, quantity=quantity))
         missing = value if lags else 0.0
         initial = tuple(starting.get(index, missing) for index in range(1, count + 1)) if starting else ()
         steps = 1 if lags else order
-        spec = StateSpec(
+        spec = _StateSpec(
             domain=domain,
             vector=vector,
             n_dim=n_dim,
@@ -531,16 +520,16 @@ class _StateInference:
             reference=member,
             history=history,
         )
-        return DeclaredVariableSpec(value, spec)
+        return _DeclaredVariableSpec(value, spec)
 
     def _replace(
         self,
-        system: CompositeSystem,
+        system: _CompositeSystem,
         declare: Callable[[Element, str, BaseSpace | None], list[BaseElement]],
         scope: str = '',
         space: BaseSpace | None = None,
         kinds: frozenset[str] = frozenset(),
-    ) -> CompositeSystem:
+    ) -> _CompositeSystem:
         """Return a copy of a system tree whose plain elements are declared elements.
 
         Every element is declared in the space of its nearest system, which it takes as its own when `_get_placed` says
@@ -558,12 +547,12 @@ class _StateInference:
         systems = [
             (
                 self._replace(nested, declare, f'{scope}{nested.label}/', space, kinds)
-                if isinstance(nested, CompositeSystem)
+                if isinstance(nested, _CompositeSystem)
                 else nested
             )
             for nested in system.systems
         ]
-        replaced = CompositeSystem(
+        replaced = _CompositeSystem(
             system.label,
             elements=elements,
             interactions=list(system.interactions),
@@ -576,12 +565,12 @@ class _StateInference:
             replaced.observables = list(system.observables)
         return replaced
 
-    def _has_plain(self, system: CompositeSystem, space: BaseSpace | None = None) -> bool:
+    def _has_plain(self, system: _CompositeSystem, space: BaseSpace | None = None) -> bool:
         """Return whether a system tree holds a plain element."""
         space = system.space or space
         if any(self._is_plain(self._get_placed(element, space)) for element in system.elements):
             return True
-        return any(isinstance(nested, CompositeSystem) and self._has_plain(nested, space) for nested in system.systems)
+        return any(isinstance(nested, _CompositeSystem) and self._has_plain(nested, space) for nested in system.systems)
 
     @staticmethod
     def _get_lags(law: BaseComponent, named: Mapping[str, str]) -> dict[str, int]:
@@ -745,7 +734,7 @@ class _StateInference:
             order = (
                 (law.order or 1)
                 if isinstance(law, RateLaw | NoiseLaw)
-                else 0 if isinstance(law, LinearProgramLaw) else 1
+                else 0 if isinstance(law, _LinearProgramLaw) else 1
             )
             names = [entry.name for entry in record.targets]
             if isinstance(law, ConstraintLaw) and law.target is not None and str(law.target) in named:
@@ -761,7 +750,7 @@ class _StateInference:
                     orders[name] = _StateInference._get_order(name, steps, orders.get(name))
         return orders, lags
 
-    def get_declared(self, system: CompositeSystem) -> CompositeSystem:
+    def get_declared(self, system: _CompositeSystem) -> _CompositeSystem:
         """Return a system tree whose plain elements declare what their laws show.
 
         A probe declares every value as a state and collects the laws, and `errors_` keeps the failures of its
@@ -886,7 +875,7 @@ class _StateInference:
         reads: set[str] = set()
         for record in census.records:
             law = record.law
-            local = isinstance(law, LocalRuleLaw) or (isinstance(law, UpdateLaw) and law.neighborhood is not None)
+            local = isinstance(law, _LocalRuleLaw) or (isinstance(law, UpdateLaw) and law.neighborhood is not None)
             if local and law.reads is not None:
                 reads.update(named[str(item)] for item in law.reads if str(item) in named)
         return reads
@@ -913,7 +902,7 @@ class _StateInference:
             )
         return frozenset(sizes)
 
-    def _get_edge_spaces(self, system: CompositeSystem, space: BaseSpace | None = None) -> frozenset[int]:
+    def _get_edge_spaces(self, system: _CompositeSystem, space: BaseSpace | None = None) -> frozenset[int]:
         """Return the identities of the networks whose edges a plain element holds.
 
         A network whose edges an element such as `Element('catalysis', space=network, on='edges')` holds takes no
@@ -927,7 +916,7 @@ class _StateInference:
             if self._is_plain(element) and element.on == 'edges' and isinstance(element.space, NetworkSpace)
         }
         for nested in system.systems:
-            if isinstance(nested, CompositeSystem):
+            if isinstance(nested, _CompositeSystem):
                 spaces |= self._get_edge_spaces(nested, space)
         return frozenset(spaces)
 
@@ -983,14 +972,14 @@ class _StateInference:
             if isinstance(record.law, RateLaw | NoiseLaw):
                 flowing.update(entry.name.rpartition('.')[0] for entry in record.targets)
             node = nodes.get(record.path)
-            if not isinstance(record.law, RuleLaw) or node is None:
+            if not isinstance(record.law, _RuleLaw) or node is None:
                 continue
             for role in declarations_of(node.component, VariableKind.ROLE):
                 groups.update(f'{node.scope}{label}' for label in bound_labels(binding_of(node.component, role)))
         return groups - flowing
 
     @staticmethod
-    def _get_field(label: str, space: LatticeSpace | NetworkSpace, values: Mapping[str, object]) -> FieldElement:
+    def _get_field(label: str, space: LatticeSpace | NetworkSpace, values: Mapping[str, object]) -> _FieldElement:
         """Return the field of declared members on a space, discretized as the space says.
 
         A lattice gives its discretization, the edge of each state, the symmetry, and the finite-volume scheme, such as
@@ -998,9 +987,9 @@ class _StateInference:
         it gives, and a network by finite differences.
         """
         if isinstance(space, LatticeSpace):
-            return FieldElement(
+            return _FieldElement(
                 label,
-                element=DeclaredElement,
+                element=_DeclaredElement,
                 space=space,
                 values=values,
                 discretization=space.discretization,
@@ -1011,9 +1000,9 @@ class _StateInference:
         mesh = isinstance(space, CellComplexSpace) and space._is_mesh()
         boundary = space.boundary if isinstance(space, CellComplexSpace) else None
         discretization = 'finite-element' if mesh else 'finite-difference'
-        return FieldElement(
+        return _FieldElement(
             label,
-            element=DeclaredElement,
+            element=_DeclaredElement,
             space=space,
             values=values,
             discretization=discretization,
@@ -1021,7 +1010,7 @@ class _StateInference:
         )
 
     @staticmethod
-    def _get_node_edges(element: Element, links: frozenset[int]) -> list[GroupElement]:
+    def _get_node_edges(element: Element, links: frozenset[int]) -> list[_GroupElement]:
         """Return the variable group on the changing edges of a network, after its nodes.
 
         A network whose edges an element holds, such as `Element('catalysis', space=network, on='edges')`, takes no
@@ -1029,7 +1018,9 @@ class _StateInference:
         """
         if id(element.space) in links:
             return []
-        return [GroupElement(f'{element.label}_edges', element=Element, space=element.space, on='edges', variable=True)]
+        return [
+            _GroupElement(f'{element.label}_edges', element=Element, space=element.space, on='edges', variable=True),
+        ]
 
     @staticmethod
     def _get_link_group(
@@ -1040,7 +1031,7 @@ class _StateInference:
         *,
         changing: bool,
         sizes: frozenset[int],
-    ) -> GroupElement:
+    ) -> _GroupElement:
         """Return the group with one member on every edge or hyperedge of a network.
 
         When the laws change the network, the group grows and shrinks with its edges or hyperedges. A group on
@@ -1058,9 +1049,9 @@ class _StateInference:
             starting = {len(item) for item in space.prepare().hyperedges_}
             every = starting | sizes
             rank = None if starting and len(every) == 1 else max(every, default=MIN_RANK)
-        return GroupElement(
+        return _GroupElement(
             element.label,
-            element=DeclaredElement,
+            element=_DeclaredElement,
             size=0 if empty else None,
             space=element.space,
             on=on,
@@ -1164,7 +1155,7 @@ class _StateInference:
         derivatives: Mapping[str, tuple[str, str, object]],
         count: int | None,
         axes: Collection[str],
-    ) -> dict[str, DeclaredVariableSpec]:
+    ) -> dict[str, _DeclaredVariableSpec]:
         """Return the declarations of the derivatives that the rules of agents change.
 
         They are keyed by engine name, and the first derivative of a position, such as `"x'"`, is a velocity.
@@ -1173,7 +1164,7 @@ class _StateInference:
         for name, (_, base, given) in derivatives.items():
             role = 'velocity' if name == f'{base}_d1' and base in axes else None
             member = _StateInference._get_member_value(element, base, given, count)
-            declared[name] = DeclaredVariableSpec(member, StateSpec(domain=RR, role=role))
+            declared[name] = _DeclaredVariableSpec(member, _StateSpec(domain=RR, role=role))
         return declared
 
     @staticmethod
@@ -1278,7 +1269,7 @@ class _StateInference:
         view = element._get_view()
         if count is None:
             return [
-                DeclaredElement(element.label, variables=variables, drawing=drawing, view=view, origin=type(element)),
+                _DeclaredElement(element.label, variables=variables, drawing=drawing, view=view, origin=type(element)),
             ]
         defaults = self._get_class_defaults(element, variables) if agents else None
         values = {
@@ -1290,9 +1281,9 @@ class _StateInference:
             **arrays,
         }
         if network:
-            nodes = GroupElement(
+            nodes = _GroupElement(
                 element.label,
-                element=DeclaredElement,
+                element=_DeclaredElement,
                 space=element.space,
                 on='sites',
                 variable=True,
@@ -1306,9 +1297,9 @@ class _StateInference:
             return [self._get_field(element.label, element.space, values)]
         place = self._get_group_on(element, count, agents)
         off_nodes = place is None and isinstance(element.space, NetworkSpace) and not agents
-        group = GroupElement(
+        group = _GroupElement(
             element.label,
-            element=DeclaredElement,
+            element=_DeclaredElement,
             size=count,
             space=None if off_nodes else element.space,
             on=place,

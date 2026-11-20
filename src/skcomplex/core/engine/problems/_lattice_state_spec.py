@@ -10,8 +10,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from ...base import BaseSpec
 from ...components.spaces import BaseSpace
-from ...specs._base_spec import BaseSpec
 
 
 @dataclass(frozen=True)

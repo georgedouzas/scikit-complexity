@@ -10,9 +10,9 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
+from ...base import BaseSpec
 from ...components.elements import Element
 from ...errors import ValidationError
-from ...specs._base_spec import BaseSpec
 from ..types import HilbertSpaceProtocol
 from ._local_operator_spec import LocalOperatorSpec
 

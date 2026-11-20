@@ -6,12 +6,13 @@ import numpy as np
 import pytest
 from scipy.special import iv
 
+from skcomplex.core.components import MatrixGroupSpec
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.spaces import CellComplexSpace, DiscreteTime, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import MatrixGroupSpec, ParameterSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.systems.physics.common.fields import HolonomyScoreSpec, WilsonSamplingInteraction
 
 ISOSPIN = MatrixGroupSpec('SU', 2)

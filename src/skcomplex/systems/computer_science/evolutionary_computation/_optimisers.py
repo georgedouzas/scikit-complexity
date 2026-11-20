@@ -20,6 +20,7 @@ from pymoo.core.termination import NoTermination
 from sage.all__sagemath_symbolics import SR, Expression, cos, oo, pi
 from sage.sets.real_set import RealSet
 
+from ....core.base import BaseSpec
 from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
@@ -30,7 +31,6 @@ from ....core.components.types import SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, MetropolisSolver
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
 

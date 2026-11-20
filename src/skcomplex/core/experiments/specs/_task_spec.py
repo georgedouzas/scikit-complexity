@@ -10,10 +10,10 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from ...base import BaseSpec
 from ...components import Observable
 from ...engine.runtime import Trajectory
 from ...engine.solvers import BaseSolver
-from ...specs._base_spec import BaseSpec
 from .._scenario_spec import ScenarioSpec
 from ..types import Output, Row, SystemSource
 

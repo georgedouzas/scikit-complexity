@@ -10,20 +10,21 @@ from types import SimpleNamespace
 import numpy as np
 from sage.all__sagemath_symbolics import ZZ
 
+from ...components import RoleSpec, Tags
+from ...components._role_spec import _Spec
+from ...components._state_spec import _StateSpec
+from ...components.base import BaseComponent
+from ...components.elements import BaseElement, VisualSpec
+from ...components.spaces import BaseSpace, NetworkSpace
 from ...errors import SpaceError, ValidationError
-from ...specs import RoleSpec, Spec, StateSpec, VisualSpec
-from .._tags import Tags
-from ..base import BaseComponent
-from ..spaces import BaseSpace, NetworkSpace
-from ._base import BaseElement
-from ._declared import DeclaredElement
+from ._declared_element import _DeclaredElement
 
 PARTS = ('sites', 'edges', 'hyperedges')
 MIN_RANK = 2
 SHARED_OPTIONS = ('states', 'low', 'high')
 
 
-class GroupElement(BaseElement):
+class _GroupElement(BaseElement):
     """An element that holds many members of one element class as arrays.
 
     Each state and parameter of the group is an array with one row per member, or one value that every member shares. A
@@ -97,46 +98,6 @@ class GroupElement(BaseElement):
 
         values_:
             The values with one row per member, or one value shared by every member.
-
-    Examples:
-        Three herds of grazing animals start at different sizes.
-
-        >>> from typing import Annotated
-        >>> from skcomplex.core.components.elements import Element, GroupElement
-        >>> from skcomplex.core.specs import ParameterSpec, StateSpec
-        >>> class StockElement(Element):
-        ...     def __init__(
-        ...         self, label, x: Annotated[float, StateSpec()] = 0.0, r: Annotated[float, ParameterSpec()] = 0.1
-        ...     ):
-        ...         super().__init__(label)
-        ...         self.x = x
-        ...         self.r = r
-        >>> herds = GroupElement('herds', element=StockElement, size=3, values={'x': [40.0, 25.0, 60.0]})
-        >>> herds.prepare().size_
-        3
-
-        The same class holds the assets of a portfolio, each with its own yearly return.
-
-        >>> from skcomplex.core.components.interactions import Interaction
-        >>> from skcomplex.core.components.laws import RateLaw
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> holdings = {'x': [100.0, 50.0], 'r': [0.05, 0.02]}
-        >>> assets = GroupElement('assets', element=StockElement, size=2, values=holdings)
-        >>> returns = Interaction(
-        ...     'returns', roles={'target': 'assets'}, laws=lambda s: [RateLaw(s.target.x, s.target.r * s.target.x)]
-        ... )
-        >>> portfolio = CompositeSystem(elements=[assets], interactions=[returns])
-        >>> simulate(portfolio, until=1, dt=1.0).get_values('assets.x').round(2).tolist()
-        [[100.0, 50.0], [105.13, 51.01]]
-
-        On the edges of a network one member sits on each edge, such as the lines of a ring of five substations.
-
-        >>> import networkx as nx
-        >>> from skcomplex.core.components.spaces import NetworkSpace
-        >>> lines = GroupElement('lines', element=StockElement, space=NetworkSpace(nx.cycle_graph(5)), on='edges')
-        >>> lines.prepare().size_
-        5
     """
 
     def __init__(
@@ -187,7 +148,7 @@ class GroupElement(BaseElement):
         """
         member = self.element(self.label)
         values = self.values or {}
-        if isinstance(member, DeclaredElement):
+        if isinstance(member, _DeclaredElement):
             settings = member.get_params(deep=False)
             values = {name: value for name, value in values.items() if name in settings}
         return member.set_params(**values)
@@ -198,12 +159,12 @@ class GroupElement(BaseElement):
             return None
         return self._get_member()._get_compiler()
 
-    def _get_member_specs(self) -> dict[str, Spec]:
+    def _get_member_specs(self) -> dict[str, _Spec]:
         """Return the specs of a member.
 
         They are read from a member only when it declares variables from data.
         """
-        if issubclass(self.element, DeclaredElement):
+        if issubclass(self.element, _DeclaredElement):
             return self._get_member()._get_component_specs()
         return self.element._get_specs()
 
@@ -215,32 +176,17 @@ class GroupElement(BaseElement):
         Returns:
             element:
                 The element class, or a member with the values of the group.
-
-        Examples:
-            >>> from skcomplex.core.components.elements import DeclaredElement, GroupElement
-            >>> from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
-            >>> values = {'variables': {'x': DeclaredVariableSpec(1.0, StateSpec())}}
-            >>> group = GroupElement('cells', element=DeclaredElement, size=2, values=values)
-            >>> group.get_declaring_element().get_value('x')
-            1.0
         """
-        return self._get_member() if issubclass(self.element, DeclaredElement) else self.element
+        return self._get_member() if issubclass(self.element, _DeclaredElement) else self.element
 
-    def get_states(self) -> dict[str, StateSpec]:
+    def get_states(self) -> dict[str, _StateSpec]:
         """Return the states of a member of the group with their specs.
 
         Returns:
             states:
                 The spec of every state, by name.
-
-        Examples:
-            >>> from skcomplex.core.components.elements import DeclaredElement, GroupElement
-            >>> from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
-            >>> values = {'variables': {'x': DeclaredVariableSpec(1.0, StateSpec())}}
-            >>> list(GroupElement('cells', element=DeclaredElement, size=3, values=values).get_states())
-            ['x']
         """
-        return {name: spec for name, spec in self._get_member_specs().items() if isinstance(spec, StateSpec)}
+        return {name: spec for name, spec in self._get_member_specs().items() if isinstance(spec, _StateSpec)}
 
     def _get_tags(self) -> Tags:
         """Return the tags of the group.
@@ -289,7 +235,7 @@ class GroupElement(BaseElement):
             return values
         if isinstance(space, NetworkSpace):
             nodes = list(space.graph.nodes)
-            declared = issubclass(self.element, DeclaredElement)
+            declared = issubclass(self.element, _DeclaredElement)
             values = {
                 name: (
                     np.asarray([value[node] for node in nodes])

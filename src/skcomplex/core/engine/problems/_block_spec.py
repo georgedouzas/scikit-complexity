@@ -9,8 +9,8 @@ from dataclasses import dataclass, field
 from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ...specs._base_spec import BaseSpec
-from ...specs._entry_spec import EntrySpec
+from ...base import BaseSpec
+from ...components import EntrySpec
 from ._node_spec import _NodeSpec
 from ._reference_spec import ReferenceSpec
 

@@ -11,9 +11,8 @@ from typing import Annotated, Protocol
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from .....core.components.elements import Element
+from .....core.components.elements import Element, VisualSpec
 from .....core.components.types import AgentViewProtocol
-from .....core.specs import VisualSpec
 
 SOLVENT = 0
 DEFAULTING = 1

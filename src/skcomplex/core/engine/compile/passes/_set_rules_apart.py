@@ -4,7 +4,7 @@
 # License: MIT
 
 
-from ....components.laws import RuleLaw
+from ....components.laws._rule import _RuleLaw
 from .._base import BasePass
 from .._compilation import Compilation
 
@@ -27,5 +27,5 @@ class SetRulesApartPass(BasePass):
         """Take the rules out of the reduced laws."""
         compilation = self.compilation_
         reduced = Compilation._get_required(compilation.reduced, 'reduced')
-        compilation.rules = [(spec, tuple(law for law in laws if isinstance(law, RuleLaw))) for spec, laws in reduced]
-        compilation.reduced = [(spec, [law for law in laws if not isinstance(law, RuleLaw)]) for spec, laws in reduced]
+        compilation.rules = [(spec, tuple(law for law in laws if isinstance(law, _RuleLaw))) for spec, laws in reduced]
+        compilation.reduced = [(spec, [law for law in laws if not isinstance(law, _RuleLaw)]) for spec, laws in reduced]

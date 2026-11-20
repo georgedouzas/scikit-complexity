@@ -9,18 +9,19 @@ from typing import cast
 import numpy as np
 from sage.structure.element import Matrix
 
+from ...components import TensorSpec
+from ...components._state_spec import _StateSpec
+from ...components.elements import BaseElement, VisualSpec
+from ...components.spaces import BaseSpace, CellComplexSpace, FiniteVolumeSpec, LatticeSpace, NetworkSpace
 from ...errors import ValidationError
-from ...specs import StateSpec, TensorSpec, VisualSpec
-from ..spaces import BaseSpace, CellComplexSpace, FiniteVolumeSpec, LatticeSpace, NetworkSpace
-from ._base import BaseElement
-from ._group import GroupElement
+from ._group_element import _GroupElement
 
 FIELD_BOUNDARIES = ('periodic', 'zero-flux', 'fixed')
 MATRIX_RANK = 2
 DISCRETIZATIONS = ('finite-difference', 'spectral', 'finite-volume', 'finite-element')
 
 
-class FieldElement(GroupElement):
+class _FieldElement(_GroupElement):
     """An element that holds a field, with one value per site of a space.
 
     A field is a quantity spread over space, such as the temperature of a plate. Its members sit on the sites of a
@@ -89,41 +90,6 @@ class FieldElement(GroupElement):
 
         values_:
             The values with one row per site, or one value shared by every site.
-
-    Examples:
-        Heat spreads through a plate of 10 by 20 sites with insulated edges.
-
-        >>> from typing import Annotated
-        >>> from skcomplex.core.components.elements import Element, FieldElement
-        >>> from skcomplex.core.components.laws import RateLaw
-        >>> from skcomplex.core.components.laws.utils import laplacian
-        >>> from skcomplex.core.components.spaces import LatticeSpace
-        >>> from skcomplex.core.specs import ParameterSpec, StateSpec
-        >>> class DiffusionElement(Element):
-        ...     def __init__(
-        ...         self, label, u: Annotated[float, StateSpec()] = 0.0, D: Annotated[float, ParameterSpec()] = 1.0
-        ...     ):
-        ...         super().__init__(label)
-        ...         self.u = u
-        ...         self.D = D
-        ...
-        ...     def _get_laws(self, namespace):
-        ...         return [RateLaw(namespace.u, namespace.D * laplacian(namespace.u))]
-        >>> walls = {'u': 'zero-flux'}
-        >>> plate = FieldElement('plate', element=DiffusionElement, space=LatticeSpace((10, 20)), boundary=walls)
-        >>> plate.prepare().size_, plate.default_visual_.kind
-        (200, 'image')
-
-        The same law spreads a pollutant along a channel of three reaches, until each reach holds the same amount.
-
-        >>> import networkx as nx
-        >>> from skcomplex.core.components.spaces import NetworkSpace
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> channel = NetworkSpace(nx.path_graph(3))
-        >>> river = FieldElement('river', element=DiffusionElement, space=channel, values={'u': [9.0, 0.0, 0.0]})
-        >>> simulate(CompositeSystem(elements=[river]), until=10, dt=10.0).get_values('river.u').round(2).tolist()
-        [[9.0, 0.0, 0.0], [3.0, 3.0, 3.0]]
     """
 
     def __init__(
@@ -154,7 +120,7 @@ class FieldElement(GroupElement):
         The result is `None` for any other state.
         """
         spec = self._get_member_specs().get(state)
-        if not isinstance(spec, StateSpec) or spec.tensor is None:
+        if not isinstance(spec, _StateSpec) or spec.tensor is None:
             return None
         tensor = TensorSpec(spec.tensor, int(cast(BaseSpace, self.space).prepare().n_dim_))
         tensor._check()

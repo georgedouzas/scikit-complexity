@@ -5,7 +5,7 @@
 
 from dataclasses import dataclass, field
 
-from ._base_spec import BaseSpec
+from ...base import BaseSpec
 
 
 @dataclass(frozen=True)
@@ -21,7 +21,7 @@ class VisualSpec(BaseSpec):
             The keyword arguments of the visual.
 
     Examples:
-        >>> from skcomplex.core.specs import VisualSpec
+        >>> from skcomplex.core.components.elements import VisualSpec
         >>> VisualSpec('points', {'position': 'x'}).kind
         'points'
     """

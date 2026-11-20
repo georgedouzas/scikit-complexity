@@ -13,20 +13,20 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression, I, function
 from sage.modules.free_module_element import FreeModuleElement
 
-from ...components import Observable
+from ...components import EntrySpec, Observable
+from ...components._state_spec import _StateSpec as StateSpec
 from ...components.elements import Element
 from ...components.interactions import BaseInteraction
 from ...components.laws.utils import local_operator
 from ...components.laws.utils._history import derivative
 from ...components.laws.utils._local_operators import has_operator
-from ...components.systems import CompositeSystem
 from ...enums import FormKind, VariableKind
 from ...errors import ValidationError
-from ...specs import EntrySpec, StateSpec
 from ...types import Array, Indices
 from .._utils import binding_of, bound_labels, declarations_of, symbol, symbols_of, vector
 from ..enums import ReadKind
 from ..problems import BaseProblemSpec, ProblemSpec, RunStateSpec
+from ..problems._composite_system import _CompositeSystem as CompositeSystem
 from ..problems._declarations_spec import ACTIVE
 from ..problems._drive_kernel import DriveKernel
 from ..problems._expression_printer import ExpressionPrinter

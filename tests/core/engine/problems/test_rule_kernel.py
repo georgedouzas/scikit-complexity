@@ -8,6 +8,7 @@ import pytest
 from sage.all__sagemath_gap import PermutationGroup, libgap
 from sage.all__sagemath_symbolics import ZZ
 
+from skcomplex.core.components import PowerSeriesSpec
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import TotalisticSpec, UpdateLaw
@@ -17,7 +18,6 @@ from skcomplex.core.components.spaces import (
     LatticeSpace,
 )
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import PowerSeriesSpec
 from skcomplex.core.systems import System
 from skcomplex.systems.computer_science.automata import PowerSeriesCellElement
 from skcomplex.systems.computer_science.common.automata import CayleySpace, StateTranslationNeighborhood

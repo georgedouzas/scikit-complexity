@@ -11,26 +11,17 @@ from dataclasses import replace
 import numpy as np
 from sage.all__sagemath_symbolics import RR, SR, Expression
 
-from ...components.laws import (
-    BaseLaw,
-    BoundaryLaw,
-    EventLaw,
-    JumpLaw,
-    NoiseLaw,
-    RateLaw,
-    Sink,
-    Source,
-    TransferLaw,
-    UpdateLaw,
-)
+from ...components import EntrySpec
+from ...components.laws import BaseLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ...components.laws._boundary import _BoundaryLaw
 from ...components.laws._flow_term import FlowTermLaw
+from ...components.laws._transfer import _Sink, _Source, _TransferLaw
 from ...components.laws.utils import shift_member
 from ...components.laws.utils._delays import delay_parts
 from ...components.laws.utils._draws import draws_in
-from ...components.spaces import DiscreteTime
+from ...components.spaces._discrete_time import _DiscreteTime
 from ...enums import FormKind, VariableKind
 from ...errors import ConservationError, LabelError, ValidationError
-from ...specs import EntrySpec
 from ...types import Array
 from .._utils import declarations_of, symbol, symbols_of
 from ..enums import ReadKind
@@ -275,7 +266,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
     def _expand_flow(
         self,
         spec: KernelSpec,
-        flow: TransferLaw,
+        flow: _TransferLaw,
         label: str,
     ) -> list[BaseLaw]:
         """Return the rate or jump laws of a flow, after recording it.
@@ -339,7 +330,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         expanded: list[BaseLaw] = []
         labelled: dict[str, list[FlowTermLaw]] = defaultdict(list)
         for index, law in enumerate(laws):
-            if isinstance(law, TransferLaw):
+            if isinstance(law, _TransferLaw):
                 label = law.label or f'flow_{index}'
                 self._claim_label(self._get_owner_of(law, spec), label, spec.set_index)
                 expanded.extend(self._expand_flow(spec, law, label))
@@ -632,7 +623,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         for spec, laws in specs:
             for law in laws:
                 self._check_conserved(spec, law)
-        declared = isinstance(self.compilation_.system.time, DiscreteTime)
+        declared = isinstance(self.compilation_.system.time, _DiscreteTime)
         discrete = declared or any(
             (isinstance(law, UpdateLaw) and id(law) not in self.born_)
             or (isinstance(law, FlowTermLaw) and law.increment)
@@ -694,7 +685,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         """
         if not mapping:
             return law
-        if isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
+        if isinstance(law, RateLaw | NoiseLaw | UpdateLaw | _BoundaryLaw):
             return BasePass._get_replaced(law, value=TransferLowering._get_substituted(law.value, mapping))
         if isinstance(law, JumpLaw):
             return JumpLaw(TransferLowering._get_substituted(law.rate, mapping), law.changes)
@@ -739,7 +730,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
 
         The state name is `None` for the environment.
         """
-        if isinstance(holder, Source | Sink):
+        if isinstance(holder, _Source | _Sink):
             return None, holder.label
         offset = TransferLowering._get_offset_of(holder)
         reference = references.get(holder if offset is None else offset[0])
@@ -792,7 +783,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
             self._add_reference(host, item, reference)
 
     @staticmethod
-    def _get_owner_of(flow: TransferLaw, spec: KernelSpec) -> str:
+    def _get_owner_of(flow: _TransferLaw, spec: KernelSpec) -> str:
         """Return the path a flow is reported under.
 
         It is its owner in the system of the declaring component, or that component.

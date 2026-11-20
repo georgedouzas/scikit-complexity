@@ -7,8 +7,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from ...specs._base_spec import BaseSpec
-from ...specs._entry_spec import EntrySpec
+from ...base import BaseSpec
+from ...components import EntrySpec
 from ...types import Array
 
 

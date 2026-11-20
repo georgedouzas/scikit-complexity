@@ -3,8 +3,8 @@
 import numpy as np
 from sage.all__sagemath_symbolics import CC, RR
 
+from skcomplex.core.components import EntrySpec
 from skcomplex.core.engine.problems import LayoutSpec
-from skcomplex.core.specs import EntrySpec
 
 
 def test_layout_reads_its_entries_and_names_by_method():

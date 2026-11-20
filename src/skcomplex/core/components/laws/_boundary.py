@@ -10,7 +10,7 @@ from ._base import BaseLaw
 from ._requirement_spec import RequirementSpec
 
 
-class BoundaryLaw(BaseLaw):
+class _BoundaryLaw(BaseLaw):
     """A law that sets the value a state takes after every solver step.
 
     After each step of the solver the state takes `value`, an expression of the states, such as a reflection at a wall
@@ -32,13 +32,6 @@ class BoundaryLaw(BaseLaw):
 
         label:
             The name of the law, or the empty string for a law without one.
-
-    Examples:
-        >>> from sage.all__sagemath_symbolics import floor, var
-        >>> from skcomplex.core.components.laws import BoundaryLaw
-        >>> x = var('x')
-        >>> BoundaryLaw(x, x - floor(x)).prepare().run({'x': 2.25}).value_
-        0.25
     """
 
     law_tag: ClassVar[str] = 'update'

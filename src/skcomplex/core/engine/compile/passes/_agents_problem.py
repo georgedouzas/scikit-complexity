@@ -7,11 +7,11 @@ from dataclasses import replace
 
 from sage.all__sagemath_symbolics import CC
 
-from ....components.laws import RuleLaw
+from ....components.elements import VisualSpec
+from ....components.laws._rule import _RuleLaw
 from ....components.spaces import BaseSpace
 from ....enums import VariableKind
 from ....errors import BackendError, LabelError, ValidationError
-from ....specs import VisualSpec
 from ..._utils import declarations_of
 from ...problems._block_spec import BlockSpec
 from ...problems._compiled_agents_spec import _CompiledAgentsSpec
@@ -118,7 +118,7 @@ class AgentsProblemPass(BasePass):
     @staticmethod
     def _get_compiled_agents(
         blocks: list[BlockSpec],
-        rules: list[tuple[KernelSpec, tuple[RuleLaw, ...]]],
+        rules: list[tuple[KernelSpec, tuple[_RuleLaw, ...]]],
     ) -> tuple[_CompiledAgentsSpec, ...]:
         """Return the agent elements and groups with their states, values, and rules.
 

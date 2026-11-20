@@ -10,9 +10,9 @@ import numpy as np
 import numpy.typing as npt
 import scipy.stats
 
+from ..base import BaseSpec
 from ..errors import ValidationError
 from ..types import Array, ComplexArray
-from ._base_spec import BaseSpec
 
 MATRIX_GROUPS = ('SU', 'U')
 PARTS = 2
@@ -41,7 +41,7 @@ class MatrixGroupSpec(BaseSpec):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.specs import MatrixGroupSpec
+        >>> from skcomplex.core.components import MatrixGroupSpec
         >>> group = MatrixGroupSpec('SU', 2)
         >>> group.size, group.identity.tolist()
         (8, [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0])
@@ -94,7 +94,7 @@ class MatrixGroupSpec(BaseSpec):
                 The last axis does not hold `2 n^2` components.
 
         Examples:
-            >>> from skcomplex.core.specs import MatrixGroupSpec
+            >>> from skcomplex.core.components import MatrixGroupSpec
             >>> MatrixGroupSpec('U', 1).get_matrices_of([0.0, 1.0]).tolist()
             [[1j]]
         """
@@ -120,7 +120,7 @@ class MatrixGroupSpec(BaseSpec):
                 The components, `2 n^2` on the last axis.
 
         Examples:
-            >>> from skcomplex.core.specs import MatrixGroupSpec
+            >>> from skcomplex.core.components import MatrixGroupSpec
             >>> MatrixGroupSpec('U', 1).get_components_of([[1j]]).tolist()
             [0.0, 1.0]
         """
@@ -143,7 +143,7 @@ class MatrixGroupSpec(BaseSpec):
 
         Examples:
             >>> import numpy as np
-            >>> from skcomplex.core.specs import MatrixGroupSpec
+            >>> from skcomplex.core.components import MatrixGroupSpec
             >>> projected = MatrixGroupSpec('SU', 2).get_projection_of(1.01 * np.eye(2))
             >>> bool(np.allclose(projected, np.eye(2)))
             True
@@ -178,7 +178,7 @@ class MatrixGroupSpec(BaseSpec):
 
         Examples:
             >>> import numpy as np
-            >>> from skcomplex.core.specs import MatrixGroupSpec
+            >>> from skcomplex.core.components import MatrixGroupSpec
             >>> moves = MatrixGroupSpec('SU', 3).get_near_identity_of(np.random.default_rng(0), 0.1, 4)
             >>> bool(np.allclose(np.linalg.det(moves), 1.0))
             True
@@ -212,7 +212,7 @@ class MatrixGroupSpec(BaseSpec):
 
         Examples:
             >>> import numpy as np
-            >>> from skcomplex.core.specs import MatrixGroupSpec
+            >>> from skcomplex.core.components import MatrixGroupSpec
             >>> draws = MatrixGroupSpec('SU', 2).get_uniform_of(np.random.default_rng(0), 5)
             >>> draws.shape, bool(np.allclose(np.linalg.det(draws), 1.0))
             ((5, 2, 2), True)
@@ -252,7 +252,7 @@ class MatrixGroupSpec(BaseSpec):
 
         Examples:
             >>> import numpy as np
-            >>> from skcomplex.core.specs import MatrixGroupSpec
+            >>> from skcomplex.core.components import MatrixGroupSpec
             >>> group = MatrixGroupSpec('U', 1)
             >>> phases = np.exp(1j * np.array([0.5, 0.25])).reshape(2, 1, 1)
             >>> round(float(np.angle(group.get_holonomy_of(phases, [0, 1], [1, -1]))[0, 0]), 12)

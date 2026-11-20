@@ -11,17 +11,18 @@ from dataclasses import replace
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 
+from ....components import EntrySpec
 from ....components.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ....components.spaces import DelaunayNeighborhood, DiscreteTime
-from ....components.systems import CompositeSystem
+from ....components.spaces import DelaunayNeighborhood
+from ....components.spaces._discrete_time import _DiscreteTime
 from ....enums import FormKind
 from ....errors import BackendWarning, ValidationError
-from ....specs import EntrySpec
 from ....types import Array, Indices, VectorFunction
 from ..._utils import symbols_of
 from ...backends import BaseBackend, LoweredFunctionsSpec, NumpyBackend
 from ...enums import ReadKind
 from ...problems import LayoutSpec, ProblemSpec, RunStateSpec
+from ...problems._composite_system import _CompositeSystem
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._draw_kernel import DrawKernel
 from ...problems._draw_recorder import DrawRecorder
@@ -442,7 +443,7 @@ class FunctionsPass(BasePass):
         return [(phase, kernels[phase.name]) for phase in plan if phase.name in kernels]
 
     @staticmethod
-    def _get_declared_phases(system: CompositeSystem, solver: object = None) -> list[PhaseSpec]:
+    def _get_declared_phases(system: _CompositeSystem, solver: object = None) -> list[PhaseSpec]:
         """Return the phases of the solvers and schedules of a system and its subsystems.
 
         The phases of a solver, such as `MesaSolver(phases=[PhaseSpec('count'), PhaseSpec('copy')])`, come first, the
@@ -450,7 +451,7 @@ class FunctionsPass(BasePass):
         name is kept.
         """
         time = system.time
-        schedule = time.prepare().schedule_ if isinstance(time, DiscreteTime) else None
+        schedule = time.prepare().schedule_ if isinstance(time, _DiscreteTime) else None
         phases = list(getattr(solver or getattr(system, 'solver', None), 'phases', None) or ())
         phases += list(schedule.phases) if isinstance(schedule, PhasesScheduleSpec) else []
         for nested in system.systems:

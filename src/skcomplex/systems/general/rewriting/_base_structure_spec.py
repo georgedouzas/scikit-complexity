@@ -11,8 +11,8 @@ import numpy as np
 import numpy.typing as npt
 import shapely
 
+from ....core.base import BaseSpec
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec
 from ....core.types import AnyArray, Array
 
 SPACE_DIMENSIONS = 3

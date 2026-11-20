@@ -7,9 +7,9 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from types import SimpleNamespace
 
+from ...base import BaseSpec
 from ...enums import TopologyKind
 from ...errors import ValidationError
-from ...specs._base_spec import BaseSpec
 
 EDGE_KINDS = frozenset(
     {

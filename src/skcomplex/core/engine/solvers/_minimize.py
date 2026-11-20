@@ -10,7 +10,8 @@ from sage.all__sagemath_symbolics import SR
 from scipy.optimize import minimize
 
 from ...components.laws import ConstraintLaw, ObjectiveLaw
-from ...components.spaces import ContinuousSpace, LatticeSpace, NetworkSpace, StaticTime
+from ...components.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
+from ...components.spaces._static_time import _StaticTime
 from ...enums import FormKind, OrderKind
 from ...errors import SolverError
 from ...types import Array
@@ -81,7 +82,7 @@ class MinimizeSolver(BaseObjectiveSolver):
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
-            time={StaticTime},
+            time={_StaticTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace},
             laws={ObjectiveLaw, ConstraintLaw},
             orders=frozenset({OrderKind.INTEGER}),

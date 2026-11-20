@@ -7,8 +7,11 @@ import math
 
 import numpy as np
 
-from ...components.laws import BoundaryLaw, ConstraintLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, TransferLaw
-from ...components.spaces import BaseSpace, ContinuousTime
+from ...components.laws import ConstraintLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw
+from ...components.laws._boundary import _BoundaryLaw
+from ...components.laws._transfer import _TransferLaw
+from ...components.spaces import BaseSpace
+from ...components.spaces._continuous_time import _ContinuousTime
 from ...enums import NoiseKind, OrderKind
 from ...errors import SolverError
 from ...types import Array
@@ -50,15 +53,15 @@ class EulerMaruyamaSolver(SDESolver):
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
-            time={ContinuousTime},
+            time={_ContinuousTime},
             space={None, BaseSpace},
             laws={
                 JumpLaw,
                 RateLaw,
                 ConstraintLaw,
                 EventLaw,
-                BoundaryLaw,
-                TransferLaw,
+                _BoundaryLaw,
+                _TransferLaw,
                 NoiseLaw,
             },
             noise=frozenset(NoiseKind) - {NoiseKind.FRACTIONAL},

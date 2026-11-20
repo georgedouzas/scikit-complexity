@@ -8,8 +8,8 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from ...specs._base_spec import BaseSpec
-from ...specs._entry_spec import EntrySpec
+from ...base import BaseSpec
+from ...components import EntrySpec
 from ...types import Array, Indices, IntTuple
 
 

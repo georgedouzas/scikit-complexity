@@ -12,6 +12,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, exp, oo
 from sage.sets.real_set import RealSet
 
+from ....core.base import BaseSpec
 from ....core.components import Tags
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, JumpLaw, UpdateLaw
@@ -20,7 +21,6 @@ from ....core.components.spaces import AdjacencyNeighborhood, BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.enums import ScheduleKind
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec
 from ....core.types import Role
 
 RULES = ('random', 'majority', 'best', 'better', 'fermi')

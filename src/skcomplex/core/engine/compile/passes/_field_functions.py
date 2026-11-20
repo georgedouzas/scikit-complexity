@@ -12,7 +12,6 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression, I, matrix, solve
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....components.elements import FieldElement
 from ....components.laws import BaseLaw
 from ....components.laws.utils._phase import COORDINATE_PREFIX
 from ....components.spaces import CellComplexSpace, LatticeSpace, PhaseSpace
@@ -25,6 +24,7 @@ from ...problems import LayoutSpec, RunStateSpec
 from ...problems._block_spec import BlockSpec
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._expression_printer import ExpressionPrinter
+from ...problems._field_element import _FieldElement
 from ...problems._finite_volume_kernel import TIME, FiniteVolumeKernel
 from ...problems._kernel_spec import KernelSpec
 from ...problems._law_kernel import LawKernel
@@ -108,14 +108,14 @@ class FieldFunctionsPass(BasePass):
                     continue
                 reference = spec._get_target_references(law._get_targets()[0])[0]
                 owner = reference.entry.name.rpartition('.')[0]
-                if not isinstance(declarations.blocks[owner].node.component, FieldElement):
+                if not isinstance(declarations.blocks[owner].node.component, _FieldElement):
                     error_msg = f'{spec.owner} declares fluxes of {owner}, which is not a field.'
                     raise ValidationError(error_msg)
                 found.setdefault(owner, []).append((law, reference, spec.references))
         volumes = []
         for owner in sorted(found):
             place = declarations.blocks[owner].node.component
-            if not isinstance(place, FieldElement):
+            if not isinstance(place, _FieldElement):
                 error_msg = f'{owner} declares fluxes, but it is not a field.'
                 raise ValidationError(error_msg)
             volumes.append(FieldFunctionsPass._compile_volumes(found[owner], place, owner, declarations))
@@ -132,7 +132,7 @@ class FieldFunctionsPass(BasePass):
         for block in blocks:
             place = block.node.component
             if (
-                not isinstance(place, FieldElement)
+                not isinstance(place, _FieldElement)
                 or not isinstance(place.space, CellComplexSpace)
                 or not place.space._is_mesh()
             ):
@@ -178,7 +178,7 @@ class FieldFunctionsPass(BasePass):
         found = []
         for block in blocks:
             place = block.node.component
-            if not isinstance(place, FieldElement) or not place.symmetry:
+            if not isinstance(place, _FieldElement) or not place.symmetry:
                 continue
             space = place.space
             if not isinstance(space, LatticeSpace) or space._get_edges() != 'periodic':
@@ -591,7 +591,7 @@ class FieldFunctionsPass(BasePass):
     @staticmethod
     def _compile_volumes(
         laws: Sequence[tuple[_FluxLaw, ReferenceSpec, Mapping[Expression, ReferenceSpec]]],
-        place: FieldElement,
+        place: _FieldElement,
         owner: str,
         declarations: DeclarationsSpec,
     ) -> FiniteVolumeKernel:

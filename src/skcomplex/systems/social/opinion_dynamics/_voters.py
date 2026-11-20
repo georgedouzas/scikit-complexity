@@ -16,14 +16,13 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.base import BaseComponent
-from ....core.components.elements import Element
+from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import TotalisticSpec, UpdateLaw
 from ....core.components.spaces import BaseSpace, LatticeSpace, NetworkSpace, RadiusNeighborhood
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, SystemView
-from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, IntArray, Role
 

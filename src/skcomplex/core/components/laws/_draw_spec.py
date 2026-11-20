@@ -7,9 +7,9 @@ from dataclasses import dataclass
 
 from sage.all__sagemath_symbolics import Expression
 
+from ...base import BaseSpec
 from ...enums import DrawKind
 from ...errors import ValidationError
-from ...specs._base_spec import BaseSpec
 
 RELAXED_KINDS = frozenset({DrawKind.BERNOULLI, DrawKind.CATEGORICAL})
 

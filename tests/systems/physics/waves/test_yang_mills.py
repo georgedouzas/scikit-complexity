@@ -3,9 +3,9 @@
 import numpy as np
 import pytest
 
+from skcomplex.core.components import MatrixGroupSpec
 from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace
 from skcomplex.core.errors import AnalysisError, ValidationError
-from skcomplex.core.specs import MatrixGroupSpec
 from skcomplex.systems.physics.waves import LatticeYangMillsSystem, gauge_observables
 
 ISOSPIN = MatrixGroupSpec('SU', 2)

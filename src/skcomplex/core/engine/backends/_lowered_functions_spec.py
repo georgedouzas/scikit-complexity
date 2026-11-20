@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from ...specs._base_spec import BaseSpec
+from ...base import BaseSpec
 from ...types import Indices, VectorFunction
 from ..problems._accelerated_spec import _AcceleratedSpec
 from ..problems._jump_channels_spec import _JumpChannelsSpec

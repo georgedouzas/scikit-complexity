@@ -9,13 +9,13 @@ from dataclasses import dataclass
 
 from sage.all__sagemath_symbolics import RR
 
-from ..enums import VariableKind
-from ._base_spec import BaseSpec
-from ._matrix_group_spec import MatrixGroupSpec
+from ...base import BaseSpec
+from ...components import MatrixGroupSpec
+from ...enums import VariableKind
 
 
 @dataclass(frozen=True)
-class VariableSpec(BaseSpec):
+class _VariableSpec(BaseSpec):
     """A spec of a state, parameter, or role of a component, as the compiler reads it.
 
     It is the declaration as the compiler reads it. A state of order `k` adds the companion states `<name>_d1` to

@@ -3,10 +3,10 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ...components.laws import BoundaryLaw
+from ...components.laws._boundary import _BoundaryLaw
 
 
-class AlgebraicLaw(BoundaryLaw):
+class AlgebraicLaw(_BoundaryLaw):
     """A law that gives the value of an algebraic state at a frame.
 
     It is the solution of the equations the state appears in. The solvers integrate no algebraic state, so the law

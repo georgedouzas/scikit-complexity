@@ -12,11 +12,12 @@ from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ...errors import ValidationError
-from ..spaces import BaseNeighborhood, DiscreteTime
+from ..spaces import BaseNeighborhood
+from ..spaces._discrete_time import _DiscreteTime
 from ..types import Target
 from ._base import BaseLaw
 from ._call_spec import CallSpec
-from ._local_rule import SCHEDULES, LocalRuleLaw
+from ._local_rule import SCHEDULES, _LocalRuleLaw
 from ._requirement_spec import RequirementSpec
 from ._topology_request_spec import TopologyRequestSpec
 
@@ -179,7 +180,7 @@ class UpdateLaw(BaseLaw):
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
         """Return what the law requires of a system: discrete time."""
-        return RequirementSpec(time=(DiscreteTime,))
+        return RequirementSpec(time=(_DiscreteTime,))
 
     @staticmethod
     def _is_stochastic(value: object) -> bool:
@@ -192,7 +193,7 @@ class UpdateLaw(BaseLaw):
             return False
         return parameter is not None and parameter.kind in {parameter.KEYWORD_ONLY, parameter.POSITIONAL_OR_KEYWORD}
 
-    def _get_local_rule(self) -> LocalRuleLaw:
+    def _get_local_rule(self) -> _LocalRuleLaw:
         """Return the local rule that the engine runs for a law with a neighbourhood.
 
         A function value that names `random` receives a uniform number per cell.
@@ -204,7 +205,7 @@ class UpdateLaw(BaseLaw):
         if self.neighborhood is None:
             error_msg = f'The update law {self.label!r} has no neighbourhood, so it is no local rule.'
             raise ValidationError(error_msg)
-        return LocalRuleLaw(
+        return _LocalRuleLaw(
             self.target,
             self.neighborhood,
             self.value,

@@ -10,9 +10,8 @@ from typing import Annotated
 
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from .....core.components.elements import Element
+from .....core.components.elements import Element, VisualSpec
 from .....core.components.spaces import BaseSpace
-from .....core.specs import VisualSpec
 
 ACTIVITY_VISUAL = VisualSpec('sites', {'states': ['active'], 'low': 0.0, 'high': 1.0})
 

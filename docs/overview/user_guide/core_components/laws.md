@@ -93,7 +93,7 @@ keyword. A function `f(t, values)` of two positional arguments gives instead the
 
 ```python continuation
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.specs import RoleSpec
+from skcomplex.core.components import RoleSpec
 
 
 class GrainDropInteraction(Interaction):
@@ -673,7 +673,8 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import ConstraintLaw, ObjectiveLaw
-from skcomplex.core.specs import RoleSpec, StateSpec
+from skcomplex.core.components import RoleSpec
+from skcomplex.core.specs import StateSpec
 from skcomplex.core.systems import System
 
 
@@ -1287,7 +1288,8 @@ The message says that the value of the rate law is a NumPy array and asks to con
 ```python continuation
 from skcomplex.core.components.elements import DeclaredElement
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.specs import DeclaredVariableSpec, RoleSpec
+from skcomplex.core.specs import DeclaredVariableSpec
+from skcomplex.core.components import RoleSpec
 
 
 class RecoveryInteraction(Interaction):

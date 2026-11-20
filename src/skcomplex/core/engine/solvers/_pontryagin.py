@@ -10,8 +10,9 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression, solve
 
-from ...components.laws import BoundaryLaw, ConstraintLaw, ObjectiveLaw, RateLaw
-from ...components.spaces import ContinuousTime
+from ...components.laws import ConstraintLaw, ObjectiveLaw, RateLaw
+from ...components.laws._boundary import _BoundaryLaw
+from ...components.spaces._continuous_time import _ContinuousTime
 from ...enums import OrderKind
 from ...errors import SolverError, ValidationError
 from ...types import Array
@@ -25,9 +26,9 @@ from ._optimal_control import OptimalControlSolver
 MIN_RELAXATION = 1e-3
 MIN_NODES = 2
 CONTROL_SUPPORT = SupportSpec(
-    time={ContinuousTime},
+    time={_ContinuousTime},
     space={None},
-    laws={RateLaw, ConstraintLaw, BoundaryLaw, ObjectiveLaw},
+    laws={RateLaw, ConstraintLaw, _BoundaryLaw, ObjectiveLaw},
     orders=frozenset({OrderKind.INTEGER}),
 )
 

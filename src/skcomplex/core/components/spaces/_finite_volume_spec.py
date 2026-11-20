@@ -6,8 +6,8 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from ...base import BaseSpec
 from ...errors import ValidationError
-from ...specs._base_spec import BaseSpec
 
 LIMITERS = ('minmod', 'van-leer', None)
 RIEMANN_SOLVERS = ('rusanov', 'godunov')

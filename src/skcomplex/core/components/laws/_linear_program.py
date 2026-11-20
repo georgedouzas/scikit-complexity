@@ -10,7 +10,9 @@ from typing import ClassVar
 from sage.all__sagemath_symbolics import Expression
 
 from ...errors import ValidationError
-from ..spaces import ContinuousTime, DiscreteTime, StaticTime
+from ..spaces._continuous_time import _ContinuousTime
+from ..spaces._discrete_time import _DiscreteTime
+from ..spaces._static_time import _StaticTime
 from ._base import BaseLaw
 from ._linear_objective_spec import LinearObjectiveSpec
 from ._requirement_spec import RequirementSpec
@@ -19,7 +21,7 @@ INFEASIBLE_POLICIES = ('raise', 'zero', 'hold')
 RELATIONS = (operator.eq, operator.le, operator.ge)
 
 
-class LinearProgramLaw(BaseLaw):
+class _LinearProgramLaw(BaseLaw):
     """A law that sets algebraic states to the optimum of a linear program.
 
     A linear program maximizes or minimizes a linear objective under linear constraints. The law sets its variables,
@@ -62,15 +64,6 @@ class LinearProgramLaw(BaseLaw):
         ValidationError:
             A constraint is not a relation, an objective is not a `LinearObjectiveSpec`, or the policy is unknown,
             raised by `prepare`.
-
-    Examples:
-        >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws import LinearProgramLaw
-        >>> from skcomplex.core.components.laws import LinearObjectiveSpec
-        >>> v, w = var('v w')
-        >>> law = LinearProgramLaw([v, w], [v + w <= 1], [LinearObjectiveSpec(v)]).prepare('flows')
-        >>> law.targets_
-        (v, w)
     """
 
     law_tag: ClassVar[str] = 'equation'
@@ -101,7 +94,7 @@ class LinearProgramLaw(BaseLaw):
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
         """Return what the law requires of a system: continuous, discrete, or static time."""
-        return RequirementSpec(time=(ContinuousTime, DiscreteTime, StaticTime))
+        return RequirementSpec(time=(_ContinuousTime, _DiscreteTime, _StaticTime))
 
     def _prepare(self, context: str | None = None) -> None:
         """Raise an error for no variables, a bad constraint or objective, or a bad policy.

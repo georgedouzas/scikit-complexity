@@ -12,17 +12,19 @@ from dataclasses import replace
 from types import SimpleNamespace
 
 from ...base import BaseConfig
+from ...components import Tags
+from ...components._parameter_spec import _ParameterSpec
+from ...components._state_spec import _StateSpec
+from ...components.base import BaseComponent
+from ...components.elements import BaseElement
+from ...components.interactions import BaseInteraction
+from ...components.spaces import BaseSpace
+from ...components.spaces._base import _BaseTime
+from ...components.systems import BaseSystem
 from ...errors import RoleElementError, TagError
-from ...specs import ParameterSpec, StateSpec
-from .._tags import Tags
-from ..base import BaseComponent
-from ..elements import BaseElement
-from ..interactions import BaseInteraction
-from ..spaces import BaseSpace, BaseTime
-from ._base import BaseSystem
 
 
-class CompositeSystem(BaseSystem['CompositeSystem']):
+class _CompositeSystem(BaseSystem['_CompositeSystem']):
     """A system that composes elements, interactions, and nested systems as data.
 
     The system lives on a space, in a time, and says nothing about how it runs. An interaction refers to an element by
@@ -46,31 +48,6 @@ class CompositeSystem(BaseSystem['CompositeSystem']):
 
         laws_:
             The laws the system contributes for the namespace of its last run.
-
-    Examples:
-        >>> from typing import Annotated
-        >>> from types import SimpleNamespace
-        >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.laws import RateLaw
-        >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> class DecayElement(Element):
-        ...     law_classes = (RateLaw,)
-        ...
-        ...     def __init__(self, label, x: Annotated[float, StateSpec()] = 1.0):
-        ...         super().__init__(label)
-        ...         self.x = x
-        ...
-        ...     def _get_laws(self, namespace):
-        ...         return [RateLaw(namespace.x, -namespace.x)]
-        >>> system = CompositeSystem(elements=[DecayElement('decay')]).prepare()
-        >>> namespace = SimpleNamespace(decay=SimpleNamespace(x=var('x')))
-        >>> [type(law).__name__ for law in system.run(namespace).laws_]
-        ['RateLaw']
-        >>> tags = system.get_tags()
-        >>> sorted(tags.time), sorted(tags.space), sorted(tags.laws), tags.randomness
-        (['continuous'], ['none'], ['rate'], 'deterministic')
     """
 
     def __init__(
@@ -81,7 +58,7 @@ class CompositeSystem(BaseSystem['CompositeSystem']):
         interactions: Sequence[BaseInteraction] = (),
         systems: Sequence[BaseSystem] = (),
         space: BaseSpace | None = None,
-        time: BaseTime | None = None,
+        time: _BaseTime | None = None,
         solver: BaseConfig | None = None,
     ) -> None:
         """Store the label and the components of the system.
@@ -119,7 +96,7 @@ class CompositeSystem(BaseSystem['CompositeSystem']):
         self.time = time
         self.solver = solver
 
-    def _build_system(self) -> CompositeSystem:
+    def _build_system(self) -> _CompositeSystem:
         """Return the system itself, whose components are its arguments."""
         return self
 
@@ -165,9 +142,9 @@ class CompositeSystem(BaseSystem['CompositeSystem']):
 
         The alternative is a composite.
         """
-        return any(not isinstance(system, CompositeSystem) or system._nests_classes() for system in self.systems)
+        return any(not isinstance(system, _CompositeSystem) or system._nests_classes() for system in self.systems)
 
-    def _get_composite(self) -> CompositeSystem:
+    def _get_composite(self) -> _CompositeSystem:
         """Return the system with the prepared composite of every nested system in place.
 
         A nested system class, such as a ready-made system of the catalog, is replaced by the composite it builds from
@@ -231,7 +208,7 @@ class CompositeSystem(BaseSystem['CompositeSystem']):
         searched as it is.
         """
         *scopes, label = path.split('/')
-        system: CompositeSystem | None = self
+        system: _CompositeSystem | None = self
         for scope in scopes:
             nested = next((item for item in system.systems if item.label == scope), None) if system else None
             system = getattr(nested, 'system_', nested)
@@ -273,12 +250,12 @@ class CompositeSystem(BaseSystem['CompositeSystem']):
                         raise RoleElementError(error_msg)
 
     @staticmethod
-    def _get_parameter_states(element: BaseElement) -> dict[str, StateSpec]:
+    def _get_parameter_states(element: BaseElement) -> dict[str, _StateSpec]:
         """Return the parameters of an element as states of their domains, by name."""
         return {
-            name: StateSpec(domain=spec.domain, vector=spec.vector, tensor=spec.tensor)
+            name: _StateSpec(domain=spec.domain, vector=spec.vector, tensor=spec.tensor)
             for name, spec in element._get_component_specs().items()
-            if isinstance(spec, ParameterSpec)
+            if isinstance(spec, _ParameterSpec)
         }
 
     @staticmethod

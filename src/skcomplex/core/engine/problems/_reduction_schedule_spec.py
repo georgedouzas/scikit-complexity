@@ -10,7 +10,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from ...specs._base_spec import BaseSpec
+from ...base import BaseSpec
 from ...types import Array
 from ._neighborhood_kernel import NeighborhoodKernel
 from ._reduction_kernel import ReductionKernel

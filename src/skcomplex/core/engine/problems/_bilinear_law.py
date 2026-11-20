@@ -10,7 +10,8 @@ from sage.all__sagemath_symbolics import Expression
 
 from ...components.laws import BaseLaw, RateLaw, RequirementSpec
 from ...components.laws.utils._bilinear import bilinears_in, unpack_bilinear
-from ...components.spaces import ContinuousTime, LatticeSpace
+from ...components.spaces import LatticeSpace
+from ...components.spaces._continuous_time import _ContinuousTime
 from ...errors import ValidationError
 
 
@@ -80,7 +81,7 @@ class BilinearLaw(BaseLaw):
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
         """Return what the law requires: continuous time on lattices of classes."""
-        return RequirementSpec(time=(ContinuousTime,), space=(LatticeSpace,))
+        return RequirementSpec(time=(_ContinuousTime,), space=(LatticeSpace,))
 
     def _run(self, inputs: object) -> None:
         """Set `value_` to the rate and the outcome table at given symbol values.

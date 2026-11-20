@@ -8,7 +8,6 @@ from collections.abc import Mapping
 
 from sage.all__sagemath_symbolics import SR, Expression
 
-from ....components.elements import FieldElement
 from ....components.laws import BaseLaw, RateLaw
 from ....components.laws._neighbor_reduction_spec import _NeighborReductionSpec
 from ....components.laws.utils import laplacian
@@ -17,6 +16,7 @@ from ....components.laws.utils._reductions import neighborhoods_in
 from ....components.spaces import BaseNeighborhood, CellComplexSpace, LatticeSpace
 from ...enums import LinearOperatorKind, ReadKind
 from ...problems._diffusive_limit_spec import DiffusiveLimitSpec
+from ...problems._field_element import _FieldElement
 from ...problems._kernel_spec import KernelSpec
 from ...problems._linear_term_spec import LinearTermSpec
 from ...problems._reference_spec import ReferenceSpec
@@ -71,7 +71,7 @@ class LowerFieldsPass(BasePass):
     def _get_linear_terms_of(
         spec: KernelSpec,
         laws: list[BaseLaw],
-        places: dict[str, FieldElement],
+        places: dict[str, _FieldElement],
     ) -> list[LinearTermSpec]:
         """Return the linear terms with constant coefficients of the rates of field states."""
         terms = []
@@ -114,7 +114,7 @@ class LowerFieldsPass(BasePass):
         return result
 
     @staticmethod
-    def _get_with_laplacians(spec: KernelSpec, law: BaseLaw, places: Mapping[str, FieldElement]) -> BaseLaw:
+    def _get_with_laplacians(spec: KernelSpec, law: BaseLaw, places: Mapping[str, _FieldElement]) -> BaseLaw:
         """Return a rate whose diffusive neighbour sums are Laplacians.
 
         The sums are those on a spectral lattice or a mesh.
@@ -139,7 +139,7 @@ class LowerFieldsPass(BasePass):
     def _get_difference(
         spec: KernelSpec,
         reduction: _NeighborReductionSpec,
-        places: Mapping[str, FieldElement],
+        places: Mapping[str, _FieldElement],
     ) -> tuple[Expression, Expression, float] | None:
         """Return the coefficient, the state, and the scale of a diffusive neighbour sum.
 
@@ -180,7 +180,7 @@ class LowerFieldsPass(BasePass):
         return reference.source if reference is not None and reference.is_state else None
 
     @staticmethod
-    def _get_scale(place: FieldElement, over: object) -> float | None:
+    def _get_scale(place: _FieldElement, over: object) -> float | None:
         """Return the factor from the Laplacian of a field to its neighbour differences.
 
         The differences are summed over the neighbours.
@@ -277,7 +277,7 @@ class LowerFieldsPass(BasePass):
         value: object,
         target: ReferenceSpec,
         references: Mapping[Expression, ReferenceSpec],
-        fields: Mapping[str, FieldElement],
+        fields: Mapping[str, _FieldElement],
     ) -> list[LinearTermSpec]:
         """Return the linear terms with constant coefficients of the rate of a field state.
 

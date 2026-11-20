@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
+from skcomplex.core.components import MatrixGroupSpec
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import MatrixGroupSpec
 
 GROUPS = [MatrixGroupSpec('SU', 2), MatrixGroupSpec('SU', 3), MatrixGroupSpec('U', 1), MatrixGroupSpec('U', 2)]
 

@@ -13,8 +13,9 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 from scipy import sparse
 
-from ....components.laws import LinearObjectiveSpec, LinearProgramLaw
-from ....specs._base_spec import BaseSpec
+from ....base import BaseSpec
+from ....components.laws import LinearObjectiveSpec
+from ....components.laws._linear_program import _LinearProgramLaw
 from ....types import Array, Indices
 from ..._utils import symbol, symbols_of
 from ...enums import LinearProgramBound
@@ -48,7 +49,7 @@ class _BoundLawSpec(BaseSpec):
     """
 
     spec: KernelSpec
-    law: LinearProgramLaw
+    law: _LinearProgramLaw
     owner: str
 
 

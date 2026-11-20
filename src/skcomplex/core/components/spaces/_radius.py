@@ -68,11 +68,11 @@ class RadiusNeighborhood(BaseNeighborhood):
     Examples:
         >>> import math
         >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws import LocalRuleLaw, TotalisticSpec
+        >>> from skcomplex.core.components.laws import TotalisticSpec, UpdateLaw
         >>> from skcomplex.core.components.spaces import LatticeSpace, RadiusNeighborhood
         >>> grid = LatticeSpace((3, 3), boundary='fixed')
         >>> moore = RadiusNeighborhood(1, metric='chebyshev')
-        >>> count = LocalRuleLaw(var('cell'), moore, TotalisticSpec(lambda total: total)).prepare()
+        >>> count = UpdateLaw(var('cell'), TotalisticSpec(lambda total: total), neighborhood=moore).prepare()
         >>> count.run({'space': grid, 'cell': [1] * 9}).value_.tolist()
         [3, 5, 3, 5, 8, 5, 3, 5, 3]
         >>> RadiusNeighborhood(1.0, angle=math.pi / 2, direction='theta').direction

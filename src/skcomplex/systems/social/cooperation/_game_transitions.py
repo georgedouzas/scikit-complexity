@@ -18,7 +18,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.base import BaseComponent
-from ....core.components.elements import Element
+from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace, NetworkSpace
@@ -26,7 +26,6 @@ from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.errors import ValidationError
-from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, IntArray, Role
 

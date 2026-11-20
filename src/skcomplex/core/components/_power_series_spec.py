@@ -13,9 +13,9 @@ from sage.rings.power_series_ring_element import PowerSeries
 from sage.rings.ring import Field
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
+from ..base import BaseSpec
 from ..errors import ValidationError
 from ..types import Array
-from ._base_spec import BaseSpec
 
 
 @dataclass(frozen=True)
@@ -45,7 +45,7 @@ class PowerSeriesSpec(BaseSpec):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.specs import PowerSeriesSpec
+        >>> from skcomplex.core.components import PowerSeriesSpec
         >>> series = PowerSeriesSpec(4)
         >>> series.multiply(np.array([1, 1, 0, 0]), np.array([1, -1, 0, 0])).tolist()
         [1.0, 0.0, -1.0, 0.0]

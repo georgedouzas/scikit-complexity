@@ -9,9 +9,8 @@ The particle has a position `x` and an orientation `theta`.
 import math
 from typing import Annotated
 
-from .....core.components.elements import Element, Period
+from .....core.components.elements import Element, Period, VisualSpec
 from .....core.components.spaces import BaseSpace
-from .....core.specs import VisualSpec
 
 POINTS = VisualSpec('points', {'position': 'x', 'radius': 0.2})
 

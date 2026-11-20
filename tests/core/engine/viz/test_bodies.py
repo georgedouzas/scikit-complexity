@@ -5,10 +5,10 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
+from skcomplex.core.components.elements import VisualSpec
 from skcomplex.core.engine.runtime import BaseObserver
 from skcomplex.core.engine.viz import BodiesVisual, RerunObserver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import VisualSpec
 from skcomplex.systems.physics.celestial_mechanics import StormerProblemSystem
 from skcomplex.systems.physics.mechanics import CircularBilliardSystem, DoublePendulumSystem
 

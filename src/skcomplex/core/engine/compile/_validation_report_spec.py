@@ -6,9 +6,9 @@
 import warnings
 from dataclasses import dataclass
 
+from ...base import BaseSpec
 from ...enums import SeverityKind
 from ...errors import ValidationError, ValidationWarning
-from ...specs._base_spec import BaseSpec
 from ._issue_spec import IssueSpec
 
 

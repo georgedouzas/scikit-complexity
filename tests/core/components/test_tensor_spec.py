@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
+from skcomplex.core.components import TensorSpec
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import TensorSpec
 
 
 @pytest.mark.parametrize(

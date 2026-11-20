@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
+from skcomplex.core.components.elements import VisualSpec
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.specs import VisualSpec
 from skcomplex.core.systems import System
 from skcomplex.systems.general.elements import PointElement
 from skcomplex.systems.general.gradients import GradientInteraction

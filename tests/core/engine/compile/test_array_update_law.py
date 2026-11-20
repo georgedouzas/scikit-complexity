@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import var
 
+from skcomplex.core.components import MatrixGroupSpec, RoleSpec
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import UpdateLaw
@@ -14,7 +15,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._array_update_law import ArrayUpdateLaw
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import MatrixGroupSpec, RoleSpec, StateSpec
+from skcomplex.core.specs import StateSpec
 
 
 def test_drive_targets_its_lattice_state():

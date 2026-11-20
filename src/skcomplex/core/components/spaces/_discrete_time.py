@@ -9,13 +9,13 @@ import numpy as np
 import numpy.typing as npt
 
 from ...errors import ValidationError
-from ._base import BaseTime
+from ._base import _BaseTime
 from ._schedule_spec import ScheduleSpec
 
 SCHEDULES = ('synchronous', 'random-sequential')
 
 
-class DiscreteTime(BaseTime):
+class _DiscreteTime(_BaseTime):
     """A time that advances in steps, in which updates and rules change the states.
 
     The laws it accepts are updates, agent rules, local rules, rewrites, and Monte Carlo samples. A `schedule` may order
@@ -35,11 +35,6 @@ class DiscreteTime(BaseTime):
 
         label:
             The label of the time in its system.
-
-    Examples:
-        >>> from skcomplex.core.components.spaces import DiscreteTime
-        >>> DiscreteTime(schedule='random-sequential').prepare().schedule_
-        'random-sequential'
     """
 
     time_tag: ClassVar[str] = 'discrete'

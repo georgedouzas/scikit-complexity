@@ -15,9 +15,10 @@ from sage.all__sagemath_symbolics import SR, Expression, matrix
 from sage.modules.free_module_element import FreeModuleElement
 from scipy.optimize import root
 
-from ....components.laws import BaseLaw, BoundaryLaw, CallSpec, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....base import BaseSpec
+from ....components.laws import BaseLaw, CallSpec, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....components.laws._boundary import _BoundaryLaw
 from ....errors import SolverError, ValidationError
-from ....specs._base_spec import BaseSpec
 from ....types import Array
 from ..._utils import symbols_of, vector
 from ...problems._expression_printer import ExpressionPrinter
@@ -458,7 +459,7 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
             return law if rate is law.rate else BasePass._get_replaced(law, rate=rate)
         if isinstance(law, EventLaw | RenewalLaw):
             return self._copy_with_event_solutions(law, owner)
-        if isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
+        if isinstance(law, RateLaw | NoiseLaw | UpdateLaw | _BoundaryLaw):
             value = self._get_substituted(law.value, time, owner)
             return law if value is law.value else BasePass._get_replaced(law, value=value)
         return law

@@ -6,9 +6,9 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from ...base import BaseSpec
 from ...enums import MoveKind
 from ...errors import ValidationError
-from ...specs._base_spec import BaseSpec
 
 
 @dataclass(frozen=True)

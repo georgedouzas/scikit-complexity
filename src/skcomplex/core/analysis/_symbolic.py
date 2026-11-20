@@ -32,11 +32,11 @@ from sage.structure.parent import Parent
 from sage.symbolic.assumptions import assume, forget
 
 from ..components.laws.utils._operators import _OperatorFunction
-from ..components.systems import CompositeSystem
 from ..engine._utils import components_of, domain_of
 from ..engine.compile import BaseCompiler
 from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import BaseProblemSpec, ProblemSpec
+from ..engine.problems._composite_system import _CompositeSystem
 from ..engine.problems._operator_problem_spec import OperatorProblemSpec
 from ..engine.problems._transfer_network_spec import TransferNetworkSpec
 from ..engine.runtime._simulations import Simulation
@@ -364,7 +364,7 @@ def symbolic(source: DataSource, *, kind: str = 'equations', use_initial_state: 
     return SymbolicResult(problem, inflows=_conservation(problem))
 
 
-def _get_compiler_of(system: CompositeSystem) -> BaseCompiler:
+def _get_compiler_of(system: _CompositeSystem) -> BaseCompiler:
     """Return the compiler an element of a system names, or the general one."""
     named = Simulation._get_named_compiler(system)
     return named if isinstance(named, BaseCompiler) else PassCompiler()

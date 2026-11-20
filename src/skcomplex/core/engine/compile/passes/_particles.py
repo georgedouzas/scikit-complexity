@@ -6,7 +6,8 @@
 
 from sage.all__sagemath_symbolics import SR
 
-from ....components.laws import BaseLaw, BoundaryLaw
+from ....components.laws import BaseLaw
+from ....components.laws._boundary import _BoundaryLaw
 from ....components.laws.utils import either, mod, where
 from ....components.spaces import ContinuousSpace
 from ....enums import VariableKind
@@ -76,10 +77,12 @@ class BoundaryLawsPass(BasePass):
             )
             for position, velocity, side in zip(positions, velocities, sides, strict=True):
                 if space.boundary == 'periodic':
-                    laws.append(BoundaryLaw(position, mod(position, side)))
+                    laws.append(_BoundaryLaw(position, mod(position, side)))
                     continue
                 below, above = position < 0, position > side
-                laws.append(BoundaryLaw(position, where(below, -position, where(above, 2 * side - position, position))))
+                laws.append(
+                    _BoundaryLaw(position, where(below, -position, where(above, 2 * side - position, position))),
+                )
                 if velocity is not None:
-                    laws.append(BoundaryLaw(velocity, where(either(below, above), -velocity, velocity)))
+                    laws.append(_BoundaryLaw(velocity, where(either(below, above), -velocity, velocity)))
         return laws

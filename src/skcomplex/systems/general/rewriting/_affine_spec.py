@@ -10,8 +10,8 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
+from ....core.base import BaseSpec
 from ....core.errors import RewritingError
-from ....core.specs import BaseSpec
 
 PLANE_DIMENSION = 2
 

@@ -19,7 +19,7 @@ from sage.all__sagemath_symbolics import Expression, I, atan2, cos, exp, oo, sin
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element, Period
+from ....core.components.elements import Element, Period, VisualSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import neighbors, uniform, where
@@ -33,7 +33,6 @@ from ....core.components.spaces import (
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ParameterError
-from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
 from ..common.particles import PropulsionStepInteraction

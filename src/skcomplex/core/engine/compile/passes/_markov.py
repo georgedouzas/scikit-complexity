@@ -11,11 +11,12 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 
-from ....components.laws import BaseLaw, CallSpec, TransitionLaw, UpdateLaw
+from ....components import EntrySpec
+from ....components.laws import BaseLaw, CallSpec, UpdateLaw
+from ....components.laws._transition import _TransitionLaw
 from ....components.laws.utils import categorical, where
 from ....enums import DomainKind
 from ....errors import ValidationError
-from ....specs import EntrySpec
 from ....types import Array
 from ..._utils import symbols_of
 from ...enums import ReadKind
@@ -231,7 +232,7 @@ class MarkovPass(BasePass):
     @staticmethod
     def _get_emission(
         owner: str,
-        law: TransitionLaw,
+        law: _TransitionLaw,
         references: Mapping[Expression, ReferenceSpec],
         updates: dict[str, object],
     ) -> tuple[UpdateLaw, _MatrixLawSpec]:
@@ -260,7 +261,7 @@ class MarkovPass(BasePass):
         return UpdateLaw(law._get_targets()[0], value), _MatrixLawSpec(owner, description, law.matrix)
 
     @staticmethod
-    def _get_transition(spec: KernelSpec, law: TransitionLaw) -> tuple[UpdateLaw, _MatrixLawSpec | None]:
+    def _get_transition(spec: KernelSpec, law: _TransitionLaw) -> tuple[UpdateLaw, _MatrixLawSpec | None]:
         """Return the update law a transition law becomes, and its matrix.
 
         The matrix is left out when a function gives it.
@@ -294,7 +295,7 @@ class MarkovPass(BasePass):
     @staticmethod
     def _get_function_transition(
         spec: KernelSpec,
-        law: TransitionLaw,
+        law: _TransitionLaw,
         given: CallSpec | Callable[..., object],
     ) -> UpdateLaw:
         """Return the update law of a transition whose matrix is a function.
@@ -358,7 +359,7 @@ class MarkovPass(BasePass):
         matrices: list[_MatrixLawSpec] = []
         rewritten: list[BaseLaw] = []
         for law in laws:
-            if isinstance(law, TransitionLaw) and law.source is None:
+            if isinstance(law, _TransitionLaw) and law.source is None:
                 update, found = MarkovPass._get_transition(spec, law)
                 rewritten.append(update)
                 matrices.extend([found] if found is not None else [])
@@ -366,7 +367,7 @@ class MarkovPass(BasePass):
                 rewritten.append(law)
         updates = {str(law._get_targets()[0]): law.value for law in rewritten if isinstance(law, UpdateLaw)}
         for index, law in enumerate(rewritten):
-            if isinstance(law, TransitionLaw) and law.source is not None:
+            if isinstance(law, _TransitionLaw) and law.source is not None:
                 rewritten[index], matrix = MarkovPass._get_emission(owner, law, references, updates)
                 matrices.append(matrix)
         return rewritten, matrices

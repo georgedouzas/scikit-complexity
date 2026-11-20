@@ -5,7 +5,7 @@
 
 from dataclasses import dataclass
 
-from ...specs._base_spec import BaseSpec
+from ...base import BaseSpec
 
 
 @dataclass(frozen=True)
@@ -27,10 +27,10 @@ class RequirementSpec(BaseSpec):
             Whether the component also runs on any other space with sites, one whose `_has_sites` is true.
 
     Examples:
-        >>> from skcomplex.core.components.spaces import ContinuousTime, LatticeSpace
+        >>> from skcomplex.core.components.spaces import LatticeSpace
         >>> from skcomplex.core.components.laws import RequirementSpec
-        >>> RequirementSpec(time=(ContinuousTime,)).time
-        (<class 'skcomplex.core.components.spaces._continuous_time.ContinuousTime'>,)
+        >>> RequirementSpec(space=(LatticeSpace,)).space
+        (<class 'skcomplex.core.components.spaces._lattice.LatticeSpace'>,)
         >>> RequirementSpec(space=(LatticeSpace,), sites=True).sites
         True
     """

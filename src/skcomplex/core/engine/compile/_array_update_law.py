@@ -10,7 +10,8 @@ from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ...components.laws import BaseLaw, RequirementSpec
-from ...components.spaces import DiscreteTime, LatticeSpace, NetworkSpace
+from ...components.spaces import LatticeSpace, NetworkSpace
+from ...components.spaces._discrete_time import _DiscreteTime
 from ...errors import ValidationError
 
 
@@ -61,13 +62,13 @@ class ArrayUpdateLaw(BaseLaw):
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
         """Return what array updates require: discrete time on a lattice or a network."""
-        return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace, NetworkSpace))
+        return RequirementSpec(time=(_DiscreteTime,), space=(LatticeSpace, NetworkSpace))
 
     def _get_law_requirements(self) -> RequirementSpec:
         """Return what this array update requires of a system: only a lattice with a score."""
         if self.score is None:
             return self._get_requirements()
-        return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace,))
+        return RequirementSpec(time=(_DiscreteTime,), space=(LatticeSpace,))
 
     def _prepare(self, context: str | None = None) -> None:
         """Raise an error for a function that cannot be called.

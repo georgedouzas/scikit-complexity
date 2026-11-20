@@ -16,7 +16,7 @@ from sage.all__sagemath_gap import SymmetricGroup
 from sage.all__sagemath_symbolics import RR, ZZ
 from sage.groups.perm_gps.permgroup import PermutationGroup_generic
 
-from ....core.components import Observable
+from ....core.components import Observable, PowerSeriesSpec
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
@@ -25,7 +25,6 @@ from ....core.components.spaces import BaseSpace, LatticeNeighborhood, LatticeSp
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ParameterError
-from ....core.specs import PowerSeriesSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
 from ..common.automata import CayleySpace, StateTranslationNeighborhood
@@ -91,7 +90,7 @@ class PowerSeriesCellElement(Element):
             The space with one cell on every site, such as a lattice, or `None` for one cell.
 
     Examples:
-        >>> from skcomplex.core.specs import PowerSeriesSpec
+        >>> from skcomplex.core.components import PowerSeriesSpec
         >>> from skcomplex.systems.computer_science.automata import PowerSeriesCellElement
         >>> PowerSeriesCellElement('cell', ring=PowerSeriesSpec(3)).ring.order
         3
@@ -204,7 +203,7 @@ class PowerSeriesDifferenceInteraction(Interaction):
             The truncated power series ring of the values.
 
     Examples:
-        >>> from skcomplex.core.specs import PowerSeriesSpec
+        >>> from skcomplex.core.components import PowerSeriesSpec
         >>> from skcomplex.systems.computer_science.automata import PowerSeriesDifferenceInteraction
         >>> PowerSeriesDifferenceInteraction('difference', target='cells', ring=PowerSeriesSpec(3)).ring.order
         3

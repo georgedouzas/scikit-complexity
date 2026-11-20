@@ -7,9 +7,8 @@ from collections.abc import Mapping
 
 import numpy.typing as npt
 
-from ....core.components.elements import Element
+from ....core.components.elements import Element, VisualSpec
 from ....core.components.spaces import BaseSpace
-from ....core.specs import VisualSpec
 
 
 class PointElement(Element):

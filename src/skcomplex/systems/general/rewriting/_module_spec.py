@@ -10,8 +10,8 @@ from dataclasses import dataclass
 
 from sage.all__sagemath_symbolics import Expression
 
+from ....core.base import BaseSpec
 from ....core.errors import RewritingError
-from ....core.specs import BaseSpec
 
 type Letters = str | ModuleSpec | Sequence[str | ModuleSpec]
 

@@ -5,7 +5,7 @@
 
 import numpy as np
 
-from ...specs import EntrySpec
+from ...components import EntrySpec
 from ..types import EdgesFound
 from ._base import BaseSearch
 from ._capacity_rows_spec import ACTIVE_THRESHOLD

@@ -18,10 +18,13 @@ from sklearn.base import BaseEstimator
 
 from ..base import BaseConfig
 from ..errors import ValidationError
-from ..specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, Spec, StateSpec
-from ..specs._tensor_spec import TENSOR_DIMENSIONS
 from ..types import Role
+from ._declared_variable_spec import _DeclaredVariableSpec
+from ._parameter_spec import _ParameterSpec
+from ._role_spec import RoleSpec, _Spec
+from ._state_spec import _StateSpec
 from ._tags import STOCHASTIC_LAWS, Tags
+from ._tensor_spec import TENSOR_DIMENSIONS
 
 MATRIX_AXES = 2
 ROLE_CONTAINERS = (tuple, list, Sequence, Mapping, dict)
@@ -163,7 +166,7 @@ class BaseComponent[ContextT, InputT](BaseConfig[ContextT, InputT]):
 
     @classmethod
     @functools.cache
-    def _get_specs(cls) -> dict[str, Spec]:
+    def _get_specs(cls) -> dict[str, _Spec]:
         """Return the spec of every argument of the constructor annotated with one.
 
         The specs come in the order of the constructor. The annotations of the constructors of the bases count too, and
@@ -175,7 +178,7 @@ class BaseComponent[ContextT, InputT](BaseConfig[ContextT, InputT]):
             specs:
                 A mapping from argument name to its spec.
         """
-        specs: dict[str, Spec] = {}
+        specs: dict[str, _Spec] = {}
         for klass in reversed(cls.__mro__):
             init = vars(klass).get('__init__')
             if init is None:
@@ -183,7 +186,7 @@ class BaseComponent[ContextT, InputT](BaseConfig[ContextT, InputT]):
             for name, argument in inspect.signature(init, eval_str=True).parameters.items():
                 metadata = getattr(cls._get_annotated(argument.annotation), '__metadata__', ())
                 for item in metadata:
-                    if isinstance(item, StateSpec | ParameterSpec | RoleSpec):
+                    if isinstance(item, _StateSpec | _ParameterSpec | RoleSpec):
                         specs[name] = item
                 hinted = None if metadata else cls._get_role_of(argument.annotation)
                 if hinted is not None:
@@ -336,11 +339,11 @@ class BaseComponent[ContextT, InputT](BaseConfig[ContextT, InputT]):
         tags = replace(tags, randomness='stochastic') if self._get_draws() else tags
         return replace(tags, reparameterized=True) if self.reparameterized else tags
 
-    def _get_declared(self) -> Mapping[str, DeclaredVariableSpec]:
+    def _get_declared(self) -> Mapping[str, _DeclaredVariableSpec]:
         """Return the variables the component declares from data, by name, none by default."""
         return {}
 
-    def _get_component_specs(self) -> dict[str, Spec]:
+    def _get_component_specs(self) -> dict[str, _Spec]:
         """Return the specs of this component.
 
         They are those of its class, then those it declares from data.

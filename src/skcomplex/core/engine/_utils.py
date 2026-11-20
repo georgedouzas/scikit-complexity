@@ -13,16 +13,21 @@ from sage.all__sagemath_symbolics import CC, RR, SR, ZZ, Expression, var
 from sage.all__sagemath_symbolics import vector as sage_vector
 from sage.modules.free_module_element import FreeModuleElement
 
+from ..components import EntrySpec, RoleSpec
+from ..components._declared_variable_spec import _DeclaredVariableSpec
+from ..components._parameter_spec import _ParameterSpec
+from ..components._state_spec import _StateSpec
 from ..components.base import BaseComponent
-from ..components.elements import BaseElement, GroupElement
+from ..components.elements import BaseElement
 from ..components.interactions import BaseInteraction
 from ..enums import VariableKind
 from ..errors import SkcomplexError
-from ..specs import DeclaredVariableSpec, EntrySpec, ParameterSpec, RoleSpec, StateSpec, VariableSpec
+from .problems._group_element import _GroupElement
+from .problems._variable_spec import _VariableSpec
 
 INSTANCE_VARIABLES: weakref.WeakKeyDictionary[
     BaseComponent,
-    tuple[Mapping[str, DeclaredVariableSpec], dict[str, tuple[VariableSpec, object]]],
+    tuple[Mapping[str, _DeclaredVariableSpec], dict[str, tuple[_VariableSpec, object]]],
 ] = weakref.WeakKeyDictionary()
 
 
@@ -185,12 +190,12 @@ def binding_of(component: object, role: str) -> object:
     return getattr(component, role, None)
 
 
-def _variable_of(spec: StateSpec | ParameterSpec | RoleSpec) -> VariableSpec:
+def _variable_of(spec: _StateSpec | _ParameterSpec | RoleSpec) -> _VariableSpec:
     """Return the declaration of a spec."""
     if isinstance(spec, RoleSpec):
-        return VariableSpec(VariableKind.ROLE, variadic=spec.variadic, noise=spec.noise, optional=spec.optional)
-    if isinstance(spec, ParameterSpec):
-        return VariableSpec(
+        return _VariableSpec(VariableKind.ROLE, variadic=spec.variadic, noise=spec.noise, optional=spec.optional)
+    if isinstance(spec, _ParameterSpec):
+        return _VariableSpec(
             VariableKind.STATE if spec.adaptive else VariableKind.PARAMETER,
             spec.domain,
             spec.vector,
@@ -202,7 +207,7 @@ def _variable_of(spec: StateSpec | ParameterSpec | RoleSpec) -> VariableSpec:
             n_dim=spec.n_dim,
         )
     order = int(spec.order) if float(spec.order).is_integer() else float(spec.order)
-    return VariableSpec(
+    return _VariableSpec(
         VariableKind.STATE,
         spec.domain,
         spec.vector,
@@ -221,16 +226,16 @@ def _variable_of(spec: StateSpec | ParameterSpec | RoleSpec) -> VariableSpec:
     )
 
 
-def _companions(name: str, variable: VariableSpec, default: object) -> dict[str, tuple[VariableSpec, object]]:
+def _companions(name: str, variable: _VariableSpec, default: object) -> dict[str, tuple[_VariableSpec, object]]:
     """Return the companion states of a state of higher order or with lags.
 
     They are given by name, with their defaults.
     """
-    companions: dict[str, tuple[VariableSpec, object]] = {}
+    companions: dict[str, tuple[_VariableSpec, object]] = {}
     domain = CC if variable.domain is CC else RR
     for index in range(1, variable.derivatives + 1):
         value = variable.initial[index - 1] if index <= len(variable.initial) else 0.0
-        companion = VariableSpec(
+        companion = _VariableSpec(
             VariableKind.STATE,
             domain,
             variable.vector,
@@ -242,7 +247,7 @@ def _companions(name: str, variable: VariableSpec, default: object) -> dict[str,
         companions[f'{name}_d{index}'] = (companion, value)
     for index in range(1, variable.lags + 1):
         value = variable.initial[index - 1] if index <= len(variable.initial) else default
-        companion = VariableSpec(
+        companion = _VariableSpec(
             VariableKind.STATE,
             variable.domain,
             variable.vector,
@@ -255,7 +260,7 @@ def _companions(name: str, variable: VariableSpec, default: object) -> dict[str,
     return companions
 
 
-def _instance_variables(component: BaseComponent) -> dict[str, tuple[VariableSpec, object]]:
+def _instance_variables(component: BaseComponent) -> dict[str, tuple[_VariableSpec, object]]:
     """Return the variables of a component instance.
 
     They are those of its class and those it declares, read once per declaration.
@@ -276,7 +281,7 @@ def _instance_variables(component: BaseComponent) -> dict[str, tuple[VariableSpe
     return variables
 
 
-def declared_variables(component: object) -> dict[str, tuple[VariableSpec, object]]:
+def declared_variables(component: object) -> dict[str, tuple[_VariableSpec, object]]:
     """Return the declaration and the default of every variable of a component.
 
     The variables are every state, parameter, and role, with companion states. A companion state follows the state it
@@ -293,18 +298,6 @@ def declared_variables(component: object) -> dict[str, tuple[VariableSpec, objec
     Raises:
         TypeError:
             The component is not a component class or instance.
-
-    Examples:
-        >>> from typing import Annotated
-        >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.engine._utils import declared_variables
-        >>> class PendulumElement(Element):
-        ...     def __init__(self, label, theta: Annotated[float, StateSpec(order=2)] = 0.1):
-        ...         super().__init__(label)
-        ...         self.theta = theta
-        >>> list(declared_variables(PendulumElement))
-        ['theta', 'theta_d1']
     """
     cls = component if isinstance(component, type) else type(component)
     if not issubclass(cls, BaseComponent):
@@ -314,7 +307,7 @@ def declared_variables(component: object) -> dict[str, tuple[VariableSpec, objec
 
 
 @functools.cache
-def _class_variables(cls: type[BaseComponent]) -> dict[str, tuple[VariableSpec, object]]:
+def _class_variables(cls: type[BaseComponent]) -> dict[str, tuple[_VariableSpec, object]]:
     """Return the declaration and the default of every variable of a component class.
 
     They are read once per class. Rules read the declarations of their agents every step, such as the group a reference
@@ -322,7 +315,7 @@ def _class_variables(cls: type[BaseComponent]) -> dict[str, tuple[VariableSpec, 
     `declared_variables`.
     """
     parameters = inspect.signature(cls).parameters
-    variables: dict[str, tuple[VariableSpec, object]] = {}
+    variables: dict[str, tuple[_VariableSpec, object]] = {}
     for name, spec in cls._get_specs().items():
         variable = _variable_of(spec)
         default = parameters[name].default
@@ -333,7 +326,7 @@ def _class_variables(cls: type[BaseComponent]) -> dict[str, tuple[VariableSpec, 
     return variables
 
 
-def declarations_of(component: object, kind: VariableKind) -> dict[str, VariableSpec]:
+def declarations_of(component: object, kind: VariableKind) -> dict[str, _VariableSpec]:
     """Return the declarations of one kind of a component, with their companion states.
 
     Args:
@@ -401,27 +394,11 @@ def probe_laws(component: object) -> list[object] | None:
     Returns:
         laws:
             The laws, or `None` when they cannot be listed.
-
-    Examples:
-        >>> from typing import Annotated
-        >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.engine._utils import probe_laws
-        >>> from skcomplex.core.components.laws import RateLaw
-        >>> from skcomplex.core.specs import StateSpec
-        >>> class DecayElement(Element):
-        ...     def __init__(self, label, x: Annotated[float, StateSpec()] = 1.0):
-        ...         super().__init__(label)
-        ...         self.x = x
-        ...
-        ...     def _get_laws(self, namespace):
-        ...         return [RateLaw(namespace.x, -namespace.x)]
-        >>> [type(law).__name__ for law in probe_laws(DecayElement('decay'))]
-        ['RateLaw']
     """
     if not isinstance(component, BaseElement | BaseInteraction):
         return None
     try:
-        member = component._get_member() if isinstance(component, GroupElement) else component
+        member = component._get_member() if isinstance(component, _GroupElement) else component
         return list(member._get_prepared_laws(_probe_namespace(member)))
     except (AttributeError, IndexError, KeyError, TypeError, ValueError, ArithmeticError, RuntimeError, SkcomplexError):
         return None

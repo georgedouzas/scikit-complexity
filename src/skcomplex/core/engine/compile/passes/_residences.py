@@ -9,10 +9,10 @@ import numpy as np
 from sage.all__sagemath_symbolics import RR, SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
+from ....components import EntrySpec
 from ....components.laws import BaseLaw, UpdateLaw
 from ....components.laws.utils import where
 from ....errors import ValidationError
-from ....specs import EntrySpec
 from ..._utils import components_of, symbol, vector
 from ...enums import ReadKind
 from ...problems._kernel_spec import KernelSpec

@@ -12,13 +12,13 @@ from sage.all__sagemath_symbolics import RR, SR, Expression, log
 from sage.modules.free_module_element import FreeModuleElement
 from scipy import stats
 
+from ...components import EntrySpec
 from ...components.laws import BaseLaw, CallSpec, DrawSpec, UpdateLaw
 from ...components.laws.utils import clip, logistic, stop_gradient, where
 from ...components.laws.utils._draws import draws_in
 from ...components.laws.utils._reductions import reductions_in
 from ...enums import DrawKind
 from ...errors import ValidationError
-from ...specs import EntrySpec
 from ...types import Array, Indices
 from .._utils import components_of, symbol, symbols_of, vector
 from ..enums import ReadKind

@@ -14,18 +14,20 @@ from gallery_tools import library_systems
 
 from skcomplex.core import analysis, experiments
 from skcomplex.core.analysis import AnalysisTags
-from skcomplex.core.components import Tags, elements, interactions, laws, spaces, systems
+from skcomplex.core.components import RoleSpec, Tags, elements, interactions, laws, spaces, systems
+from skcomplex.core.components._parameter_spec import _ParameterSpec
+from skcomplex.core.components._state_spec import _StateSpec
 from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import BaseElement
 from skcomplex.core.components.interactions import BaseInteraction
 from skcomplex.core.components.laws import BaseLaw
-from skcomplex.core.components.spaces import BaseNeighborhood, BaseSpace, BaseTime
-from skcomplex.core.components.systems import BaseSystem, CompositeSystem
+from skcomplex.core.components.spaces import BaseNeighborhood, BaseSpace
+from skcomplex.core.components.spaces._base import _BaseTime
+from skcomplex.core.components.systems import BaseSystem
 from skcomplex.core.engine import backends, solvers
 from skcomplex.core.engine.backends import BaseBackend
 from skcomplex.core.engine.solvers import BaseSolver
 from skcomplex.core.enums import LawTag, SpaceTag, TimeTag
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 from skcomplex.systems import all_systems
 from skcomplex.systems.general import dynamics
 from skcomplex.systems.general.reactions import ReactionNetworkSystem
@@ -176,8 +178,8 @@ def _fact_sheet(
     """
     if family in {'elements', 'interactions'}:
         specs = item._get_specs()
-        states = {name: spec for name, spec in specs.items() if isinstance(spec, StateSpec)}
-        parameters = [name for name, spec in specs.items() if isinstance(spec, ParameterSpec)]
+        states = {name: spec for name, spec in specs.items() if isinstance(spec, _StateSpec)}
+        parameters = [name for name, spec in specs.items() if isinstance(spec, _ParameterSpec)]
         laws = BaseComponent._get_law_tags(item._get_declared_laws()).laws
         tags = Tags(domains=frozenset(spec._get_domain_tag() for spec in states.values()) - {None}, laws=laws)
         domain_cells = {
@@ -195,7 +197,7 @@ def _fact_sheet(
     elif issubclass(item, BaseLaw):
         tags = BaseComponent._get_law_tags([item]) if item.get_requirements() is not None else Tags()
         facts = [f'- Law kind: {_values(tags.laws, empty="from a subclass")}', f'- Randomness: `{tags.randomness}`']
-    elif issubclass(item, BaseTime):
+    elif issubclass(item, _BaseTime):
         tags = Tags(time=frozenset({item.time_tag}) - {''})
         facts = [f'- Time tag: {_values(tags.time, empty="from a subclass")}']
     elif issubclass(item, BaseSpace):
@@ -270,7 +272,7 @@ def _elements_page() -> str:
     """
     rows = []
     for element in _public_classes(elements, BaseElement):
-        states = {name: spec for name, spec in element._get_specs().items() if isinstance(spec, StateSpec)}
+        states = {name: spec for name, spec in element._get_specs().items() if isinstance(spec, _StateSpec)}
         domains = {spec._get_domain_tag() for spec in states.values()} - {None}
         tags = BaseComponent._get_law_tags(element._get_declared_laws())
         names = ', '.join(f'`{name}`' for name in states) or 'from a subclass'
@@ -491,7 +493,7 @@ def _spaces_page() -> str:
     """
     rows = []
     for item in _family_classes(spaces):
-        if issubclass(item, BaseTime):
+        if issubclass(item, _BaseTime):
             kind, tags = 'time', _values({item.time_tag} - {''}, empty='from a subclass')
         elif issubclass(item, BaseSpace):
             kind, tags = 'space', _values(item.space_tags, empty='from a subclass')
@@ -507,17 +509,16 @@ of its space and its time. The table lists the tags that each class declares.
     examples = """
 ## The tags of a space and a time
 
-`get_tags` of a space returns its space tag, and that of a time returns its time tag. A solver compares them with the
-tags it supports before a run.
+`get_tags` of a space returns its space tag. A solver compares it with the tags it supports before a run.
 
 ```python
-from skcomplex.core.components.spaces import ContinuousTime, LatticeSpace
+from skcomplex.core.components.spaces import LatticeSpace
 
 grid = LatticeSpace((4, 4))
-sorted(grid.get_tags().space), sorted(ContinuousTime().get_tags().time)
+sorted(grid.get_tags().space)
 ```
 
-A lattice of 4 by 4 sites has the space tag `lattice`, and `ContinuousTime` has the time tag `continuous`.
+A lattice of 4 by 4 sites has the space tag `lattice`.
 """
     facts = _facts(_family_classes(spaces), 'spaces')
     return _page(
@@ -883,12 +884,9 @@ The message says that calibration fits model parameters, which `set_params` take
 
 
 def _core_systems() -> list[type[BaseSystem]]:
-    """Return the system classes of the core that can be built.
-
-    They are the base and the composite you build from components.
-    """
+    """Return the system classes of the core that can be built."""
     found = _public_classes(systems, BaseSystem)
-    return sorted(found, key=lambda system: (system is not CompositeSystem, system.__name__))
+    return sorted(found, key=lambda system: system.__name__)
 
 
 def _general_systems() -> list[str]:
@@ -931,12 +929,12 @@ def _systems_page() -> str:
     intro = """
 A system is a component that holds elements, interactions, nested systems, a space, and a time. `BaseSystem` is the base
 of every system. A subclass takes the parameters of its model in `__init__`, builds its components from them in
-`_build_system`, and derives its capability tags from its components, which `get_tags()` returns. `CompositeSystem`
-takes its components as data, so it needs no subclass. A general system that several fields share, such as
-`ReactionNetworkSystem` of `skcomplex.systems.general.reactions`, is a recipe built from core components. The ready-made
-systems of `skcomplex.systems` subclass these, one class per model. The [catalog](../systems/catalog.md) lists them by
-field and by topic, with their import paths, model parameters, and capability tags, and `all_systems` of
-`skcomplex.systems` finds them by field, topic, or tag. The table lists the system classes of the core.
+`_build_system`, and derives its capability tags from its components, which `get_tags()` returns. A general system
+that several fields share, such as `ReactionNetworkSystem` of `skcomplex.systems.general.reactions`, is a recipe built
+from core components. The ready-made systems of `skcomplex.systems` subclass these, one class per model. The
+[catalog](../systems/catalog.md) lists them by field and by topic, with their import paths, model parameters, and
+capability tags, and `all_systems` of `skcomplex.systems` finds them by field, topic, or tag. The table lists the
+system classes of the core.
 """
     examples = '\n'.join(_general_systems()) + """
 ## A compatible system

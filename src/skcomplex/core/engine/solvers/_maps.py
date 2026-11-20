@@ -8,8 +8,13 @@ from collections.abc import Sequence
 
 import numpy as np
 
-from ...components.laws import BoundaryLaw, LinearProgramLaw, TransferLaw, TransitionLaw, UpdateLaw
-from ...components.spaces import BaseSpace, DiscreteTime
+from ...components.laws import UpdateLaw
+from ...components.laws._boundary import _BoundaryLaw
+from ...components.laws._linear_program import _LinearProgramLaw
+from ...components.laws._transfer import _TransferLaw
+from ...components.laws._transition import _TransitionLaw
+from ...components.spaces import BaseSpace
+from ...components.spaces._discrete_time import _DiscreteTime
 from ...enums import FormKind, OrderKind
 from ...types import Array
 from ..backends import SupportSpec
@@ -68,9 +73,9 @@ class IterationSolver(Solver):
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
-            time={DiscreteTime},
+            time={_DiscreteTime},
             space={None, BaseSpace},
-            laws={UpdateLaw, TransitionLaw, LinearProgramLaw, BoundaryLaw, TransferLaw},
+            laws={UpdateLaw, _TransitionLaw, _LinearProgramLaw, _BoundaryLaw, _TransferLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 

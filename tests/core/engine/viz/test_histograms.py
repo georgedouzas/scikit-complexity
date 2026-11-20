@@ -4,13 +4,12 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.components.elements import Element
+from skcomplex.core.components.elements import Element, VisualSpec
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.laws.utils import uniform
 from skcomplex.core.engine.problems import AgentSnapshotSpec
 from skcomplex.core.engine.viz import AgentsVisual, HistogramVisual, RerunObserver
-from skcomplex.core.specs import VisualSpec
 from skcomplex.core.systems import System
 from skcomplex.systems.biology.evolution import MoranProcessSystem, TangledNatureSystem
 from skcomplex.systems.engineering.traffic import CharbonneauTrafficSystem

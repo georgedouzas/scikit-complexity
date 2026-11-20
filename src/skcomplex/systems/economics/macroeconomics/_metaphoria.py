@@ -17,6 +17,7 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.analysis import distribution
+from ....core.base import BaseSpec
 from ....core.components import Observable
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, Member, Quantity
@@ -28,7 +29,6 @@ from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
 from ....core.engine.solvers import BaseSolver, MesaSolver, SystemView
-from ....core.specs import BaseSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
 from ...general.matching import MatchingInteraction, MatchSpec, PartnerMatchingSpec

@@ -5,7 +5,7 @@
 
 from dataclasses import dataclass, field
 
-from ...specs._base_spec import BaseSpec
+from ...base import BaseSpec
 from ...types import Indices
 from ._read_spec import _ReadSpec
 

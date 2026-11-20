@@ -7,8 +7,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ...base import BaseSpec
 from ...components.laws import TopologyRequestSpec
-from ...specs._base_spec import BaseSpec
 from ._law_kernel import LawKernel
 from ._network_rows_spec import _NetworkRowsSpec
 

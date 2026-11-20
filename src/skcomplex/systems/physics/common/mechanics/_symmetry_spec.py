@@ -7,8 +7,8 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from types import SimpleNamespace
 
+from .....core.base import BaseSpec
 from .....core.errors import ValidationError
-from .....core.specs import BaseSpec
 
 
 @dataclass(frozen=True)

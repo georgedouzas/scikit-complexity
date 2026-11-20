@@ -10,9 +10,10 @@ import numpy as np
 from sage.all__sagemath_symbolics import RR, SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....components.laws import BaseLaw, BoundaryLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....components import EntrySpec
+from ....components.laws import BaseLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....components.laws._boundary import _BoundaryLaw
 from ....errors import PipelineError, ValidationError
-from ....specs import EntrySpec
 from ..._utils import symbol, vector
 from ...enums import ReadKind
 from ...problems._declarations_spec import DeclarationsSpec
@@ -203,7 +204,7 @@ class DelaysPass(BasePass):
                 result.append(
                     JumpLaw(DelaysPass._substitute_delays(law.rate, spec, compilation, references), law.changes),
                 )
-            elif isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
+            elif isinstance(law, RateLaw | NoiseLaw | UpdateLaw | _BoundaryLaw):
                 result.append(
                     BasePass._get_replaced(
                         law,

@@ -9,7 +9,7 @@ from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ...errors import ValidationError
-from ..spaces import ContinuousTime
+from ..spaces._continuous_time import _ContinuousTime
 from ..types import Process, Target
 from ._base import BaseLaw
 from ._requirement_spec import RequirementSpec
@@ -106,7 +106,7 @@ class NoiseLaw(BaseLaw):
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
         """Return what the law requires of a system: continuous time."""
-        return RequirementSpec(time=(ContinuousTime,))
+        return RequirementSpec(time=(_ContinuousTime,))
 
     def _check_process(self) -> None:
         """Raise an error for a process that is not a label, labels, or a handle.

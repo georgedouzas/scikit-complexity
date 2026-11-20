@@ -5,7 +5,7 @@
 
 from dataclasses import dataclass
 
-from ....core.specs import BaseSpec
+from ....core.base import BaseSpec
 
 
 @dataclass(frozen=True)

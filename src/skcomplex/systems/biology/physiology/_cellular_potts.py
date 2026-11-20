@@ -23,6 +23,7 @@ from sage.all__sagemath_symbolics import NN, RR, SR, ConditionSet, Expression, o
 from sage.sets.real_set import RealSet
 from scipy.spatial import Voronoi
 
+from ....core.base import BaseSpec
 from ....core.components import Observable, Tags
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
@@ -38,7 +39,6 @@ from ....core.components.spaces import (
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Indices, Role
 

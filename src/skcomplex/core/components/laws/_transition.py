@@ -9,13 +9,13 @@ from typing import ClassVar
 from sage.all__sagemath_symbolics import Expression
 
 from ...errors import ValidationError
-from ..spaces import DiscreteTime
+from ..spaces._discrete_time import _DiscreteTime
 from ._base import BaseLaw
 from ._call_spec import CallSpec
 from ._requirement_spec import RequirementSpec
 
 
-class TransitionLaw(BaseLaw):
+class _TransitionLaw(BaseLaw):
     """A law that draws the next value of a discrete state from a transition matrix.
 
     A Markov chain over a finite set of values draws its next value from the row of a matrix that its current value
@@ -49,16 +49,6 @@ class TransitionLaw(BaseLaw):
 
         label:
             The name of the law, or the empty string for a law without one.
-
-    Examples:
-        >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws import TransitionLaw
-        >>> x, q = var('x'), var('q')
-        >>> TransitionLaw(x, [[q, 1 - q], [0.4, 0.6]]).prepare().run({'q': 0.1}).value_[0]
-        [0.1, 0.9]
-        >>> observed, hidden = var('observed'), var('hidden')
-        >>> TransitionLaw(observed, [[0.7, 0.3], [0.2, 0.8]], source=hidden).prepare().targets_
-        (observed,)
     """
 
     law_tag: ClassVar[str] = 'jump'
@@ -83,7 +73,7 @@ class TransitionLaw(BaseLaw):
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
         """Return what the law requires of a system: discrete time."""
-        return RequirementSpec(time=(DiscreteTime,))
+        return RequirementSpec(time=(_DiscreteTime,))
 
     def _prepare(self, context: str | None = None) -> None:
         """Raise an error for a matrix that is neither a function nor a nonempty matrix.

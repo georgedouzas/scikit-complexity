@@ -13,17 +13,17 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 from sklearn.base import clone
 
-from ...components import Observable
+from ...components import EntrySpec, Observable
+from ...components._parameter_spec import _ParameterSpec
 from ...components.interactions import TrainingInteraction
 from ...components.laws import ConstraintLaw, RateLaw, UpdateLaw
-from ...components.spaces import DiscreteTime
-from ...components.systems import CompositeSystem
+from ...components.spaces._discrete_time import _DiscreteTime
 from ...enums import FormKind
 from ...errors import SkcomplexError, SolverError, ValidationError
-from ...specs import EntrySpec, ParameterSpec
 from .._utils import symbol, symbols_of
 from ..backends import BaseBackend, JaxBackend
 from ..problems import BaseProblemSpec, LayoutSpec, ProblemSpec
+from ..problems._composite_system import _CompositeSystem
 from ..problems._expression_printer import ExpressionPrinter
 from ..problems._learning_problem_spec import LearningProblemSpec
 from ..types import TracedArray, TracedFunction
@@ -96,7 +96,7 @@ class _LearningCompiler(BaseCompiler):
         self.inner = inner
 
     @staticmethod
-    def _find_training(system: CompositeSystem) -> TrainingInteraction | None:
+    def _find_training(system: _CompositeSystem) -> TrainingInteraction | None:
         """Return the training interaction of a system.
 
         It is `None` for a system that does not train.
@@ -104,17 +104,17 @@ class _LearningCompiler(BaseCompiler):
         return next((item for item in system.interactions if isinstance(item, TrainingInteraction)), None)
 
     @staticmethod
-    def _find_system(system: CompositeSystem, path: str) -> CompositeSystem | None:
+    def _find_system(system: _CompositeSystem, path: str) -> _CompositeSystem | None:
         """Return the nested system at a path such as `net` or `forest/net`, or `None`."""
-        found: CompositeSystem | None = system
+        found: _CompositeSystem | None = system
         for label in path.split('/'):
             found = next((item for item in found.systems if item.label == label), None) if found is not None else None
         return found
 
-    def _get_setting_issues(self, system: CompositeSystem, training: TrainingInteraction) -> list[IssueSpec]:
+    def _get_setting_issues(self, system: _CompositeSystem, training: TrainingInteraction) -> list[IssueSpec]:
         """Return the issues of the time and the solver of a system that trains."""
         issues = []
-        if system.time is not None and not isinstance(system.time, DiscreteTime):
+        if system.time is not None and not isinstance(system.time, _DiscreteTime):
             given = type(system.time).__name__
             message = f'The training {training.label} needs DiscreteTime, one step per epoch, not {given}.'
             issues.append(IssueSpec('law-time', training.label, message, 'Declare `DiscreteTime()` for the system.'))
@@ -124,7 +124,7 @@ class _LearningCompiler(BaseCompiler):
             issues.append(IssueSpec('solver-unsupported', system.label, message, fix, error=SolverError))
         return issues
 
-    def _get_differentiable_issues(self, system: CompositeSystem, training: TrainingInteraction) -> list[IssueSpec]:
+    def _get_differentiable_issues(self, system: _CompositeSystem, training: TrainingInteraction) -> list[IssueSpec]:
         """Return the laws of the nested system that the JAX backend cannot differentiate."""
         compiler = clone(self.inner).set_params(trained=tuple(training.trained)).prepare(system)
         compilation = getattr(compiler, 'compilation_', None)
@@ -145,7 +145,7 @@ class _LearningCompiler(BaseCompiler):
             issues.append(IssueSpec('learning-not-differentiable', training.label, message, fix))
         return issues
 
-    def _compile_inner(self, system: CompositeSystem, training: TrainingInteraction) -> list[IssueSpec]:
+    def _compile_inner(self, system: _CompositeSystem, training: TrainingInteraction) -> list[IssueSpec]:
         """Compile the nested system into `inner_`, and return the issues that stop it."""
         self.inner_, self.backend_ = None, JaxBackend()
         compiler = clone(self.inner).set_params(backend=self.backend_, trained=tuple(training.trained)).prepare(system)
@@ -389,7 +389,7 @@ class _LearningCompiler(BaseCompiler):
                 issues.append(IssueSpec('learning-unknown-observable', training.label, str(error), fix))
         return issues
 
-    def _get_issues(self, system: CompositeSystem) -> list[IssueSpec]:
+    def _get_issues(self, system: _CompositeSystem) -> list[IssueSpec]:
         """Return the issues of a system that trains.
 
         It compiles the nested system as far as it can.
@@ -440,7 +440,7 @@ class _LearningCompiler(BaseCompiler):
             states.append(dataclasses.replace(entry, name=f'{training.system}/{name}', start=start))
             start += entry.size
         hyperparameters = {
-            name: spec for name, spec in training._get_specs().items() if isinstance(spec, ParameterSpec)
+            name: spec for name, spec in training._get_specs().items() if isinstance(spec, _ParameterSpec)
         }
         parameters = tuple(
             EntrySpec(f'{training.label}.{name}', index, (), spec.domain)

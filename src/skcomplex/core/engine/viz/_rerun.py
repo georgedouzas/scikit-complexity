@@ -19,12 +19,13 @@ import rerun.blueprint as rrb
 from rerun import bindings
 from sage.all__sagemath_symbolics import SR
 
-from ...components.elements import DeclaredElement, GroupElement
+from ...components.elements import VisualSpec
 from ...components.spaces import NetworkSpace
 from ...errors import ValidationError
-from ...specs import VisualSpec
 from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec, RenewalRecordSpec
 from ..problems._compiled_agents_spec import _CompiledAgentsSpec
+from ..problems._declared_element import _DeclaredElement
+from ..problems._group_element import _GroupElement
 from ..problems._learning_problem_spec import LearningProblemSpec
 from ..runtime import BaseObserver
 from ._agents import AgentsVisual
@@ -645,8 +646,8 @@ class RerunObserver(BaseObserver):
         An element declared from a plain element is named after the class of that element, such as `PopulationElement`.
         """
         component = element.element
-        member = component._get_member() if isinstance(component, GroupElement) else component
-        origin = member.origin if isinstance(member, DeclaredElement) else None
+        member = component._get_member() if isinstance(component, _GroupElement) else component
+        origin = member.origin if isinstance(member, _DeclaredElement) else None
         return (origin or type(member)).__name__
 
     @staticmethod

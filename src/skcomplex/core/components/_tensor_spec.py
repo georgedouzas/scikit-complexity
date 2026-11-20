@@ -12,10 +12,10 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, matrix
 from sage.structure.element import Matrix
 
+from ..base import BaseSpec
 from ..enums import SymmetryKind
 from ..errors import ValidationError
 from ..types import Array, IntArray
-from ._base_spec import BaseSpec
 
 TENSOR_DIMENSIONS = (2, 3)
 AXIS_NAMES = 'xyz'
@@ -39,7 +39,7 @@ class TensorSpec(BaseSpec):
             The symmetry is unknown or the space does not have two or three dimensions.
 
     Examples:
-        >>> from skcomplex.core.specs import TensorSpec
+        >>> from skcomplex.core.components import TensorSpec
         >>> tensor = TensorSpec('traceless', 2)
         >>> tensor.names
         ('xx', 'xy')
@@ -116,7 +116,7 @@ class TensorSpec(BaseSpec):
 
         Examples:
             >>> from sage.all__sagemath_symbolics import var
-            >>> from skcomplex.core.specs import TensorSpec
+            >>> from skcomplex.core.components import TensorSpec
             >>> TensorSpec('traceless', 2).get_matrix_of(var('a, b'))
             [ a  b]
             [ b -a]
@@ -138,7 +138,7 @@ class TensorSpec(BaseSpec):
                 The tensors on the last two axes.
 
         Examples:
-            >>> from skcomplex.core.specs import TensorSpec
+            >>> from skcomplex.core.components import TensorSpec
             >>> TensorSpec('antisymmetric', 2).get_array_of([3.0]).tolist()
             [[0.0, 3.0], [-3.0, 0.0]]
         """
@@ -167,7 +167,7 @@ class TensorSpec(BaseSpec):
                 The tensor is not symmetric.
 
         Examples:
-            >>> from skcomplex.core.specs import TensorSpec
+            >>> from skcomplex.core.components import TensorSpec
             >>> axes, orders = TensorSpec('traceless', 2).get_principal_of([0.5, 0.0])
             >>> abs(axes).round(6).tolist(), float(orders)
             ([1.0, 0.0], 1.0)
@@ -196,7 +196,7 @@ class TensorSpec(BaseSpec):
                 The value is not a matrix of the shape and the symmetry of the tensor.
 
         Examples:
-            >>> from skcomplex.core.specs import TensorSpec
+            >>> from skcomplex.core.components import TensorSpec
             >>> TensorSpec('symmetric', 2).get_components_of([[1, 2], [2, 3]]).tolist()
             [1.0, 2.0, 3.0]
         """

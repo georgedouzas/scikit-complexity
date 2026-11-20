@@ -7,9 +7,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ..base import BaseSpec
 from ..enums import DomainTag, LawTag, RandomnessTag, SpaceTag, StructureTag, TimeTag
 from ..errors import ValidationError
-from ..specs._base_spec import BaseSpec
 
 STOCHASTIC_LAWS = frozenset({LawTag.NOISE, LawTag.JUMP, LawTag.SAMPLING})
 DIFFERENTIABLE_LAWS = frozenset({LawTag.RATE, LawTag.UPDATE, LawTag.EQUATION})

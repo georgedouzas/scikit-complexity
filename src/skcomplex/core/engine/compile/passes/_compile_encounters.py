@@ -9,7 +9,6 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 
-from ....components.elements import FieldElement
 from ....components.laws import BaseLaw
 from ....components.laws.utils import coordinate
 from ....components.laws.utils._phase import COORDINATE_PREFIX
@@ -22,6 +21,7 @@ from ...enums import ReadKind
 from ...problems._bilinear_law import BilinearLaw
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._encounter_kernel import EncounterKernel
+from ...problems._field_element import _FieldElement
 from ...problems._reference_spec import ReferenceSpec
 from ...problems._table_values_spec import _TableValuesSpec
 from .._base import BaseCompiler, BasePass
@@ -65,7 +65,7 @@ class CompileEncountersPass(BasePass):
         phases = {
             entry.name: block.node.component.space
             for block in declarations.blocks.values()
-            if isinstance(block.node.component, FieldElement) and isinstance(block.node.component.space, PhaseSpace)
+            if isinstance(block.node.component, _FieldElement) and isinstance(block.node.component.space, PhaseSpace)
             for entry in block.entries.values()
         }
         return CompileEncountersPass._compile_encounters(components, declarations.time, fused=fused, phases=phases)

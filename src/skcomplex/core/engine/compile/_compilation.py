@@ -12,17 +12,10 @@ from sage.all__sagemath_symbolics import SR, Expression
 from sage.symbolic.function import SymbolicFunction
 from sage.symbolic.operators import FDerivativeOperator
 
-from ...components.laws import (
-    BaseLaw,
-    ConstraintLaw,
-    EventLaw,
-    LinearProgramLaw,
-    ObjectiveLaw,
-    RuleLaw,
-    TopologyRequestSpec,
-)
-from ...components.spaces import StaticTime
-from ...components.systems import CompositeSystem
+from ...components.laws import BaseLaw, ConstraintLaw, EventLaw, ObjectiveLaw, TopologyRequestSpec
+from ...components.laws._linear_program import _LinearProgramLaw
+from ...components.laws._rule import _RuleLaw
+from ...components.spaces._static_time import _StaticTime
 from ...enums import FormKind, VariableKind
 from ...errors import PipelineError
 from .._utils import declarations_of
@@ -30,6 +23,7 @@ from ..backends import BaseBackend
 from ..enums import ReadKind
 from ..problems import ProblemSpec
 from ..problems._block_spec import BlockSpec
+from ..problems._composite_system import _CompositeSystem
 from ..problems._declarations_spec import DeclarationsSpec
 from ..problems._delayed_state_spec import _DelayedStateSpec
 from ..problems._diffusive_limit_spec import DiffusiveLimitSpec
@@ -268,14 +262,14 @@ class Compilation:
     encounters: tuple[EncounterKernel, ...] | None = None
     transfer: TransferStateSpec | None = None
     transfer_network: TransferNetworkSpec | None = None
-    rules: list[tuple[KernelSpec, tuple[RuleLaw, ...]]] | None = None
+    rules: list[tuple[KernelSpec, tuple[_RuleLaw, ...]]] | None = None
     request_jumps: dict[int, tuple[KernelSpec, TopologyRequestSpec]] | None = None
     topology: TopologyKernel | None = None
     done: set[object] | None = None
 
     def __init__(
         self,
-        system: CompositeSystem,
+        system: _CompositeSystem,
         backend: BaseBackend | None = None,
         solver: object = None,
         owners: frozenset[str] | None = None,
@@ -433,7 +427,7 @@ class Compilation:
                 Whether the system has static time, an objective law without controls, constraint laws alone, or no
                 laws and no time.
         """
-        if isinstance(self.system.time, StaticTime):
+        if isinstance(self.system.time, _StaticTime):
             return True
         census = self.census
         if census is None:
@@ -445,7 +439,7 @@ class Compilation:
             census.records
             and self.system.time is None
             and all(
-                isinstance(record.law, LinearProgramLaw) or self._is_balance(record.law) for record in census.records
+                isinstance(record.law, _LinearProgramLaw) or self._is_balance(record.law) for record in census.records
             )
         ):
             return True

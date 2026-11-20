@@ -9,10 +9,11 @@ from types import SimpleNamespace
 from typing import ClassVar, Self
 
 from ...errors import ValidationError
-from ...specs import StateSpec, VisualSpec
+from .._state_spec import _StateSpec
 from .._tags import Tags
 from ..base import BaseComponent
 from ..spaces import BaseSpace
+from ._visual_spec import VisualSpec
 
 
 class BaseElement(BaseComponent[BaseSpace, SimpleNamespace]):
@@ -47,7 +48,7 @@ class BaseElement(BaseComponent[BaseSpace, SimpleNamespace]):
         A population with one state and one parameter. The constructor stores its arguments as given.
 
         >>> from skcomplex.core.components.elements import BaseElement
-        >>> from skcomplex.core.specs import VisualSpec
+        >>> from skcomplex.core.components.elements import VisualSpec
         >>> class PopulationElement(BaseElement):
         ...     visual = VisualSpec('line')
         ...
@@ -144,7 +145,7 @@ class BaseElement(BaseComponent[BaseSpace, SimpleNamespace]):
         """
         return replace(self._get_law_tags(self._get_declared_laws()), domains=self._get_domain_tags())
 
-    def get_states(self) -> dict[str, StateSpec]:
+    def get_states(self) -> dict[str, _StateSpec]:
         """Return the states of the element with their specs.
 
         The states are those its class declares and those it takes as data.
@@ -152,16 +153,5 @@ class BaseElement(BaseComponent[BaseSpace, SimpleNamespace]):
         Returns:
             states:
                 The spec of every state, by name.
-
-        Examples:
-            >>> from typing import Annotated
-            >>> from skcomplex.core.components.elements import Element
-            >>> from skcomplex.core.specs import StateSpec
-            >>> class TankElement(Element):
-            ...     def __init__(self, label, level: Annotated[float, StateSpec()] = 1.0):
-            ...         super().__init__(label)
-            ...         self.level = level
-            >>> list(TankElement('tank').get_states())
-            ['level']
         """
-        return {name: spec for name, spec in self._get_component_specs().items() if isinstance(spec, StateSpec)}
+        return {name: spec for name, spec in self._get_component_specs().items() if isinstance(spec, _StateSpec)}

@@ -10,8 +10,8 @@ import numpy as np
 import numpy.typing as npt
 from scipy.spatial import Delaunay, QhullError, cKDTree
 
+from ...components import EntrySpec
 from ...components.spaces import DelaunayNeighborhood, NearestNeighborhood, RadiusNeighborhood
-from ...specs import EntrySpec
 from ...types import Array, Indices
 from ..types import EdgesFound, Pairs
 from ._base import BaseSearch

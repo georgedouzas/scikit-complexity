@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from ...specs._base_spec import BaseSpec
+from ...base import BaseSpec
 
 
 @dataclass(frozen=True)

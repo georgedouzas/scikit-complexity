@@ -5,8 +5,11 @@
 
 import math
 
-from ...components.laws import BoundaryLaw, LocalRuleLaw, UpdateLaw
-from ...components.spaces import DiscreteTime, LatticeSpace, NetworkSpace
+from ...components.laws import UpdateLaw
+from ...components.laws._boundary import _BoundaryLaw
+from ...components.laws._local_rule import _LocalRuleLaw
+from ...components.spaces import LatticeSpace, NetworkSpace
+from ...components.spaces._discrete_time import _DiscreteTime
 from ...enums import FormKind, OrderKind
 from ...types import Array
 from ..backends import SupportSpec
@@ -37,9 +40,9 @@ class LatticeSolver(Solver):
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
-            time={DiscreteTime},
+            time={_DiscreteTime},
             space={LatticeSpace, NetworkSpace},
-            laws={LocalRuleLaw, UpdateLaw, BoundaryLaw},
+            laws={_LocalRuleLaw, UpdateLaw, _BoundaryLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 

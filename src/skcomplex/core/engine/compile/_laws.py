@@ -4,32 +4,29 @@
 # License: MIT
 
 
-from ...components.laws import (
-    BoundaryLaw,
-    EventLaw,
-    LinearProgramLaw,
-    LocalRuleLaw,
-    ObjectiveLaw,
-    RuleLaw,
-    SampleLaw,
-    TransferLaw,
-)
+from ...components.laws import EventLaw, ObjectiveLaw
+from ...components.laws._boundary import _BoundaryLaw
+from ...components.laws._linear_program import _LinearProgramLaw
+from ...components.laws._local_rule import _LocalRuleLaw
+from ...components.laws._rule import _RuleLaw
+from ...components.laws._sample import _SampleLaw
+from ...components.laws._transfer import _TransferLaw
 from ..problems._bilinear_law import BilinearLaw
 from ._array_update_law import ArrayUpdateLaw
 from ._flux_law import _FluxLaw
 from ._relaxation_law import RelaxationLaw
 
-FORMLESS_LAWS = (BoundaryLaw, EventLaw, BilinearLaw, _FluxLaw, LinearProgramLaw, ObjectiveLaw)
+FORMLESS_LAWS = (_BoundaryLaw, EventLaw, BilinearLaw, _FluxLaw, _LinearProgramLaw, ObjectiveLaw)
 KERNEL_FREE_LAWS = (
-    TransferLaw,
+    _TransferLaw,
     BilinearLaw,
-    LocalRuleLaw,
+    _LocalRuleLaw,
     ArrayUpdateLaw,
     RelaxationLaw,
-    SampleLaw,
+    _SampleLaw,
     _FluxLaw,
-    LinearProgramLaw,
+    _LinearProgramLaw,
     ObjectiveLaw,
 )
-LATTICE_LAWS = (LocalRuleLaw, ArrayUpdateLaw, RelaxationLaw, SampleLaw)
-AGENT_LAWS = (RuleLaw,)
+LATTICE_LAWS = (_LocalRuleLaw, ArrayUpdateLaw, RelaxationLaw, _SampleLaw)
+AGENT_LAWS = (_RuleLaw,)

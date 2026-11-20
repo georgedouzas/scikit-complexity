@@ -16,7 +16,7 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import Expression, cos, sin, sqrt
 
 from ....core.components import Observable
-from ....core.components.elements import Element
+from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import codifferential, exterior_derivative, mean
@@ -24,7 +24,6 @@ from ....core.components.spaces import BaseSpace, CellComplexSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
 from ..common.oscillators import LinkElement, PhaseOscillatorElement, PhaseRotationInteraction

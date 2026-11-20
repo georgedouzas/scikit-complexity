@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 from sage.all__sagemath_symbolics import Expression
 
-from ....core.specs import BaseSpec
+from ....core.base import BaseSpec
 
 
 @dataclass(frozen=True)

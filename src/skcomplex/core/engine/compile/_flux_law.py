@@ -7,7 +7,8 @@ from collections.abc import Sequence
 from typing import ClassVar
 
 from ...components.laws import BaseLaw, RequirementSpec
-from ...components.spaces import CellComplexSpace, ContinuousTime, LatticeSpace
+from ...components.spaces import CellComplexSpace, LatticeSpace
+from ...components.spaces._continuous_time import _ContinuousTime
 from ...components.types import Target
 
 
@@ -64,7 +65,7 @@ class _FluxLaw(BaseLaw):
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
         """Return what the law requires: continuous time on a lattice or a mesh."""
-        return RequirementSpec(time=(ContinuousTime,), space=(LatticeSpace, CellComplexSpace))
+        return RequirementSpec(time=(_ContinuousTime,), space=(LatticeSpace, CellComplexSpace))
 
     def _run(self, inputs: object) -> None:
         """Set `value_` to the flux at given values of the symbols it reads.

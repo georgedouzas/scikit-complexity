@@ -9,8 +9,8 @@ from dataclasses import dataclass, field
 import numpy as np
 import numpy.typing as npt
 
+from .....core.base import BaseSpec
 from .....core.errors import ValidationError
-from .....core.specs._base_spec import BaseSpec
 from ._compiler import QuantumCompiler
 
 

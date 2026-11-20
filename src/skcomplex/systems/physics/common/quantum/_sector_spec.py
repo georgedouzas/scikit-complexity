@@ -7,7 +7,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from types import SimpleNamespace
 
-from .....core.specs._base_spec import BaseSpec
+from .....core.base import BaseSpec
 
 
 @dataclass(frozen=True, eq=False)

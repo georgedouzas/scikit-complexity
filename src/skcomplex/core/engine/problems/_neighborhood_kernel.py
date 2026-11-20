@@ -14,6 +14,7 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import Expression
 from scipy.sparse.csgraph import connected_components
 
+from ...components import EntrySpec
 from ...components.spaces import (
     AdjacencyNeighborhood,
     BaseNeighborhood,
@@ -29,7 +30,6 @@ from ...components.spaces import (
     RadiusNeighborhood,
 )
 from ...errors import ValidationError
-from ...specs import EntrySpec, VariableSpec
 from ...types import Array, Indices
 from ..types import Pairs
 from ._base import BaseKernel
@@ -40,6 +40,7 @@ from ._metric_search import MetricSearch
 from ._pair_read_spec import _PairReadSpec
 from ._run_state_spec import RunStateSpec
 from ._static_search import StaticSearch
+from ._variable_spec import _VariableSpec
 
 SPACES_OF: tuple[tuple[type | tuple[type, ...], tuple[type, ...]], ...] = (
     (AdjacencyNeighborhood, (NetworkSpace,)),
@@ -516,7 +517,7 @@ class NeighborhoodKernel(BaseKernel):
         return None
 
     @staticmethod
-    def _get_position_state(states: Mapping[str, VariableSpec]) -> str | None:
+    def _get_position_state(states: Mapping[str, _VariableSpec]) -> str | None:
         """Return the position state of an element type.
 
         It is the first vector state with the role position or site.
@@ -532,7 +533,7 @@ class NeighborhoodKernel(BaseKernel):
         return next((name for name, item in states.items() if item.is_place), None)
 
     @staticmethod
-    def _get_axis_states(space: object, states: Mapping[str, VariableSpec]) -> tuple[str, ...] | None:
+    def _get_axis_states(space: object, states: Mapping[str, _VariableSpec]) -> tuple[str, ...] | None:
         """Return the scalar positions of the members on every axis, or `None`.
 
         A value named after an axis, such as `x` and `y` of walkers in a plane, is the position of a member along it.
@@ -557,7 +558,7 @@ class NeighborhoodKernel(BaseKernel):
     @staticmethod
     def _get_cone_direction(
         cone: RadiusNeighborhood,
-        states: Mapping[str, VariableSpec],
+        states: Mapping[str, _VariableSpec],
         n_dim: int,
         parameters: Collection[str] = (),
     ) -> str:
@@ -634,7 +635,7 @@ class NeighborhoodKernel(BaseKernel):
         space: object,
         rows: int,
         entries: Mapping[str, EntrySpec],
-        states: Mapping[str, VariableSpec],
+        states: Mapping[str, _VariableSpec],
         *,
         changing: Mapping[str | None, tuple[EntrySpec, EntrySpec, EntrySpec]] | None = None,
     ) -> NeighborSearch:

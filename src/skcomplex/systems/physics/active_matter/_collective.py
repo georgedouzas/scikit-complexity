@@ -16,14 +16,13 @@ from sage.all__sagemath_symbolics import SR, oo, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element
+from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.components.laws.utils import advection, divergence, gradient, laplacian, neighbors
 from ....core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace, RadiusNeighborhood
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver, RK4Solver
-from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
 from ...general.elements import PointElement

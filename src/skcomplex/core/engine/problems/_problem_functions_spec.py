@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
-from ...specs._base_spec import BaseSpec
+from ...base import BaseSpec
 from ...types import Array, VectorFunction
 from ._accelerated_spec import _AcceleratedSpec
 from ._draw_kernel import DrawKernel

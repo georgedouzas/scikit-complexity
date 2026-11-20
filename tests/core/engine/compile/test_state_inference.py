@@ -16,9 +16,10 @@ from scipy.special import ive
 from shapely import box
 
 from skcomplex.core.analysis import alignment, displacement
+from skcomplex.core.base import BaseSpec
 from skcomplex.core.components import Observable
 from skcomplex.core.components.base import BaseComponent
-from skcomplex.core.components.elements import Element, FieldElement, Member, Period, Quantity
+from skcomplex.core.components.elements import Element, FieldElement, Member, Period, Quantity, VisualSpec
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import (
     ConstraintLaw,
@@ -52,7 +53,7 @@ from skcomplex.core.engine.compile._state_inference import _StateInference
 from skcomplex.core.engine.runtime import ConservationObserver, simulate
 from skcomplex.core.engine.solvers import AgentView, ETDRK4Solver, IMEXEulerSolver, RK4Solver, SSPRKSolver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import BaseSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec
 from skcomplex.core.systems import System
 from skcomplex.core.types import Role
 from skcomplex.systems.mathematics.networks import TriadicPercolationSystem

@@ -19,14 +19,13 @@ from sage.all__sagemath_symbolics import SR, Expression, cos, oo, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element
+from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.spaces import BaseSpace, ContinuousSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver, Yoshida4Solver
 from ....core.errors import ValidationError
-from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
 from ...physics.common.mechanics import HamiltonianInteraction

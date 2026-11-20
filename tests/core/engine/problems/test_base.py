@@ -3,6 +3,7 @@
 import enum
 import inspect
 
+from skcomplex.core.base import BaseSpec
 from skcomplex.core.engine import problems as package
 from skcomplex.core.engine.problems import (
     BaseKernel,
@@ -12,7 +13,6 @@ from skcomplex.core.engine.problems import (
     BaseSearch,
 )
 from skcomplex.core.engine.problems._source_loader import SourceLoader
-from skcomplex.core.specs import BaseSpec
 
 BASES = (BaseSpec, BaseKernel, BaseSearch, BasePrinter, SourceLoader)
 

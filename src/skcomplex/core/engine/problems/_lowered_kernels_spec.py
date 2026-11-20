@@ -8,9 +8,9 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 
+from ...base import BaseSpec
 from ...components.laws import BaseLaw
 from ...enums import FormKind
-from ...specs._base_spec import BaseSpec
 from ._draw_kernel import DrawKernel
 from ._kernel_spec import KernelSpec
 from ._law_kernel import LawKernel

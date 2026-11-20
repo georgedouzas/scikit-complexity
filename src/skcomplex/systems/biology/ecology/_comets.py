@@ -12,14 +12,13 @@ from dataclasses import replace
 import numpy as np
 
 from ....core.components import Observable
-from ....core.components.elements import Element
+from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, IMEXEulerSolver
-from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ..common.metabolism import (
     BiomassElement,

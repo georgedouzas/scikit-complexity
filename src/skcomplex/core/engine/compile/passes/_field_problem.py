@@ -8,9 +8,9 @@ from dataclasses import replace
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ....components import Observable
-from ....components.elements import FieldElement
 from ....errors import PipelineError
 from ...problems import LayoutSpec
+from ...problems._field_element import _FieldElement
 from ...problems._kernel_spec import KernelSpec
 from ...problems._law_kernel import LawKernel
 from ...problems._output_spec import OutputSpec
@@ -67,7 +67,7 @@ class FieldProblemPass(BasePass):
         specs = {
             spec.owner: spec
             for spec, block in Compilation._get_required(compilation.specs, 'specs')
-            if spec.owner == block.node.path and isinstance(block.node.component, FieldElement)
+            if spec.owner == block.node.path and isinstance(block.node.component, _FieldElement)
         }
         kernels = {}
         for scope, observable in BaseCompiler._get_observables_of(compilation.system):

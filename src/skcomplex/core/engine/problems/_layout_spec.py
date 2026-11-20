@@ -11,8 +11,8 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import RR
 
-from ...specs._base_spec import BaseSpec
-from ...specs._entry_spec import EntrySpec
+from ...base import BaseSpec
+from ...components import EntrySpec
 from ...types import Array, ComplexArray
 
 DERIVATIVE = re.compile(r"^(?P<base>.*?)(?P<primes>'+)(?P<index>\[[\w, ]+\])?$")
@@ -30,7 +30,7 @@ class LayoutSpec(BaseSpec):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.specs import EntrySpec
+        >>> from skcomplex.core.components import EntrySpec
         >>> from skcomplex.core.engine.problems import LayoutSpec
         >>> from sage.all__sagemath_symbolics import CC, RR
         >>> layout = LayoutSpec((EntrySpec('a.n', 0, (), RR), EntrySpec('b.x', 1, (2,), RR)))
@@ -137,7 +137,7 @@ class LayoutSpec(BaseSpec):
                 The name is neither a variable nor a component of the layout.
 
         Examples:
-            >>> from skcomplex.core.specs import EntrySpec
+            >>> from skcomplex.core.components import EntrySpec
             >>> from skcomplex.core.engine.problems import LayoutSpec
             >>> from sage.all__sagemath_symbolics import CC, RR
             >>> layout = LayoutSpec((EntrySpec('a.n', 0, (), RR), EntrySpec('b.w', 1, (3,), RR)))

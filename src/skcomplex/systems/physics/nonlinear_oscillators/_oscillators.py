@@ -14,7 +14,7 @@ from sage.all__sagemath_symbolics import SR, Expression, cos, exp, oo, sin, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element
+from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import EventLaw, RateLaw
 from ....core.components.laws.utils import periodic_guard
@@ -22,7 +22,6 @@ from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, ScipyODESolver, Yoshida4Solver
 from ....core.errors import ParameterError
-from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
 from ...general.dynamics import DynamicalSystem

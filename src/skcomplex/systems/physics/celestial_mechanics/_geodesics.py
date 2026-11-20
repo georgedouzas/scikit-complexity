@@ -18,11 +18,10 @@ from sage.all__sagemath_symbolics import QQ, SR, Expression, cos, matrix, sin
 from sage.structure.element import Matrix
 
 from ....core.components import Observable
-from ....core.components.elements import Element
+from ....core.components.elements import Element, VisualSpec
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, ScipyODESolver
 from ....core.errors import ValidationError
-from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ..common.relativity import GeodesicInteraction, SpacetimeSpace
 

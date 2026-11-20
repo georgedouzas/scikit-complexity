@@ -4,8 +4,9 @@
 # License: MIT
 
 
-from ...components.laws import SampleLaw
-from ...components.spaces import DiscreteTime, LatticeSpace, NetworkSpace
+from ...components.laws._sample import _SampleLaw
+from ...components.spaces import LatticeSpace, NetworkSpace
+from ...components.spaces._discrete_time import _DiscreteTime
 from ...enums import FormKind, OrderKind
 from ..backends import SupportSpec
 from ._lattice import LatticeSolver
@@ -30,9 +31,9 @@ class MonteCarloSolver(LatticeSolver):
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
-            time={DiscreteTime},
+            time={_DiscreteTime},
             space={LatticeSpace, NetworkSpace},
-            laws={SampleLaw},
+            laws={_SampleLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 

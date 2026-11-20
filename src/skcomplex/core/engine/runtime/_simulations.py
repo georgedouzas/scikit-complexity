@@ -16,13 +16,10 @@ from sage.sets.real_set import RealSet
 from sklearn.base import clone
 
 from ...base import BaseConfig
-from ...components import Observable
-from ...components.elements import GroupElement
+from ...components import EntrySpec, Observable
 from ...components.laws import JumpLaw, NoiseLaw, ObjectiveLaw, RateLaw, UpdateLaw
-from ...components.systems import CompositeSystem
 from ...enums import FormKind
 from ...errors import CapacityError, ParameterError, SimulationError, SolverError, ValidationError
-from ...specs import EntrySpec
 from ...types import Array
 from .. import solvers
 from ..backends import BaseBackend
@@ -30,7 +27,9 @@ from ..compile import BaseCompiler
 from ..compile._observables import ObservableEvaluator
 from ..compile._pass_compiler import PassCompiler
 from ..problems import BaseProblemSpec, FrameSpec, LayoutSpec, ProblemSpec, RunStateSpec
+from ..problems._composite_system import _CompositeSystem
 from ..problems._draw_recorder import DrawRecorder
+from ..problems._group_element import _GroupElement
 from ..solvers import (
     BaseSolver,
     CollocationSolver,
@@ -175,23 +174,11 @@ class Simulation(BaseConfig[None, float]):
 
         draw_recorder_:
             The recorder of the draws of a run that records or replays them, or `None`.
-
-    Examples:
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.systems.biology.common.populations import LogisticGrowthInteraction, PopulationElement
-        >>> from skcomplex.core.engine.runtime._simulations import Simulation
-        >>> system = CompositeSystem(
-        ...     elements=[PopulationElement('rabbits', x=10)],
-        ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
-        ... )
-        >>> simulation = Simulation(system, dt=1.0).prepare().run(until=20)
-        >>> round(simulation.trajectory_.get_values('rabbits.x')[-1])
-        100
     """
 
     def __init__(
         self,
-        system: CompositeSystem | BaseProblemSpec,
+        system: _CompositeSystem | BaseProblemSpec,
         *,
         compiler: BaseCompiler | None = None,
         solver: BaseSolver | None = None,
@@ -271,7 +258,7 @@ class Simulation(BaseConfig[None, float]):
                 The system is not a system or a compiled problem, such as a system name, or it cannot be compiled or
                 run, with every problem found.
         """
-        if not isinstance(self.system, CompositeSystem | BaseProblemSpec):
+        if not isinstance(self.system, _CompositeSystem | BaseProblemSpec):
             error_msg = (
                 f'A simulation takes a system or a compiled problem, not {self.system!r}. Create a system of the '
                 'library from its class, such as `SIRSystem()`.'
@@ -472,7 +459,7 @@ class Simulation(BaseConfig[None, float]):
         self.stepper_.rng_.bit_generator.state = stream
         self.stepper_.draw_recorder_ = self.draw_recorder_
 
-    def _get_grown(self, system: CompositeSystem, error: CapacityError, scope: str = '') -> CompositeSystem | None:
+    def _get_grown(self, system: _CompositeSystem, error: CapacityError, scope: str = '') -> _CompositeSystem | None:
         """Return a copy of a system tree whose full group has twice its rows, or `None`.
 
         A group the user gave a `capacity` keeps it, so the result is `None`, as it is for a group not in the tree.
@@ -481,7 +468,7 @@ class Simulation(BaseConfig[None, float]):
         for element in system.elements:
             if f'{scope}{element.label}' != error.path:
                 continue
-            if not isinstance(element, GroupElement) or (element.capacity is not None and error.path not in grown):
+            if not isinstance(element, _GroupElement) or (element.capacity is not None and error.path not in grown):
                 return None
             grown.add(error.path)
             larger = copy.copy(element).set_params(capacity=max(2 * error.rows, 1))
@@ -489,7 +476,7 @@ class Simulation(BaseConfig[None, float]):
             return copy.copy(system).set_params(elements=elements)
         for nested in system.systems:
             within = f'{scope}{nested.label}/'
-            if isinstance(nested, CompositeSystem) and error.path.startswith(within):
+            if isinstance(nested, _CompositeSystem) and error.path.startswith(within):
                 larger_system = self._get_grown(nested, error, within)
                 if larger_system is None:
                     return None
@@ -597,14 +584,14 @@ class Simulation(BaseConfig[None, float]):
         """
         if self.compiler is not None:
             compiler = clone(self.compiler)
-        elif isinstance(self.system, CompositeSystem):
+        elif isinstance(self.system, _CompositeSystem):
             compiler = self._get_default_compiler(self.system) or PassCompiler()
         else:
             compiler = PassCompiler()
         return compiler.set_params(backend=self.backend, solver=self.solver, observables=self.observables)
 
     @staticmethod
-    def _get_default_compiler(system: CompositeSystem) -> BaseCompiler | None:
+    def _get_default_compiler(system: _CompositeSystem) -> BaseCompiler | None:
         """Return the compiler of the library's form that a system holds.
 
         It returns `None` for the pass compiler.
@@ -630,7 +617,7 @@ class Simulation(BaseConfig[None, float]):
         return None
 
     @staticmethod
-    def _get_named_compiler(system: CompositeSystem) -> object:
+    def _get_named_compiler(system: _CompositeSystem) -> object:
         """Return the compiler the first element of a system tree names, or `None`.
 
         The children of a system with elements of its own are not searched, so a nested system of words beside them is
@@ -641,7 +628,7 @@ class Simulation(BaseConfig[None, float]):
             if named is not None:
                 return named
         for child in [] if system.elements else system.systems:
-            if isinstance(child, CompositeSystem):
+            if isinstance(child, _CompositeSystem):
                 named = Simulation._get_named_compiler(child)
                 if named is not None:
                     return named
@@ -667,7 +654,7 @@ class Simulation(BaseConfig[None, float]):
     def _get_solver_advice(self, compiler: BaseCompiler) -> str:
         """Return the problem the laws of the system make and the solvers that support it."""
         census = getattr(getattr(compiler, 'compilation_', None), 'census', None)
-        if census is None or not isinstance(self.system, CompositeSystem):
+        if census is None or not isinstance(self.system, _CompositeSystem):
             return ''
         needs = PassCompiler._get_needs(census, self.system)
         laws = [item for item in needs['laws'] if isinstance(item, type)]
@@ -786,22 +773,6 @@ class Simulation(BaseConfig[None, float]):
         Raises:
             SimulationError:
                 The simulation has not run, ended at a terminal event, or `until` is not later than its time.
-
-        Examples:
-            >>> from skcomplex.core.components.systems import CompositeSystem
-            >>> from skcomplex.systems.biology.common.populations import LogisticGrowthInteraction, PopulationElement
-            >>> from skcomplex.core.engine.runtime._simulations import Simulation
-            >>> system = CompositeSystem(
-            ...     elements=[PopulationElement('rabbits', x=10)],
-            ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
-            ... )
-            >>> schedule = {'growth.r': lambda t: 1.0 if t < 5 else 0.0}
-            >>> simulation = Simulation(system, dt=1.0, schedule=schedule).prepare().run(until=5)
-            >>> trajectory = simulation.extend(until=10).trajectory_
-            >>> trajectory.times.tolist()
-            [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]
-            >>> bool(trajectory.get_values('rabbits.x')[5] == trajectory.get_values('rabbits.x')[10])
-            True
         """
         self._check_prepared()
         if not hasattr(self, 'time_'):

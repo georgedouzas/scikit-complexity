@@ -11,6 +11,7 @@ import pytest
 from sage.all__sagemath_symbolics import SR, oo, sqrt
 from sage.sets.real_set import RealSet
 
+from skcomplex.core.base import BaseSpec
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import CallSpec, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
@@ -36,7 +37,6 @@ from skcomplex.core.engine.solvers import (
 )
 from skcomplex.core.enums import FormKind, OrderKind
 from skcomplex.core.errors import BackendWarning, SolverError
-from skcomplex.core.specs import BaseSpec
 from skcomplex.core.systems import BaseSystem, System
 from skcomplex.core.types import Role
 from skcomplex.systems.biology.common.populations import PopulationElement

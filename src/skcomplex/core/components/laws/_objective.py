@@ -9,7 +9,8 @@ from typing import ClassVar
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ...errors import ValidationError
-from ..spaces import ContinuousTime, StaticTime
+from ..spaces._continuous_time import _ContinuousTime
+from ..spaces._static_time import _StaticTime
 from ._base import BaseLaw
 from ._requirement_spec import RequirementSpec
 
@@ -137,12 +138,12 @@ class ObjectiveLaw(BaseLaw):
 
     def _get_law_requirements(self) -> RequirementSpec:
         """Return the time the law needs, continuous with controls and static otherwise."""
-        return RequirementSpec(time=(ContinuousTime,)) if self.controls is not None else self._get_requirements()
+        return RequirementSpec(time=(_ContinuousTime,)) if self.controls is not None else self._get_requirements()
 
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
         """Return what the law requires of a system: static time."""
-        return RequirementSpec(time=(StaticTime,))
+        return RequirementSpec(time=(_StaticTime,))
 
     def _prepare(self, context: str | None = None) -> None:
         """Raise an error for an objective that is no expression or varies no state.

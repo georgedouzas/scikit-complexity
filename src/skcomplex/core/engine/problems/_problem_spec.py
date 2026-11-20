@@ -15,7 +15,6 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ...components.laws import BaseLaw
 from ...errors import ValidationError
-from ...specs._variable_spec import VariableSpec
 from ...types import Array, Indices, VectorFunction
 from ._accelerated_spec import _AcceleratedSpec
 from ._base import BaseKernel
@@ -37,6 +36,7 @@ from ._neighborhood_kernel import NeighborhoodKernel
 from ._partition_spec import PartitionSpec
 from ._random_stream import RandomStream
 from ._reduction_kernel import ReductionKernel
+from ._variable_spec import _VariableSpec
 from ._wiener_block_spec import _WienerBlockSpec
 
 
@@ -307,7 +307,7 @@ class ProblemSpec(BaseProblemSpec):
         return tuple(partition.problem for partition in self.partitions)
 
     @property
-    def adaptive_parameters(self) -> dict[str, VariableSpec]:
+    def adaptive_parameters(self) -> dict[str, _VariableSpec]:
         """Declarations of the adaptive parameters of the elements and groups.
 
         They are keyed by dotted state name.

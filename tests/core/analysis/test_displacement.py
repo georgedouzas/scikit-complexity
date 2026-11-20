@@ -10,13 +10,12 @@ import pytest
 from sage.all__sagemath_symbolics import NN
 
 from skcomplex.core.analysis import DisplacementResult, displacement
-from skcomplex.core.components.elements import Element
+from skcomplex.core.components.elements import Element, VisualSpec
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace
 from skcomplex.core.engine.solvers import AgentView, SystemView
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.specs import VisualSpec
 from skcomplex.core.systems import System
 from skcomplex.systems.biology.evolution import ReplicatorDynamicsSystem
 

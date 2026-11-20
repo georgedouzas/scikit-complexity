@@ -13,7 +13,8 @@ import scipy.sparse
 from jax.scipy.special import logsumexp
 
 from ...components.laws import ConstraintLaw, RateLaw, UpdateLaw
-from ...components.spaces import ContinuousTime, DiscreteTime
+from ...components.spaces._continuous_time import _ContinuousTime
+from ...components.spaces._discrete_time import _DiscreteTime
 from ...enums import FormKind, OrderKind
 from ...errors import BackendError, ValidationError
 from ...types import Array
@@ -266,7 +267,7 @@ class JaxBackend(BaseBackend):
     def _get_support(cls) -> SupportSpec:
         """Return the times, laws, and orders the backend writes functions of."""
         return SupportSpec(
-            time={ContinuousTime, DiscreteTime},
+            time={_ContinuousTime, _DiscreteTime},
             space={None},
             laws={ConstraintLaw, RateLaw, UpdateLaw},
             noise=frozenset(),

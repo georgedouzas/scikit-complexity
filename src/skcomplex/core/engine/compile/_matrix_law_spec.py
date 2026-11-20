@@ -6,7 +6,7 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from ...specs._base_spec import BaseSpec
+from ...base import BaseSpec
 
 RANDOM_FIELDS = ('value', 'rate', 'changes', 'lhs', 'rhs', 'guard', 'reset', 'waiting')
 

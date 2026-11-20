@@ -72,7 +72,7 @@ This section describes each component of a training run and the options it takes
   symbolic laws, so it runs, is analysed, and is visualised alone, before or after training. The trained system of a
   frame is the nested system with the recorded values set through `set_params`. A system with noise, jumps, rules, or
   laws given as Python callables reports `learning-not-differentiable`.
-- **The data.** `DatasetSpec(values, weights=None, times=None)`, of `skcomplex.core.specs`, maps dotted parameter
+- **The data.** `DatasetSpec(values, weights=None, times=None)`, of `skcomplex.core.components.laws`, maps dotted parameter
   paths of the inner system, its inputs and targets, to arrays of shape `(sequences, steps)` followed by the shape of
   the parameter. At inner step `k`, every parameter takes its value at step `k` before the laws of the step are
   evaluated, as a schedule sets a parameter, and the loss reads the states that the step gives. Every sequence starts

@@ -19,13 +19,14 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, cos, oo
 from sage.sets.real_set import RealSet
 
+from .....core.base import BaseSpec
+from .....core.components import MatrixGroupSpec
 from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
 from .....core.components.laws import ObjectiveLaw, UpdateLaw
 from .....core.components.laws.utils import exterior_derivative, neighbors
 from .....core.components.spaces import BaseSpace, CellComplexSpace, CofaceNeighborhood
 from .....core.errors import ValidationError
-from .....core.specs import BaseSpec, MatrixGroupSpec
 from .....core.types import Array, ComplexArray, Indices, Role
 
 HOLONOMY_MOVES = ('rotate', 'random-value')
@@ -60,7 +61,7 @@ class HolonomyScoreSpec(BaseSpec):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.specs import MatrixGroupSpec
+        >>> from skcomplex.core.components import MatrixGroupSpec
         >>> from skcomplex.systems.physics.common.fields import HolonomyScoreSpec
         >>> trace = lambda holonomies: -np.trace(holonomies, axis1=-2, axis2=-1).real
         >>> HolonomyScoreSpec(trace, MatrixGroupSpec('SU', 2), hits=4).hits
@@ -139,7 +140,7 @@ class WilsonSamplingInteraction(Interaction):
         >>> from skcomplex.systems.physics.common.fields import WilsonSamplingInteraction
         >>> WilsonSamplingInteraction('wilson', target='links', beta=2.0).beta
         2.0
-        >>> from skcomplex.core.specs import MatrixGroupSpec
+        >>> from skcomplex.core.components import MatrixGroupSpec
         >>> color = WilsonSamplingInteraction('wilson', target='links', state='U', group=MatrixGroupSpec('SU', 3))
         >>> color.group.degree
         3

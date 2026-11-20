@@ -9,9 +9,9 @@ from collections.abc import Iterable
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 
+from ...base import BaseSpec
 from ...components import Tags
 from ...enums import NoiseKind, OrderKind
-from ...specs._base_spec import BaseSpec
 
 
 @dataclass(frozen=True)

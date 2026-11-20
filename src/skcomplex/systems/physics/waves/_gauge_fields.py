@@ -18,7 +18,7 @@ import scipy.sparse
 import scipy.sparse.linalg
 
 from ....core.components import Observable
-from ....core.components.elements import Element, Period
+from ....core.components.elements import Element, Period, VisualSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import codifferential, exterior_derivative
@@ -27,7 +27,6 @@ from ....core.engine.backends import BaseBackend
 from ....core.engine.runtime import BaseClock, BaseObserver, Trajectory
 from ....core.engine.solvers import BaseSolver, MetropolisSolver, VelocityVerletSolver
 from ....core.errors import ValidationError
-from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
 from ..common.fields import WilsonSamplingInteraction

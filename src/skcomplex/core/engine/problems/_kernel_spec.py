@@ -11,10 +11,10 @@ from types import SimpleNamespace
 
 from sage.all__sagemath_symbolics import Expression
 
-from ...components.elements import FieldElement
+from ...base import BaseSpec
 from ...errors import ValidationError
-from ...specs._base_spec import BaseSpec
 from ...types import Indices
+from ._field_element import _FieldElement
 from ._problem_spec import ProblemSpec
 from ._reference_spec import PairsSearch, ReferenceSpec
 from ._set_symbol_spec import SetSymbolSpec
@@ -95,7 +95,7 @@ class KernelSpec(BaseSpec):
     hyperedge: str | None = None
     reduce: str | None = None
     counts: Indices | None = field(default=None, compare=False, repr=False)
-    place: FieldElement | None = field(default=None, compare=False, repr=False)
+    place: _FieldElement | None = field(default=None, compare=False, repr=False)
 
     def _get_target_references(self, target: object) -> list[ReferenceSpec]:
         """Return the references of the state components a law targets."""
