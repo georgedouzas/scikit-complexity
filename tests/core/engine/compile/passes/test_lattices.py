@@ -189,7 +189,9 @@ def test_neighbor_sum_ignores_padding():
     xy = Element('xy', values={'theta': angles, 'J': 1.3}, space=NetworkSpace(graph))
     solver = MetropolisSolver(moves={'xy.theta': 'rotate'}, schedule='colored', neighborhood=AdjacencyNeighborhood())
     system = System(
-        elements=[xy], interactions=[Interaction('energy', roles={'target': 'xy'}, laws=laws)], solver=solver,
+        elements=[xy],
+        interactions=[Interaction('energy', roles={'target': 'xy'}, laws=laws)],
+        solver=solver,
     )
     (sampling,) = system.prepare()._problem.lattice
     proposal = angles + np.random.default_rng(1).uniform(-1, 1, 5)
@@ -235,7 +237,9 @@ def _hexagonal_spins(space):
     spins = Element('spins', values={'spin': 1.0, 'temperature': 2.0}, space=space)
     solver = MetropolisSolver(moves={'spins.spin': 'flip'}, schedule='colored', neighborhood=hexagonal)
     return System(
-        elements=[spins], interactions=[Interaction('ising', roles={'target': 'spins'}, laws=laws)], solver=solver,
+        elements=[spins],
+        interactions=[Interaction('ising', roles={'target': 'spins'}, laws=laws)],
+        solver=solver,
     )
 
 
