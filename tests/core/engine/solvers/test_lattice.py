@@ -1,19 +1,15 @@
 """Test the `LatticeSolver` class."""
 
-from typing import Annotated
-
 import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import ZZ, var
+from sage.all__sagemath_symbolics import var
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import (
     ArrayUpdateLaw,
-    MoveSpec,
-    ObjectiveSpec,
+    ObjectiveLaw,
     OuterTotalisticSpec,
-    SampleLaw,
     SamplerSpec,
     TableSpec,
     TotalisticSpec,
@@ -25,11 +21,9 @@ from skcomplex.core.components.spaces import (
     LatticeSpace,
     RadiusNeighborhood,
 )
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.solvers import MetropolisSolver
 from skcomplex.core.errors import SolverError, ValidationError
-from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.core.systems import System
 from skcomplex.systems.computer_science.automata import ElementaryAutomatonSystem, GameOfLifeSystem
 from skcomplex.systems.physics.criticality import ForestFireSystem
@@ -284,35 +278,20 @@ def test_monte_carlo_energy_change_is_symbolic():
     """Test that a flip move of an Ising energy changes the energy by `2 J s sum(neighbours)`."""
     nearest = LatticeNeighborhood(((-1, 0), (0, -1), (0, 1), (1, 0)))
 
-    class SpinElement(Element):
-        """Spin element."""
+    def laws(s):
+        """Return the Ising energy of a spin over the temperature."""
+        spin = s.target.spin
+        energy = -s.target.J * spin * sum(neighbors(spin, nearest, reduce='each'))
+        return [ObjectiveLaw(energy / s.target.T, spin)]
 
-        def __init__(
-            self,
-            label: str,
-            *,
-            spin: Annotated[object, StateSpec(domain=ZZ)] = 1.0,
-            J: Annotated[object, ParameterSpec()] = 1.0,
-            intensity: Annotated[object, ParameterSpec()] = 1.0,
-        ) -> None:
-            super().__init__(label)
-            self.spin = spin
-            self.J = J
-            self.intensity = intensity
-
-        def _get_laws(self, s):
-            """Return the laws of the spin element."""
-            return [
-                SampleLaw(
-                    ObjectiveSpec(-s.J * s.spin * sum(neighbors(s.spin, nearest, reduce='each')), nearest),
-                    MoveSpec(s.spin),
-                ),
-            ]
-
-    system = CompositeSystem(
-        elements=[GroupElement('spins', element=SpinElement, space=LatticeSpace((4, 4)), on='sites')],
+    spins = Element('spins', values={'spin': 1, 'J': 1.0, 'T': 1.0}, space=LatticeSpace((4, 4)))
+    solver = MetropolisSolver(moves={'spins.spin': 'flip'})
+    system = System(
+        elements=[spins],
+        interactions=[Interaction('ising', roles={'target': 'spins'}, laws=laws)],
+        solver=solver,
     )
-    problem = PassCompiler().prepare(system).run().problem_
+    problem = system.prepare()._problem
     sampling = problem.lattice[0]
     change = sampling.delta(0.0, np.ones(3), *np.ones((4, 3)), -np.ones(3), 1.0, 1.0)[0]
     assert np.allclose(change, 8.0)
