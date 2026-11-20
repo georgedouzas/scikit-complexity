@@ -6,12 +6,11 @@ import numpy as np
 import pytest
 from scipy.special import iv
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.spaces import CellComplexSpace, DiscreteTime, LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.spaces import BaseSpace, CellComplexSpace, LatticeSpace
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import MatrixGroupSpec, ParameterSpec, StateSpec
+from skcomplex.core.specs import MatrixGroupSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.physics.common.fields import HolonomyScoreSpec, WilsonSamplingInteraction
 
 ISOSPIN = MatrixGroupSpec('SU', 2)
@@ -39,31 +38,35 @@ def test_holonomy_score_rejects_what_it_cannot_run(arguments, match):
 
 
 class IsospinLinkElement(Element):
-    """Link with a matrix of SU(2) and a coupling `beta`."""
+    """Links with a matrix of SU(2) each and a coupling `beta`."""
 
     def __init__(
         self,
         label: str,
         *,
-        U: Annotated[object, StateSpec(group=ISOSPIN)] = tuple(ISOSPIN.identity),
-        beta: Annotated[float, ParameterSpec()] = 2.0,
+        U: Annotated[object, ISOSPIN] = tuple(ISOSPIN.identity),
+        beta: float = 2.0,
+        space: BaseSpace | None = None,
+        on: str | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space, on=on)
         self.U = U
         self.beta = beta
 
 
 class ColorLinkElement(Element):
-    """Link with a matrix of SU(3) and a coupling `beta`."""
+    """Links with a matrix of SU(3) each and a coupling `beta`."""
 
     def __init__(
         self,
         label: str,
         *,
-        U: Annotated[object, StateSpec(group=COLOR)] = tuple(COLOR.identity),
-        beta: Annotated[float, ParameterSpec()] = 4.0,
+        U: Annotated[object, COLOR] = tuple(COLOR.identity),
+        beta: float = 4.0,
+        space: BaseSpace | None = None,
+        on: str | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space, on=on)
         self.U = U
         self.beta = beta
 
@@ -77,8 +80,8 @@ def _matrix_system(shape, group, sampling, seed=0, element=IsospinLinkElement, *
     """Return a system of matrix links of a lattice complex from random links, sampled by an interaction."""
     space = CellComplexSpace(LatticeSpace(shape)).prepare()
     initial = group.get_components_of(group.get_uniform_of(np.random.default_rng(seed), space.incidences_[0].shape[0]))
-    links = GroupElement('links', element=element, space=space, on='edges', values={'U': initial, 'beta': beta})
-    return space, CompositeSystem(elements=[links], interactions=[sampling], time=DiscreteTime())
+    links = element('links', U=initial, beta=beta, space=space, on='edges')
+    return space, System(elements=[links], interactions=[sampling]).prepare()
 
 
 def _matrix_sampling(group, **arguments):
@@ -99,7 +102,7 @@ def _plaquettes(space, group, values):
 def test_two_dimensional_su2_reproduces_the_exact_plaquette():
     """Test that the mean SU(2) plaquette at `beta = 2` is `I_2(2) / I_1(2)` to 0.01."""
     space, system = _matrix_system((16, 16), ISOSPIN, _matrix_sampling(ISOSPIN, beta=2.0), beta=2.0)
-    values = simulate(system, until=400, random_state=3).get_values('links.U')
+    values = system.simulate(until=400, random_state=3).get_values('links.U')
     assert abs(_plaquettes(space, ISOSPIN, values)[101:].mean() - iv(2, 2) / iv(1, 2)) < 0.01
 
 
@@ -114,7 +117,7 @@ def test_two_dimensional_su3_reproduces_the_one_plaquette_integral():
     exact = (weights * traces).sum() / weights.sum()
     sampling = _matrix_sampling(COLOR)
     space, system = _matrix_system((12, 12), COLOR, sampling, element=ColorLinkElement)
-    values = simulate(system, until=300, random_state=4).get_values('links.U')
+    values = system.simulate(until=300, random_state=4).get_values('links.U')
     assert abs(_plaquettes(space, COLOR, values)[101:].mean() - exact) < 0.01
 
 
@@ -122,7 +125,7 @@ def test_two_dimensional_su3_reproduces_the_one_plaquette_integral():
 def test_matrix_links_stay_in_the_group(schedule):
     """Test that SU(3) links stay unitary of unit determinant within 1e-12 after 20 sweeps."""
     _, system = _matrix_system((4, 4), COLOR, _matrix_sampling(COLOR, schedule=schedule), element=ColorLinkElement)
-    values = simulate(system, until=20, random_state=0).get_values('links.U')
+    values = system.simulate(until=20, random_state=0).get_values('links.U')
     matrices = COLOR.get_matrices_of(values[-1])
     assert np.abs(matrices @ np.conj(np.swapaxes(matrices, -1, -2)) - np.eye(3)).max() < 1e-12
     assert np.abs(np.linalg.det(matrices) - 1.0).max() < 1e-12
@@ -132,7 +135,7 @@ def test_huge_inverse_coupling_never_raises_the_action_of_matrix_links():
     """Test that at a huge inverse coupling the total plaquette never falls, since links of a class share no face."""
     sampling = _matrix_sampling(ISOSPIN, beta=1e12, move='random-value', hits=1)
     space, system = _matrix_system((5, 4), ISOSPIN, sampling, beta=1e12)
-    values = simulate(system, until=10, random_state=1).get_values('links.U')
+    values = system.simulate(until=10, random_state=1).get_values('links.U')
     plaquettes = _plaquettes(space, ISOSPIN, values)
     assert np.all(np.diff(plaquettes) >= -1e-12)
     assert plaquettes[-1] > plaquettes[0]
@@ -147,7 +150,7 @@ def test_matrix_sampling_is_reproducible_with_a_seed_and_takes_function_moves():
     runs = []
     for seed in (5, 5, 6):
         _, system = _matrix_system((4, 4), ISOSPIN, _matrix_sampling(ISOSPIN, move=move, rule='glauber'))
-        runs.append(simulate(system, until=5, random_state=seed).get_values('links.U'))
+        runs.append(system.simulate(until=5, random_state=seed).get_values('links.U'))
     assert np.array_equal(runs[0], runs[1])
     assert not np.array_equal(runs[0], runs[2])
 
@@ -168,7 +171,8 @@ def test_holonomy_score_rejects_moves_rules_and_schedules_of_scalars(arguments, 
 
 def test_holonomy_score_needs_a_group_on_the_edges_of_a_cell_complex():
     """Test that a matrix state on the sites of a lattice raises an error at the first sweep."""
-    sites = GroupElement('links', element=IsospinLinkElement, space=LatticeSpace((4, 4)), on='sites')
-    system = CompositeSystem(elements=[sites], interactions=[_matrix_sampling(ISOSPIN)], time=DiscreteTime())
+    identity = np.tile(ISOSPIN.identity, (16, 1))
+    sites = IsospinLinkElement('links', U=identity, space=LatticeSpace((4, 4)))
+    system = System(elements=[sites], interactions=[_matrix_sampling(ISOSPIN)])
     with pytest.raises(ValidationError, match='edges of a CellComplexSpace'):
-        simulate(system, until=1, random_state=0)
+        system.prepare().simulate(until=1, random_state=0)
