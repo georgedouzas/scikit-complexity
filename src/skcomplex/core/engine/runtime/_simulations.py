@@ -631,12 +631,16 @@ class Simulation(BaseConfig[None, float]):
 
     @staticmethod
     def _get_named_compiler(system: CompositeSystem) -> object:
-        """Return the compiler the first element of a system tree names, or `None`."""
+        """Return the compiler the first element of a system tree names, or `None`.
+
+        The children of a system with elements of its own are not searched, so a nested system of words beside them is
+        compiled by the pass compiler as a partition of its own.
+        """
         for element in system.elements:
             named = element._get_compiler()
             if named is not None:
                 return named
-        for child in system.systems:
+        for child in [] if system.elements else system.systems:
             if isinstance(child, CompositeSystem):
                 named = Simulation._get_named_compiler(child)
                 if named is not None:
