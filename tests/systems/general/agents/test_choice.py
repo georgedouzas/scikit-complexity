@@ -127,7 +127,7 @@ def test_choice_interaction_agent_logit_reaches_mean_field():
         options=(-1, 1),
         utility=_agent_field,
         intensity=2.0,
-        form='agent',
+        schedule='synchronous',
     )
     initial = np.where(np.random.default_rng(0).random(400) < 0.7, 1.0, -1.0)
     trajectory = _run_choice(choice, initial, 30)
@@ -171,7 +171,7 @@ def test_choice_interaction_agent_proposal_rules_reach_boltzmann_distribution(ru
         utility=_fixed_agent,
         rule=rule,
         intensity=0.5,
-        form='agent',
+        schedule='synchronous',
     )
     trajectory = _run_choice(choice, np.zeros(2000), 40)
     values = np.concatenate([trajectory.get_agents('members', frame).values['option'] for frame in range(30, 41)])
@@ -179,22 +179,22 @@ def test_choice_interaction_agent_proposal_rules_reach_boltzmann_distribution(ru
     assert np.allclose(_frequencies(values, 3), expected, atol=0.015)
 
 
-@pytest.mark.parametrize('form', ['symbolic', 'agent'])
-def test_choice_interaction_heat_bath_proposals_reach_boltzmann_distribution(form):
+@pytest.mark.parametrize('schedule', [None, 'synchronous'])
+def test_choice_interaction_heat_bath_proposals_reach_boltzmann_distribution(schedule):
     """Test that Fermi acceptance of proposals of every option reaches the distribution `exp(beta u) / sum`."""
     choice = ChoiceInteraction(
         'choice',
         target='members',
         state='option',
         options=(0, 1, 2),
-        utility=_fixed if form == 'symbolic' else _fixed_agent,
+        utility=_fixed if schedule is None else _fixed_agent,
         rule='fermi',
         intensity=0.5,
-        form=form,
+        schedule=schedule,
         proposal='all',
     )
     trajectory = _run_choice(choice, np.zeros(2000), 60)
-    if form == 'symbolic':
+    if schedule is None:
         values = trajectory.get_values('members.option')[-20:]
     else:
         values = np.concatenate([trajectory.get_agents('members', frame).values['option'] for frame in range(40, 61)])
@@ -212,7 +212,7 @@ def test_choice_interaction_heat_bath_proposals_keep_the_option_at_equal_utiliti
         utility=_fixed_agent,
         rule='metropolis',
         intensity=0.0,
-        form='agent',
+        schedule='synchronous',
         proposal='all',
     )
     values = _run_choice(choice, np.zeros(3000), 1).get_agents('members', 1).values['option']
@@ -242,7 +242,7 @@ def test_choice_interaction_agent_best_takes_the_largest_utility():
         options=(0, 1, 2),
         utility=_fixed_agent,
         rule='best',
-        form='agent',
+        schedule='synchronous',
     )
     assert _run_choice(choice, np.zeros(50), 1).get_agents('members', 1).values['option'].tolist() == [2.0] * 50
 
@@ -272,7 +272,7 @@ def test_choice_interaction_agent_activity_revises_a_share_of_agents():
         utility=_fixed_agent,
         rule='best',
         activity=0.3,
-        form='agent',
+        schedule='synchronous',
     )
     values = _run_choice(choice, np.zeros(5000), 1).get_agents('members', 1).values['option']
     assert abs(values.mean() - 0.3) < 0.03
@@ -294,7 +294,6 @@ def test_choice_interaction_random_sequential_sees_earlier_choices():
         utility=attend,
         rule='best',
         schedule='random-sequential',
-        form='agent',
     )
     synchronous = ChoiceInteraction(**{**sequential.get_params(), 'schedule': 'synchronous'})
     finals = [
@@ -314,7 +313,7 @@ def test_choice_interaction_agent_utility_reads_the_history_of_the_system():
         options=(0, 1),
         utility=_last_payoff,
         intensity=4.0,
-        form='agent',
+        schedule='synchronous',
         phase='choice',
     )
     system = System(
@@ -346,9 +345,6 @@ def test_choice_interaction_keeps_values_among_options():
     [
         ({'rule': 'glauber'}, 'Unknown rule'),
         ({'schedule': 'ordered'}, 'Unknown schedule'),
-        ({'form': 'table'}, 'Unknown form'),
-        ({'schedule': 'random-sequential'}, 'only the agent form'),
-        ({'schedule': 'member'}, 'only the agent form'),
         ({'options': (1,)}, 'at least 2 options'),
         ({'utility': 1.0}, 'must be callable'),
         ({'proposal': 'current'}, 'Unknown proposal'),
@@ -373,7 +369,7 @@ def _flat_agent(agent: object, system: object, option: float) -> float:
 
 
 def test_choice_best_rule_takes_the_first_of_tied_options_by_the_first_ties():
-    """Test that the best rule with the ties `'first'` takes the first of the options of equal utility in both forms."""
+    """Test that the best rule with the ties `'first'` takes the first of the options of equal utility either way."""
     symbolic = ChoiceInteraction(
         'choice',
         target='members',
@@ -383,26 +379,26 @@ def test_choice_best_rule_takes_the_first_of_tied_options_by_the_first_ties():
         rule='best',
         ties='first',
     )
-    agent = ChoiceInteraction(**{**symbolic.get_params(), 'utility': _flat_agent, 'form': 'agent'})
+    agent = ChoiceInteraction(**{**symbolic.get_params(), 'utility': _flat_agent, 'schedule': 'synchronous'})
     assert set(_run_choice(symbolic, np.zeros(200), 1).get_values('members.option')[1].tolist()) == {2.0}
     assert set(_run_choice(agent, np.zeros(200), 1).get_agents('members', 1).values['option'].tolist()) == {2.0}
 
 
-@pytest.mark.parametrize('form', ['symbolic', 'agent'])
-def test_choice_best_rule_draws_tied_options_uniformly_by_the_random_ties(form):
+@pytest.mark.parametrize('schedule', [None, 'synchronous'])
+def test_choice_best_rule_draws_tied_options_uniformly_by_the_random_ties(schedule):
     """Test that the best rule with the ties `'random'` draws every option of equal utility equally often."""
     choice = ChoiceInteraction(
         'choice',
         target='members',
         state='option',
         options=(0, 1, 2),
-        utility=_flat if form == 'symbolic' else _flat_agent,
+        utility=_flat if schedule is None else _flat_agent,
         rule='best',
-        form=form,
+        schedule=schedule,
     )
     trajectory = _run_choice(choice, np.zeros(6000), 1)
-    values = trajectory.get_values('members.option')[1] if form == 'symbolic' else trajectory.get_agents('members', 1)
-    options = values if form == 'symbolic' else values.values['option']
+    values = trajectory.get_values('members.option')[1] if schedule is None else trajectory.get_agents('members', 1)
+    options = values if schedule is None else values.values['option']
     np.testing.assert_allclose(_frequencies(np.asarray(options), 3), [1 / 3] * 3, atol=0.03)
 
 
@@ -421,7 +417,6 @@ def test_choice_sequential_schedule_reads_the_choices_of_the_members_before():
         options=(0, 1),
         utility=scarce,
         rule='best',
-        form='agent',
         schedule='sequential',
     )
     assert _run_choice(choice, np.zeros(3), 1).get_agents('members', 1).values['option'].tolist() == [1.0, 0.0, 0.0]

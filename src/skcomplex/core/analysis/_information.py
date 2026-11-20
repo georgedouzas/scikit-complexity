@@ -21,7 +21,7 @@ from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _read_real, _read_series
 from ._entropy import _block_entropies, _shannon
 from ._utils import load_module
-from .types import Source
+from .types import DataSource
 
 KINDS = (
     'mutual',
@@ -85,7 +85,7 @@ class InformationResult:
 
 
 def information(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'mutual',
     variables: Sequence[str] | None = None,

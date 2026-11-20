@@ -47,7 +47,7 @@ from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _composite, _read_system
 from ._unknown_spec import _UnknownSpec
 from ._utils import compile_problem
-from .types import Source
+from .types import DataSource
 
 ASYMPTOTIC_ORDER = 2
 DESOLVE_ORDER = 2
@@ -268,7 +268,7 @@ class SymbolicResult:
     inflows: dict[str, Expression] | None = None
 
 
-def symbolic(source: Source, *, kind: str = 'equations', use_initial_state: bool = False) -> SymbolicResult:
+def symbolic(source: DataSource, *, kind: str = 'equations', use_initial_state: bool = False) -> SymbolicResult:
     """Return the symbolic form of a system.
 
     It is its equations, their solution, its Hamiltonian, or its boundary flows.

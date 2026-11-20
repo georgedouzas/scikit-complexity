@@ -21,7 +21,7 @@ from scipy.stats import chi2
 from sklearn.base import clone
 
 from ....core.analysis import bind_analysis
-from ....core.analysis.types import Source
+from ....core.analysis.types import DataSource
 from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.engine.backends import BaseBackend
@@ -449,7 +449,7 @@ class LabellingResult:
 
 
 def labelling(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'simulation',
     atoms: Sequence[AtomMapSpec] = (),

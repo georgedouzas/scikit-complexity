@@ -5,7 +5,8 @@
 
 import numpy as np
 
-from ....core.components.spaces import BaseSpace, DiscreteTime
+from ....core.components.laws import UpdateLaw
+from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import SupportSpec
 from ....core.engine.problems import RunStateSpec
 from ....core.engine.solvers import BaseSolver, StructureStateSpec
@@ -51,7 +52,7 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
-            time={DiscreteTime},
+            time=frozenset(UpdateLaw.get_requirements().time),
             space={None, BaseSpace},
             laws={ProductionLaw, SubstitutionLaw},
             orders=frozenset({OrderKind.INTEGER}),

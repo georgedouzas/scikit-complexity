@@ -24,7 +24,7 @@ from ._series_spec import _SeriesSpec
 from ._signature_spec import SignatureSpec
 from ._snapshots_spec import _SnapshotsSpec
 from ._spectrum import _power_spectrum, _structure_factor
-from .types import Source
+from .types import DataSource
 
 SERIES_COLUMNS = 3
 PLANE = 2
@@ -78,7 +78,7 @@ class SignaturesResult:
     series: _SeriesSpec | None = None
 
 
-def signatures(source: Source) -> SignaturesResult:
+def signatures(source: DataSource) -> SignaturesResult:
     """Return the default analysis of every kind of data of a trajectory.
 
     It comes with its curves, axis labels, and values. A series gives its power spectrum with the autocorrelation time,

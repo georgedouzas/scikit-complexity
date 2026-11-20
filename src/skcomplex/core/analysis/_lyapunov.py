@@ -23,7 +23,7 @@ from ..types import Array, VectorFunction
 from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _check_tags, _composite, _read_series, _read_system
 from ._stability import StabilityResult
-from .types import Source
+from .types import DataSource
 
 KINDS = ('spectrum', 'largest')
 SETTINGS = {
@@ -134,7 +134,7 @@ class LyapunovResult:
 
 
 def lyapunov(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'spectrum',
     variables: Sequence[str] | None = None,

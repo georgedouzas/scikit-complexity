@@ -16,7 +16,7 @@ from ..errors import AnalysisError
 from ..types import Array
 from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _read_fields, _read_real, _read_series
-from .types import Source
+from .types import DataSource
 
 KINDS = ('power', 'structure-factor')
 SETTINGS = {
@@ -59,7 +59,7 @@ class SpectrumResult:
 
 
 def spectrum(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'power',
     variables: Sequence[str] | None = None,

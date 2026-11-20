@@ -488,7 +488,7 @@ class OligopolyEquilibriaSystem(BaseSystem):
             options=tuple(prices.tolist()),
             utility=game.get_utility,
             rule='best',
-            form='agent',
+            schedule='synchronous',
             phase='choose',
         )
         beliefs = PayoffLearningInteraction(
@@ -497,7 +497,7 @@ class OligopolyEquilibriaSystem(BaseSystem):
             scores='scores',
             payoff=game.get_payoff,
             rule='cumulative',
-            form='agent',
+            schedule='synchronous',
             phase='learn',
         )
         return System(

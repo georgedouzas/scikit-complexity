@@ -17,8 +17,7 @@ import qutip
 import scipy.sparse as sp
 
 from .....core import systems
-from .....core.analysis.types import Source
-from .....core.components.systems import BaseSystem, CompositeSystem
+from .....core.analysis.types import DataSource
 from .....core.engine.problems import BaseProblemSpec, OperatorProblemSpec, RunStateSpec
 from .....core.engine.runtime import Trajectory
 from .....core.errors import AnalysisError, ParameterError
@@ -81,7 +80,7 @@ class OperatorMeasuresResult:
 
 
 def operator_measures(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'spectrum',
     n_states: int = 6,
@@ -165,7 +164,6 @@ def operator_measures(
         >>> bool(np.allclose(result.entropy, np.log(2)))
         True
     """
-    source = _composite(source)
     _check_choice('kind', kind, KINDS)
     _check_settings(
         'kind',
@@ -244,20 +242,11 @@ def _is_changed(value: object, default: object) -> bool:
         return value is not default
 
 
-def _composite(source: Source) -> Source:
-    """Return the prepared composite of a ready-made system or a `System`, or another source as it is."""
-    if isinstance(source, systems.BaseSystem):
-        return source._get_composite()
-    if isinstance(source, BaseSystem) and not isinstance(source, CompositeSystem):
-        return source.prepare().system_
-    return source
-
-
-def _read_system(source: object) -> CompositeSystem | BaseProblemSpec:
+def _read_system(source: object) -> systems.BaseSystem | BaseProblemSpec:
     """Return the problem of a trajectory, or a system or a problem as it is."""
     if isinstance(source, Trajectory):
         return source.problem
-    if isinstance(source, CompositeSystem | BaseProblemSpec):
+    if isinstance(source, systems.BaseSystem | BaseProblemSpec):
         return source
     error_msg = (
         f'The analysis reads a system, a problem, or a trajectory, not {type(source).__name__}. Pass one of them.'
@@ -265,8 +254,8 @@ def _read_system(source: object) -> CompositeSystem | BaseProblemSpec:
     raise AnalysisError(error_msg)
 
 
-def _operator_problem(system: CompositeSystem | BaseProblemSpec) -> OperatorProblemSpec:
-    """Return the operator problem of a system, compiling it when needed."""
+def _operator_problem(system: systems.BaseSystem | BaseProblemSpec) -> OperatorProblemSpec:
+    """Return the operator problem of a system, compiling the composite of its components when needed."""
     problem = system if isinstance(system, BaseProblemSpec) else QuantumCompiler().prepare(system).run().problem_
     if not isinstance(problem, OperatorProblemSpec):
         error_msg = f'The system compiles to the {problem.form} form, but the analysis needs operator elements.'

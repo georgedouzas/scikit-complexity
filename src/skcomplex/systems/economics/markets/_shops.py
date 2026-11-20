@@ -34,8 +34,7 @@ from ...general.agents import BirthDeathInteraction
 from ...general.matching import MatchingInteraction, MatchSpec, PartnerMatchingSpec
 
 STEPPINGS = ('multiplicative', 'additive')
-FORMS = ('symbolic', 'agent')
-SCHEDULES = ('synchronous', 'sequential', 'random-sequential', 'member')
+SCHEDULES = (None, 'synchronous', 'sequential', 'random-sequential', 'member')
 
 
 class PriceAdjustmentInteraction(Interaction):
@@ -47,11 +46,12 @@ class PriceAdjustmentInteraction(Interaction):
     while the signal is positive, falls while it is negative, and stays while it is zero, by trial and error rather
     than by the size of the signal. The next value is then limited to `[lower, upper]`.
 
-    In the `'symbolic'` form, the signal, the step, and the bounds are numbers or functions of the namespace, where
-    `namespace.target` holds the states and parameters of the target. In the `'agent'` form, the target is an agent
-    group and they are numbers or functions `f(agent, system)` that return numbers. Under the schedule `'synchronous'`
-    every agent steps from the values at the start of the rule, under `'sequential'` or `'random-sequential'` one after
-    the other, in their order or in a new random order, and under `'member'` each in its own activation.
+    Without a `schedule` it sets an update law, and the signal, the step, and the bounds are numbers or functions of the
+    namespace, where `namespace.target` holds the states and parameters of the target. With a `schedule` it sets one
+    rule that walks the agents of the target in that order, and they are numbers or functions `f(agent, system)` that
+    return numbers. Under the schedule `'synchronous'` every agent steps from the values at the start of the rule,
+    under `'sequential'` or `'random-sequential'` one after the other, in their order or in a new random order, and
+    under `'member'` each in its own activation.
 
     Args:
         label:
@@ -78,20 +78,16 @@ class PriceAdjustmentInteraction(Interaction):
         upper:
             The highest next value, a number or a function, or `None` for none.
 
-        form:
-            `'symbolic'` for an update law of the state of the target, or `'agent'` for a rule over an agent group.
-
         phase:
-            The phase of the step the agent form runs in, or `None` for the default phase.
+            The phase of the step the rule of a schedule runs in, or `None` for the default phase.
 
         schedule:
-            The order of the agents in the agent form, `'synchronous'`, `'sequential'`, `'random-sequential'`, or
-            `'member'`.
+            The order in which a rule walks the agents, `'synchronous'`, `'sequential'`, `'random-sequential'`, or
+            `'member'`, or `None` for an update law of the state of the target.
 
     Raises:
         ValidationError:
-            The stepping, the form, or the schedule is unknown, the symbolic form is not synchronous, or the signal is
-            not callable, raised by `prepare`.
+            The stepping or the schedule is unknown, or the signal is not callable, raised by `prepare`.
 
     Examples:
         >>> from skcomplex.core.components.elements import Element
@@ -118,9 +114,8 @@ class PriceAdjustmentInteraction(Interaction):
         stepping: str = 'multiplicative',
         lower: float | Callable[..., object] | None = None,
         upper: float | Callable[..., object] | None = None,
-        form: str = 'symbolic',
         phase: str | None = None,
-        schedule: str = 'synchronous',
+        schedule: str | None = None,
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -130,7 +125,6 @@ class PriceAdjustmentInteraction(Interaction):
         self.stepping = stepping
         self.lower = lower
         self.upper = upper
-        self.form = form
         self.phase = phase
         self.schedule = schedule
 
@@ -143,30 +137,23 @@ class PriceAdjustmentInteraction(Interaction):
 
         Raises:
             ValidationError:
-                The stepping, the form, or the schedule is unknown, the symbolic form is not synchronous, or the signal
-                is not callable.
+                The stepping or the schedule is unknown, or the signal is not callable.
         """
         super()._prepare(context)
-        if self.form not in FORMS:
-            error_msg = f'The form of {self.label!r} is {self.form!r}. Use one of {", ".join(FORMS)}.'
-            raise ValidationError(error_msg)
         if self.schedule not in SCHEDULES:
-            error_msg = f'The schedule of {self.label!r} is {self.schedule!r}. Use one of {", ".join(SCHEDULES)}.'
+            error_msg = f'The schedule of {self.label!r} is {self.schedule!r}. Use one of {SCHEDULES}.'
             raise ValidationError(error_msg)
         if self.stepping not in STEPPINGS:
             error_msg = f'The stepping of {self.label!r} is {self.stepping!r}. Use one of {", ".join(STEPPINGS)}.'
-            raise ValidationError(error_msg)
-        if self.form == 'symbolic' and self.schedule != 'synchronous':
-            error_msg = f'The schedule {self.schedule!r} of {self.label!r} runs agent rules. Use `form="agent"`.'
             raise ValidationError(error_msg)
         if not callable(self.signal):
             error_msg = f'The signal of {self.label!r} must be callable, but it is {self.signal!r}.'
             raise ValidationError(error_msg)
         if not isinstance(context, SimpleNamespace):
             return
-        if self.form == 'agent' and self.schedule == 'member':
+        if self.schedule == 'member':
             self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self._step_member, phase=self.phase)]
-        elif self.form == 'agent':
+        elif self.schedule is not None:
             self.laws_ = [UpdateLaw(context, self.step_agents, phase=self.phase)]
         else:
             self.laws_ = [UpdateLaw(getattr(context.target, self.state), self._get_next(context))]
@@ -226,7 +213,7 @@ class PriceAdjustmentInteraction(Interaction):
             self._step_member(agents[int(index)], system)
 
     def _get_next(self, namespace: SimpleNamespace) -> object:
-        """Return the next value of the state of the symbolic form."""
+        """Return the next value of the state of the update law."""
         value = SR(getattr(namespace.target, self.state))
         direction = sign(self._read(self.signal, namespace))
         step = SR(self._read(self.step, namespace))
@@ -673,7 +660,7 @@ class ShopsSystem(BaseSystem):
                 signal=lambda agent, system: agent.direction,
                 step=lambda agent, system: agent.adjustment,
                 lower=lambda agent, system: agent.unit_cost,
-                form='agent',
+                schedule='synchronous',
                 phase='accounts',
             ),
             BirthDeathInteraction(

@@ -21,7 +21,7 @@ from ..systems import System
 from ..types import Array
 from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _composite, _get_system, _read_series
-from .types import Source
+from .types import DataSource
 
 MIN_SIZES = 2
 SMALL_POPULATION = 0.1
@@ -106,7 +106,7 @@ class LargeDeviationsResult:
 
 
 def large_deviations(
-    source: Source | ProblemSpec | Mapping[int, npt.ArrayLike],
+    source: DataSource | ProblemSpec | Mapping[int, npt.ArrayLike],
     *,
     kind: str = 'tilted',
     variables: Sequence[str] | None = None,

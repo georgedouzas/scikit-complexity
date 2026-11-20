@@ -14,7 +14,7 @@ from sage.all__sagemath_symbolics import CC
 
 from .....core.components.elements import Element
 from .....core.errors import ValidationError
-from .....core.specs import StateSpec, VisualSpec
+from .....core.specs import VisualSpec
 from ._hilbert_spec import HilbertSpec
 
 
@@ -78,7 +78,7 @@ class ModeElement(Element):
     def __init__(
         self,
         label: str,
-        psi: Annotated[object, StateSpec(domain=CC)] = 0,
+        psi: Annotated[object, CC] = 0,
         *,
         hilbert: HilbertSpec | None = None,
     ) -> None:

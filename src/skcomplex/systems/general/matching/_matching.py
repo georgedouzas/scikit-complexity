@@ -60,8 +60,8 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
     round of its phase and reports `<label>.value`, the clearing value weighted by quantity, `<label>.volume`, and
     `<label>.unmatched`.
 
-    Unlike `TransferInteraction`, which moves amounts between given pairs, it first forms the pairs by a rule, through
-    `pairs` of the core, and then transfers. Choose it when who trades with whom and at what value are part of
+    Unlike a labelled `RateLaw` flow, which moves amounts between given pairs, it first forms the pairs by a rule,
+    through `pairs` of the core, and then transfers. Choose it when who trades with whom and at what value are part of
     the model.
 
     It appears in many fields. Buyers and sellers trade goods, workers and firms agree on wages, borrowers and banks

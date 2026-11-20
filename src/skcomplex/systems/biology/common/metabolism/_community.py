@@ -18,7 +18,7 @@ import pandas as pd
 from sage.all__sagemath_symbolics import Expression
 from sklearn.base import clone
 
-from .....core.analysis.types import Source
+from .....core.analysis.types import DataSource
 from .....core.components.elements import Element
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, ConstraintLaw, ObjectiveLaw
@@ -60,7 +60,7 @@ class CommunityGrowthResult:
 
 
 def community_growth(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'steadycom',
     fraction: float = 1.0,

@@ -20,7 +20,7 @@ from ..types import Array
 from ._analysis_tags import AnalysisTags
 from ._base import SNAPSHOT_DIMENSIONS, _check_choice, _check_settings, _read_fields, _read_series
 from ._utils import load_module
-from .types import Source
+from .types import DataSource
 
 KINDS = (
     'shannon',
@@ -94,7 +94,7 @@ class EntropyResult:
 
 
 def entropy(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'shannon',
     variables: Sequence[str] | None = None,
@@ -294,7 +294,7 @@ class _EntropySpec(BaseSpec):
     random_state: int | None
 
 
-def _ensemble_entropy(source: Source, law: Array) -> EntropyResult:
+def _ensemble_entropy(source: DataSource, law: Array) -> EntropyResult:
     """Return the entropy of every frame of an ensemble.
 
     Its divergence from the reference law is returned too.

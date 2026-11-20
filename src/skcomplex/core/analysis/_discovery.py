@@ -66,7 +66,7 @@ from ._spectrum import spectrum
 from ._stability import stability
 from ._surrogates import surrogate_test
 from ._symbolic import symbolic
-from .types import Source
+from .types import DataSource
 
 ANALYSES = (
     alignment,
@@ -143,7 +143,7 @@ class ApplicableAnalysesResult:
     analyses: dict[str, list[partial[object]]]
 
 
-def applicable_analyses(source: Source) -> ApplicableAnalysesResult:
+def applicable_analyses(source: DataSource) -> ApplicableAnalysesResult:
     """Return the analyses that apply to a trajectory, a system, or an array.
 
     They are listed under the kind of data they read. The kinds of data the source holds are read first. Every analysis

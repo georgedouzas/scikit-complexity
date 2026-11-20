@@ -16,7 +16,7 @@ from ..errors import AnalysisError
 from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _check_tags, _read_networks
 from ._utils import load_module
-from .types import Source
+from .types import DataSource
 
 TRIAD_SIZE = 3
 KINDS = ('counts', 'z-scores')
@@ -72,7 +72,7 @@ class MotifsResult:
 
 
 def motifs(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'counts',
     size: int = 3,

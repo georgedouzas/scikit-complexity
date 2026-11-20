@@ -14,7 +14,7 @@ from ..errors import AnalysisError
 from ..types import Array
 from ._analysis_tags import AnalysisTags
 from ._base import _read_series
-from .types import Source
+from .types import DataSource
 
 MIN_SERIES_SIZE = 2
 ZERO_MASS = 1e-10
@@ -46,7 +46,7 @@ class KramersMoyalResult:
 
 
 def kramers_moyal(
-    source: Source,
+    source: DataSource,
     *,
     variables: Sequence[str] | None = None,
     dt: float = 1.0,

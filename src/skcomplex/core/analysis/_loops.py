@@ -27,7 +27,7 @@ from ._loop_spec import _LoopSpec
 from ._stability import StabilityResult
 from ._symbolic import _transfer_network
 from ._utils import compile_problem
-from .types import Source
+from .types import DataSource
 
 KINDS = ('loops', 'dominance', 'flow-matrix')
 SETTINGS = {
@@ -257,7 +257,7 @@ class LoopsResult:
 
 
 def loops(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'loops',
     at: npt.ArrayLike | None = None,

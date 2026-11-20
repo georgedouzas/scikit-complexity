@@ -20,7 +20,7 @@ from ..errors import AnalysisError
 from ..types import IntArray
 from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _get_missing_error, _read_fields
-from .types import Source
+from .types import DataSource
 
 KINDS = ('labels', 'sizes', 'percolation', 'spanning')
 SETTINGS = {
@@ -86,7 +86,7 @@ class ClustersResult:
 
 
 def clusters(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'labels',
     variables: Sequence[str] | None = None,
@@ -234,7 +234,7 @@ def _strength(sizes: IntArray, total: int) -> tuple[float, float]:
 
 
 def _read_points(
-    source: Source,
+    source: DataSource,
     kind: str,
     variables: Sequence[str] | None,
 ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64] | None]:

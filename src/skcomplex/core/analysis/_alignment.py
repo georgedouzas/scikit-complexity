@@ -25,7 +25,7 @@ from ._base import (
     _read_series,
     _read_snapshots,
 )
-from .types import Source
+from .types import DataSource
 
 KINDS = ('mean-vector', 'mean-rotation', 'axial', 'mean-phase', 'principal-axis')
 SETTINGS = {
@@ -84,7 +84,7 @@ class AlignmentResult:
 
 
 def alignment(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'mean-vector',
     variables: Sequence[str] | None = None,
@@ -214,7 +214,7 @@ def _principal_axis(tensors: Array | None) -> tuple[Array, Array]:
 
 
 def _read_array(
-    source: Source,
+    source: DataSource,
     kind: str,
     *,
     vectors: bool,

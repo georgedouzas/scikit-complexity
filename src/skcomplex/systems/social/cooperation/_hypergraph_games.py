@@ -341,7 +341,7 @@ class HypergraphPublicGoodsSystem(BaseSystem):
             target='players',
             state='strategy',
             rule='fermi',
-            form='probability',
+            probability=1.0,
             intensity=1 / self.noise,
             phase='imitate',
         )
@@ -503,7 +503,7 @@ class SimplicialSocialDilemmasSystem(BaseSystem):
             target='players',
             state='strategy',
             rule='fermi',
-            form='probability',
+            probability=1.0,
             intensity=1 / self.noise,
             phase='imitate',
         )

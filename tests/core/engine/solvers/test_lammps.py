@@ -188,16 +188,17 @@ def test_lammps_trajectory_has_native_names_and_shapes():
 
 def test_lammps_rejects_population_system():
     """Test that a Lotka-Volterra system names the backend and every unsupported item."""
-    system = CompositeSystem(
+    system = System(
         elements=[PopulationElement('rabbits', x=40), PopulationElement('foxes', x=9)],
         interactions=[
             LogisticGrowthInteraction('growth', target='rabbits'),
             PredationInteraction('hunt', predator='foxes', prey='rabbits'),
             MortalityInteraction('death', target='foxes'),
         ],
+        solver=LammpsSolver(),
     )
     with pytest.raises(BackendError, match='LAMMPS') as error:
-        simulate(system, until=1, solver=LammpsSolver())
+        system.prepare().simulate(until=1)
     for name in ('rabbits', 'foxes', 'growth', 'hunt', 'death'):
         assert name in str(error.value)
 
@@ -314,23 +315,22 @@ def test_lammps_forces_match_native(interaction):
 def test_lammps_thermostat_temperature_changes_live():
     """Test that raising the thermostat temperature during a LAMMPS run heats the gas towards it."""
     gas = IdealGasSystem(1000, kT=1.0, size=30.0, random_state=0).prepare().system_
-    system = CompositeSystem(
+    system = System(
         elements=gas.elements,
         interactions=[
             *gas.interactions,
             LangevinThermostatInteraction('bath', target='gas', temperature=1.0, gamma=2.0),
         ],
         space=gas.space,
-    )
-    trajectory = simulate(
-        system,
-        until=20,
         solver=LammpsSolver(dt=0.01, fixes=LAMMPS_FIXES),
+    )
+    trajectory = system.prepare().simulate(
+        until=20,
         dt=0.5,
         random_state=0,
         schedule={'bath.temperature': lambda t: 1.0 if t < 10 else 3.0},
     )
-    temperature = (trajectory.get_values('gas.x_d1') ** 2).sum(axis=2).mean(axis=1) / 2
+    temperature = (trajectory.get_values("gas.x'") ** 2).sum(axis=2).mean(axis=1) / 2
     changed = int(np.argmax(trajectory.get_values('bath.temperature') == 3.0))
     assert temperature[:changed].mean() == pytest.approx(1.0, rel=0.1)
     assert temperature[-10:].mean() == pytest.approx(3.0, rel=0.1)

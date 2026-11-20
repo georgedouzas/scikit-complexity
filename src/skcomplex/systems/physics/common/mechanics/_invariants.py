@@ -13,11 +13,11 @@ from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from .....core.analysis import InvariantsResult, invariants
-from .....core.analysis.types import Source
+from .....core.analysis.types import DataSource
 from .....core.components import Observable
 from .....core.components.interactions import BaseInteraction
-from .....core.components.systems import CompositeSystem
 from .....core.errors import AnalysisError
+from .....core.systems import System
 from ....general.mechanics import EulerLagrangeInteraction
 from ._hamiltonian import HamiltonianInteraction
 from ._symmetry_spec import SymmetrySpec
@@ -45,7 +45,7 @@ class NoetherResult:
     charge: Expression
 
 
-def poisson_brackets(source: Source, expressions: Sequence[Observable]) -> dict[tuple[str, str], Expression]:
+def poisson_brackets(source: DataSource, expressions: Sequence[Observable]) -> dict[tuple[str, str], Expression]:
     """Return the Poisson bracket of every pair of expressions of a mechanical system.
 
     The bracket is `{f, g} = sum df/dq dg/dp - df/dp dg/dq`, summed over the canonical pairs of the system's
@@ -91,7 +91,7 @@ def poisson_brackets(source: Source, expressions: Sequence[Observable]) -> dict[
 
 
 def noether(
-    source: Source,
+    source: DataSource,
     symmetry: SymmetrySpec,
     *,
     samples: int = 16,
@@ -195,7 +195,7 @@ def _get_interaction_namespace(base: InvariantsResult, interaction: BaseInteract
     return SimpleNamespace(**vars(own), **roles, t=base.dynamics.problem.time)
 
 
-def _get_hamiltonians(system: CompositeSystem) -> list[HamiltonianInteraction]:
+def _get_hamiltonians(system: System) -> list[HamiltonianInteraction]:
     """Return the Hamiltonian interactions of the system."""
     return [item for item in system.interactions if isinstance(item, HamiltonianInteraction)]
 
@@ -253,8 +253,12 @@ def _get_variations(namespace: SimpleNamespace, symmetry: SymmetrySpec) -> dict[
 
 
 def _get_lagrangian(base: InvariantsResult) -> tuple[Expression, dict[Expression, Expression]]:
-    """Return the Lagrangian of the system in the symbols of its states, and the velocity of every coordinate."""
+    """Return the Lagrangian of the system in the symbols of its states, and the velocity of every coordinate.
+
+    The velocity of a coordinate is its rate in the first-order equations of the system.
+    """
     lagrangian, velocities = SR(0), {}
+    first_order = dict(zip(base.dynamics.symbols, base.dynamics.rates, strict=True))
     for interaction in base.system.interactions:
         if not isinstance(interaction, EulerLagrangeInteraction):
             continue
@@ -265,8 +269,7 @@ def _get_lagrangian(base: InvariantsResult) -> tuple[Expression, dict[Expression
                 continue
             for state in interaction._get_names():
                 positions = _components(getattr(member, state))
-                rates = _components(getattr(member, f'{state}_d1'))
-                velocities.update(dict(zip(positions, rates, strict=True)))
+                velocities.update({position: first_order[position] for position in positions})
         lagrangian += interaction._get_lagrangian_of(own, velocities)
     if not velocities:
         error_msg = (

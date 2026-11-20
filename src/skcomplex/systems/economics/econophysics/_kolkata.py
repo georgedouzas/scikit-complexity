@@ -145,7 +145,7 @@ class CrowdAvoidanceInteraction(ChoiceInteraction):
             rule='metropolis',
             intensity=intensity,
             activity=activity,
-            form='agent',
+            schedule='synchronous',
             phase=phase,
         )
 
@@ -348,7 +348,7 @@ class KolkataRestaurantSystem(BaseSystem):
                 options=options,
                 utility=lambda agent, system, option: 0.0,
                 intensity=0.0,
-                form='agent',
+                schedule='synchronous',
             )
         )
         restaurants = RestaurantsInteraction('restaurants', target='diners', n_restaurants=n_restaurants)

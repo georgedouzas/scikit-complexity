@@ -19,7 +19,7 @@ from ._base import _check_choice, _check_settings, _read_fields, _read_networks
 from ._correlation import _correlation_function
 from ._neighbors import _pairs
 from ._spectrum import _mode_power, _structure_factor
-from .types import Source
+from .types import DataSource
 
 KINDS = ('size', 'growth', 'wavelength', 'interface-density')
 METHODS = ('moment', 'zero')
@@ -74,7 +74,7 @@ class DomainsResult:
 
 
 def domains(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'size',
     variables: Sequence[str] | None = None,
@@ -189,7 +189,7 @@ def domains(
 
 
 def _read_frames(
-    source: Source,
+    source: DataSource,
     kind: str,
     variables: Sequence[str] | None,
     times: Sequence[float] | None,

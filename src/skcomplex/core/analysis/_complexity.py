@@ -15,7 +15,7 @@ from ..types import Array
 from ._analysis_tags import AnalysisTags
 from ._base import SNAPSHOT_DIMENSIONS, _read_fields, _read_series
 from ._entropy import _break_ties
-from .types import Source
+from .types import DataSource
 
 TAGS = AnalysisTags(DataKind.SERIES)
 
@@ -55,7 +55,7 @@ class ComplexityResult:
 
 
 def complexity(
-    source: Source,
+    source: DataSource,
     *,
     variables: Sequence[str] | None = None,
     dimension: int | tuple[int, int] = 6,

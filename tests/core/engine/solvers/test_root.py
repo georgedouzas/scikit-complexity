@@ -3,9 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 import pytest
@@ -25,34 +23,11 @@ from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import Trajectory
 from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import SolverError
-from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.core.systems import System
 from skcomplex.core.types import Role
 
 VALUES = {'x': 1.0, 'b': 1.0}
 COURNOT = {'q_i': 0.0, 'q_j': 0.0, 'alpha': 10.0, 'c_i': 1.0, 'c_j': 2.0, 'lambda_i': 0.0, 'lambda_j': 0.0}
-
-
-class ValueElement(Element):
-    """Element of one state and the equation a subclass gives."""
-
-    def __init__(
-        self,
-        label: str,
-        x: Annotated[float, StateSpec()] = 1.0,
-        b: Annotated[float, ParameterSpec()] = 1.0,
-    ) -> None:
-        super().__init__(label)
-        self.x = x
-        self.b = b
-
-
-class RateElement(ValueElement):
-    """Element with a rate law."""
-
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BaseComponent]:
-        """Return the rate."""
-        return [RateLaw(s.x, 1.0)]
 
 
 def _survival(s):
@@ -240,6 +215,8 @@ def test_prepare_compiler_without_target() -> None:
 
 def test_prepare_compiler_rate_law_under_static_time() -> None:
     """Test that a rate law under static time keeps its time issue."""
-    found = _issues(CompositeSystem(elements=[RateElement('a')], time=StaticTime()), 'law-time')
+    rate = Interaction('laws', roles={'target': 'a'}, laws=lambda s: [RateLaw(s.target.x, 1.0)])
+    system = CompositeSystem(elements=[Element('a', values=VALUES)], interactions=[rate], time=StaticTime())
+    found = _issues(system, 'law-time')
     assert len(found) == 1
     assert 'RateLaw' in found[0].message

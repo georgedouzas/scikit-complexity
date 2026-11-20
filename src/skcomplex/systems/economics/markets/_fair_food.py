@@ -261,7 +261,7 @@ class FairFoodSystem(BaseSystem):
             options=(0, 1),
             utility=self._get_utility,
             intensity=self.intensity,
-            form='agent',
+            schedule='synchronous',
         )
         self.system_ = System(
             self.label,

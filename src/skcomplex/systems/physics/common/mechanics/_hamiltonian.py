@@ -24,9 +24,10 @@ class HamiltonianInteraction(Interaction):
 
     A Hamiltonian `H` is the total energy of a system as a function of its coordinates `q` and momenta `p`. The
     interaction gives Hamilton's equations `q' = dH/dp` and `p' = -dH/dq`, one rate per coordinate and per momentum. The
-    coordinates and momenta are states of order 1 of every role that binds one element or group, `target` by default,
-    and they pair in order. The rates of one state add, so a coupling between two oscillators is an interaction of its
-    own whose Hamiltonian holds only the coupling energy. Dissipation or forcing is a `RateInteraction` on the momenta.
+    coordinates and momenta are states of every role that binds one element or group, `target` by default, and they
+    pair in order. The rates of one state add, so a coupling between two oscillators is an interaction of its own whose
+    Hamiltonian holds only the coupling energy. Dissipation or forcing is a `RateLaw` on the momenta in an interaction
+    of its own.
 
     Unlike `EulerLagrangeInteraction`, which takes coordinates and velocities, it takes coordinates and momenta and
     gives first order rates, which symplectic solvers keep on the surface of constant energy. Choose it when the energy

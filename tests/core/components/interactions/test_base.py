@@ -151,14 +151,16 @@ GRID_ONLY = {
 class GrowthInteraction(BaseInteraction):
     """Interaction with a role and a parameter."""
 
-    def __init__(self, label, target: Annotated[str, RoleSpec()], r: Annotated[float, ParameterSpec()] = 1.0):
+    def __init__(self, label, target: Role, r: float = 1.0):
         super().__init__(label)
         self.target = target
         self.r = r
 
-    def _get_laws(self, namespace):
-        """Return no laws."""
-        return []
+    def _prepare(self, context=None):
+        """Set no laws on a namespace."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = []
 
 
 def _get_fixed(interaction):
@@ -283,10 +285,10 @@ def test_interaction_stores_its_roles_and_parameters():
 
 
 def test_interaction_prepares_into_itself():
-    """Test that a checked interaction has nothing to prepare and runs into its laws."""
+    """Test that a checked interaction has nothing to prepare and sets its laws when prepared on a namespace."""
     growth = GrowthInteraction('growth', target='rabbits')
     assert growth.prepare() is growth
-    assert growth.run(SimpleNamespace()).laws_ == []
+    assert growth.prepare(SimpleNamespace()).laws_ == []
 
 
 def test_state_on_an_interaction_is_rejected():
@@ -314,8 +316,8 @@ def test_get_member_reads_a_renamed_target_in_the_symbolic_form(name):
 def test_get_parameter_value_reads_the_attributes_of_undeclared_parameters(name):
     """Test that the agent form of a subclass that declares no parameter runs as the plain interaction."""
     interaction, arguments = AGENTS[name]
-    plain = _run_agents(interaction(name, target='nodes', form='agent', **arguments))
-    fixed = _run_agents(_get_fixed(interaction)(name, target='nodes', form='agent', **arguments))
+    plain = _run_agents(interaction(name, target='nodes', schedule='synchronous', **arguments))
+    fixed = _run_agents(_get_fixed(interaction)(name, target='nodes', schedule='synchronous', **arguments))
     np.testing.assert_array_equal(fixed, plain)
 
 
@@ -324,8 +326,15 @@ def test_get_parameter_value_reads_a_renamed_parameter_in_the_agent_form(case):
     """Test that the agent form of a subclass that reads a parameter as `alias` runs as the plain interaction."""
     name, parameter, value = AGENT_ALIASES[case]
     interaction, arguments = AGENTS[name]
-    plain = _run_agents(interaction(name, target='nodes', form='agent', **{**arguments, parameter: value}))
-    aliased = _get_aliased(interaction)(name, target='nodes', form='agent', renamed=parameter, alias=value, **arguments)
+    plain = _run_agents(interaction(name, target='nodes', schedule='synchronous', **{**arguments, parameter: value}))
+    aliased = _get_aliased(interaction)(
+        name,
+        target='nodes',
+        schedule='synchronous',
+        renamed=parameter,
+        alias=value,
+        **arguments,
+    )
     np.testing.assert_array_equal(_run_agents(aliased), plain)
 
 
@@ -423,7 +432,7 @@ def test_dispatch_method_of_a_subclass_runs_its_spec_variant():
         options=(0, 1, 2),
         utility=print,
         rule=FixedSpec(2.0),
-        form='agent',
+        schedule='synchronous',
     )
     system = CompositeSystem(elements=[group], interactions=[choice], time=DiscreteTime())
     trajectory = simulate(system, until=1, random_state=0)
@@ -442,9 +451,9 @@ def _run_variant(*interactions, space=None, time=None):
     simulate(system, until=2, random_state=0)
 
 
-def _choice(form):
+def _choice(schedule):
     """Return a choice with an unhandled spec rule."""
-    utility = (lambda agent, system, option: option) if form == 'agent' else (lambda namespace, option: option)
+    utility = (lambda namespace, option: option) if schedule is None else (lambda agent, system, option: option)
     return ChoiceInteraction(
         'choice',
         target='nodes',
@@ -452,11 +461,11 @@ def _choice(form):
         options=(0, 1),
         utility=utility,
         rule=FixedSpec(),
-        form=form,
+        schedule=schedule,
     )
 
 
-def _imitation(form):
+def _imitation(schedule, probability):
     """Return an imitation with an unhandled spec rule."""
     return ImitationInteraction(
         'imitation',
@@ -464,18 +473,18 @@ def _imitation(form):
         state='x',
         options=(0, 1),
         payoff='x',
-        probability=1.0,
+        probability=probability,
         rule=FixedSpec(),
-        form=form,
+        schedule=schedule,
     )
 
 
 UNHANDLED_VARIANTS = {
-    'choice agent': (lambda: _run_variant(_choice('agent')), '_draw_agent'),
-    'choice symbolic': (lambda: _run_variant(_choice('symbolic')), '_draw_symbolic'),
-    'imitation agent': (lambda: _run_variant(_imitation('agent')), '_choose'),
-    'imitation rate': (lambda: _run_variant(_imitation('rate'), time=ContinuousTime()), '_get_jumps'),
-    'imitation probability': (lambda: _run_variant(_imitation('probability')), '_get_update'),
+    'choice agent': (lambda: _run_variant(_choice('synchronous')), '_draw_agent'),
+    'choice symbolic': (lambda: _run_variant(_choice(None)), '_draw_symbolic'),
+    'imitation agent': (lambda: _run_variant(_imitation('synchronous', 1.0)), '_choose'),
+    'imitation rate': (lambda: _run_variant(_imitation(None, None), time=ContinuousTime()), '_get_jumps'),
+    'imitation probability': (lambda: _run_variant(_imitation(None, 1.0)), '_get_update'),
     'map agent': (
         lambda: _run_variant(
             MapInteraction(
@@ -658,14 +667,6 @@ def test_interaction_that_writes_unlisted_laws_has_unknown_law_kinds():
     assert Interaction('free').get_tags().laws is None
 
 
-class FallElement(Element):
-    """Element of a falling body with a position of order two."""
-
-    def __init__(self, label: str, *, x: Annotated[float, StateSpec(order=2)] = 0.0):
-        super().__init__(label)
-        self.x = x
-
-
 class PullInteraction(Interaction):
     """Interaction that learns a constant pull on its target when it is prepared."""
 
@@ -673,8 +674,8 @@ class PullInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()] = 'ball',
-        g: Annotated[float, ParameterSpec()] = 9.81,
+        target: Role = 'ball',
+        g: float = 9.81,
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -698,14 +699,14 @@ def test_prepare_sets_laws_from_a_namespace():
 
 def test_prepare_keeps_parameters_symbolic_in_a_system():
     """The laws a system learns from an interaction read its parameters as symbols."""
-    system = System(elements=[FallElement('ball', x=10.0)], interactions=[PullInteraction('pull')]).prepare()
+    system = System(elements=[Element('ball', values={'x': 10.0})], interactions=[PullInteraction('pull')]).prepare()
     assert system.equations_["ball.x'"] == '-pull.g'
 
 
 def test_prepare_leaves_the_user_interaction_unchanged():
     """The engine prepares a clone of an interaction for every binding, so the object the user gave has no laws."""
     pull = PullInteraction('pull', target='bodies')
-    bodies = GroupElement('bodies', element=FallElement, size=2, values={'x': [1.0, 2.0]})
+    bodies = Element('bodies', values={'x': [1.0, 2.0]}, size=2)
     System(elements=[bodies], interactions=[pull]).prepare().simulate(until=1.0, dt=0.5)
     assert not hasattr(pull, 'laws_')
 

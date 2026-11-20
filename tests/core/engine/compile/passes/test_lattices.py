@@ -2,23 +2,18 @@
 
 import itertools
 from types import SimpleNamespace
-from typing import Annotated
 
 import networkx as nx
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import cos, var
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import (
     LinearRuleSpec,
-    LocalRuleLaw,
-    MoveSpec,
-    ObjectiveSpec,
+    ObjectiveLaw,
     OuterTotalisticSpec,
-    SampleLaw,
-    SamplerSpec,
     TableSpec,
     TotalisticSpec,
     UpdateLaw,
@@ -31,15 +26,12 @@ from skcomplex.core.components.spaces import (
     NetworkSpace,
     RadiusNeighborhood,
 )
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems import FrameSpec
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.engine.solvers import MetropolisSolver
 from skcomplex.core.engine.viz import RerunObserver, SiteVisual
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.experiments import sweep
-from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.core.systems import System
 from skcomplex.core.types import Array, Role
 from skcomplex.systems.physics.criticality import HexagonalForestFireSystem
@@ -187,47 +179,23 @@ def test_lattice_groups_on_networks_reject_tables_and_capacities():
 def test_neighbor_sum_ignores_padding():
     """Test that the XY neighbour-sum energy change on a star with 4 leaves sums over the real neighbours only."""
 
-    class XYElement(Element):
-        """X y element."""
-
-        def __init__(
-            self,
-            label: str,
-            *,
-            theta: Annotated[object, StateSpec()] = 0.0,
-            J: Annotated[object, ParameterSpec()] = 1.3,
-            temperature: Annotated[object, ParameterSpec()] = 0.5,
-        ) -> None:
-            super().__init__(label)
-            self.theta = theta
-            self.J = J
-            self.temperature = temperature
-
-        def _get_laws(self, s):
-            """Return the laws of the x y element."""
-            return [
-                SampleLaw(
-                    ObjectiveSpec(
-                        -s.J * neighbors(cos(s.theta - s.other.theta), reduce='sum'),
-                        AdjacencyNeighborhood(),
-                    ),
-                    MoveSpec(s.theta, 'rotate', width=1.0),
-                    SamplerSpec('metropolis', 1 / s.temperature, schedule='colored'),
-                ),
-            ]
+    def laws(s):
+        """Return the XY energy of a node, sampled by rotations."""
+        theta = s.target.theta
+        return [ObjectiveLaw(-s.target.J * neighbors(cos(theta - s.target.other.theta), reduce='sum'), theta)]
 
     graph = nx.star_graph(4)
     angles = np.random.default_rng(0).uniform(0, 2 * np.pi, 5)
-    system = CompositeSystem(
-        elements=[
-            GroupElement('xy', element=XYElement, space=NetworkSpace(graph), values={'theta': angles}, on='sites'),
-        ],
+    xy = Element('xy', values={'theta': angles, 'J': 1.3}, space=NetworkSpace(graph))
+    solver = MetropolisSolver(moves={'xy.theta': 'rotate'}, schedule='colored', neighborhood=AdjacencyNeighborhood())
+    system = System(
+        elements=[xy], interactions=[Interaction('energy', roles={'target': 'xy'}, laws=laws)], solver=solver,
     )
-    (sampling,) = PassCompiler().prepare(system).run().problem_.lattice
+    (sampling,) = system.prepare()._problem.lattice
     proposal = angles + np.random.default_rng(1).uniform(-1, 1, 5)
     neighbours = np.append(angles, 0.0)[sampling.table]
     masks = (sampling.table != 5).astype(float)
-    change = sampling.delta(0.0, angles, *neighbours.T, proposal, *masks.T, 1.3, 0.5)[0]
+    change = sampling.delta(0.0, angles, *neighbours.T, proposal, *masks.T, 1.3)[0]
     expected = [
         -1.3 * sum(np.cos(proposal[node] - angles[j]) - np.cos(angles[node] - angles[j]) for j in graph[node])
         for node in graph.nodes
@@ -255,48 +223,31 @@ def test_ising_on_grid_graph_has_transition():
     assert means[3.5] < 0.1
 
 
+def _hexagonal_spins(space):
+    """Return the Ising spins of a triangular lattice sampled in the classes of a proper coloring."""
+    hexagonal = RadiusNeighborhood(1, metric='hexagonal')
+
+    def laws(s):
+        """Return the energy of a spin over the temperature."""
+        spin = s.target.spin
+        return [ObjectiveLaw(-spin * sum(neighbors(spin, hexagonal, reduce='each')) / s.target.temperature, spin)]
+
+    spins = Element('spins', values={'spin': 1.0, 'temperature': 2.0}, space=space)
+    solver = MetropolisSolver(moves={'spins.spin': 'flip'}, schedule='colored', neighborhood=hexagonal)
+    return System(
+        elements=[spins], interactions=[Interaction('ising', roles={'target': 'spins'}, laws=laws)], solver=solver,
+    )
+
+
 def test_colored_schedule_partitions_triangular_lattice():
     """Test that the colored classes of a 12 x 12 triangular lattice hold no neighbours and visit every site once."""
-
-    class SpinElement(Element):
-        """Spin element."""
-
-        def __init__(
-            self,
-            label: str,
-            *,
-            spin: Annotated[object, StateSpec()] = 1.0,
-            temperature: Annotated[object, ParameterSpec()] = 2.0,
-        ) -> None:
-            super().__init__(label)
-            self.spin = spin
-            self.temperature = temperature
-
-        def _get_laws(self, s):
-            """Return the laws of the spin element."""
-            return [
-                SampleLaw(
-                    ObjectiveSpec(
-                        -s.spin * sum(neighbors(s.spin, RadiusNeighborhood(1, metric='hexagonal'), reduce='each')),
-                        RadiusNeighborhood(1, metric='hexagonal'),
-                    ),
-                    MoveSpec(s.spin),
-                    SamplerSpec('metropolis', 1 / s.temperature, schedule='colored'),
-                ),
-            ]
-
     space = LatticeSpace((12, 12), geometry='triangular')
-    system = CompositeSystem(elements=[GroupElement('spins', element=SpinElement, space=space, on='sites')])
-    (sampling,) = PassCompiler().prepare(system).run().problem_.lattice
+    (sampling,) = _hexagonal_spins(space).prepare()._problem.lattice
     sites = np.concatenate(sampling.classes)
     assert np.array_equal(np.sort(sites), np.arange(144))
     for members in sampling.classes:
         assert not np.isin(sampling.table[members], members).any()
-    simulate(
-        CompositeSystem(elements=[GroupElement('spins', element=SpinElement, space=space, on='sites')]),
-        until=2,
-        dt=1,
-    )
+    _hexagonal_spins(space).prepare().simulate(until=2, dt=1)
 
 
 @pytest.mark.parametrize('space', [LatticeSpace((6, 6), geometry='triangular'), NetworkSpace(nx.cycle_graph(6))])
@@ -361,7 +312,7 @@ def test_life_simulation_agrees_with_the_run_of_its_law():
     space = LatticeSpace((5, 5))
     system = _local('cells', 'alive', rule, RadiusNeighborhood(1, metric='chebyshev'), space, alive=start)
     trajectory = system.prepare().simulate(until=1, dt=1)
-    law = LocalRuleLaw(var('alive'), RadiusNeighborhood(1, metric='chebyshev'), rule).prepare()
+    law = UpdateLaw(var('alive'), rule, neighborhood=RadiusNeighborhood(1, metric='chebyshev')).prepare()
     image = law.run({'space': space, 'alive': start.astype(int)}).value_
     np.testing.assert_array_equal(trajectory.get_values('cells.alive')[-1].astype(int), image)
 

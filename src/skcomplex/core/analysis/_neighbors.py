@@ -18,7 +18,7 @@ from ..errors import AnalysisError
 from ..types import Array
 from ._analysis_tags import AnalysisTags
 from ._base import SNAPSHOT_DIMENSIONS, _check_settings, _read_fields, _read_networks, _read_snapshots
-from .types import Source
+from .types import DataSource
 
 KINDS = ('distances', 'clark-evans', 'radial-distribution', 'like-share')
 SETTINGS = {
@@ -74,7 +74,7 @@ class NeighborsResult:
 
 
 def neighbors(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'distances',
     group: str | None = None,
@@ -196,7 +196,7 @@ def neighbors(
     return NeighborsResult(positions=positions, box=sides, radii=radii, distribution=distribution)
 
 
-def _read_states(source: Source, variables: Sequence[str] | None) -> list[Array] | list[nx.Graph]:
+def _read_states(source: DataSource, variables: Sequence[str] | None) -> list[Array] | list[nx.Graph]:
     """Return the grids of states of a trajectory or an array, or a graph."""
     if isinstance(source, nx.Graph):
         return _read_networks(source)
@@ -205,7 +205,7 @@ def _read_states(source: Source, variables: Sequence[str] | None) -> list[Array]
     return list(frames) if isinstance(source, Trajectory) else [frames]
 
 
-def _read_positions(source: Source, group: str | None, box: Sequence[float] | None) -> tuple[Array, Array | None]:
+def _read_positions(source: DataSource, group: str | None, box: Sequence[float] | None) -> tuple[Array, Array | None]:
     """Return the positions and the box of the agents of a trajectory.
 
     An array of positions is also accepted.

@@ -13,7 +13,7 @@ import numpy as np
 from scipy import stats
 
 from ....core.analysis import rolling
-from ....core.analysis.types import Source
+from ....core.analysis.types import DataSource
 from ....core.types import Array
 
 
@@ -74,7 +74,7 @@ class EarlyWarningResult:
 
 
 def early_warning(
-    source: Source,
+    source: DataSource,
     *,
     variables: Sequence[str] | None = None,
     window: int | None = None,

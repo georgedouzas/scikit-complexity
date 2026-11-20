@@ -149,7 +149,6 @@ class StandardizationInteraction(ChoiceInteraction):
             intensity=intensity,
             schedule='member',
             activity=activity,
-            form='agent',
             phase=phase,
             proposal='all',
         )

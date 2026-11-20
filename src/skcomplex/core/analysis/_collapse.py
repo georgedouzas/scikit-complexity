@@ -15,7 +15,7 @@ from ..errors import AnalysisError
 from ..types import Array
 from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings
-from .types import Source
+from .types import DataSource
 
 KINDS = ('scaling', 'aging', 'distribution', 'crossings')
 FITTED = ('critical', 'nu', 'exponent')
@@ -88,7 +88,7 @@ class DataCollapseResult:
 
 
 def data_collapse(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'scaling',
     parameters: Sequence[float] | None = None,

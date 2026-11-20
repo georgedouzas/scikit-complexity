@@ -15,7 +15,7 @@ from ..types import Array
 from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _read_series
 from ._markov import _stationary_distribution
-from .types import Source
+from .types import DataSource
 
 MIN_RUNS = 2
 FIT_POINTS = 50
@@ -89,7 +89,7 @@ class ErgodicityResult:
 
 
 def ergodicity(
-    source: Source | Callable[[Array], Array],
+    source: DataSource | Callable[[Array], Array],
     *,
     kind: str = 'breaking',
     variables: Sequence[str] | None = None,

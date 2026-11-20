@@ -13,7 +13,7 @@ from ..errors import AnalysisError
 from ..types import Array
 from ._analysis_tags import AnalysisTags
 from ._base import _read_fields
-from .types import Source
+from .types import DataSource
 
 FIELD_RANK = 2
 CHARGE_TOLERANCE = 1e-6
@@ -43,7 +43,7 @@ class DefectsResult:
 
 
 def defects(
-    source: Source,
+    source: DataSource,
     *,
     period: float = np.pi,
     variables: Sequence[str] | None = None,

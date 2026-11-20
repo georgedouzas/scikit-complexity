@@ -16,7 +16,7 @@ from ..types import Array
 from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _read_path, _read_real, _read_series
 from ._utils import load_module
-from .types import Source
+from .types import DataSource
 
 SETTINGS = {
     'detect': {'threshold'},
@@ -86,7 +86,7 @@ class EventsResult:
 
 
 def events(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'detect',
     variables: Sequence[str] | None = None,
