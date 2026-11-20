@@ -202,7 +202,6 @@ import tempfile
 from pathlib import Path
 
 from skcomplex.core.analysis import loops
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerSolver
 from skcomplex.core.engine.translators import SystemDynamicsTranslator
 

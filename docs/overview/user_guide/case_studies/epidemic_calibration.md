@@ -59,7 +59,6 @@ which solver fits.
 The default rates of `SIRSystem` describe a slow epidemic, so the first run shows how far they are from the school.
 
 ```python continuation
-from skcomplex.core.engine.runtime import simulate
 
 trajectory = school.prepare().simulate(until=13, dt=1.0)
 trajectory.get_values('I.x').round().tolist()[::4]
