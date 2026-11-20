@@ -112,3 +112,9 @@ def test_tensor_rejects_a_fixed_edge_of_another_symmetry():
     space = LatticeSpace((4, 4), boundary={'Q': ('fixed', [[0.0, 1.0], [2.0, 0.0]])})
     with pytest.raises(ValidationError, match=r'film\.Q'):
         _film(space, _smooth).prepare()
+
+
+def test_traceless_tensor_holds_five_components_in_three_dimensions():
+    """Test that a symmetric traceless tensor on a lattice of three dimensions holds five components per site."""
+    system = _film(LatticeSpace((4, 4, 4)), _decay, Q=np.tile([1.0, 0.0, 0.0, 0.5, 0.0], (64, 1))).prepare()
+    assert np.shape(system.simulate(until=1.0, dt=1.0).get_values('film.Q')) == (2, 64, 5)

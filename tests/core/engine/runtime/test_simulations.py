@@ -539,6 +539,25 @@ def test_checked_mode_catches_values_outside_alphabet():
     assert system.prepare().simulate(until=1).get_values('ann.health').shape == (2,)
 
 
+def test_categorical_values_round_trip_as_labels():
+    """Test that categorical states take labels as values and return them as labels."""
+    system = System(
+        elements=[PersonElement('ann', health='infected')],
+        interactions=[ProgressionInteraction('p', target='ann')],
+    )
+    assert system.prepare().simulate(until=1).get_values('ann.health').tolist() == ['infected', 'recovered']
+
+
+def test_categorical_rejects_an_unknown_label():
+    """Test that an initial value outside the alphabet is rejected."""
+    system = System(
+        elements=[PersonElement('ann', health='dead')],
+        interactions=[ProgressionInteraction('p', target='ann')],
+    )
+    with pytest.raises(ValidationError, match=r"ann\.health = 'dead' is not in its domain"):
+        system.prepare()
+
+
 @pytest.mark.benchmark
 def test_large_game_of_life_runs_in_real_time(tmp_path):
     """Test that a 1000 x 1000 Game of Life on Numba sustains 30 steps per second while streaming images."""
@@ -645,4 +664,3 @@ def test_run_grows_a_group_without_a_capacity_and_the_same_seed_repeats_the_run(
             np.testing.assert_array_equal(network.targets, expected.targets)
         np.testing.assert_array_equal(grown.get_values('nodes.age')[:, :102], other.get_values('nodes.age')[:, :102])
     assert grown.get_network(-1).nodes.size == 102
-
