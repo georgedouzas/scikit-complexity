@@ -1,4 +1,4 @@
-"""Define the function that simulates a system and returns its trajectory."""
+"""Define the functions that compile a system into a problem and run it into a trajectory."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -190,13 +190,6 @@ def compile_problem(
 
         solver:
             The solver of the runs, which every run copies.
-
-    Examples:
-        >>> from skcomplex.core.engine.runtime import compile_problem
-        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
-        >>> problem, solver = compile_problem(LotkaVolterraSystem())
-        >>> type(solver).__name__
-        'ScipyODESolver'
     """
     composite, stepper, runner, form, observed = _prepare_runners(system, solver, backend, observables)
     simulation = Simulation(composite, compiler=form, solver=stepper, backend=runner, observables=observed).prepare()
@@ -222,9 +215,10 @@ def run_problem(
     record_draws: bool = False,
     replay: Trajectory | None = None,
 ) -> Trajectory:
-    """Simulate a system as `simulate` does.
+    """Simulate a system and return its trajectory.
 
-    It starts from a problem compiled from the system by `compile_problem` when one is given.
+    It is the run behind the `simulate` method of systems. It starts from a problem compiled from the system by
+    `compile_problem` when one is given.
 
     Args:
         system:
@@ -283,13 +277,6 @@ def run_problem(
     Raises:
         ValidationError:
             The system is not a system, or no end time is given or tuned.
-
-    Examples:
-        >>> from skcomplex.core.engine.runtime import compile_problem, run_problem
-        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
-        >>> system = LotkaVolterraSystem()
-        >>> float(run_problem(system, compile_problem(system), until=5.0).times[-1])
-        5.0
     """
     if not isinstance(system, BaseSystem):
         error_msg = f'simulate takes a system, not {system!r}.'
@@ -328,143 +315,3 @@ def run_problem(
     trajectory: Trajectory = simulation.prepare().run().trajectory_
     return trajectory
 
-
-def simulate(
-    system: BaseSystem,
-    *,
-    until: float | None = None,
-    dt: float | None = None,
-    initial_state: Mapping[str, object] | None = None,
-    solver: BaseSolver | None = None,
-    backend: BaseBackend | None = None,
-    observables: Sequence[Observable] = (),
-    observers: Sequence[BaseObserver] = (),
-    invariants: Mapping[str, float] | None = None,
-    schedule: Mapping[str, Callable[[float], float | npt.ArrayLike]] | None = None,
-    random_state: int | np.random.Generator | None = None,
-    checked: bool = False,
-    clock: BaseClock | None = None,
-    record_draws: bool = False,
-    replay: Trajectory | None = None,
-) -> Trajectory:
-    """Simulate a system until a time and return its trajectory.
-
-    A solver takes the role of a splitter in scikit-learn, a backend the role of `n_jobs`, observables the role of
-    `scoring`, and observers, such as a Rerun recording, the role of callbacks. An argument left out comes from the
-    tuned run settings of the system, which `get_run_settings` returns. The compiler is the one an element of the
-    system names, such as the compiler of words and patches, or else the general one.
-    Without a solver, the tags of the system choose the default solver, or the compiled form chooses it when the tags
-    fit several, when the system brings its own compiler, or when it nests systems that run as partitions. The tags
-    are read before any compiling, so a solver or a backend that does not support them is rejected first.
-
-    Args:
-        system:
-            The system to simulate.
-
-        until:
-            The end time of the run, or `None` for the tuned end time of the class of the system.
-
-        dt:
-            The time between frames, or `None` for the tuned time of the class of the system, or else the default of
-            its form.
-
-        initial_state:
-            Initial values that replace those of the elements, by dotted state name, such as `{'rabbits.n': 20}`, or
-            `None` for the tuned initial state of the class of the system.
-
-        solver:
-            The solver, or `None` for the tuned solver of the class of the system, or else the default solver.
-
-        backend:
-            The backend, or `None` for the tuned backend of the system, or else the default backend.
-
-        observables:
-            The observables to compute and record at every frame, or none for the tuned observables of the class of
-            the system.
-
-        observers:
-            The observers that receive every frame, such as a `RerunObserver`.
-
-        invariants:
-            The tolerance of every observable that must stay constant, by the path of the observable, or `None` for the
-            tuned invariants of the system. The run raises a `ConservationError` that names the first observable and
-            frame that leave the tolerance of their value at the first frame.
-
-        schedule:
-            A mapping from dotted parameter name to a function of time, such as a ramp of a control parameter, or
-            `None` for the tuned schedule of the system. At every frame the parameter takes the value of its function
-            at the frame's time. A scheduled value is checked against the domain of its parameter, as an initial value
-            is, and a value outside it, or one that would make a transition or emission matrix negative or its rows
-            not sum to 1, such as a transition probability of 1.5, raises an error that names the parameter and the
-            time.
-
-
-        random_state:
-            The seed or generator of stochastic solvers.
-
-        checked:
-            Whether to check after every frame that every state lies in its domain, such as an alphabet of labels or a
-            nonnegative count, and raise an error naming the state and the time when it does not.
-
-        clock:
-            The clock that paces frames against wall time, or `None` to run as fast as possible. A `RealTimeClock`
-            paces the run in real time, to watch it in a Rerun viewer as it runs.
-
-        record_draws:
-            Whether to record in the trajectory every named draw of the run by name and step, with the arguments of
-            its distribution, and every firing of a jump law with its time and law. Draws of the laws of stochastic
-            maps and named draws of agent rules are recorded, and the run uses the NumPy backend unless one is given.
-
-        replay:
-            A trajectory recorded with its draws, or `None`. The run forces every named draw and every jump firing to
-            its recorded value, computes the arguments of each distribution from its own parameters and states, and
-            holds the total log-probability of the forced values as `log_probability` of its trajectory. Replay with
-            the random state of the recorded run, so the draws that are not named, such as the order of agents, stay
-            the same.
-
-    Returns:
-        trajectory:
-            The trajectory of the system from time 0 until the end time.
-
-    Raises:
-        ValidationError:
-            The system is not a system, no end time is given or tuned, a state leaves its domain in a checked run, or
-            a scheduled value is outside the domain of its parameter.
-
-        ParameterError:
-            A scheduled name is not a parameter of the system, or scheduled values would break a transition or
-            emission matrix.
-
-        TagError:
-            The components of the system disagree on a tag, or the solver or the backend does not support a tag of the
-            system, named in the message.
-
-    Examples:
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.systems.biology.common.populations import LogisticGrowthInteraction, PopulationElement
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> system = CompositeSystem(
-        ...     elements=[PopulationElement('rabbits', x=10)],
-        ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
-        ... )
-        >>> round(simulate(system, until=20).get_values('rabbits.x')[-1])
-        100
-    """
-    return run_problem(
-        system,
-        None,
-        until=until,
-        dt=dt,
-        initial_state=initial_state,
-        solver=solver,
-        backend=backend,
-        observables=observables,
-        observers=observers,
-        invariants=invariants,
-        schedule=schedule,
-        random_state=random_state,
-        checked=checked,
-        clock=clock,
-        record_draws=record_draws,
-        replay=replay,
-    )

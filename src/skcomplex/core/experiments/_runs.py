@@ -17,7 +17,8 @@ import numpy.typing as npt
 from ..components import Observable
 from ..components.systems import BaseSystem as CompositeBaseSystem
 from ..engine.problems import BaseProblemSpec
-from ..engine.runtime import Trajectory, compile_problem, run_problem
+from ..engine.runtime import Trajectory
+from ..engine.runtime._simulate import compile_problem, run_problem
 from ..engine.solvers import BaseSolver
 from ..enums import ExecutorKind
 from ..errors import ExperimentError, ValidationError

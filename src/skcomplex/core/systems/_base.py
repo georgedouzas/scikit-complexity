@@ -21,7 +21,8 @@ from ..components.systems import CompositeSystem
 from ..engine.backends import BaseBackend
 from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import BaseProblemSpec
-from ..engine.runtime import BaseClock, BaseObserver, Trajectory, run_problem
+from ..engine.runtime import BaseClock, BaseObserver, Trajectory
+from ..engine.runtime._simulate import run_problem
 from ..engine.solvers import BaseSolver
 from ..enums import FormKind
 from ..errors import NotPreparedError

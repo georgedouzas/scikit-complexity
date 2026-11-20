@@ -19,7 +19,7 @@ from ..engine.problems import BaseProblemSpec, LayoutSpec, ProblemSpec
 from ..engine.problems._neighborhood_kernel import NeighborhoodKernel
 from ..engine.problems._reduction_kernel import ReductionKernel
 from ..engine.problems._rule_kernel import RuleKernel
-from ..engine.runtime import compile_problem
+from ..engine.runtime._simulate import compile_problem
 from ..engine.solvers import BaseSolver, MetropolisSolver
 from ..enums import FormKind
 from ..errors import ValidationError

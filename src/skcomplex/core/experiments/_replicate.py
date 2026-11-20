@@ -25,7 +25,8 @@ from ..components.laws import (
 from ..components.systems import CompositeSystem
 from ..engine._utils import declared_variables, probe_laws
 from ..engine.problems import BaseProblemSpec
-from ..engine.runtime import Trajectory, run_problem
+from ..engine.runtime import Trajectory
+from ..engine.runtime._simulate import run_problem
 from ..enums import VariableKind
 from ..errors import ValidationError
 from ..specs import ParameterSpec, StateSpec, VariableSpec
