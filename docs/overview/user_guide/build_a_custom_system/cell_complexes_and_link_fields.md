@@ -151,7 +151,7 @@ The mean plaquette over the last 50 sweeps, the average cosine of the oriented s
 ## Matrix links
 
 This section holds a matrix of a compact group on every link, as the SU(2) and SU(3) gauge fields of the weak and
-strong forces do. A `MatrixGroupSpec` names `SU(n)` or `U(n)`, and a state declared with `StateSpec(group=...)` stores
+strong forces do. A `MatrixGroupSpec` names `SU(n)` or `U(n)`, and a value typed `Annotated[object, group]` stores
 the `2 n^2` real components of every matrix. The spec turns components into matrices and back, draws matrices from the
 Haar measure, the uniform distribution on the group, or near the identity, projects rounded products back onto the
 group, and multiplies matrices along paths. Here 32 random SU(3) matrices sit on the links of a torus of 4 by 4 sites.

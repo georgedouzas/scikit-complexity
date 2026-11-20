@@ -243,51 +243,36 @@ The burning sites number 1, 7, 19, and 37 after zero to three steps, the hexagon
 
 ## Lattices on graphs
 
-This section uses the nodes of a network as the sites. A `GroupElement` on `'sites'` also takes a
-[`NetworkSpace`](../core_components/spaces.md#networkspace), with one site per node in the order of `graph.nodes`, and
-initial values are arrays in node order or mappings from node to value. The
+This section uses the nodes of a network as the sites. An element also takes a
+[`NetworkSpace`](../core_components/spaces.md#networkspace), with one member per node in the order of `graph.nodes`,
+and initial values are arrays in node order. The
 [`AdjacencyNeighborhood`](../core_components/spaces.md#adjacencyneighborhood) of a node holds its neighbours along its
-edges. Here an Ising magnet lives on a random regular graph of 200 nodes, each with four neighbours.
+edges. Here an Ising magnet lives on a random regular graph of 200 nodes, each with four neighbours. Its local energy
+over the temperature is an `ObjectiveLaw` of each spin, and a `MetropolisSolver` flips the spins in colored sweeps.
 
 ```python
-from typing import Annotated
-
 import networkx as nx
-from sage.all__sagemath_symbolics import ZZ
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import SampleLaw
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import ObjectiveLaw
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import AdjacencyNeighborhood, NetworkSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
-from skcomplex.core.components.laws import MoveSpec, ObjectiveSpec, SamplerSpec
+from skcomplex.core.engine.solvers import MetropolisSolver
+from skcomplex.core.systems import System
 
 
-class GraphSpinElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        spin: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
-        J: Annotated[float, ParameterSpec()] = 1.0,
-        temperature: Annotated[float, ParameterSpec()] = 1.0,
-    ):
-        super().__init__(label)
-        self.spin = spin
-        self.J = J
-        self.temperature = temperature
-
-    def _get_laws(self, s):
-        energy = -s.J * s.spin * neighbors(s.other.spin, reduce='sum')
-        sampler = SamplerSpec('metropolis', 1 / s.temperature, schedule='colored')
-        return [SampleLaw(ObjectiveSpec(energy, AdjacencyNeighborhood()), MoveSpec(s.spin, 'flip'), sampler)]
+def energy(s):
+    spins = s.target
+    return [ObjectiveLaw(-spins.J * spins.spin * neighbors(spins.other.spin) / spins.temperature, spins.spin)]
 
 
 graph = nx.random_regular_graph(4, 200, seed=0)
-spins = CompositeSystem(elements=[GroupElement('spins', element=GraphSpinElement, space=NetworkSpace(graph), on='sites')])
-abs(simulate(spins, until=200, dt=50, random_state=0).states[-1].mean()) > 0.9
+spins = Element('spins', values={'spin': 1.0, 'J': 1.0, 'temperature': 1.0}, space=NetworkSpace(graph))
+solver = MetropolisSolver(moves={'spins.spin': 'flip'}, neighborhood=AdjacencyNeighborhood(), schedule='colored')
+magnet = System(elements=[spins], interactions=[Interaction('energy', roles={'target': 'spins'}, laws=energy)])
+values = magnet.set_params(solver=solver).prepare().simulate(until=200, dt=50, random_state=0).get_values('spins.spin')
+abs(values[-1].mean()) > 0.9
 ```
 
 At the temperature 1.0 the mean spin stays above 0.9 in absolute value after 200 units of time, so the magnet on the
