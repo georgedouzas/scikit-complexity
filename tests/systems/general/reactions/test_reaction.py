@@ -183,10 +183,10 @@ def test_reaction_takes_a_propensity_function():
         ({'reactants': ['A']}, 'Map pairs of a path and a state name'),
         ({'reactants': {('A', 'not a name'): 1}}, 'Map pairs of a path and a state name'),
         ({'reactants': {('A', 'x'): -1}}, 'positive numbers or functions'),
-        ({'reactants': {('A', 'x'): 1}, 'form': 'mesa'}, 'has the form'),
-        ({'reactants': {('A', 'x'): 1}, 'form': 'agent'}, 'agent form but no target'),
-        ({'target': 'cells', 'reactants': {'x': 1}, 'form': 'agent', 'mode': 'langevin'}, 'Use rate or jump'),
-        ({'target': 'cells', 'reactants': {('A', 'x'): 1}, 'form': 'agent'}, 'state names alone'),
+        ({'reactants': {('A', 'x'): 1}, 'schedule': 'parallel'}, 'Unknown schedule'),
+        ({'reactants': {('A', 'x'): 1}, 'schedule': 'synchronous'}, 'but no target'),
+        ({'target': 'cells', 'reactants': {'x': 1}, 'schedule': 'synchronous', 'mode': 'langevin'}, 'Use rate or jump'),
+        ({'target': 'cells', 'reactants': {('A', 'x'): 1}, 'schedule': 'synchronous'}, 'state names alone'),
         ({'reactants': {'x': 1}}, 'state names of the target'),
     ],
 )
@@ -320,20 +320,20 @@ def test_reaction_scales_changes_by_parametric_coefficients(epsilon, delta):
 
 
 def _agent_decay(mode, size=2000):
-    """Return cells of three units each that decay on their own in the agent form."""
+    """Return cells of three units each that decay on their own by a rule of a schedule."""
     cells = NonnegativeElement('cells', x=np.full(size, 3.0), size=size)
-    decay = ReactionInteraction('decay', target='cells', reactants={'x': 1}, k=0.1, form='agent', mode=mode)
+    decay = ReactionInteraction('decay', target='cells', reactants={'x': 1}, k=0.1, schedule='synchronous', mode=mode)
     return System(elements=[cells], interactions=[decay])
 
 
-def test_reaction_agent_form_steps_every_member_by_its_rate():
-    """Test that the agent form in the mode `rate` adds the changes times the propensity of every member per step."""
+def test_reaction_schedule_steps_every_member_by_its_rate():
+    """Test that a rule of a schedule in the mode `rate` adds the changes times the propensity of every member."""
     trajectory = _agent_decay('rate', size=3).prepare().simulate(until=3)
     np.testing.assert_allclose(trajectory.get_agents('cells', 3).values['x'], 3 * 0.9**3)
 
 
-def test_reaction_agent_form_jumps_whole_units_at_the_step_probability():
-    """Test that the agent form in the mode `jump` moves one unit with the probability `1 - exp(-propensity)`."""
+def test_reaction_schedule_jumps_whole_units_at_the_step_probability():
+    """Test that a rule of a schedule in the mode `jump` moves one unit with the probability `1 - exp(-propensity)`."""
     trajectory = _agent_decay('jump').prepare().simulate(until=1, random_state=0)
     counts = trajectory.get_agents('cells', 1).values['x']
     assert set(counts.tolist()) <= {2.0, 3.0}
@@ -351,12 +351,6 @@ def test_reaction_agent_schedules_react_in_every_member_once(schedule):
     jump.interactions[0].set_params(schedule=schedule)
     counts = jump.prepare().simulate(until=1, random_state=0).get_agents('cells', 1).values['x']
     assert np.mean(counts == 2.0) == pytest.approx(1 - np.exp(-0.3), abs=0.03)
-
-
-def test_reaction_symbolic_form_refuses_an_agent_schedule():
-    """Test that a symbolic reaction with a schedule other than synchronous raises an error."""
-    with pytest.raises(ValidationError, match='runs agent rules'):
-        ReactionInteraction('decay', target='cells', reactants={'x': 1}, schedule='member').prepare()
 
 
 @pytest.mark.parametrize('mode', ['rate', 'jump'])

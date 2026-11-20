@@ -316,8 +316,8 @@ def test_get_member_reads_a_renamed_target_in_the_symbolic_form(name):
 def test_get_parameter_value_reads_the_attributes_of_undeclared_parameters(name):
     """Test that the agent form of a subclass that declares no parameter runs as the plain interaction."""
     interaction, arguments = AGENTS[name]
-    plain = _run_agents(interaction(name, target='nodes', form='agent', **arguments))
-    fixed = _run_agents(_get_fixed(interaction)(name, target='nodes', form='agent', **arguments))
+    plain = _run_agents(interaction(name, target='nodes', schedule='synchronous', **arguments))
+    fixed = _run_agents(_get_fixed(interaction)(name, target='nodes', schedule='synchronous', **arguments))
     np.testing.assert_array_equal(fixed, plain)
 
 
@@ -326,8 +326,15 @@ def test_get_parameter_value_reads_a_renamed_parameter_in_the_agent_form(case):
     """Test that the agent form of a subclass that reads a parameter as `alias` runs as the plain interaction."""
     name, parameter, value = AGENT_ALIASES[case]
     interaction, arguments = AGENTS[name]
-    plain = _run_agents(interaction(name, target='nodes', form='agent', **{**arguments, parameter: value}))
-    aliased = _get_aliased(interaction)(name, target='nodes', form='agent', renamed=parameter, alias=value, **arguments)
+    plain = _run_agents(interaction(name, target='nodes', schedule='synchronous', **{**arguments, parameter: value}))
+    aliased = _get_aliased(interaction)(
+        name,
+        target='nodes',
+        schedule='synchronous',
+        renamed=parameter,
+        alias=value,
+        **arguments,
+    )
     np.testing.assert_array_equal(_run_agents(aliased), plain)
 
 
@@ -425,7 +432,7 @@ def test_dispatch_method_of_a_subclass_runs_its_spec_variant():
         options=(0, 1, 2),
         utility=print,
         rule=FixedSpec(2.0),
-        form='agent',
+        schedule='synchronous',
     )
     system = CompositeSystem(elements=[group], interactions=[choice], time=DiscreteTime())
     trajectory = simulate(system, until=1, random_state=0)
@@ -444,9 +451,9 @@ def _run_variant(*interactions, space=None, time=None):
     simulate(system, until=2, random_state=0)
 
 
-def _choice(form):
+def _choice(schedule):
     """Return a choice with an unhandled spec rule."""
-    utility = (lambda agent, system, option: option) if form == 'agent' else (lambda namespace, option: option)
+    utility = (lambda namespace, option: option) if schedule is None else (lambda agent, system, option: option)
     return ChoiceInteraction(
         'choice',
         target='nodes',
@@ -454,11 +461,11 @@ def _choice(form):
         options=(0, 1),
         utility=utility,
         rule=FixedSpec(),
-        form=form,
+        schedule=schedule,
     )
 
 
-def _imitation(form):
+def _imitation(schedule, probability):
     """Return an imitation with an unhandled spec rule."""
     return ImitationInteraction(
         'imitation',
@@ -466,18 +473,18 @@ def _imitation(form):
         state='x',
         options=(0, 1),
         payoff='x',
-        probability=1.0,
+        probability=probability,
         rule=FixedSpec(),
-        form=form,
+        schedule=schedule,
     )
 
 
 UNHANDLED_VARIANTS = {
-    'choice agent': (lambda: _run_variant(_choice('agent')), '_draw_agent'),
-    'choice symbolic': (lambda: _run_variant(_choice('symbolic')), '_draw_symbolic'),
-    'imitation agent': (lambda: _run_variant(_imitation('agent')), '_choose'),
-    'imitation rate': (lambda: _run_variant(_imitation('rate'), time=ContinuousTime()), '_get_jumps'),
-    'imitation probability': (lambda: _run_variant(_imitation('probability')), '_get_update'),
+    'choice agent': (lambda: _run_variant(_choice('synchronous')), '_draw_agent'),
+    'choice symbolic': (lambda: _run_variant(_choice(None)), '_draw_symbolic'),
+    'imitation agent': (lambda: _run_variant(_imitation('synchronous', 1.0)), '_choose'),
+    'imitation rate': (lambda: _run_variant(_imitation(None, None), time=ContinuousTime()), '_get_jumps'),
+    'imitation probability': (lambda: _run_variant(_imitation(None, 1.0)), '_get_update'),
     'map agent': (
         lambda: _run_variant(
             MapInteraction(

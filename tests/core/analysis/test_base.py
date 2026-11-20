@@ -380,7 +380,6 @@ def test_tags_are_not_checked_for_data_without_a_system():
     assert lyapunov([0.5, -1.0]).exponents.tolist() == [0.5, -1.0]
 
 
-@pytest.mark.skip(reason='A plain element holding tuples is not inferred as a state of objects, so the run fails.')
 def test_series_analysis_refuses_a_state_of_objects_by_name():
     """Test that an analysis that needs numbers names the state that holds objects."""
     trajectory = _queue_run()

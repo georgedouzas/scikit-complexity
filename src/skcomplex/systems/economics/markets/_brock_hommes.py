@@ -351,7 +351,7 @@ class BrockHommesSystem(BaseSystem):
             scores=tuple(f'{name}_fitness' for name in PREDICTORS),
             payoff=HeuristicTraderElement.get_realised_fitness,
             rate=1.0,
-            form='agent',
+            schedule='synchronous',
             phase='learning',
         )
         choice = ChoiceInteraction(
@@ -361,7 +361,7 @@ class BrockHommesSystem(BaseSystem):
             options=(0, 1),
             utility=HeuristicTraderElement.get_fitness,
             intensity=self.intensity,
-            form='agent',
+            schedule='synchronous',
             phase='choice',
         )
         pricing = HeuristicPricingInteraction(

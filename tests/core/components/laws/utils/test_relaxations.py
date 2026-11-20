@@ -80,3 +80,25 @@ def test_relax_checks_every_law_it_holds():
 
     with pytest.raises(ValidationError, match='Unknown schedule'):
         _run('pile', LatticeSpace((2, 2)), laws, 1)
+
+
+def _sandpile(symbolic):
+    """Return the laws of a sandpile that gains a grain at every site, by an update law or by an array update."""
+
+    def laws(s):
+        height = s.target.height
+        topple = UpdateLaw(height, lambda z, *n: z - 4 * (z >= 4) + sum(m >= 4 for m in n[1:]), neighborhood=CROSS)
+        drive = UpdateLaw(height, height + 1) if symbolic else ArrayUpdateLaw(height, lambda z, *, random: z + 1)
+        return [UpdateLaw(height, relax(height, topple, lambda z: bool((z < 4).all()), drive=drive))]
+
+    return laws
+
+
+def test_relax_reads_the_values_of_the_namespace_and_an_update_law_drive():
+    """Test that a relaxation of `s.target.height` driven by `UpdateLaw(height, height + 1)` runs as an array drive."""
+    space = LatticeSpace((4, 4), boundary='fixed')
+    symbolic = _run('pile', space, _sandpile(symbolic=True), 6).get_values('pile.height')
+    arrays = _run('pile', space, _sandpile(symbolic=False), 6).get_values('pile.height')
+    np.testing.assert_array_equal(symbolic, arrays)
+    assert np.all(symbolic[-1] < 4)
+    assert symbolic[-1].sum() < 6 * 16

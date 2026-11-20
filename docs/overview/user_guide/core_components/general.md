@@ -1212,10 +1212,10 @@ float(city.simulate(until=1, random_state=0).get_values('commuters.mode')[-1].me
 
 In one draw 0.75 of the commuters take the car, close to the share of the logit rule.
 
-**How the engine runs it.** In the symbolic form `utility(namespace, option)` returns an expression, and the
-interaction returns an [`UpdateLaw`](laws.md#updatelaw) that draws a new option for every member at once. In the
-agent form `utility(agent, system, option)` returns a number, and an agent rule draws for the members one after
-another.
+**How the engine runs it.** Without a `schedule`, `utility(namespace, option)` returns an expression, and the
+interaction returns an [`UpdateLaw`](laws.md#updatelaw) that draws a new option for every member at once. With a
+`schedule`, such as `'synchronous'` or `'random-sequential'`, `utility(agent, system, option)` returns a number, and one
+rule of the whole system walks the agents in that order with its own draws.
 The rule `'metropolis'` or `'fermi'` accepts a proposed option, and the rule `'best'` takes an option of largest
 utility.
 
@@ -1275,7 +1275,7 @@ from skcomplex.core.systems import System
 from skcomplex.systems.general.agents import ImitationInteraction
 
 initial = np.array([1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0], dtype=float)
-majority = ImitationInteraction('majority', target='voters', rule='majority', form='probability')
+majority = ImitationInteraction('majority', target='voters', rule='majority', probability=1.0)
 voters = Element('voters', values={'state': initial}, space=LatticeSpace(12))
 system = System(elements=[voters], interactions=[majority]).prepare()
 system.simulate(until=1, random_state=0).get_values('voters.state')[-1].tolist()
@@ -1293,7 +1293,7 @@ import networkx as nx
 from skcomplex.core.components.spaces import NetworkSpace
 
 farms = Element('farms', values={'state': [1, 0, 0, 0, 0]}, space=NetworkSpace(nx.star_graph(4)))
-adoption = ImitationInteraction('adoption', target='farms', rule='random', form='probability')
+adoption = ImitationInteraction('adoption', target='farms', rule='random', probability=1.0)
 village = System(elements=[farms], interactions=[adoption]).prepare()
 village.simulate(until=1, random_state=0).get_values('farms.state')[-1].tolist()
 ```
@@ -1301,18 +1301,18 @@ village.simulate(until=1, random_state=0).get_values('farms.state')[-1].tolist()
 The four farms take the crop of the hub, and the hub takes the old crop of a farm, so the states read
 `[0, 1, 1, 1, 1]`.
 
-**How the engine runs it.** The `form` chooses the laws. With `'rate'` imitation is a [`JumpLaw`](laws.md#jumplaw) at
-the rate `rate` in continuous time. With `'probability'` it is an `UpdateLaw` that every member applies with the
-probability `probability` per step, all at once. With `'agent'` it is an `UpdateLaw` whose value is an agent rule,
-which runs the members in the order of `schedule`.
+**How the engine runs it.** Without a `schedule` imitation is a [`JumpLaw`](laws.md#jumplaw) at the rate `rate` in
+continuous time, or, when `probability` is given, an `UpdateLaw` that every member applies with that probability per
+step, all at once. With a `schedule` it is one rule of the whole system that walks the agents in that order with its
+own draws.
 
 **How it combines.** Its neighbours come from the space of the group, a `LatticeSpace` or a `NetworkSpace`, or from
 the `layer` of a network with several layers. The rules `'best'` and `'fermi'` read the payoff state, which another
 interaction, such as a game, writes.
 
 **Limits and errors.** It copies one discrete value, while a rate law along the edges, such as
-`RateLaw(s.target.x.diff(s.t), s.source.x - s.target.x)`, averages numeric states. The rule `'better'` runs in the
-agent form only, and `prepare` raises a `ValidationError` in another form.
+`RateLaw(s.target.x.diff(s.t), s.source.x - s.target.x)`, averages numeric states. The rule `'better'` runs with a
+schedule only, and `prepare` raises a `ValidationError` without one.
 
 ```python continuation
 from skcomplex.core.errors import ValidationError
@@ -1324,14 +1324,14 @@ except ValidationError as error:
 message
 ```
 
-The message reads "The rule of imitation 'better' runs in the agent form only. Use form `agent`."
+The message reads "The rule of imitation 'better' runs with a schedule only, such as `"synchronous"`."
 
 **A field realization.** The voter model of social science is an imitation of a random neighbour at rate 1.
 
 ```python continuation
 class VoterModelInteraction(ImitationInteraction):
     def __init__(self, label, *, target):
-        super().__init__(label, target=target, rule='random', form='rate')
+        super().__init__(label, target=target, rule='random')
 
 
 VoterModelInteraction('voting', target='voters').rule

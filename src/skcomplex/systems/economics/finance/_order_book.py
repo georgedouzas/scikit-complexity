@@ -579,7 +579,7 @@ class OrderBookSystem(BaseSystem):
                     state='strategy',
                     payoff='gain',
                     rule='better',
-                    form='agent',
+                    schedule='synchronous',
                     probability=self.imitation,
                     phase='imitation',
                 ),

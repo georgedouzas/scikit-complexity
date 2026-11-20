@@ -282,7 +282,6 @@ class _Conversion(Interaction):
             self.laws_: list[BaseComponent] = [JumpLaw(context.k * context.a.n, {context.a.n: -1, context.b.n: 1})]
 
 
-@pytest.mark.skip(reason='engine gap: an ODE solver refuses a JumpLaw with a change map instead of running its mean')
 def test_one_reaction_runs_as_jumps_or_as_its_mean_with_two_solvers():
     """Test that one conversion runs as a jump process by default and as its mean `100 exp(-t)` with an ODE solver."""
     elements = [Element('A', values={'n': 100.0}), Element('B', values={'n': 0.0})]

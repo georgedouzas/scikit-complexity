@@ -24,7 +24,7 @@ from sklearn.base import clone
 from ...components.elements import GroupElement
 from ...components.interactions import BaseInteraction, PairInteraction
 from ...components.laws import BoundaryLaw, ConstraintLaw, NoiseLaw, RateLaw
-from ...components.spaces import BaseSpace, ContinuousSpace, ContinuousTime
+from ...components.spaces import BaseSpace, ContinuousSpace, ContinuousTime, RadiusNeighborhood
 from ...components.systems import CompositeSystem
 from ...enums import FormKind, NoiseKind, OrderKind, VariableKind
 from ...errors import BackendError, SolverError
@@ -62,10 +62,12 @@ class LammpsSolver(ExternalSolver):
     It uses LAMMPS velocity Verlet integration. An element or group whose members declare a vector position state of
     order 2, such as a point, becomes an atom type, whose atoms move with the first derivative of the position as
     their velocity. The mass of an atom type is the parameter that the `divisor` of the interactions on its members
-    names, and 1 without a divisor. Boxes become LAMMPS boundaries and `fix wall/reflect`. A `PairInteraction`
-    with a potential becomes the native pair style `pairs` gives for its class, or a Lepton expression potential
-    otherwise. An interaction whose class `fixes` gives a native fix becomes that fix. Any other interaction that only
-    changes the derivatives of the positions runs through `fix external`, evaluated by the framework.
+    names, and 1 without a divisor. Boxes become LAMMPS boundaries and `fix wall/reflect`. An interaction whose
+    class `pairs` gives a native pair style becomes that pair style, between the members of its roles `first` and
+    `second` closer than the radius of `within=RadiusNeighborhood(r)`, or within its `cutoff`. A `PairInteraction`
+    with a potential and no native pair style becomes a Lepton expression potential. An interaction whose class
+    `fixes` gives a native fix becomes that fix. Any other interaction that only changes the derivatives of the
+    positions runs through `fix external`, evaluated by the framework.
 
     Choose it for large systems of particles with standard potentials. It appears in molecular dynamics of liquids,
     solids, and polymers.
@@ -272,7 +274,7 @@ class LammpsSolver(ExternalSolver):
             boundary = ['p' if box.boundary == 'periodic' else 'f'] * self.n_dim_
         else:
             cutoffs = [
-                float(self._get_parameter(problem, problem.initial_parameters, item.path, 'cutoff')[0])
+                self._get_cutoff(problem, problem.initial_parameters, item)
                 for item in problem.interactions
                 if self._is_potential(item)
             ]
@@ -303,7 +305,7 @@ class LammpsSolver(ExternalSolver):
         counts: defaultdict[str, int] = defaultdict(int)
         largest = 1.0
         for item in pairs:
-            cutoff = float(self._get_parameter(problem, p, item.path, 'cutoff')[0])
+            cutoff = self._get_cutoff(problem, p, item)
             largest = max(largest, cutoff)
             first, second = sorted(self.atom_numbers_[path] for path in self._get_pair_paths(item))
             native = self._get_native(self.pairs or {}, item.interaction)
@@ -627,12 +629,24 @@ class LammpsSolver(ExternalSolver):
         return paired or self._get_native(self.pairs or {}, item.interaction) is not None
 
     @staticmethod
+    def _get_cutoff(problem: ProblemSpec, p: Array, item: _CompiledInteractionSpec) -> float:
+        """Return the distance beyond which a pair interaction acts on no pair.
+
+        It is the radius of the pairs it binds with `within=RadiusNeighborhood(r)`, or else its parameter `cutoff`.
+        """
+        within = item.interaction._get_within()
+        if isinstance(within, RadiusNeighborhood):
+            return float(within.radius)
+        return float(LammpsSolver._get_parameter(problem, p, item.path, 'cutoff')[0])
+
+    @staticmethod
     def _get_pair_paths(item: _CompiledInteractionSpec) -> tuple[str, str]:
         """Return the paths of the two groups of a pair interaction.
 
-        An interaction of one role, such as `target`, pairs the members of its one group.
+        An interaction that binds pairs with `within=` pairs the members of its roles `first` and `second`, and an
+        interaction of one role, such as `target`, pairs the members of its one group.
         """
-        if isinstance(item.interaction, PairInteraction):
+        if isinstance(item.interaction, PairInteraction) or item.interaction._get_within() is not None:
             roles = [item.interaction._get_role(name) for name in ('first', 'second')]
         else:
             roles = [next(iter(item.roles))] * 2

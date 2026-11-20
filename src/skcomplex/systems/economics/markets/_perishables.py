@@ -350,7 +350,6 @@ class PerishableGoodsDuopolySystem(BaseSystem):
             options=tuple(float(shop) for shop in range(N_SHOPS)),
             utility=CustomerElement.get_utility,
             schedule='member',
-            form='agent',
             phase=PHASE,
         )
         movement = MovementInteraction(
@@ -373,7 +372,6 @@ class PerishableGoodsDuopolySystem(BaseSystem):
             rate=1 - self.alpha,
             chosen='shop',
             schedule='member',
-            form='agent',
             phase=PHASE,
         )
         self.system_ = System(

@@ -646,8 +646,8 @@ class RerunObserver(BaseObserver):
         """
         component = element.element
         member = component._get_member() if isinstance(component, GroupElement) else component
-        declared = isinstance(member, DeclaredElement) and member.kind is not None
-        return str(member.kind) if declared else type(member).__name__
+        origin = member.origin if isinstance(member, DeclaredElement) else None
+        return (origin or type(member)).__name__
 
     @staticmethod
     def _get_chunks(

@@ -38,6 +38,7 @@ from ....components.laws import (
     TransferLaw,
     UpdateLaw,
 )
+from ....components.laws._flow_term import FlowTermLaw
 from ....components.laws.utils import laplacian, shifted
 from ....components.laws.utils._operators import _OperatorFunction
 from ....components.laws.utils._reductions import hyperedges_in, neighborhoods_in, reductions_in
@@ -45,7 +46,7 @@ from ....components.laws.utils._relaxations import relaxation_of
 from ....components.laws.utils._tensors import distribute_operators
 from ....components.spaces import CellComplexSpace, LatticeSpace, RadiusNeighborhood
 from ....components.systems import CompositeSystem
-from ....enums import ElementKind, VariableKind
+from ....enums import ElementKind, FormKind, VariableKind
 from ....errors import RoleElementError, SkcomplexError, TensorShapeError, TensorSymmetryError, ValidationError
 from ....specs import EntrySpec, TensorSpec
 from ....types import ProcessKey
@@ -330,10 +331,10 @@ class CensusPass(BasePass):
 
         The result maps the path of every system to its solver and the path of the system that gives it. A nested system
         keeps its own solver, as it keeps its own time, and one without a solver takes `held`, the solver of the system
-        that holds it.
+        that holds it. The root takes its own solver when the compilation is given none.
         """
         own = getattr(system, 'solver', None)
-        if scope and own is not None:
+        if own is not None and (scope or held[0] is None):
             held = (own, scope)
         solvers = {scope: held}
         for child in getattr(system, 'systems', ()):
@@ -1038,6 +1039,7 @@ class CensusPass(BasePass):
             error_msg = f'`_get_laws` of {spec.owner} must return a list of laws.'
             raise ValidationError(error_msg)
         laws = [CensusPass._get_sampled(spec, law, solver, scope) for law in laws]
+        laws = [item for law in laws for item in CensusPass._get_mean_jumps(law, solver)]
         lowered = [BilinearLaw._get_lowered(law) for law in CensusPass._get_programs(laws, spec.owner)]
         split = [item for law in lowered for item in CensusPass._get_component_rates(spec, law)]
         declared = [CensusPass._get_relaxation(law).prepare(spec.owner) for law in split]
@@ -1206,6 +1208,23 @@ class CensusPass(BasePass):
         )
         label = law.label or spec.owner.rpartition('/')[2]
         return SampleLaw(ObjectiveSpec(law.value, over), move, sampler, label=label)
+
+    @staticmethod
+    def _get_mean_jumps(law: BaseLaw, solver: object) -> list[BaseLaw]:
+        """Return a jump as the rate laws of its mean under an ODE solver, else as it is.
+
+        A jump that adds `changes` at the rate `r`, such as `JumpLaw(k * a, {a: -1, b: 1})`, moves every state by its
+        change times `r` on average, so an ODE solver runs `RateLaw(a, -k * a)` and `RateLaw(b, k * a)`. A labelled jump
+        whose changes are `-1` and `+1` is a flow of that label.
+        """
+        get_form = getattr(type(solver), '_get_form', None)
+        ode = callable(get_form) and get_form() == FormKind.ODE
+        if not ode or not isinstance(law, JumpLaw) or law.waiting is not None or not isinstance(law.rate, Expression):
+            return [law]
+        changes = law.changes or {}
+        if law.label and all(change in (-1, 1) for change in changes.values()):
+            return list(FlowTermLaw._get_terms(RateLaw(dict(changes), law.rate, label=law.label), law.label))
+        return [RateLaw(target, SR(change) * law.rate) for target, change in changes.items()]
 
     @staticmethod
     def _get_component_of(node: _NodeSpec) -> BaseComponent:

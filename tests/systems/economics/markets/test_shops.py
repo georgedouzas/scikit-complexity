@@ -152,8 +152,8 @@ def test_price_adjustment_steps_additively_and_stops_at_a_zero_signal():
     assert _run(QuoteElement('quote', x=3.0), search, 3).get_values('quote.x').tolist() == [3.0, 2.5, 2.0, 2.0]
 
 
-def test_price_adjustment_agent_form_steps_every_agent_within_its_bound():
-    """Test that the agent form steps every agent by its own step and keeps it above its lower bound."""
+def test_price_adjustment_schedule_steps_every_agent_within_its_bound():
+    """Test that a rule of a schedule steps every agent by its own step and keeps it above its lower bound."""
     quotes = QuoteElement('quotes', x=[1.0, 4.0], goal=[0.0, 8.0], size=2)
     search = PriceAdjustmentInteraction(
         'search',
@@ -162,7 +162,7 @@ def test_price_adjustment_agent_form_steps_every_agent_within_its_bound():
         signal=lambda agent, system: agent.goal - agent.x,
         step=lambda agent, system: 0.5,
         lower=lambda agent, system: 0.8,
-        form='agent',
+        schedule='synchronous',
     )
     trajectory = _run(quotes, search, 2)
     assert trajectory.get_agents('quotes', 1).values['x'].tolist() == pytest.approx([0.8, 6.0])
@@ -183,7 +183,6 @@ def test_price_adjustment_agent_schedules_read_the_states_set_before(schedule, e
         signal=_crowded,
         step=1.0,
         stepping='additive',
-        form='agent',
         schedule=schedule,
     )
     values = _run(quotes, search, 1).get_agents('quotes', 1).values['x'].tolist()
@@ -194,10 +193,10 @@ def test_price_adjustment_agent_schedules_read_the_states_set_before(schedule, e
 
 @pytest.mark.parametrize(
     'arguments',
-    [{'stepping': 'power'}, {'form': 'rule'}, {'signal': 1.0}, {'schedule': 'member'}, {'schedule': 'parallel'}],
+    [{'stepping': 'power'}, {'signal': 1.0}, {'schedule': 'parallel'}],
 )
 def test_check_rejects_invalid_arguments(arguments):
-    """Test that an unknown stepping or form, or a signal that is not callable, fails."""
+    """Test that an unknown stepping or schedule, or a signal that is not callable, fails."""
     settings = {'signal': lambda s: 1, **arguments}
     with pytest.raises(ValidationError):
         PriceAdjustmentInteraction('search', target='quote', state='x', **settings).prepare()

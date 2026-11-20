@@ -1,5 +1,7 @@
 """Test the `_flow_term` module of `skcomplex.core.components.laws`."""
 
+from typing import Annotated
+
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import var
@@ -91,3 +93,22 @@ def test_increment_flow_to_the_next_member_moves_every_amount_along_the_group(bo
     trajectory = System(elements=[sites], interactions=[hops]).prepare().simulate(until=1)
     np.testing.assert_allclose(trajectory.get_values('sites.n')[-1], expected)
     assert np.sum(trajectory.get_values('sites.hops')[0]) == pytest.approx(6.0 if boundary == 'periodic' else 3.0)
+
+
+class Switch(Element):
+    """Switch whose state `lit` is off or on."""
+
+    def __init__(self, label: str, *, lit: Annotated[int, {0, 1}] = 0) -> None:
+        super().__init__(label)
+        self.lit = lit
+
+
+def test_increment_flow_moves_a_value_of_a_finite_set():
+    """Test that a flow in discrete time moves a value allowed only 0 and 1, since it adds no rate."""
+    flip = Interaction(
+        'flip',
+        roles={'off': 'off', 'on': 'on'},
+        laws=lambda s: [UpdateLaw({s.off.lit: -1, s.on.lit: 1}, s.off.lit, increment=True, label='flip')],
+    )
+    trajectory = System(elements=[Switch('off', lit=1), Switch('on')], interactions=[flip]).prepare().simulate(until=1)
+    assert [trajectory.get_values('off.lit')[-1], trajectory.get_values('on.lit')[-1]] == [0, 1]

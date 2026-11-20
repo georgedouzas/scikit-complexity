@@ -23,13 +23,14 @@ from ..base import BaseComponent
 from ..spaces import BaseSpace, NetworkSpace
 from ._base import BaseElement
 
-RESERVED = ('label', 'size', 'space', 'values')
+RESERVED = ('label', 'size', 'space', 'values', 'on')
 BOOLEAN = FiniteEnumeratedSet([0, 1])
 LINKS = ('edges', 'hyperedges')
 RESERVED_MEANINGS = {
     'size': 'number of members',
     'space': 'space of the members',
     'values': 'mapping of values by name',
+    'on': 'part of a network space that holds one member each',
 }
 
 
@@ -177,7 +178,9 @@ class Element(BaseElement):
         error_msg = (
             f'Element {self.label!r} has on = {on!r}, but on is the part of a network space that holds one member '
             "each, 'edges', 'hyperedges', or the name of a layer for its edges, such as "
-            "Element('links', values={'sign': 1}, space=network, on='edges')."
+            "Element('links', values={'sign': 1}, space=network, on='edges'). The names "
+            f'{", ".join(RESERVED)} are reserved, so rename a value of the element named on, such as closed for a '
+            'switch.'
         )
         raise ValidationError(error_msg)
 
@@ -238,7 +241,7 @@ class Element(BaseElement):
         out, such as the allowed values themselves, are no values.
         """
         parameters = inspect.signature(type(self)).parameters
-        return {name: parameter.annotation for name, parameter in parameters.items() if name not in (*RESERVED, 'on')}
+        return {name: parameter.annotation for name, parameter in parameters.items() if name not in RESERVED}
 
     @classmethod
     def _get_view(cls) -> type | None:

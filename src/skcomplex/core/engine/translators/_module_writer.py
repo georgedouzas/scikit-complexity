@@ -17,21 +17,20 @@ LINE_LENGTH = 120
 INDENT = '    '
 ELEMENTS_MODULE = 'skcomplex.core.components.elements'
 INTERACTIONS_MODULE = 'skcomplex.core.components.interactions'
-SPECS_MODULE = 'skcomplex.core.specs'
+LAWS_MODULE = 'skcomplex.core.components.laws'
+SYSTEMS_MODULE = 'skcomplex.core.systems'
 COMPONENTS_MODULE = 'skcomplex.core.components'
 BASE_IMPORTS = frozenset(
     {
         (SAGE_MODULE, 'Expression'),
         (ELEMENTS_MODULE, 'Element'),
-        ('skcomplex.core.components.systems', 'BaseSystem'),
-        ('skcomplex.core.components.systems', 'CompositeSystem'),
+        (SYSTEMS_MODULE, 'BaseSystem'),
+        (SYSTEMS_MODULE, 'System'),
         (COMPONENTS_MODULE, 'Observable'),
-        (SPECS_MODULE, 'StateSpec'),
-        (SPECS_MODULE, 'VisualSpec'),
     },
 )
 ELEMENT_CLASS = '''class {name}(Element):
-    """Hold the stocks and the constants of the system.
+    """Hold the stocks and the constants of the system, the stocks being the values its laws change.
 
     Args:
         label:
@@ -46,8 +45,8 @@ ELEMENT_CLASS = '''class {name}(Element):
         *,
 {declarations}
     ) -> None:
-        """Store the label, the visual, the stocks, and the constants."""
-        super().__init__(label)
+        """Store the label, the stocks, and the constants."""
+        super().__init__(label{size})
 {assignments}'''
 FLOW = """                FlowInteraction(
                     {name!r},
@@ -56,19 +55,15 @@ FLOW = """                FlowInteraction(
                     enters={enters!r},
                     amount=_amount__{name},
                 ),"""
-RATE = """                RateInteraction(
+RATE = """                Interaction(
                     {name!r},
-                    target={label!r},
-                    state={stock!r},
-                    rate=_rate__{stock},
+                    roles={{'target': {label!r}}},
+                    laws=_laws__{stock},
                 ),"""
-GROUP = """                GroupElement(
+GROUP = """                {name}(
                     {label!r},
-                    element={name},
-                    size={size},
-                    values={{
 {values}
-                    }},
+                    size={size},
                 ),"""
 SYSTEM_CLASS = '''class {name}(BaseSystem):
     """Run the stock-and-flow system translated from the file `{stem}`.
@@ -86,13 +81,19 @@ SYSTEM_CLASS = '''class {name}(BaseSystem):
         *,
 {declarations}
     ) -> None:
-        """Store the constants and the label."""
-        super().__init__(label)
+        """Store the constants, the label, and the settings."""
+        super().__init__(label, solver=solver, backend=backend)
 {assignments}
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the element of the stocks and the constants, and the interactions of the flows and the rates."""
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the element of the stocks and the constants and the interactions of the flows and rates.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[
 {element}
@@ -269,26 +270,35 @@ class _ModuleWriter:
         Its states are the stocks and its parameters the constants.
         """
         variables = self.variables
-        declared = [(name, 'StateSpec', self._get_stock_values(name)[0], 'stock') for name in sorted(variables.stocks)]
-        declared += [
-            (name, 'ParameterSpec', variables.constants[name][0], 'constant') for name in sorted(variables.constants)
-        ]
+        declared = [(name, self._get_stock_values(name)[0], 'stock') for name in sorted(variables.stocks)]
+        declared += [(name, variables.constants[name][0], 'constant') for name in sorted(variables.constants)]
         documented = [
-            f'{INDENT * 2}{name}:\n{INDENT * 3}The {kind} `{self._get_original(name)}`.'
-            for name, _, _, kind in declared
+            f'{INDENT * 2}{name}:\n{INDENT * 3}The {kind} `{self._get_original(name)}`.' for name, _, kind in declared
         ]
-        if variables.constants or variables.members:
-            self.expressions.imports.add((SPECS_MODULE, 'ParameterSpec'))
+        annotation = 'float | list[float]' if variables.members else 'float'
+        declarations = [f'{INDENT * 2}{name}: {annotation} = {value!r},' for name, value, _ in declared]
+        assignments = [f'{INDENT * 2}self.{name} = {name}' for name, _, _ in declared]
         if variables.members:
-            declared.append(('member', 'ParameterSpec', 0.0, 'position'))
+            declarations.append(f'{INDENT * 2}member: {annotation} = 0.0,')
+            assignments.append(f'{INDENT * 2}self.member = member')
             documented.append(f'{INDENT * 2}member:\n{INDENT * 3}The position of the member in the range of the file.')
+            declarations.append(f'{INDENT * 2}size: int | None = None,')
+            documented.append(f'{INDENT * 2}size:\n{INDENT * 3}The number of members, one per subscript, or `None`.')
         return ELEMENT_CLASS.format(
             name=self._get_class_name(),
             arguments='\n\n'.join(documented),
-            declarations='\n'.join(
-                f'{INDENT * 2}{name}: Annotated[float, {spec}()] = {value!r},' for name, spec, value, _ in declared
-            ),
-            assignments='\n'.join(f'{INDENT * 2}self.{name} = {name}' for name, _, _, _ in declared),
+            declarations='\n'.join(declarations),
+            size=', size=size' if variables.members else '',
+            assignments='\n'.join(assignments),
+        )
+
+    def _write_laws(self, stock: str) -> str:
+        """Return the function of the rate law of a stock, which reads the function of its rate."""
+        self.expressions.imports.update({(INTERACTIONS_MODULE, 'Interaction'), (LAWS_MODULE, 'RateLaw')})
+        return self._write_function(
+            f'_laws__{stock}(namespace: SimpleNamespace) -> list[RateLaw]',
+            f'Return the rate law of the stock `{self._get_original(stock)}`.',
+            f'{INDENT}return [RateLaw(namespace.target.{stock}, _rate__{stock}(namespace))]',
         )
 
     def _write_flows(self, flows: dict[str, tuple[str | None, str | None]]) -> tuple[list[str], list[str]]:
@@ -314,7 +324,6 @@ class _ModuleWriter:
         """
         expressions = self.expressions
         original = self.variables.originals[stock]
-        expressions.imports.add((INTERACTIONS_MODULE, 'RateInteraction'))
         goal = expressions.write(form.goal, original)
         scale = expressions.write(form.scale, original)
         time = scale if form.is_time else f'1 / ({scale})'
@@ -345,16 +354,17 @@ class _ModuleWriter:
                 *([f'{INDENT}t = s.t'] if re.search(r'\bt\b', f'{goal} {time}') else []),
                 self._write_return(f'(({goal}) - s.{stock}) / ({time})'),
             ),
+            self._write_laws(stock),
         ]
         return functions, RATE.format(name=name, label=self.label, stock=stock), name
 
     def _write_rate(self, stock: str, terms: Sequence[tuple[int, object]]) -> tuple[str, str]:
-        """Return the function of the rest of the net rate of a stock, and its interaction.
+        """Return the functions of the rest of the net rate of a stock and of its rate law, and its interaction.
 
-        The function is that of what remains of the net rate, and the source is that of its rate interaction.
+        The functions are those of what remains of the net rate and of the rate law that reads it, and the source is
+        that of the interaction that returns the rate law.
         """
         expressions = self.expressions
-        expressions.imports.add((INTERACTIONS_MODULE, 'RateInteraction'))
         pieces = []
         for sign, term in terms:
             source = expressions.write(term, self.variables.originals[stock])
@@ -367,7 +377,8 @@ class _ModuleWriter:
             *self._write_bindings(net),
             self._write_return(net),
         )
-        return function, RATE.format(name=self._get_label(f'{stock}_rate'), label=self.label, stock=stock)
+        interaction = RATE.format(name=self._get_label(f'{stock}_rate'), label=self.label, stock=stock)
+        return f'{function}\n\n\n{self._write_laws(stock)}', interaction
 
     def _write_observable(self, name: str) -> str:
         """Return the source of the observable of a name.
@@ -414,12 +425,11 @@ class _ModuleWriter:
         variables = self.variables
         name = self._get_class_name()
         if variables.members:
-            self.expressions.imports.add((ELEMENTS_MODULE, 'GroupElement'))
             values: dict[str, str] = {stock: repr(self._get_stock_values(stock)) for stock in sorted(variables.stocks)}
             for key, value in sorted(variables.constants.items()):
                 values[key] = f'list(self.{key})' if len(value) > 1 else f'self.{key}'
             values['member'] = repr([float(index) for index in range(len(variables.members))])
-            listed = '\n'.join(f'{INDENT * 6}{key!r}: {value},' for key, value in values.items())
+            listed = '\n'.join(f'{INDENT * 5}{key}={value},' for key, value in values.items())
             return GROUP.format(label=self.label, name=name, size=len(variables.members), values=listed)
         if not variables.constants:
             return f'{INDENT * 4}{name}({self.label!r}),'
@@ -442,6 +452,13 @@ class _ModuleWriter:
         documented.append(f'{INDENT * 2}label:\n{INDENT * 3}{label}')
         declarations = [f'{INDENT * 2}{key}: {annotation},' for key, annotation in declared]
         declarations.append(f"{INDENT * 2}label: str = 'system',")
+        declarations.append(f"{INDENT * 2}solver: BaseSolver | str = 'auto',")
+        declarations.append(f"{INDENT * 2}backend: BaseBackend | str = 'auto',")
+        self.expressions.imports.update({SOLVERS_MODULE: 'BaseSolver', BACKENDS_MODULE: 'BaseBackend'}.items())
+        settings = "The solver of the problem, or `'auto'` for the one the system chooses."
+        documented.append(f'{INDENT * 2}solver:\n{INDENT * 3}{settings}')
+        backend = "The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses."
+        documented.append(f'{INDENT * 2}backend:\n{INDENT * 3}{backend}')
         return SYSTEM_CLASS.format(
             name=self._get_system_name(),
             stem=self.stem,
@@ -517,10 +534,8 @@ class _ModuleWriter:
             modules.setdefault(module, []).append(name)
         sage = ', '.join(sorted(modules.pop(SAGE_MODULE)))
         library = '\n'.join(self._write_import(module, sorted(names)) for module, names in sorted(modules.items()))
-        typing = 'from typing import Annotated\n' if (ELEMENTS_MODULE, 'Element') in self.expressions.imports else ''
-        return (
-            f'from types import SimpleNamespace\n{typing}\nfrom sage.all__sagemath_symbolics import {sage}\n\n{library}'
-        )
+        abc = 'from collections.abc import Sequence\n' if (SYSTEMS_MODULE, 'System') in self.expressions.imports else ''
+        return f'{abc}from types import SimpleNamespace\n\nfrom sage.all__sagemath_symbolics import {sage}\n\n{library}'
 
     def write(self) -> str:
         """Return the source of the module of the system."""

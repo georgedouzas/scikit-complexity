@@ -23,14 +23,15 @@ from sage.symbolic.operators import FDerivativeOperator
 from sklearn.base import clone
 
 from ...enums import DomainKind
-from ...errors import ParameterShapeError, SpaceError, ValidationError
+from ...errors import ParameterShapeError, RoleError, SpaceError, ValidationError
 from ...specs import BaseSpec, DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec
 from .._tags import Tags
 from ..base import BaseComponent
 from ..laws import BaseLaw, NoiseLaw, PartnerSpec, RateLaw, RuleLaw, UpdateLaw
 from ..laws._flow_term import FlowTermLaw
-from ..laws.utils import delayed, derivative, lag
+from ..laws.utils import delayed, derivative, lag, relax
 from ..laws.utils._fractional import fractional_of
+from ..laws.utils._relaxations import relaxation_of
 from ..spaces import BaseNeighborhood, BaseSpace, ContinuousSpace
 from ..types import AgentViewProtocol, SystemViewProtocol
 from ._interaction_requirement_spec import _InteractionRequirementSpec
@@ -428,7 +429,11 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
 
     @staticmethod
     def _get_law_in_states(law: BaseComponent, time: Expression, symbols: Mapping[str, Expression]) -> BaseComponent:
-        """Return a law written with functions of time as a law of the states."""
+        """Return a law written with functions of time as a law of the states.
+
+        The rules and the drive of a relaxation, such as the toppling and the grain of a sandpile, become laws of the
+        states too.
+        """
         if not symbols:
             return law
         discrete = isinstance(law, UpdateLaw)
@@ -442,6 +447,18 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
             for name, item in params.items()
             if name != 'label'
         }
+        relaxation = relaxation_of(params.get('value'))
+        if relaxation is not None:
+            translated['value'] = relax(
+                cast('Expression', translated['value']).operands()[0],
+                [cast(BaseLaw, BaseInteraction._get_law_in_states(rule, time, symbols)) for rule in relaxation.rules],
+                relaxation.stable,
+                drive=[
+                    cast(BaseLaw, BaseInteraction._get_law_in_states(item, time, symbols)) for item in relaxation.drive
+                ],
+                activity=relaxation.activity,
+                max_iterations=relaxation.max_iterations,
+            )
         changed = {name: item for name, item in translated.items() if item is not params[name]}
         return BaseInteraction._get_replaced(law, **changed) if changed else law
 
@@ -891,6 +908,33 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
             return int(best[0])
         return int(best[int(system.rng.integers(len(best)))])
 
+    def _check_processes(self) -> None:
+        """Raise an error for an argument annotated with `WienerProcessSpec` that holds something else.
+
+        Such an argument binds a set of Wiener processes, such as `noise=WienerProcessSpec('market')`, so a path such
+        as `'market'` binds nothing.
+
+        Raises:
+            RoleError:
+                An argument annotated with `WienerProcessSpec` holds a value other than one, or `None` when it is
+                optional.
+        """
+        params = self.get_params(deep=False)
+        for name, argument in inspect.signature(type(self).__init__, eval_str=True).parameters.items():
+            annotation = self._get_annotated(argument.annotation)
+            options = get_args(annotation) if get_origin(annotation) in (Union, UnionType) else (annotation,)
+            value = params.get(name)
+            if WienerProcessSpec not in options or isinstance(value, WienerProcessSpec):
+                continue
+            if value is None and type(None) in options:
+                continue
+            error_msg = (
+                f'Interaction {self.label!r} takes a WienerProcessSpec for {name}, but got {value!r}. Give the '
+                f"processes, such as {name}=WienerProcessSpec('market'), and give one spec to several interactions to "
+                'share them.'
+            )
+            raise RoleError(error_msg)
+
     def _check_states(self) -> None:
         """Raise an error for a type with states or adaptive parameters without a shape.
 
@@ -1071,6 +1115,7 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         """
         super()._prepare(context)
         self._check_states()
+        self._check_processes()
         if isinstance(context, SimpleNamespace):
             self.laws_: Sequence[BaseComponent] = []
             return

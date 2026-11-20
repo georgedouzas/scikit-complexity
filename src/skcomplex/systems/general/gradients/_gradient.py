@@ -39,7 +39,7 @@ class GradientInteraction(Interaction):
     Cahn-Hilliard equation, so the total of the field stays constant. The potential function takes a namespace with the
     roles, the `sources`, the time `t`, and the parameters a subclass declares.
 
-    Unlike `RateInteraction`, which takes the rate itself, it takes a potential and derives the rates from it. Choose it
+    Unlike a `RateLaw`, which takes the rate itself, it takes a potential and derives the rates from it. Choose it
     when the dynamics descend an energy or a cost, so that one scalar function gives every rate.
 
     It appears in many fields. Particles move in a potential well, phases separate in an alloy, a neural network
