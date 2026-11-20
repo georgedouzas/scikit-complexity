@@ -7,7 +7,7 @@ They choose by their past satisfaction.
 # License: MIT
 
 from collections.abc import Mapping, Sequence
-from typing import Annotated
+from typing import Annotated, Protocol, runtime_checkable
 
 import networkx as nx
 import numpy as np
@@ -23,7 +23,7 @@ from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
-from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
+from ....core.engine.solvers import BaseSolver, MesaSolver, SystemView
 from ....core.systems import BaseSystem, System
 from ...general.agents import ChoiceInteraction, MovementInteraction
 from ..common.learning import PayoffLearningInteraction
@@ -32,7 +32,8 @@ N_SHOPS = 2
 PHASE = 'visit'
 
 
-class CustomerView(AgentView):
+@runtime_checkable
+class CustomerView(AgentViewProtocol, Protocol):
     """Customer as its rules see it.
 
     It holds its satisfactions `s1` and `s2`, its `shop`, `freshness`, and temperature `T`.
@@ -96,14 +97,6 @@ class CustomerElement(Element):
         self.shop = shop
         self.freshness = freshness
         self.T = T
-
-    @classmethod
-    def _get_view(cls) -> type[CustomerView]:
-        """Return the view of a customer.
-
-        It holds its satisfactions, shop, freshness, and temperature.
-        """
-        return CustomerView
 
     @staticmethod
     def get_utility(agent: CustomerView, system: SystemView, option: float) -> float:
@@ -181,7 +174,8 @@ class CustomerElement(Element):
         return float(np.tanh((agent.s1 - agent.s2) / (2 * agent.T)))
 
 
-class ProductView(AgentView):
+@runtime_checkable
+class ProductView(AgentViewProtocol, Protocol):
     """Product as the purchase sees it.
 
     It holds the time it was `shelved` and the time `tau_a` over which it ages.
@@ -234,11 +228,6 @@ class ProductElement(Element):
         super().__init__(label, values=values, size=size, space=space)
         self.shelved = shelved
         self.tau_a = tau_a
-
-    @classmethod
-    def _get_view(cls) -> type[ProductView]:
-        """Return the view of a product, with its shelving time and ageing time."""
-        return ProductView
 
 
 class PerishableGoodsDuopolySystem(BaseSystem):

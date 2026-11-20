@@ -9,7 +9,7 @@ The module covers sample-space-reducing processes, their cascades, and fragmenta
 import math
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol
 
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
@@ -20,14 +20,15 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
 
 
-class BallView(AgentView):
+class BallView(AgentViewProtocol, Protocol):
     """View of a ball of a sample-space-reducing process, with its values as attributes."""
 
     level: float
@@ -63,11 +64,6 @@ class BallElement(Element):
     ) -> None:
         super().__init__(label, size=size)
         self.level = level
-
-    @classmethod
-    def _get_view(cls) -> type[BallView]:
-        """Return the view of the balls, which types their values."""
-        return BallView
 
 
 class CascadeInteraction(Interaction):
@@ -115,7 +111,7 @@ class CascadeInteraction(Interaction):
         agent.remove()
 
 
-class FragmentView(AgentView):
+class FragmentView(AgentViewProtocol, Protocol):
     """View of a fragment, with its values as attributes."""
 
     length: float
@@ -151,11 +147,6 @@ class FragmentElement(Element):
     ) -> None:
         super().__init__(label, size=size)
         self.length = length
-
-    @classmethod
-    def _get_view(cls) -> type[FragmentView]:
-        """Return the view of the fragments, which types their values."""
-        return FragmentView
 
 
 class BreakingInteraction(Interaction):

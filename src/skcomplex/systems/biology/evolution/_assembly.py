@@ -8,7 +8,7 @@ Assembly theory is the discovery of new objects by recursive joining of existing
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, cast
 
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
@@ -19,8 +19,9 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw, UpdateLaw
 from ....core.components.laws.utils import shift_member
 from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.errors import ValidationError
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
@@ -118,10 +119,10 @@ class AssemblyDiscoveryInteraction(Interaction):
             self.laws_: list[BaseLaw] = [RateLaw(s.N, s.k * below**s.alpha)]
 
 
-class PolymerView(AgentView):
+class PolymerView(AgentViewProtocol, Protocol):
     """View of a polymer, with its states as attributes.
 
-    `PolymerElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `PolymerElement` read them with checked types.
     """
 
     length: float
@@ -161,11 +162,6 @@ class PolymerElement(Element):
         super().__init__(label, size=size)
         self.length = length
         self.born = born
-
-    @classmethod
-    def _get_view(cls) -> type[PolymerView]:
-        """Return the view of a polymer, `PolymerView`."""
-        return PolymerView
 
 
 class PolymerJoiningInteraction(Interaction):
@@ -231,7 +227,7 @@ class PolymerJoiningInteraction(Interaction):
             system:
                 The system.
         """
-        pool = system.get_agents(self.polymers, PolymerView)
+        pool = cast(list[PolymerView], system.get_agents(self.polymers))
         partner = pool[int(system.rng.integers(len(pool)))]
         if self.mode == 'directed':
             first = max(pool, key=lambda polymer: polymer.born)

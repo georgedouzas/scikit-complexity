@@ -7,7 +7,7 @@ Its buyers and sellers adapt their bids and asks after every meeting.
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
@@ -15,15 +15,16 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
 from ..common.policy import PolicyRuleInteraction
 
 
-class AdaptiveTraderView(AgentView):
+class AdaptiveTraderView(AgentViewProtocol, Protocol):
     """Trader as the auction sees it.
 
     It holds its value or cost, its quote, and the units it can still trade.
@@ -76,11 +77,6 @@ class AdaptiveTraderElement(Element):
         self.value = value
         self.quote = quote
         self.units = units
-
-    @classmethod
-    def _get_view(cls) -> type[AdaptiveTraderView]:
-        """Return the view of the agents of the element."""
-        return AdaptiveTraderView
 
 
 class AdaptiveAuctionInteraction(PolicyRuleInteraction[SystemView]):
@@ -150,8 +146,8 @@ class AdaptiveAuctionInteraction(PolicyRuleInteraction[SystemView]):
                 The system view of the auction.
         """
         rng, step = system.rng, system.get_parameter('step')
-        buyers = sorted(system.get_agents('buyers', AdaptiveTraderView), key=lambda trader: trader.id)
-        sellers = sorted(system.get_agents('sellers', AdaptiveTraderView), key=lambda trader: trader.id)
+        buyers = sorted(cast(list[AdaptiveTraderView], system.get_agents('buyers')), key=lambda trader: trader.id)
+        sellers = sorted(cast(list[AdaptiveTraderView], system.get_agents('sellers')), key=lambda trader: trader.id)
         prices = []
         for buyer in (buyers[index] for index in rng.permutation(len(buyers))):
             stocked = [seller for seller in sellers if seller.units > 0]

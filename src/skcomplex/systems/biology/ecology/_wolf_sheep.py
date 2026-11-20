@@ -7,7 +7,7 @@
 from collections.abc import Mapping, Sequence
 from functools import partial
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, runtime_checkable
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
@@ -20,7 +20,7 @@ from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
@@ -29,10 +29,11 @@ from ...general.agents import BirthDeathInteraction, MovementInteraction
 GROWN_SHARE = 0.5
 
 
-class GrassView(AgentView):
+@runtime_checkable
+class GrassView(AgentViewProtocol, Protocol):
     """View of a patch of grass, with its states and parameters as attributes.
 
-    `GrassElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `GrassElement` read them with checked types.
     """
 
     grown: float
@@ -92,11 +93,6 @@ class GrassElement(Element):
         self.countdown = countdown
         self.regrowth = regrowth
 
-    @classmethod
-    def _get_view(cls) -> type[GrassView]:
-        """Return the view of a patch of grass, `GrassView`."""
-        return GrassView
-
 
 class GrassRegrowthInteraction(Interaction):
     """Regrowth of eaten grass, which counts down its steps and grows back when the countdown ends.
@@ -150,10 +146,11 @@ class GrassRegrowthInteraction(Interaction):
             agent.countdown = agent.regrowth
 
 
-class SheepView(AgentView):
+@runtime_checkable
+class SheepView(AgentViewProtocol, Protocol):
     """View of a sheep, with its states and parameters as attributes.
 
-    `SheepElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `SheepElement` read them with checked types.
     """
 
     energy: float
@@ -214,16 +211,12 @@ class SheepElement(Element):
         self.gain = gain
         self.reproduction = reproduction
 
-    @classmethod
-    def _get_view(cls) -> type[SheepView]:
-        """Return the view of a sheep, `SheepView`."""
-        return SheepView
 
-
-class WolfView(AgentView):
+@runtime_checkable
+class WolfView(AgentViewProtocol, Protocol):
     """View of a wolf, with its states and parameters as attributes.
 
-    `WolfElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `WolfElement` read them with checked types.
     """
 
     energy: float
@@ -283,11 +276,6 @@ class WolfElement(Element):
         self.energy = energy
         self.gain = gain
         self.reproduction = reproduction
-
-    @classmethod
-    def _get_view(cls) -> type[WolfView]:
-        """Return the view of a wolf, `WolfView`."""
-        return WolfView
 
 
 class WolfSheepSystem(BaseSystem):

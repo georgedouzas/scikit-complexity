@@ -8,7 +8,7 @@ Its traders switch between forecasting heuristics.
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
@@ -16,9 +16,10 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
-from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
+from ....core.engine.solvers import BaseSolver, MesaSolver, SystemView
 from ....core.specs import BaseSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
@@ -49,7 +50,7 @@ class _MarketStateSpec(BaseSpec):
     forecasts: Array | None = None
 
 
-class HeuristicTraderView(AgentView):
+class HeuristicTraderView(AgentViewProtocol, Protocol):
     """Trader as the rules see it.
 
     It holds its heuristic `predictor` and the last fitness of every heuristic.
@@ -102,11 +103,6 @@ class HeuristicTraderElement(Element):
         self.predictor = predictor
         self.fundamentalist_fitness = fundamentalist_fitness
         self.trend_fitness = trend_fitness
-
-    @classmethod
-    def _get_view(cls) -> type[HeuristicTraderView]:
-        """Return the view of a speculator, with its heuristic."""
-        return HeuristicTraderView
 
     @staticmethod
     def get_fitness(agent: HeuristicTraderView, system: SystemView, option: float) -> float:
@@ -240,7 +236,7 @@ class HeuristicPricingInteraction(PolicyRuleInteraction[SystemView]):
         forecasts = np.array(
             [heuristics.fundamental(history), heuristics.fundamental(history, fundamental=0.0, reversion=strength)],
         )
-        traders = system.get_agents('traders', HeuristicTraderView)
+        traders = cast(list[HeuristicTraderView], system.get_agents('traders'))
         share = float(np.mean([trader.predictor for trader in traders])) if traders else 0.0
         price = float(forecasts @ [1 - share, share] + system.rng.normal(0.0, system.get_parameter('noise'))) / rate
         previous = state.forecasts

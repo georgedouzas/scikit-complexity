@@ -7,7 +7,7 @@ The coalitions share their best predictor of the attendance.
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
@@ -15,15 +15,16 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
 from ..common.policy import PolicyRuleInteraction
 
 
-class CoalitionPatronView(AgentView):
+class CoalitionPatronView(AgentViewProtocol, Protocol):
     """Patron as the bar sees it: its coalition, its attendance, and its return."""
 
     coalition: float
@@ -74,11 +75,6 @@ class CoalitionPatronElement(Element):
         self.coalition = coalition
         self.attends = attends
         self.score = score
-
-    @classmethod
-    def _get_view(cls) -> type[CoalitionPatronView]:
-        """Return the view of the agents of the element."""
-        return CoalitionPatronView
 
 
 class CoalitionBarInteraction(PolicyRuleInteraction[SystemView]):
@@ -226,7 +222,7 @@ class CoalitionBarInteraction(PolicyRuleInteraction[SystemView]):
             system:
                 The system view of the bar.
         """
-        patrons = sorted(system.get_agents('patrons', CoalitionPatronView), key=lambda patron: patron.id)
+        patrons = sorted(cast(list[CoalitionPatronView], system.get_agents('patrons')), key=lambda patron: patron.id)
         strategies = np.asarray(self.strategies, dtype=float)
         memory, size, capacity = strategies.shape[-1] - 1, len(patrons), system.get_parameter('capacity')
         stored = system.storage.get('history')

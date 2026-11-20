@@ -6,7 +6,7 @@
 import itertools
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, Protocol, cast
 
 import networkx as nx
 import numpy as np
@@ -21,18 +21,19 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
 
 CUTS = 2
 
 
-class TrailSegmentView(AgentView):
+class TrailSegmentView(AgentViewProtocol, Protocol):
     """View of a trail segment, with its states as attributes.
 
-    `TrailSegmentElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `TrailSegmentElement` read them with checked types.
     """
 
     tau: float
@@ -74,11 +75,6 @@ class TrailSegmentElement(Element):
         super().__init__(label, size=size)
         self.tau = tau
         self.passable = passable
-
-    @classmethod
-    def _get_view(cls) -> type[TrailSegmentView]:
-        """Return the view of a segment, `TrailSegmentView`."""
-        return TrailSegmentView
 
 
 class ColonySearchInteraction(Interaction):
@@ -199,7 +195,7 @@ class ColonySearchInteraction(Interaction):
             system:
                 The system.
         """
-        segments = system.get_agents(self.segments, TrailSegmentView)
+        segments = cast(list[TrailSegmentView], system.get_agents(self.segments))
         tau = np.array([item.tau for item in segments])
         is_open = np.array([item.passable for item in segments]) > 0
         best = system.storage.get('best')

@@ -8,7 +8,7 @@ The exchange has a saving propensity or a debt limit.
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import Annotated, Protocol, cast
 
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
@@ -20,14 +20,14 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import PartnerSpec, UpdateLaw
 from ....core.components.laws.utils import pairs, transfer
 from ....core.components.spaces import BaseSpace
-from ....core.components.types import SystemViewProtocol
+from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver
+from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
 
 
-class SavingTraderView(AgentView):
+class SavingTraderView(AgentViewProtocol, Protocol):
     """Trader as the trading rules see it.
 
     It holds its `wealth`, negative down to the debt limit.
@@ -64,11 +64,6 @@ class SavingTraderElement(Element):
     def __init__(self, label: str, *, wealth: float = 1.0, size: int | None = None) -> None:
         super().__init__(label, size=size)
         self.wealth = wealth
-
-    @classmethod
-    def _get_view(cls) -> type[SavingTraderView]:
-        """Return the view of a trader, with its wealth."""
-        return SavingTraderView
 
 
 class DebtExchangeInteraction(Interaction):

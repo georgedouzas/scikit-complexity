@@ -8,7 +8,7 @@ The urns share their adjacent possible.
 
 from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, cast, runtime_checkable
 
 import networkx as nx
 import numpy as np
@@ -20,9 +20,10 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
-from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
+from ....core.engine.solvers import BaseSolver, MesaSolver, SystemView
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
 
@@ -31,7 +32,8 @@ GROW = 'grow'
 BALLS = 'balls'
 
 
-class BallView(AgentView):
+@runtime_checkable
+class BallView(AgentViewProtocol, Protocol):
     """Balls of one colour as the urn sees them.
 
     They hold their `color`, their `count`, and whether the node `drawn` it.
@@ -94,13 +96,8 @@ class BallElement(Element):
         self.count = count
         self.drawn = drawn
 
-    @classmethod
-    def _get_view(cls) -> type[BallView]:
-        """Return the view of the agents of the element."""
-        return BallView
 
-
-class UrnView(AgentView):
+class UrnView(AgentViewProtocol, Protocol):
     """Urn as its rules see it.
 
     It holds its `novelties`, the `color` of its last draw, whether that draw was `novel`, and its `rho` and `nu`.
@@ -172,11 +169,6 @@ class UrnElement(Element):
         self.novel = novel
         self.rho = rho
         self.nu = nu
-
-    @classmethod
-    def _get_view(cls) -> type[UrnView]:
-        """Return the view of the agents of the element."""
-        return UrnView
 
 
 class TriggeringInteraction(Interaction):
@@ -274,7 +266,7 @@ class TriggeringInteraction(Interaction):
         first = (
             stored
             if isinstance(stored, int)
-            else int(max(item.color for item in system.get_agents(BALLS, BallView))) + 1
+            else int(max(item.color for item in cast(list[BallView], system.get_agents(BALLS)))) + 1
         )
         for color in range(first, first + int(nu) + 1):
             agent.create(BALLS, color=color, count=1, drawn=0)

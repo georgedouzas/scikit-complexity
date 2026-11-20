@@ -8,7 +8,7 @@ The gurus are on a network that rewires towards wealth.
 
 import math
 from collections.abc import Mapping, Sequence
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
@@ -16,8 +16,9 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
@@ -28,7 +29,7 @@ TINY = 1e-12
 HOLDINGS = ('cash', 'stocks')
 
 
-class GuruTraderView(AgentView):
+class GuruTraderView(AgentViewProtocol, Protocol):
     """Trader as the market sees it.
 
     It holds its holdings, wealth, expectation, link, volatility, and followers.
@@ -107,11 +108,6 @@ class GuruTraderElement(Element):
         self.follows = follows
         self.sigma = sigma
         self.followers = followers
-
-    @classmethod
-    def _get_view(cls) -> type[GuruTraderView]:
-        """Return the view of the agents of the element."""
-        return GuruTraderView
 
 
 class GuruMarketInteraction(PolicyRuleInteraction[SystemView]):
@@ -315,7 +311,7 @@ class GuruMarketInteraction(PolicyRuleInteraction[SystemView]):
             system:
                 The system view of the market.
         """
-        traders = sorted(system.get_agents('traders', GuruTraderView), key=lambda trader: trader.id)
+        traders = sorted(cast(list[GuruTraderView], system.get_agents('traders')), key=lambda trader: trader.id)
         rng, store = system.rng, system.storage
         price = self._get_stored(system, 'price', system.get_parameter('opening'))
         beta = self._get_stored(system, 'beta', 1.0)

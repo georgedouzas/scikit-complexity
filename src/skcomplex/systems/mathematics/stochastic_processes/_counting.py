@@ -5,7 +5,7 @@
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol
 
 from sage.all__sagemath_symbolics import NN
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
@@ -16,8 +16,9 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import JumpLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
@@ -80,7 +81,7 @@ class PoissonEventsInteraction(Interaction):
             self.laws_: list[BaseComponent] = [JumpLaw(context.rate, {context.target.count: 1})]
 
 
-class BernoulliTrialView(AgentView):
+class BernoulliTrialView(AgentViewProtocol, Protocol):
     """View of a sequence of Bernoulli trials, with its values as attributes."""
 
     outcome: float
@@ -122,11 +123,6 @@ class BernoulliTrialElement(Element):
         super().__init__(label, size=size)
         self.outcome = outcome
         self.successes = successes
-
-    @classmethod
-    def _get_view(cls) -> type[BernoulliTrialView]:
-        """Return the view of the sequences, which types their values."""
-        return BernoulliTrialView
 
 
 class BernoulliTrialInteraction(Interaction):

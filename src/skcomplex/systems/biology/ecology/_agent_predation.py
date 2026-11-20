@@ -6,7 +6,7 @@
 
 from collections.abc import Mapping, Sequence
 from functools import partial
-from typing import Annotated
+from typing import Annotated, Protocol, runtime_checkable
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
@@ -19,17 +19,18 @@ from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ...general.agents import BirthDeathInteraction, MovementInteraction
 
 
-class PredatorView(AgentView):
+@runtime_checkable
+class PredatorView(AgentViewProtocol, Protocol):
     """View of a predator, with its state and parameters as attributes.
 
-    `PredatorElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `PredatorElement` read them with checked types.
     """
 
     meals: float
@@ -90,16 +91,12 @@ class PredatorElement(Element):
         self.conversion = conversion
         self.death = death
 
-    @classmethod
-    def _get_view(cls) -> type[PredatorView]:
-        """Return the view of a predator, `PredatorView`."""
-        return PredatorView
 
-
-class PreyView(AgentView):
+@runtime_checkable
+class PreyView(AgentViewProtocol, Protocol):
     """View of a prey, with its parameters as attributes.
 
-    `PreyElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `PreyElement` read them with checked types.
     """
 
     birth: float
@@ -146,11 +143,6 @@ class PreyElement(Element):
     ) -> None:
         super().__init__(label, values=values, size=size, space=space)
         self.birth = birth
-
-    @classmethod
-    def _get_view(cls) -> type[PreyView]:
-        """Return the view of a prey, `PreyView`."""
-        return PreyView
 
 
 class AgentBasedLotkaVolterraSystem(BaseSystem):

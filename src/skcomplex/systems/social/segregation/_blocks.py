@@ -7,7 +7,7 @@ The utility of their densities drives the moves.
 # License: MIT
 
 from collections.abc import Mapping, Sequence
-from typing import Annotated
+from typing import Annotated, Protocol, runtime_checkable
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
@@ -21,7 +21,7 @@ from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
-from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
+from ....core.engine.solvers import BaseSolver, MesaSolver, SystemView
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
 from ...general.agents import MovementInteraction
@@ -29,7 +29,8 @@ from ...general.agents import MovementInteraction
 PHASE = 'default'
 
 
-class DwellerView(AgentView):
+@runtime_checkable
+class DwellerView(AgentViewProtocol, Protocol):
     """View of a dweller of the stochastic Schelling system.
 
     Its states and parameters are attributes.
@@ -101,14 +102,6 @@ class DwellerElement(Element):
         self.altruism = altruism
         self.slope = slope
         self.intercept = intercept
-
-    @classmethod
-    def _get_view(cls) -> type[DwellerView]:
-        """Return the class of the views of the agents.
-
-        Their attributes are the states and parameters.
-        """
-        return DwellerView
 
 
 class BlockMovesInteraction(MovementInteraction):

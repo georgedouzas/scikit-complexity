@@ -9,7 +9,7 @@ They react to light and to each other.
 import math
 from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, Expression, cos, exp, oo, sin, sqrt
@@ -23,8 +23,9 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import NoiseLaw, RateLaw, UpdateLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import BaseSpace, ContinuousSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
@@ -179,7 +180,7 @@ class LightSensitivityInteraction(Interaction):
         return s.I0 * exp(-(x**2 + y**2) / s.r0**2)
 
 
-class SwarmRobotView(AgentView):
+class SwarmRobotView(AgentViewProtocol, Protocol):
     """View of a robot of the swarmtaxis algorithm.
 
     Its states and parameters are attributes.
@@ -295,14 +296,6 @@ class SwarmRobotElement(Element):
         self.beacon_y = beacon_y
         self.arena = arena
 
-    @classmethod
-    def _get_view(cls) -> type[SwarmRobotView]:
-        """Return the view of the robots.
-
-        It types their states and parameters.
-        """
-        return SwarmRobotView
-
 
 class SwarmtaxisInteraction(Interaction):
     """Rule of the swarmtaxis algorithm, which moves a swarm of robots towards a beacon.
@@ -341,7 +334,7 @@ class SwarmtaxisInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.move)]
 
-    def _is_shadowed(self, agent: SwarmRobotView, neighbors: list[AgentView]) -> bool:
+    def _is_shadowed(self, agent: SwarmRobotView, neighbors: Sequence[AgentViewProtocol]) -> bool:
         """Return whether a neighbour lies in the cone from the robot towards the beacon."""
         x, y = SwarmtaxisInteraction._get_position(agent)
         bearing = SwarmtaxisInteraction._get_bearing(agent.beacon_x - x, agent.beacon_y - y)
@@ -368,7 +361,7 @@ class SwarmtaxisInteraction(Interaction):
             return float(system.rng.uniform(0.0, 2 * math.pi))
         return agent.heading
 
-    def _avoid(self, agent: SwarmRobotView, neighbors: list[AgentView], heading: float) -> float:
+    def _avoid(self, agent: SwarmRobotView, neighbors: Sequence[AgentViewProtocol], heading: float) -> float:
         """Return the heading away from the nearest neighbour inside the avoidance radius.
 
         Without such a neighbour the heading is unchanged.
@@ -414,7 +407,7 @@ class SwarmtaxisInteraction(Interaction):
         agent.move_to((x, y))
 
     @staticmethod
-    def _get_position(agent: AgentView) -> tuple[float, float]:
+    def _get_position(agent: AgentViewProtocol) -> tuple[float, float]:
         """Return the position of an agent in a continuous space."""
         x, y = np.asarray(agent.location, dtype=float)
         return float(x), float(y)

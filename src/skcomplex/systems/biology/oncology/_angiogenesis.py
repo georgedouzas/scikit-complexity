@@ -8,7 +8,7 @@ The tumour recruits the vessels by secreting growth factor.
 
 from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import Annotated, Protocol, cast, runtime_checkable
 
 import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo
@@ -23,7 +23,7 @@ from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ...general.agents import BirthDeathInteraction, MovementInteraction
@@ -97,10 +97,11 @@ class TissueElement(Element):
         self.decay_vegf = decay_vegf
 
 
-class SproutView(AgentView):
+@runtime_checkable
+class SproutView(AgentViewProtocol, Protocol):
     """View of a sprout tip, with its parameters as attributes.
 
-    `SproutElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `SproutElement` read them with checked types.
     """
 
     chemotaxis: float
@@ -163,16 +164,12 @@ class SproutElement(Element):
         self.branching = branching
         self.activation = activation
 
-    @classmethod
-    def _get_view(cls) -> type[SproutView]:
-        """Return the view of a sprout tip, `SproutView`."""
-        return SproutView
 
-
-class TumourCellView(AgentView):
+@runtime_checkable
+class TumourCellView(AgentViewProtocol, Protocol):
     """View of a tumour cell, with its states and parameters as attributes.
 
-    `TumourCellElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `TumourCellElement` read them with checked types.
     """
 
     hypoxic: float
@@ -260,16 +257,12 @@ class TumourCellElement(Element):
         self.secretion = secretion
         self.necrosis = necrosis
 
-    @classmethod
-    def _get_view(cls) -> type[TumourCellView]:
-        """Return the view of a tumour cell, `TumourCellView`."""
-        return TumourCellView
 
-
-class VesselView(AgentView):
+@runtime_checkable
+class VesselView(AgentViewProtocol, Protocol):
     """View of a vessel, with its parameters as attributes.
 
-    `VesselElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `VesselElement` read them with checked types.
     """
 
     supply: float
@@ -313,11 +306,6 @@ class VesselElement(Element):
     ) -> None:
         super().__init__(label, values=values, size=size, space=space)
         self.supply = supply
-
-    @classmethod
-    def _get_view(cls) -> type[VesselView]:
-        """Return the view of a vessel, `VesselView`."""
-        return VesselView
 
 
 class TumourAngiogenesisSystem(BaseSystem):

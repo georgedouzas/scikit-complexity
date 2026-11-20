@@ -8,7 +8,7 @@ The traces are left by their movements.
 
 from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, cast, runtime_checkable
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
@@ -21,10 +21,10 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace, LatticeSpace
-from ....core.components.types import SystemViewProtocol
+from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
-from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
+from ....core.engine.solvers import BaseSolver, MesaSolver, SystemView
 from ....core.errors import SpaceError
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
@@ -38,7 +38,8 @@ BILLING = 'billing'
 QUARTERLY = 'quarter'
 
 
-class PremisesView(AgentView):
+@runtime_checkable
+class PremisesView(AgentViewProtocol, Protocol):
     """View of a premises of the trafficking system.
 
     Its states and parameters are attributes.
@@ -115,16 +116,8 @@ class PremisesElement(Element):
         self.efficiency = efficiency
         self.day = day
 
-    @classmethod
-    def _get_view(cls) -> type[PremisesView]:
-        """Return the class of the views of the agents.
 
-        Their attributes are the states and parameters.
-        """
-        return PremisesView
-
-
-class TravellerView(AgentView):
+class TravellerView(AgentViewProtocol, Protocol):
     """View of a woman of the trafficking system.
 
     Its states and parameters are attributes.
@@ -180,14 +173,6 @@ class TravellerElement(Element):
         super().__init__(label, values=values, size=size, space=space)
         self.victim = victim
         self.trips = trips
-
-    @classmethod
-    def _get_view(cls) -> type[TravellerView]:
-        """Return the class of the views of the agents.
-
-        Their attributes are the states and parameters.
-        """
-        return TravellerView
 
 
 class DailyMovementsInteraction(Interaction):
@@ -277,7 +262,7 @@ class DailyMovementsInteraction(Interaction):
             system:
                 The system.
         """
-        free = [woman for woman in system.get_agents('women', TravellerView) if not woman.victim]
+        free = [woman for woman in cast(list[TravellerView], system.get_agents('women')) if not woman.victim]
         if not free:
             return
         width, height = self._get_shape(system)
@@ -293,10 +278,10 @@ class DailyMovementsInteraction(Interaction):
             system:
                 The system.
         """
-        women = system.get_agents('women', TravellerView)
+        women = cast(list[TravellerView], system.get_agents('women'))
         brothels = [
             DailyMovementsInteraction._get_cell(place.location)
-            for place in system.get_agents('premises', PremisesView)
+            for place in cast(list[PremisesView], system.get_agents('premises'))
             if place.brothel
         ]
         width = self._get_shape(system)[0]

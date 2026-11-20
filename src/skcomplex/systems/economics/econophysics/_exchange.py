@@ -4,7 +4,7 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Annotated, cast
+from typing import Annotated, Protocol, cast
 
 from sage.all__sagemath_symbolics import NN
 
@@ -13,13 +13,13 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import PartnerSpec, UpdateLaw
 from ....core.components.laws.utils import pairs, transfer
-from ....core.components.types import SystemViewProtocol
+from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver
+from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
 
 
-class TraderView(AgentView):
+class TraderView(AgentViewProtocol, Protocol):
     """Trader of the Boltzmann wealth system as its rule sees it, with its `wealth`."""
 
     wealth: float
@@ -56,11 +56,6 @@ class TraderElement(Element):
     ) -> None:
         super().__init__(label, size=size)
         self.wealth = wealth
-
-    @classmethod
-    def _get_view(cls) -> type[TraderView]:
-        """Return the view of a trader, with its wealth."""
-        return TraderView
 
 
 class BoltzmannWealthSystem(BaseSystem):

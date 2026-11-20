@@ -8,7 +8,7 @@ The competition is Moran within groups and pairwise conflicts between them.
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import Annotated, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
@@ -20,15 +20,16 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
 
 PAIR = 2
 
 
-class PunisherGroupView(AgentView):
+class PunisherGroupView(AgentViewProtocol, Protocol):
     """View of a group of the two-level birth-death process.
 
     Its states are attributes.
@@ -67,11 +68,6 @@ class PunisherGroupElement(Element):
     ) -> None:
         super().__init__(label, size=size)
         self.punishers = punishers
-
-    @classmethod
-    def _get_view(cls) -> type[PunisherGroupView]:
-        """Return the class of the views of the agents, whose attributes are the states."""
-        return PunisherGroupView
 
 
 class TwoLevelBirthDeathInteraction(Interaction):

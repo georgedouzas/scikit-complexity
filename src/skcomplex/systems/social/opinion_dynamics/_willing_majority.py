@@ -8,7 +8,7 @@ The majority is that of opinions. They adopt it with their willingness.
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import Annotated, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN
@@ -20,14 +20,15 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
 
 
-class WillingVoterView(AgentView):
+class WillingVoterView(AgentViewProtocol, Protocol):
     """View of a voter of the majority rule with willingness.
 
     Its states are attributes.
@@ -74,11 +75,6 @@ class WillingVoterElement(Element):
         super().__init__(label, size=size)
         self.opinion = opinion
         self.willingness = willingness
-
-    @classmethod
-    def _get_view(cls) -> type[WillingVoterView]:
-        """Return the class of the views of the agents, whose attributes are the states."""
-        return WillingVoterView
 
 
 class WillingMajorityInteraction(Interaction):

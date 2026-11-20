@@ -8,7 +8,7 @@ The traders trade with and without budget constraints.
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, Protocol, cast, runtime_checkable
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
@@ -20,9 +20,10 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
-from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
+from ....core.engine.solvers import BaseSolver, MesaSolver, SystemView
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
 from ...general.matching import BatchMatchingSpec, ContinuousMatchingSpec, MatchingInteraction, MatchSpec
@@ -31,7 +32,8 @@ from ..common.policy import PolicyRuleInteraction
 PROTOCOLS = ('order_book', 'call_auction')
 
 
-class ZeroIntelligenceBuyerView(AgentView):
+@runtime_checkable
+class ZeroIntelligenceBuyerView(AgentViewProtocol, Protocol):
     """Zero-intelligence buyer as the rules see it.
 
     It reads its `value`, `bid`, `demand`, and `profit`, the price `ceiling`, and whether it is `constrained`.
@@ -103,13 +105,9 @@ class ZeroIntelligenceBuyerElement(Element):
         self.ceiling = ceiling
         self.constrained = constrained
 
-    @classmethod
-    def _get_view(cls) -> type[ZeroIntelligenceBuyerView]:
-        """Return the view of a buyer, with its value, bid, demand, and profit."""
-        return ZeroIntelligenceBuyerView
 
-
-class ZeroIntelligenceSellerView(AgentView):
+@runtime_checkable
+class ZeroIntelligenceSellerView(AgentViewProtocol, Protocol):
     """Zero-intelligence seller as the rules see it.
 
     It reads its cost `value`, `ask`, `supply`, and `profit`, the price `ceiling`, and whether it is `constrained`.
@@ -179,11 +177,6 @@ class ZeroIntelligenceSellerElement(Element):
         self.profit = profit
         self.ceiling = ceiling
         self.constrained = constrained
-
-    @classmethod
-    def _get_view(cls) -> type[ZeroIntelligenceSellerView]:
-        """Return the view of a seller, with its cost, ask, supply, and profit."""
-        return ZeroIntelligenceSellerView
 
 
 def maximum_surplus(values: np.ndarray, costs: np.ndarray) -> float:
@@ -259,9 +252,9 @@ class QuotingInteraction(Interaction):
             system:
                 The system view of the quotes.
         """
-        for buyer in system.get_agents('buyers', ZeroIntelligenceBuyerView):
+        for buyer in cast(list[ZeroIntelligenceBuyerView], system.get_agents('buyers')):
             buyer.bid = float(system.rng.uniform(0.0, buyer.value if buyer.constrained else buyer.ceiling))
-        for seller in system.get_agents('sellers', ZeroIntelligenceSellerView):
+        for seller in cast(list[ZeroIntelligenceSellerView], system.get_agents('sellers')):
             bottom = seller.value if seller.constrained else 0.0
             seller.ask = float(system.rng.uniform(bottom, max(bottom, seller.ceiling)))
 
@@ -297,8 +290,8 @@ class AuctionLedgerInteraction(PolicyRuleInteraction[SystemView]):
             system:
                 The system view scoped to the ledger.
         """
-        buyers = system.get_agents('buyers', ZeroIntelligenceBuyerView)
-        sellers = system.get_agents('sellers', ZeroIntelligenceSellerView)
+        buyers = cast(list[ZeroIntelligenceBuyerView], system.get_agents('buyers'))
+        sellers = cast(list[ZeroIntelligenceSellerView], system.get_agents('sellers'))
         values = np.array([buyer.value for buyer in buyers])
         costs = np.array([seller.value for seller in sellers])
         bought = np.array([buyer.demand <= 0 for buyer in buyers])

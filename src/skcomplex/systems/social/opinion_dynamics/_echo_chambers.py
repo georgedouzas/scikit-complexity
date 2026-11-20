@@ -8,7 +8,7 @@ The network is activity-driven. The network has homophily.
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import Annotated, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
@@ -20,8 +20,9 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
@@ -29,7 +30,7 @@ from ....core.types import Array, Role
 PAIR = 2
 
 
-class RadicalView(AgentView):
+class RadicalView(AgentViewProtocol, Protocol):
     """View of an agent of the echo chamber system, with its states as attributes."""
 
     opinion: float
@@ -73,11 +74,6 @@ class RadicalElement(Element):
         super().__init__(label, size=size)
         self.opinion = opinion
         self.activity = activity
-
-    @classmethod
-    def _get_view(cls) -> type[RadicalView]:
-        """Return the class of the views of the agents, whose attributes are the states."""
-        return RadicalView
 
 
 class RadicalizationInteraction(Interaction):

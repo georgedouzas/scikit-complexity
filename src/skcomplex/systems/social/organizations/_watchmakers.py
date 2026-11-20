@@ -8,7 +8,7 @@ They assemble watches with and without stable subassemblies.
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import Annotated, Protocol, cast
 
 from sage.all__sagemath_symbolics import NN
 from sage.sets.real_set import RealSet
@@ -19,13 +19,14 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
 
 
-class WatchmakerView(AgentView):
+class WatchmakerView(AgentViewProtocol, Protocol):
     """View of a watchmaker of the Hora and Tempus fable.
 
     Its states and parameters are attributes.
@@ -88,14 +89,6 @@ class WatchmakerElement(Element):
         self.watches = watches
         self.task_size = task_size
         self.tasks = tasks
-
-    @classmethod
-    def _get_view(cls) -> type[WatchmakerView]:
-        """Return the class of the views of the agents.
-
-        Their attributes are the states and parameters.
-        """
-        return WatchmakerView
 
 
 class AssemblyInteraction(Interaction):

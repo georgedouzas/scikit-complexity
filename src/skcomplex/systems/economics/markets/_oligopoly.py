@@ -9,7 +9,7 @@ The pricing duopoly is discretised.
 from collections.abc import Sequence
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import Annotated, Protocol, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -22,9 +22,10 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import ConstraintLaw
 from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
-from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
+from ....core.engine.solvers import BaseSolver, MesaSolver, SystemView
 from ....core.errors import ValidationError
 from ....core.specs import BaseSpec
 from ....core.systems import BaseSystem, System
@@ -235,7 +236,7 @@ class IndifferenceInteraction(Interaction):
             self.laws_: list[BaseComponent] = [ConstraintLaw(s.distribution == distribution, target=s.distribution)]
 
 
-class PricingFirmView(AgentView):
+class PricingFirmView(AgentViewProtocol, Protocol):
     """View of a firm of a pricing game, with its states as attributes."""
 
     price: float
@@ -349,14 +350,6 @@ class PricingFirmElement(Element):
         super().__init__(label, size=size)
         self.price = price
         self.scores = scores
-
-    @classmethod
-    def _get_view(cls) -> type[PricingFirmView]:
-        """Return the view of the firms.
-
-        It types their states.
-        """
-        return PricingFirmView
 
 
 class OligopolyEquilibriaSystem(BaseSystem):

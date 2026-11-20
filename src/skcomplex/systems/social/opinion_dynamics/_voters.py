@@ -5,7 +5,7 @@
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import Annotated, Protocol, cast
 
 import networkx as nx
 import numpy as np
@@ -20,9 +20,9 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import TotalisticSpec, UpdateLaw
 from ....core.components.spaces import BaseSpace, LatticeSpace, NetworkSpace, RadiusNeighborhood
-from ....core.components.types import SystemViewProtocol
+from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, IntArray, Role
@@ -64,7 +64,7 @@ class MajorityVoterElement(Element):
         self.opinion = opinion
 
 
-class VariantVoterView(AgentView):
+class VariantVoterView(AgentViewProtocol, Protocol):
     """View of an agent of the voter system variants.
 
     Its states and parameters are attributes.
@@ -123,16 +123,8 @@ class VariantVoterElement(Element):
         self.contrarian = contrarian
         self.threshold = threshold
 
-    @classmethod
-    def _get_view(cls) -> type[VariantVoterView]:
-        """Return the class of the views of the agents.
 
-        Their attributes are the states and parameters.
-        """
-        return VariantVoterView
-
-
-class VoterView(AgentView):
+class VoterView(AgentViewProtocol, Protocol):
     """View of an agent of the voter system.
 
     Its states and parameters are attributes.
@@ -174,14 +166,6 @@ class VoterElement(Element):
     ) -> None:
         super().__init__(label, size=size)
         self.opinion = opinion
-
-    @classmethod
-    def _get_view(cls) -> type[VoterView]:
-        """Return the class of the views of the agents.
-
-        Their attributes are the states and parameters.
-        """
-        return VoterView
 
 
 class VariantVotingInteraction(Interaction):

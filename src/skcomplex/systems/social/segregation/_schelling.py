@@ -4,7 +4,7 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Annotated
+from typing import Annotated, Protocol, cast, runtime_checkable
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
@@ -15,14 +15,15 @@ from ....core.components.elements import Element
 from ....core.components.spaces import LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
 from ...general.agents import MovementInteraction
 
 
-class ResidentView(AgentView):
+@runtime_checkable
+class ResidentView(AgentViewProtocol, Protocol):
     """View of a resident of the Schelling system.
 
     Its states and parameters are attributes.
@@ -70,14 +71,6 @@ class ResidentElement(Element):
         super().__init__(label, size=size)
         self.kind = kind
         self.threshold = threshold
-
-    @classmethod
-    def _get_view(cls) -> type[ResidentView]:
-        """Return the class of the views of the agents.
-
-        Their attributes are the states and parameters.
-        """
-        return ResidentView
 
 
 class RelocationInteraction(MovementInteraction):
@@ -146,7 +139,9 @@ class RelocationInteraction(MovementInteraction):
         storage = system.storage
         if storage.get('time') != system.time:
             storage['time'] = system.time
-            storage['kinds'] = {item.location_key: item.kind for item in system.get_agents(self.target, ResidentView)}
+            storage['kinds'] = {
+                item.location_key: item.kind for item in cast(list[ResidentView], system.get_agents(self.target))
+            }
         kinds = storage['kinds']
         if not isinstance(kinds, dict):
             return None

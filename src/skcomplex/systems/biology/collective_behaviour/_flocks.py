@@ -6,7 +6,7 @@
 import math
 from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import Annotated, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import SR, exp, oo, sqrt
@@ -20,7 +20,7 @@ from ....core.components.laws.utils import neighbors
 from ....core.components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
@@ -29,10 +29,10 @@ from ...general.elements import PointElement
 from ._zones import ClampSpec, RadiusSpec, ZoneCouplingInteraction
 
 
-class BoidView(AgentView):
+class BoidView(AgentViewProtocol, Protocol):
     """View of a boid, with its states and parameters as attributes.
 
-    `BoidElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `BoidElement` read them with checked types.
     """
 
     x_d1: float
@@ -145,18 +145,13 @@ class BoidElement(Element):
         self.width = width
         self.height = height
 
-    @classmethod
-    def _get_view(cls) -> type[BoidView]:
-        """Return the view of a boid, `BoidView`."""
-        return BoidView
 
-
-class SpatialBoidView(AgentView):
+class SpatialBoidView(AgentViewProtocol, Protocol):
     """View of a boid in three dimensions.
 
     The view has the states and parameters of the boid as attributes.
 
-    `SpatialBoidElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `SpatialBoidElement` read them with checked types.
     """
 
     x_d1: float
@@ -261,11 +256,6 @@ class SpatialBoidElement(Element):
         self.alignment = alignment
         self.min_speed = min_speed
         self.max_speed = max_speed
-
-    @classmethod
-    def _get_view(cls) -> type[SpatialBoidView]:
-        """Return the view of a boid, `SpatialBoidView`."""
-        return SpatialBoidView
 
 
 class FlightInteraction(MovementInteraction):

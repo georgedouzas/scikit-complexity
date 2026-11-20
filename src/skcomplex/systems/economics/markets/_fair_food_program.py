@@ -7,7 +7,7 @@ Tomato buyers and farms join a programme of fair wages.
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, Protocol, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -16,8 +16,9 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
@@ -26,7 +27,7 @@ from ..common.policy import PolicyRuleInteraction
 OUTSIDE, COMMITTED, MEMBER = 0, 1, 2
 
 
-class ProgramMemberView(AgentView):
+class ProgramMemberView(AgentViewProtocol, Protocol):
     """Buyer or farm as the programme sees it.
 
     It holds its acres of tomatoes, its level, and what it traded in the period.
@@ -82,11 +83,6 @@ class ProgramMemberElement(Element):
         self.acres = acres
         self.level = level
         self.traded = traded
-
-    @classmethod
-    def _get_view(cls) -> type[ProgramMemberView]:
-        """Return the view of the agents of the element."""
-        return ProgramMemberView
 
 
 class FairFoodMarketInteraction(PolicyRuleInteraction[SystemView]):
@@ -160,8 +156,8 @@ class FairFoodMarketInteraction(PolicyRuleInteraction[SystemView]):
                 The system view of the market.
         """
         rng = system.rng
-        shops = sorted(system.get_agents('shops', ProgramMemberView), key=lambda shop: shop.id)
-        farms = sorted(system.get_agents('farms', ProgramMemberView), key=lambda farm: farm.id)
+        shops = sorted(cast(list[ProgramMemberView], system.get_agents('shops')), key=lambda shop: shop.id)
+        farms = sorted(cast(list[ProgramMemberView], system.get_agents('farms')), key=lambda farm: farm.id)
         need = np.array([shop.acres for shop in shops])
         shop_level = np.array([shop.level for shop in shops])
         acres = np.array([farm.acres for farm in farms])

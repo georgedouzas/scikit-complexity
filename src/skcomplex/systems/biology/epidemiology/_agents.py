@@ -8,7 +8,7 @@ The individuals walk on grids and travel on networks.
 
 import math
 from collections.abc import Callable, Mapping, Sequence
-from typing import Annotated, cast
+from typing import Annotated, Protocol, cast, runtime_checkable
 
 import networkx as nx
 import numpy as np
@@ -22,7 +22,7 @@ from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace, LatticeSpace, NetworkSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
@@ -32,10 +32,11 @@ SUSCEPTIBLE, EXPOSED, INFECTED, RECOVERED, DEAD = 0.0, 1.0, 2.0, 3.0, 4.0
 HEALTHY, SICK, DECEASED = 0.0, 1.0, 2.0
 
 
-class PersonView(AgentView):
+@runtime_checkable
+class PersonView(AgentViewProtocol, Protocol):
     """View of a person, with its states and parameters as attributes.
 
-    `PersonElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `PersonElement` read them with checked types.
     """
 
     health: float
@@ -142,16 +143,12 @@ class PersonElement(Element):
         self.lockdown_length = lockdown_length
         self.lockdown_d = lockdown_d
 
-    @classmethod
-    def _get_view(cls) -> type[PersonView]:
-        """Return the view of a person, `PersonView`."""
-        return PersonView
 
-
-class TravellerView(AgentView):
+@runtime_checkable
+class TravellerView(AgentViewProtocol, Protocol):
     """View of a traveller, with its states and parameters as attributes.
 
-    `TravellerElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `TravellerElement` read them with checked types.
     """
 
     health: float
@@ -215,16 +212,12 @@ class TravellerElement(Element):
         self.tau = tau
         self.m = m
 
-    @classmethod
-    def _get_view(cls) -> type[TravellerView]:
-        """Return the view of a traveller, `TravellerView`."""
-        return TravellerView
 
-
-class WalkerView(AgentView):
+@runtime_checkable
+class WalkerView(AgentViewProtocol, Protocol):
     """View of a walker, with its states and parameters as attributes.
 
-    `WalkerElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `WalkerElement` read them with checked types.
     """
 
     health: float
@@ -285,11 +278,6 @@ class WalkerElement(Element):
         self.health = health
         self.infection = infection
         self.travel = travel
-
-    @classmethod
-    def _get_view(cls) -> type[WalkerView]:
-        """Return the view of a walker, `WalkerView`."""
-        return WalkerView
 
 
 type HealthView = PersonView | TravellerView | WalkerView

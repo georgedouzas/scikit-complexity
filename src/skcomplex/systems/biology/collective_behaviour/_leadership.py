@@ -8,7 +8,7 @@ A few informed individuals steer a Couzin shoal.
 
 import math
 from collections.abc import Mapping, Sequence
-from typing import Annotated, cast
+from typing import Annotated, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
@@ -22,7 +22,7 @@ from ....core.components.spaces import BaseSpace, ContinuousSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
-from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
+from ....core.engine.solvers import BaseSolver, MesaSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
@@ -30,10 +30,10 @@ from ...general.agents import MovementInteraction
 from ._zones import ClampSpec, RadiusSpec, ZoneCouplingInteraction
 
 
-class ShoalMemberView(AgentView):
+class ShoalMemberView(AgentViewProtocol, Protocol):
     """View of a member of a shoal, with its states and parameters as attributes.
 
-    `ShoalMemberElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `ShoalMemberElement` read them with checked types.
     """
 
     x: float
@@ -148,11 +148,6 @@ class ShoalMemberElement(Element):
         self.max_turn = max_turn
         self.noise = noise
         self.side = side
-
-    @classmethod
-    def _get_view(cls) -> type[ShoalMemberView]:
-        """Return the view of a member of a shoal, `ShoalMemberView`."""
-        return ShoalMemberView
 
 
 class SchoolingInteraction(ZoneCouplingInteraction):

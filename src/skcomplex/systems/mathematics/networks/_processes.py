@@ -8,7 +8,7 @@ The module covers random walks, diffusion, and PageRank on graphs.
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol
 
 import networkx as nx
 import numpy as np
@@ -22,8 +22,9 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import laplacian, neighbors
 from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
@@ -108,7 +109,7 @@ class PagerankInteraction(Interaction):
             self.laws_: list[BaseComponent] = [UpdateLaw(page.rank, neighbors(term))]
 
 
-class NetworkWalkerView(AgentView):
+class NetworkWalkerView(AgentViewProtocol, Protocol):
     """View of a walker on a network, with its values as attributes."""
 
     steps: float
@@ -144,11 +145,6 @@ class NetworkWalkerElement(Element):
     ) -> None:
         super().__init__(label, size=size)
         self.steps = steps
-
-    @classmethod
-    def _get_view(cls) -> type[NetworkWalkerView]:
-        """Return the view of the walkers, which types their values."""
-        return NetworkWalkerView
 
 
 class NetworkStepInteraction(Interaction):

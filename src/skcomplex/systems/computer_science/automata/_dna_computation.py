@@ -11,6 +11,7 @@ Random ligation of edge oligos into paths solves the problem.
 
 from collections.abc import Sequence
 from types import SimpleNamespace
+from typing import Protocol, cast
 
 import numpy as np
 
@@ -20,8 +21,9 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.errors import ParameterError
 from ....core.systems import BaseSystem, System
 from ....core.types import AnyArray, IntArray, Role
@@ -45,7 +47,7 @@ ADLEMAN_EDGES = (
 EMPTY = -1
 
 
-class StrandView(AgentView):
+class StrandView(AgentViewProtocol, Protocol):
     """View of a strand of DNA, with its path as an attribute."""
 
     path: IntArray
@@ -81,14 +83,6 @@ class StrandElement(Element):
     ) -> None:
         super().__init__(label, size=size)
         self.path = path
-
-    @classmethod
-    def _get_view(cls) -> type[StrandView]:
-        """Return the view of the strands.
-
-        It types their path.
-        """
-        return StrandView
 
 
 class LigationInteraction(Interaction):
@@ -142,7 +136,7 @@ class LigationInteraction(Interaction):
 
         Every consumed strand is replaced with a fresh oligo.
         """
-        strands = system.get_agents('target', StrandView)
+        strands = cast(list[StrandView], system.get_agents('target'))
         rng = system.rng
         order = rng.permutation(len(strands))
         for first, second in zip(order[::2], order[1::2], strict=False):

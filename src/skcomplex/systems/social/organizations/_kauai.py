@@ -11,7 +11,7 @@ import math
 from collections.abc import Mapping, Sequence
 from importlib.resources import files
 from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import Annotated, Protocol, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -28,7 +28,7 @@ from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace, ContinuousSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
@@ -68,7 +68,7 @@ GENDERS = 2
 OLDEST_AGE = 90.0
 
 
-class ResidentView(AgentView):
+class ResidentView(AgentViewProtocol, Protocol):
     """View of a resident of the Kauai population system.
 
     Its states and parameters are attributes.
@@ -205,11 +205,6 @@ class ResidentElement(Element):
         self.event_rate = event_rate
         self.cell_size = cell_size
         self.partners = partners
-
-    @classmethod
-    def _get_view(cls) -> type[ResidentView]:
-        """Return the view of a resident, `ResidentView`."""
-        return ResidentView
 
 
 class CommuteInteraction(MovementInteraction):

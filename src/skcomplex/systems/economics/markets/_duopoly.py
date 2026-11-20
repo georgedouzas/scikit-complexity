@@ -8,7 +8,7 @@ The beliefs are about their rival.
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, cast
 
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
@@ -19,15 +19,16 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
 
 N_FIRMS = 2
 
 
-class DuopolistView(AgentView):
+class DuopolistView(AgentViewProtocol, Protocol):
     """Duopolist as the market rule sees it: its `output` and its marginal `cost`."""
 
     output: float
@@ -69,11 +70,6 @@ class DuopolistElement(Element):
         super().__init__(label, size=size)
         self.output = output
         self.cost = cost
-
-    @classmethod
-    def _get_view(cls) -> type[DuopolistView]:
-        """Return the view of a duopolist, with its output and cost."""
-        return DuopolistView
 
 
 class CournotAdjustmentInteraction(Interaction):
@@ -134,7 +130,7 @@ class CournotAdjustmentInteraction(Interaction):
             system:
                 The system view of the market.
         """
-        firms = system.get_agents('target', DuopolistView)
+        firms = cast(list[DuopolistView], system.get_agents('target'))
         responses = [self._get_response(firm, system) for firm in firms]
         for firm, response in zip(firms, responses, strict=True):
             firm.output = response
@@ -145,7 +141,7 @@ class CournotAdjustmentInteraction(Interaction):
         The belief is about the last output of its rival.
         """
         a, b, error = (system.get_parameter(name) for name in ('a', 'b', 'error'))
-        rival = next(firm for firm in system.get_agents('target', DuopolistView) if firm.id != agent.id)
+        rival = next(firm for firm in cast(list[DuopolistView], system.get_agents('target')) if firm.id != agent.id)
         belief = rival.output * (1 + error * float(system.rng.uniform(-1.0, 1.0)))
         return max((a - agent.cost) / (2 * b) - belief / 2, 0.0)
 

@@ -9,7 +9,7 @@ Diners choose among restaurants.
 import math
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, Protocol, runtime_checkable
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN
@@ -23,7 +23,7 @@ from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver
+from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
 from ...general.agents import ChoiceInteraction
@@ -31,7 +31,8 @@ from ...general.agents import ChoiceInteraction
 STRATEGIES = ('random', 'crowd_avoiding')
 
 
-class DinerView(AgentView):
+@runtime_checkable
+class DinerView(AgentViewProtocol, Protocol):
     """Diner as the rules see it.
 
     It reads its `restaurant`, the `crowd` there, and whether it was `served`.
@@ -82,11 +83,6 @@ class DinerElement(Element):
         self.restaurant = restaurant
         self.crowd = crowd
         self.served = served
-
-    @classmethod
-    def _get_view(cls) -> type[DinerView]:
-        """Return the view of the agents of the element."""
-        return DinerView
 
 
 class CrowdAvoidanceInteraction(ChoiceInteraction):

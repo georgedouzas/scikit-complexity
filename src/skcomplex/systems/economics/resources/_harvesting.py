@@ -5,7 +5,7 @@
 
 from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
@@ -17,8 +17,9 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw, UpdateLaw
 from ....core.components.laws.utils import count
 from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.errors import ValidationError
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
@@ -99,7 +100,7 @@ class StockGrowthInteraction(Interaction):
             self.laws_: list[BaseLaw] = [RateLaw(stock.n, stock.r * stock.n * (1 - stock.n / stock.K))]
 
 
-class FarmerView(AgentView):
+class FarmerView(AgentViewProtocol, Protocol):
     """Farmer as its catch rule sees it: its `wealth`."""
 
     wealth: float
@@ -141,11 +142,6 @@ class FarmerElement(Element):
     ) -> None:
         super().__init__(label, values=values, size=size, space=space)
         self.wealth = wealth
-
-    @classmethod
-    def _get_view(cls) -> type[FarmerView]:
-        """Return the view of the agents of the element."""
-        return FarmerView
 
 
 class CatchInteraction(Interaction):

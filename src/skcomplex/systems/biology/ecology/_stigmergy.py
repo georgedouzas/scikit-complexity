@@ -6,7 +6,7 @@
 import itertools
 from collections.abc import Callable, Mapping, Sequence
 from functools import partial
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, Protocol, runtime_checkable
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
@@ -20,7 +20,7 @@ from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
@@ -91,10 +91,11 @@ class EmotionMarksElement(Element):
         self.decay = decay
 
 
-class ForagerView(AgentView):
+@runtime_checkable
+class ForagerView(AgentViewProtocol, Protocol):
     """View of a forager or a predator, with its states and parameters as attributes.
 
-    `ForagerElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `ForagerElement` read them with checked types.
     """
 
     age: float
@@ -215,11 +216,6 @@ class ForagerElement(Element):
     happiness_mark: ClassVar[str] = 'prey_happiness'
     distress_mark: ClassVar[str] = 'prey_fear'
 
-    @classmethod
-    def _get_view(cls) -> type[ForagerView]:
-        """Return the view of a forager or a predator, `ForagerView`."""
-        return ForagerView
-
 
 class StigmergicPredatorElement(ForagerElement):
     """Predator that eats prey and grows angry with hunger.
@@ -339,10 +335,11 @@ class StigmergicPreyElement(ForagerElement):
     """
 
 
-class PlantView(AgentView):
+@runtime_checkable
+class PlantView(AgentViewProtocol, Protocol):
     """View of a plant, with its states and parameters as attributes.
 
-    `PlantElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `PlantElement` read them with checked types.
     """
 
     age: float
@@ -394,11 +391,6 @@ class PlantElement(Element):
         super().__init__(label, values=values, size=size, space=space)
         self.age = age
         self.maturity = maturity
-
-    @classmethod
-    def _get_view(cls) -> type[PlantView]:
-        """Return the view of a plant, `PlantView`."""
-        return PlantView
 
 
 class StigmergicPredatorPreySystem(BaseSystem):

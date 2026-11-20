@@ -8,7 +8,7 @@ The games change with the actions played.
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar, cast
+from typing import Annotated, ClassVar, Protocol, cast
 
 import networkx as nx
 import numpy as np
@@ -22,8 +22,9 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.errors import ValidationError
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
@@ -33,7 +34,7 @@ UPDATES = ('death-birth', 'pairwise')
 MUTUAL_COOPERATION = 2
 
 
-class DonorView(AgentView):
+class DonorView(AgentViewProtocol, Protocol):
     """View of a player of the game transitions system, with its states as attributes."""
 
     strategy: float
@@ -77,11 +78,6 @@ class DonorElement(Element):
         super().__init__(label, size=size)
         self.strategy = strategy
         self.payoff = payoff
-
-    @classmethod
-    def _get_view(cls) -> type[DonorView]:
-        """Return the class of the views of the agents, whose attributes are the states."""
-        return DonorView
 
 
 class GameTransitionsInteraction(Interaction):

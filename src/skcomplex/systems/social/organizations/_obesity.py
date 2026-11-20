@@ -9,7 +9,7 @@ They buy the meals near home and work.
 from collections.abc import Mapping, Sequence
 from functools import partial
 from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import Annotated, Protocol, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -24,9 +24,10 @@ from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import PartnerSpec, UpdateLaw
 from ....core.components.laws.utils import pairs
 from ....core.components.spaces import BaseSpace, ContinuousSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
-from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
+from ....core.engine.solvers import BaseSolver, MesaSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
@@ -39,7 +40,7 @@ KCAL_PER_KG = 7700.0
 MALE_SHARE = 0.5
 
 
-class EaterView(AgentView):
+class EaterView(AgentViewProtocol, Protocol):
     """View of a person of the obesity system.
 
     Its states and parameters are attributes.
@@ -59,7 +60,7 @@ class EaterView(AgentView):
     activity: float
 
 
-class RestaurantView(AgentView):
+class RestaurantView(AgentViewProtocol, Protocol):
     """View of a restaurant of the obesity system.
 
     Its states and parameters are attributes.
@@ -205,14 +206,6 @@ class EaterElement(Element):
         self.day = day
         self.reach = reach
         self.activity = activity
-
-    @classmethod
-    def _get_view(cls) -> type[EaterView]:
-        """Return the class of the views of the agents.
-
-        Their attributes are the states and parameters.
-        """
-        return EaterView
 
     @staticmethod
     def go_home(agent: EaterView, system: SystemView) -> npt.NDArray[np.float64]:
@@ -428,14 +421,6 @@ class RestaurantElement(Element):
         self.sold = sold
         self.sold_high = sold_high
 
-    @classmethod
-    def _get_view(cls) -> type[RestaurantView]:
-        """Return the class of the views of the agents.
-
-        Their attributes are the states and parameters.
-        """
-        return RestaurantView
-
 
 class ObesitySystem(BaseSystem):
     """The obesity system of adults who eat near home and work, one step per day.
@@ -508,8 +493,8 @@ class ObesitySystem(BaseSystem):
     @staticmethod
     def _eat(system: SystemView) -> None:
         """Let every person eat a meal at a restaurant within reach, or the nearest one, in random order."""
-        people = system.get_agents('people', EaterView)
-        restaurants = system.get_agents('restaurants', RestaurantView)
+        people = cast(list[EaterView], system.get_agents('people'))
+        restaurants = cast(list[RestaurantView], system.get_agents('restaurants'))
         found = cast(Meals, list(pairs(people, restaurants, system.rng, PartnerSpec('reach', fallback='nearest'))))
         for index in system.rng.permutation(len(found)):
             eater, restaurant = found[int(index)]

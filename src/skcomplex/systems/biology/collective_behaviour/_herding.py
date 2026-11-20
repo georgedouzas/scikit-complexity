@@ -5,7 +5,7 @@
 
 from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, cast
 
 import numpy as np
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
@@ -15,17 +15,18 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace, ContinuousSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
 
 
-class HerdedSheepView(AgentView):
+class HerdedSheepView(AgentViewProtocol, Protocol):
     """View of a herded sheep, with its states as attributes.
 
-    `HerdedSheepElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `HerdedSheepElement` read them with checked types.
     """
 
     hx: float
@@ -78,16 +79,11 @@ class HerdedSheepElement(Element):
         self.hx = hx
         self.hy = hy
 
-    @classmethod
-    def _get_view(cls) -> type[HerdedSheepView]:
-        """Return the view of the agent, `HerdedSheepView`."""
-        return HerdedSheepView
 
-
-class ShepherdView(AgentView):
+class ShepherdView(AgentViewProtocol, Protocol):
     """View of a shepherd, with its states as attributes.
 
-    `ShepherdElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `ShepherdElement` read them with checked types.
     """
 
     driving: float
@@ -133,11 +129,6 @@ class ShepherdElement(Element):
     ) -> None:
         super().__init__(label, values=values, size=size, space=space)
         self.driving = driving
-
-    @classmethod
-    def _get_view(cls) -> type[ShepherdView]:
-        """Return the view of the agent, `ShepherdView`."""
-        return ShepherdView
 
 
 class ShepherdingInteraction(Interaction):
@@ -244,8 +235,8 @@ class ShepherdingInteraction(Interaction):
             system:
                 The system.
         """
-        flock = system.get_agents(self.sheep, HerdedSheepView)
-        dogs = system.get_agents(self.shepherds, ShepherdView)
+        flock = cast(list[HerdedSheepView], system.get_agents(self.sheep))
+        dogs = cast(list[ShepherdView], system.get_agents(self.shepherds))
         sheep = np.array([np.asarray(item.location, dtype=float) for item in flock])
         shepherds = np.array([np.asarray(item.location, dtype=float) for item in dogs])
         headings = np.array([[item.hx, item.hy] for item in flock])

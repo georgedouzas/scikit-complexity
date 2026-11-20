@@ -8,7 +8,7 @@ Firms post wage offers and unemployed workers accept the best one.
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, cast, runtime_checkable
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
@@ -20,15 +20,17 @@ from ....core.components.elements import Element, Member
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
-from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
+from ....core.engine.solvers import BaseSolver, MesaSolver, SystemView
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
 from ...general.matching import MatchingInteraction, MatchSpec, StableMatchingSpec
 
 
-class EmployerView(AgentView):
+@runtime_checkable
+class EmployerView(AgentViewProtocol, Protocol):
     """Employer as the rules see it.
 
     It holds its offer `bid`, vacancy `demand`, step `posted`, and its wage parameters. The parameters are the
@@ -99,16 +101,9 @@ class EmployerElement(Element):
         self.low_wage = low_wage
         self.high_wage = high_wage
 
-    @classmethod
-    def _get_view(cls) -> type[EmployerView]:
-        """Return the view of an employer.
 
-        It holds its vacancy and the parameters of its offers.
-        """
-        return EmployerView
-
-
-class JobseekerView(AgentView):
+@runtime_checkable
+class JobseekerView(AgentViewProtocol, Protocol):
     """Worker as the rules see it.
 
     The states are the reservation wage `ask`, the search flag `supply`, the `employer`, the `wage`, the `duration` of
@@ -206,14 +201,6 @@ class JobseekerElement(Element):
         self.reservation = reservation
         self.decline = decline
 
-    @classmethod
-    def _get_view(cls) -> type[JobseekerView]:
-        """Return the view of a worker.
-
-        It holds its search and job states and their parameters.
-        """
-        return JobseekerView
-
 
 class JobOffersInteraction(Interaction):
     """Phase of offers of the labour market, before the firms meet the workers.
@@ -267,14 +254,14 @@ class JobOffersInteraction(Interaction):
             system:
                 The system view of the offers.
         """
-        firms = system.get_agents('firms', EmployerView)
+        firms = cast(list[EmployerView], system.get_agents('firms'))
         for firm in firms:
             firm.demand = float(system.rng.random() < firm.vacancy_rate)
         for firm in firms:
             firm.bid = float(system.rng.uniform(firm.low_wage, firm.high_wage)) if firm.demand else firm.bid
         for firm in firms:
             firm.posted = float(system.time if firm.demand else firm.posted)
-        workers = system.get_agents('workers', JobseekerView)
+        workers = cast(list[JobseekerView], system.get_agents('workers'))
         for worker in workers:
             worker.supply = float(worker.employer < 0)
         for worker in workers:

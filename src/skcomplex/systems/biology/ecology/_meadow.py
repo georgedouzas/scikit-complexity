@@ -6,7 +6,7 @@
 
 from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import Annotated, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
@@ -20,17 +20,17 @@ from ....core.components.laws.utils import pairs
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
 from ...general.agents import MovementInteraction
 
 
-class CowView(AgentView):
+class CowView(AgentViewProtocol, Protocol):
     """View of a cow, with its parameters as attributes.
 
-    `CowElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `CowElement` read them with checked types.
     """
 
     bite: float
@@ -77,16 +77,11 @@ class CowElement(Element):
         super().__init__(label, values=values, size=size, space=space)
         self.bite = bite
 
-    @classmethod
-    def _get_view(cls) -> type[CowView]:
-        """Return the view of a cow, `CowView`."""
-        return CowView
 
-
-class PastureView(AgentView):
+class PastureView(AgentViewProtocol, Protocol):
     """View of a patch of pasture, with its states and parameters as attributes.
 
-    `PastureElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `PastureElement` read them with checked types.
     """
 
     grass: float
@@ -136,11 +131,6 @@ class PastureElement(Element):
         super().__init__(label, values=values, size=size, space=space)
         self.grass = grass
         self.growth = growth
-
-    @classmethod
-    def _get_view(cls) -> type[PastureView]:
-        """Return the view of a patch of pasture, `PastureView`."""
-        return PastureView
 
 
 class PastureRegrowthInteraction(Interaction):

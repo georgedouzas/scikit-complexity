@@ -9,7 +9,7 @@ The light is sensed with a delay or a prediction.
 import math
 from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import Annotated, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
@@ -21,14 +21,15 @@ from ....core.components.elements import Element, Period
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace, ContinuousSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
 
 
-class LightEmittingRobotView(AgentView):
+class LightEmittingRobotView(AgentViewProtocol, Protocol):
     """View of a light-emitting robot, with its states as attributes."""
 
     phi: float
@@ -86,14 +87,6 @@ class LightEmittingRobotElement(Element):
         self.phi = phi
         self.light = light
         self.speed = speed
-
-    @classmethod
-    def _get_view(cls) -> type[LightEmittingRobotView]:
-        """Return the view of the robots.
-
-        It types their states.
-        """
-        return LightEmittingRobotView
 
 
 class SensoryDelayInteraction(Interaction):
@@ -183,7 +176,7 @@ class SensoryDelayInteraction(Interaction):
 
         The speeds follow the delayed or predicted light.
         """
-        robots = system.get_agents('target', LightEmittingRobotView)
+        robots = cast(list[LightEmittingRobotView], system.get_agents('target'))
         positions = np.array([np.asarray(robot.location, dtype=float) for robot in robots])
         light = self._get_light(positions)
         history = cast('list[Array]', system.storage.setdefault('light', []))

@@ -5,7 +5,7 @@
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import Annotated, Protocol, cast
 
 import networkx as nx
 import numpy as np
@@ -19,14 +19,15 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
 
 
-class ThresholdNodeView(AgentView):
+class ThresholdNodeView(AgentViewProtocol, Protocol):
     """View of a node of the Watts cascade system.
 
     Its states and parameters are attributes.
@@ -127,14 +128,6 @@ class ThresholdNodeElement(Element):
         super().__init__(label, size=size)
         self.active = active
         self.threshold = threshold
-
-    @classmethod
-    def _get_view(cls) -> type[ThresholdNodeView]:
-        """Return the class of the views of the agents.
-
-        Their attributes are the states and parameters.
-        """
-        return ThresholdNodeView
 
 
 class WattsCascadesSystem(BaseSystem):

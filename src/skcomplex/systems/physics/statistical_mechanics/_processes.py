@@ -8,7 +8,7 @@ The module covers Q2R, percolation, contact process, exclusion, and aggregation.
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, runtime_checkable
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
@@ -21,8 +21,9 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import bernoulli, shift_member
 from ....core.components.spaces import BaseSpace, LatticeSpace, RadiusNeighborhood
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
@@ -451,7 +452,8 @@ class Q2RFlipInteraction(Interaction):
             self.laws_ = [UpdateLaw(spin_and_phase, self._flip_without_cost, neighborhood=NEAREST, label=self.label)]
 
 
-class WalkerView(AgentView):
+@runtime_checkable
+class WalkerView(AgentViewProtocol, Protocol):
     """Walker of diffusion-limited aggregation as rules see it.
 
     The walker holds whether it belongs to the aggregate.
@@ -513,11 +515,6 @@ class WalkerElement(Element):
         self.stuck = stuck
         self.x = x
         self.y = y
-
-    @classmethod
-    def _get_view(cls) -> type:
-        """Return the class of the views of the element's agents."""
-        return WalkerView
 
 
 class StickingWalkInteraction(Interaction):

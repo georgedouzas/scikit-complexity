@@ -5,7 +5,7 @@
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
@@ -17,8 +17,9 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
 
@@ -27,7 +28,7 @@ DISTRESSED = 1
 INACTIVE = 2
 
 
-class InterbankView(AgentView):
+class InterbankView(AgentViewProtocol, Protocol):
     """Bank as the cascade sees it.
 
     It holds its distress `h`, its `status`, and its economic `value`.
@@ -79,11 +80,6 @@ class InterbankElement(Element):
         self.status = status
         self.value = value
 
-    @classmethod
-    def _get_view(cls) -> type[InterbankView]:
-        """Return the view of the agents of the element."""
-        return InterbankView
-
 
 class DebtRankCascadeInteraction(Interaction):
     """Synchronous spread of distress over the distressed banks `j`.
@@ -133,7 +129,7 @@ class DebtRankCascadeInteraction(Interaction):
             system:
                 The system.
         """
-        banks = sorted(system.get_agents('banks', InterbankView), key=lambda bank: bank.id)
+        banks = sorted(cast(list[InterbankView], system.get_agents('banks')), key=lambda bank: bank.id)
         h = np.array([bank.h for bank in banks])
         status = np.array([bank.status for bank in banks])
         distressed = status == DISTRESSED

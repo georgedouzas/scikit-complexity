@@ -5,7 +5,7 @@
 
 from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, runtime_checkable
 
 import numpy as np
 import numpy.typing as npt
@@ -21,7 +21,7 @@ from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
@@ -34,7 +34,8 @@ PASSIONATE = 3
 INNOVATORS = 0.025
 
 
-class BelieverView(AgentView):
+@runtime_checkable
+class BelieverView(AgentViewProtocol, Protocol):
     """View of an agent of the influentials system.
 
     Its states and parameters are attributes.
@@ -106,16 +107,9 @@ class BelieverElement(Element):
         self.influence = influence
         self.learning = learning
 
-    @classmethod
-    def _get_view(cls) -> type[BelieverView]:
-        """Return the class of the views of the agents.
 
-        Their attributes are the states and parameters.
-        """
-        return BelieverView
-
-
-class AdopterView(AgentView):
+@runtime_checkable
+class AdopterView(AgentViewProtocol, Protocol):
     """View of an agent of the threshold adoption system.
 
     Its states and parameters are attributes.
@@ -175,14 +169,6 @@ class AdopterElement(Element):
         self.adopted = adopted
         self.threshold = threshold
         self.reach = reach
-
-    @classmethod
-    def _get_view(cls) -> type[AdopterView]:
-        """Return the class of the views of the agents.
-
-        Their attributes are the states and parameters.
-        """
-        return AdopterView
 
 
 class AdoptionInteraction(Interaction):

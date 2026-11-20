@@ -10,7 +10,7 @@ The individuals reproduce, mutate, and climb fitness landscapes.
 from collections.abc import Mapping, Sequence
 from functools import lru_cache
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol
 
 import numpy as np
 import numpy.typing as npt
@@ -23,10 +23,10 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace
-from ....core.components.types import SystemViewProtocol
+from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
-from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
+from ....core.engine.solvers import BaseSolver, MesaSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
@@ -35,10 +35,10 @@ from ...general.agents import BirthDeathInteraction, EvolutionInteraction
 ORGANISMS = 'organisms'
 
 
-class ClimberView(AgentView):
+class ClimberView(AgentViewProtocol, Protocol):
     """View of a climber, with its states and parameters as attributes.
 
-    `ClimberElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `ClimberElement` read them with checked types.
     """
 
     genome: float
@@ -112,11 +112,6 @@ class ClimberElement(Element):
         self.k = k
         self.seed = seed
 
-    @classmethod
-    def _get_view(cls) -> type[ClimberView]:
-        """Return the view of a climber, `ClimberView`."""
-        return ClimberView
-
     @staticmethod
     @lru_cache(maxsize=16)
     def _get_nk_tables(seed: int, n: int, k: int) -> Array:
@@ -141,10 +136,10 @@ class ClimberElement(Element):
         return total / n
 
 
-class IndividualView(AgentView):
+class IndividualView(AgentViewProtocol, Protocol):
     """View of an individual, with its states as attributes.
 
-    `IndividualElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `IndividualElement` read them with checked types.
     """
 
     trait: float
@@ -194,11 +189,6 @@ class IndividualElement(Element):
         super().__init__(label, values=values, size=size, space=space)
         self.trait = trait
         self.fitness = fitness
-
-    @classmethod
-    def _get_view(cls) -> type[IndividualView]:
-        """Return the view of an individual, `IndividualView`."""
-        return IndividualView
 
 
 class ClimbingIndividualElement(IndividualElement):

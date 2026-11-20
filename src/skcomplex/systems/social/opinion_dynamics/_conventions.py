@@ -4,21 +4,22 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import cast
+from typing import Protocol, cast
 
 import numpy as np
 import numpy.typing as npt
 
 from ....core.components import Observable
 from ....core.components.elements import Element
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ._random_pairs import RandomPairsInteraction
 
 
-class NamerView(AgentView):
+class NamerView(AgentViewProtocol, Protocol):
     """View of an agent of the naming game.
 
     Its states and parameters are attributes.
@@ -61,14 +62,6 @@ class NamerElement(Element):
         super().__init__(label, size=size)
         self.words = words
 
-    @classmethod
-    def _get_view(cls) -> type[NamerView]:
-        """Return the class of the views of the agents.
-
-        Their attributes are the states and parameters.
-        """
-        return NamerView
-
 
 class NamingGamesInteraction(RandomPairsInteraction):
     """Pairwise games of the minimal naming game, as many per step as there are agents.
@@ -103,7 +96,7 @@ class NamingGamesInteraction(RandomPairsInteraction):
             known += np.asarray(agent.words, dtype=np.float64)
         words[int(np.flatnonzero(known == 0)[0])] = 1.0
 
-    def act_on(self, members: list[AgentView], system: SystemView) -> None:
+    def act_on(self, members: list[AgentViewProtocol], system: SystemView) -> None:
         """Play one naming game between the first member and the second.
 
         The first member is the speaker, and the second the hearer.
