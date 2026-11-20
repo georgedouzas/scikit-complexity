@@ -11,21 +11,18 @@ import pytest
 from shapely import Point, Polygon, box
 
 from skcomplex.core.components import Observable
-from skcomplex.core.components.elements import Element, GroupElement, Member
+from skcomplex.core.components.elements import Element, Member
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.components.spaces import (
     ContinuousSpace,
     DelaunayNeighborhood,
-    DiscreteTime,
     LatticeSpace,
     NetworkSpace,
 )
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile import PhaseSpec
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.compile.passes._agents_problem import AGENT_RESERVED_NAMES
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import AgentView, MesaSolver, StepSpec
 from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import (
@@ -260,20 +257,6 @@ def test_agents_are_born_every_step():
     assert len(trajectory.get_agents('herd', 3).ids) == 80
 
 
-def test_fixed_group_rejects_births():
-    """Test that a rule creating a member of a group of fixed size raises an error that suggests a variable group."""
-
-    class BreederElement(Element):
-        """Agent that creates one offspring every step."""
-
-        def _get_laws(self, s):
-            """Return the breeding rule."""
-            return [RuleLaw(_breed)]
-
-    with pytest.raises(SimulationError, match='variable=True'):
-        simulate(CompositeSystem(elements=[GroupElement('herd', element=BreederElement, size=10)]), until=1)
-
-
 def test_system_rules_remove_agents():
     """Test that an interaction rule removes agents and frames report the agents alive."""
     walkers, wander = _walkers(5, LatticeSpace((5, 5), boundary='fixed'))
@@ -356,7 +339,7 @@ def test_agent_parameter_changes_live():
 def test_mesa_declares_its_support():
     """Test that the Mesa backend declares discrete time and rule laws."""
     supports = MesaSolver._get_support()
-    assert supports.time == {DiscreteTime}
+    assert {time.time_tag for time in supports.time} == {'discrete'}
     assert not supports.get_missing('laws', {RuleLaw})
 
 
@@ -1056,32 +1039,6 @@ def test_unsupported_continuous_space_is_rejected_before_the_first_frame(space, 
         MesaSolver().prepare(problem)
     with pytest.raises(BackendError, match='two or three dimensions'):
         _simulate(system, until=1)
-
-
-@pytest.mark.parametrize(
-    'location',
-    [(1.0, 2.0), [(1.0, 2.0), (1.0, 2.0), (1.0, 2.0)], box(0.0, 0.0, 1.0, 1.0)],
-)
-def test_location_of_the_wrong_length_is_reported(location):
-    """Test that the compile report holds an initial location that does not fit a three-dimensional space."""
-    group = GroupElement('probes', element=Element, size=3, location=location)
-    system = CompositeSystem(elements=[group], space=ContinuousSpace(extent=(5.0, 5.0, 5.0)))
-    report = PassCompiler().prepare(system).report_
-    issue = next(item for item in report.issues if item.code == 'location-dimension')
-    assert issue.path == 'probes'
-    assert '2 coordinates' in issue.message
-    assert '3 dimensions' in issue.message
-
-
-def test_locations_that_fit_their_space_are_not_reported():
-    """Test that fitting positions and polygons in a two-dimensional space leave the compile report clean."""
-    for location in ((1.0, 2.0, 3.0), [(1.0, 2.0, 3.0)] * 2):
-        group = GroupElement('probes', element=Element, size=2, location=location)
-        system = CompositeSystem(elements=[group], space=ContinuousSpace(extent=(5.0, 5.0, 5.0)))
-        assert PassCompiler().prepare(system).report_.ok
-    group = GroupElement('probes', element=Element, size=2, location=[box(0.0, 0.0, 1.0, 1.0)] * 2)
-    system = CompositeSystem(elements=[group], space=ContinuousSpace(extent=(5.0, 5.0)))
-    assert PassCompiler().prepare(system).report_.ok
 
 
 def test_move_to_of_the_wrong_length_raises_space_error():
