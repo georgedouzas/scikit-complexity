@@ -10,9 +10,7 @@ import pytest
 
 from skcomplex.core.analysis import loops
 from skcomplex.core.components import Observable
-from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.systems import BaseSystem as OldBaseSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.engine.solvers import EulerSolver
 from skcomplex.core.engine.translators import RunSettingsSpec, SystemDynamicsTranslator
 from skcomplex.core.errors import ConservationError, IncompatibleLawsError, ValidationError
@@ -50,19 +48,15 @@ def _create(module, **params):
     (system_class,) = [
         item
         for item in vars(module).values()
-        if isinstance(item, type)
-        and issubclass(item, BaseSystem | OldBaseSystem)
-        and item.__module__ == module.__name__
+        if isinstance(item, type) and issubclass(item, BaseSystem) and item.__module__ == module.__name__
     ]
     return system_class(**params)
 
 
 def _run(system, solver=None, **run):
-    """Return the trajectory of a system, prepared and simulated with a solver if given when it has the new base."""
-    if isinstance(system, BaseSystem):
-        system = system if solver is None else system.set_params(solver=solver)
-        return system.prepare().simulate(**run)
-    return simulate(system, solver=solver, **run)
+    """Return the trajectory of a system, prepared and simulated with a solver if given."""
+    system = system if solver is None else system.set_params(solver=solver)
+    return system.prepare().simulate(**run)
 
 
 def _composite_of(module):
@@ -242,9 +236,9 @@ def test_run_goal_seeking_becomes_relaxation(fixtures_folder, translate):
     """Test that a stock changed by the gap to its target over a time relaxes at a rate, and runs like PySD."""
     module = translate('goal_seeking.mdl')
     system = _composite_of(module)
-    assert [type(item) for item in system.interactions] == [RateInteraction]
+    assert [type(item) for item in system.interactions] == [Interaction]
     relaxation = system.interactions[0]
-    assert (relaxation.state, relaxation.rate.__name__) == ('stock', '_rate__stock')
+    assert (relaxation.roles, relaxation.laws.__name__) == ({'target': 'goal_seeking'}, '_laws__stock')
     source = SystemDynamicsTranslator(fixtures_folder / 'goal_seeking.mdl').prepare().run().source_
     assert '(_goal__stock(namespace) - namespace.target.stock) / _time__stock(namespace)' in source
     reference = _load_reference(fixtures_folder, 'goal_seeking.mdl')
@@ -268,10 +262,10 @@ def test_run_gap_times_a_rate_becomes_relaxation(tmp_path):
     ['(Level - Goal) / Speed', '-(Goal - Level) / Speed', '(Goal - Level) / Level', 'Level / Speed + Goal'],
 )
 def test_run_other_remaining_rates_become_rates(tmp_path, equation):
-    """Test that a remaining rate of any other form becomes a rate interaction."""
+    """Test that a remaining rate of any other form becomes an interaction that returns its rate law."""
     text = f'Level = INTEG({equation}, 1) ~ ~ |\nGoal = 2 ~ ~ |\nSpeed = 0.5 ~ ~ |\n'
     source = _translate_text(tmp_path, text).run().source_
-    assert 'RateInteraction(' in source
+    assert 'return [RateLaw(namespace.target.level, _rate__level(namespace))]' in source
     assert 'def _goal__level(' not in source
     assert 'class SystemElement(Element)' in source
     assert 'StockFlowSystem' not in source
@@ -281,8 +275,8 @@ def test_run_flow_of_several_stocks_stays_in_the_rates(tmp_path):
     """Test that a variable that enters two stocks stays in their remaining rates."""
     text = 'A = INTEG(Inflow, 1) ~ ~ |\nB = INTEG(Inflow, 1) ~ ~ |\nInflow = A + B ~ ~ |\n'
     source = _translate_text(tmp_path, text).run().source_
-    assert 'TransferInteraction(' not in source
-    assert source.count('RateInteraction(') == 2
+    assert 'FlowInteraction(' not in source
+    assert source.count('laws=_laws__') == 2
 
 
 def test_run_third_order_delay(fixtures_folder, translate):
@@ -482,12 +476,12 @@ def test_run_keeps_the_values_of_initial_expressions(tmp_path):
     )
     source = _translate_text(tmp_path, text).run().source_
     for declaration in (
-        'a: Annotated[float, StateSpec()] = 9.0',
-        'b: Annotated[float, StateSpec()] = 5.0',
-        'c: Annotated[float, StateSpec()] = 18.0',
-        'd: Annotated[float, StateSpec()] = 1.0',
-        'e: Annotated[float, StateSpec()] = 10.0',
-        'f: Annotated[float, StateSpec()] = -10.0',
+        'a: float = 9.0',
+        'b: float = 5.0',
+        'c: float = 18.0',
+        'd: float = 1.0',
+        'e: float = 10.0',
+        'f: float = -10.0',
     ):
         assert declaration in source
 

@@ -228,7 +228,6 @@ def test_operator_compiler_is_a_system_compiler_and_not_a_pass():
     assert not issubclass(OperatorCompiler, BasePass)
 
 
-@pytest.mark.skip(reason='engine gap: the Hilbert state of an element is read only from declared states')
 def test_operator_compiler_get_hilbert_state():
     """Test `OperatorCompiler._get_hilbert_state` on a small case."""
     assert OperatorCompiler._get_hilbert_state(QubitElement) == 'psi'

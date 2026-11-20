@@ -47,6 +47,8 @@ from skcomplex.core.systems import System
 from skcomplex.core.types import Role
 from skcomplex.systems.mathematics.networks import TriadicPercolationSystem
 
+from ....conftest import _queue_run
+
 SITES = 16
 WAVE = 1.0 + 0.5 * np.sin(2 * np.pi * np.arange(SITES) / SITES) + np.eye(SITES)[3]
 FIELDS = {
@@ -1657,3 +1659,15 @@ def test_rate_laws_of_one_order_on_one_state_add_up():
     lift = Interaction('lift', roles={'target': 'ball'}, laws=lambda s: [RateLaw(s.target.x.diff(s.t, 2), 9.81)])
     system = System(elements=[Element('ball', values={'x': 10.0})], interactions=[gravity, lift]).prepare()
     assert system.simulate(until=1.0, dt=1.0).get_values('ball.x').tolist() == pytest.approx([10.0, 10.0])
+
+
+def test_get_declared_reads_an_array_of_tuples_as_a_state_of_objects():
+    """Test that queues of orders given as an array of tuples stay one tuple per agent in every snapshot."""
+    orders = np.empty(2, dtype=object)
+    orders[:] = [(), (7,)]
+    trajectory = _queue_run()
+    first, last = trajectory.get_agents('queues', 0), trajectory.get_agents('queues', 3)
+    assert first.values['orders'].dtype == object
+    assert first.values['orders'].tolist() == orders.tolist()
+    assert last.values['orders'].tolist() == [(2, 3), (2, 3)]
+    assert isinstance(trajectory.get_values('queue.longest')[-1], tuple)

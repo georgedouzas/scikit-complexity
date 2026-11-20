@@ -193,7 +193,7 @@ class _TableElement(Element):
 )
 def test_prepare_rejects_a_reserved_name_used_for_a_value(element, name):
     """Test that a reserved name holding something else than its setting raises an error naming the reserved names."""
-    with pytest.raises(ValidationError, match=rf"has {name} = .*label, size, space, values are reserved"):
+    with pytest.raises(ValidationError, match=rf"has {name} = .*label, size, space, values, on are reserved"):
         element.prepare()
 
 
@@ -219,18 +219,18 @@ def test_prepare_accepts_an_on_that_names_a_layer_of_a_network():
     assert Element('links', values={'sign': 1}, space=space, on='roads').prepare().on == 'roads'
 
 
-@pytest.mark.skip(reason='engine gap: a value of its own named on is read as the part of a network space')
-def test_prepare_keeps_a_state_of_its_own_named_on():
-    """Test that an element that declares its own state `on`, such as a switch, is not read as the part of a space."""
+def test_prepare_rejects_a_value_of_its_own_named_on():
+    """Test that `on` is reserved for the part of a network space, so a switch with a value `on` must rename it."""
 
     class SwitchElement(Element):
-        """Switch whose state `on` is 1 when it is closed."""
+        """Switch whose value `on` is 1 when it is closed."""
 
         def __init__(self, label: str, on: float = 1.0) -> None:
             super().__init__(label)
             self.on = on
 
-    assert SwitchElement('switch', on=0.0).prepare().on == 0.0
+    with pytest.raises(ValidationError, match=r'label, size, space, values, on are reserved, so rename a value'):
+        SwitchElement('switch', on=0.0).prepare()
 
 
 def test_element_on_a_space_has_the_tags_of_its_space():
