@@ -341,7 +341,7 @@ class PassCompiler(BaseCompiler):
         )
 
     def _get_nested_issues(self, system: CompositeSystem) -> tuple[CompositeSystem, list[IssueSpec]]:
-        """Return the system without the children another compiler compiles, and their issues.
+        """Return the system without the children other compilers take, and their issues.
 
         Each such child is prepared on its compiler in `nested_`, and its issues are named by its path.
         """
@@ -393,7 +393,7 @@ class PassCompiler(BaseCompiler):
         return nested + self._get_own_issues(system)
 
     def _get_own_issues(self, system: CompositeSystem) -> list[IssueSpec]:
-        """Return the issues of a system the pass compiler compiles, with its solver and backend.
+        """Return the issues of a system this compiler compiles, its solver, and backend.
 
         The compilation is planned along the way.
         """

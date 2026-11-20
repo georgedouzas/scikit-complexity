@@ -337,8 +337,8 @@ class CoSimulationSolver(Solver):
     def _advance_partition(self, partition: PartitionSpec, source: Array, p: Array, start: float, end: float) -> Array:
         """Advance one partition and return its new state vector.
 
-        It starts from the values of a source state vector. A partition whose problem has a layout of its own, as that
-        of a nested system of words has, advances its own part of the vectors.
+        It starts from the values of a source state vector. A partition whose problem has a layout of its own
+        advances only the entries of the vectors it owns.
         """
         if partition.states is not None and partition.parameters is not None:
             own = PartitionSpec(partition.name, partition.problem, partition.owned, partition.owners, partition.solver)
