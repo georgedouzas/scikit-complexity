@@ -287,20 +287,17 @@ interactions read, and their domains with them.
     examples = """
 ## A compatible element
 
-A `DeclaredElement` takes its states as data. Here a tank holds a real amount, and the `target` role of a
-`RateInteraction` accepts real states.
+An `Element` takes its values as data. Here a tank holds a real amount, and a decay at a rate changes it.
 
 ```python
-from skcomplex.core.components.elements import DeclaredElement
-from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
+from skcomplex.core.components.elements import Element
+from skcomplex.core.systems import System
+from skcomplex.systems.general.reactions import ReactionInteraction
 
-tank = DeclaredElement('tank', variables={'x': DeclaredVariableSpec(10.0, StateSpec())})
-decay = RateInteraction('decay', target='tank', state='x', rate=lambda s: -0.5 * s.target.x)
+tank = Element('tank', values={'x': 10.0})
+decay = ReactionInteraction('decay', target='tank', reactants={'x': 1}, k=0.5)
 sorted(tank.get_tags().domains)
-trajectory = simulate(CompositeSystem(elements=[tank], interactions=[decay]), until=2)
+trajectory = System(elements=[tank], interactions=[decay]).prepare().simulate(until=2)
 round(trajectory.get_values('tank.x')[-1], 2)
 ```
 
@@ -308,42 +305,37 @@ The tank has the domain `real`, and its amount decays from 10 to 3.68 after two 
 
 ## An incompatible element
 
-A switch that is on or off holds a state of the domain `boolean`. A rate does not change a boolean, so `simulate`
-raises a `RoleElementError` that names the domain.
+A switch that is lit or dark holds a value of the domain `boolean`. A rate does not change a boolean, so `prepare`
+raises a `ValidationError` that names the law and the allowed values.
 
 ```python
 from typing import Annotated
 
-from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
-
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.errors import RoleElementError
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.errors import ValidationError
+from skcomplex.core.systems import System
+from skcomplex.systems.general.reactions import ReactionInteraction
 
 
 class SwitchElement(Element):
-    def __init__(self, label, *, on: Annotated[int, StateSpec(FiniteEnumeratedSet([0, 1]))] = 0):
+    def __init__(self, label, *, lit: Annotated[int, {0, 1}] = 0):
         super().__init__(label)
-        self.on = on
+        self.lit = lit
 
 
 switch = SwitchElement('switch')
 sorted(switch.get_tags().domains)
-flip = RateInteraction('flip', target='switch', state='on', rate=1.0)
+flip = ReactionInteraction('flip', target='switch', products={'lit': 1})
 try:
-    simulate(CompositeSystem(elements=[switch], interactions=[flip]), until=1)
-except RoleElementError as error:
+    System(elements=[switch], interactions=[flip]).prepare()
+except ValidationError as error:
     message = str(error)
 message
-assert "domain 'boolean'" in message
+assert 'finite set {0, 1}' in message
 ```
 
-The message says that the role `target` of `flip` accepts the domains real, integer, complex, and vector, while the
-state `on` of `switch` has the domain `boolean`. Give the state a real domain, or bind it to a role that accepts
-booleans.
+The message says that the `RateLaw` of `flip` changes `switch.lit` continuously, while its allowed values are the
+finite set `{0, 1}`. Change the value with an `UpdateLaw` or a `JumpLaw`, or allow it a range of real numbers.
 """
     facts = _facts(_family_classes(elements), 'elements')
     header = ['Element', 'States', 'Domains', 'Law kinds']
@@ -378,20 +370,18 @@ roles of each interaction class of the core, with the domains they accept, and i
     examples = """
 ## A compatible interaction
 
-A `RateInteraction` returns a `rate` law of continuous time, and its `target` accepts the real amount of a declared
-element.
+A reaction of `skcomplex.systems.general.reactions` returns a `rate` law of continuous time, and its `target` accepts
+the real amount of an element.
 
 ```python
-from skcomplex.core.components.elements import DeclaredElement
-from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
+from skcomplex.core.components.elements import Element
+from skcomplex.core.systems import System
+from skcomplex.systems.general.reactions import ReactionInteraction
 
-tank = DeclaredElement('tank', variables={'x': DeclaredVariableSpec(10.0, StateSpec())})
-decay = RateInteraction('decay', target='tank', state='x', rate=lambda s: -0.5 * s.target.x)
+tank = Element('tank', values={'x': 10.0})
+decay = ReactionInteraction('decay', target='tank', reactants={'x': 1}, k=0.5)
 sorted(decay.get_tags().laws), sorted(decay.get_tags().time)
-trajectory = simulate(CompositeSystem(elements=[tank], interactions=[decay]), until=2)
+trajectory = System(elements=[tank], interactions=[decay]).prepare().simulate(until=2)
 round(trajectory.get_values('tank.x')[-1], 2)
 ```
 
@@ -399,31 +389,29 @@ The decay has the law kind `rate` and the time `continuous`, and the tank falls 
 
 ## An incompatible interaction
 
-A `MapInteraction` returns an `update` law of discrete time. It cannot join the rate in one system unless the system
-has a time that joins the two, so `simulate` raises a `TagError` that names the tag the components disagree on.
+The same reaction drawn as random events returns a `jump` law, which `EulerSolver` does not draw, so `prepare`
+raises a `TagError` that names the law kind.
 
 ```python
-from skcomplex.core.components.elements import DeclaredElement
-from skcomplex.core.components.interactions import MapInteraction, RateInteraction
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.elements import Element
+from skcomplex.core.engine.solvers import EulerSolver
 from skcomplex.core.errors import TagError
-from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
+from skcomplex.core.systems import System
+from skcomplex.systems.general.reactions import ReactionInteraction
 
-tank = DeclaredElement('tank', variables={'x': DeclaredVariableSpec(10.0, StateSpec())})
-decay = RateInteraction('decay', target='tank', state='x', rate=lambda s: -0.5 * s.target.x)
-halve = MapInteraction('halve', target='tank', state='x', function=lambda s: s.target.x / 2)
-sorted(halve.get_tags().laws), sorted(halve.get_tags().time)
+tank = Element('tank', values={'x': 10.0})
+decay = ReactionInteraction('decay', target='tank', reactants={'x': 1}, k=0.5, mode='jump')
+sorted(decay.get_tags().laws)
 try:
-    simulate(CompositeSystem(elements=[tank], interactions=[decay, halve]), until=1)
+    System(elements=[tank], interactions=[decay], solver=EulerSolver()).prepare()
 except TagError as error:
     message = str(error)
 message
-assert "tag 'time'" in message
+assert 'laws jump' in message
 ```
 
-The map has the law kind `update` and the time `discrete`. The message says that `decay` and `halve` disagree on the
-tag `time`, and asks for a time that joins them or for components of one time.
+The reaction has the law kind `jump`. The message says that `EulerSolver` does not support it, and asks for a solver
+that supports it or for none.
 """
     facts = _facts(_family_classes(interactions), 'interactions')
     header = ['Interaction', 'Roles and accepted domains', 'Law kinds']
@@ -450,44 +438,39 @@ every one of them. The table lists the kind, time, space, and randomness that ea
     examples = """
 ## A compatible law
 
-A `JumpInteraction` adds one unit to a queue at random times, at a rate of 2 per time unit. It returns a `jump` law,
-which `GillespieSolver` supports.
+An arrival adds one unit to a queue at random times, at a rate of 2 per time unit. It returns a `jump` law, which
+`GillespieSolver` supports.
 
 ```python
-from skcomplex.core.components.elements import DeclaredElement
-from skcomplex.core.components.interactions import JumpInteraction
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.elements import Element
 from skcomplex.core.engine.solvers import GillespieSolver
-from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
+from skcomplex.core.systems import System
+from skcomplex.systems.general.reactions import ReactionInteraction
 
-queue = DeclaredElement('queue', variables={'x': DeclaredVariableSpec(0.0, StateSpec())})
-arrive = JumpInteraction('arrive', target='queue', changes={'x': 1}, rate=lambda s: 2.0)
+queue = Element('queue', values={'x': 0.0})
+arrive = ReactionInteraction('arrive', target='queue', products={'x': 1}, k=2.0, mode='jump')
 sorted(arrive.get_tags().laws)
-system = CompositeSystem(elements=[queue], interactions=[arrive])
-trajectory = simulate(system, until=5, solver=GillespieSolver(), random_state=0)
-trajectory.get_values('queue.x')[-1]
+system = System(elements=[queue], interactions=[arrive], solver=GillespieSolver()).prepare()
+system.simulate(until=5, random_state=0).get_values('queue.x')[-1]
 ```
 
 The law kind is `jump`, and with the seed 0 the queue holds 11 after five time units, near the mean of 10.
 
 ## An incompatible law
 
-`EulerSolver` integrates rates and does not draw jumps, so `simulate` raises a `TagError` that names the law kind.
+`EulerSolver` integrates rates and does not draw jumps, so `prepare` raises a `TagError` that names the law kind.
 
 ```python
-from skcomplex.core.components.elements import DeclaredElement
-from skcomplex.core.components.interactions import JumpInteraction
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.elements import Element
 from skcomplex.core.engine.solvers import EulerSolver
 from skcomplex.core.errors import TagError
-from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
+from skcomplex.core.systems import System
+from skcomplex.systems.general.reactions import ReactionInteraction
 
-queue = DeclaredElement('queue', variables={'x': DeclaredVariableSpec(0.0, StateSpec())})
-arrive = JumpInteraction('arrive', target='queue', changes={'x': 1}, rate=lambda s: 2.0)
+queue = Element('queue', values={'x': 0.0})
+arrive = ReactionInteraction('arrive', target='queue', products={'x': 1}, k=2.0, mode='jump')
 try:
-    simulate(CompositeSystem(elements=[queue], interactions=[arrive]), until=5, solver=EulerSolver())
+    System(elements=[queue], interactions=[arrive], solver=EulerSolver()).prepare()
 except TagError as error:
     message = str(error)
 message
@@ -570,50 +553,48 @@ A rate with a noise term returns a `rate` and a `noise` law, which together form
 `EulerMaruyamaSolver` supports both.
 
 ```python
-from skcomplex.core.components.elements import DeclaredElement
-from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import NoiseLaw, RateLaw
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
-from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
+from skcomplex.core.systems import System
 
-tank = DeclaredElement('tank', variables={'x': DeclaredVariableSpec(10.0, StateSpec())})
-decay = RateInteraction('decay', target='tank', state='x', rate=lambda s: -0.5 * s.target.x, noise=0.1)
-system = CompositeSystem(elements=[tank], interactions=[decay])
-sorted(system.get_tags().laws), sorted(EulerMaruyamaSolver.get_supported_tags().laws)
-trajectory = simulate(system, until=1, solver=EulerMaruyamaSolver(), random_state=0)
-round(trajectory.get_values('tank.x')[-1], 2)
+tank = Element('tank', values={'x': 10.0})
+laws = lambda s: [RateLaw(s.target.x, -0.5 * s.target.x), NoiseLaw(s.target.x, 0.1)]
+decay = Interaction('decay', roles={'target': 'tank'}, laws=laws)
+system = System(elements=[tank], interactions=[decay], solver=EulerMaruyamaSolver()).prepare()
+system.form_, sorted(EulerMaruyamaSolver.get_supported_tags().laws)
+round(system.simulate(until=1, random_state=0).get_values('tank.x')[-1], 2)
 ```
 
-The system has the law kinds `noise` and `rate`, and the solver supports `equation`, `jump`, `noise`, `rate`, and
+The system is a stochastic differential equation, and the solver supports `equation`, `jump`, `noise`, `rate`, and
 `update`. With the seed 0 the tank holds 6.15 after one time unit, near the 6.07 of the decay without noise.
 
 ## An incompatible solver
 
-`RK4Solver` integrates deterministic equations and does not support the `noise` law kind, so `simulate` raises a
-`TagError`.
+`RK4Solver` integrates deterministic equations and does not support noise laws, so `prepare` raises a `SolverError`.
 
 ```python
-from skcomplex.core.components.elements import DeclaredElement
-from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import NoiseLaw, RateLaw
 from skcomplex.core.engine.solvers import RK4Solver
-from skcomplex.core.errors import TagError
-from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
+from skcomplex.core.errors import SolverError
+from skcomplex.core.systems import System
 
-tank = DeclaredElement('tank', variables={'x': DeclaredVariableSpec(10.0, StateSpec())})
-decay = RateInteraction('decay', target='tank', state='x', rate=lambda s: -0.5 * s.target.x, noise=0.1)
+tank = Element('tank', values={'x': 10.0})
+laws = lambda s: [RateLaw(s.target.x, -0.5 * s.target.x), NoiseLaw(s.target.x, 0.1)]
+decay = Interaction('decay', roles={'target': 'tank'}, laws=laws)
 try:
-    simulate(CompositeSystem(elements=[tank], interactions=[decay]), until=1, solver=RK4Solver())
-except TagError as error:
+    System(elements=[tank], interactions=[decay], solver=RK4Solver()).prepare()
+except SolverError as error:
     message = str(error)
 message
-assert 'laws noise' in message
+assert 'does not support the laws NoiseLaw' in message
 ```
 
-The message says that `RK4Solver` does not support the law kind `noise`, and asks for a solver that supports it or for
-none.
+The message says that `RK4Solver` does not support the noise law, and names the solvers of stochastic differential
+equations.
 """
     return _page('Solvers', intro, ['Solver', 'Form', 'Time', 'Space', 'Law kinds'], rows, examples)
 
@@ -634,47 +615,45 @@ it out. The table lists the supported tags of every backend.
 `NumbaBackend` supports every tag of a decay, so it runs the system.
 
 ```python
-from skcomplex.core.components.elements import DeclaredElement
-from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.components.elements import Element
 from skcomplex.core.engine.backends import NumbaBackend
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
+from skcomplex.core.systems import System
+from skcomplex.systems.general.reactions import ReactionInteraction
 
-tank = DeclaredElement('tank', variables={'x': DeclaredVariableSpec(10.0, StateSpec())})
-decay = RateInteraction('decay', target='tank', state='x', rate=lambda s: -0.5 * s.target.x)
-trajectory = simulate(CompositeSystem(elements=[tank], interactions=[decay]), until=1, backend=NumbaBackend())
-round(trajectory.get_values('tank.x')[-1], 2)
+tank = Element('tank', values={'x': 10.0})
+decay = ReactionInteraction('decay', target='tank', reactants={'x': 1}, k=0.5)
+system = System(elements=[tank], interactions=[decay], backend=NumbaBackend()).prepare()
+round(system.simulate(until=1).get_values('tank.x')[-1], 2)
 ```
 
 The tank holds 6.07 after one time unit, which is `10 exp(-0.5)`.
 
 ## An incompatible backend
 
-`JaxBackend` writes deterministic functions only, so `simulate` rejects a noise term and names the law kind.
+`JaxBackend` writes deterministic functions only, so `prepare` rejects a noise term and names it.
 
 ```python
-from skcomplex.core.components.elements import DeclaredElement
-from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import NoiseLaw, RateLaw
 from skcomplex.core.engine.backends import JaxBackend
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.errors import TagError
-from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
+from skcomplex.core.errors import SolverError
+from skcomplex.core.systems import System
 
-tank = DeclaredElement('tank', variables={'x': DeclaredVariableSpec(10.0, StateSpec())})
-decay = RateInteraction('decay', target='tank', state='x', rate=lambda s: -0.5 * s.target.x, noise=0.1)
+tank = Element('tank', values={'x': 10.0})
+laws = lambda s: [RateLaw(s.target.x, -0.5 * s.target.x), NoiseLaw(s.target.x, 0.1)]
+decay = Interaction('decay', roles={'target': 'tank'}, laws=laws)
 sorted(JaxBackend.get_supported_tags().laws)
 try:
-    simulate(CompositeSystem(elements=[tank], interactions=[decay]), until=1, backend=JaxBackend())
-except TagError as error:
+    System(elements=[tank], interactions=[decay], backend=JaxBackend()).prepare()
+except SolverError as error:
     message = str(error)
 message
-assert 'laws noise' in message
+assert 'backend JaxBackend lacks' in message
 ```
 
-The law kinds of `JaxBackend` are `equation`, `rate`, and `update`. The message says that it does not support the law
-kind `noise` of the system.
+The law kinds of `JaxBackend` are `equation`, `rate`, and `update`. The message says that the noise law needs diagonal
+noise, which the backend lacks.
 """
     return _page('Backends', intro, ['Backend', 'Time', 'Space', 'Law kinds'], rows, examples)
 
@@ -962,45 +941,39 @@ field and by topic, with their import paths, model parameters, and capability ta
     examples = '\n'.join(_general_systems()) + """
 ## A compatible system
 
-A composite of random arrivals has jump laws, which `GillespieSolver` draws one event at a time.
+A system of random arrivals has jump laws, which `GillespieSolver` draws one event at a time.
 
 ```python
-from skcomplex.core.components.elements import DeclaredElement
-from skcomplex.core.components.interactions import JumpInteraction
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.elements import Element
 from skcomplex.core.engine.solvers import GillespieSolver
-from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
+from skcomplex.core.systems import System
+from skcomplex.systems.general.reactions import ReactionInteraction
 
-queue = DeclaredElement('queue', variables={'x': DeclaredVariableSpec(0.0, StateSpec())})
-arrive = JumpInteraction('arrive', target='queue', changes={'x': 1}, rate=lambda s: 2.0)
-system = CompositeSystem(elements=[queue], interactions=[arrive])
-sorted(system.get_tags().laws), system.get_tags().randomness
-trajectory = simulate(system, until=5, solver=GillespieSolver(), random_state=0)
-trajectory.get_values('queue.x')[-1]
+queue = Element('queue', values={'x': 0.0})
+arrive = ReactionInteraction('arrive', target='queue', products={'x': 1}, k=2.0, mode='jump')
+system = System(elements=[queue], interactions=[arrive], solver=GillespieSolver()).prepare()
+system.form_
+system.simulate(until=5, random_state=0).get_values('queue.x')[-1]
 ```
 
-The system has the law kind `jump` and the randomness `stochastic`, and with the seed 0 the queue holds 11 after five
-time units.
+The system is a jump process, and with the seed 0 the queue holds 11 after five time units.
 
 ## An incompatible system
 
-A composite of a decay has rate equations, which `GillespieSolver` does not draw, so `simulate` raises a `TagError`
-that names the law kind.
+A system of a decay has rate equations, which `GillespieSolver` does not draw, so `prepare` raises a `TagError` that
+names the law kind.
 
 ```python
-from skcomplex.core.components.elements import DeclaredElement
-from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.elements import Element
 from skcomplex.core.engine.solvers import GillespieSolver
 from skcomplex.core.errors import TagError
-from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
+from skcomplex.core.systems import System
+from skcomplex.systems.general.reactions import ReactionInteraction
 
-tank = DeclaredElement('tank', variables={'x': DeclaredVariableSpec(10.0, StateSpec())})
-decay = RateInteraction('decay', target='tank', state='x', rate=lambda s: -0.5 * s.target.x)
+tank = Element('tank', values={'x': 10.0})
+decay = ReactionInteraction('decay', target='tank', reactants={'x': 1}, k=0.5)
 try:
-    simulate(CompositeSystem(elements=[tank], interactions=[decay]), until=5, solver=GillespieSolver())
+    System(elements=[tank], interactions=[decay], solver=GillespieSolver()).prepare()
 except TagError as error:
     message = str(error)
 message

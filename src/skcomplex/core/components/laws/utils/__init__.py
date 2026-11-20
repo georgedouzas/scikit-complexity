@@ -16,7 +16,7 @@ from ._contractions import contraction
 from ._delays import distributed_delay
 from ._draws import bernoulli, categorical, draw, normal, uniform
 from ._fractional import fractional
-from ._history import delayed, derivative, lag, residence
+from ._history import residence
 from ._integrals import cumulative_integral, integral_transform, integration_variable
 from ._local_operators import dagger, has_operator, local_operator, operator_product
 from ._moments import moment
@@ -80,8 +80,6 @@ __all__: list[str] = [
     'count',
     'cumulative_integral',
     'dagger',
-    'delayed',
-    'derivative',
     'displacement',
     'distribute_operators',
     'distributed_delay',
@@ -98,7 +96,6 @@ __all__: list[str] = [
     'integral_transform',
     'integration_variable',
     'inverse_helmholtz',
-    'lag',
     'laplacian',
     'leray_projection',
     'local_operator',

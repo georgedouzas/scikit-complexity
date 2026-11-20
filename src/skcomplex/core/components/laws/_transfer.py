@@ -21,7 +21,7 @@ class Source(BaseSpec):
     """A holder outside the system that a transfer takes an amount from.
 
     Unlike a state, it has no value and never runs out. Choose it when an amount enters the system from outside, as the
-    source of a `TransferLaw` or of a leg of a `TransferInteraction`.
+    source of a `TransferLaw`.
 
     It appears in many fields as the origin of what enters a system, such as a bank that creates money, births into a
     population, or an inflow into a reservoir.
@@ -44,7 +44,7 @@ class Sink(BaseSpec):
     """A holder outside the system that a transfer releases an amount to.
 
     Unlike a state, it has no value and never fills. Choose it when an amount leaves the system, as the sink of a
-    `TransferLaw` or of a leg of a `TransferInteraction`.
+    `TransferLaw`.
 
     It appears in many fields as the end of what leaves a system, such as a drain, the atmosphere, or deaths out of a
     population.

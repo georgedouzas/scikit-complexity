@@ -5,8 +5,8 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import TransferInteraction
-from skcomplex.core.components.laws import PartnerSpec, Sink, Source
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import PartnerSpec, UpdateLaw
 from skcomplex.core.components.spaces import BaseSpace, LatticeSpace, NetworkSpace
 from skcomplex.core.engine.compile import PhaseSpec
 from skcomplex.core.engine.runtime import Trajectory
@@ -69,32 +69,37 @@ def _resources(space: BaseSpace, places: object, resource: object) -> Element:
     return Element('cells', values={'resource': resource, **_places(space, places)}, size=size, space=space)
 
 
-def _feeding(uptake: float, gain: float) -> TransferInteraction:
-    """Return the uptake of the resource of a cell by the members in it, of which they gain a share."""
-    return TransferInteraction(
+def _feeding(uptake: float, gain: float, regrowth: float = 0.0) -> Interaction:
+    """Return the uptake of the resource of a cell by the members in it, of which they gain a share.
+
+    The resource of every cell grows back by `regrowth` each step.
+    """
+
+    def regrow(cell: object, system: object) -> None:
+        cell.resource += regrowth
+
+    def feed(forager: object, system: object) -> None:
+        groups = set(system.get_groups('cells'))
+        for cell in [other for other in forager.get_agents_here() if other.group in groups]:
+            if forager.alive and cell.alive:
+                taken = min(cell.resource, uptake)
+                cell.resource -= taken
+                forager.reserve += gain * taken
+
+    return Interaction(
         'feeding',
-        source='cells',
-        target='foragers',
-        state='resource',
-        into=Sink(),
-        amount=lambda cell, forager, system: min(cell.resource, uptake),
-        legs=((Source(), 'reserve', lambda cell, forager, system: gain * min(cell.resource, uptake)),),
-        pairing='cell',
-        form='agent',
+        roles={'target': 'foragers', 'cells': 'cells'},
+        laws=lambda s: [UpdateLaw(s.cells, regrow), UpdateLaw(s.target, feed)],
     )
 
 
-def _upkeep(amount: float) -> TransferInteraction:
+def _upkeep(amount: float) -> Interaction:
     """Return the upkeep every forager pays from its reserve every step."""
-    return TransferInteraction(
-        'upkeep',
-        source='foragers',
-        target='foragers',
-        state='reserve',
-        into=Sink(),
-        amount=amount,
-        form='agent',
-    )
+
+    def pay(forager: object, system: object) -> None:
+        forager.reserve -= amount
+
+    return Interaction('upkeep', roles={'target': 'foragers'}, laws=lambda s: [UpdateLaw(s.target, pay)])
 
 
 def _life(threshold: float = 0.0, probability: float = 0.0) -> BirthDeathInteraction:
@@ -151,16 +156,7 @@ def test_live_removes_foragers_below_zero_reserve():
 
 def test_live_member_schedule_runs_the_upkeep_and_the_death_of_each_forager_together():
     """Test that a forager pays its upkeep and dies below zero in its own activation, under the member schedule."""
-    upkeep = TransferInteraction(
-        'upkeep',
-        source='foragers',
-        target='foragers',
-        state='reserve',
-        into=Sink(),
-        amount=1.0,
-        schedule='member',
-        form='agent',
-    )
+    upkeep = _upkeep(1.0)
     life = BirthDeathInteraction(
         'life',
         target='foragers',

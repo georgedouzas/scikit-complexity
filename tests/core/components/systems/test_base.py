@@ -9,10 +9,10 @@ from sage.sets.real_set import RealSet
 from sklearn.base import clone
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import StateSpec
+from skcomplex.systems.general.reactions import ReactionInteraction
 
 
 class StockElement(Element):
@@ -38,7 +38,7 @@ class GrowthSystem(BaseSystem[CompositeSystem]):
         self.r = r
 
     def _build_system(self) -> CompositeSystem:
-        growth = RateInteraction('growth', target='stock', state='n', rate=self.r)
+        growth = ReactionInteraction('growth', target='stock', products={'n': 1}, k=self.r)
         return CompositeSystem(self.label, elements=[StockElement('stock')], interactions=[growth])
 
 
@@ -54,10 +54,10 @@ def test_base_system_passes_model_parameters_down_to_its_components():
     system = GrowthSystem(r=0.3).prepare()
     before = system.system_
     assert system.get_params() == {'label': 'growth', 'r': 0.3}
-    assert before.interactions[0].rate == 0.3
+    assert before.interactions[0].k == 0.3
     system.set_params(r=0.5).prepare()
     assert system.system_ is not before
-    assert system.system_.interactions[0].rate == 0.5
+    assert system.system_.interactions[0].k == 0.5
     assert clone(system).get_params()['r'] == 0.5
     assert system.get_tags().laws == {'rate'}
 
@@ -87,7 +87,7 @@ def test_base_system_builds_its_components_once_per_set_of_parameters():
     system.set_params(weights=np.zeros(3)).prepare()
     assert system.n_builds == 2
     system.set_params(r=0.5).prepare()
-    assert (system.n_builds, system.system_.interactions[0].rate) == (3, 0.5)
+    assert (system.n_builds, system.system_.interactions[0].k) == (3, 0.5)
     system.get_tags()
     assert system.n_builds == 3
 

@@ -517,36 +517,21 @@ A `EventLaw` resets states, or ends the run, when an expression of the states, i
 dropped from a height of 1 metre bounces off the floor and keeps 80 percent of its speed.
 
 ```python
-from typing import Annotated
-
 from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import EventLaw, RateLaw
-from skcomplex.core.components.laws.utils import derivative
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.systems import System
 
 
-class BallElement(Element):
-    law_classes = (RateLaw, EventLaw)
-
-    def __init__(
-        self,
-        label,
-        *,
-        h: Annotated[float, StateSpec(order=2)] = 1.0,
-        e: Annotated[float, ParameterSpec()] = 0.8,
-    ):
-        super().__init__(label)
-        self.h = h
-        self.e = e
-
-    def _get_laws(self, namespace):
-        speed = derivative(namespace.h, 1)
-        return [RateLaw(namespace.h, -9.81), EventLaw(namespace.h, {speed: -namespace.e * speed}, direction=-1)]
+def bounce(s):
+    h, e = s.target.h, s.target.e
+    speed = h.diff(s.t)
+    return [RateLaw(h.diff(s.t, 2), -9.81), EventLaw(h, {speed: -e * speed}, direction=-1)]
 
 
-trajectory = simulate(CompositeSystem(elements=[BallElement('ball')]), until=2, dt=0.01)
+ball = Element('ball', values={'h': 1.0, 'e': 0.8})
+system = System(elements=[ball], interactions=[Interaction('bounce', roles={'target': 'ball'}, laws=bounce)])
+trajectory = system.prepare().simulate(until=2, dt=0.01)
 [round(event.time, 3) for event in trajectory.events]
 ```
 
@@ -557,28 +542,14 @@ The same law fires a neuron. The potential of a leaky integrate-and-fire neuron 
 when it reaches the threshold 1 it resets to 0.
 
 ```python continuation
-class NeuronElement(Element):
-    law_classes = (RateLaw, EventLaw)
-
-    def __init__(
-        self,
-        label,
-        *,
-        v: Annotated[float, StateSpec()] = 0.0,
-        current: Annotated[float, ParameterSpec()] = 1.5,
-        tau: Annotated[float, ParameterSpec()] = 10.0,
-    ):
-        super().__init__(label)
-        self.v = v
-        self.current = current
-        self.tau = tau
-
-    def _get_laws(self, namespace):
-        v = namespace.v
-        return [RateLaw(v, (namespace.current - v) / namespace.tau), EventLaw(v - 1, {v: 0}, direction=1)]
+def fire(s):
+    v = s.target.v
+    return [RateLaw(v, (s.target.current - v) / s.target.tau), EventLaw(v - 1, {v: 0}, direction=1)]
 
 
-spikes = simulate(CompositeSystem(elements=[NeuronElement('neuron')]), until=50, dt=0.1).events
+neuron = Element('neuron', values={'v': 0.0, 'current': 1.5, 'tau': 10.0})
+system = System(elements=[neuron], interactions=[Interaction('fire', roles={'target': 'neuron'}, laws=fire)])
+spikes = system.prepare().simulate(until=50, dt=0.1).events
 [round(event.time, 2) for event in spikes]
 ```
 
@@ -589,8 +560,8 @@ crossing on its interpolant within its tolerance, applies every reset at once, a
 there. The trajectory keeps each crossing with its time and the states before and after it, and a `terminal` crossing
 ends the run.
 
-**How it combines.** It leaves the equations as they are, so it combines with `RateLaw`s and `NoiseLaw`s. A
-`CrossingInteraction` returns it from an interaction, so a threshold can read the states of several elements.
+**How it combines.** It leaves the equations as they are, so it combines with `RateLaw`s and `NoiseLaw`s. An
+interaction returns it with its other laws, so a threshold can read the states of several elements.
 
 **Limits and errors.** A guard that crosses zero again right after its reset raises an error that names the chattering
 event. The direction is `1` for upward crossings, `-1` for downward ones, or `0` for both, and `prepare` raises a
@@ -622,41 +593,22 @@ An `ConstraintLaw` states a relation that holds the highest time derivatives of 
 law holds an acceleration. The pendulum `m l θ'' = -m g sin θ` is one such relation, written as it reads.
 
 ```python
-from typing import Annotated
-
 from sage.all__sagemath_symbolics import sin
 
 from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import ConstraintLaw
-from skcomplex.core.components.laws.utils import derivative
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.systems import System
 
 
-class PendulumElement(Element):
-    law_classes = (ConstraintLaw,)
-
-    def __init__(
-        self,
-        label,
-        *,
-        theta: Annotated[float, StateSpec(order=2)] = 0.1,
-        m: Annotated[float, ParameterSpec()] = 1.0,
-        l: Annotated[float, ParameterSpec()] = 1.0,
-    ):
-        super().__init__(label)
-        self.theta = theta
-        self.m = m
-        self.l = l
-
-    def _get_laws(self, namespace):
-        theta, m, l = namespace.theta, namespace.m, namespace.l
-        return [ConstraintLaw(m * l * derivative(theta, 2) == -m * 9.81 * sin(theta))]
+def swing(s):
+    theta, m, l = s.target.theta, s.target.m, s.target.l
+    return [ConstraintLaw(m * l * theta.diff(s.t, 2) == -m * 9.81 * sin(theta))]
 
 
-bob = PendulumElement('bob')
-simulate(CompositeSystem(elements=[bob]), until=2, dt=1.0).get_values('bob.theta').round(3).tolist()
+bob = Element('bob', values={'theta': 0.1, 'm': 1.0, 'l': 1.0})
+system = System(elements=[bob], interactions=[Interaction('swing', roles={'target': 'bob'}, laws=swing)])
+system.prepare().simulate(until=2, dt=1.0).get_values('bob.theta').round(3).tolist()
 ```
 
 The angle swings from 0.1 to -0.1 after one second and back to 0.1 after two, close to the small period
@@ -666,31 +618,14 @@ The same law gives the charge `q` of a series circuit of an inductor, a resistor
 `L q'' + R q' + q / C = 0`.
 
 ```python continuation
-class CircuitElement(Element):
-    law_classes = (ConstraintLaw,)
-
-    def __init__(
-        self,
-        label,
-        *,
-        q: Annotated[float, StateSpec(order=2)] = 1.0,
-        L: Annotated[float, ParameterSpec()] = 1.0,
-        R: Annotated[float, ParameterSpec()] = 0.5,
-        C: Annotated[float, ParameterSpec()] = 0.25,
-    ):
-        super().__init__(label)
-        self.q = q
-        self.L = L
-        self.R = R
-        self.C = C
-
-    def _get_laws(self, namespace):
-        q, L, R, C = namespace.q, namespace.L, namespace.R, namespace.C
-        return [ConstraintLaw(L * derivative(q, 2) + R * derivative(q, 1) + q / C == 0)]
+def discharge(s):
+    q, L, R, C = s.target.q, s.target.L, s.target.R, s.target.C
+    return [ConstraintLaw(L * q.diff(s.t, 2) + R * q.diff(s.t) + q / C == 0)]
 
 
-circuit = CircuitElement('rlc')
-simulate(CompositeSystem(elements=[circuit]), until=3, dt=1.0).get_values('rlc.q').round(3).tolist()
+rlc = Element('rlc', values={'q': 1.0, 'L': 1.0, 'R': 0.5, 'C': 0.25})
+system = System(elements=[rlc], interactions=[Interaction('discharge', roles={'target': 'rlc'}, laws=discharge)])
+system.prepare().simulate(until=3, dt=1.0).get_values('rlc.q').round(3).tolist()
 ```
 
 The charge oscillates and decays: 1, -0.223, -0.467, and 0.428.
@@ -701,7 +636,7 @@ result to first order. `ScipyODESolver` then integrates it. Equations that share
 solve.
 
 **How it combines.** Equations of several components couple through their derivatives, as the two angles of a double
-pendulum do through a mass matrix. `EulerLagrangeInteraction` and `ConnectionInteraction` return equation laws, and a
+pendulum do through a mass matrix. `EulerLagrangeInteraction` and the balances of circuits return equation laws, and a
 `RateLaw` on the same state adds a force.
 
 **Limits and errors.** The relation must be linear in the highest derivatives. It is solved symbolically, so neither
@@ -909,7 +844,7 @@ of service.
 `GillespieSolver` draws the time of the next event and which event fires, an exact stochastic simulation. With
 `waiting` in place of `rate`, each firing waits a drawn time and applies `reset`, and `RenewalSolver` runs it.
 
-**How it combines.** `RateLaw`s and `NoiseLaw`s move the states between jumps. `JumpInteraction` returns jump laws
+**How it combines.** `RateLaw`s and `NoiseLaw`s move the states between jumps. An interaction returns jump laws
 from an interaction, so an event can change the states of several elements at once, as a reaction does.
 
 **Limits and errors.** The changes are fixed numbers or functions of the states. A symbol in a change would make its
@@ -1325,8 +1260,8 @@ state of order `k` as `k` states of order 1. `ScipyODESolver` integrates the res
 such as `RK4Solver` take the same problem.
 
 **How it combines.** Every mechanism adds its own rate law, so a growth from an element and a predation from an
-interaction superpose on one state. `RateInteraction`, `CouplingInteraction`, `PairInteraction`, and
-`GradientInteraction` return rate laws. A `NoiseLaw` adds a random part.
+interaction superpose on one state. Interactions of one element, of neighbours, and of pairs, and
+`GradientInteraction`, return rate laws. A `NoiseLaw` adds a random part.
 
 **Limits and errors.** A rate is deterministic, so a random draw in it raises an `IncompatibleLawsError`. NumPy builds
 an array when a NumPy scalar multiplies a symbolic vector, and `prepare` rejects that array.
@@ -1619,7 +1554,7 @@ per unit of time. The change of the objective is derived symbolically from the l
 sweep updates the two sublattices of a square lattice in turn by default. The intensity of the sampler is an
 expression of parameters, so a schedule of `simulate` can anneal it.
 
-**How it combines.** `SamplingInteraction` returns it from an interaction. `MoveSpec` chooses the move, a flip, a new
+**How it combines.** An interaction returns it. `MoveSpec` chooses the move, a flip, a new
 value, a rotation, a Gaussian step, or a cluster, and `SamplerSpec` the acceptance, Metropolis, Glauber, or heat bath.
 
 **Limits and errors.** A sweep samples a distribution, so the frames are not a physical time course. An unknown move
@@ -1717,7 +1652,7 @@ After ten years 606.5 people remain, which is `1000 exp(-0.5)`.
 **How the engine runs it.** A sink holds no state, so the transfer lowers to a loss of its source alone. Its label
 names the column of the environment in a transaction-flow matrix.
 
-**How it combines.** It is the sink of a `TransferLaw` or of a leg of a `TransferInteraction`, and a `Source` is its
+**How it combines.** It is the sink of a `TransferLaw`, and a `Source` is its
 counterpart for what enters.
 
 **Limits and errors.** A sink receives and never gives, so it cannot be the source of a transfer.
@@ -1814,7 +1749,7 @@ The deposits grow by 50 per step, from 0 to 200.
 **How the engine runs it.** A source holds no state, so the transfer lowers to a gain of its sink alone. Its label
 names the column of the environment in a transaction-flow matrix.
 
-**How it combines.** It is the source of a `TransferLaw` or of a leg of a `TransferInteraction`, and a `Sink` is its
+**How it combines.** It is the source of a `TransferLaw`, and a `Sink` is its
 counterpart for what leaves.
 
 **Limits and errors.** A source gives and never receives, so it cannot be the sink of a transfer.
@@ -1931,8 +1866,8 @@ in continuous time, an amount per step in discrete time, and the size of each ju
 records the amount at every frame under `<path>.<label>`.
 
 **How it combines.** `Source` and `Sink` stand for the environment on either side. A holder read by `shift_member`
-moves amounts along a group, such as stock along a supply chain. `TransferInteraction` returns transfer laws from an
-interaction, and the analysis `loops` reads their flows as a transaction-flow matrix.
+moves amounts along a group, such as stock along a supply chain. An interaction returns transfer laws, and the
+analysis `loops` reads their flows as a transaction-flow matrix.
 
 **Limits and errors.** A transfer changes a state on at least one side, so a transfer from a `Source` to a `Sink`
 raises a `ValidationError`.
@@ -2025,7 +1960,7 @@ Of 1000 loans that start in good standing, 291 are in default after ten years.
 the next value of every member from its row at each step, with the random stream of the run. With `source`, the law
 draws an observed state from the row that a hidden state selects, as a hidden Markov model does.
 
-**How it combines.** It runs beside `UpdateLaw`s of other states in the same step. `TransitionInteraction` returns it
+**How it combines.** It runs beside `UpdateLaw`s of other states in the same step. An interaction returns it
 from an interaction, and a matrix may hold expressions of parameters, such as `stay` above.
 
 **Limits and errors.** The target takes a finite set of values. The matrix is a nonempty list of rows of equal length,
@@ -2125,8 +2060,8 @@ cells of a lattice or a network, such as `UpdateLaw(s.target.alive, life, neighb
 which the lattice solver runs with the lookup tables and fused loops of a [`LocalRuleLaw`](#localrulelaw).
 
 **How it combines.** A state takes one update law, unless each of its laws says how it combines: an `increment` law
-adds a change, and a law with a `source` changes only members that hold that value. `CouplingInteraction`,
-`MapInteraction`, and `JumpInteraction` return update laws, and update laws take random draws, such as `normal`.
+adds a change, and a law with a `source` changes only members that hold that value. Update laws take random draws,
+such as `normal`.
 
 **Limits and errors.** An increment changes every value, so it takes no source, and `prepare` raises a
 `ValidationError` for both.

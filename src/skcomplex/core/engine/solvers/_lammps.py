@@ -61,15 +61,14 @@ class LammpsSolver(ExternalSolver):
     """A solver that runs systems of points in the LAMMPS program.
 
     It uses LAMMPS velocity Verlet integration. An element or group whose members declare a vector position state of
-    order 2, such as a point, becomes an atom type, whose atoms move with the first derivative of the position as
-    their velocity. The mass of an atom type is the value `m` of its members, or the parameter that the `divisor` of
-    the interactions on its members names, and 1 without either. Boxes become LAMMPS boundaries and
-    `fix wall/reflect`. An interaction whose class `pairs` gives a native pair style becomes that pair style, between
-    the members of its roles `first` and `second` closer than the radius of `within=RadiusNeighborhood(r)`, or within
-    its `cutoff`. A pair interaction with `within=` that gives its energy as `ObjectiveLaw(V)` and has no native pair
-    style becomes a Lepton expression potential.
-    An interaction whose class `fixes` gives a native fix becomes that fix. Any other interaction that only changes the
-    derivatives of the positions runs through `fix external`, evaluated by the framework.
+    order 2, such as a point, becomes an atom type, whose atoms move with the first derivative of the position as their
+    velocity. The mass of an atom type is the value `m` of its members, and 1 without it. Boxes become LAMMPS boundaries
+    and `fix wall/reflect`. An interaction whose class `pairs` gives a native pair style becomes that pair style,
+    between the members of its roles `first` and `second` closer than the radius of `within=RadiusNeighborhood(r)`, or
+    within its `cutoff`. A pair interaction with `within=` that gives its energy as `ObjectiveLaw(V)` and has no native
+    pair style becomes a Lepton expression potential. An interaction whose class `fixes` gives a native fix becomes that
+    fix. Any other interaction that only changes the derivatives of the positions runs through `fix external`, evaluated
+    by the framework.
 
     Choose it for large systems of particles with standard potentials. It appears in molecular dynamics of liquids,
     solids, and polymers.
@@ -626,30 +625,14 @@ class LammpsSolver(ExternalSolver):
         return np.atleast_1d(np.asarray(problem.parameters.read(p, f'{path}.{name}'), dtype=float))
 
     @staticmethod
-    def _get_divisors(problem: ProblemSpec, element: CompiledElementSpec) -> set[str]:
-        """Return the names that the divisors of the interactions on members give.
-
-        The members are those of an element or group.
-        """
-        return {
-            divisor
-            for item in problem.interactions
-            if isinstance(divisor := item.interaction.get_params(deep=False).get('divisor'), str)
-            and element.path in item.roles.values()
-        }
-
-    @staticmethod
     def _get_mass(problem: ProblemSpec, p: Array, element: CompiledElementSpec) -> float:
         """Return the mass of the members of an element or group.
 
-        It is their value `m`, the parameter their divisor names, or 1.
+        It is their value `m`, or 1.
         """
         if problem.parameters.has(f'{element.path}.m'):
             return float(LammpsSolver._get_parameter(problem, p, element.path, 'm')[0])
-        divisors = LammpsSolver._get_divisors(problem, element)
-        if not divisors:
-            return 1.0
-        return float(LammpsSolver._get_parameter(problem, p, element.path, divisors.pop())[0])
+        return 1.0
 
     def _is_potential(self, problem: ProblemSpec, item: _CompiledInteractionSpec) -> bool:
         """Return whether an interaction is a pair coupling through a pair potential.
@@ -809,22 +792,13 @@ class LammpsSolver(ExternalSolver):
     def _check_masses(problem: ProblemSpec, element: CompiledElementSpec) -> list[str]:
         """Return the problems of the mass of an element or group.
 
-        They are several divisors, or several values of the mass `m` or of the divisor.
+        They are several values of the mass `m`.
         """
-        divisors = LammpsSolver._get_divisors(problem, element)
-        if len(divisors) > 1:
-            return [f'element {element.path}, whose interactions divide by {", ".join(sorted(divisors))}']
-        if problem.parameters.has(f'{element.path}.m'):
-            name = 'm'
-        elif divisors:
-            name = next(iter(divisors))
-        else:
+        if not problem.parameters.has(f'{element.path}.m'):
             return []
-        if name not in element.parameters:
-            return [f'element {element.path}, whose divisor {name} is not a parameter']
-        masses = LammpsSolver._get_parameter(problem, problem.initial_parameters, element.path, name)
+        masses = LammpsSolver._get_parameter(problem, problem.initial_parameters, element.path, 'm')
         if not np.all(masses == masses[0]):
-            return [f'group {element.path}, whose members have different values of {name}']
+            return [f'group {element.path}, whose members have different values of m']
         return []
 
     @staticmethod

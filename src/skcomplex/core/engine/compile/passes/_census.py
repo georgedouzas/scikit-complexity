@@ -39,7 +39,8 @@ from ....components.laws import (
     UpdateLaw,
 )
 from ....components.laws._flow_term import FlowTermLaw
-from ....components.laws.utils import derivative, laplacian, shifted
+from ....components.laws.utils import laplacian, shifted
+from ....components.laws.utils._history import derivative
 from ....components.laws.utils._operators import _OperatorFunction
 from ....components.laws.utils._reductions import hyperedges_in, neighborhoods_in, reductions_in
 from ....components.laws.utils._relaxations import relaxation_of

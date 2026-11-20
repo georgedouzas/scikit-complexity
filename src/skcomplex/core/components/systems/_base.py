@@ -39,7 +39,6 @@ class RunSettings(TypedDict):
     initial_state: Mapping[str, object] | None
     invariants: Mapping[str, float] | None
     schedule: Mapping[str, Callable[[float], float | npt.ArrayLike]] | None
-    compiler: BaseConfig | None
     backend: BaseConfig | None
 
 
@@ -58,7 +57,7 @@ class BaseSystem[CompositeT: BaseSystem](BaseComponent[BaseSpace, SimpleNamespac
     out:
 
     - `until` and `dt`: the end time and the time between frames.
-    - `solver`, `backend`, and `compiler`: how the system runs.
+    - `solver` and `backend`: how the system runs.
     - `observables` and `invariants`: what to record, and the tolerance of each observable that must stay constant.
     - `initial_state` and `schedule`: the initial values by dotted state name, and the functions of time that drive
       parameters.
@@ -79,7 +78,8 @@ class BaseSystem[CompositeT: BaseSystem](BaseComponent[BaseSpace, SimpleNamespac
     Examples:
         >>> from typing import Annotated
         >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.interactions import RateInteraction
+        >>> from skcomplex.core.components.interactions import Interaction
+        >>> from skcomplex.core.components.laws import RateLaw
         >>> from skcomplex.core.components.systems import BaseSystem, CompositeSystem
         >>> from skcomplex.core.specs import StateSpec
         >>> class TankElement(Element):
@@ -92,13 +92,13 @@ class BaseSystem[CompositeT: BaseSystem](BaseComponent[BaseSpace, SimpleNamespac
         ...         self.k = k
         ...
         ...     def _build_system(self):
-        ...         decay = RateInteraction('decay', target='tank', state='x', rate=lambda s: -self.k * s.target.x)
+        ...         decay = Interaction(
+        ...             'decay', roles={'target': 'tank'}, laws=lambda s: [RateLaw(s.target.x, -self.k * s.target.x)]
+        ...         )
         ...         return CompositeSystem(self.label, elements=[TankElement('tank')], interactions=[decay])
         >>> system = DecaySystem(k=0.5).prepare()
         >>> system.get_params()
         {'k': 0.5, 'label': 'decay'}
-        >>> sorted(system.get_tags().laws)
-        ['rate']
     """
 
     until: ClassVar[float | None] = None
@@ -108,7 +108,6 @@ class BaseSystem[CompositeT: BaseSystem](BaseComponent[BaseSpace, SimpleNamespac
     initial_state: ClassVar[Mapping[str, object] | None] = None
     invariants: ClassVar[Mapping[str, float] | None] = None
     schedule: ClassVar[Mapping[str, Callable[[float], float | npt.ArrayLike]] | None] = None
-    compiler: ClassVar[BaseConfig | None] = None
     backend: ClassVar[BaseConfig | None] = None
 
     system_: CompositeT
@@ -200,7 +199,7 @@ class BaseSystem[CompositeT: BaseSystem](BaseComponent[BaseSpace, SimpleNamespac
         """Return the tuned run settings of the system.
 
         `simulate` uses them for every argument a call leaves out. The settings are the class attributes `until`, `dt`,
-        `solver`, `observables`, `initial_state`, `invariants`, `schedule`, `compiler`, and `backend`. A system whose
+        `solver`, `observables`, `initial_state`, `invariants`, `schedule`, and `backend`. A system whose
         settings depend on its model parameters or on its built components overrides this method.
 
         Returns:
@@ -213,7 +212,7 @@ class BaseSystem[CompositeT: BaseSystem](BaseComponent[BaseSpace, SimpleNamespac
             ...     def _build_system(self):
             ...         return CompositeSystem(self.label)
             >>> sorted(EmptySystem('system').get_run_settings())
-            ['backend', 'compiler', 'dt', 'initial_state', 'invariants', 'observables', 'schedule', 'solver', 'until']
+            ['backend', 'dt', 'initial_state', 'invariants', 'observables', 'schedule', 'solver', 'until']
         """
         return RunSettings(
             until=self.until,
@@ -223,6 +222,5 @@ class BaseSystem[CompositeT: BaseSystem](BaseComponent[BaseSpace, SimpleNamespac
             initial_state=self.initial_state,
             invariants=self.invariants,
             schedule=self.schedule,
-            compiler=self.compiler,
             backend=self.backend,
         )

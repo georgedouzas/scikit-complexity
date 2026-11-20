@@ -311,14 +311,13 @@ class _ExpressionWriter:
     def _write_delay_fixed(self, ast: DelayFixedStructure) -> str:
         """Return the source of a fixed delay of a stock.
 
-        It reads the first value of the stock before the start.
+        It reads the stock at the time the delay before, and its first value before the start.
         """
         if _SystemVariablesSpec.get_reference(ast.input) not in self.variables.stocks:
             return self._add_problem('DELAY FIXED of something other than a stock')
         if not self._has_equal_values(ast.initial, ast.input):
             return self._add_problem('a fixed delay whose initial value differs from its input')
-        delayed = self.add_import(UTILITIES_MODULE, 'delayed')
-        return f'{delayed}({self._write(ast.input)}, {self._write(ast.delay_time)})'
+        return f'{self._write(ast.input)}(t=t - {self._write_operand(ast.delay_time)})'
 
     def _write_abs(self, value: object) -> str:
         """Return the source of an absolute value."""

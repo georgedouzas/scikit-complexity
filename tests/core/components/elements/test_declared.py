@@ -7,9 +7,9 @@ import pytest
 from sklearn.base import clone
 
 from skcomplex.core.components.elements import DeclaredElement, Element, FieldElement, GroupElement
-from skcomplex.core.components.interactions import MapInteraction, RateInteraction
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime, LatticeSpace
+from skcomplex.core.components.spaces import ContinuousTime, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine._utils import declared_variables
 from skcomplex.core.engine.runtime import simulate
@@ -130,15 +130,6 @@ def test_declared_element_replicates_the_derivatives_of_a_state():
     assert _simulate(ensemble).get_values('mass.x')[-1] == pytest.approx(np.array([1.0, -2.0]), rel=1e-6)
 
 
-def test_declared_element_runs_a_map_on_its_lags():
-    """Test that a map reads the lags of a declared state under discrete time."""
-    specs = {'x': DeclaredVariableSpec(1.0, StateSpec(lags=1, initial=(0.0,)))}
-    element = DeclaredElement('cell', variables=specs)
-    fibonacci = MapInteraction('next', target='cell', state='x', mode='increment', function=lambda s: s.target.x_lag1)
-    system = CompositeSystem(elements=[element], interactions=[fibonacci], time=DiscreteTime())
-    assert simulate(system, until=5, dt=1).get_values('cell.x')[-1] == pytest.approx(8.0)
-
-
 def test_declared_element_in_a_group_takes_values_per_member():
     """Test that a group of declared elements gives one value per member."""
     values = {'variables': _variables(), 'x': np.array([1.0, 2.0])}
@@ -167,7 +158,7 @@ def test_declared_element_replicates_in_an_experiment():
 def test_declared_element_takes_a_rate_of_an_interaction():
     """Test that an interaction binds a declared state by its name."""
     element = DeclaredElement('cell', variables={'x': DeclaredVariableSpec(1.0, StateSpec())})
-    rate = RateInteraction('growth', target='cell', state='x', rate=lambda s: s.target.x)
+    rate = Interaction('growth', roles={'target': 'cell'}, laws=lambda s: [RateLaw(s.target.x, s.target.x)])
     trajectory = _simulate(CompositeSystem(elements=[element], interactions=[rate], time=ContinuousTime()))
     assert trajectory.get_values('cell.x')[-1] == pytest.approx(np.e, rel=1e-4)
 

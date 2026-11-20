@@ -38,7 +38,6 @@ nav:
         - Defining elements: overview/user_guide/build_a_custom_system/defining_elements.md
         - Kinds of dynamics: overview/user_guide/build_a_custom_system/kinds_of_dynamics.md
         - General interactions: overview/user_guide/build_a_custom_system/general_interactions.md
-        - Ports and connections: overview/user_guide/build_a_custom_system/ports_and_connections.md
         - Delays, events, drivers, and noise: overview/user_guide/build_a_custom_system/delays_events_drivers_and_noise.md
         - Stochastic maps: overview/user_guide/build_a_custom_system/stochastic_maps.md
         - Anomalous processes: overview/user_guide/build_a_custom_system/anomalous_processes.md
@@ -184,7 +183,6 @@ plugins:
         parts/analyses.md: components/analyses.md
         parts/experiments.md: components/experiments.md
         overview/user_guide/core_components/choosing_parts.md: overview/user_guide/core_components/choosing_components.md
-        overview/user_guide/build_a_custom_system/connected_components.md: overview/user_guide/build_a_custom_system/ports_and_connections.md
   - literate-nav:
       nav_file: SUMMARY.md
   - section-index

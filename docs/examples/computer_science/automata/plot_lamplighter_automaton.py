@@ -13,8 +13,8 @@ import matplotlib.pyplot as plt
 
 from skcomplex.core.analysis import automaton
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import LocalRuleInteraction
-from skcomplex.core.components.laws import LinearRuleSpec
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import LinearRuleSpec, UpdateLaw
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.systems import System
 from skcomplex.systems.computer_science.automata import LamplighterAutomatonSystem, lamplighter
@@ -36,15 +36,14 @@ trajectory = LamplighterAutomatonSystem(radius=7, density=0.1, random_state=0).p
 
 alive = trajectory.get_values('cells.alive')
 quotient = CayleySpace(lamplighter().PermGroupOnLevel(3)).prepare()
+memory = MemoryNeighborhood(('1', 'a', 'b'))
 parity = System(
     elements=[Element('cells', values={'alive': 0}, space=quotient)],
     interactions=[
-        LocalRuleInteraction(
+        Interaction(
             'parity',
-            target='cells',
-            state='alive',
-            rule=LinearRuleSpec((1, 1, 1), 'GF(2)'),
-            neighborhood=MemoryNeighborhood(('1', 'a', 'b')),
+            roles={'target': 'cells'},
+            laws=lambda s: [UpdateLaw(s.target.alive, LinearRuleSpec((1, 1, 1), 'GF(2)'), neighborhood=memory)],
         ),
     ],
 )

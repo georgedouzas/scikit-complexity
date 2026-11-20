@@ -18,7 +18,7 @@ from sage.structure.element import Matrix
 from sklearn.base import clone
 
 from ..components.elements import GroupElement
-from ..components.interactions import BaseInteraction, Interaction, LocalRuleInteraction
+from ..components.interactions import BaseInteraction, Interaction
 from ..components.laws import (
     BaseLaw,
     LinearRuleSpec,
@@ -207,6 +207,21 @@ class AutomatonResult:
 
 
 @dataclass(frozen=True)
+class _LocalRuleSpec(BaseSpec):
+    """Local rule read from an interaction.
+
+    It holds the label of the interaction, the path of the group it binds, the state it sets, the states it reads,
+    and its law.
+    """
+
+    label: str
+    target: str
+    state: str | tuple[str, ...]
+    reads: tuple[str, ...] | None
+    law: LocalRuleLaw
+
+
+@dataclass(frozen=True)
 class _AutomatonSpec(BaseSpec):
     """Automaton read from a system.
 
@@ -214,7 +229,7 @@ class _AutomatonSpec(BaseSpec):
     """
 
     system: CompositeSystem
-    rule: LocalRuleInteraction
+    rule: _LocalRuleSpec
     law: LocalRuleLaw
     state: str
     space: BaseSpace
@@ -245,7 +260,7 @@ def automaton(
 
     The function reads a `System` or a ready-made system. An automaton is a group of cells,
     such as `Element('cells', values={'alive': 0}, space=LatticeSpace(20))`, with one synchronous and deterministic
-    local rule, a `LocalRuleInteraction` or an interaction that sets an `UpdateLaw` with a neighbourhood, and it is
+    local rule, an interaction that sets an `UpdateLaw` with a neighbourhood, and it is
     linear when the rule is a `LinearRuleSpec`. The number of values of a cell comes
     from the finite domain of the state, or else from the rule. A subshift is a group whose value has a
     `SubshiftSpec` as its allowed values, such as `alive: Annotated[int, SubshiftSpec(...)]`.
@@ -614,17 +629,13 @@ def _get_second(source: DataSource) -> CompositeSystem:
     return declared
 
 
-def _get_local_rule(interaction: BaseInteraction, system: CompositeSystem) -> LocalRuleInteraction | None:
+def _get_local_rule(interaction: BaseInteraction, system: CompositeSystem) -> _LocalRuleSpec | None:
     """Return the local rule an interaction states, or `None` without one.
-
-    The rule is returned as a `LocalRuleInteraction`.
 
     An interaction that sets its laws in `_prepare`, such as one that sets
     `UpdateLaw(s.target.alive, rule, neighborhood=...)`, is prepared on the states of the elements its roles bind, and
-    its first local rule becomes the interaction.
+    its first local rule is returned.
     """
-    if isinstance(interaction, LocalRuleInteraction):
-        return interaction
     if not interaction._is_preparing_laws():
         return None
     roles = {}
@@ -643,19 +654,17 @@ def _get_local_rule(interaction: BaseInteraction, system: CompositeSystem) -> Lo
     if law is None:
         return None
     path = next(path for path, states in roles.values() if str(law._get_targets()[0]) in vars(states))
-    return LocalRuleInteraction(
+    targets = tuple(map(str, law._get_targets()))
+    return _LocalRuleSpec(
         interaction.label,
         target=path,
-        state=str(law._get_targets()[0]) if len(law._get_targets()) == 1 else tuple(map(str, law._get_targets())),
-        rule=law.rule,
-        neighborhood=law.over,
+        state=targets[0] if len(targets) == 1 else targets,
         reads=None if law.reads is None else tuple(map(str, law.reads)),
-        schedule=law.schedule,
-        stochastic=law.stochastic,
+        law=law,
     )
 
 
-def _find_rule(system: CompositeSystem) -> LocalRuleInteraction | None:
+def _find_rule(system: CompositeSystem) -> _LocalRuleSpec | None:
     """Return the local rule of a system.
 
     The result is `None` without one, and an error is raised for several.
@@ -686,14 +695,14 @@ def _find_subshift(system: CompositeSystem) -> tuple[GroupElement, SubshiftSpec]
     return None
 
 
-def _get_rule_source(rule: LocalRuleInteraction | None) -> str | None:
+def _get_rule_source(rule: _LocalRuleSpec | None) -> str | None:
     """Return what a local rule makes of its system.
 
     It is a linear automaton or an automaton, or `None` without one.
     """
     if rule is None:
         return None
-    return LINEAR if isinstance(rule.rule, LinearRuleSpec) else AUTOMATON
+    return LINEAR if isinstance(rule.law.rule, LinearRuleSpec) else AUTOMATON
 
 
 def _get_states(domain: object, rule: object) -> int | None:
@@ -716,12 +725,12 @@ def _get_states(domain: object, rule: object) -> int | None:
     return rule.states if isinstance(rule, TotalisticSpec | OuterTotalisticSpec) else None
 
 
-def _read_automaton(system: CompositeSystem, rule: LocalRuleInteraction) -> _AutomatonSpec:
+def _read_automaton(system: CompositeSystem, rule: _LocalRuleSpec) -> _AutomatonSpec:
     """Return the law, space, size, number of states, and local map of an automaton.
 
     The automaton is that of a system.
     """
-    target = getattr(rule, rule._get_role('target'))
+    target = rule.target
     element = next((item for item in system.elements if item.label == target), None)
     if not isinstance(element, GroupElement) or not isinstance(rule.state, str) or rule.reads is not None:
         error_msg = (
@@ -729,18 +738,14 @@ def _read_automaton(system: CompositeSystem, rule: LocalRuleInteraction) -> _Aut
             f'but it binds {target!r} and the states {rule.state!r} and {rule.reads!r}.'
         )
         raise AnalysisError(error_msg)
-    if rule.schedule != SYNCHRONOUS or rule.stochastic:
+    if rule.law.schedule != SYNCHRONOUS or rule.law.stochastic:
         error_msg = (
             f'An automaton maps configurations to configurations, so the local rule {rule.label!r} is synchronous '
-            f'and deterministic, but it has the schedule {rule.schedule!r} and stochastic={rule.stochastic!r}.'
+            f'and deterministic, but it has the schedule {rule.law.schedule!r} and '
+            f'stochastic={rule.law.stochastic!r}.'
         )
         raise AnalysisError(error_msg)
-    namespace = SimpleNamespace(**{rule._get_role('target'): SimpleNamespace(**{rule.state: SR.var(rule.state)})})
-    law = rule.prepare().run(namespace).laws_[0]
-    if not isinstance(law, LocalRuleLaw):
-        error_msg = f'The local rule {rule.label!r} returns {law!r}, not a local rule law.'
-        raise AnalysisError(error_msg)
-    law = law.prepare()
+    law = rule.law.prepare()
     space = _get_space(system, element)
     states = _get_states(element.get_states()[rule.state].domain, law._get_rule())
     read = _AutomatonSpec(system, rule, law, rule.state, space, int(space.size_ or 0), states)
@@ -1030,7 +1035,7 @@ def _get_rule_system(
     laws = functools.partial(_get_local_rule_laws, state=automaton.state, rule=rule, neighborhood=neighborhood)
     interaction = Interaction(
         f'{source.label}_{name}',
-        roles={'target': getattr(source, source._get_role('target'))},
+        roles={'target': source.target},
         laws=laws,
     )
     return System(system.label, elements=list(system.elements), interactions=[interaction], space=system.space)
@@ -1091,7 +1096,7 @@ def _compose(automaton: _AutomatonSpec, second: CompositeSystem, system: System)
     It holds the elements of the system, and both automata act on the same space.
     """
     rule = _find_rule(second)
-    if rule is None or isinstance(rule.rule, LinearRuleSpec):
+    if rule is None or isinstance(rule.law.rule, LinearRuleSpec):
         error_msg = 'Composed automata are systems with a local rule that is not linear.'
         raise AnalysisError(error_msg)
     other = _read_automaton(second, rule)

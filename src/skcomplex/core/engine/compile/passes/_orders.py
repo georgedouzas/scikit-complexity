@@ -14,7 +14,6 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression, matrix, solve
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....components.interactions import ConnectionInteraction
 from ....components.laws import (
     BaseLaw,
     BoundaryLaw,
@@ -76,50 +75,18 @@ class OrdersPass(BasePass):
             compilation.ordered = self._solve_equations(specs)
 
     @staticmethod
-    def _get_connected_ports(compilation: Compilation) -> set[tuple[str, str]]:
-        """Return the element path and port name of every port a connection names."""
-        return {
-            (f'{node.scope}{member}', port)
-            for node in Compilation._get_required(compilation.nodes, 'nodes')
-            if isinstance(node.component, ConnectionInteraction)
-            for member, port in zip(node.component.members, node.component.ports, strict=True)
-        }
-
-    @staticmethod
-    def _get_zero_flows(spec: KernelSpec, block: BlockSpec, connected: set[tuple[str, str]]) -> list[_RelationSpec]:
-        """Return the relation `flow == 0` of every unconnected port of an element.
-
-        A port is unconnected when no connection names it.
-        """
-        if block.node.interaction:
-            return []
-        ports = getattr(block.node.component_type, 'ports', {})
-        relations = []
-        for port, connector in ports.items():
-            if (block.node.path, port) in connected:
-                continue
-            flow = getattr(spec.namespace, f'{port}_{connector.flow}')
-            description = f'the zero flow of the unconnected port {port} of {spec.owner}'
-            relations.append(_RelationSpec(spec, SR(flow), {flow: flow}, description))
-        return relations
-
-    @staticmethod
     def _get_specs_of(
         compilation: Compilation,
         orders: _OrdersSpec,
     ) -> list[tuple[KernelSpec, list[BaseLaw | _RelationSpec]]]:
         """Return the laws of every spec with orders and lags read.
 
-        Equations become relations, and zero flows are added.
+        Equations become relations.
         """
-        connected = OrdersPass._get_connected_ports(compilation)
         return [
             (
                 spec,
-                [
-                    *OrdersPass._copy_with_orders(spec, laws, block, orders),
-                    *OrdersPass._get_zero_flows(spec, block, connected),
-                ],
+                [*OrdersPass._copy_with_orders(spec, laws, block, orders)],
             )
             for spec, laws, block in Compilation._get_required(compilation.lowered, 'lowered')
         ]

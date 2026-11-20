@@ -12,7 +12,6 @@ import it from its subfield, the package `skcomplex.systems.<field>.<subfield>`,
 settings.
 
 ```python
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.epidemiology import SIRSystem
 
 trajectory = SIRSystem().prepare().simulate()

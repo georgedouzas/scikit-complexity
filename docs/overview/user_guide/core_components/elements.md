@@ -8,18 +8,19 @@ interactions, and a space into one model. [How the components fit](index.md) sho
 ## DeclaredElement
 
 A `DeclaredElement` takes its states and parameters as data, so it needs no class of its own. Each variable is a
-`DeclaredVariableSpec` with an initial value and a spec. Here one compartment holds 100 infected people, and a
-`RateInteraction` makes them recover at a rate of 0.1 a day.
+`DeclaredVariableSpec` with an initial value and a spec. Here one compartment holds 100 infected people, and an
+interaction makes them recover at a rate of 0.1 a day.
 
 ```python
 from skcomplex.core.components.elements import DeclaredElement
-from skcomplex.core.components.interactions import RateInteraction
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import NoiseLaw, RateLaw
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
 
 infected = DeclaredElement('infected', variables={'x': DeclaredVariableSpec(100.0, StateSpec())})
-recovery = RateInteraction('recovery', target='infected', state='x', rate=lambda s: -0.1 * s.target.x)
+recovery = Interaction('recovery', roles={'target': 'infected'}, laws=lambda s: [RateLaw(s.target.x, -0.1 * s.target.x)])
 epidemic = CompositeSystem(elements=[infected], interactions=[recovery])
 simulate(epidemic, until=10, dt=5.0).get_values('infected.x').round(1).tolist()
 ```
@@ -30,7 +31,7 @@ The same class holds the balance of a bank account. Interest at 5 percent a year
 
 ```python continuation
 account = DeclaredElement('account', variables={'x': DeclaredVariableSpec(250.0, StateSpec())})
-interest = RateInteraction('interest', target='account', state='x', rate=lambda s: 0.05 * s.target.x)
+interest = Interaction('interest', roles={'target': 'account'}, laws=lambda s: [RateLaw(s.target.x, 0.05 * s.target.x)])
 savings = CompositeSystem(elements=[account], interactions=[interest])
 simulate(savings, until=1, dt=1.0).get_values('account.x').round(2).tolist()
 ```
@@ -47,9 +48,8 @@ mass = DeclaredElement('mass', variables={'x': DeclaredVariableSpec(1.0, StateSp
 mass.get_value('x'), mass.set_params(x_d1=0.5).get_value('x_d1')
 ```
 
-**How it combines.** It fills any role whose domains include those of its states. Its usual partners are
-`RateInteraction` for flows, `TransferInteraction` for amounts that move between compartments, and `JumpInteraction`
-for random events. Systems that learn their variables while they build, such as a network read from a table of
+**How it combines.** It fills any role whose domains include those of its states. Its usual partners are interactions
+with rate laws for flows and jump laws for random events. Systems that learn their variables while they build, such as a network read from a table of
 reactions, build one `DeclaredElement` per entry.
 
 **Limits and errors.** The element holds one value per variable, not a member per site, so a lattice or a network
@@ -476,7 +476,8 @@ of grazing animals start at different sizes.
 from typing import Annotated
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import RateInteraction
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import NoiseLaw, RateLaw
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
@@ -504,7 +505,7 @@ The same class holds the assets of a portfolio, each with its own yearly return.
 ```python continuation
 holdings = {'x': [100.0, 50.0], 'r': [0.05, 0.02]}
 assets = GroupElement('assets', element=StockElement, size=2, values=holdings)
-returns = RateInteraction('returns', target='assets', state='x', rate=lambda s: s.target.r * s.target.x)
+returns = Interaction('returns', roles={'target': 'assets'}, laws=lambda s: [RateLaw(s.target.x, s.target.r * s.target.x)])
 portfolio = CompositeSystem(elements=[assets], interactions=[returns])
 simulate(portfolio, until=1, dt=1.0).get_values('assets.x').round(2).tolist()
 ```
@@ -514,8 +515,8 @@ compiler runs them for every member at once as arrays, so a group of a thousand 
 evaluation.
 
 **How it combines.** With `on='sites'` the members sit on the sites of a lattice or the nodes of a network, and with
-`on='edges'` or `on='hyperedges'` on the links of a network. Neighbour interactions, such as `CouplingInteraction`,
-then read the members around each member. With `variable=True`, laws add and remove members during a run.
+`on='edges'` or `on='hyperedges'` on the links of a network. Interactions that reduce over neighbours then read the
+members around each member. With `variable=True`, laws add and remove members during a run.
 
 ```python continuation
 import networkx as nx
@@ -659,7 +660,7 @@ values beyond the edges of a lattice. The result is one large system of ordinary
 solver for stiff fields can integrate.
 
 **How it combines.** It is a `GroupElement` with one member per site, so every interaction of groups applies.
-`ConservationInteraction` and `GradientInteraction` read its operators directly.
+Rate laws of a `divergence` and `GradientInteraction` read its operators directly.
 
 **Limits and errors.** A field needs a space with sites, and it cannot add or remove members. Its values follow the
 rules of a group, one per site or one for all.

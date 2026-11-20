@@ -72,7 +72,7 @@ Returns:
 
 Examples:
     >>> from sage.all__sagemath_symbolics import var
-    >>> from skcomplex.core.components.laws.utils import derivative
+    >>> from skcomplex.core.components.laws.utils._history import derivative
     >>> x = var('x')
     >>> derivative(x, 2) + derivative(x, 0)
     x + derivative(x, 2)
@@ -99,7 +99,7 @@ Returns:
 
 Examples:
     >>> from sage.all__sagemath_symbolics import var
-    >>> from skcomplex.core.components.laws.utils import lag
+    >>> from skcomplex.core.components.laws.utils._history import lag
     >>> y = var('y')
     >>> lag(y, 1) - lag(y, 0)
     -y + lag(y, 1)
@@ -131,7 +131,7 @@ Returns:
 
 Examples:
     >>> from sage.all__sagemath_symbolics import var
-    >>> from skcomplex.core.components.laws.utils import delayed
+    >>> from skcomplex.core.components.laws.utils._history import delayed
     >>> x, tau = var('x'), var('tau')
     >>> delayed(x, tau)
     delayed(x, tau)

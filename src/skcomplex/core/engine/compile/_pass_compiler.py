@@ -23,8 +23,6 @@ from ...components import Observable
 from ...components.elements import FieldElement, GroupElement
 from ...components.interactions import (
     BaseInteraction,
-    ConnectionInteraction,
-    HyperedgeInteraction,
     WienerProcessSpec,
 )
 from ...components.laws import (
@@ -732,7 +730,7 @@ class PassCompiler(BaseCompiler):
         The issue names that compiler.
         """
         message = f'The system {system.label} is compiled by {compiler}, not by PassCompiler.'
-        return IssueSpec('compiler', system.label, message, f'Pass `compiler={compiler}()`.')
+        return IssueSpec('compiler', system.label, message, f'Prepare the system, which compiles it with {compiler}.')
 
     def _get_counted(self, system: CompositeSystem) -> tuple[Compilation | None, list[IssueSpec]]:
         """Return the compilation of a system through the census of its laws.
@@ -751,11 +749,7 @@ class PassCompiler(BaseCompiler):
         except SkcomplexError as error:
             fix = 'Pass elements, groups, interactions, and systems as children.'
             return None, [self._get_issue_of(error, system.label, 'structure', fix)]
-        issues = (
-            [self._get_compiler_issue(system, 'OperatorCompiler')]
-            if operator
-            else self._get_port_issues(Compilation._get_required(compilation.nodes, 'nodes'))
-        )
+        issues = [self._get_compiler_issue(system, 'OperatorCompiler')] if operator else []
         if issues:
             return compilation, issues
         held = ObservableEvaluator._get_held_observables(system, Compilation._get_required(compilation.nodes, 'nodes'))
@@ -816,85 +810,6 @@ class PassCompiler(BaseCompiler):
             for name, declaration in declarations_of(node.component_type, VariableKind.STATE).items()
             if declaration.algebraic
         }
-
-    @staticmethod
-    def _get_port_state_issues(nodes: list[_NodeSpec]) -> list[IssueSpec]:
-        """Return the variables of declared ports that have no algebraic state."""
-        issues = []
-        for node in nodes:
-            ports = {} if node.interaction else getattr(node.component_type, 'ports', {})
-            declarations = {} if node.interaction else declarations_of(node.component_type, VariableKind.STATE)
-            for port, connector in ports.items():
-                for variable in (connector.potential, connector.flow):
-                    name = f'{port}_{variable}'
-                    declaration = declarations.get(name)
-                    if declaration is None or not declaration.algebraic:
-                        message = (
-                            f'The port {port} of {node.path} has the connector {connector.name}, but the element '
-                            f'declares no algebraic state {name}.'
-                        )
-                        fix = f'Declare {name} with `StateSpec(algebraic=True)`.'
-                        issues.append(IssueSpec('port-states', node.path, message, fix))
-        return issues
-
-    @staticmethod
-    def _get_connector_issue(
-        node: _NodeSpec,
-        connector_names: Mapping[str, str | None],
-    ) -> IssueSpec | None:
-        """Return the issue of a connection whose ports are not all of one connector.
-
-        It is `None` when there is no issue.
-        """
-        missing = [port for port, name in connector_names.items() if name is None]
-        if missing:
-            message = (
-                f'The connection {node.path} names {", ".join(missing)}, which no single element declares as a port.'
-            )
-            fix = 'Connect declared ports of single elements, as listed in the class variable `ports` of their types.'
-            return IssueSpec('port-connector', node.path, message, fix)
-        if len(set(connector_names.values())) <= 1:
-            return None
-        listed = ', '.join(f'{port} of the connector {name}' for port, name in connector_names.items())
-        message = f'The connection {node.path} joins {listed}.'
-        return IssueSpec('port-connector', node.path, message, 'Connect ports of one connector.')
-
-    @staticmethod
-    def _get_port_issues(nodes: list[_NodeSpec]) -> list[IssueSpec]:
-        """Return the issues of declared ports and of the connections between them.
-
-        Args:
-            nodes:
-                The elements, groups, and interactions of the system tree.
-
-        Returns:
-            issues:
-                The ports without their states, the connections of ports of different connectors, and the ports in more
-                than one connection.
-        """
-        issues = PassCompiler._get_port_state_issues(nodes)
-        by_path = {node.path: node for node in nodes}
-        connections: defaultdict[str, list[str]] = defaultdict(list)
-        for node in nodes:
-            if not isinstance(node.component, ConnectionInteraction):
-                continue
-            names: dict[str, str | None] = {}
-            for member, port in zip(node.component.members, node.component.ports, strict=True):
-                path = f'{node.scope}{member}'
-                target = by_path.get(path)
-                ports = (
-                    {} if target is None or target.members is not None else getattr(target.component_type, 'ports', {})
-                )
-                names[f'{path}.{port}'] = ports[port].name if port in ports else None
-                connections[f'{path}.{port}'].append(node.path)
-            issue = PassCompiler._get_connector_issue(node, names)
-            issues += [] if issue is None else [issue]
-        for port, paths in connections.items():
-            if len(paths) > 1:
-                message = f'The port {port} appears in the connections {", ".join(paths)}.'
-                fix = 'List the ports of the node in one connection.'
-                issues.append(IssueSpec('port-connections', paths[0], message, fix))
-        return issues
 
     @staticmethod
     def _get_algebraic_issues(compilation: Compilation) -> list[IssueSpec]:
@@ -1170,9 +1085,7 @@ class PassCompiler(BaseCompiler):
             interaction = node.component
             if isinstance(interaction, BaseInteraction) and interaction._runs_on_edges():
                 over = 'neighbors'
-            elif isinstance(interaction, HyperedgeInteraction) or (
-                isinstance(interaction, BaseInteraction) and interaction._runs_on_hyperedges()
-            ):
+            elif isinstance(interaction, BaseInteraction) and interaction._runs_on_hyperedges():
                 over = 'hyperedges'
             else:
                 continue

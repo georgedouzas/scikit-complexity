@@ -378,7 +378,7 @@ def test_general_compiler_names_the_compiler_of_a_operator_system():
     assert OperatorCompiler().prepare(system).report_.ok
     compiler = PassCompiler().prepare(system)
     assert not compiler.report_.ok
-    with pytest.raises(ValidationError, match=r'compiler=OperatorCompiler\(\)'):
+    with pytest.raises(ValidationError, match='compiles it with OperatorCompiler'):
         compiler.run()
 
 

@@ -10,8 +10,9 @@ from sage.sets.real_set import RealSet
 
 from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import ConservationInteraction
-from skcomplex.core.components.laws.utils import coordinate, moment
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws.utils import coordinate, divergence, moment
 from skcomplex.core.components.spaces import AxisSpec, BaseSpace, FiniteVolumeSpec, LatticeSpace
 from skcomplex.core.engine.solvers import RK4Solver, SSPRKSolver
 from skcomplex.core.errors import ValidationError
@@ -113,11 +114,10 @@ def test_replicator_flow_on_a_simplex_conserves_the_density(solver: object) -> N
     space = _simplex(position=LatticeSpace((1,), discretization='finite-volume', scheme=FiniteVolumeSpec(limiter=None)))
     start = 2.0 * (space.volumes_ > 0)
     groups = AmountElement('groups', x=start, space=space)
-    flow = ConservationInteraction(
+    flow = Interaction(
         'flow',
-        target='groups',
-        state='x',
-        flux=lambda s: [component * s.target.x for component in replicator_drift(s)],
+        roles={'target': 'groups'},
+        laws=lambda s: [RateLaw(s.target.x, -divergence([item * s.target.x for item in replicator_drift(s)]))],
     )
     trajectory = System(elements=[groups], interactions=[flow], solver=solver).prepare().simulate(until=2.0, dt=0.5)
     final = trajectory.get_values('groups.x')[-1].reshape(space.shape_)

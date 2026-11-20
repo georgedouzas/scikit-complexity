@@ -99,14 +99,13 @@ def _prepare_runners(
     system: BaseSystem,
     solver: BaseSolver | None,
     backend: BaseBackend | None,
-    compiler: BaseCompiler | None,
     observables: Sequence[Observable],
 ) -> tuple[CompositeSystem, BaseSolver | None, BaseBackend | None, BaseCompiler | None, Sequence[Observable]]:
     """Return the composite of a system with copies of its runners, and observables.
 
-    The runners are the solver, the backend, and the compiler. A setting left out comes from the tuned run settings of
-    the system. The tags are read before any compiling, so a solver or a backend that does not support them is rejected
-    first, and without a solver the tags choose the default one, unless the compiled form chooses it.
+    The runners are the solver, the backend, and the compiler the system needs. A setting left out comes from the tuned
+    run settings of the system. The tags are read before any compiling, so a solver or a backend that does not support
+    them is rejected first, and without a solver the tags choose the default one, unless the compiled form chooses it.
 
     Args:
         system:
@@ -117,9 +116,6 @@ def _prepare_runners(
 
         backend:
             The backend, or `None` for the tuned one.
-
-        compiler:
-            The compiler, or `None` for the tuned one.
 
         observables:
             The observables, or none for the tuned ones.
@@ -147,7 +143,6 @@ def _prepare_runners(
     settings = system.get_run_settings()
     stepper = _clone_setting(settings['solver'] if solver is None else solver)
     runner = _clone_setting(settings['backend'] if backend is None else backend)
-    form = _clone_setting(settings['compiler'] if compiler is None else compiler)
     declared = PassCompiler()._get_declared_system(system) if isinstance(system, CompositeSystem) else system
     tags = declared.get_tags()
     if stepper is not None:
@@ -155,7 +150,7 @@ def _prepare_runners(
     if runner is not None:
         _check_support(runner, 'backend', tags)
     composite = system.prepare().system_
-    form = Simulation._get_default_compiler(composite) if form is None else form
+    form = Simulation._get_default_compiler(composite)
     tuned_observables = () if isinstance(system, CompositeSystem) else settings['observables']
     if stepper is None and form is None and not composite.systems:
         stepper = _choose_solver(tags)
@@ -203,7 +198,7 @@ def compile_problem(
         >>> type(solver).__name__
         'ScipyODESolver'
     """
-    composite, stepper, runner, form, observed = _prepare_runners(system, solver, backend, None, observables)
+    composite, stepper, runner, form, observed = _prepare_runners(system, solver, backend, observables)
     simulation = Simulation(composite, compiler=form, solver=stepper, backend=runner, observables=observed).prepare()
     return simulation.problem_, simulation.stepper_
 
@@ -221,7 +216,6 @@ def run_problem(
     observers: Sequence[BaseObserver] = (),
     invariants: Mapping[str, float] | None = None,
     schedule: Mapping[str, Callable[[float], float | npt.ArrayLike]] | None = None,
-    compiler: BaseCompiler | None = None,
     random_state: int | np.random.Generator | None = None,
     checked: bool = False,
     clock: BaseClock | None = None,
@@ -266,8 +260,6 @@ def run_problem(
         schedule:
             A function of time per dotted parameter name, or `None` for the tuned schedule.
 
-        compiler:
-            The compiler, or `None` for the tuned one.
 
         random_state:
             The seed or generator of stochastic solvers.
@@ -311,7 +303,7 @@ def run_problem(
         backend = NumpyBackend()
     source: CompositeSystem | BaseProblemSpec
     if compiled is None:
-        source, stepper, runner, form, observed = _prepare_runners(system, solver, backend, compiler, observables)
+        source, stepper, runner, form, observed = _prepare_runners(system, solver, backend, observables)
     else:
         source, runner, form, observed = compiled[0], _clone_setting(backend), None, ()
         stepper = clone(compiled[1] if solver is None else solver)
@@ -349,7 +341,6 @@ def simulate(
     observers: Sequence[BaseObserver] = (),
     invariants: Mapping[str, float] | None = None,
     schedule: Mapping[str, Callable[[float], float | npt.ArrayLike]] | None = None,
-    compiler: BaseCompiler | None = None,
     random_state: int | np.random.Generator | None = None,
     checked: bool = False,
     clock: BaseClock | None = None,
@@ -360,8 +351,8 @@ def simulate(
 
     A solver takes the role of a splitter in scikit-learn, a backend the role of `n_jobs`, observables the role of
     `scoring`, and observers, such as a Rerun recording, the role of callbacks. An argument left out comes from the
-    tuned run settings of the system, which `get_run_settings` returns. A system brings a form of its own through its
-    tuned `compiler`, the one hook to the compiled form.
+    tuned run settings of the system, which `get_run_settings` returns. The compiler is the one an element of the
+    system names, such as the compiler of words and patches, or else the general one.
     Without a solver, the tags of the system choose the default solver, or the compiled form chooses it when the tags
     fit several, when the system brings its own compiler, or when it nests systems that run as partitions. The tags
     are read before any compiling, so a solver or a backend that does not support them is rejected first.
@@ -407,11 +398,6 @@ def simulate(
             not sum to 1, such as a transition probability of 1.5, raises an error that names the parameter and the
             time.
 
-        compiler:
-            The compiler of the system, or `None` for the tuned compiler of the system, or else the compiler an
-            element of the system names, such as the compiler of words and patches, or the operator compiler of
-            quantum elements. A system package that brings a form of its own tunes a compiler it defines on
-            `BaseCompiler`, the one documented hook to the compiled form.
 
         random_state:
             The seed or generator of stochastic solvers.
@@ -476,7 +462,6 @@ def simulate(
         observers=observers,
         invariants=invariants,
         schedule=schedule,
-        compiler=compiler,
         random_state=random_state,
         checked=checked,
         clock=clock,

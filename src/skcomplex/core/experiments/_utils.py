@@ -11,7 +11,7 @@ from sklearn.base import clone
 from ..components.systems import BaseSystem as CompositeBaseSystem
 from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import BaseProblemSpec
-from ..engine.runtime import Trajectory, simulate
+from ..engine.runtime import Trajectory, run_problem
 from ..engine.solvers import BaseSolver
 from ..errors import ExperimentError, ValidationError
 from ..systems import BaseSystem
@@ -85,8 +85,7 @@ def get_problem(system: AnySystem) -> BaseProblemSpec:
     if isinstance(system, BaseSystem):
         prepared = system if hasattr(system, 'system_') else system.prepare()
         return prepared.system_._problem
-    compiler = system.get_run_settings()['compiler'] or PassCompiler()
-    problem: BaseProblemSpec = clone(compiler).prepare(system.prepare().system_).run().problem_
+    problem: BaseProblemSpec = PassCompiler().prepare(system.prepare().system_).run().problem_
     return problem
 
 
@@ -130,4 +129,4 @@ def simulate_system(
     if isinstance(system, BaseSystem):
         prepared = system if hasattr(system, 'system_') else system.prepare()
         return prepared.simulate(until, dt=dt, random_state=random_state, replay=replay)
-    return simulate(system, until=until, dt=dt, solver=solver, random_state=random_state, replay=replay)
+    return run_problem(system, None, until=until, dt=dt, solver=solver, random_state=random_state, replay=replay)

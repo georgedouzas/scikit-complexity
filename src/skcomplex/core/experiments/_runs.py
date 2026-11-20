@@ -423,13 +423,11 @@ def _simulate_composite(
             The trajectory of the run.
     """
     settings = system.get_run_settings()
-    compiled = None
-    if settings['compiler'] is None:
-        found = store.get(key)
-        compiled = found if isinstance(found, tuple) else None
-        if compiled is None:
-            compiled = compile_problem(system, solver=task.solver, observables=task.observables)
-            store[key] = compiled
+    found = store.get(key)
+    compiled = found if isinstance(found, tuple) else None
+    if compiled is None:
+        compiled = compile_problem(system, solver=task.solver, observables=task.observables)
+        store[key] = compiled
     initial_state, schedule = None, None
     if paths or task.scenario.schedule:
         problem = compiled[0] if compiled is not None else get_problem(system)
