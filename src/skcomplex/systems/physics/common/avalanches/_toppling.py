@@ -204,12 +204,12 @@ class TopplingInteraction(Interaction):
     def _get_cascade(self, value: Expression) -> list[BaseComponent]:
         """Return the update of the state of the target, driven and relaxed until stable."""
         threshold, share = self.threshold, self.share
-        drive = [] if self.drive is None else [UpdateLaw(value, self.drive)]
+        drive = [] if self.drive is None else [UpdateLaw(value, self.drive, arrays=True)]
         neighborhood = self.neighborhood
         if neighborhood is None:
             neighborhood = RadiusNeighborhood(1, metric='manhattan', center=True)
         if self.mode == 'random':
-            rules: list[BaseLaw] = [UpdateLaw(value, self._scatter(neighborhood, threshold, share))]
+            rules: list[BaseLaw] = [UpdateLaw(value, self._scatter(neighborhood, threshold, share), arrays=True)]
         else:
             rules = [UpdateLaw(value, self._relax(threshold, share), neighborhood=neighborhood)]
         relaxation = relax(

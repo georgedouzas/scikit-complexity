@@ -234,7 +234,7 @@ def test_relaxation_records_avalanches():
             lambda left, height, right: height - 2 * (height >= 2) + (left >= 2) + (right >= 2),
             neighborhood=three,
         )
-        drop = UpdateLaw(height, lambda z, *, random: z + (np.arange(z.size) == 2))
+        drop = UpdateLaw(height, lambda z, *, random: z + (np.arange(z.size) == 2), arrays=True)
         value = relax(
             height,
             topple,
@@ -363,7 +363,7 @@ def _pile(activity, evaluated):
         height = _symbolic(s).height
         cross = RadiusNeighborhood(1, metric='manhattan', center=True)
         rules = UpdateLaw(height, topple, neighborhood=cross)
-        drive = UpdateLaw(height, drop)
+        drive = UpdateLaw(height, drop, arrays=True)
         value = relax(height, rules, lambda heights: bool((heights < 4).all()), drive=drive, activity=activity)
         return [UpdateLaw(height, value, label='avalanche')]
 
