@@ -406,7 +406,7 @@ class FunctionsPass(BasePass):
                 An update law runs in a phase the schedule does not declare, or a phase of update laws repeats or has an
                 activation other than the default.
         """
-        declared = FunctionsPass._get_declared_phases(compilation.system)
+        declared = FunctionsPass._get_declared_phases(compilation.system, compilation.solver)
         kernels: dict[str, list[LawKernel]] = defaultdict(list)
         for kernel in lowered.kernels.get(UpdateLaw, []):
             _, law = lowered.laws[id(kernel.outputs[0])]
@@ -420,7 +420,8 @@ class FunctionsPass(BasePass):
         if unknown:
             error_msg = (
                 f'Update laws run in the phases {", ".join(unknown)}, which the system does not declare. Declare them '
-                'with `DiscreteTime(schedule=PhasesScheduleSpec(...))`. Declared phases are: '
+                "with the phases of its solver, such as `IterationSolver(phases=[PhaseSpec('count')])`. Declared "
+                'phases are: '
                 f'{", ".join(names) or "none"}.'
             )
             raise ValidationError(error_msg)
@@ -441,14 +442,17 @@ class FunctionsPass(BasePass):
         return [(phase, kernels[phase.name]) for phase in plan if phase.name in kernels]
 
     @staticmethod
-    def _get_declared_phases(system: CompositeSystem) -> list[PhaseSpec]:
-        """Return the phases of the schedules of a system and its nested systems.
+    def _get_declared_phases(system: CompositeSystem, solver: object = None) -> list[PhaseSpec]:
+        """Return the phases of the solvers and the schedules of a system and its nested systems.
 
-        The first of every name is kept.
+        The phases of a solver, such as `MesaSolver(phases=[PhaseSpec('count'), PhaseSpec('copy')])`, come first, the
+        solver of the compilation for the root and the solver of each nested system for its own. The first of every
+        name is kept.
         """
         time = system.time
         schedule = time.prepare().schedule_ if isinstance(time, DiscreteTime) else None
-        phases = list(schedule.phases) if isinstance(schedule, PhasesScheduleSpec) else []
+        phases = list(getattr(solver or getattr(system, 'solver', None), 'phases', None) or ())
+        phases += list(schedule.phases) if isinstance(schedule, PhasesScheduleSpec) else []
         for nested in system.systems:
             phases += FunctionsPass._get_declared_phases(nested)
         kept: dict[str, PhaseSpec] = {}

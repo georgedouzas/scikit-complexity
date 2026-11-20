@@ -4,12 +4,16 @@
 # License: MIT
 
 import math
+from collections.abc import Sequence
+
+import numpy as np
 
 from ...components.laws import BoundaryLaw, LinearProgramLaw, TransferLaw, TransitionLaw, UpdateLaw
 from ...components.spaces import BaseSpace, DiscreteTime
 from ...enums import FormKind, OrderKind
 from ...types import Array
 from ..backends import SupportSpec
+from ..compile import PhaseSpec
 from ..problems import ProblemSpec
 from ._base import BaseSolver
 from ._solver import Solver
@@ -19,7 +23,20 @@ class IterationSolver(Solver):
     """A solver that iterates a discrete map, one application per unit of time.
 
     A stochastic map takes its random draws from the stepper's random number generator at every step, through the draw
-    recorder of a run that records or replays its draws.
+    recorder of a run that records or replays its draws. A step may run its update laws in named phases, each reading
+    the values the phases before it set, such as a count in the phase `count` and its copy in the phase `copy`.
+
+    Args:
+        phases:
+            The named phases of a step after the default one, such as `[PhaseSpec('count'), PhaseSpec('copy')]`, in
+            the order they run, which the `phase` of every update law names. A phase of period `k` runs every `k`
+            steps. Without phases, the phases of the update laws run in the order of their laws.
+
+        random_state:
+            The seed or generator of stochastic maps.
+
+        until:
+            The end time of the run the solver prepares for, infinite for a run that goes on until it is stopped.
 
     Examples:
         >>> import numpy as np
@@ -36,6 +53,16 @@ class IterationSolver(Solver):
         >>> stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_.tolist()
         [4.0]
     """
+
+    def __init__(
+        self,
+        *,
+        phases: Sequence[PhaseSpec] = (),
+        random_state: int | np.random.Generator | None = None,
+        until: float = math.inf,
+    ) -> None:
+        super().__init__(random_state=random_state, until=until)
+        self.phases = phases
 
     @classmethod
     def _get_support(cls) -> SupportSpec:
