@@ -106,13 +106,13 @@ class TopologyFunctionsPass(BasePass):
         if TopologyKernel._changes_edges(request) and request.layer not in network.edges:
             error_msg = (
                 f'{spec.owner} requests {request!r}, which changes the edges of the layer {request.layer!r}, but the '
-                'layer has no variable edge group. Add `GroupElement(..., on="edges", variable=True)` on the layer.'
+                'layer has no variable edge group. Add `Element(..., on="edges")` on the layer.'
             )
             raise ValidationError(error_msg)
         if request.hyperedge is not None and network.hyperedges is None:
             error_msg = (
                 f'{spec.owner} requests {request!r}, which forms a hyperedge, but the network has no variable group '
-                'on its hyperedges. Add `GroupElement(..., on="hyperedges", variable=True)`.'
+                'on its hyperedges. Add `Element(..., on="hyperedges")`.'
             )
             raise ValidationError(error_msg)
         if request.hyperedge is not None and network.hyperedges is not None:

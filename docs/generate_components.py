@@ -15,14 +15,11 @@ from gallery_tools import library_systems
 from skcomplex.core import analysis, experiments
 from skcomplex.core.analysis import AnalysisTags
 from skcomplex.core.components import RoleSpec, Tags, elements, interactions, laws, spaces, systems
-from skcomplex.core.components._parameter_spec import _ParameterSpec
-from skcomplex.core.components._state_spec import _StateSpec
 from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import BaseElement
 from skcomplex.core.components.interactions import BaseInteraction
 from skcomplex.core.components.laws import BaseLaw
 from skcomplex.core.components.spaces import BaseNeighborhood, BaseSpace
-from skcomplex.core.components.spaces._base import _BaseTime
 from skcomplex.core.components.systems import BaseSystem
 from skcomplex.core.engine import backends, solvers
 from skcomplex.core.engine.backends import BaseBackend
@@ -174,32 +171,19 @@ def _fact_sheet(
 ) -> list[str]:
     """Return the fact sheet of a class of the core: its variables, tags, solvers, errors, links, and uses.
 
-    Elements and interactions list their states and parameters, laws their kind, and spaces and times their tag.
+    Elements and interactions list their values and law kinds, laws their kind, and spaces their tag.
     """
     if family in {'elements', 'interactions'}:
-        specs = item._get_specs()
-        states = {name: spec for name, spec in specs.items() if isinstance(spec, _StateSpec)}
-        parameters = [name for name, spec in specs.items() if isinstance(spec, _ParameterSpec)]
         laws = BaseComponent._get_law_tags(item._get_declared_laws()).laws
-        tags = Tags(domains=frozenset(spec._get_domain_tag() for spec in states.values()) - {None}, laws=laws)
-        domain_cells = {
-            name: _values({spec._get_domain_tag()} - {None}, empty='a whole structure') for name, spec in states.items()
-        }
-        state_cell = ', '.join(f'`{name}` ({cell})' for name, cell in domain_cells.items())
-        arguments = inspect.signature(item).parameters
-        origin = 'given as data' if 'variables' in arguments else 'declared by a subclass'
-        origin = 'those of the element class of its members' if 'element' in arguments else origin
+        tags = Tags(laws=laws)
+        values = _value_names(item)
         facts = [
-            f'- States: {state_cell or origin}',
-            f'- Parameters: {", ".join(f"`{name}`" for name in parameters) or "none declared"}',
+            f'- Values: {", ".join(f"`{name}`" for name in values) or "given as data or by a subclass"}',
             f'- Law kinds: {_values(laws, empty="none of its own")}',
         ]
     elif issubclass(item, BaseLaw):
         tags = BaseComponent._get_law_tags([item]) if item.get_requirements() is not None else Tags()
         facts = [f'- Law kind: {_values(tags.laws, empty="from a subclass")}', f'- Randomness: `{tags.randomness}`']
-    elif issubclass(item, _BaseTime):
-        tags = Tags(time=frozenset({item.time_tag}) - {''})
-        facts = [f'- Time tag: {_values(tags.time, empty="from a subclass")}']
     elif issubclass(item, BaseSpace):
         tags = Tags(space=frozenset(item.space_tags[:1]))
         facts = [f'- Space tags: {_values(item.space_tags, empty="from a subclass")}']
@@ -265,6 +249,12 @@ def _facts(items: list[type[BaseComponent]], family: str) -> str:
     return '\n'.join(lines)
 
 
+def _value_names(item: type[BaseComponent]) -> list[str]:
+    """Return the arguments of the constructor of a class that name values, leaving out the reserved settings."""
+    reserved = {'label', 'values', 'size', 'space', 'on', 'roles', 'laws', 'element'}
+    return [name for name in inspect.signature(item).parameters if name not in reserved]
+
+
 def _elements_page() -> str:
     """Return the page of elements.
 
@@ -272,15 +262,12 @@ def _elements_page() -> str:
     """
     rows = []
     for element in _public_classes(elements, BaseElement):
-        states = {name: spec for name, spec in element._get_specs().items() if isinstance(spec, _StateSpec)}
-        domains = {spec._get_domain_tag() for spec in states.values()} - {None}
         tags = BaseComponent._get_law_tags(element._get_declared_laws())
-        names = ', '.join(f'`{name}`' for name in states) or 'from a subclass'
-        whole = 'from a subclass' if not states else 'a whole structure'
-        rows.append([f'`{element.__name__}`', names, _values(domains, empty=whole), _values(tags.laws, empty='none')])
+        names = ', '.join(f'`{name}`' for name in _value_names(element)) or 'given as data or by a subclass'
+        rows.append([f'`{element.__name__}`', names, 'from its values', _values(tags.laws, empty='none')])
     intro = """
 An element holds the states of a system, the numbers that change as the system runs, such as an amount, a position, or
-a cell of a lattice. Each state has a domain, a tag read from its `StateSpec` that names the set its values lie in,
+a cell of a lattice. Each value has a domain, a tag read from the value itself that names the set its values lie in,
 such as `real` or `boolean`. `get_tags()` of an element returns its domains. Every role of an interaction lists the
 domains it accepts, so the domains of an element decide which interactions it can be bound to. The table lists the
 states, domains, and law kinds that each element class of the core declares. A subclass adds the states its
@@ -340,7 +327,7 @@ The message says that the `RateLaw` of `flip` changes `switch.lit` continuously,
 finite set `{0, 1}`. Change the value with an `UpdateLaw` or a `JumpLaw`, or allow it a range of real numbers.
 """
     facts = _facts(_family_classes(elements), 'elements')
-    header = ['Element', 'States', 'Domains', 'Law kinds']
+    header = ['Element', 'Values', 'Domains', 'Law kinds']
     return _page('Elements', intro, header, rows, f'{facts}\n\n{examples.strip()}')
 
 
@@ -493,9 +480,7 @@ def _spaces_page() -> str:
     """
     rows = []
     for item in _family_classes(spaces):
-        if issubclass(item, _BaseTime):
-            kind, tags = 'time', _values({item.time_tag} - {''}, empty='from a subclass')
-        elif issubclass(item, BaseSpace):
+        if issubclass(item, BaseSpace):
             kind, tags = 'space', _values(item.space_tags, empty='from a subclass')
         else:
             kind, tags = 'neighbourhood', 'none'

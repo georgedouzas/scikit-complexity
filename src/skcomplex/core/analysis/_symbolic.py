@@ -584,9 +584,8 @@ def _sign_error(error: Exception) -> AnalysisError:
     expression = match.group(1) if match else 'an expression'
     names = sorted(set(re.findall(r'[A-Za-z_][A-Za-z0-9_]*', expression))) if match else []
     error_msg = (
-        f'Maxima needs the sign of {expression} to solve the equations. Declare the parameters '
-        f'{", ".join(names) or "involved"} with `ParameterSpec(domain=RealSet.open(0, oo))` or another domain that '
-        'gives their sign.'
+        f'Maxima needs the sign of {expression} to solve the equations, which the parameters '
+        f'{", ".join(names) or "involved"} do not give. Solve the equations numerically instead.'
     )
     return AnalysisError(error_msg)
 

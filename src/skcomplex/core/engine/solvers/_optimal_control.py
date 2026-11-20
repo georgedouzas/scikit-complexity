@@ -390,8 +390,8 @@ class OptimalControlSolver(Solver):
             controls.append(_ControlSpec(name, entry.start, symbols[entry.start], lower, upper))
         if not controls:
             error_msg = (
-                'The system has no bounded adaptive parameter to control. Declare a control input with '
-                '`Annotated[float, ParameterSpec(adaptive=True, bounds=(lower, upper))]`.'
+                'The system has no bounded adaptive parameter to control. Give the objective law the control '
+                'inputs with their bounds.'
             )
             raise SolverError(error_msg)
         return tuple(controls)

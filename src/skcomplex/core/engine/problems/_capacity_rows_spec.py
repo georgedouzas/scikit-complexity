@@ -87,7 +87,7 @@ class _CapacityRowsSpec(BaseSpec):
         if not free.size:
             error_msg = (
                 f'The group {self.path} holds {self.active.rows} members, its capacity, and a topology request adds '
-                'another. Give the group a larger capacity, `GroupElement(..., variable=True, capacity=n)`.'
+                'another. Give the element room for more members.'
             )
             raise CapacityError(error_msg, path=self.path, rows=self.active.rows)
         return int(free[0])

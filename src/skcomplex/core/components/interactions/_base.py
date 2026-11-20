@@ -1022,14 +1022,13 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         if adaptive:
             error_msg = (
                 f'{type(self).__name__} declares the adaptive parameters {", ".join(adaptive)}, which laws change as '
-                'states, but interactions hold no state. Declare them on the element whose parameters they are, or '
-                'give them the shape of the groups the interaction couples, `ParameterSpec(shape=...)`.'
+                'states, but interactions hold no state. Declare them on the element whose parameters they are.'
             )
             raise ValidationError(error_msg)
         if states:
             error_msg = (
                 f'{type(self).__name__} declares the states {", ".join(states)}, but interactions hold no state. Put '
-                'state on couplings in a group on the edges of a network space, `GroupElement(..., on="edges")`.'
+                'state on couplings in an element on the edges of a network space, `Element(..., on="edges")`.'
             )
             raise ValidationError(error_msg)
 

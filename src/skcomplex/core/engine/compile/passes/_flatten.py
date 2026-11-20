@@ -311,7 +311,7 @@ class FlattenPass(BasePass):
     ) -> list[_NodeSpec]:
         """Return the nodes of a system tree in tree order."""
         if not isinstance(system, _CompositeSystem):
-            error_msg = f'{system!r} is not an instance of CompositeSystem.'
+            error_msg = f'{system!r} is not a system.'
             raise ValidationError(error_msg)
         seen = [] if seen is None else seen
         space = FlattenPass._get_canonical(system.space if system.space is not None else space, seen)

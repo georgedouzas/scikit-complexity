@@ -129,7 +129,7 @@ def test_equations_keep_operators():
 
 def test_operator_outside_field_is_rejected():
     """Test that an operator on a group that is not a field is rejected."""
-    with pytest.raises(ValidationError, match='Create the group with `FieldElement`'):
+    with pytest.raises(ValidationError, match='Give the element a lattice or a mesh as its space'):
         _heat('rod', None, size=5).prepare()
 
 

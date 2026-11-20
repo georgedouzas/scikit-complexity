@@ -69,7 +69,8 @@ def _check_plain(system: _CompositeSystem) -> None:
     if system.systems or not plain:
         error_msg = (
             f'Only systems of plain single elements and their interactions replicate, but {system.label!r} has child '
-            'systems, groups, fields, or agents. Build the ensemble as a GroupElement with per-member values instead.'
+            'systems, groups, fields, or agents. Build the ensemble as one element with `size=` and per-member values '
+            'instead.'
         )
         raise ValidationError(error_msg)
 

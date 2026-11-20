@@ -578,8 +578,7 @@ class LayoutPass(BasePass):
         if rank is None and len(sizes) != 1:
             error_msg = (
                 f'The variable group {node.path} lies on the hyperedges of a network whose hyperedges have the sizes '
-                f'{sizes}. Give the network hyperedges of one size, which every new hyperedge also has, or give the '
-                'group the rank of its largest hyperedge, `GroupElement(..., rank=k)`.'
+                f'{sizes}. Give the network hyperedges of one size, which every new hyperedge also has.'
             )
             raise ValidationError(error_msg)
         width = int(rank) if rank is not None else sizes[0]
@@ -853,8 +852,7 @@ class LayoutPass(BasePass):
             if EntrySpec._contains(CC, value) and not EntrySpec._contains(RR, value):
                 error_msg = (
                     f'{name} = {LayoutPass._describe(value)} has a nonzero imaginary part, which its domain {domain} '
-                    f'does not hold. Declare {name.rpartition(".")[2]} with `StateSpec(domain=CC)` to give it complex '
-                    'values.'
+                    f'does not hold. Give {name.rpartition(".")[2]} a complex starting value to give it complex values.'
                 )
             raise ValidationError(error_msg)
         flat = LayoutPass._get_flat_value(name, value, EntrySpec._encode(domain, value, period), shape, members)

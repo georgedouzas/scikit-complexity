@@ -103,7 +103,7 @@ class ConservedNoisePass(BasePass):
         ):
             error_msg = (
                 f'The conserved noise law of {owner} drives {reference.entry.name}, which is not a state of a '
-                'finite-difference field on a square lattice. Declare the state on a `FieldElement` of a '
+                'finite-difference field on a square lattice. Declare the state on an element whose space is a '
                 '`LatticeSpace`.'
             )
             raise ValidationError(error_msg)
@@ -231,7 +231,7 @@ class ConservedNoisePass(BasePass):
             'but conserved noise needs a state of a finite-difference field on a square lattice, with one process per '
             'link.'
         )
-        fix = 'Declare the state on a `FieldElement` of a `LatticeSpace`, or remove `conserved=True`.'
+        fix = 'Declare the state on an element whose space is a `LatticeSpace`, or remove `conserved=True`.'
         return IssueSpec('noise-unsupported', record.path, message, fix)
 
     @staticmethod

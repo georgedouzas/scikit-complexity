@@ -126,7 +126,7 @@ class BaseSystem[CompositeT: BaseSystem](BaseComponent[BaseSpace, SimpleNamespac
         system = self._build_system()
         if not isinstance(system, BaseSystem) or system._build_system() is not system:
             error_msg = (
-                f'{type(self).__name__} builds its components as a CompositeSystem, not as {type(system).__name__}.'
+                f'{type(self).__name__} builds its components as a system of its own, not as {type(system).__name__}.'
             )
             raise ValidationError(error_msg)
         self._built_from = (params, system)

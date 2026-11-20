@@ -115,9 +115,10 @@ class _LearningCompiler(BaseCompiler):
         """Return the issues of the time and the solver of a system that trains."""
         issues = []
         if system.time is not None and not isinstance(system.time, _DiscreteTime):
-            given = type(system.time).__name__
-            message = f'The training {training.label} needs DiscreteTime, one step per epoch, not {given}.'
-            issues.append(IssueSpec('law-time', training.label, message, 'Declare `DiscreteTime()` for the system.'))
+            given = f'{system.time.time_tag} time'
+            message = f'The training {training.label} needs discrete time, one step per epoch, not {given}.'
+            fix = 'Train the system on laws that step, such as update laws.'
+            issues.append(IssueSpec('law-time', training.label, message, fix))
         if self.solver is not None and self._get_form_of(type(self.solver)) != FormKind.LEARNING:
             message = f'The solver {type(self.solver).__name__} does not train. Use GradientDescentSolver.'
             fix = 'Pass `solver=GradientDescentSolver()`, or no solver.'

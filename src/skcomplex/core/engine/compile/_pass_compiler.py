@@ -57,8 +57,6 @@ from ...components.spaces import (
     RadiusNeighborhood,
 )
 from ...components.spaces._continuous_time import _ContinuousTime
-from ...components.spaces._discrete_time import _DiscreteTime
-from ...components.spaces._static_time import _StaticTime
 from ...enums import DomainKind, ElementKind, FormKind, NoiseKind, SeverityKind, VariableKind
 from ...errors import (
     AlgebraicStateError,
@@ -118,11 +116,6 @@ COVARIANCE_TOLERANCE = 1e-12
 PROBABILITY_TOLERANCE = 1e-9
 LISTED_ENCOUNTERS = 3
 COLLISION_AXES = 2
-TIME_CLASSES: dict[type, str] = {
-    _ContinuousTime: 'ContinuousTime()',
-    _DiscreteTime: 'DiscreteTime()',
-    _StaticTime: 'StaticTime()',
-}
 OWN_NEIGHBORHOOD = (LatticeSpace, NetworkSpace)
 REPLACEMENTS = {
     DomainKind.CATEGORICAL: 'a jump, transition, or update law',
@@ -1003,6 +996,11 @@ class PassCompiler(BaseCompiler):
         return ' or '.join('no space' if item is None else item.__name__ for item in classes)
 
     @staticmethod
+    def _get_time_names(classes: tuple[type, ...]) -> str:
+        """Return the kinds of time of classes of time joined by `or`, such as `continuous time`."""
+        return ' or '.join(f'{item.time_tag} time' for item in classes)
+
+    @staticmethod
     def _get_layer_issues(node: _NodeSpec, space: BaseSpace | None) -> list[IssueSpec]:
         """Return the issue of an interaction over neighbours with an unknown layer.
 
@@ -1295,7 +1293,7 @@ class PassCompiler(BaseCompiler):
             time = times.get(record.path.rpartition('/')[0])
             law = record.law
             requires = law._get_law_requirements()
-            name = f'{type(law).__name__} of {record.path}'
+            name = PassCompiler._get_law_name(record)
             sites = requires.sites and isinstance(record.space, BaseSpace) and record.space._has_sites()
             if requires.space and not isinstance(record.space, requires.space) and not sites:
                 lives = type(record.space).__name__ if record.space is not None else 'no space'
@@ -1305,10 +1303,10 @@ class PassCompiler(BaseCompiler):
                     IssueSpec('law-space', record.path, message, 'Give the system a space of a supported class.'),
                 )
             if time is not None and requires.time and not issubclass(time, requires.time):
-                needs = PassCompiler._get_names(requires.time)
-                message = f'The {name} needs {needs}, but its system declares {time.__name__}.'
-                classes = ' or '.join(f'`{TIME_CLASSES[item]}`' for item in requires.time)
-                fix = f'Declare {classes} for its system, or use laws that run in {time.__name__}.'
+                needs = PassCompiler._get_time_names(requires.time)
+                given = PassCompiler._get_time_names((time,))
+                message = f'The {name} needs {needs}, but its system runs in {given}.'
+                fix = f'Use laws that run in {given}, or move the law to a nested system of its own.'
                 issues.append(IssueSpec('law-time', record.path, message, fix))
             issues += PassCompiler._get_finite_rate_issues(record, name)
         return issues
@@ -1878,8 +1876,8 @@ class PassCompiler(BaseCompiler):
                 )
             except ValidationError as error:
                 fix = (
-                    "Declare the position of order 2, `StateSpec(vector=True, order=2, role='position')`, or "
-                    "name a direction state, such as `RadiusNeighborhood(r, angle=angle, direction='theta')`."
+                    'Give the members a vector position whose second derivative a rate law sets, or name a '
+                    "direction state, such as `RadiusNeighborhood(r, angle=angle, direction='theta')`."
                 )
                 return IssueSpec('law-domain', record.path, f'The {name}: {error}', fix)
         return None
@@ -2032,8 +2030,10 @@ class PassCompiler(BaseCompiler):
 
     @staticmethod
     def _get_law_name(record: _CensusRecordSpec) -> str:
-        """Return the name of the law of a census record."""
-        return f'{type(record.law).__name__} of {record.path}'
+        """Return the name of the law of a census record, by its kind for a law the engine lowered."""
+        name = type(record.law).__name__
+        name = f'{record.law.law_tag} law' if name.startswith('_') else name
+        return f'{name} of {record.path}'
 
     @staticmethod
     def _get_process_name(key: ProcessKey) -> str:
@@ -2442,7 +2442,7 @@ class PassCompiler(BaseCompiler):
                 message += f' {where[0].upper()}{where[1:]} has no group on its edges.'
             fix = (
                 'Give the groups on the nodes and the edges of the network `variable=True`, with a group on the edges '
-                'of every layer the request changes, `GroupElement(..., on="edges", variable=True)`.'
+                'of every layer the request changes, `Element(..., on="edges")`.'
             )
             issues.append(IssueSpec('group-fixed', record.path, message, fix))
         return issues

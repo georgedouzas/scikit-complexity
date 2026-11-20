@@ -155,7 +155,7 @@ class _DeclaredElement(Element):
             if not isinstance(item.spec, _StateSpec | _ParameterSpec):
                 error_msg = (
                     f'Element {self.label!r} declares {name!r} with {item.spec!r}. An element declares a variable with '
-                    'a StateSpec or a ParameterSpec, and a role belongs to an interaction.'
+                    'a state or a parameter, and a role belongs to an interaction.'
                 )
                 raise ValidationError(error_msg)
 

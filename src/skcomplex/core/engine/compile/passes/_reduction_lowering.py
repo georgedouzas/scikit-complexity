@@ -790,8 +790,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             error_msg = (
                 f'The tensor {tensor} of the contraction {call} of {spec.owner} is {given}, but the contraction needs '
                 f'a shaped parameter of order {len(factors) + 1} whose first index runs over the {rows or "no"} '
-                'members of the reading group. Declare it `ParameterSpec(shape=(role,) * k)` on a role bound to a '
-                'group.'
+                'members of the reading group. Give it one row per member of the group its role binds.'
             )
             raise ValidationError(error_msg)
         return cast(ReferenceSpec, reference), entry

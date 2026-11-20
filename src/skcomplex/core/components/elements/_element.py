@@ -41,8 +41,8 @@ RESERVED_MEANINGS = {
 class Element(BaseElement):
     """An element whose states and parameters are declared by its own subclass.
 
-    A subclass takes each state and parameter as an argument of its `__init__`, annotated with `StateSpec` or
-    `ParameterSpec` inside `Annotated`. It may return laws of its own from `_get_laws`, such as the growth of a
+    A subclass takes each state and parameter as a plain argument of its `__init__`, and the laws decide which values
+    change. It may return laws of its own from `_get_laws`, such as the growth of a
     population, and it lists their classes in `law_classes`, so that `get_tags` can name their kinds before a run.
 
     An element whose laws are agent rules, Python functions that change one member at each step, is an agent. Under
@@ -52,7 +52,7 @@ class Element(BaseElement):
 
     Unlike `BaseElement`, it returns no laws by default, and it can act as an agent. Choose it
     when a kind of entity deserves a class of its own, such as a population with a growth law or a capacitor with two
-    pins, and choose `DeclaredElement` when the states are known only as data.
+    pins, and give `values` to a plain `Element` when the values are known only as data.
 
     It appears in many fields. A prey population in ecology, a capacitor in an electric circuit, a firm in an economy,
     and a pendulum in mechanics are each a subclass of it.

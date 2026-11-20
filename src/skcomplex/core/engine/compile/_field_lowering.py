@@ -243,7 +243,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         if found is None:
             error_msg = (
                 f'A law of {self.spec.owner} applies a differential operator to {item}, which is not a state or '
-                'parameter of a field. Create the group with `FieldElement`.'
+                'parameter of a field. Give the element a lattice or a mesh as its space.'
             )
             raise ValidationError(error_msg)
         return found

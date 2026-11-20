@@ -219,7 +219,7 @@ class LinearProgramsPass(BasePass):
             name = str(item) if reference is None else reference.entry.name
             if reference is None or name not in algebraic:
                 message = f'The linear program law of {bound.spec.owner} sets {name}, which is not an algebraic state.'
-                fix = f'Declare {name} with `StateSpec(algebraic=True)`.'
+                fix = f'Set {name} by an algebraic equation of the linear program, not by a rate or an update.'
                 issues.append(IssueSpec('linear-program-variable', bound.spec.owner, message, fix))
         return issues
 

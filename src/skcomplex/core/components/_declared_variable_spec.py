@@ -41,8 +41,6 @@ class _DeclaredVariableSpec(BaseSpec):
                 The spec is no `StateSpec`, `ParameterSpec`, or `RoleSpec`.
         """
         if not isinstance(self.spec, _StateSpec | _ParameterSpec | RoleSpec):
-            error_msg = (
-                f'A declared variable takes a StateSpec, a ParameterSpec, or a RoleSpec, but its spec is {self.spec!r}.'
-            )
+            error_msg = f'A declared variable is a state, a parameter, or a role, but its spec is {self.spec!r}.'
             raise ValidationError(error_msg)
         self.spec._check()

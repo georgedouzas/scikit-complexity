@@ -1078,8 +1078,8 @@ class AgentView:
         declaration = declarations_of(MesaSolver._get_declaring(spec), VariableKind.STATE).get(state)
         if declaration is None or not declaration.lags:
             error_msg = (
-                f'The agents of {spec.path} do not remember {state!r}. Declare the state with lags, such as '
-                '`StateSpec(lags=3)`, to keep its last values.'
+                f'The agents of {spec.path} do not remember {state!r}. Give the state a past value, such as '
+                '`{"x[-3]": 0.0}` among the values of its element, to keep its last values.'
             )
             raise KeyError(error_msg)
         lags = declaration.lags if window is None else min(window, declaration.lags)
@@ -2348,9 +2348,8 @@ class MesaSolver(ExternalSolver):
         if isinstance(spec.element, GroupElement) and spec.element.variable:
             return
         error_msg = (
-            f'A rule tries to {action} an agent of {spec.path}, whose size is fixed. Declare the group with '
-            '`variable=True`, such as `GroupElement(label, element=..., size=..., variable=True)`, for its members '
-            'to be created and removed during a run.'
+            f'A rule tries to {action} an agent of {spec.path}, whose size is fixed. Only an element whose rules '
+            'add or remove members changes its size during a run.'
         )
         raise SimulationError(error_msg)
 

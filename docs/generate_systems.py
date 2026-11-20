@@ -20,8 +20,9 @@ from skcomplex.core.analysis import symbolic
 from skcomplex.core.components import Tags
 from skcomplex.core.components.elements import BaseElement
 from skcomplex.core.components.interactions import BaseInteraction
-from skcomplex.core.components.systems import BaseSystem, CompositeSystem
+from skcomplex.core.components.systems import BaseSystem
 from skcomplex.core.errors import AnalysisError
+from skcomplex.core.systems import System
 
 DOCS = Path(str(files('gallery_tools'))).parent
 INVENTORY = DOCS / 'overview' / 'inventory.toml'
@@ -174,7 +175,7 @@ def _gallery_lines(name: str, examples: dict[str, Example]) -> list[str]:
     return lines
 
 
-def _component_types(system: CompositeSystem) -> list[type]:
+def _component_types(system: System) -> list[type]:
     """Return the element and interaction types of a system and its subsystems.
 
     They are in order of first use.
