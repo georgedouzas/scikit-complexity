@@ -460,7 +460,9 @@ class ReactionInteraction(Interaction):
             self._apply_agent_step(agent, self._get_agent_step(agent, system))
 
     def react(self, system: SystemViewProtocol) -> None:
-        """React in every agent of the target on its own states, by the schedule or at once without one.
+        """React in every agent of the target on its own states, by the schedule.
+
+        Without a schedule every agent reacts at once.
 
         Args:
             system:

@@ -114,9 +114,9 @@ class ImitationInteraction(Interaction):
     draws = True
 
     def _get_tags(self) -> Tags:
-        """Return the tags of the rule of a schedule, the updates of a probability, or the jumps of a rate.
+        """Return the tags of the rule, the updates, or the jumps of the imitation.
 
-        The updates draw with a probability.
+        A schedule sets the rule, and a probability sets updates that draw.
         """
         if self._get_argument('schedule') is not None:
             return self._get_variant_tags((UpdateLaw,))
@@ -164,7 +164,10 @@ class ImitationInteraction(Interaction):
         return self.layer
 
     def _check_agent_options(self) -> None:
-        """Raise an error for an unknown schedule or ties, or ties not first without a schedule."""
+        """Raise an error for unknown schedule or ties.
+
+        It also raises it for ties other than first without a schedule.
+        """
         self._check_variant('schedule', self.schedule, (None, *ScheduleKind))
         self._check_variant('ties', self.ties, TIES)
         if self.schedule is None and self.ties != 'first':

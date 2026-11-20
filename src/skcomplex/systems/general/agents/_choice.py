@@ -326,7 +326,7 @@ class ChoiceInteraction(Interaction):
         self._update_agents(system, self.schedule or 'synchronous', self._get_choice, self._set_choice)
 
     def _get_choice_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
-        """Return the update of the state of every revising member, or the rule of the schedule.
+        """Return the update of the state of every revising member.
 
         With a schedule it returns the rule that walks the agents instead.
 
