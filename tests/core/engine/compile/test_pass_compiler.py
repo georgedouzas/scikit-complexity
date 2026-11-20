@@ -39,6 +39,7 @@ from skcomplex.core.components.laws.utils import (
     mod,
     neighbors,
     tensor_divergence,
+    variance,
 )
 from skcomplex.core.components.spaces import (
     AxisSpec,
@@ -1917,3 +1918,22 @@ def test_role_element_reports_a_state_that_a_function_reads():
     assert len(issues) == 1
     assert "'target'" in issues[0].message
     assert "'missing'" in issues[0].message
+
+
+def _hypergraph_variance() -> System:
+    """Return nodes whose rate is the variance over the members of their hyperedges, which no hyperedge writes out."""
+    space = NetworkSpace(nx.complete_graph(4), hyperedges=[(0, 1, 2), (1, 2, 3)])
+    rule = Interaction(
+        'spread',
+        among='nodes',
+        along='hyperedges',
+        laws=lambda s: [RateLaw(s.member.x, variance(s.members.x, over=s.members))],
+    )
+    return System(elements=[Element('nodes', values={'x': np.zeros(4)}, space=space)], interactions=[rule])
+
+
+def test_compiler_reports_the_failure_of_the_probe_in_place_of_the_later_one():
+    """Test that a component that fails while its states are inferred is reported with that first failure."""
+    report = PassCompiler().prepare(_hypergraph_variance()).report_
+    assert [issue.path for issue in report.issues] == ['spread']
+    assert 'total, mean, count, maximum, or minimum' in report.issues[0].message

@@ -65,7 +65,6 @@ def test_reductions_over_the_members_are_written_out_per_hyperedge(reduce):
     assert np.allclose(drift, expected, atol=1e-12)
 
 
-@pytest.mark.skip(reason='Engine gap: a variance over hyperedge members is reported as a target outside the namespace.')
 def test_variance_over_the_members_is_rejected():
     """Test that a reduction kind a hyperedge does not write out raises an error naming the kinds it takes."""
     with pytest.raises(ValidationError, match='total, mean, count, maximum, or minimum'):

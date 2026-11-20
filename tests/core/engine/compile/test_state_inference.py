@@ -27,7 +27,15 @@ from skcomplex.core.components.laws import (
     TopologyRequestSpec,
     UpdateLaw,
 )
-from skcomplex.core.components.laws.utils import bernoulli, components, divergence, laplacian, neighbors, where
+from skcomplex.core.components.laws.utils import (
+    bernoulli,
+    components,
+    divergence,
+    laplacian,
+    neighbors,
+    variance,
+    where,
+)
 from skcomplex.core.components.spaces import (
     BaseSpace,
     CellComplexSpace,
@@ -39,6 +47,8 @@ from skcomplex.core.components.spaces import (
     RadiusNeighborhood,
 )
 from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.compile._state_inference import _StateInference
 from skcomplex.core.engine.runtime import ConservationObserver, simulate
 from skcomplex.core.engine.solvers import AgentView, ETDRK4Solver, IMEXEulerSolver, RK4Solver, SSPRKSolver
 from skcomplex.core.errors import ValidationError
@@ -1684,3 +1694,18 @@ def test_agents_remember_as_many_values_as_the_oldest_past_value_given():
     savers = Element('savers', values={'money': 5.0, 'money[-3]': 5.0}, size=2)
     system = System(elements=[savers], interactions=[spending]).prepare()
     assert system.states_ == ('savers.money', 'savers.money[-1]', 'savers.money[-2]', 'savers.money[-3]')
+
+
+def test_get_declared_keeps_the_failures_of_the_probe_by_component():
+    """Test that the failure of a component while every value is a state is kept with the path of the component."""
+    space = NetworkSpace(nx.complete_graph(4), hyperedges=[(0, 1, 2), (1, 2, 3)])
+    rule = Interaction(
+        'spread',
+        among='nodes',
+        along='hyperedges',
+        laws=lambda s: [RateLaw(s.member.x, variance(s.members.x, over=s.members))],
+    )
+    system = System(elements=[Element('nodes', values={'x': np.zeros(4)}, space=space)], interactions=[rule])
+    inference = _StateInference(PassCompiler()._get_census_of)
+    inference.get_declared(system._get_composite())
+    assert [path for path, _ in inference.errors_] == ['spread']

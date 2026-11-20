@@ -205,6 +205,9 @@ class PassCompiler(BaseCompiler):
             The compiler of a system that holds a `TrainingInteraction`, which compiles its nested system into the
             inner problem of a `LearningProblemSpec`, or `None` for other systems.
 
+        probed_:
+            The failures of the probe that infers the states of plain elements, by the path of the component.
+
     Examples:
         >>> from skcomplex.core.systems import System
         >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
@@ -223,6 +226,7 @@ class PassCompiler(BaseCompiler):
     passes_: tuple[BasePass, ...]
     compilation_: Compilation | None
     learning_: _LearningCompiler | None
+    probed_: dict[str, SkcomplexError]
 
     def __init__(
         self,
@@ -281,8 +285,32 @@ class PassCompiler(BaseCompiler):
         return self._run_passes(compilation, until='layout')
 
     def _get_declared_system(self, system: CompositeSystem) -> CompositeSystem:
-        """Return the system with the declarations of its plain elements inferred."""
-        return _StateInference(self._get_census_of).get_declared(system)
+        """Return the system with the declarations of its plain elements inferred.
+
+        The failures of the probe that infers them are kept in `probed_` by path.
+        """
+        inference = _StateInference(self._get_census_of)
+        declared = inference.get_declared(system)
+        self.probed_ = dict(inference.errors_)
+        return declared
+
+    def _get_probed_issues(self, issues: list[IssueSpec]) -> list[IssueSpec]:
+        """Return the issues with the failure of the probe in place of the later failure of the same component.
+
+        A component that fails when every value is a state fails again once its values are declared, often with a
+        message about the declarations, such as a target that is not a state, so the first failure names the cause. A
+        failure of the probe that the declared system no longer has is no issue.
+        """
+        probed = self.probed_
+        replaced = []
+        for issue in issues:
+            failure = probed.get(issue.path)
+            if failure is None or issue.code != 'value' or issue.severity != SeverityKind.ERROR:
+                replaced.append(issue)
+                continue
+            code, fix = FIXES.get(type(failure), ('value', 'Correct the component as the message describes.'))
+            replaced.append(IssueSpec(code, issue.path, str(failure), fix, error=type(failure)))
+        return replaced
 
     def _get_issues(self, system: CompositeSystem) -> list[IssueSpec]:
         """Return every issue of a system, of its solver, and of its backend.
@@ -307,7 +335,7 @@ class PassCompiler(BaseCompiler):
         self.compilation_, issues = self._get_counted(system)
         if self.compilation_ is None or self.compilation_.census is None:
             return issues
-        issues = self._get_issues_of(self.compilation_)
+        issues = self._get_probed_issues(self._get_issues_of(self.compilation_))
         if not any(issue.severity == SeverityKind.ERROR for issue in issues):
             issues += self._get_program_issues(self.compilation_)
         if not any(issue.severity == SeverityKind.ERROR for issue in issues):

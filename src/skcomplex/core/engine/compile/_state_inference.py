@@ -44,7 +44,7 @@ from ...components.laws.utils import delayed, derivative, lag
 from ...components.spaces import BaseSpace, CellComplexSpace, ContinuousSpace, LatticeSpace, NetworkSpace
 from ...components.systems import CompositeSystem
 from ...enums import TopologyKind, VariableKind
-from ...errors import SpaceError, ValidationError
+from ...errors import SkcomplexError, SpaceError, ValidationError
 from ...specs import (
     BaseSpec,
     DeclaredVariableSpec,
@@ -756,9 +756,10 @@ class _StateInference:
     def get_declared(self, system: CompositeSystem) -> CompositeSystem:
         """Return a system tree whose plain elements declare what their laws show.
 
-        A probe declares every value as a state and collects the laws. When the probe fails on a space, its system tree,
-        or the system itself when the elements cannot even be probed, is returned, so the compiler reports the failure
-        with every other issue, such as a phase space above its limit or a tensor value without a space.
+        A probe declares every value as a state and collects the laws, and `errors_` keeps the failures of its
+        components. When the probe fails on a space, its system tree, or the system itself when the elements cannot
+        even be probed, is returned, so the compiler reports the failure with every other issue, such as a phase space
+        above its limit or a tensor value without a space.
 
         Args:
             system:
@@ -768,6 +769,7 @@ class _StateInference:
             system:
                 The system, or a copy whose plain elements are declared elements.
         """
+        self.errors_: list[tuple[str, SkcomplexError]] = []
         if not self._has_plain(system):
             return system
 
@@ -782,6 +784,7 @@ class _StateInference:
             compilation = self.census(probed)
         except SpaceError:
             return probed
+        self.errors_ = list(Compilation._get_required(compilation.census, 'census').errors)
         orders, lags = self._get_orders(compilation)
         orders = dict.fromkeys(self._get_rule_reads(compilation), 1) | orders
         kinds = self._get_topology_kinds(compilation)
