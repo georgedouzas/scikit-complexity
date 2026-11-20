@@ -21,7 +21,7 @@ from ....components.interactions import BaseInteraction, WienerProcessSpec
 from ....components.laws import LinearProgramLaw
 from ....components.laws.utils import coordinate
 from ....components.laws.utils._phase import COORDINATE_PREFIX
-from ....components.spaces import BaseSpace, LatticeSpace, NetworkSpace, PhaseSpace
+from ....components.spaces import BaseSpace, ContinuousSpace, LatticeSpace, NetworkSpace, PhaseSpace
 from ....enums import VariableKind
 from ....errors import LabelError, SpaceError, ValidationError
 from ....specs import EntrySpec, PowerSeriesSpec, TensorSpec, VariableSpec
@@ -281,7 +281,7 @@ class LayoutPass(BasePass):
             name,
             LayoutPass._get_value_of(node, variable),
             member_shape,
-            declaration.domain,
+            declaration.domain if declaration.bounds is None else RR,
             members,
             period=declaration.period,
         )
@@ -708,7 +708,7 @@ class LayoutPass(BasePass):
                 A vector or a tensor variable has no enclosing space.
 
             ValidationError:
-                The space dimension is not a positive integer.
+                The space dimension is not a positive integer, or a position has another number of components.
         """
         if declaration.group is not None:
             return (declaration.group.size,)
@@ -717,6 +717,7 @@ class LayoutPass(BasePass):
         if not declaration.vector and declaration.tensor is None:
             return ()
         if declaration.n_dim is not None:
+            LayoutPass._check_position_shape(name, declaration, space)
             tensor = LayoutPass._get_tensor_of(declaration, space)
             return (declaration.n_dim,) if tensor is None else (len(tensor.indices),)
         if space is None:
@@ -729,6 +730,22 @@ class LayoutPass(BasePass):
             raise ValidationError(error_msg)
         tensor = LayoutPass._get_tensor_of(declaration, space)
         return (int(space.n_dim_),) if tensor is None else (len(tensor.indices),)
+
+    @staticmethod
+    def _check_position_shape(name: str, declaration: VariableSpec, space: BaseSpace | None) -> None:
+        """Raise an error for a position without one component per axis of its space.
+
+        A position `[1, 2, 3]` in a plane has the wrong shape, since the plane has 2 axes.
+        """
+        if declaration.role != 'position' or not declaration.vector or not isinstance(space, ContinuousSpace):
+            return
+        n_dim = space.prepare().n_dim_
+        if declaration.n_dim != n_dim:
+            error_msg = (
+                f'{name} is a position of shape ({declaration.n_dim},) in a space of {n_dim} dimensions. Give it the '
+                f'shape ({n_dim},), one component per axis.'
+            )
+            raise ValidationError(error_msg)
 
     @staticmethod
     def _describe(value: object) -> str:

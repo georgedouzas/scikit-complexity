@@ -13,6 +13,7 @@ from types import SimpleNamespace
 
 from ...base import BaseConfig
 from ...errors import RoleElementError, TagError
+from ...specs import ParameterSpec, StateSpec
 from .._tags import Tags
 from ..base import BaseComponent
 from ..elements import BaseElement
@@ -242,7 +243,8 @@ class CompositeSystem(BaseSystem['CompositeSystem']):
         """Raise an error for a role bound to a state of a domain the role does not accept.
 
         The state belongs to the element the role binds. The states checked are those the role reads, or every state of
-        the element when the role reads none.
+        the element when the role reads none. An element with no state, such as a lamp whose level no law changes, has
+        its parameters checked instead.
 
         Raises:
             RoleElementError:
@@ -257,7 +259,7 @@ class CompositeSystem(BaseSystem['CompositeSystem']):
                     element = self._find_element(path)
                     if element is None:
                         continue
-                    states = element.get_states()
+                    states = element.get_states() or self._get_parameter_states(element)
                     read = {name: states[name] for name in needs.states if name in states} or states
                     for name, spec in read.items():
                         domain = spec._get_domain_tag()
@@ -269,6 +271,15 @@ class CompositeSystem(BaseSystem['CompositeSystem']):
                             f'of the domain {domain!r}.'
                         )
                         raise RoleElementError(error_msg)
+
+    @staticmethod
+    def _get_parameter_states(element: BaseElement) -> dict[str, StateSpec]:
+        """Return the parameters of an element as states of their domains, by name."""
+        return {
+            name: StateSpec(domain=spec.domain, vector=spec.vector, tensor=spec.tensor)
+            for name, spec in element._get_component_specs().items()
+            if isinstance(spec, ParameterSpec)
+        }
 
     @staticmethod
     def _join_tag(name: str, tags: Mapping[str, Tags], joining: frozenset[str]) -> frozenset[str]:

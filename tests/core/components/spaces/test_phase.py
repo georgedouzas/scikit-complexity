@@ -88,10 +88,6 @@ def test_prepare_raises_above_limit() -> None:
         space.prepare()
 
 
-@pytest.mark.skip(
-    reason='Engine gap: a `System` prepares the space of its elements before the compile report, so a phase space '
-    'above its limit raises `PhaseSpaceTooLargeError` instead of the `space-size` issue.',
-)
 def test_check_reports_space_size_issue_with_size() -> None:
     """Report a phase space above its limit through the compile report, with the size it would take."""
     space = PhaseSpace(LatticeSpace((10,)), [AxisSpec('v', 10, -1.0, 1.0)], limit=50)

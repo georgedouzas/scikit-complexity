@@ -508,12 +508,6 @@ def test_compiler_reports_spectral_operators_on_edges_that_are_not_periodic():
     assert [issue.code for issue in report.errors] == ['law-space']
 
 
-@pytest.mark.skip(
-    reason=(
-        'Engine gap: the census check of nonlocal operators misses an operand over two plain fields, which the '
-        'field lowering reports later as a `value` issue of the system.'
-    ),
-)
 def test_compiler_reports_an_operand_over_two_spaces():
     """Test that an operand reading fields of two spaces is an `operator-spaces` issue."""
     first, _ = _nonlocal_field('a', lambda s: 0 * s.u, LatticeSpace(8))
@@ -957,12 +951,6 @@ def test_compiler_value_outside_domain_raises_error(m):
         PassCompiler().prepare(system).run()
 
 
-@pytest.mark.skip(
-    reason=(
-        'Engine gap: a position value with more components than the dimension of its space is laid out as it '
-        'is instead of being rejected for its shape.'
-    ),
-)
 def test_compiler_wrong_shape_raises_error():
     """Test that a vector value of the wrong size is rejected."""
     space = ContinuousSpace(n_dim=2)
@@ -1363,12 +1351,6 @@ def test_stratonovich_callable_amplitude_raises_an_error_naming_the_drift_correc
         PassCompiler().prepare(system).run()
 
 
-@pytest.mark.skip(
-    reason=(
-        'Engine gap: a value that an interaction receives as a Sage function of the time loses its real domain, '
-        'so `domain_of` gives the complex field.'
-    ),
-)
 def test_components_receive_sage_symbols_and_vectors():
     """Test that values are Sage functions of the time with their domains and vector values are Sage vectors."""
     space = ContinuousSpace(n_dim=3)
@@ -1516,12 +1498,6 @@ def test_valid_system_has_no_issues():
     assert report.issues == ()
 
 
-@pytest.mark.skip(
-    reason=(
-        'Engine gap: a tensor value without a space raises a SpaceError at prepare instead of being a '
-        '`space-missing` issue of the report next to the other issues.'
-    ),
-)
 def test_several_errors_are_reported_at_once():
     """Test that an unbound role and a tensor state without a space are both reported."""
     relax = _rule('relax', 'film', lambda s: [RateLaw(s.target.Q, -s.target.Q)])
@@ -1540,12 +1516,6 @@ def _count_steps(agent, system):
     agent.steps += 1
 
 
-@pytest.mark.skip(
-    reason=(
-        'Engine gap: an agent rule written as `UpdateLaw(s.target, rule)` is reported to a solver that does not '
-        'support it as the internal law class of the old API, not as `UpdateLaw`.'
-    ),
-)
 def test_unsupported_solver_lists_capable_solvers():
     """Test that agents validated with RK4 report the unsupported components and capable solvers."""
     ants = Element('ants', values={'steps': np.zeros(3)}, size=3)
@@ -1598,12 +1568,6 @@ def test_mixed_laws_in_nested_systems_are_valid():
     assert PassCompiler().prepare(system).report_.ok
 
 
-@pytest.mark.skip(
-    reason=(
-        'Engine gap: bounded controls. A control that starts outside the allowed values of its `Annotated` '
-        'raises a domain error at prepare instead of the `parameter-bounds` issue at the control.'
-    ),
-)
 def test_validate_control_outside_bounds():
     """Test that a control starting outside its bounds is one error at the control, naming its bounds."""
     system = System(elements=[PlantElement('plant', u=2.0)], interactions=[_plant()])
@@ -1799,12 +1763,6 @@ def test_validate_accepts_correlated_noise_with_automatic_solver():
     assert NoiseKind.CORRELATED in DEFAULT_SOLVERS[FormKind.SDE]._get_support().noise
 
 
-@pytest.mark.skip(
-    reason=(
-        'Engine gap: an observable among the laws of an interaction raises an AttributeError on `get_params` '
-        'instead of the report issue that names the interaction and the laws it takes.'
-    ),
-)
 def test_observable_among_the_laws_is_rejected():
     """Test that an observable among the laws is an error that names the component and the laws it takes."""
     mixed = _rule('mixed', 'tank', lambda s: [RateLaw(s.target.a, -s.target.a), Observable('level', s.target.a)])

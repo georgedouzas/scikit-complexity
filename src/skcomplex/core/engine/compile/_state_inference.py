@@ -44,10 +44,11 @@ from ...components.laws.utils import delayed, derivative, lag
 from ...components.spaces import BaseSpace, CellComplexSpace, ContinuousSpace, LatticeSpace, NetworkSpace
 from ...components.systems import CompositeSystem
 from ...enums import TopologyKind, VariableKind
-from ...errors import ValidationError
+from ...errors import SpaceError, ValidationError
 from ...specs import (
     BaseSpec,
     DeclaredVariableSpec,
+    EntrySpec,
     MatrixGroupSpec,
     ParameterSpec,
     StateSpec,
@@ -445,6 +446,7 @@ class _StateInference:
         history: object = None,
         control: bool = False,
         objects: bool = False,
+        probing: bool = False,
     ) -> DeclaredVariableSpec:
         """Return the declaration of a value as a state or a parameter.
 
@@ -455,7 +457,9 @@ class _StateInference:
         The starting values of the derivatives or past values a law reads are given by their index, and a missing one
         is zero for a derivative and the value itself for a past value. A state with the role `'position'` is a
         position that walks, particle analyses, and drawings read. A periodic value wraps around after every step, and
-        analyses read it as a heading when its element moves in a space and as a phase otherwise.
+        analyses read it as a heading when its element moves in a space and as a phase otherwise. The probe of the laws
+        reads a value outside its interval as a real number, so a control that starts outside its bounds is reported
+        as an issue of its bounds.
 
         Raises:
             ValidationError:
@@ -463,6 +467,8 @@ class _StateInference:
         """
         annotation = element._get_hints().get(name, inspect.Parameter.empty)
         domain = Element._get_domain_of(annotation, value)
+        if probing and isinstance(domain, RealSet) and not EntrySpec._contains(domain, value):
+            domain = RR
         quantity = self._get_quantity(annotation)
         period = self._get_period(annotation)
         member = self._get_member(annotation)
@@ -750,6 +756,10 @@ class _StateInference:
     def get_declared(self, system: CompositeSystem) -> CompositeSystem:
         """Return a system tree whose plain elements declare what their laws show.
 
+        A probe declares every value as a state and collects the laws. When the probe fails on a space, its system tree,
+        or the system itself when the elements cannot even be probed, is returned, so the compiler reports the failure
+        with every other issue, such as a phase space above its limit or a tensor value without a space.
+
         Args:
             system:
                 The system.
@@ -764,7 +774,14 @@ class _StateInference:
         def probe(element: Element, path: str, space: BaseSpace | None) -> list[BaseElement]:
             return self._get_declared_elements(element, lambda name: 1, lambda name: 0, probing=True, space=space)
 
-        compilation = self.census(self._replace(system, probe))
+        try:
+            probed = self._replace(system, probe)
+        except SpaceError:
+            return system
+        try:
+            compilation = self.census(probed)
+        except SpaceError:
+            return probed
         orders, lags = self._get_orders(compilation)
         orders = dict.fromkeys(self._get_rule_reads(compilation), 1) | orders
         kinds = self._get_topology_kinds(compilation)
@@ -1199,6 +1216,7 @@ class _StateInference:
                 history=histories[name][1] if name in histories else None,
                 control=name in controls,
                 objects=self._holds_objects(value),
+                probing=probing,
             )
             annotation = element._get_hints().get(name, inspect.Parameter.empty)
             symmetric = self._get_symmetry(annotation) or self._holds_objects(value)
