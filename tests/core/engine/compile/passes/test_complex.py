@@ -201,7 +201,6 @@ def test_free_schrodinger_equation_keeps_the_norm():
     assert np.max(np.abs(norms / norms[0] - 1)) < 1e-8
 
 
-@pytest.mark.skip(reason='Engine gap: the derivative z.diff(t) of a complex state is not read as its order.')
 def test_complex_equation_and_event_split_into_parts():
     """Test that a second-order complex equation and an event on a complex state run on their parts."""
 

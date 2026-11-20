@@ -56,6 +56,7 @@ from ...specs import (
     VisualSpec,
 )
 from .._utils import binding_of, bound_labels, declarations_of
+from ..problems import ProblemSpec
 from ..problems._bilinear_law import BilinearLaw
 from ._compilation import Compilation
 
@@ -717,7 +718,8 @@ class _StateInference:
         balance, also when a constraint reads derivatives of other values, as the back electromotive force of a motor
         reads the speed of its rotor. A value that rate laws give a fractional derivative has its fractional order.
         A value whose derivative of order `k` a constraint reads has order `k` at least, as the charge of
-        `L q'' + R q' + q / C == 0`.
+        `L q'' + R q' + q / C == 0`. A law reads the derivative of a complex value `z` as the derivatives of its real
+        and imaginary parts, so they count as derivatives of `z`.
 
         Raises:
             ValidationError:
@@ -726,9 +728,10 @@ class _StateInference:
         census = Compilation._get_required(compilation.census, 'census')
         layout = Compilation._get_required(compilation.layout, 'layout')
         named = {
-            str(block.symbols[variable]): entry.name
+            str(item): entry.name
             for block in layout.blocks.values()
             for variable, entry in block.entries.items()
+            for item in (block.symbols[variable], *ProblemSpec._get_real_components_of(block.symbols[variable]))
         }
         orders: dict[str, float] = {}
         rates: dict[str, float] = {}
