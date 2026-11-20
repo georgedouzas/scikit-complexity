@@ -500,7 +500,8 @@ class Simulation(BaseConfig[None, float]):
     def _apply_schedule(self) -> None:
         """Set every scheduled and adaptive parameter to its value at the current time.
 
-        The value is that of its function.
+        The value is that of its function. A scheduled value of agents, such as `savers.rate`, is set on every agent of
+        its group.
 
         Raises:
             ParameterError:
@@ -517,6 +518,8 @@ class Simulation(BaseConfig[None, float]):
                 self.state_[indices] = self._check_value(name, entry, function(self.time_))
                 continue
             layout = self.problem_.parameters
+            if not layout.has(name) and self.stepper_._set_agent_values(name, function(self.time_)):
+                continue
             try:
                 entry, indices = layout.locate(name)
             except KeyError as error:

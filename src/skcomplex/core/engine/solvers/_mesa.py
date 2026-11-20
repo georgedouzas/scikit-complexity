@@ -1950,6 +1950,19 @@ class MesaSolver(ExternalSolver):
         if self._live is not None:
             self._live[indices] = value
 
+    def _set_agent_values(self, name: str, value: object) -> bool:
+        """Set a value of every agent of a group, such as `savers.rate`, and return whether the group has it.
+
+        The rules read it at once, as a value they changed.
+        """
+        path, _, state = name.rpartition('.')
+        spec = self._specs.get(path)
+        if spec is None or state not in spec.states:
+            return False
+        for agent in self._get_group_agents(path):
+            self._write(agent, state, value)
+        return True
+
     def _get_observable(self, name: str) -> object:
         """Return the current value of an observable of the problem.
 

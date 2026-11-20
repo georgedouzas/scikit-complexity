@@ -322,9 +322,6 @@ def test_simulation_same_random_state_is_reproducible():
     assert np.array_equal(first.states, second.states)
 
 
-@pytest.mark.skip(
-    reason='engine gap: the problem of agents bound to rules names no parameters, so none of their values is scheduled',
-)
 def test_simulation_agent_parameters_follow_the_schedule():
     """Test that a scheduled agent group parameter is read by the rules of the run."""
     saving = Interaction('saving', roles={'target': 'savers'}, laws=lambda s: [UpdateLaw(s.target, _save)])
@@ -488,10 +485,6 @@ def test_trajectory_values_shaped_parameter_has_its_shape():
     np.testing.assert_array_equal(values[-1], 2 * weights)
 
 
-@pytest.mark.skip(
-    reason='engine gap: a matrix parameter of an interaction is adaptive only through a TrainingInteraction, so no '
-    'plain system records it as an adaptive state',
-)
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 def test_trajectory_values_adaptive_shaped_parameter_of_an_interaction(backend):
     """Test that an adaptive matrix parameter of an interaction is recorded with its shape at every frame."""
