@@ -11,7 +11,7 @@ from lammps import lammps
 from sage.all__sagemath_symbolics import SR, arcsinh, exp, oo, sqrt
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction, PairInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import where
@@ -101,6 +101,7 @@ class ExponentialInteraction(PairInteraction):
             position=position,
             potential=self._get_pair_energy,
             period=period,
+            order=2,
         )
         self.eps = eps
         self.sigma = sigma
@@ -132,6 +133,7 @@ class StepwiseInteraction(PairInteraction):
             position=position,
             potential=self._get_pair_energy,
             period=period,
+            order=2,
         )
         self.contact = contact
 
@@ -156,7 +158,7 @@ def _lennard_jones_gas(n=100, interactions=(), space=None):
     """Return a Lennard-Jones gas on a lattice with random velocities, in an open plane or a given space."""
     velocities = np.random.default_rng(0).normal(0, 0.5, (n, 2))
     return CompositeSystem(
-        elements=[GroupElement('gas', element=BodyElement, size=n, values={'x': _lattice(n), 'x_d1': velocities})],
+        elements=[BodyElement('gas', x=_lattice(n), size=n, values={"x'": velocities})],
         interactions=[LennardJonesInteraction('lj', first='gas', second='gas', cutoff=CUTOFF), *interactions],
         space=space or ContinuousSpace(n_dim=2),
     )
@@ -182,7 +184,7 @@ def test_lammps_trajectory_has_native_names_and_shapes():
     """Test that a LAMMPS run returns the same state names and shapes as a native run."""
     native = _run(_lennard_jones_gas(), VelocityVerletSolver(dt=0.005), 0.2)
     external = _run(_lennard_jones_gas(), LammpsSolver(dt=0.005), 0.2)
-    for name in ('gas.x', 'gas.x_d1'):
+    for name in ('gas.x', "gas.x'"):
         assert external.get_values(name).shape == native.get_values(name).shape
 
 
@@ -206,8 +208,8 @@ def test_lammps_rejects_population_system():
 def test_lammps_rejects_pair_energy_without_lepton_form():
     """Test that a pair energy with a function Lepton does not know is reported as unsupported."""
     system = CompositeSystem(
-        elements=[GroupElement('gas', element=BodyElement, size=4, values={'x': _lattice(4)})],
-        interactions=[PairInteraction('hyperbolic', 'gas', 'gas', cutoff=1.0, potential=_hyperbolic)],
+        elements=[BodyElement('gas', x=_lattice(4), size=4)],
+        interactions=[PairInteraction('hyperbolic', 'gas', 'gas', cutoff=1.0, potential=_hyperbolic, order=2)],
         space=ContinuousSpace(n_dim=2),
     )
     with pytest.raises(BackendError, match='arcsinh has no Lepton'):
@@ -217,7 +219,7 @@ def test_lammps_rejects_pair_energy_without_lepton_form():
 def test_lammps_rejects_groups_with_different_masses():
     """Test that a group whose members have different values of the divisor is reported as unsupported."""
     system = CompositeSystem(
-        elements=[GroupElement('gas', element=BodyElement, size=2, values={'x': _lattice(2), 'm': [1.0, 2.0]})],
+        elements=[BodyElement('gas', x=_lattice(2), m=[1.0, 2.0], size=2)],
         interactions=[LennardJonesInteraction('lj', first='gas', second='gas', cutoff=CUTOFF, divisor='m')],
         space=ContinuousSpace(n_dim=2),
     )
@@ -229,18 +231,17 @@ def test_lammps_custom_pair_energy_matches_native_forces():
     """Test that a Lepton pair energy gives the native velocity change within 1e-8 relative error."""
     system = CompositeSystem(
         elements=[
-            GroupElement(
+            BodyElement(
                 'gas',
-                element=BodyElement,
+                x=_lattice(100) + np.random.default_rng(1).normal(0, 0.05, (100, 2)),
                 size=100,
-                values={'x': _lattice(100) + np.random.default_rng(1).normal(0, 0.05, (100, 2))},
             ),
         ],
         interactions=[ExponentialInteraction('exp', first='gas', second='gas', cutoff=CUTOFF, eps=2.0)],
         space=ContinuousSpace(n_dim=2),
     )
-    native = _run(system, VelocityVerletSolver(dt=1e-4), 1e-4, dt=1e-4).get_values('gas.x_d1')[-1]
-    external = _run(system, LammpsSolver(dt=1e-4), 1e-4, dt=1e-4).get_values('gas.x_d1')[-1]
+    native = _run(system, VelocityVerletSolver(dt=1e-4), 1e-4, dt=1e-4).get_values("gas.x'")[-1]
+    external = _run(system, LammpsSolver(dt=1e-4), 1e-4, dt=1e-4).get_values("gas.x'")[-1]
     assert np.allclose(external, native, rtol=1e-8, atol=1e-8 * np.abs(native).max())
 
 
@@ -248,18 +249,17 @@ def test_lammps_conditional_pair_energy_matches_native_forces():
     """Test that a pair energy with a condition on the distance gives the native velocity change in LAMMPS."""
     system = CompositeSystem(
         elements=[
-            GroupElement(
+            BodyElement(
                 'gas',
-                element=BodyElement,
+                x=_lattice(100) + np.random.default_rng(1).normal(0, 0.1, (100, 2)),
                 size=100,
-                values={'x': _lattice(100) + np.random.default_rng(1).normal(0, 0.1, (100, 2))},
             ),
         ],
         interactions=[StepwiseInteraction('contact', first='gas', second='gas', cutoff=CUTOFF)],
         space=ContinuousSpace(n_dim=2),
     )
-    native = _run(system, VelocityVerletSolver(dt=1e-4), 1e-4, dt=1e-4).get_values('gas.x_d1')[-1]
-    external = _run(system, LammpsSolver(dt=1e-4), 1e-4, dt=1e-4).get_values('gas.x_d1')[-1]
+    native = _run(system, VelocityVerletSolver(dt=1e-4), 1e-4, dt=1e-4).get_values("gas.x'")[-1]
+    external = _run(system, LammpsSolver(dt=1e-4), 1e-4, dt=1e-4).get_values("gas.x'")[-1]
     assert np.abs(native).max() > 0
     assert np.allclose(external, native, rtol=1e-10, atol=1e-10 * np.abs(native).max())
 
@@ -342,11 +342,11 @@ def test_lammps_runs_10000_atoms_in_real_time():
     n = 10_000
     system = CompositeSystem(
         elements=[
-            GroupElement(
+            BodyElement(
                 'gas',
-                element=BodyElement,
+                x=_lattice(n),
                 size=n,
-                values={'x': _lattice(n), 'x_d1': np.random.default_rng(0).normal(0, 1, (n, 2))},
+                values={"x'": np.random.default_rng(0).normal(0, 1, (n, 2))},
             ),
         ],
         interactions=[
