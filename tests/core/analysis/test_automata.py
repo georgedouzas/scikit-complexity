@@ -16,7 +16,7 @@ from sklearn.base import clone
 
 from skcomplex.core.analysis import automaton, entropy
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import Interaction, LocalRuleInteraction
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import (
     LinearRuleSpec,
     OuterTotalisticSpec,
@@ -576,7 +576,11 @@ def test_automaton_of_a_system_with_plain_cells():
     """Test that a `System` of plain cells with a local rule is an automaton, as its declared form is."""
     rule = LinearRuleSpec((1, 1), 'GF(2)')
     neighborhood = LatticeNeighborhood(((-1,), (1,)))
-    interaction = LocalRuleInteraction('rule', target='cells', state='alive', rule=rule, neighborhood=neighborhood)
+    interaction = Interaction(
+        'rule',
+        roles={'target': 'cells'},
+        laws=lambda s: [UpdateLaw(s.target.alive, rule, neighborhood=neighborhood)],
+    )
     system = System(elements=[Element('cells', values={'alive': 0}, space=LatticeSpace(7))], interactions=[interaction])
     assert _automaton('surjective', system, infinite=True).surjective
     assert not _automaton('injective', system, infinite=True).injective
