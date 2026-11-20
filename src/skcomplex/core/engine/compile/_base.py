@@ -55,8 +55,10 @@ FIXES: dict[type[SkcomplexError], tuple[str, str]] = {
     TensorSymmetryError: ('tensor-symmetry', 'Give the state a rate of its declared symmetry.'),
 }
 
+type Composite = CompositeSystem
 
-class BaseCompiler(BaseConfig[CompositeSystem, Mapping[str, object]]):
+
+class BaseCompiler(BaseConfig[Composite, Mapping[str, object]]):
     """An abstract compiler of a system into a problem of one mathematical form.
 
     `prepare(system)` validates the settings and the system and sets `report_`, the issues it finds,
@@ -91,7 +93,7 @@ class BaseCompiler(BaseConfig[CompositeSystem, Mapping[str, object]]):
             the default solver of the problem's form.
     """
 
-    system_: CompositeSystem
+    system_: Composite
     report_: ValidationReportSpec
     problem_: BaseProblemSpec
     solver_: object
@@ -106,7 +108,7 @@ class BaseCompiler(BaseConfig[CompositeSystem, Mapping[str, object]]):
         self.solver = solver
         self.observables = observables
 
-    def _prepare(self, context: CompositeSystem | None) -> None:
+    def _prepare(self, context: Composite | None) -> None:
         """Attach the observables to a system and set the issues it finds.
 
         It first raises an error for a wrong backend or observable. The backend must be a backend and every observable
@@ -167,7 +169,7 @@ class BaseCompiler(BaseConfig[CompositeSystem, Mapping[str, object]]):
         """Return the system with declarations for its plain elements."""
         return system
 
-    def _get_issues(self, system: CompositeSystem) -> list[IssueSpec]:
+    def _get_issues(self, system: Composite) -> list[IssueSpec]:
         """Return the issues of a system that the compiler finds before compiling it.
 
         Args:
