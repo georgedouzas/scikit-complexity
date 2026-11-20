@@ -359,7 +359,7 @@ class MinorityGameSystem(BaseSystem):
             options=(0.0, 1.0),
             utility=lambda agent, system, option: agent.second_score if option else agent.first_score,
             rule='best',
-            form='agent',
+            schedule='synchronous',
             phase='choose',
         )
         game = MinorityGameInteraction('game', players='players', memory=self.memory, phase='play')
@@ -369,7 +369,7 @@ class MinorityGameSystem(BaseSystem):
             scores=('first_score', 'second_score'),
             payoff=game.get_payoff,
             rule='cumulative',
-            form='agent',
+            schedule='synchronous',
             phase='score',
         )
         evolution = EvolutionInteraction(

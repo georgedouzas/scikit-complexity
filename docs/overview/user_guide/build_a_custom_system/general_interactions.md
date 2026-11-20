@@ -400,7 +400,7 @@ system.simulate(until=3).get_values('quote.x').tolist()
 
 The quote rises from 1.0 to 1.5 and to 2.0, where the signal `2 - x` vanishes, and it stays there. The next value is
 `x (1 + step sign(signal))` kept within `[lower, upper]`. Economics names this search `PriceAdjustmentInteraction`,
-with an additive stepping and an agent form.
+with an additive stepping and a schedule that walks the agents.
 
 A cellular automaton updates each cell from the cells around it by a fixed rule. An
 [`UpdateLaw`](../core_components/laws.md#updatelaw) with a `neighborhood` runs one, and here its
@@ -797,7 +797,7 @@ round(float(first), 2), round(float(second), 2)
 After ten steps the scores are 1.0 and 2.0, the payoffs of the two options.
 
 Each score moves by `rate (payoff - score)`. Economics names this learning `PayoffLearningInteraction`, with the
-average and cumulative rules, a chosen option, and an agent form.
+average and cumulative rules, a chosen option, and a schedule that walks the agents.
 
 ## Agents, groups, and exchange
 

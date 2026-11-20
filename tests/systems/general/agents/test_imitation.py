@@ -47,11 +47,11 @@ class PeerImitationInteraction(ImitationInteraction):
         label: str,
         *,
         peers: Role,
-        openness: float = 1.0,
+        openness: float | None = None,
         rule: str = 'random',
-        form: str = 'rate',
+        schedule: str | None = None,
     ) -> None:
-        super().__init__(label, target=peers, rule=rule, form=form)
+        super().__init__(label, target=peers, rule=rule, schedule=schedule)
         self.peers = peers
         self.openness = openness
 
@@ -84,7 +84,7 @@ def _grid_players(space: BaseSpace) -> Element:
 
 def _final(space, values, rule, until, seed=0, **arguments):
     """Return the strategies after imitation by a rule for some time, in continuous or in discrete time."""
-    discrete = arguments.get('form') == 'probability'
+    discrete = arguments.get('probability') is not None
     system = System(
         elements=[PlayerElement('players', size=len(values['state']), space=space, **values)],
         interactions=[ImitationInteraction('imitation', target='players', rule=rule, **arguments)],
@@ -140,7 +140,6 @@ def test_voters_in_discrete_time_reach_consensus_with_the_initial_fraction_as_pr
             'random',
             2000.0,
             seed,
-            form='probability',
             probability=0.5,
         )
         for seed in range(DISCRETE_RUNS)
@@ -153,7 +152,7 @@ def test_voters_in_discrete_time_reach_consensus_with_the_initial_fraction_as_pr
 def test_fermi_copies_with_the_probability_of_the_payoff_difference():
     """Test that in one step a member copies a neighbour with probability `p / (1 + exp(-beta (P_j - P_i)))`."""
     values = _alternating(20000)
-    final = _final(LatticeSpace(20000), values, 'fermi', 1.0, form='probability', probability=0.8, intensity=1.0)
+    final = _final(LatticeSpace(20000), values, 'fermi', 1.0, probability=0.8, intensity=1.0)
     switched = final != values['state']
     assert switched[::2].mean() == pytest.approx(0.8 * expit(1.0), abs=0.015)
     assert switched[1::2].mean() == pytest.approx(0.8 * expit(-1.0), abs=0.015)
@@ -180,7 +179,7 @@ def test_fermi_copies_a_random_neighbour_with_the_fermi_probability_from_either_
                 payoff=strategies.ravel(),
             ),
         ],
-        interactions=[ImitationInteraction('imitation', target='players', rule='fermi', form='probability')],
+        interactions=[ImitationInteraction('imitation', target='players', rule='fermi', probability=1.0)],
     )
     trajectory = system.prepare().simulate(1.0, dt=1.0, random_state=SEED)
     final = trajectory.get_values('players.state')[-1].reshape(strategies.shape)
@@ -197,7 +196,7 @@ def test_agents_copy_a_random_neighbour_with_the_fermi_probability_from_either_s
     group = _agents(space, _cells(cells), state=strategies.ravel(), payoff=strategies.ravel())
     system = System(
         elements=[group],
-        interactions=[ImitationInteraction('imitation', target='players', rule='fermi', form='agent')],
+        interactions=[ImitationInteraction('imitation', target='players', rule='fermi', schedule='synchronous')],
     )
     trajectory = system.prepare().simulate(1, random_state=SEED)
     final = np.asarray(trajectory.get_agents('players', 1).values['state'], dtype=float).reshape(strategies.shape)
@@ -217,7 +216,7 @@ def test_fermi_copies_at_the_rate_times_the_fermi_probability():
 def test_majority_in_discrete_time_flips_a_member_whose_neighbours_agree():
     """Test that in discrete time a member whose two neighbours on a ring hold the other option takes it."""
     initial = np.array([1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0], dtype=float)
-    final = _final(LatticeSpace(12), {'state': initial}, 'majority', 3.0, form='probability')
+    final = _final(LatticeSpace(12), {'state': initial}, 'majority', 3.0, probability=1.0)
     assert final.tolist() == [1.0] * 7 + [0.0] * 5
 
 
@@ -225,18 +224,18 @@ def test_best_in_discrete_time_climbs_to_the_local_payoff_maximum():
     """Test that in discrete time every member ends with the strategy of the payoff maximum it climbs to."""
     payoffs = np.array([0.0, 1.0, 2.0, 3.0, 2.0, 1.0, 0.0, 5.0])
     strategies = np.array([0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0])
-    final = _final(LatticeSpace(8), {'state': strategies, 'payoff': payoffs}, 'best', 10.0, form='probability')
+    final = _final(LatticeSpace(8), {'state': strategies, 'payoff': payoffs}, 'best', 10.0, probability=1.0)
     assert final.tolist() == [0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0]
 
 
 @pytest.mark.parametrize('rule', ['best', 'better'])
-def test_agents_copy_the_neighbour_of_larger_payoff_in_the_agent_form(rule):
+def test_agents_copy_the_neighbour_of_larger_payoff_with_a_schedule(rule):
     """Test that agents on a grid copy only a neighbour of larger payoff, so the option spreads to its neighbours."""
     cells = [(x, y) for x in range(3) for y in range(3)]
     payoffs = np.array([4.0 if cell == (1, 1) else 0.0 for cell in cells])
     space = LatticeSpace((3, 3), boundary='periodic', metric='manhattan')
     group = _agents(space, _cells(cells), state=(payoffs > 0).astype(float), payoff=payoffs)
-    imitation = ImitationInteraction('imitation', target='players', rule=rule, form='agent')
+    imitation = ImitationInteraction('imitation', target='players', rule=rule, schedule='synchronous')
     system = System(elements=[group], interactions=[imitation])
     trajectory = system.prepare().simulate(30, random_state=0)
     final = dict(zip(cells, trajectory.get_agents('players', 30).values['state'], strict=True))
@@ -247,13 +246,11 @@ def test_agents_copy_the_neighbour_of_larger_payoff_in_the_agent_form(rule):
     ('arguments', 'match'),
     [
         ({'rule': 'copy'}, 'Unknown rule'),
-        ({'form': 'events'}, 'form of imitation'),
         ({'options': (1.0, 1.0)}, 'two distinct'),
-        ({'rule': 'better'}, 'agent form only'),
-        ({'schedule': 'member'}, 'only the agent form'),
-        ({'ties': 'random'}, 'only the agent form'),
-        ({'ties': 'nearest', 'form': 'agent'}, 'Unknown ties'),
-        ({'schedule': 'parallel', 'form': 'agent'}, 'Unknown schedule'),
+        ({'rule': 'better'}, 'with a schedule only'),
+        ({'ties': 'random'}, 'only a rule of a schedule'),
+        ({'ties': 'nearest', 'schedule': 'synchronous'}, 'Unknown ties'),
+        ({'schedule': 'parallel'}, 'Unknown schedule'),
     ],
 )
 def test_check_rejects_unknown_rules_and_equal_options(arguments, match):
@@ -262,13 +259,13 @@ def test_check_rejects_unknown_rules_and_equal_options(arguments, match):
         ImitationInteraction('imitation', target='players', **arguments).prepare()
 
 
-@pytest.mark.parametrize(('rule', 'form'), [('random', 'rate'), ('best', 'rate'), ('fermi', 'probability')])
-def test_get_laws_reads_a_renamed_target_and_probability(rule, form):
+@pytest.mark.parametrize(('rule', 'probability'), [('random', None), ('best', None), ('fermi', 0.5)])
+def test_get_laws_reads_a_renamed_target_and_probability(rule, probability):
     """Test that an imitation that binds `peers` and calls its probability `openness` gives the plain trajectory."""
     finals = []
     for imitation in (
-        ImitationInteraction('imitation', target='players', rule=rule, form=form, probability=0.5),
-        PeerImitationInteraction('imitation', peers='players', rule=rule, form=form, openness=0.5),
+        ImitationInteraction('imitation', target='players', rule=rule, probability=probability),
+        PeerImitationInteraction('imitation', peers='players', rule=rule, openness=probability),
     ):
         system = System(
             elements=[PlayerElement('players', size=10, space=LatticeSpace(10), **_alternating(10))],
@@ -280,13 +277,13 @@ def test_get_laws_reads_a_renamed_target_and_probability(rule, form):
 
 
 @pytest.mark.parametrize('rule', ['random', 'best', 'fermi'])
-def test_imitate_reads_a_renamed_target_and_probability_in_the_agent_form(rule):
+def test_imitate_reads_a_renamed_target_and_probability_with_a_schedule(rule):
     """Test that agent imitation that binds `peers` and names its probability `openness` runs as the plain one."""
     space = LatticeSpace((3, 3), boundary='periodic', metric='manhattan')
     finals = []
     for imitation in (
-        ImitationInteraction('imitation', target='players', rule=rule, form='agent', probability=0.5),
-        PeerImitationInteraction('imitation', peers='players', rule=rule, form='agent', openness=0.5),
+        ImitationInteraction('imitation', target='players', rule=rule, schedule='synchronous', probability=0.5),
+        PeerImitationInteraction('imitation', peers='players', rule=rule, schedule='synchronous', openness=0.5),
     ):
         system = System(elements=[_grid_players(space)], interactions=[imitation])
         trajectory = system.prepare().simulate(10, random_state=SEED)
@@ -303,7 +300,6 @@ def _chain(schedule: str, seed: int, ties: str = 'first', payoffs: tuple[float, 
         'imitation',
         target='players',
         rule='best',
-        form='agent',
         schedule=schedule,
         ties=ties,
     )
@@ -334,7 +330,7 @@ def test_agent_imitation_reads_the_neighbours_of_its_layer():
     work.add_node(1)
     space = NetworkSpace(nx.path_graph(3), layers=[LayerSpec('work', work)])
     group = _agents(space, {'node': [0, 1, 2]}, state=[1.0, 0.0, 0.0])
-    imitation = ImitationInteraction('imitation', target='players', form='agent', layer='work')
+    imitation = ImitationInteraction('imitation', target='players', schedule='synchronous', layer='work')
     system = System(elements=[group], interactions=[imitation])
     trajectory = system.prepare().simulate(1, random_state=0)
     assert trajectory.get_agents('players', 1).values['state'].tolist() == [0.0, 0.0, 1.0]

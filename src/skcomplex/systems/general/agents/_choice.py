@@ -25,7 +25,6 @@ from ....core.specs import BaseSpec
 from ....core.types import Role
 
 RULES = ('logit', 'metropolis', 'fermi', 'best')
-FORMS = ('symbolic', 'agent')
 PROPOSALS = ('others', 'all')
 TIES = ('random', 'first')
 MIN_OPTIONS = 2
@@ -43,12 +42,12 @@ class ChoiceInteraction(Interaction):
       `1 / (1 + exp(-beta (u_new - u_old)))`.
     - `'best'`: an option of largest utility, with ties broken by `ties`.
 
-    In the symbolic form `utility(namespace, option)` returns an expression, and every member draws at once. In the
-    agent form `utility(agent, system, option)` returns a number, the members draw by `schedule`, and an option of
-    utility `-inf` is never drawn.
+    Without a `schedule` it sets update laws: `utility(namespace, option)` returns an expression, and every member
+    draws at once. With a `schedule` it sets one rule of the whole system that walks the agents in that order with its
+    own draws: `utility(agent, system, option)` returns a number, and an option of utility `-inf` is never drawn.
 
-    Unlike `TransitionInteraction`, which moves a state between values by given rates, it draws the new value from the
-    utilities of all options at once. Choose it when members pick the option that pays best, with noise.
+    Unlike a `JumpLaw`, which moves a state between values by given rates, it draws the new value from the utilities of
+    all options at once. Choose it when members pick the option that pays best, with noise.
 
     It appears in many fields. Commuters choose a mode of transport, consumers choose a brand, farmers choose a crop,
     and voters choose a party by a logit model of discrete choice.
@@ -67,8 +66,8 @@ class ChoiceInteraction(Interaction):
             The values the state can take, at least two.
 
         utility:
-            The function `utility(namespace, option)` in the symbolic form, or `utility(agent, system, option)` in the
-            agent form, that returns the utility of an option.
+            The function `utility(namespace, option)` without a schedule, or `utility(agent, system, option)` with one,
+            that returns the utility of an option.
 
         rule:
             The rule of the draw, `'logit'`, `'metropolis'`, `'fermi'`, or `'best'`.
@@ -77,17 +76,15 @@ class ChoiceInteraction(Interaction):
             The intensity of choice `beta`, zero for uniform choice.
 
         schedule:
-            The order in which the members revise, `'synchronous'` or, in the agent form, `'sequential'`,
-            `'random-sequential'`, or `'member'`.
+            The order in which a rule walks the agents, `'synchronous'` for every agent at once, `'sequential'` or
+            `'random-sequential'` for one agent after the other, or `'member'` for every agent in its own activation,
+            or `None` for update laws of the states of every member.
 
         activity:
             The probability that a member revises its choice in a step.
 
-        form:
-            `'symbolic'` for update laws of the states of a group, or `'agent'` for a rule over an agent group.
-
         phase:
-            The phase of the step the agent form runs in, or `None` for the default phase.
+            The phase of the step the rule of a schedule runs in, or `None` for the default phase.
 
         proposal:
             The options the rules `'metropolis'` and `'fermi'` propose from, `'others'` for the options other than the
@@ -99,8 +96,8 @@ class ChoiceInteraction(Interaction):
 
     Raises:
         ValidationError:
-            The rule, the schedule, the form, the proposal, or the ties are unknown, the schedule is not synchronous in
-            the symbolic form, there are fewer than two options, or the utility is not callable.
+            The rule, the schedule, the proposal, or the ties are unknown, there are fewer than two options, or the
+            utility is not callable.
 
     Examples:
         >>> from skcomplex.systems.general.agents import ChoiceInteraction
@@ -111,7 +108,8 @@ class ChoiceInteraction(Interaction):
         >>> choice.rule
         'logit'
         >>> agents = ChoiceInteraction(
-        ...     'choice', target='traders', state='plan', options=(0, 1), utility=lambda a, m, o: o, form='agent'
+        ...     'choice', target='traders', state='plan', options=(0, 1), utility=lambda a, m, o: o,
+        ...     schedule='synchronous',
         ... )
         >>> type(agents.prepare(SimpleNamespace(target=SimpleNamespace())).laws_[0]).__name__
         'UpdateLaw'
@@ -142,9 +140,8 @@ class ChoiceInteraction(Interaction):
         utility: Callable[..., float | Expression],
         rule: str = 'logit',
         intensity: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
-        schedule: str = 'synchronous',
+        schedule: str | None = None,
         activity: Annotated[float, RealSet.closed(0, 1)] = 1.0,
-        form: str = 'symbolic',
         phase: str | None = None,
         proposal: str = 'others',
         ties: str = 'random',
@@ -158,29 +155,21 @@ class ChoiceInteraction(Interaction):
         self.intensity = intensity
         self.schedule = schedule
         self.activity = activity
-        self.form = form
         self.phase = phase
         self.proposal = proposal
         self.ties = ties
 
     def _check_variants(self) -> None:
-        """Raise an error for an unknown variant or a symbolic choice not synchronous."""
+        """Raise an error for an unknown variant."""
         self._check_variant('rule', self.rule, RULES, (BaseSpec,))
         for name, value, variants in (
-            ('schedule', self.schedule, tuple(ScheduleKind)),
-            ('form', self.form, FORMS),
+            ('schedule', self.schedule, (None, *ScheduleKind)),
             ('proposal', self.proposal, PROPOSALS),
             ('ties', self.ties, TIES),
         ):
             if value not in variants:
                 error_msg = f'Unknown {name} {value!r} of {self.label!r}. Use one of {variants}.'
                 raise ValidationError(error_msg)
-        if self.form == 'symbolic' and self.schedule != 'synchronous':
-            error_msg = (
-                f'{self.label!r} has the schedule {self.schedule!r}, which only the agent form runs. Use '
-                "form='agent' or schedule='synchronous'."
-            )
-            raise ValidationError(error_msg)
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for an unknown variant, fewer than two options, or a bad utility.
@@ -191,9 +180,8 @@ class ChoiceInteraction(Interaction):
 
         Raises:
             ValidationError:
-                The type declares states, the rule, the schedule, the form, the proposal, or the ties are unknown, the
-                schedule is not synchronous in the symbolic form, there are fewer than two options, or the utility is
-                not callable.
+                The type declares states, the rule, the schedule, the proposal, or the ties are unknown, there are fewer
+                than two options, or the utility is not callable.
         """
         super()._prepare(context)
         self._check_variants()
@@ -329,18 +317,18 @@ class ChoiceInteraction(Interaction):
     def choose(self, system: SystemViewProtocol) -> None:
         """Set the state of every revising agent to the option it draws, by the schedule.
 
-        An agent revises in this step.
+        An agent revises in this step. Without a schedule every agent draws at once.
 
         Args:
             system:
                 The system view of the interaction.
         """
-        self._update_agents(system, self.schedule, self._get_choice, self._set_choice)
+        self._update_agents(system, self.schedule or 'synchronous', self._get_choice, self._set_choice)
 
     def _get_choice_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
-        """Return the update of the state of every revising member, or the agent-form rule.
+        """Return the update of the state of every revising member, or the rule of the schedule.
 
-        The agent form returns its rule instead.
+        With a schedule it returns the rule that walks the agents instead.
 
         Args:
             namespace:
@@ -351,9 +339,9 @@ class ChoiceInteraction(Interaction):
             laws:
                 The update law of the state, or the rule that runs the choice of the agents.
         """
-        if self.form == 'agent' and self.schedule == 'member':
+        if self.schedule == 'member':
             return [UpdateLaw(self._get_member(namespace, 'target'), self._choose_member, phase=self.phase)]
-        if self.form == 'agent':
+        if self.schedule is not None:
             return [UpdateLaw(namespace, self.choose, phase=self.phase)]
         state = getattr(self._get_member(namespace, 'target'), self.state)
         revised = where(

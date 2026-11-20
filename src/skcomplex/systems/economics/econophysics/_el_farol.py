@@ -436,7 +436,7 @@ class ElFarolSystem(BaseSystem):
             scores='errors',
             payoff=ForecastingInteraction.get_error,
             rate=1 - self.discount,
-            form='agent',
+            schedule='synchronous',
             phase='learn',
         )
         choice = ChoiceInteraction(
@@ -446,7 +446,7 @@ class ElFarolSystem(BaseSystem):
             options=(0.0, 1.0),
             utility=lambda agent, system, option: option if agent.forecast < agent.capacity else -option,
             rule='best',
-            form='agent',
+            schedule='synchronous',
             phase='decide',
         )
         self.system_ = System(

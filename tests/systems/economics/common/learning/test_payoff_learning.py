@@ -95,7 +95,7 @@ def test_reinforcement_interaction_agent_scores_steer_a_best_choice():
         scores=('first', 'second'),
         payoff=_agent_payoff,
         rate=0.5,
-        form='agent',
+        schedule='synchronous',
     )
     choice = ChoiceInteraction(
         'choice',
@@ -104,7 +104,7 @@ def test_reinforcement_interaction_agent_scores_steer_a_best_choice():
         options=(0, 1),
         utility=lambda agent, system, option: agent.second if option == 1 else agent.first,
         rule='best',
-        form='agent',
+        schedule='synchronous',
     )
     trajectory = _run([reinforcement, choice], {'value': np.array([0.5, 3.0])}, 2, 4)
     frame = trajectory.get_agents('learners', 4).values
@@ -126,14 +126,14 @@ def test_reinforcement_interaction_cumulative_rule_adds_the_payoffs():
 
 
 def test_reinforcement_interaction_reinforces_the_components_of_a_vector_state():
-    """Test that the agent form reinforces every component of a vector state of scores, one per option."""
+    """Test that a rule of a schedule reinforces every component of a vector state of scores, one per option."""
     reinforcement = PayoffLearningInteraction(
         'reinforcement',
         target='pool',
         scores='scores',
         payoff=lambda agent, system, index: float(index),
         rate=0.5,
-        form='agent',
+        schedule='synchronous',
     )
     group = PoolElement('pool', scores=np.zeros((1, 4)), size=1)
     system = System(elements=[group], interactions=[reinforcement])
@@ -145,18 +145,15 @@ def test_reinforcement_interaction_reinforces_the_components_of_a_vector_state()
 @pytest.mark.parametrize(
     ('arguments', 'message'),
     [
-        ({'form': 'table'}, 'Unknown form'),
         ({'rule': 'median'}, 'Unknown rule'),
         ({'scores': 'first'}, 'sequence of state names'),
         ({'scores': ()}, 'sequence of state names'),
         ({'payoff': 1.0}, 'must be callable'),
         ({'schedule': 'parallel'}, 'Unknown schedule'),
-        ({'schedule': 'member'}, 'runs agent rules'),
-        ({'schedule': 'sequential'}, 'runs agent rules'),
     ],
 )
 def test_check_rejects_invalid_arguments(arguments, message):
-    """Test that an unknown form, missing scores, or a payoff that is not callable is rejected."""
+    """Test that an unknown rule or schedule, missing scores, or a payoff that is not callable is rejected."""
     values = {'target': 'learners', 'scores': ('first', 'second'), 'payoff': lambda s, k: k, **arguments}
     with pytest.raises(ValidationError, match=message):
         PayoffLearningInteraction('reinforcement', **values).prepare()
@@ -193,7 +190,6 @@ def test_reinforcement_interaction_sequential_schedule_reads_the_scores_set_befo
         payoff=_scarce_payoff,
         rule='cumulative',
         schedule=schedule,
-        form='agent',
     )
     assert _run([reinforcement], {}, 2, 1).get_agents('learners', 1).values['second'].tolist() == expected
 
@@ -208,7 +204,6 @@ def test_reinforcement_interaction_members_reinforce_their_chosen_option_in_thei
         utility=lambda agent, system, option: float(option),
         rule='best',
         schedule='member',
-        form='agent',
     )
     reinforcement = PayoffLearningInteraction(
         'reinforcement',
@@ -218,7 +213,6 @@ def test_reinforcement_interaction_members_reinforce_their_chosen_option_in_thei
         rate=0.5,
         chosen='choice',
         schedule='member',
-        form='agent',
     )
     frame = _run([choice, reinforcement], {'value': 4.0}, 3, 2).get_agents('learners', 2).values
     assert frame['choice'].tolist() == [1.0, 1.0, 1.0]

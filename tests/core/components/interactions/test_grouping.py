@@ -354,7 +354,7 @@ def test_get_laws_symbolic_phases_imitate_the_payoffs_of_the_same_step(backend):
         function=_public_good,
         phase='play',
     )
-    imitation = ImitationInteraction('imitation', target='players', rule='best', form='probability', phase='imitate')
+    imitation = ImitationInteraction('imitation', target='players', rule='best', probability=1.0, phase='imitate')
     time = DiscreteTime(schedule=PhasesScheduleSpec((PhaseSpec('play'), PhaseSpec('imitate'))))
     system = CompositeSystem(elements=[players], interactions=[payoffs, imitation], time=time)
     trajectory = simulate(system, until=3, random_state=0, backend=backend)

@@ -24,7 +24,6 @@ from ....core.types import Role
 from .types import Stoichiometry
 
 MODES = ('rate', 'jump', 'langevin')
-FORMS = ('symbolic', 'agent')
 AGENT_MODES = ('rate', 'jump')
 ENTRY_SIZE = 2
 
@@ -50,7 +49,8 @@ class ReactionInteraction(Interaction):
     - `'langevin'`: the chemical Langevin equation, the rate equation with a noise of amplitude the square root of the
       propensity.
 
-    In the agent form every member of an agent group reacts on its own states at every step, by `schedule`.
+    With a `schedule` it sets one rule that walks the members of an agent group in that order, and every member reacts
+    on its own states at every step.
 
     Unlike `Interaction`, which takes laws written by hand, it builds the changes from a stoichiometric vector and the
     propensity from mass action, and the same reaction runs as a rate, a jump, or a Langevin equation. Choose it when a
@@ -79,7 +79,7 @@ class ReactionInteraction(Interaction):
             A function of the namespace of the reaction that returns the propensity, or `None` for the product
             propensity. The namespace holds the tuples `reactants`, `products`, and `modifiers` of the namespaces of the
             elements their pairs bind, in the order of their entries, `target`, the namespace of the target or of one of
-            its members, and the symbol `k`. In the agent form, a function `propensity(agent, system)` that returns a
+            its members, and the symbol `k`. With a schedule, a function `propensity(agent, system)` that returns a
             number.
 
         modifiers:
@@ -89,23 +89,20 @@ class ReactionInteraction(Interaction):
         mode:
             The form of the laws, `'rate'`, `'jump'`, or `'langevin'`.
 
-        form:
-            `'symbolic'` for the laws of the states, or `'agent'` for a rule in which every member of an agent group
-            reacts on its own states.
-
         phase:
-            The phase of the step the agent form runs in, or `None` for the default phase.
+            The phase of the step the rule of a schedule runs in, or `None` for the default phase.
 
         schedule:
-            The order of the members in the agent form, `'synchronous'`, `'sequential'`, `'random-sequential'`, or
-            `'member'`.
+            The order in which a rule walks the members, `'synchronous'` for every member at once, `'sequential'` or
+            `'random-sequential'` for one member after the other, or `'member'` for every member in its own activation,
+            or `None` for the laws of the states.
 
     Raises:
         ValidationError:
-            The mode, the form, or the schedule is unknown, the symbolic form is not synchronous, the reaction has
-            neither reactants nor products, an entry is neither a pair of a path and a state name nor a state name of a
-            given target, a coefficient is neither a positive number nor a function, or the agent form has no target,
-            has an entry that is a pair, or has the mode `'langevin'`.
+            The mode or the schedule is unknown, the reaction has neither reactants nor products, an entry is neither a
+            pair of a path and a state name nor a state name of a given target, a coefficient is neither a positive
+            number nor a function, or a reaction with a schedule has no target, has an entry that is a pair, or has
+            the mode `'langevin'`.
 
     Examples:
         >>> from skcomplex.core.systems import System
@@ -147,7 +144,7 @@ class ReactionInteraction(Interaction):
         Every agent of a group decays on its own states, by `k n` in a step of the rate equation:
 
         >>> cells = Element('cells', values={'n': 3.0}, size=2)
-        >>> decay = ReactionInteraction('decay', target='cells', reactants={'n': 1}, k=0.1, form='agent')
+        >>> decay = ReactionInteraction('decay', target='cells', reactants={'n': 1}, k=0.1, schedule='synchronous')
         >>> trajectory = System(elements=[cells], interactions=[decay]).prepare().simulate(until=2)
         >>> np.round(trajectory.get_agents('cells', 2).values['n'], 6).tolist()
         [2.43, 2.43]
@@ -156,11 +153,11 @@ class ReactionInteraction(Interaction):
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw, NoiseLaw, JumpLaw, UpdateLaw)
 
     def _get_tags(self) -> Tags:
-        """Return the tags of the agent-form rules, or the laws of the symbolic one.
+        """Return the tags of the rule of a schedule, or of the laws without one.
 
-        The laws of the symbolic form are rate, jump, or Langevin laws.
+        The laws without a schedule are rate, jump, or Langevin laws.
         """
-        if self._get_argument('form') == 'agent':
+        if self._get_argument('schedule') is not None:
             return self._get_variant_tags((UpdateLaw,), stochastic=self._get_mode() == 'jump')
         modes: dict[object, tuple[type[BaseLaw], ...]] = {'jump': (JumpLaw,), 'langevin': (RateLaw, NoiseLaw)}
         return self._get_variant_tags(modes.get(self._get_mode(), (RateLaw,)))
@@ -176,9 +173,8 @@ class ReactionInteraction(Interaction):
         propensity: Callable[..., object] | None = None,
         modifiers: Stoichiometry | None = None,
         mode: str = 'rate',
-        form: str = 'symbolic',
         phase: str | None = None,
-        schedule: str = 'synchronous',
+        schedule: str | None = None,
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -188,7 +184,6 @@ class ReactionInteraction(Interaction):
         self.propensity = propensity
         self.modifiers = modifiers
         self.mode = mode
-        self.form = form
         self.phase = phase
         self.schedule = schedule
 
@@ -348,46 +343,44 @@ class ReactionInteraction(Interaction):
             )
             raise ValidationError(error_msg)
 
-    def _check_form(self) -> None:
-        """Raise an error for an unknown form, or a bad agent form.
+    def _check_schedule(self) -> None:
+        """Raise an error for an unknown schedule, or a bad reaction with one.
 
-        A bad agent form has no target, has pairs, or is of Langevin mode.
+        A bad reaction with a schedule has no target, has pairs, or is of Langevin mode.
         """
-        if self.form not in FORMS:
-            error_msg = f'Reaction {self.label!r} has the form {self.form!r}. Use one of {", ".join(FORMS)}.'
-            raise ValidationError(error_msg)
-        self._check_variant('schedule', self.schedule, ScheduleKind)
-        if self.form != 'agent' and self.schedule != 'synchronous':
-            error_msg = f'The schedule {self.schedule!r} of reaction {self.label!r} runs agent rules. Use form="agent".'
-            raise ValidationError(error_msg)
-        if self.form != 'agent':
+        if self.schedule is None:
             return
+        self._check_variant('schedule', self.schedule, ScheduleKind)
         if self.target is None:
-            error_msg = f'Reaction {self.label!r} has the agent form but no target. Give the agent group as `target`.'
+            error_msg = (
+                f'Reaction {self.label!r} has the schedule {self.schedule!r} but no target. Give the agent group as '
+                '`target`.'
+            )
             raise ValidationError(error_msg)
         mode = self._get_mode()
         if mode not in AGENT_MODES:
             error_msg = (
-                f'Reaction {self.label!r} has the agent form and the mode {mode!r}. Use {" or ".join(AGENT_MODES)}.'
+                f'Reaction {self.label!r} has the schedule {self.schedule!r} and the mode {mode!r}. Use '
+                f'{" or ".join(AGENT_MODES)}.'
             )
             raise ValidationError(error_msg)
         entries = [*(self._get_reactants() or {}), *(self._get_products() or {}), *(self._get_modifiers() or {})]
         if not all(isinstance(entry, str) for entry in entries):
             error_msg = (
-                f'Reaction {self.label!r} has the agent form, whose species are states of every member. Name them by '
+                f'Reaction {self.label!r} has a schedule, so its species are states of every member. Name them by '
                 'state names alone, such as {"n": 1}.'
             )
             raise ValidationError(error_msg)
 
     def _check_jump(self) -> None:
-        """Raise an error for an unknown mode or form, no entries, or bad entries.
+        """Raise an error for an unknown mode or schedule, no entries, or bad entries.
 
         Raises:
             ValidationError:
-                The mode or the form is unknown, the reaction has neither reactants nor products, an entry is neither a
-                pair of a path and a state name nor a state name of a given target, a coefficient is neither a positive
-                number nor a function, or the agent form has no target, has an entry that is a pair, or has the mode
-                `'langevin'`.
+                The mode or the schedule is unknown, the reaction has neither reactants nor products, an entry is
+                neither a pair of a path and a state name nor a state name of a given target, a coefficient is neither a
+                positive number nor a function, or a reaction with a schedule has no target, has an entry that is a
+                pair, or has the mode `'langevin'`.
         """
         mode = self._get_mode()
         if mode not in MODES:
@@ -399,7 +392,7 @@ class ReactionInteraction(Interaction):
             raise ValidationError(error_msg)
         for name, entries in (('reactants', reactants), ('products', products), ('modifiers', self._get_modifiers())):
             self._check_entries(name, entries)
-        self._check_form()
+        self._check_schedule()
 
     def _get_number(self, value: object, agent: AgentViewProtocol, system: SystemViewProtocol) -> float:
         """Return a number, or the value of a function of an agent and the system.
@@ -467,13 +460,13 @@ class ReactionInteraction(Interaction):
             self._apply_agent_step(agent, self._get_agent_step(agent, system))
 
     def react(self, system: SystemViewProtocol) -> None:
-        """React in every agent of the target on its own states, by the schedule.
+        """React in every agent of the target on its own states, by the schedule or at once without one.
 
         Args:
             system:
                 The system view of the interaction.
         """
-        self._update_agents(system, self.schedule, self._get_agent_step, self._apply_agent_step)
+        self._update_agents(system, self.schedule or 'synchronous', self._get_agent_step, self._apply_agent_step)
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Check the reaction, and set its laws or its agent rule for a binding.
@@ -485,8 +478,8 @@ class ReactionInteraction(Interaction):
 
         Raises:
             ValidationError:
-                The mode, the form, or the schedule is unknown, the reaction has neither reactants nor products, or an
-                entry or a coefficient is not valid.
+                The mode or the schedule is unknown, the reaction has neither reactants nor products, or an entry or a
+                coefficient is not valid.
         """
         super()._prepare(context)
         self._check_jump()
@@ -494,13 +487,13 @@ class ReactionInteraction(Interaction):
             self.laws_: list[BaseComponent] = self._get_reaction_laws(context)
 
     def _get_reaction_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
-        """Return the laws of the reaction in its mode, or the rule of the agent form.
+        """Return the laws of the reaction in its mode, or the rule of its schedule.
 
-        The rule of the agent form changes one member, or every member of the target by the schedule.
+        The rule of a schedule changes one member, or every member of the target in the order of the schedule.
         """
-        if self.form == 'agent' and self.schedule == 'member':
+        if self.schedule == 'member':
             return [UpdateLaw(self._get_member(namespace, 'target'), self._react_member, phase=self.phase)]
-        if self.form == 'agent':
+        if self.schedule is not None:
             return [UpdateLaw(namespace, self.react, phase=self.phase)]
         propensity = self._get_rate(namespace)
         changes = self._get_changes(namespace)
