@@ -38,6 +38,13 @@ class _PairReadSpec(BaseSpec):
         axis:
             The axis of the space a scalar position read by its minimum image runs along, such as 1 for `y` in a
             plane, or `None` for a component of a vector position.
+
+        sites:
+            The member every pair reads, or the number of members for a site beyond fixed edges, for an `'other'` read
+            of a lattice state with edges of its own, such as `{'u': ('fixed', 0.5)}`, or `None` for the neighbour.
+
+        fill:
+            The value of the state beyond fixed edges.
     """
 
     read: _ReadSpec
@@ -46,3 +53,5 @@ class _PairReadSpec(BaseSpec):
     table: Indices | None = field(default=None, compare=False)
     position: int | None = None
     axis: int | None = None
+    sites: Indices | None = field(default=None, compare=False)
+    fill: float = 0.0

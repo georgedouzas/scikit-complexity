@@ -11,8 +11,9 @@ from sage.all__sagemath_symbolics import sin
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import UpdateLaw
-from skcomplex.core.components.laws.utils import count, total
+from skcomplex.core.components.laws import RateLaw, UpdateLaw
+from skcomplex.core.components.laws.utils import count, neighbors, total
+from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.systems import System
 
@@ -66,3 +67,20 @@ def test_reduction_lowering_weights_of_a_shaped_parameter(backend, reduce):
     rate = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     expected = weights @ inputs / (len(inputs) if reduce == 'mean' else 1)
     np.testing.assert_allclose(problem.states.read(rate, 'hidden.x'), expected, atol=1e-12)
+
+
+@pytest.mark.parametrize(('kind', 'padded'), [('fixed', 'constant'), ('zero-flux', 'symmetric')])
+def test_reduction_lowering_reads_a_state_with_its_own_edges_beyond_them(kind, padded):
+    """Test that a neighbour sum reads the fixed value, or the mirrored site, beyond the edges of a state."""
+    field = np.random.default_rng(0).random(6)
+    boundary = {'u': (kind, 0.5) if kind == 'fixed' else kind}
+    rule = Interaction(
+        'c',
+        roles={'target': 'm'},
+        laws=lambda s: [RateLaw(s.target.u, neighbors(s.target.other.u**2, reduce='sum'))],
+    )
+    element = Element('m', values={'u': field}, space=LatticeSpace(6, boundary=boundary))
+    problem = System(elements=[element], interactions=[rule]).prepare()._problem
+    rate = problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 'm.u')
+    extended = np.pad(field, 1, mode=padded, **({'constant_values': 0.5} if kind == 'fixed' else {})) ** 2
+    assert np.abs(np.ravel(rate) - (extended[:-2] + extended[2:])).max() < 1e-12

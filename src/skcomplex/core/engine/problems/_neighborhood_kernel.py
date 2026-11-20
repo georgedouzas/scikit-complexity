@@ -178,19 +178,37 @@ class NeighborhoodKernel(BaseKernel):
                 values.append(column[edges])
             elif pair.side == 'pair':
                 values.append(column[np.arange(others.size)])
-            elif pair.image:
-                if not isinstance(self.search, MetricSearch):
-                    error_msg = f'The reduction {self.symbol} reads a periodic image, which only a metric search finds.'
-                    raise ValidationError(error_msg)
-                if pair.position not in differences:
-                    differences[pair.position] = self.search.get_differences(x, readers, neighbours)
-                axis = read.column if pair.axis is None else pair.axis
-                values.append(column[readers] - differences[pair.position][:, axis])
-            elif pair.table is not None:
-                values.append(column[pair.table[neighbours]])
             else:
-                values.append(column[neighbours])
+                values.append(self._gather_other(pair, column, x, readers, neighbours, differences=differences))
         return values
+
+    def _gather_other(
+        self,
+        pair: _PairReadSpec,
+        column: Array,
+        x: Array,
+        readers: Indices,
+        neighbours: Indices,
+        *,
+        differences: dict[int | None, Array],
+    ) -> Array:
+        """Return the values of a symbol of the neighbour for every pair.
+
+        A position is read by its minimum image from the reader, and a state with edges of its own by its own sites.
+        """
+        if pair.image:
+            if not isinstance(self.search, MetricSearch):
+                error_msg = f'The reduction {self.symbol} reads a periodic image, which only a metric search finds.'
+                raise ValidationError(error_msg)
+            if pair.position not in differences:
+                differences[pair.position] = self.search.get_differences(x, readers, neighbours)
+            axis = pair.read.column if pair.axis is None else pair.axis
+            return column[readers] - differences[pair.position][:, axis]
+        if pair.table is not None:
+            return column[pair.table[neighbours]]
+        if pair.sites is not None:
+            return np.append(column, pair.fill)[pair.sites]
+        return column[neighbours]
 
     def _run(self, inputs: RunStateSpec | None) -> None:
         """Write the reduction of every member into the extended parameter vector.

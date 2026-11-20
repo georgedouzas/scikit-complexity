@@ -16,6 +16,7 @@ from sage.all__sagemath_symbolics import RR, SR, Expression, I
 from sage.modules.free_module_element import FreeModuleElement
 from sage.symbolic.operators import add_vararg, mul_vararg
 
+from ....components.elements import FieldElement
 from ....components.laws import BaseLaw, BoundaryLaw, CallSpec, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....components.laws._hyperedge_reduction_spec import _HyperedgeReductionSpec
 from ....components.laws._neighbor_reduction_spec import _NeighborReductionSpec
@@ -31,6 +32,7 @@ from ....components.spaces import (
     CofaceNeighborhood,
     ContinuousSpace,
     DelaunayNeighborhood,
+    LatticeSpace,
     NearestNeighborhood,
     NetworkSpace,
     RadiusNeighborhood,
@@ -45,6 +47,7 @@ from ...problems._block_spec import BlockSpec
 from ...problems._capacity_rows_spec import ACTIVE_THRESHOLD
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._kernel_spec import KernelSpec
+from ...problems._law_kernel import LATTICE_BOUNDARIES
 from ...problems._metric_search import MetricSearch
 from ...problems._neighborhood_kernel import NeighborhoodKernel
 from ...problems._pair_read_spec import _PairReadSpec
@@ -972,7 +975,33 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         if reference.source is ReadKind.MEMBER:
             return _PairReadSpec(read, 'reader')
         image, axis = self._get_image(search, entry)
-        return _PairReadSpec(read, 'other', image, axis=axis)
+        sites, fill = self._get_own_edges(reference, group, over)
+        return _PairReadSpec(read, 'other', image, axis=axis, sites=sites, fill=fill)
+
+    def _get_own_edges(self, reference: ReferenceSpec, group: str, over: object) -> tuple[Indices | None, float]:
+        """Return the site every pair reads and the value beyond fixed edges, for a state with edges of its own.
+
+        A lattice whose boundary gives the edges of each state, such as `{'u': ('fixed', 0.5)}`, finds its neighbours
+        across periodic edges, so a state with fixed or reflecting edges reads its own sites instead. The sites are
+        `None` for a state with periodic edges or a group on another space.
+        """
+        block = self.declarations_.blocks[group]
+        place, space = block.node.component, block.node.space
+        if not isinstance(place, FieldElement) or not isinstance(space, LatticeSpace):
+            return None, 0.0
+        if not isinstance(space.boundary, Mapping) or not isinstance(over, BaseNeighborhood):
+            return None, 0.0
+        kind, value = place._get_boundary(reference.entry.name.rpartition('.')[2], reference.column)
+        if kind == 'periodic':
+            return None, 0.0
+        if not isinstance(value, float):
+            error_msg = (
+                f'A neighbourhood reduction of {group} reads {reference.entry.name} beyond fixed edges, whose value '
+                'is a function of the position. Give the edges a number.'
+            )
+            raise ValidationError(error_msg)
+        table = space._copy_with_edges(LATTICE_BOUNDARIES[kind], value)._get_index_table(over)
+        return np.ravel(table).astype(np.intp), value
 
     def _get_cell_place(self, item: Expression, spec: KernelSpec) -> tuple[int, CellComplexSpace] | None:
         """Return the degree and the cell complex of a symbol.

@@ -10,7 +10,11 @@ from sage.all__sagemath_symbolics import SR, Expression
 
 from ....components.elements import FieldElement
 from ....components.laws import BaseLaw, RateLaw
+from ....components.laws._neighbor_reduction_spec import _NeighborReductionSpec
+from ....components.laws.utils import laplacian
 from ....components.laws.utils._phase import COORDINATE_PREFIX
+from ....components.laws.utils._reductions import neighborhoods_in
+from ....components.spaces import BaseNeighborhood, CellComplexSpace, LatticeSpace
 from ...enums import LinearOperatorKind, ReadKind
 from ...problems._diffusive_limit_spec import DiffusiveLimitSpec
 from ...problems._kernel_spec import KernelSpec
@@ -96,6 +100,7 @@ class LowerFieldsPass(BasePass):
         the neighbour reads and derived values in the compilation.
         """
         places = FieldLowering._get_field_entries(Compilation._get_required(compilation.layout, 'layout'))
+        laws = [LowerFieldsPass._get_with_laplacians(spec, law, places) for law in laws]
         linear += LowerFieldsPass._get_linear_terms_of(spec, laws, places)
         if not any(FieldLowering._get_law_has_operators(law) for law in laws):
             return laws
@@ -107,6 +112,93 @@ class LowerFieldsPass(BasePass):
         limits += lowering.limits_
         volume_limits += lowering.volume_limits_
         return result
+
+    @staticmethod
+    def _get_with_laplacians(spec: KernelSpec, law: BaseLaw, places: Mapping[str, FieldElement]) -> BaseLaw:
+        """Return a rate whose diffusive neighbour sums on a spectral lattice or a mesh are Laplacians.
+
+        A sum over the nearest neighbours of a constant times the difference `u_j - u_i` of a state is the Laplacian of
+        the state times the squared spacing of a spectral lattice, read in Fourier space, and the finite element
+        Laplacian on a mesh, as `D * neighbors(s.other.u - s.u)` is `D * laplacian(u)` on the edges of a mesh.
+        """
+        if not isinstance(law, RateLaw) or not isinstance(law.value, Expression):
+            return law
+        replacements = {}
+        for reduction in neighborhoods_in(law.value):
+            found = LowerFieldsPass._get_difference(spec, reduction, places)
+            if found is not None:
+                coefficient, member, scale = found
+                replacements[reduction.call] = coefficient * scale * laplacian(member)
+        if not replacements:
+            return law
+        return BasePass._get_replaced(law, value=SR(law.value).subs(replacements))
+
+    @staticmethod
+    def _get_difference(
+        spec: KernelSpec,
+        reduction: _NeighborReductionSpec,
+        places: Mapping[str, FieldElement],
+    ) -> tuple[Expression, Expression, float] | None:
+        """Return the coefficient, the state, and the scale of a diffusive neighbour sum on a spectral field or a mesh.
+
+        It is `None` for another reduction, such as one over farther neighbours or one of a function of both ends.
+        """
+        argument = SR(reduction.argument)
+        others = [item for item in argument.variables() if LowerFieldsPass._get_source(spec, item) is ReadKind.OTHER]
+        if reduction.kind != 'sum' or reduction.weight is not None or len(others) != 1:
+            return None
+        other = spec.references[others[0]]
+        member = next(
+            (
+                item
+                for item, reference in spec.references.items()
+                if reference.source is ReadKind.MEMBER
+                and reference.is_state
+                and (reference.entry.name, reference.column) == (other.entry.name, other.column)
+            ),
+            None,
+        )
+        place = places.get(other.entry.name)
+        if member is None or place is None or not other.is_state:
+            return None
+        coefficient = SR(argument.diff(others[0]))
+        if any(LowerFieldsPass._get_source(spec, item) is not None for item in coefficient.variables()):
+            return None
+        if not SR(argument - coefficient * (others[0] - member)).expand().is_zero():
+            return None
+        scale = LowerFieldsPass._get_scale(place, reduction.over)
+        return None if scale is None else (coefficient, member, scale)
+
+    @staticmethod
+    def _get_source(spec: KernelSpec, item: Expression) -> ReadKind | None:
+        """Return how a symbol is read when it is a state, or `None` for a parameter or a symbol of no part."""
+        reference = spec.references.get(item)
+        return reference.source if reference is not None and reference.is_state else None
+
+    @staticmethod
+    def _get_scale(place: FieldElement, over: object) -> float | None:
+        """Return the factor that turns the Laplacian of a field into the sum of differences over its neighbours.
+
+        It is the squared spacing of a spectral lattice with one spacing summed over its nearest sites, 1 on a mesh
+        summed over its edges, and `None` for other fields and neighbourhoods.
+        """
+        space = place.space
+        if place.discretization == 'finite-element' and isinstance(space, CellComplexSpace) and space._is_mesh():
+            return 1.0 if over is None else None
+        if place.discretization != 'spectral' or not isinstance(space, LatticeSpace):
+            return None
+        space = space.prepare()
+        nearest = {
+            tuple(sign * int(axis == other) for other in range(space.n_dim_))
+            for axis in range(space.n_dim_)
+            for sign in (-1, 1)
+        }
+        neighborhood = space._get_default_neighborhood() if over is None else over
+        offsets = neighborhood._get_offsets(space.n_dim_) if isinstance(neighborhood, BaseNeighborhood) else None
+        spacings = set(space.spacings_)
+        if offsets is None or set(offsets) != nearest or len(offsets) != len(nearest) or len(spacings) != 1:
+            return None
+        return spacings.pop() ** 2
 
     @staticmethod
     def _get_name_of(operator: object) -> str:
