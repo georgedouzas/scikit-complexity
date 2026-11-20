@@ -12,7 +12,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from ....core.analysis import events
-from ....core.analysis.types import Source
+from ....core.analysis.types import DataSource
 from ....core.errors import AnalysisError
 from ....core.types import Array
 
@@ -72,7 +72,7 @@ class CracklingNoiseResult:
 
 
 def crackling_noise(
-    source: Source,
+    source: DataSource,
     *,
     variables: Sequence[str] | None = None,
     threshold: float = 0.0,

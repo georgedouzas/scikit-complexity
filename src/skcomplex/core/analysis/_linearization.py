@@ -19,7 +19,7 @@ from ._analysis_tags import AnalysisTags
 from ._base import _composite, _read_system
 from ._stability import StabilityResult
 from ._utils import compile_problem
-from .types import Source
+from .types import DataSource
 
 TAGS = AnalysisTags(DataKind.SYSTEM)
 
@@ -80,7 +80,7 @@ class LinearizationResult:
 
 
 def linearization(
-    source: Source,
+    source: DataSource,
     *,
     controls: Sequence[str] | None = None,
     outputs: Sequence[str] | None = None,

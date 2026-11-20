@@ -20,7 +20,7 @@ from ..types import Array
 from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _check_tags, _composite, _read_system
 from ._utils import compile_problem
-from .types import Source
+from .types import DataSource
 
 KINDS = ('poincare', 'stroboscopic')
 SETTINGS = {
@@ -60,7 +60,7 @@ class SectionResult:
 
 
 def section(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'poincare',
     variables: Sequence[str] | None = None,

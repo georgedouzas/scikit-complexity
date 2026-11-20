@@ -40,7 +40,7 @@ from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _composite, _get_system
 from ._composed_rule_spec import _ComposedRuleSpec
 from ._utils import load_module
-from .types import Source
+from .types import DataSource
 
 MAX_CONFIGURATIONS = 2**16
 MAX_PATTERNS = 2**20
@@ -224,7 +224,7 @@ class _AutomatonSpec(BaseSpec):
 
 
 def automaton(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'injective',
     method: str = 'auto',
@@ -233,7 +233,7 @@ def automaton(
     tries: int = 200,
     random_state: int | np.random.Generator | None = None,
     max_radius: int = 2,
-    second: Source | None = None,
+    second: DataSource | None = None,
     configuration: npt.ArrayLike | None = None,
     site: int = 0,
     steps: int = 1,
@@ -591,7 +591,7 @@ def _get_space(system: CompositeSystem, element: GroupElement) -> BaseSpace:
     return _fitted(space)
 
 
-def _get_declared(source: Source) -> Source:
+def _get_declared(source: DataSource) -> DataSource:
     """Return the composite of a system with its plain elements declared.
 
     Any other source is returned as it is.
@@ -600,7 +600,7 @@ def _get_declared(source: Source) -> Source:
     return PassCompiler()._get_declared_system(source) if isinstance(source, CompositeSystem) else source
 
 
-def _get_second(source: Source) -> CompositeSystem:
+def _get_second(source: DataSource) -> CompositeSystem:
     """Return the declared composite of the second automaton of a composition.
 
     Raises:

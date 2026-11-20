@@ -16,7 +16,7 @@ from ..errors import AnalysisError
 from ..types import Array
 from ._analysis_tags import AnalysisTags
 from ._base import _read_real, _read_snapshots
-from .types import Source
+from .types import DataSource
 
 MIN_LINE_POINTS = 2
 FIT_POINTS = 20
@@ -55,7 +55,7 @@ class DisplacementResult:
 
 
 def displacement(
-    source: Source,
+    source: DataSource,
     *,
     group: str | None = None,
     dt: float = 1.0,

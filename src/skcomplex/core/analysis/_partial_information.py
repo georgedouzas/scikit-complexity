@@ -16,7 +16,7 @@ from ._analysis_tags import AnalysisTags
 from ._base import _read_series
 from ._information import _dit_distribution
 from ._utils import load_module
-from .types import Source
+from .types import DataSource
 
 REDUNDANCIES = {
     'mmi': 'PID_MMI',
@@ -67,7 +67,7 @@ class PartialInformationResult:
 
 
 def partial_information(
-    source: Source,
+    source: DataSource,
     *,
     variables: Sequence[str] | None = None,
     redundancy: str = 'mmi',

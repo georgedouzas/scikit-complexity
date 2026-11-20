@@ -18,7 +18,7 @@ from ..errors import AnalysisError
 from ..types import Array
 from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _read_fields, _read_real, _read_series
-from .types import Source
+from .types import DataSource
 
 MIN_LINE_POINTS = 2
 KINDS = (
@@ -117,7 +117,7 @@ class ScalingResult:
 
 
 def scaling(
-    source: Source | Mapping[float, npt.ArrayLike],
+    source: DataSource | Mapping[float, npt.ArrayLike],
     *,
     kind: str = 'detrended-fluctuation',
     variables: Sequence[str] | None = None,
@@ -350,7 +350,7 @@ def _check(
 
 
 def _read(
-    source: Source | Mapping[float, npt.ArrayLike],
+    source: DataSource | Mapping[float, npt.ArrayLike],
     kind: str,
     variables: Sequence[str] | None,
 ) -> tuple[Array, dict[float, Array] | None, list[str]]:

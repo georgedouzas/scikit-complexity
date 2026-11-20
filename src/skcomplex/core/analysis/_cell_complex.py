@@ -16,7 +16,7 @@ from ..errors import AnalysisError
 from ..types import Array
 from ._analysis_tags import AnalysisTags
 from ._base import _check_choice
-from .types import Source
+from .types import DataSource
 
 KINDS = ('hodge', 'betti', 'curvature')
 DEFAULT_PERIOD = 2 * np.pi
@@ -78,7 +78,7 @@ class CellComplexResult:
 
 
 def cell_complex(
-    source: Source,
+    source: DataSource,
     *,
     kind: str,
     space: CellComplexSpace | None = None,
@@ -164,7 +164,7 @@ def _space_of(trajectory: Trajectory, variables: str | None) -> CellComplexSpace
     return None
 
 
-def _read_values(source: Source, variables: str | None) -> tuple[Array, float]:
+def _read_values(source: DataSource, variables: str | None) -> tuple[Array, float]:
     """Return the values of a source with one row per frame.
 
     The period they read is returned too.

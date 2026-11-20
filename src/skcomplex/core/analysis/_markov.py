@@ -18,7 +18,7 @@ from ..errors import AnalysisError
 from ..types import Array
 from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _read_path
-from .types import Source
+from .types import DataSource
 
 MATRIX_DIMENSIONS = 2
 MIN_CONNECTED_STATES = 2
@@ -90,7 +90,7 @@ class MarkovResult:
 
 
 def markov(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'transition-matrix',
     variables: Sequence[str] | None = None,

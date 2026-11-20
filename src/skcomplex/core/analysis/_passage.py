@@ -17,7 +17,7 @@ from ..types import Array
 from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _read_path, _read_series
 from ._markov import _stationary_distribution, _transition_matrix
-from .types import Source
+from .types import DataSource
 
 KINDS = ('first-passage', 'hitting', 'return-times', 'committor', 'mean-first-passage')
 DIRECTIONS = ('up', 'down')
@@ -79,7 +79,7 @@ class PassageResult:
 
 
 def passage(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'first-passage',
     variables: Sequence[str] | None = None,

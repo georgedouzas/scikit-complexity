@@ -15,7 +15,7 @@ from ..errors import AnalysisError
 from ..types import Array
 from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _read_snapshots
-from .types import Source
+from .types import DataSource
 
 SHAPE_KINDS = ('gyration', 'end-to-end', 'rmsd')
 FRAME_DIMENSIONS = 3
@@ -39,7 +39,7 @@ class ChainShapeResult:
 
 
 def chain_shape(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'gyration',
     group: str | None = None,

@@ -22,7 +22,7 @@ from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _read_series
 from ._information import _knn_chain, _log_determinant, _row_codes
 from ._markov import _stationary_distribution
-from .types import Partition, Source
+from .types import DataSource, Partition
 
 MATRIX_DIMENSIONS = 2
 KINDS = ('effective-information', 'causal', 'criteria', 'closure')
@@ -128,7 +128,7 @@ class EmergenceResult:
 
 
 def emergence(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'causal',
     variables: Sequence[str] | None = None,

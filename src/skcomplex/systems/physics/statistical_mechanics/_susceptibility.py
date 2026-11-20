@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from ....core.analysis import distribution
-from ....core.analysis.types import Source
+from ....core.analysis.types import DataSource
 from ....core.errors import AnalysisError
 from ....core.types import Array
 
@@ -58,7 +58,7 @@ class SusceptibilityResult:
 
 
 def susceptibility(
-    source: Source,
+    source: DataSource,
     *,
     variables: Sequence[str] | None = None,
     group: str | None = None,

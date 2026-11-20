@@ -32,7 +32,7 @@ from ._base import _check_choice, _check_settings, _composite, _get_system, _rea
 from ._groups import _Expansion
 from ._symbolic import _declare_domains
 from ._utils import compile_problem
-from .types import Point, Source
+from .types import DataSource, Point
 
 KINDS = ('fixed-points', 'dispersion')
 SETTINGS = {
@@ -260,7 +260,7 @@ class StabilityResult:
 
 
 def stability(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'fixed-points',
     parameters: Mapping[str, float] | None = None,

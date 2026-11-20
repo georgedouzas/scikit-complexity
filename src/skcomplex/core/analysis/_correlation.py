@@ -17,7 +17,7 @@ from ..types import Array
 from ._analysis_tags import AnalysisTags
 from ._base import STEP_TOLERANCE, _check_choice, _check_settings, _read_fields, _read_real, _read_series, _step_of
 from ._series_spec import _SeriesSpec
-from .types import Source
+from .types import DataSource
 
 MIN_LINE_POINTS = 2
 MIN_FIT_POINTS = 3
@@ -83,7 +83,7 @@ class CorrelationResult:
 
 
 def correlation(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'auto',
     variables: Sequence[str] | None = None,
@@ -233,12 +233,12 @@ def correlation(
     return CorrelationResult(field, labels, length=_correlation_length(grids, method, spacing))
 
 
-def _read_replicas(source: Source, name: str | None) -> Array:
+def _read_replicas(source: DataSource, name: str | None) -> Array:
     """Return the fields of two trajectories, or two configurations of an array.
 
     The two configurations are stacked on the first axis of the array.
     """
-    replicas: list[Source] = list(source) if isinstance(source, list | tuple | np.ndarray) else [source]
+    replicas: list[DataSource] = list(source) if isinstance(source, list | tuple | np.ndarray) else [source]
     if len(replicas) != REPLICAS:
         error_msg = (
             f'An overlap reads {REPLICAS} replicas, a pair of trajectories or two arrays stacked on the first '
@@ -248,7 +248,7 @@ def _read_replicas(source: Source, name: str | None) -> Array:
     return np.stack([_read_fields(replica, name) for replica in replicas])
 
 
-def _read_step(source: Source, series: _SeriesSpec, dt: float | None) -> float:
+def _read_step(source: DataSource, series: _SeriesSpec, dt: float | None) -> float:
     """Return the time between samples, read from a trajectory or given for an array.
 
     Args:

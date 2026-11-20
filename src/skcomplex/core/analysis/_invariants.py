@@ -21,7 +21,7 @@ from ..systems import System
 from ._analysis_tags import AnalysisTags
 from ._base import _get_system, _read_system
 from ._stability import StabilityResult
-from .types import Source
+from .types import DataSource
 
 TOLERANCE = 1e-9
 TAGS = AnalysisTags(DataKind.SYSTEM)
@@ -65,7 +65,7 @@ class InvariantsResult:
 
 
 def invariants(
-    source: Source,
+    source: DataSource,
     *,
     expressions: Sequence[Observable] = (),
     samples: int = 16,

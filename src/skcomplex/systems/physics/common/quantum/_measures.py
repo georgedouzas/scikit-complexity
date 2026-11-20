@@ -17,7 +17,7 @@ import qutip
 import scipy.sparse as sp
 
 from .....core import systems
-from .....core.analysis.types import Source
+from .....core.analysis.types import DataSource
 from .....core.engine.problems import BaseProblemSpec, OperatorProblemSpec, RunStateSpec
 from .....core.engine.runtime import Trajectory
 from .....core.errors import AnalysisError, ParameterError
@@ -80,7 +80,7 @@ class OperatorMeasuresResult:
 
 
 def operator_measures(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'spectrum',
     n_states: int = 6,

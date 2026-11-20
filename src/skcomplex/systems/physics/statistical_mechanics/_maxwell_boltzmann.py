@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy import stats
 
-from ....core.analysis.types import Source
+from ....core.analysis.types import DataSource
 from ....core.errors import AnalysisError
 from ....core.types import Array
 from ._kinetic_temperature import _kinetic_temperature, _read_velocities
@@ -43,7 +43,7 @@ class MaxwellBoltzmannResult:
 
 
 def maxwell_boltzmann(
-    source: Source,
+    source: DataSource,
     *,
     group: str | None = None,
     mass: float = 1.0,

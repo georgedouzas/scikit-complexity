@@ -15,7 +15,7 @@ from ..enums import DataKind
 from ..errors import AnalysisError
 from ..types import Array, Indices
 from ._analysis_tags import AnalysisTags
-from .types import Source
+from .types import DataSource
 
 TAGS = AnalysisTags(DataKind.NETWORK)
 
@@ -53,7 +53,7 @@ class AutocatalyticSetsResult:
 
 
 def autocatalytic_sets(
-    source: Source,
+    source: DataSource,
     *,
     food: Sequence[int] | None = None,
     frames: Sequence[int] | None = None,
