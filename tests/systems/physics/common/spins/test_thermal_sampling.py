@@ -1,6 +1,5 @@
 """Test thermal sampling, the Boltzmann weight of an energy at a temperature."""
 
-
 import numpy as np
 import pytest
 

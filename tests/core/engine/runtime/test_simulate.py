@@ -50,7 +50,9 @@ class DecaySystem(BaseSystem):
 
     def _build_system(self) -> CompositeSystem:
         decay = Interaction(
-            'decay', roles={'target': 'tank'}, laws=lambda s: [RateLaw(s.target.x, -self.k * s.target.x)],
+            'decay',
+            roles={'target': 'tank'},
+            laws=lambda s: [RateLaw(s.target.x, -self.k * s.target.x)],
         )
         return CompositeSystem(self.label, elements=[TankElement('tank')], interactions=[decay])
 
@@ -87,7 +89,6 @@ class LeakySystem(BaseSystem):
     observables = (Observable('level', _level, element='tank'),)
     invariants: ClassVar[Mapping[str, float]] = {'tank.level': 1e-9}
     schedule: ClassVar[Mapping[str, object]] = {'tank.k': lambda t: 0.0}
-
 
     def _build_system(self) -> CompositeSystem:
         return CompositeSystem(self.label, elements=[LeakyTankElement('tank')])
