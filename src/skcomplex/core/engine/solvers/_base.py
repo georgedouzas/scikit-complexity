@@ -218,9 +218,9 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
         self.draw_recorder_ = None
 
     def _set_agent_values(self, name: str, value: object) -> bool:
-        """Set a value of every agent of a group, such as `savers.rate`, and return whether the solver has it.
+        """Set a value of every agent of a group, and return whether the solver has it.
 
-        Solvers that keep no agents have no such value.
+        The value is named by its group, such as `savers.rate`. Solvers that keep no agents have no such value.
         """
         del name, value
         return False

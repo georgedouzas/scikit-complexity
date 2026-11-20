@@ -1951,9 +1951,9 @@ class MesaSolver(ExternalSolver):
             self._live[indices] = value
 
     def _set_agent_values(self, name: str, value: object) -> bool:
-        """Set a value of every agent of a group, such as `savers.rate`, and return whether the group has it.
+        """Set a value of every agent of a group, and return whether the group has it.
 
-        The rules read it at once, as a value they changed.
+        The value is named by its group, such as `savers.rate`, and the rules read it at once.
         """
         path, _, state = name.rpartition('.')
         spec = self._specs.get(path)
