@@ -32,10 +32,11 @@ def _constraints(*relations):
 class ToyNetworkInteraction(Interaction):
     """Toy network of Table 8.2 of Raman (2021), with the growth objective and optionally the total flux after it."""
 
-    def __init__(self, label, *, target: Role = 'net', total: bool = False):
+    def __init__(self, label, *, target: Role = 'net', total: bool = False, duals: bool = False):
         super().__init__(label)
         self.target = target
         self.total = total
+        self.duals = duals
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         super()._prepare(context)
@@ -57,14 +58,14 @@ class ToyNetworkInteraction(Interaction):
             objectives = [-s.vbio]
             if self.total:
                 objectives.append(sum(abs(item) for item in variables))
-            self.laws_ = [*_constraints(*balances, *bounds), ObjectiveLaw(objectives, variables)]
+            self.laws_ = [*_constraints(*balances, *bounds), ObjectiveLaw(objectives, variables, duals=self.duals)]
 
 
-def _toy_network(total=False):
+def _toy_network(total=False, duals=False):
     """Return the system of the toy network of Raman."""
     return System(
         elements=[Element('net', values=dict.fromkeys(TOY_NAMES, 0.0))],
-        interactions=[ToyNetworkInteraction('network', total=total)],
+        interactions=[ToyNetworkInteraction('network', total=total, duals=duals)],
     )
 
 
@@ -390,14 +391,13 @@ def test_infeasible_program_with_the_hold_policy_keeps_the_last_values():
     np.testing.assert_allclose(second, first)
 
 
-@pytest.mark.skip(reason='An `ObjectiveLaw` records no duals of its linear program, which `LinearProgramLaw` did.')
 def test_recorded_duals_give_the_change_of_the_objective():
-    """Test that the dual of the binding constraint is the change of the optimum with its right side."""
-    system = _toy_network().prepare()
+    """Test that the dual of the binding constraint is the change of the minimised `-vbio` with its right side."""
+    system = _toy_network(duals=True).prepare()
     trajectory = system.simulate(until=1.0)
     relations = list(system._problem.programs[0].program.relations)
     shared = [relations.index(f'{name}_net <= 1000') for name in ('v6', 'b2')]
-    assert sum(float(trajectory.get_values(f'net.dual_{item}')[0]) for item in shared) == pytest.approx(0.05)
+    assert sum(float(trajectory.get_values(f'net.dual_{item}')[0]) for item in shared) == pytest.approx(-0.05)
 
 
 def _clock():
