@@ -295,7 +295,9 @@ class PassCompiler(BaseCompiler):
         return declared
 
     def _get_probed_issues(self, issues: list[IssueSpec]) -> list[IssueSpec]:
-        """Return the issues with the failure of the probe in place of the later failure of the same component.
+        """Return the issues with a failure of the probe in place of a later one.
+
+        The later failure is that of the same component.
 
         A component that fails when every value is a state fails again once its values are declared, often with a
         message about the declarations, such as a target that is not a state, so the first failure names the cause. A

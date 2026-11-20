@@ -115,7 +115,9 @@ class LowerFieldsPass(BasePass):
 
     @staticmethod
     def _get_with_laplacians(spec: KernelSpec, law: BaseLaw, places: Mapping[str, FieldElement]) -> BaseLaw:
-        """Return a rate whose diffusive neighbour sums on a spectral lattice or a mesh are Laplacians.
+        """Return a rate whose diffusive neighbour sums are Laplacians.
+
+        The sums are those on a spectral lattice or a mesh.
 
         A sum over the nearest neighbours of a constant times the difference `u_j - u_i` of a state is the Laplacian of
         the state times the squared spacing of a spectral lattice, read in Fourier space, and the finite element
@@ -139,7 +141,9 @@ class LowerFieldsPass(BasePass):
         reduction: _NeighborReductionSpec,
         places: Mapping[str, FieldElement],
     ) -> tuple[Expression, Expression, float] | None:
-        """Return the coefficient, the state, and the scale of a diffusive neighbour sum on a spectral field or a mesh.
+        """Return the coefficient, the state, and the scale of a diffusive neighbour sum.
+
+        The sum is one on a spectral field or a mesh.
 
         It is `None` for another reduction, such as one over farther neighbours or one of a function of both ends.
         """
@@ -171,13 +175,15 @@ class LowerFieldsPass(BasePass):
 
     @staticmethod
     def _get_source(spec: KernelSpec, item: Expression) -> ReadKind | None:
-        """Return how a symbol is read when it is a state, or `None` for a parameter or a symbol of no part."""
+        """Return how a state symbol is read, or `None` for any other symbol."""
         reference = spec.references.get(item)
         return reference.source if reference is not None and reference.is_state else None
 
     @staticmethod
     def _get_scale(place: FieldElement, over: object) -> float | None:
-        """Return the factor that turns the Laplacian of a field into the sum of differences over its neighbours.
+        """Return the factor from the Laplacian of a field to its neighbour differences.
+
+        The differences are summed over the neighbours.
 
         It is the squared spacing of a spectral lattice with one spacing summed over its nearest sites, 1 on a mesh
         summed over its edges, and `None` for other fields and neighbourhoods.

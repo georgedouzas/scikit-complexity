@@ -979,7 +979,9 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         return _PairReadSpec(read, 'other', image, axis=axis, sites=sites, fill=fill)
 
     def _get_own_edges(self, reference: ReferenceSpec, group: str, over: object) -> tuple[Indices | None, float]:
-        """Return the site every pair reads and the value beyond fixed edges, for a state with edges of its own.
+        """Return the site every pair reads and the value beyond fixed edges.
+
+        They are those of a state with edges of its own.
 
         A lattice whose boundary gives the edges of each state, such as `{'u': ('fixed', 0.5)}`, finds its neighbours
         across periodic edges, so a state with fixed or reflecting edges reads its own sites instead. The sites are

@@ -934,7 +934,9 @@ class _StateInference:
         space: BaseSpace | None,
         kinds: frozenset[str] = frozenset(),
     ) -> BaseComponent:
-        """Return an element with the space of its system when it gives none and sits on a network.
+        """Return an element on a network with the space of its system.
+
+        It is so when the element gives no space.
 
         An element on the links of a network, such as `Element('links', on='edges')` in a system on a network, sits on
         the edges of that network. An element of one member on a network whose nodes or edges the laws change, such as

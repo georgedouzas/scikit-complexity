@@ -257,7 +257,7 @@ class CensusPass(BasePass):
 
     @staticmethod
     def _get_differentiated(spec: KernelSpec, law: BaseLaw) -> frozenset[str]:
-        """Return the paths of the elements and groups whose states an equation reads a derivative of.
+        """Return the elements and groups whose states an equation differentiates.
 
         It is empty for any other law.
         """
