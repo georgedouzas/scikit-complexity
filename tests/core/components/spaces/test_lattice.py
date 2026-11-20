@@ -1,8 +1,13 @@
 """Test the `_lattice` module of `skcomplex.core.components.spaces`."""
 
 import networkx as nx
+import numpy as np
 import pytest
 
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws.utils import laplacian
 from skcomplex.core.components.spaces import (
     AdjacencyNeighborhood,
     LatticeNeighborhood,
@@ -10,6 +15,7 @@ from skcomplex.core.components.spaces import (
     NetworkSpace,
 )
 from skcomplex.core.errors import ValidationError
+from skcomplex.core.systems import System
 
 
 def test_lattice_space_prepares_its_facts():
@@ -128,3 +134,30 @@ def test_lattice_space_with_the_edge_of_each_state_joins_its_members_periodicall
     box = LatticeNeighborhood(((-1,), (0,), (1,)))
     assert space.periodic_
     assert space._get_neighbors(0, box).tolist() == [4, 0, 1]
+
+
+def _heat(s):
+    """Return the diffusion of a field `u`."""
+    return [RateLaw(s.target.u.diff(s.t), laplacian(s.target.u))]
+
+
+def _heated(space):
+    """Return a prepared system of a field `u`, zero at first, that diffuses on a space."""
+    heat = Interaction('heat', roles={'target': 'f'}, laws=_heat)
+    return System(elements=[Element('f', values={'u': 0.0}, space=space)], interactions=[heat]).prepare()
+
+
+@pytest.mark.parametrize(
+    ('space', 'edge'),
+    [(LatticeSpace(4, boundary='fixed', fill=2.0), 2.0), (LatticeSpace(4), 0.0)],
+)
+def test_field_on_a_lattice_takes_the_edges_of_the_lattice(space, edge):
+    """Test that a field without edges of its own takes those of its lattice, such as fixed edges of a fill value."""
+    final = _heated(space).simulate(until=50.0, dt=25.0).get_values('f.u')[-1]
+    np.testing.assert_allclose(final, edge, atol=1e-5)
+
+
+def test_field_on_a_lattice_rejects_an_unknown_edge_of_its_state():
+    """Test that an unknown edge of one state raises an error that names the state and the known edges."""
+    with pytest.raises(ValidationError, match=r"Unknown boundary 'open' of f\.u"):
+        _heated(LatticeSpace(4, boundary={'u': 'open'}))
