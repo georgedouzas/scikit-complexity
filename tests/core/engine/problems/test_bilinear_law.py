@@ -6,7 +6,7 @@ from sage.all__sagemath_symbolics import var
 
 from skcomplex.core.components.laws import NoiseLaw, RateLaw
 from skcomplex.core.components.laws.utils import bilinear
-from skcomplex.core.components.spaces import ContinuousTime, LatticeSpace
+from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.engine.problems._bilinear_law import BilinearLaw
 from skcomplex.core.errors import ValidationError
 
@@ -44,7 +44,8 @@ def test_lowered_law_evaluates_parameter_tables():
 def test_lowered_law_needs_continuous_time_on_class_lattices():
     """Test that the lowered law runs in continuous time on lattices of classes."""
     requirements = lower(F, bilinear(1.0, np.full((2, 2, 2), 0.5), F, G, conserved=True))._get_requirements()
-    assert (requirements.time, requirements.space) == ((ContinuousTime,), (LatticeSpace,))
+    assert [time.time_tag for time in requirements.time] == ['continuous']
+    assert requirements.space == (LatticeSpace,)
 
 
 def test_other_laws_are_kept():
