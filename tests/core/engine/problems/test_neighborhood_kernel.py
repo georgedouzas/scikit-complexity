@@ -1,7 +1,5 @@
 """Test the `neighborhood_kernel` module."""
 
-from typing import Annotated
-
 import networkx as nx
 import numpy as np
 import pytest
@@ -9,7 +7,7 @@ from sage.all__sagemath_gap import libgap
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.components.laws import RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import (
     AdjacencyNeighborhood,
@@ -21,9 +19,9 @@ from skcomplex.core.components.spaces import (
 )
 from skcomplex.core.engine._utils import declarations_of
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems._neighborhood_kernel import NeighborhoodKernel
 from skcomplex.core.enums import VariableKind
-from skcomplex.core.specs import StateSpec
 from skcomplex.core.systems import System
 from skcomplex.systems.computer_science.common.automata import CayleySpace
 
@@ -114,20 +112,13 @@ def test_neighborhood_kernel_get_default_neighborhood():
 
 
 def test_neighborhood_kernel_get_cone_direction():
-    """Test `NeighborhoodKernel._get_cone_direction` on a small case."""
-
-    class BoidElement(Element):
-        def __init__(
-            self,
-            label,
-            x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0,
-            theta: Annotated[float, StateSpec()] = 0.0,
-        ):
-            super().__init__(label)
-            self.x = x
-            self.theta = theta
-
-    states = declarations_of(BoidElement, VariableKind.STATE)
+    """Test `NeighborhoodKernel._get_cone_direction` on the states compiled for walkers that turn in the plane."""
+    space = ContinuousSpace(n_dim=2)
+    walkers = Element('walkers', values={'x': np.zeros((2, 2)), 'theta': [0.0, 1.0]}, size=2, space=space)
+    turn = Interaction('turn', roles={'target': 'walkers'}, laws=lambda s: [RateLaw(s.target.theta, 1.0)])
+    system = System(elements=[walkers], interactions=[turn], space=space)
+    (node,) = [node for node in PassCompiler().prepare(system).compilation_.nodes if node.path == 'walkers']
+    states = declarations_of(node.component_type, VariableKind.STATE)
     assert (
         NeighborhoodKernel._get_cone_direction(RadiusNeighborhood(1.0, angle=1.0, direction='theta'), states, 2)
         == 'theta'
