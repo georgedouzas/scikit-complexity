@@ -52,6 +52,7 @@ class ReplayInteraction(Interaction):
             UpdateLaw(
                 self._get_member(namespace, 'target').x,
                 lambda values, *, time: self.ensemble[min(int(time), last)],
+                arrays=True,
             ),
         ]
 
@@ -104,7 +105,7 @@ class _DriveInteraction(Interaction):
 
     def _get_laws(self, namespace):
         """Return the drive."""
-        return [UpdateLaw(self._get_member(namespace, 'target').x, self.function)]
+        return [UpdateLaw(self._get_member(namespace, 'target').x, self.function, arrays=True)]
 
 
 class PairElement(Element):
@@ -124,7 +125,7 @@ class RotationInteraction(Interaction):
 
     def _get_laws(self, namespace):
         """Return the rotation."""
-        return [UpdateLaw(self._get_member(namespace, 'target').U, self._rotate)]
+        return [UpdateLaw(self._get_member(namespace, 'target').U, self._rotate, arrays=True)]
 
     def _rotate(self, values, *, space):
         """Return the components rotated by the number of faces of every link."""
@@ -157,7 +158,7 @@ class PartialInteraction(Interaction):
 
     def _get_laws(self, namespace):
         """Return a drive of the first component."""
-        return [UpdateLaw(self._get_member(namespace, 'target').U[0], lambda values, *, random: values)]
+        return [UpdateLaw(self._get_member(namespace, 'target').U[0], lambda values, *, random: values, arrays=True)]
 
 
 def test_drive_of_one_component_of_a_matrix_state_raises_an_error():

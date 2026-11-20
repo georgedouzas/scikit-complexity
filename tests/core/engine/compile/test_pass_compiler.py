@@ -93,6 +93,7 @@ from skcomplex.systems.biology.epidemiology import InfectionInteraction, Recover
 from skcomplex.systems.computer_science.common.automata import CayleySpace, CayleyVisual, MemoryNeighborhood
 from skcomplex.systems.economics.finance import AssetElement, GeometricBrownianMotionInteraction
 from skcomplex.systems.economics.markets import CobwebInteraction, MarketElement
+from skcomplex.systems.general.rewriting import ProductionLaw, RewritingInteraction, WordElement
 from skcomplex.systems.physics.common.particles import ConstantForceInteraction
 from skcomplex.systems.physics.common.quantum import QubitElement
 from skcomplex.systems.physics.statistical_mechanics import ZeroRangeHopInteraction
@@ -1904,3 +1905,37 @@ def test_compiler_reports_the_failure_of_the_probe_in_place_of_the_later_one():
     report = PassCompiler().prepare(_hypergraph_variance()).report_
     assert [issue.path for issue in report.issues] == ['spread']
     assert 'total, mean, count, maximum, or minimum' in report.issues[0].message
+
+
+def _pond():
+    """Return the algae of Lindenmayer as a system of one word, whose length is a Fibonacci number."""
+    growth = RewritingInteraction('growth', target='algae', laws=[ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')])
+    return System('pond', elements=[WordElement('algae', axiom='A')], interactions=[growth])
+
+
+@pytest.mark.parametrize(
+    ('laws', 'expected'),
+    [
+        (lambda s: [RateLaw(s.target.y, -s.target.y)], np.exp(-np.arange(5.0))),
+        (lambda s: [UpdateLaw(s.target.y, s.target.y + 1)], np.arange(1.0, 6.0)),
+    ],
+)
+def test_nested_rewriting_system_runs_as_a_partition_of_its_own(laws, expected):
+    """Test that a system of words nested beside a continuous or a discrete element keeps its own time and solver."""
+    rule = Interaction('change', roles={'target': 'probe'}, laws=laws)
+    system = System(elements=[Element('probe', values={'y': 1.0})], interactions=[rule], systems=[_pond()])
+    trajectory = system.prepare().simulate(until=4, dt=1)
+    assert trajectory.get_values('pond/algae.size').tolist() == [1.0, 2.0, 3.0, 5.0, 8.0]
+    np.testing.assert_allclose(trajectory.get_values('probe.y'), expected, rtol=1e-5)
+
+
+def test_pass_compiler_compiles_a_system_of_words_by_the_compiler_its_words_name():
+    """Test that the pass compiler hands a system of words to the rewriting compiler and keeps its partitions apart."""
+    alone = PassCompiler().prepare(_pond()).run().problem_
+    assert str(alone.form) == 'rewriting system'
+    decay = Interaction('decay', roles={'target': 'probe'}, laws=lambda s: [RateLaw(s.target.y, -s.target.y)])
+    beside = System(elements=[Element('probe', values={'y': 1.0})], interactions=[decay], systems=[_pond()])
+    problem = PassCompiler().prepare(beside).run().problem_
+    assert problem.form == FormKind.COUPLED
+    assert [partition.name for partition in problem.partitions] == ['system', 'pond']
+    assert problem.states.names == ['probe.y', 'pond/algae.A', 'pond/algae.B', 'pond/algae.size']

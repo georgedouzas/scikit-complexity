@@ -17,11 +17,12 @@ from ...errors import ValidationError
 class ArrayUpdateLaw(BaseLaw):
     """A law that replaces a whole array state by the output of a function.
 
-    The compiler runs it for an `UpdateLaw` of a state whose value is a NumPy function of the whole array, such as
-    `UpdateLaw(s.target.height, drop)` with `def drop(values, *, random): ...`. At every step the function receives the
-    state of every member as one array, shaped like the lattice or with one row per member of a group on the edges or
-    hyperedges of a network. A state of several components per member has its components on a last axis. The function
-    may also receive the parameters of the element, and `random`, `time`, and `space` when it names them.
+    The compiler runs it for an `UpdateLaw` with `arrays=True`, whose value is a NumPy function of the whole array,
+    such as `UpdateLaw(s.target.height, drop, arrays=True)` with `def drop(values, *, random): ...`. At every step the
+    function receives the state of every member as one array, shaped like the lattice or with one row per member of a
+    group on the edges or hyperedges of a network. A state of several components per member has its components on a
+    last axis. The function may also receive the parameters of the element, and `random`, `time`, and `space` when it
+    names them.
 
     Args:
         target:

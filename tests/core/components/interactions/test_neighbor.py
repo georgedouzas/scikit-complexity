@@ -564,7 +564,7 @@ def _sandpile(height, over):
         height,
         LocalRuleLaw(height, over, lambda value, *around: value - 3 * (value >= 3) + sum(item >= 3 for item in around)),
         lambda values: bool((values < 3).all()),
-        drive=UpdateLaw(height, lambda values, *, random: values + (np.arange(values.size) == 2)),
+        drive=UpdateLaw(height, lambda values, *, random: values + (np.arange(values.size) == 2), arrays=True),
         activity=lambda values: values >= 3,
     )
     return [UpdateLaw(height, relaxation)]

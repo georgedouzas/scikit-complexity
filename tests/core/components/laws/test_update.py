@@ -172,6 +172,53 @@ def test_update_order_reads_the_values_set_before(order, initial, expected):
     assert _counters(laws, initial)[-1].tolist() == expected
 
 
+def _shift(values, random):
+    """Return the values shifted by one cell when they are an array, and 2 for a scalar state."""
+    return np.roll(values, 1) if isinstance(values, np.ndarray) else 2.0
+
+
+def test_update_with_arrays_gives_a_function_of_two_arguments_the_whole_array():
+    """Test that `arrays=True` hands the whole array of a row of cells to a function of two arguments."""
+    rule = Interaction('shift', roles={'target': 'row'}, laws=lambda s: [UpdateLaw(s.target.x, _shift, arrays=True)])
+    row = Element('row', values={'x': [0.0, 1.0, 2.0, 3.0, 4.0]}, space=LatticeSpace(5))
+    trajectory = System(elements=[row], interactions=[rule]).prepare().simulate(until=1)
+    assert trajectory.get_values('row.x')[-1].tolist() == [4.0, 0.0, 1.0, 2.0, 3.0]
+
+
+def test_update_without_arrays_calls_a_function_of_two_arguments_with_time_and_values():
+    """Test that without `arrays` the same function gives the next value of one state as `f(t, values)`."""
+    received = []
+
+    def step(t, values):
+        """Return the shift of the values and record what it receives."""
+        received.append((t, dict(values)))
+        return _shift(values, None)
+
+    trajectory = _run('counter', {'x': 1.0}, lambda s: [UpdateLaw(s.target.x, step)], 1)
+    assert trajectory.get_values('counter.x').tolist() == [1.0, 2.0]
+    assert received[0] == (0.0, {'counter.x': 1.0})
+
+
+@pytest.mark.parametrize(
+    ('target', 'value', 'settings'),
+    [
+        (var('x'), var('x') + 1, {}),
+        (TopologyRequestSpec('rewire'), _shift, {}),
+        (var('x'), _shift, {'neighborhood': AROUND}),
+    ],
+)
+def test_update_check_rejects_arrays_without_a_function_of_a_state(target, value, settings):
+    """Test that `arrays=True` needs a function value, a state target, and no neighbourhood."""
+    with pytest.raises(ValidationError, match='arrays=True'):
+        UpdateLaw(target, value, arrays=True, **settings).prepare()
+
+
+def test_update_check_rejects_a_score_without_arrays():
+    """Test that a score needs an update of the whole array."""
+    with pytest.raises(ValidationError, match='has a score'):
+        UpdateLaw(var('x'), _shift, score=np.sum).prepare()
+
+
 def test_update_check_rejects_an_increment_with_a_source():
     """Test that an increment law with a source raises an error."""
     x = var('x')

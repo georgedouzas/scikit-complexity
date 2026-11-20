@@ -288,8 +288,11 @@ class CoSimulationSolver(Solver):
         interval = duration if self.sync_dt is None else self.sync_dt
         count = round(duration / interval) if interval > 0 else 0
         stepwise = any(
-            partition.problem.form in STEPWISE_FORMS
-            and not (isinstance(partition.problem, ProblemSpec) and partition.problem.programs)
+            (
+                partition.problem.form in STEPWISE_FORMS
+                and not (isinstance(partition.problem, ProblemSpec) and partition.problem.programs)
+            )
+            or self.steppers_[partition.name]._is_stepwise()
             for partition in self.problem_.partitions
         )
         if count < 1 or abs(count * interval - duration) > TOLERANCE * max(1.0, duration):
@@ -334,8 +337,20 @@ class CoSimulationSolver(Solver):
     def _advance_partition(self, partition: PartitionSpec, source: Array, p: Array, start: float, end: float) -> Array:
         """Advance one partition and return its new state vector.
 
-        It starts from the values of a source state vector.
+        It starts from the values of a source state vector. A partition whose problem has a layout of its own, as that
+        of a nested system of words has, advances its own part of the vectors.
         """
+        if partition.states is not None and partition.parameters is not None:
+            own = PartitionSpec(partition.name, partition.problem, partition.owned, partition.owners, partition.solver)
+            state = source.copy()
+            state[partition.states] = self._advance_partition(
+                own,
+                source[partition.states],
+                p[partition.parameters],
+                start,
+                end,
+            )
+            return state
         stepper = self.steppers_[partition.name]
         problem = partition.problem
         boundary = problem.boundary if isinstance(problem, ProblemSpec) else None
@@ -349,7 +364,7 @@ class CoSimulationSolver(Solver):
             state = problem.update(start, source.copy(), p, *drawn)
             return state if boundary is None else boundary(end, state, p)
         if stepper._reads_inputs():
-            stepper.inputs_ = self.problem_.states.get_values(source)
+            stepper.inputs_ = problem.states.get_values(source)
         state = stepper.run(StepSpec(start, source.copy(), p, end)).state_
         if boundary is not None:
             state = boundary(end, state, p)

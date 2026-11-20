@@ -213,7 +213,7 @@ class SequenceSamplingInteraction(Interaction):
             raise ValidationError(error_msg)
         if isinstance(context, SimpleNamespace):
             target = getattr(self._get_member(context, 'target'), self.state)
-            self.laws_ = [UpdateLaw(target, self._accept_rows, label=self.label, score=self._score_rows)]
+            self.laws_ = [UpdateLaw(target, self._accept_rows, label=self.label, score=self._score_rows, arrays=True)]
 
     def _get_row_keywords(self, score: RowScoreSpec, index: int, parameters: Mapping[str, object]) -> dict[str, object]:
         """Return the parameters that a row score names.

@@ -215,7 +215,7 @@ class WilsonSamplingInteraction(Interaction):
         if score is None:
             self.laws_: list[BaseComponent] = [ObjectiveLaw(self._get_action(context), links)]
         else:
-            self.laws_ = [UpdateLaw(links, self._sample_holonomies, label=self.label)]
+            self.laws_ = [UpdateLaw(links, self._sample_holonomies, label=self.label, arrays=True)]
 
     def _check_holonomy_score(self, score: HolonomyScoreSpec) -> None:
         """Raise an error for a holonomy score with options a matrix group does not take.

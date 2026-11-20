@@ -33,11 +33,6 @@ from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.systems import System
 
-GAP = (
-    'Engine gap: the broadcast of a field over position onto a phase space, and the moments of a phase-space field '
-    'read over position, key on the old field element class, so a role bound to a plain element there is not read'
-)
-
 
 class AmountElement(Element):
     """Element that holds one nonnegative amount `x` at every site of its space."""
@@ -204,7 +199,6 @@ def test_rate_over_position_reads_moment_of_phase_field_through_operators() -> N
     assert abs(final.sum() / start.sum() - 1.0) < 1e-12
 
 
-@pytest.mark.skip(reason=GAP)
 def test_drift_reads_field_over_position_through_a_second_role() -> None:
     """Accelerate only the classes at the positions where a field over the position lattice is nonzero."""
     lattice = LatticeSpace((2,), discretization='finite-volume')
@@ -224,7 +218,6 @@ def test_drift_reads_field_over_position_through_a_second_role() -> None:
     assert np.average(space.coordinates_['v'], weights=values[0]) == pytest.approx(0.5, abs=0.01)
 
 
-@pytest.mark.skip(reason=GAP)
 def test_rate_over_position_reads_moment_through_a_second_role() -> None:
     """Grow a field over the position lattice at the rate of the density moment of a phase-space field."""
     lattice = LatticeSpace((3,))

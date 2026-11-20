@@ -9,6 +9,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 
 from ....errors import ValidationError
 from ._operators import _OperatorFunction
+from ._reductions import _calls_in
 
 COORDINATE_PREFIX = '_coordinate_'
 REDUCE_AXES = _OperatorFunction('reduce_axes')
@@ -129,3 +130,26 @@ def maximum_entropy(expression: object, axes: Sequence[str], order: int = 2) -> 
         error_msg = f'The order of a maximum-entropy density is 0, 1, or 2, not {order!r}.'
         raise ValidationError(error_msg)
     return MAXIMUM_ENTROPY(SR(expression), SR(order), *coordinates_of(axes))
+
+
+def axis_reductions_in(expression: object) -> list[Expression]:
+    """Return the outermost integrals over class axes in an expression.
+
+    Each is listed once.
+
+    Args:
+        expression:
+            A symbolic expression, a number, or a vector of expressions.
+
+    Returns:
+        calls:
+            The calls of `reduce_axes`, such as those a moment over class axes builds.
+
+    Examples:
+        >>> from sage.all__sagemath_symbolics import var
+        >>> from skcomplex.core.components.laws.utils import reduce_axes
+        >>> from skcomplex.core.components.laws.utils._phase import axis_reductions_in
+        >>> axis_reductions_in(1 + reduce_axes(var('f'), ('v',)))
+        [reduce_axes(f, _coordinate_v)]
+    """
+    return _calls_in(expression, {REDUCE_AXES.name()})

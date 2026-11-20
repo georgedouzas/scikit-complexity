@@ -250,7 +250,7 @@ class EnsembleReplayInteraction(Interaction):
         super()._prepare(context)
         if not isinstance(context, SimpleNamespace):
             return
-        self.laws_: Sequence[BaseLaw] = [UpdateLaw(getattr(context.target, self.state), self._read_member)]
+        self.laws_: Sequence[BaseLaw] = [UpdateLaw(getattr(context.target, self.state), self._read_member, arrays=True)]
 
 
 @dataclass(frozen=True)

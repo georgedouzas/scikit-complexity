@@ -436,5 +436,5 @@ class GeodesicInteraction(Interaction):
             for mu in indices
         ]
         if isinstance(position, FreeModuleElement):
-            return [RateLaw(position, vector(SR, rate), order=2)]
+            return [RateLaw(position.diff(t, 2), vector(SR, rate))]
         return [RateLaw(SR(position).diff(t, 2), rate[0])]

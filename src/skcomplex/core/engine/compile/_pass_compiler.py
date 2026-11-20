@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import copy
 import dataclasses
 import heapq
 import inspect
@@ -78,11 +79,11 @@ from ...errors import (
     SpaceTooLargeError,
     ValidationError,
 )
-from ...specs import RoleSpec
+from ...specs import EntrySpec, RoleSpec
 from ...types import Array, ProcessKey, VectorFunction
 from .._utils import binding_of, bound_labels, declarations_of, default_of, symbol
 from ..backends import BaseBackend
-from ..problems import BaseProblemSpec, ProblemSpec
+from ..problems import BaseProblemSpec, CompiledElementSpec, ProblemSpec
 from ..problems._bilinear_law import BilinearLaw
 from ..problems._layout_spec import LayoutSpec
 from ..problems._neighborhood_kernel import NeighborhoodKernel
@@ -208,6 +209,11 @@ class PassCompiler(BaseCompiler):
         probed_:
             The failures of the probe that infers the states of plain elements, by the path of the component.
 
+        nested_:
+            The prepared compilers of the systems that an element of theirs names a compiler for, such as a system of
+            words, by the label of the child system, or by `''` for the whole system. A nested system compiled so
+            keeps its own time and solver as a partition of a co-simulation.
+
     Examples:
         >>> from skcomplex.core.systems import System
         >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
@@ -227,6 +233,7 @@ class PassCompiler(BaseCompiler):
     compilation_: Compilation | None
     learning_: _LearningCompiler | None
     probed_: dict[str, SkcomplexError]
+    nested_: dict[str, BaseCompiler]
 
     def __init__(
         self,
@@ -314,10 +321,52 @@ class PassCompiler(BaseCompiler):
             replaced.append(IssueSpec(code, issue.path, str(failure), fix, error=type(failure)))
         return replaced
 
+    @staticmethod
+    def _get_named_compiler(system: CompositeSystem, *, nested: bool = True) -> BaseCompiler | None:
+        """Return the compiler an element of a system names, or `None` for this one.
+
+        A word, for example, names the compiler of rewriting systems. With `nested`, the elements of its child systems
+        name one too. A system of operators keeps the pass compiler, which reports the compiler it needs.
+        """
+        if OperatorCompiler._contains_operator(system):
+            return None
+        for element in system.elements:
+            named = element._get_compiler()
+            if isinstance(named, BaseCompiler) and not isinstance(named, PassCompiler):
+                return named
+        children = [child for child in system.systems if isinstance(child, CompositeSystem)] if nested else []
+        return next(
+            (named for child in children if (named := PassCompiler._get_named_compiler(child)) is not None),
+            None,
+        )
+
+    def _get_nested_issues(self, system: CompositeSystem) -> tuple[CompositeSystem, list[IssueSpec]]:
+        """Return the system without the children another compiler compiles, and their issues.
+
+        Each such child is prepared on its compiler in `nested_`, and its issues are named by its path.
+        """
+        self.nested_ = {}
+        kept = []
+        for child in system.systems:
+            named = self._get_named_compiler(child) if isinstance(child, CompositeSystem) else None
+            if named is None:
+                kept.append(child)
+                continue
+            self.nested_[child.label] = clone(named).set_params(backend=self.backend).prepare(child)
+        issues = [
+            dataclasses.replace(issue, path=f'{label}/{issue.path}')
+            for label, compiler in self.nested_.items()
+            for issue in compiler.report_.issues
+        ]
+        if not self.nested_:
+            return system, issues
+        return copy.copy(system).set_params(systems=kept), issues
+
     def _get_issues(self, system: CompositeSystem) -> list[IssueSpec]:
         """Return every issue of a system, of its solver, and of its backend.
 
-        The compilation is planned along the way.
+        A system whose own elements name a compiler, such as a system of words, is compiled by that compiler, and a
+        child system that names one is compiled by it as a partition of its own.
 
         Args:
             system:
@@ -329,6 +378,25 @@ class PassCompiler(BaseCompiler):
         """
         self._set_passes()
         self.learning_ = None
+        named = self._get_named_compiler(system, nested=False)
+        if named is not None:
+            self.nested_ = {'': clone(named).set_params(backend=self.backend, solver=self.solver).prepare(system)}
+            self.compilation_ = None
+            issues = list(self.nested_[''].report_.issues)
+            if not issues:
+                self.compilation_ = self._run_passes(self._get_new_compilation(system), until='nodes')
+            return issues
+        system, nested = self._get_nested_issues(system)
+        if self.nested_ and not system.elements and not system.systems:
+            self.compilation_ = None
+            return nested
+        return nested + self._get_own_issues(system)
+
+    def _get_own_issues(self, system: CompositeSystem) -> list[IssueSpec]:
+        """Return the issues of a system the pass compiler compiles, with its solver and backend.
+
+        The compilation is planned along the way.
+        """
         if _LearningCompiler._find_training(system) is not None:
             inner = PassCompiler(passes=self.passes)
             self.learning_ = _LearningCompiler(inner, self.backend, self.solver).prepare(system)
@@ -361,6 +429,16 @@ class PassCompiler(BaseCompiler):
         """
         if self.learning_ is not None:
             return self.learning_.run(initial_state).problem_
+        if '' in self.nested_:
+            return self.nested_[''].run(initial_state).problem_
+        own = {name: value for name, value in initial_state.items() if name.partition('/')[0] not in self.nested_}
+        main = self._get_own_problem(own) if self.compilation_ is not None else None
+        if not self.nested_:
+            return Compilation._get_required(main, 'problem')
+        return self._get_nested_problem(main)
+
+    def _get_own_problem(self, initial_state: Mapping[str, object]) -> BaseProblemSpec:
+        """Return the problem of the elements the pass compiler compiles."""
         compilation = self.compilation_
         if compilation is None:
             error_msg = 'The system stopped compiling before its census. Prepare the compiler on a valid system.'
@@ -370,6 +448,81 @@ class PassCompiler(BaseCompiler):
         problem = self._get_planned_problem(compilation)
         ObservableEvaluator._check_held_reads(problem, list(compilation.held))
         return self._copy_with_initial_state(problem, initial_state)
+
+    def _get_solver(self, problem: BaseProblemSpec) -> object:
+        """Return the solver the compiler of the whole system names, or `None`.
+
+        `None` stands for the default solver of the form.
+        """
+        return self.nested_['']._get_solver(problem) if '' in self.nested_ else None
+
+    @staticmethod
+    def _get_renamed(entries: Sequence[EntrySpec], prefix: str, offset: int) -> list[EntrySpec]:
+        """Return entries named under the path of a nested system and moved by an offset.
+
+        The offset is their place in the vector of the whole system.
+        """
+        return [dataclasses.replace(item, name=f'{prefix}{item.name}', start=item.start + offset) for item in entries]
+
+    @staticmethod
+    def _get_renamed_element(element: CompiledElementSpec, prefix: str) -> CompiledElementSpec:
+        """Return a compiled element named under the path of a nested system."""
+        return dataclasses.replace(
+            element,
+            path=f'{prefix}{element.path}',
+            states={name: f'{prefix}{value}' for name, value in element.states.items()},
+            parameters={name: f'{prefix}{value}' for name, value in element.parameters.items()},
+        )
+
+    def _get_nested_problem(self, main: BaseProblemSpec | None) -> ProblemSpec:
+        """Return the co-simulation of the main problem and of the nested systems.
+
+        Each nested system is a partition with its own layout, whose states and parameters follow those of the main
+        problem in the vectors of the whole system, named by the path of the nested system, such as `pond/algae.size`.
+        """
+        problems = [('', main)] if main is not None else []
+        problems += [(f'{label}/', compiler.run().problem_) for label, compiler in self.nested_.items()]
+        states: list[EntrySpec] = []
+        parameters: list[EntrySpec] = []
+        partitions: list[PartitionSpec] = []
+        elements: list[CompiledElementSpec] = []
+        rows, columns = 0, 0
+        for prefix, problem in problems:
+            size, count = len(problem.initial_state), len(problem.initial_parameters)
+            owned = np.arange(rows, rows + size)
+            read = np.arange(columns, columns + count)
+            states += self._get_renamed(problem.states.entries, prefix, rows)
+            parameters += self._get_renamed(problem.parameters.entries, prefix, columns)
+            elements += [self._get_renamed_element(item, prefix) for item in problem.elements]
+            rows, columns = rows + size, columns + count
+            if isinstance(problem, ProblemSpec) and problem.partitions:
+                partitions += [dataclasses.replace(item, states=owned, parameters=read) for item in problem.partitions]
+                continue
+            label = prefix.removesuffix('/')
+            solver = self.nested_[label]._get_solver(problem) if label else None
+            paths = frozenset(f'{prefix}{item.path}' for item in problem.elements)
+            name = label or self.system_.label
+            kept = solver if isinstance(solver, BaseConfig) else None
+            partitions.append(PartitionSpec(name, problem, owned, paths, kept, owned, read))
+        return ProblemSpec(
+            form=FormKind.COUPLED,
+            states=LayoutSpec(tuple(states)),
+            parameters=LayoutSpec(tuple(parameters)),
+            initial_state=np.concatenate([problem.initial_state for _, problem in problems]),
+            initial_parameters=np.concatenate([problem.initial_parameters for _, problem in problems]),
+            time=problems[0][1].time,
+            symbols=dict(main.symbols) if main is not None else {},
+            equations=dict(main.equations) if isinstance(main, ProblemSpec) else {},
+            equation_symbols=dict(main.equation_symbols) if isinstance(main, ProblemSpec) else {},
+            has_callables=isinstance(main, ProblemSpec) and main.has_callables,
+            has_group_sums=isinstance(main, ProblemSpec) and main.has_group_sums,
+            elements=tuple(elements),
+            interactions=main.interactions if main is not None else (),
+            system=self.system_,
+            agents=main.agents if main is not None else (),
+            agent_space=main.agent_space if main is not None else None,
+            partitions=tuple(partitions),
+        )
 
     @staticmethod
     def _copy_with_initial_state(problem: BaseProblemSpec, initial_state: Mapping[str, object]) -> BaseProblemSpec:
@@ -1629,15 +1782,21 @@ class PassCompiler(BaseCompiler):
     def _get_held_axes(record: _CensusRecordSpec, nodes: Mapping[str, _NodeSpec]) -> list[str]:
         """Return the class axes of the space of the group of a law and of its fields.
 
-        The fields are those its interaction reads.
+        The fields are those the roles of its interaction bind, such as a phase-space field whose moments a rate over
+        position reads.
         """
         spaces = [record.space]
         node = nodes.get(record.path.rpartition('/')[0]) or nodes.get(record.path)
-        sources = getattr(node.component, 'sources', ()) if node is not None else ()
-        if node is not None and isinstance(sources, list | tuple):
-            found = [nodes.get(f'{node.scope}{label}') for label in sources]
+        if node is not None and isinstance(node.component, BaseInteraction):
+            labels = [
+                label
+                for role in declarations_of(node.component, VariableKind.ROLE)
+                for label in bound_labels(binding_of(node.component, role))
+            ]
+            found = [nodes.get(f'{node.scope}{label}'.partition('[')[0]) for label in labels]
             spaces += [getattr(item.component, 'space', None) for item in found if item is not None]
-        return [axis.name for space in spaces if isinstance(space, PhaseSpace) for axis in space.axes]
+        axes = [axis.name for space in spaces if isinstance(space, PhaseSpace) for axis in space.axes]
+        return list(dict.fromkeys(axes))
 
     @staticmethod
     def _get_collision_issue(record: _CensusRecordSpec) -> IssueSpec | None:

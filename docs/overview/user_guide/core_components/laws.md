@@ -9,8 +9,9 @@ compares every law class and holds its fact sheet.
 
 ## Updates of a whole array
 
-An `UpdateLaw` whose value is a NumPy function of the whole array, `UpdateLaw(state, f)`, hands the array of the state
-to the function at every step and stores the array it returns. Here a sandpile of 5 by 5 sites receives one grain at a random site per step.
+An `UpdateLaw` with `arrays=True`, `UpdateLaw(state, f, arrays=True)`, takes a NumPy function of the whole array. It
+hands the array of the state to the function at every step and stores the array it returns. Without `arrays`, a
+function value is `f(t, values)` and gives the next value of one state. Here a sandpile of 5 by 5 sites receives one grain at a random site per step.
 
 ```python
 from typing import Annotated
@@ -37,7 +38,7 @@ class SandElement(Element):
         self.height = height
 
     def _get_laws(self, namespace):
-        return [UpdateLaw(namespace.height, drop)]
+        return [UpdateLaw(namespace.height, drop, arrays=True)]
 
 
 pile = GroupElement('pile', element=SandElement, space=LatticeSpace((5, 5)), on='sites')
@@ -65,7 +66,7 @@ class NucleotideElement(Element):
         self.base = base
 
     def _get_laws(self, namespace):
-        return [UpdateLaw(namespace.base, mutate)]
+        return [UpdateLaw(namespace.base, mutate, arrays=True)]
 
 
 genome = GroupElement('genome', element=NucleotideElement, space=LatticeSpace(30), on='sites')
@@ -103,7 +104,7 @@ class GrainDropInteraction(Interaction):
         self.pile = pile
 
     def _get_laws(self, namespace):
-        return [UpdateLaw(namespace.pile.height, drop)]
+        return [UpdateLaw(namespace.pile.height, drop, arrays=True)]
 
 
 class HeightElement(Element):
@@ -270,7 +271,7 @@ class SandpileElement(Element):
         self.height = height
 
     def _get_laws(self, namespace):
-        drive = UpdateLaw(namespace.height, drop)
+        drive = UpdateLaw(namespace.height, drop, arrays=True)
         rule = LocalRuleLaw(namespace.height, cross, topple)
         relaxed = relax(namespace.height, rule, lambda z: bool((z < 4).all()), drive=drive)
         return [UpdateLaw(namespace.height, relaxed, label='avalanche')]
@@ -302,7 +303,7 @@ class FaultElement(Element):
         self.stress = stress
 
     def _get_laws(self, namespace):
-        drive = UpdateLaw(namespace.stress, load)
+        drive = UpdateLaw(namespace.stress, load, arrays=True)
         rule = LocalRuleLaw(namespace.stress, cross, slip)
         relaxed = relax(namespace.stress, rule, lambda z: bool((z < 1.0).all()), drive=drive)
         return [UpdateLaw(namespace.stress, relaxed, label='earthquake')]
@@ -341,7 +342,7 @@ class ForestElement(Element):
 
     def _get_laws(self, namespace):
         rule = LocalRuleLaw(namespace.tree, cross, burn)
-        drive = UpdateLaw(namespace.tree, strike)
+        drive = UpdateLaw(namespace.tree, strike, arrays=True)
         relaxed = relax(namespace.tree, rule, lambda z: bool((z < 2.0).all()), drive=drive)
         return [UpdateLaw(namespace.tree, relaxed, label='fire')]
 
@@ -378,7 +379,7 @@ class NeuronElement(Element):
             namespace.potential,
             LocalRuleLaw(namespace.potential, line, fire),
             lambda v: bool((v < 1.0).all()),
-            drive=UpdateLaw(namespace.potential, charge),
+            drive=UpdateLaw(namespace.potential, charge, arrays=True),
             activity=lambda v: v >= 1.0,
         )
         return [UpdateLaw(namespace.potential, relaxed, label='avalanche')]
@@ -409,7 +410,7 @@ from skcomplex.core.errors import SolverError
 
 class StuckElement(SandpileElement):
     def _get_laws(self, namespace):
-        drive = UpdateLaw(namespace.height, drop)
+        drive = UpdateLaw(namespace.height, drop, arrays=True)
         rule = LocalRuleLaw(namespace.height, cross, topple)
         relaxed = relax(namespace.height, rule, lambda z: bool((z < 0).all()), drive=drive, max_iterations=50)
         return [UpdateLaw(namespace.height, relaxed)]

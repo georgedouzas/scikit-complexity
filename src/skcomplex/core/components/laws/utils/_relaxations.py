@@ -90,7 +90,7 @@ def relax(
 
         >>> height = var('height')
         >>> topple = LocalRuleLaw(height, cross, lambda z, *n: z - 4 * (z >= 4) + sum(m >= 4 for m in n))
-        >>> grain = UpdateLaw(height, lambda z, *, random: z + np.eye(1, z.size).reshape(z.shape))
+        >>> grain = UpdateLaw(height, lambda z, *, random: z + np.eye(1, z.size).reshape(z.shape), arrays=True)
         >>> pile = relax(height, topple, lambda z: bool((z < 4).all()), drive=grain)
         >>> UpdateLaw(height, pile, label='avalanche').value
         relax(height)

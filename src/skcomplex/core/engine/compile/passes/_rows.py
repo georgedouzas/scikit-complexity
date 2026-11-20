@@ -5,6 +5,7 @@
 
 from dataclasses import replace
 
+import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
 from ....components.laws import (
@@ -19,13 +20,17 @@ from ....components.laws import (
     UpdateLaw,
 )
 from ....components.laws._flow_term import FlowTermLaw
+from ....components.laws.utils._cells import cell_operations_in
 from ....components.laws.utils._draws import draws_in
+from ....components.laws.utils._phase import axis_reductions_in
 from ....components.laws.utils._reductions import hyperedges_in, neighborhoods_in, reductions_in
-from ....components.spaces import DiscreteTime
+from ....components.spaces import DiscreteTime, PhaseSpace
 from ....errors import IncompatibleLawsError, RoleError
 from ..._utils import components_of
 from ...enums import ReadKind
+from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._kernel_spec import KernelSpec
+from ...problems._neighbor_read_spec import _NeighborReadSpec
 from .._base import BasePass
 from .._compilation import Compilation
 from .._draw_lowering import DrawLowering
@@ -41,7 +46,7 @@ class RowsPass(BasePass):
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
-        return ('lowered', 'apart', 'programs', 'transfer')
+        return ('lowered', 'apart', 'programs', 'transfer', 'layout')
 
     def _get_writes(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass writes."""
@@ -52,9 +57,11 @@ class RowsPass(BasePass):
 
         A spec whose rows change is replaced by a copy with its rows settled in every field of the compilation, such as
         the laws, the laws set apart, and the flows, which later passes read. The linear programs of a spec settle its
-        rows with its other laws.
+        rows with its other laws. A field over position that laws of a phase-space field read is read at every class
+        of its position first.
         """
         compilation = self.compilation_
+        declarations = Compilation._get_required(compilation.layout, 'layout')
         apart = [
             *Compilation._get_required(compilation.apart, 'apart'),
             *Compilation._get_required(compilation.programs, 'programs'),
@@ -64,7 +71,8 @@ class RowsPass(BasePass):
         settled: dict[int, KernelSpec] = {}
         for spec, laws, _ in lowered:
             self._check_draw_placement(spec.owner, [law for law in laws if id(law) not in stepped])
-            new = self._get_settled(spec, [*laws, *(law for other, items in apart if other is spec for law in items)])
+            every = [*laws, *(law for other, items in apart if other is spec for law in items)]
+            new = self._get_settled(self._get_broadcast(spec, every, declarations), every)
             if new is not spec:
                 settled[id(spec)] = new
         compilation._replace_specs(settled)
@@ -87,6 +95,47 @@ class RowsPass(BasePass):
         return {id(law) for items in laws for law in items if id(law) in born and isinstance(law, RateLaw)}
 
     @staticmethod
+    def _get_broadcast(spec: KernelSpec, laws: list[BaseLaw], declarations: DeclarationsSpec) -> KernelSpec:
+        """Return a spec that reads a field over position at every class of a phase space.
+
+        The phase space is that of the field its laws change.
+
+        A drift of a phase-space field by a force over its position lattice, such as `s.force.x * s.target.x`, reads
+        the force of the position of every class. A spec without such a field is returned itself.
+        """
+        targets = {
+            reference.entry.name.rpartition('.')[0]
+            for law in laws
+            for target in law._get_targets()
+            for item in components_of(target)
+            if (reference := spec.references.get(item)) is not None
+        }
+        phases = [
+            space
+            for path in targets
+            if path in declarations.blocks
+            and isinstance(space := getattr(declarations.blocks[path].node.component, 'space', None), PhaseSpace)
+        ]
+        if not phases:
+            return spec
+        phase = phases[0]
+        references = dict(spec.references)
+        for item, reference in spec.references.items():
+            owner = reference.entry.name.rpartition('.')[0]
+            block = declarations.blocks.get(owner)
+            if reference.source is not ReadKind.MEMBER or owner in targets or block is None:
+                continue
+            if (
+                isinstance(getattr(block.node.component, 'space', None), PhaseSpace)
+                or block.rows != phase.position_size_
+            ):
+                continue
+            table = np.repeat(np.arange(block.rows), phase.size_ // phase.position_size_)
+            read = _NeighborReadSpec(table, None, None, None, 0)
+            references[item] = replace(reference, source=ReadKind.NEIGHBOR, neighbor=read)
+        return replace(spec, references=references) if references != spec.references else spec
+
+    @staticmethod
     def _check_aligned(spec: KernelSpec, groups: list[str]) -> None:
         """Raise an error for groups of unequal size an interaction reads member-wise.
 
@@ -105,9 +154,16 @@ class RowsPass(BasePass):
 
     @staticmethod
     def _get_outside_reductions(value: object) -> set[Expression]:
-        """Return the symbols of a law value that occur outside its reductions."""
+        """Return the symbols of a law value that occur outside its reductions.
+
+        A call of the exterior calculus, such as `exterior_derivative(s.source.u)`, reads the cells of another degree
+        through the incidences of the complex, and an integral over class axes, such as the moment of a phase-space
+        field, reads every class of a position, so both count as reductions.
+        """
         expressions = [item for item in components_of(value) if isinstance(item, Expression)]
         found = [reduction.call for item in expressions for reduction in reductions_in(item)]
+        found += [call for item in expressions for call in cell_operations_in(item)]
+        found += [call for item in expressions for call in axis_reductions_in(item)]
         found += [reduction.call for item in expressions for reduction in neighborhoods_in(item)]
         found += [reduction.call for item in expressions for reduction in hyperedges_in(item)]
         calls, operators = {str(call) for call in found}, {call.operator() for call in found}

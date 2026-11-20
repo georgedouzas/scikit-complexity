@@ -368,7 +368,7 @@ class RegionSamplingInteraction(Interaction):
         self.objective._check()
         if isinstance(context, SimpleNamespace):
             target = getattr(self._get_member(context, 'target'), self.state)
-            self.laws_ = [UpdateLaw(target, self._sample_regions, label=self.label)]
+            self.laws_ = [UpdateLaw(target, self._sample_regions, label=self.label, arrays=True)]
 
     @staticmethod
     @functools.cache

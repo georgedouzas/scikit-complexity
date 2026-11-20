@@ -32,13 +32,7 @@ from ....conftest import GrowthInteraction, HoldingElement, _total, _two_populat
 from .conftest import phase_system
 
 FIELD_WEIGHTS = np.ones((4, 4)) - np.eye(4)
-REWRITING_GAP = 'Engine gap: the rewriting laws of a nested System are reported as changing no state.'
 NESTING_GAPS = {
-    'MorseSubshiftSystem': REWRITING_GAP,
-    'KochCurveSystem': REWRITING_GAP,
-    'SierpinskiSubstitutionSystem': REWRITING_GAP,
-    'CantorSetSystem': REWRITING_GAP,
-    'DcMotorSystem': 'Engine gap: a nested System loses the equation of the companion state rotor.phi_d1.',
     'ActivePassiveFlockingSystem': 'Engine gap: the laws of the system still read the companion state x_d1.',
 }
 
