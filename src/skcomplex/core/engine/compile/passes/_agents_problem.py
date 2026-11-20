@@ -41,6 +41,8 @@ AGENT_VIEW_NAMES = frozenset(
         'get_distance_to',
         'get_lags',
         'get_referenced',
+        'get_value',
+        'set_value',
     },
 )
 MESA_AGENT_NAMES = frozenset({'position', 'pos', 'cell', 'unique_id', 'system'})

@@ -154,7 +154,7 @@ class ZoneCouplingInteraction(Interaction):
             The path of the group of the other agents, or `None` for the agents of the target.
 
         write:
-            The names of the components of the vector of the agent.
+            The names of the components of the vector of the agent, primed for a derivative, such as `"x'"`.
 
         combine:
             The next vector, a callable of the agent, the system view, the reduction, and its priority, or `None` for
@@ -300,7 +300,7 @@ class ZoneCouplingInteraction(Interaction):
         if not agent.alive:
             return
         names = [self.write] if isinstance(self.write, str) else list(self.write)
-        current = np.array([float(cast(float, getattr(agent, name))) for name in names])
+        current = np.array([float(cast(float, agent.get_value(name))) for name in names])
         reduction, priority = self._get_agent_reduction(agent, system)
         if self.combine is not None:
             combine = cast(AgentCombination, self.combine)
@@ -308,4 +308,4 @@ class ZoneCouplingInteraction(Interaction):
         else:
             value = current if reduction is None else current + reduction
         for name, item in zip(names, self._get_clamped(agent, current, value), strict=True):
-            setattr(agent, name, float(item))
+            agent.set_value(name, float(item))

@@ -12,6 +12,7 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ...base import BaseConfig
 from ...components import Observable
+from ...components.interactions import BaseInteraction
 from ...components.laws.utils import count, maximum, mean, minimum, total, variance
 from ...errors import ValidationError
 from .._utils import vector
@@ -128,8 +129,7 @@ class Observer(BaseConfig[None, tuple[_NodeSpec, object]]):
                 value, other_references = self._get_value(other, other_scope, earlier)
                 setattr(namespace, earlier.label, value)
                 references.update(other_references)
-        expression = observable.expression(namespace) if callable(observable.expression) else observable.expression
-        return expression, references
+        return self._get_value_of(observable.expression, namespace, self.declarations.time), references
 
     def _get_value(
         self,
@@ -146,8 +146,20 @@ class Observer(BaseConfig[None, tuple[_NodeSpec, object]]):
         block = self.declarations.blocks[ObservableEvaluator._join(scope, observable.group)]
         source = self._get_source_of(block)
         references = {item: replace(reference, source=source) for item, reference in block.references.items()}
-        self.values_[path] = (self._get_reduced_value(path, observable, block), references)
+        self.values_[path] = (self._get_reduced_value(path, observable, block, self.declarations.time), references)
         return self.values_[path]
+
+    @staticmethod
+    def _get_value_of(expression: object, namespace: SimpleNamespace, time: Expression) -> object:
+        """Return the value of an expression, reading its symbols as functions of time.
+
+        A derivative such as `x.diff(t)` is the derivative of the state `x`, as in a law.
+        """
+        if not callable(expression):
+            return expression
+        functions: dict[str, Expression] = {}
+        value = expression(BaseInteraction._get_functional(namespace, time, functions))
+        return BaseInteraction._get_translated(value, time, functions, False)
 
     @staticmethod
     def _get_source_of(block: BlockSpec) -> ReadKind:
@@ -173,8 +185,12 @@ class Observer(BaseConfig[None, tuple[_NodeSpec, object]]):
         return SimpleNamespace(**symbols)
 
     @staticmethod
-    def _get_reduced_value(path: str, observable: Observable, block: BlockSpec) -> object:
-        """Return an observable that reduces a group over its member symbols."""
+    def _get_reduced_value(path: str, observable: Observable, block: BlockSpec, time: Expression) -> object:
+        """Return an observable that reduces a group over its member symbols.
+
+        The expression of one member reads its states as functions of the time `time`, so it may read their
+        derivatives, such as the mean of `x.diff(t)` over the agents.
+        """
         namespace = Observer._get_namespace_of(block)
         if observable.reduce == 'count':
             return count(over=namespace)
@@ -189,7 +205,8 @@ class Observer(BaseConfig[None, tuple[_NodeSpec, object]]):
             error_msg = f'Observable {path} reduces {block.node.path} with {observable.reduce!r} but names no variable.'
             raise ValidationError(error_msg)
         else:
-            value = observable.expression(namespace) if callable(observable.expression) else observable.expression
+            member = SimpleNamespace(**{**vars(namespace), 't': time})
+            value = Observer._get_value_of(observable.expression, member, time)
         reducer = REDUCERS[str(observable.reduce)]
         if isinstance(value, FreeModuleElement):
             return vector(reducer(item, over=namespace) for item in value)

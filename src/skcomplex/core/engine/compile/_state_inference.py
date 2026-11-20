@@ -172,8 +172,8 @@ class _StateInference:
         """Return the starting derivatives of the values of agents, by engine name.
 
         The engine name of `"x'"` is `x_d1`. Rules change such a derivative as a value of its own, such as the
-        velocity `"x'"` of a boid that its steering turns and its flight adds to `x`, and read it as `agent.x_d1`.
-        Each comes with the name it is given under and the value it derives.
+        velocity `"x'"` of a boid that its steering turns and its flight adds to `x`, and read it as
+        `agent.get_value("x'")`. Each comes with the name it is given under and the value it derives.
         """
         derivatives = {}
         for name, value in (element.values or {}).items():

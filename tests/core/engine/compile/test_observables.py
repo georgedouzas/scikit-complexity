@@ -32,9 +32,6 @@ from ....conftest import GrowthInteraction, HoldingElement, _total, _two_populat
 from .conftest import phase_system
 
 FIELD_WEIGHTS = np.ones((4, 4)) - np.eye(4)
-NESTING_GAPS = {
-    'ActivePassiveFlockingSystem': 'Engine gap: the laws of the system still read the companion state x_d1.',
-}
 
 
 def _rule(label, laws):
@@ -228,8 +225,6 @@ def _decaying_group(*observables, until=0.0):
 @pytest.mark.parametrize('system_class', [system for _, system in all_systems()], ids=lambda system: system.__name__)
 def test_reductions_agree_with_observables(system_class):
     """Test that laws reading a system's observables at a state read the values the observable evaluator records."""
-    if system_class.__name__ in NESTING_GAPS:
-        pytest.skip(NESTING_GAPS[system_class.__name__])
     observed, observables, paths = _observed(system_class)
     if OperatorCompiler._contains_operator(observed):
         pytest.skip('An operator system cannot share a co-simulation with classical readers.')
@@ -561,6 +556,46 @@ def test_observable_of_a_derivative_the_system_does_not_hold_raises():
     system = System(elements=[Element('mass', values={'x': 1.0})], interactions=[SpringInteraction('spring')])
     with pytest.raises(ValidationError, match=r"mass\.x'''"):
         system.prepare().simulate(until=1.0, observables=[Observable('jerk', _spring_jerk)])
+
+
+def _member_energy(member):
+    """Return the energy `(x'^2 + x^2) / 2` of one mass."""
+    return (member.x.diff(member.t) ** 2 + member.x**2) / 2
+
+
+def _member_speed(member):
+    """Return the speed `|x'|` of one mass."""
+    return abs(member.x.diff(member.t))
+
+
+def _springs():
+    """Return masses on springs that start at rest at different places."""
+    masses = Element('masses', values={'x': [1.0, 2.0, 3.0]}, size=3)
+    return System(elements=[masses], interactions=[SpringInteraction('spring', target='masses')])
+
+
+def test_reduction_over_members_reads_their_derivatives():
+    """Test that the mean energy of masses on springs reads `x'` of every mass, so it is conserved."""
+    observable = Observable('energy', _member_energy, group='masses', reduce='mean')
+    trajectory = _springs().prepare().simulate(until=3.0, dt=0.5, observables=[observable])
+    np.testing.assert_allclose(trajectory.get_values('energy'), 7 / 3, rtol=1e-3)
+
+
+def test_laws_read_a_reduction_of_the_derivatives_of_members():
+    """Test that a law reads the mean speed of masses as the evaluator records it, which is not zero."""
+    observed = _springs()
+    observed.label = 'system'
+    observables = [Observable('system/speed', _member_speed, group='masses', reduce='mean')]
+    reader = ReadInteraction('read', probe='probe', source='system/speed')
+    system = System(elements=[Element('probe', values={'y': 0.0})], systems=[observed], interactions=[reader])
+    problem = PassCompiler(backend=NumpyBackend(), observables=observables).prepare(system).run().problem_
+    reading = next((item.problem for item in problem.partitions if 'probe' in item.owners), problem)
+    x, p = problem.initial_state, problem.initial_parameters
+    x[problem.states.get_entry("system/masses.x_d1").start :][:3] = [1.0, -2.0, 0.5]
+    rates = reading.drift(0.0, x, p)
+    recorded = ObservableEvaluator(problem).prepare().evaluate(0.0, x, p, agents_of=lambda group: [])
+    assert recorded['system/speed'] == pytest.approx(3.5 / 3, rel=1e-12)
+    assert rates[problem.states.get_entry('probe.y').start] == pytest.approx(3.5 / 3, rel=1e-12)
 
 
 def _age(s):

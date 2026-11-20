@@ -283,17 +283,18 @@ class ActivePassiveFlockingSystem(BaseSystem):
     @staticmethod
     def _get_velocity_x(member: SimpleNamespace) -> Expression:
         """Return the first velocity component of a member when active, and 0 otherwise."""
-        return member.active * member.x_d1[0]
+        return member.active * member.x.diff(member.t)[0]
 
     @staticmethod
     def _get_velocity_y(member: SimpleNamespace) -> Expression:
         """Return the second velocity component of a member when active, and 0 otherwise."""
-        return member.active * member.x_d1[1]
+        return member.active * member.x.diff(member.t)[1]
 
     @staticmethod
     def _get_speed(member: SimpleNamespace) -> Expression:
         """Return the speed of a member when active, and 0 otherwise."""
-        return member.active * sqrt(member.x_d1.dot_product(member.x_d1))
+        velocity = member.x.diff(member.t)
+        return member.active * sqrt(velocity.dot_product(velocity))
 
     @staticmethod
     def _get_polarization(s: SimpleNamespace) -> Expression:

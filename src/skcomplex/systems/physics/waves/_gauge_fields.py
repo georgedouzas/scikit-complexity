@@ -267,7 +267,7 @@ class LatticeGaugeFieldsSystem(BaseSystem):
         The residual is the largest absolute difference of the codifferential of the field and the site charge.
         """
         del t
-        electric = -np.ravel(np.asarray(values['links.A_d1'], dtype=float))
+        electric = -np.ravel(np.asarray(values["links.A'"], dtype=float))
         charges = np.ravel(np.asarray(values['charges.q'], dtype=float))
         return float(np.abs(-(edges.T @ electric) - charges).max())
 
@@ -278,7 +278,7 @@ class LatticeGaugeFieldsSystem(BaseSystem):
         The electric field lives on the links and the magnetic field on the plaquettes.
         """
         del t
-        velocity = np.ravel(np.asarray(values['links.A_d1'], dtype=float))
+        velocity = np.ravel(np.asarray(values["links.A'"], dtype=float))
         magnetic = faces @ np.ravel(np.asarray(values['links.A'], dtype=float))
         return float((velocity @ velocity + magnetic @ magnetic) / 2)
 

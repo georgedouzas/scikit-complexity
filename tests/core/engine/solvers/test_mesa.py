@@ -471,6 +471,22 @@ def _views(space, **values):
     return [AgentView(agent, stepper) for agent in stepper._get_group_agents('cows')]
 
 
+def test_agent_view_reads_and_sets_a_primed_value_by_name():
+    """Test that a view reads and sets `x'` with `get_value` and `set_value`, and holds no engine name `x_d1`."""
+    birds = Element('birds', values={'x': [1.0, 2.0], 'y': [1.0, 1.0], "x'": [0.5, -0.5]}, size=2)
+    stepper = _stepped(System(elements=[birds], interactions=[_rule('fly', 'birds', _stay)]), until=0)
+    first = MesaSolver._get_view_of(stepper._get_group_agents('birds')[0])
+    assert first.get_value("x'") == 0.5
+    assert first.get_value('x') == first.x == 1.0
+    first.set_value("x'", 2.0)
+    assert first.get_value("x'") == 2.0
+    assert not hasattr(first, 'x_d1')
+    with pytest.raises(AttributeError):
+        first.get_value('x_d1')
+    with pytest.raises(AttributeError):
+        first.set_value("y'", 1.0)
+
+
 def test_displacement_across_torus_seam():
     """Test that the displacement in a toroidal continuous space is the shortest image across the seam."""
     space = ContinuousSpace(extent=(100.0, 1.0), boundary='periodic')

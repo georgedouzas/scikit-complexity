@@ -103,7 +103,7 @@ class DumbbellElement(Element):
 
 def _get_dumbbell_rates(d: SimpleNamespace) -> SimpleNamespace:
     """Return the velocities of the coordinates of a dumbbell, the values named with a prime."""
-    return SimpleNamespace(**{name: getattr(d, f'{name}_d1') for name in COORDINATES})
+    return SimpleNamespace(**{name: getattr(d, name).diff(d.t) for name in COORDINATES})
 
 
 def _get_dumbbell_energy(d: SimpleNamespace) -> Expression:

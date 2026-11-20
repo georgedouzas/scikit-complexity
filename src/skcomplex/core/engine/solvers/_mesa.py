@@ -7,7 +7,7 @@ import math
 import numbers
 from collections import deque
 from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
-from typing import cast, overload
+from typing import ClassVar, cast, overload
 
 import mesa
 import networkx as nx
@@ -658,7 +658,8 @@ class AgentView:
     It shows its states as attributes, its group's parameters, its neighbours, and its location. The stepper gives every
     agent one view of the class of its group, whose states and parameters are properties, so two views of an agent are
     the same object. Reading a state reads the agent, and setting it sets the agent, at the end of the phase in a
-    simultaneous phase. Parameters are read only, and an unknown name raises Python's own `AttributeError`.
+    simultaneous phase. Parameters are read only, and an unknown name raises Python's own `AttributeError`. A primed
+    value, such as the velocity `x'` of a bird, is no attribute, and `get_value` and `set_value` read and set it.
 
     Args:
         agent:
@@ -670,9 +671,62 @@ class AgentView:
 
     __slots__ = ('_agent', '_stepper')
 
+    _states: ClassVar[Mapping[str, str]] = {}
+
     def __init__(self, agent: mesa.Agent, stepper: 'MesaSolver') -> None:
         self._agent = agent
         self._stepper = stepper
+
+    def get_value(self, name: str) -> object:
+        """Return a value of the agent by the name users read, such as `x'`.
+
+        Args:
+            name:
+                The name of a state or a parameter, primed for a derivative, such as `x` or `x'`.
+
+        Returns:
+            value:
+                The value.
+
+        Raises:
+            AttributeError:
+                The agent has no value of that name.
+        """
+        state = self._states.get(name)
+        return getattr(self, name) if state is None else getattr(self._agent, state)
+
+    def set_value(self, name: str, value: object) -> None:
+        """Set a state of the agent by the name users read, such as `x'`.
+
+        It sets the agent at the end of the phase in a simultaneous phase.
+
+        Args:
+            name:
+                The name of a state, primed for a derivative, such as `x` or `x'`.
+
+            value:
+                The new value.
+
+        Raises:
+            AttributeError:
+                The agent has no state of that name.
+        """
+        state = self._states.get(name)
+        if state is None:
+            setattr(self, name, value)
+            return
+        self._set_state(state, value)
+
+    def _set_state(self, name: str, value: object) -> None:
+        """Set a state of the agent by its engine name.
+
+        A simultaneous phase buffers the value until its end.
+        """
+        buffer = self._stepper.buffer_
+        if buffer is not None:
+            buffer[self._agent, name] = value
+            return
+        self._stepper._write(self._agent, name, value)
 
     @property
     def id(self) -> int:
@@ -2174,11 +2228,7 @@ class MesaSolver(ExternalSolver):
             return getattr(view._agent, name)
 
         def write(view: AgentView, value: object) -> None:
-            buffer = view._stepper.buffer_
-            if buffer is not None:
-                buffer[view._agent, name] = value
-                return
-            view._stepper._write(view._agent, name, value)
+            view._set_state(name, value)
 
         return property(read, write, doc=f'State {name} of the agent.')
 
@@ -2196,14 +2246,17 @@ class MesaSolver(ExternalSolver):
     def _get_view_class(spec: _CompiledAgentsSpec) -> type[AgentView]:
         """Return the class of the views of a group's agents.
 
-        The class has a property per state and parameter.
+        The class has a property per parameter and per state that is not primed. It reads and sets every state by the
+        name users read, such as `x'` for the engine name `x_d1`.
         """
         names: dict[str, object] = {
             name: MesaSolver._get_parameter_property(name, entry)
             for name, entry in spec.parameters.items()
             if name not in spec.states
         }
-        names.update({name: MesaSolver._get_state_property(name) for name in spec.states})
+        states = {LayoutSpec._get_display_name(name): name for name in spec.states}
+        names.update({name: MesaSolver._get_state_property(name) for shown, name in states.items() if "'" not in shown})
+        names['_states'] = states
         names['__slots__'] = ()
         base = MesaSolver._get_declared_view(spec) or MesaSolver._get_agent_type(spec)._get_view() or AgentView
         if not issubclass(base, AgentView):
