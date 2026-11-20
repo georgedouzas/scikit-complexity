@@ -208,7 +208,7 @@ class RewritingCompiler(BaseCompiler):
 
     @staticmethod
     def _get_arguments_of(interaction: BaseInteraction) -> dict[str, tuple[object, object]]:
-        """Return the allowed values and the value of every numeric argument of an interaction, by name."""
+        """Return the allowed values and value of each numeric argument, by name."""
         if not interaction._is_preparing_laws():
             return {}
         allowed = interaction._get_allowed()
