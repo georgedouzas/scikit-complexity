@@ -13,7 +13,7 @@ from skcomplex.core.components.interactions import BaseInteraction, Interaction
 from skcomplex.core.components.laws import BaseLaw, RateLaw
 from skcomplex.core.components.spaces import BaseNeighborhood, BaseSpace
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
+from skcomplex.core.specs import RoleSpec
 from skcomplex.core.systems import System
 from skcomplex.core.types import Role
 
@@ -44,20 +44,13 @@ class DoublingComponent(BaseComponent):
 
 
 class SpecifiedComponent(BaseComponent):
-    """Component that declares a state, a parameter, and a role, and one plain argument."""
+    """Component that declares two roles, a value, and one plain argument."""
 
-    def __init__(
-        self,
-        label,
-        x: Annotated[float, StateSpec(order=2)] = 0.0,
-        k: Annotated[float, ParameterSpec()] = 1.0,
-        target: Annotated[str, RoleSpec()] = 'a',
-        plain=None,
-    ):
+    def __init__(self, label, x: float = 0.0, target: Role = 'a', source: Role | None = None, plain=None):
         super().__init__(label)
         self.x = x
-        self.k = k
         self.target = target
+        self.source = source
         self.plain = plain
 
     def _prepare(self, context=None):
@@ -73,19 +66,11 @@ class SpecifiedComponent(BaseComponent):
 
 
 class ExtendedComponent(SpecifiedComponent):
-    """Component that takes the state of its base again without annotating it, and adds a parameter first."""
+    """Component that takes the role of its base again without annotating it, and adds a role first."""
 
-    def __init__(self, label, r: Annotated[float, ParameterSpec()] = 0.5, x=1.0):
-        super().__init__(label, x=x)
-        self.r = r
-
-
-class InvalidSpecComponent(SpecifiedComponent):
-    """Component that declares a state of an invalid order."""
-
-    def __init__(self, label, y: Annotated[float, StateSpec(order=0)] = 0.0):
-        super().__init__(label)
-        self.y = y
+    def __init__(self, label, other: Role = 'b', target='a'):
+        super().__init__(label, target=target)
+        self.other = other
 
 
 def test_prepare_and_run():
@@ -103,31 +88,25 @@ def test_prepare_checks_the_label_and_the_arguments():
         DoublingComponent('doubling', factor='two').prepare()
 
 
-def test_prepare_checks_every_declared_spec():
-    """Test that preparing a component checks the spec of every annotated argument."""
-    with pytest.raises(ValidationError, match='order'):
-        InvalidSpecComponent('invalid').prepare()
-
-
 def test_get_specs_returns_the_annotated_arguments_in_constructor_order():
     """Test that the specs of a component are the annotated arguments of its constructor, in order, and no others."""
     specs = SpecifiedComponent._get_specs()
-    assert list(specs) == ['x', 'k', 'target']
-    assert specs['x'] == StateSpec(order=2)
-    assert isinstance(specs['target'], RoleSpec)
+    assert list(specs) == ['target', 'source']
+    assert specs['target'] == RoleSpec()
+    assert specs['source'] == RoleSpec(optional=True)
 
 
 def test_get_specs_keeps_the_specs_of_the_bases():
     """Test that a subclass keeps the spec of an argument of its base that it takes again without annotating it."""
     specs = ExtendedComponent._get_specs()
-    assert list(specs) == ['r', 'x']
-    assert specs['x'] == StateSpec(order=2)
+    assert list(specs) == ['other', 'target']
+    assert specs['target'] == RoleSpec()
 
 
 def test_constructor_only_stores_its_arguments():
     """Test that a component stores its arguments as given, so scikit-learn lists and clones them."""
     component = SpecifiedComponent('a', x=[1.0], plain='plain')
-    assert component.get_params() == {'k': 1.0, 'label': 'a', 'plain': 'plain', 'target': 'a', 'x': [1.0]}
+    assert component.get_params() == {'label': 'a', 'plain': 'plain', 'source': None, 'target': 'a', 'x': [1.0]}
     cloned = clone(component)
     assert cloned.get_params() == component.get_params()
     assert cloned is not component
