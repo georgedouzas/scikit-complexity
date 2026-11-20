@@ -17,7 +17,7 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import BaseSolver
+from ....core.engine.solvers import BaseSolver, EulerSolver
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
 
@@ -286,7 +286,8 @@ class StockFlowConsistentEconomySystem(BaseSystem):
             The label of the system, which names it when it is nested in another one.
 
         solver:
-            The solver of the problem, or `'auto'` for the one the system chooses.
+            The solver of the problem, or `'auto'` for the Euler rule with a step of one period, so every flow moves
+            the money of one period.
 
         backend:
             The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
@@ -391,4 +392,5 @@ class StockFlowConsistentEconomySystem(BaseSystem):
                 Interaction('loans', roles={'target': 'firms', 'bank': 'bank'}, laws=self._get_next_loans),
                 Interaction('sales', roles={'target': 'firms', 'households': 'households'}, laws=self._get_next_sales),
             ],
+            solver=EulerSolver(dt=1.0),
         )
