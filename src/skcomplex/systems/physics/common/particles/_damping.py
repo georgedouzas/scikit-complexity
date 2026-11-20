@@ -38,8 +38,6 @@ class DampingInteraction(Interaction):
         state:
             The name of the position of the target.
 
-        divisor:
-            The name of the mass of the target.
 
     Examples:
         >>> from skcomplex.core.components.elements import Element
@@ -60,13 +58,11 @@ class DampingInteraction(Interaction):
         target: Role,
         gamma: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
         state: str = 'x',
-        divisor: str = 'm',
     ) -> None:
         super().__init__(label)
         self.target = target
         self.gamma = gamma
         self.state = state
-        self.divisor = divisor
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Set the acceleration of the position of the target.
@@ -79,4 +75,4 @@ class DampingInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             t, target = context.t, context.target
             x = getattr(target, self.state)
-            self.laws_ = [RateLaw(x.diff(t, 2), -context.gamma * x.diff(t) / getattr(target, self.divisor))]
+            self.laws_ = [RateLaw(x.diff(t, 2), -context.gamma * x.diff(t) / target.m)]

@@ -61,13 +61,13 @@ class LammpsSolver(ExternalSolver):
 
     It uses LAMMPS velocity Verlet integration. An element or group whose members declare a vector position state of
     order 2, such as a point, becomes an atom type, whose atoms move with the first derivative of the position as
-    their velocity. The mass of an atom type is the parameter that the `divisor` of the interactions on its members
-    names, and 1 without a divisor. Boxes become LAMMPS boundaries and `fix wall/reflect`. An interaction whose
-    class `pairs` gives a native pair style becomes that pair style, between the members of its roles `first` and
-    `second` closer than the radius of `within=RadiusNeighborhood(r)`, or within its `cutoff`. A `PairInteraction`
-    with a potential and no native pair style becomes a Lepton expression potential. An interaction whose class
-    `fixes` gives a native fix becomes that fix. Any other interaction that only changes the derivatives of the
-    positions runs through `fix external`, evaluated by the framework.
+    their velocity. The mass of an atom type is the value `m` of its members, or the parameter that the `divisor` of
+    the interactions on its members names, and 1 without either. Boxes become LAMMPS boundaries and
+    `fix wall/reflect`. An interaction whose class `pairs` gives a native pair style becomes that pair style, between
+    the members of its roles `first` and `second` closer than the radius of `within=RadiusNeighborhood(r)`, or within
+    its `cutoff`. A `PairInteraction` with a potential and no native pair style becomes a Lepton expression potential.
+    An interaction whose class `fixes` gives a native fix becomes that fix. Any other interaction that only changes the
+    derivatives of the positions runs through `fix external`, evaluated by the framework.
 
     Choose it for large systems of particles with standard potentials. It appears in molecular dynamics of liquids,
     solids, and polymers.
@@ -612,8 +612,10 @@ class LammpsSolver(ExternalSolver):
     def _get_mass(problem: ProblemSpec, p: Array, element: CompiledElementSpec) -> float:
         """Return the mass of the members of an element or group.
 
-        It is the parameter their divisor names, or 1.
+        It is their value `m`, the parameter their divisor names, or 1.
         """
+        if problem.parameters.has(f'{element.path}.m'):
+            return float(LammpsSolver._get_parameter(problem, p, element.path, 'm')[0])
         divisors = LammpsSolver._get_divisors(problem, element)
         if not divisors:
             return 1.0

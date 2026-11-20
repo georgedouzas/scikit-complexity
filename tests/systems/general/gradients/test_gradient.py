@@ -47,7 +47,15 @@ def _cahn_hilliard(phi):
     return laplacian(phi**3) - laplacian(phi) - KAPPA * laplacian(laplacian(phi))
 
 
-class PairWellInteraction(GradientInteraction):
+class NewtonWellInteraction(GradientInteraction):
+    """Gradient that puts the force over the mass `m` on the second derivative, Newton's law."""
+
+    def _get_rate_law(self, state, rate, member, time):
+        """Return `x'' = -dU/dx / m`."""
+        return RateLaw(state.diff(time, 2), rate / member.m)
+
+
+class PairWellInteraction(NewtonWellInteraction):
     """Harmonic well between two members, which moves both."""
 
     def __init__(
@@ -58,7 +66,7 @@ class PairWellInteraction(GradientInteraction):
         second: Role,
         k: float = 1.0,
     ) -> None:
-        super().__init__(label, target=first, divisor='m', order=2)
+        super().__init__(label, target=first)
         self.first = first
         self.second = second
         self.k = k
@@ -69,15 +77,9 @@ class PairWellInteraction(GradientInteraction):
         return s.k * gap.dot_product(gap) / 2
 
 
-def _harmonic(label, k, divisor, order=1):
-    """Return a harmonic gradient on the state `x` of a target, on its derivative of an order."""
-    return GradientInteraction(
-        f'{label}_well',
-        target=label,
-        potential=lambda s: k * s.target.x.dot_product(s.target.x) / 2,
-        divisor=divisor,
-        order=order,
-    )
+def _harmonic(label, k, kind=GradientInteraction):
+    """Return a harmonic gradient on the state `x` of a target, a gradient flow or Newton's law by its class."""
+    return kind(f'{label}_well', target=label, potential=lambda s: k * s.target.x.dot_product(s.target.x) / 2)
 
 
 def _density(s):
@@ -102,13 +104,13 @@ def _run(system, until, dt):
 
 
 def test_simulate_gives_the_gradient_flow_and_the_newtonian_motion():
-    """Test that a harmonic gradient decays a state of order 1 and oscillates a state of order 2 with its period."""
+    """Test that a harmonic gradient decays a flowing state and oscillates a state under Newton's law."""
     system = System(
         elements=[
-            Element('slow', values={'x': [1.0], 'gamma': 2.0}),
+            Element('slow', values={'x': [1.0]}),
             Element('fast', values={'x': [1.0], 'm': 2.0}),
         ],
-        interactions=[_harmonic('slow', 4.0, 'gamma'), _harmonic('fast', 4.0, 'm', order=2)],
+        interactions=[_harmonic('slow', 2.0), _harmonic('fast', 4.0, NewtonWellInteraction)],
     )
     trajectory = _run(system, 2 * np.pi, 0.1)
     times = trajectory.times
@@ -174,43 +176,29 @@ def test_simulate_matches_the_cahn_hilliard_equation_and_conserves_the_total():
     ('arguments', 'message'),
     [
         ({'states': ('x', '2y')}, 'Give names of states'),
-        ({'divisor': 'm-1'}, 'name of a state or parameter'),
         ({'potential': 'quadratic'}, 'function of the namespace'),
-        ({'order': 3}, 'Give 1 for a gradient flow or 2 for Newton'),
     ],
 )
 def test_prepare_rejects_invalid_arguments(arguments, message):
-    """Test that `prepare` rejects a state or a divisor that is not a name, or a potential that is not callable."""
+    """Test that `prepare` rejects a state that is not a name, or a potential that is not callable."""
     with pytest.raises(ValidationError, match=message):
         GradientInteraction('gradient', target='walkers', **arguments).prepare()
 
 
-def test_simulate_divides_every_state_by_its_own_divisor():
-    """Test that a spring between two coordinates with their own masses keeps the momentum `ma a' + mb b'` at 0."""
-    spring = GradientInteraction(
-        'spring',
-        target='body',
-        states=('a', 'b'),
-        potential=lambda s: (s.target.a - s.target.b) ** 2 / 2,
-        divisor={'a': 'ma', 'b': 'mb'},
-        order=2,
+def test_simulate_divides_every_member_by_its_own_mass():
+    """Test that a well between two members of masses 1 and 3 keeps the momentum `x_a' + 3 x_b'` at 0."""
+    system = System(
+        elements=[Element('a', values={'x': [-1.0], 'm': 1.0}), Element('b', values={'x': [1.0], 'm': 3.0})],
+        interactions=[PairWellInteraction('well', first='a', second='b')],
     )
-    body = Element('body', values={'a': 1.0, 'b': 0.0, 'ma': 1.0, 'mb': 3.0})
-    trajectory = System(elements=[body], interactions=[spring]).prepare().simulate(until=2.0, dt=0.1)
-    momentum = trajectory.get_values("body.a'") + 3.0 * trajectory.get_values("body.b'")
+    trajectory = system.prepare().simulate(until=2.0, dt=0.1)
+    momentum = trajectory.get_values("a.x'")[:, 0] + 3.0 * trajectory.get_values("b.x'")[:, 0]
     np.testing.assert_allclose(momentum, 0.0, atol=1e-9)
 
 
-def test_simulate_divides_by_a_divisor_expression():
-    """Test that a harmonic well divided by `4 m` oscillates at the frequency `1 / sqrt(4 m)`."""
-    well = _harmonic('body', 1.0, lambda member: 4 * member.m, order=2)
-    system = System(elements=[Element('body', values={'x': [1.0], 'm': 1.0})], interactions=[well])
+def test_simulate_divides_by_the_mass_of_newton_law():
+    """Test that a harmonic well over the mass `4` oscillates at the frequency `1 / 2`."""
+    well = _harmonic('body', 1.0, NewtonWellInteraction)
+    system = System(elements=[Element('body', values={'x': [1.0], 'm': 4.0})], interactions=[well])
     trajectory = _run(system, np.pi, np.pi)
     assert float(trajectory.get_values('body.x')[-1][0]) == pytest.approx(0.0, abs=1e-6)
-
-
-def test_prepare_rejects_a_divisor_of_an_unknown_state():
-    """Test that a divisor mapping that names a state the interaction does not move raises an error."""
-    gradient = GradientInteraction('well', target='body', states='a', potential=lambda s: 0, divisor={'b': 'mb'})
-    with pytest.raises(ValidationError, match='divisor'):
-        gradient.prepare()

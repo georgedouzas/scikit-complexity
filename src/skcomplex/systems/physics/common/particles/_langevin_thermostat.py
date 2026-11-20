@@ -42,8 +42,6 @@ class LangevinThermostatInteraction(Interaction):
         state:
             The name of the position of the particles.
 
-        divisor:
-            The name of the mass of the particles.
 
     Examples:
         >>> from skcomplex.systems.physics.common.particles import LangevinThermostatInteraction
@@ -61,14 +59,12 @@ class LangevinThermostatInteraction(Interaction):
         temperature: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
         gamma: Annotated[float, RealSet.open(0, oo)] = 1.0,
         state: str = 'x',
-        divisor: str = 'm',
     ) -> None:
         super().__init__(label)
         self.target = target
         self.temperature = temperature
         self.gamma = gamma
         self.state = state
-        self.divisor = divisor
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Set the drag and the random force on the velocity of the particles.
@@ -80,7 +76,7 @@ class LangevinThermostatInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             s, t = context, context.t
-            x, m = getattr(s.target, self.state), getattr(s.target, self.divisor)
+            x, m = getattr(s.target, self.state), s.target.m
             self.laws_ = [
                 RateLaw(x.diff(t, 2), -x.diff(t) / (1 / s.gamma) / m),
                 NoiseLaw(x.diff(t, 2), sqrt(2 * s.gamma * s.temperature) / m),
