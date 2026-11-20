@@ -65,7 +65,6 @@ def test_declared_laws_sum_a_function_of_both_ends_over_the_lattice_neighbours(b
     assert np.abs(rate - np.ravel(expected)).max() < 1e-12
 
 
-@pytest.mark.skip(reason='Engine gap: a neighbour reduction on a lattice reads no fixed value beyond fixed edges.')
 def test_declared_laws_read_the_fixed_value_beyond_fixed_edges():
     """Test that a coupling on a field with a fixed boundary reads the fixed value beyond the edges."""
     field = np.random.default_rng(1).random((6, 5))
@@ -74,7 +73,6 @@ def test_declared_laws_read_the_fixed_value_beyond_fixed_edges():
     assert np.abs(_rate(field, _logistic, space=space) - np.ravel(expected)).max() < 1e-12
 
 
-@pytest.mark.skip(reason='Engine gap: a neighbour reduction on a lattice reads no fixed value beyond fixed edges.')
 def test_declared_laws_agree_with_the_edge_kernel_away_from_fixed_edges():
     """Test that a coupling on a field with fixed edges matches the edge kernel of a group at the interior sites."""
     field = np.random.default_rng(2).random((7, 6))
@@ -96,9 +94,6 @@ def test_declared_laws_lower_a_linear_exchange_on_a_network():
     assert np.abs(rate - expected).max() < 1e-12
 
 
-@pytest.mark.skip(
-    reason='Engine gap: a diffusive neighbour reduction on a spectral lattice is not lowered to its Fourier Laplacian.',
-)
 def test_declared_laws_lower_a_diffusive_coupling_to_the_spectral_laplacian():
     """Test that a coupling `D (x_j - x_i)` on a spectral field is `D` times the field's Fourier Laplacian."""
     positions = np.arange(32) * 2 * np.pi / 32
@@ -109,9 +104,6 @@ def test_declared_laws_lower_a_diffusive_coupling_to_the_spectral_laplacian():
     assert np.abs(rate - expected).max() < 1e-12
 
 
-@pytest.mark.skip(
-    reason='Engine gap: a diffusive neighbour reduction on a mesh is not lowered to the finite element Laplacian.',
-)
 def test_declared_laws_lower_a_diffusive_coupling_to_the_finite_element_laplacian():
     """Test that a coupling `D (x_j - x_i)` on a mesh field is `D` times the finite element Laplacian."""
     mesh = MeshTri.init_sqsymmetric().refined(2)
