@@ -20,7 +20,7 @@ from ..systems import BaseSystem
 from ._calibration import CalibrationResult, calibrate
 from ._runs import _check_source, _map_calls
 from ._utils import build_system
-from .types import Bounds, Source
+from .types import Bounds, SystemSource
 
 SEED_RANGE = 2**31
 
@@ -52,7 +52,7 @@ class IndividualCalibrationResult:
 
 
 def calibrate_individuals(
-    system: Source,
+    system: SystemSource,
     data: Mapping[Hashable, Data],
     bounds: Bounds,
     *,
@@ -170,7 +170,7 @@ def calibrate_individuals(
                 'it from `known` or from `bounds`.'
             )
             raise ValidationError(error_msg)
-    sources: list[Source] = []
+    sources: list[SystemSource] = []
     for individual in data:
         values = dict(known.get(individual, {}))
         if isinstance(source, BaseSystem | CompositeBaseSystem):

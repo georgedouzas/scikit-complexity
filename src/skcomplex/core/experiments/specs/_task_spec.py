@@ -15,7 +15,7 @@ from ...engine.runtime import Trajectory
 from ...engine.solvers import BaseSolver
 from ...specs._base_spec import BaseSpec
 from .._scenario_spec import ScenarioSpec
-from ..types import Output, Row, Source
+from ..types import Output, Row, SystemSource
 
 
 @dataclass(frozen=True)
@@ -64,7 +64,7 @@ class _TaskSpec(BaseSpec):
     """
 
     index: int
-    source: Source
+    source: SystemSource
     row: Row
     scenario: ScenarioSpec
     replicate: int

@@ -18,7 +18,7 @@ from ..types import Array
 from ._calibration import _check_priors
 from ._runs import _check_count
 from ._sweep import sweep
-from .types import Bounds, Output, Source
+from .types import Bounds, Output, SystemSource
 
 DESIGNS = ('random', 'latin_hypercube')
 MIN_PLAUSIBLE = 10
@@ -97,7 +97,7 @@ def _get_inclusion(observed: Array, values: Array) -> Array:
 
 
 def virtual_population(
-    system: Source,
+    system: SystemSource,
     bounds: Bounds,
     outputs: Sequence[Output],
     constraints: Mapping[str, Sequence[float]],

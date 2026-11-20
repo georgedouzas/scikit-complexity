@@ -32,7 +32,7 @@ from ..specs import ParameterSpec, StateSpec, VariableSpec
 from ..systems import BaseSystem, System
 from ._runs import _check_source
 from ._utils import build_system, get_problem
-from .types import Source
+from .types import SystemSource
 
 PLAIN_LAWS = (
     RateLaw,
@@ -302,7 +302,7 @@ def _replicate_prepared(system: System, size: int, values: Mapping[str, npt.Arra
 
 
 def _run_replicated(
-    source: Source,
+    source: SystemSource,
     values: Mapping[str, npt.ArrayLike],
     until: float | None,
     dt: float | None,

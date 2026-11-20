@@ -27,7 +27,7 @@ from ._run_result_spec import _RunResultSpec
 from ._scenario_spec import ScenarioSpec
 from ._utils import build_system, get_problem
 from .specs._task_spec import _TaskSpec
-from .types import Output, Row, Source
+from .types import Output, Row, SystemSource
 
 TIME_TOLERANCE = 1e-12
 
@@ -35,7 +35,7 @@ TIME_TOLERANCE = 1e-12
 type Problems = MutableMapping[Hashable, tuple[BaseProblemSpec, BaseSolver] | BaseSystem]
 
 
-def _check_source(source: object) -> Source:
+def _check_source(source: object) -> SystemSource:
     """Return the system of an experiment after checking it.
 
     It is a system or a factory of systems.

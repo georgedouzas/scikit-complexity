@@ -13,11 +13,11 @@ from ..errors import ValidationError
 from ._results import ExperimentResult
 from ._runs import _run_experiment
 from ._scenario_spec import ScenarioSpec
-from .types import Output, Source
+from .types import Output, SystemSource
 
 
 def compare_scenarios(
-    system: Source,
+    system: SystemSource,
     scenarios: Sequence[ScenarioSpec],
     *,
     replicates: int = 1,

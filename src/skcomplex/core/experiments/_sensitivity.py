@@ -18,7 +18,7 @@ from ..types import Array
 from ._designs import _get_sensitivity_rows
 from ._runs import _run_experiment
 from ._scenario_spec import ScenarioSpec
-from .types import Bounds, Source
+from .types import Bounds, SystemSource
 
 METHODS = ('oat', 'morris', 'sobol')
 SIZES = {'oat': 0, 'morris': 10, 'sobol': 1024}
@@ -81,7 +81,7 @@ class SensitivityResult:
 
 
 def sensitivity(
-    system: Source,
+    system: SystemSource,
     bounds: Bounds,
     *,
     output: str,

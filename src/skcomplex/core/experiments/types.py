@@ -12,5 +12,5 @@ from ..systems import BaseSystem
 type Row = dict[str, object]
 type Bounds = Mapping[str, object]
 type AnySystem = BaseSystem | CompositeBaseSystem
-type Source = AnySystem | Callable[..., AnySystem]
+type SystemSource = AnySystem | Callable[..., AnySystem]
 type Output = str | Callable[[Trajectory], object]

@@ -15,7 +15,7 @@ from ..types import Array
 from ._replicate import _run_replicated
 from ._runs import _check_count, _check_source, _run_experiment
 from ._scenario_spec import ScenarioSpec
-from .types import Source
+from .types import SystemSource
 
 
 @dataclass(frozen=True)
@@ -35,7 +35,7 @@ class OrbitDiagramResult:
 
 
 def orbit_diagram(
-    system: Source,
+    system: SystemSource,
     parameter: str,
     values: Sequence[float],
     observable: str,

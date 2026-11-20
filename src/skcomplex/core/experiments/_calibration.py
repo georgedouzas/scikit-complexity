@@ -37,7 +37,7 @@ from ..types import Array
 from ._designs import _check_bounds
 from ._runs import _check_count, _check_source
 from ._utils import build_system, simulate_system
-from .types import AnySystem, Bounds, Source
+from .types import AnySystem, Bounds, SystemSource
 
 LOSSES: dict[str, tuple[LossKind, ...]] = {
     CalibrationMethodKind.LOCAL: (LossKind.SQUARES, LossKind.LIKELIHOOD, LossKind.EVENTS),
@@ -172,7 +172,7 @@ class _CalibrationObjective:
 
     def __init__(
         self,
-        source: Source,
+        source: SystemSource,
         series: Series,
         priors: Mapping[str, stats.rv_continuous],
         *,
@@ -888,7 +888,7 @@ def _result(
 
 
 def calibrate(
-    system: Source,
+    system: SystemSource,
     data: Mapping[str, tuple[npt.ArrayLike, npt.ArrayLike]] | Trajectory,
     bounds: Bounds,
     *,

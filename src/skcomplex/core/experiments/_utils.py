@@ -15,10 +15,10 @@ from ..engine.runtime import Trajectory, simulate
 from ..engine.solvers import BaseSolver
 from ..errors import ExperimentError, ValidationError
 from ..systems import BaseSystem
-from .types import AnySystem, Source
+from .types import AnySystem, SystemSource
 
 
-def build_system(source: Source, arguments: Mapping[str, object], solver: BaseSolver | None = None) -> AnySystem:
+def build_system(source: SystemSource, arguments: Mapping[str, object], solver: BaseSolver | None = None) -> AnySystem:
     """Return a copy of the system of a source with parameters set.
 
     A system is cloned and takes the arguments through `set_params`, as `cross_val_score` clones an estimator, so the

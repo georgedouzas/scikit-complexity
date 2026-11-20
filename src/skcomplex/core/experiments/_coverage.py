@@ -18,7 +18,7 @@ from ..types import Array
 from ._calibration import LOSSES, CalibrationResult, Summary, _check_priors, _series_of, calibrate
 from ._runs import _check_count, _check_source, _map_calls
 from ._utils import build_system, simulate_system
-from .types import Bounds, Source
+from .types import Bounds, SystemSource
 
 POSTERIOR_METHODS = (CalibrationMethodKind.ABC_SMC, CalibrationMethodKind.MCMC, CalibrationMethodKind.VARIATIONAL)
 
@@ -75,7 +75,7 @@ def _interval(values: Array, weights: Array, level: float) -> tuple[float, float
 def _calibrate_truth(
     draw: tuple[dict[str, float], int],
     *,
-    source: Source,
+    source: SystemSource,
     bounds: Bounds,
     times: Array,
     paths: Sequence[str] | None,
@@ -119,7 +119,7 @@ def _calibrate_truth(
 
 
 def posterior_coverage(
-    system: Source,
+    system: SystemSource,
     bounds: Bounds,
     times: npt.ArrayLike,
     *,
