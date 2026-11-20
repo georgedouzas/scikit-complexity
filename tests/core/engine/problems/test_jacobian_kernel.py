@@ -185,14 +185,7 @@ def test_pattern_agrees_with_split_solver(system):
 @pytest.mark.parametrize(
     ('system', 'block'),
     [
-        pytest.param(
-            _pair_ring(12),
-            12,
-            marks=pytest.mark.skip(
-                reason='engine gap: a reduction over the neighbours within a radius gives no Jacobian pattern, '
-                'not the dense block of its group',
-            ),
-        ),
+        (_pair_ring(12), 12),
         (KuramotoSivashinskySystem(16), 16),
     ],
     ids=['pairs', 'spectral'],

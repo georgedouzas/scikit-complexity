@@ -448,10 +448,6 @@ def test_kuramoto_through_observables(backend):
     np.testing.assert_allclose(rates, _all_to_all(theta, omega), atol=1e-12)
 
 
-@pytest.mark.skip(
-    reason='engine gap: a law that reads a callable observable of its own partition fails state inference with an '
-    'unrelated error, not the error that asks for a symbolic observable',
-)
 def test_callable_observable_in_same_partition():
     """Test that a law reading a callable observable of its own partition is rejected."""
     system = System(

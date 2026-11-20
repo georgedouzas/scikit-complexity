@@ -21,6 +21,7 @@ from ._base import BaseKernel
 from ._expression_printer import ExpressionPrinter
 from ._finite_volume_kernel import FiniteVolumeKernel
 from ._law_kernel import LawKernel
+from ._neighborhood_kernel import NeighborhoodKernel
 from ._output_spec import OutputSpec
 from ._partials_spec import PartialsSpec
 from ._read_spec import _ReadSpec
@@ -351,8 +352,8 @@ class JacobianKernel(BaseKernel):
         Returns:
             pattern:
                 A boolean sparse matrix that holds every entry the Jacobian can make nonzero and the diagonal of free
-                rows, with fixed rows empty, or `None` when the dense blocks exceed `PATTERN_LIMIT` entries or the
-                laws reduce over neighbourhoods, whose neighbours can change.
+                rows, with fixed rows empty, or `None` when the dense blocks exceed `PATTERN_LIMIT` entries. A reduction
+                over neighbourhoods, whose neighbours can change, reads the dense block of its group.
         """
         return self._pattern
 
@@ -373,11 +374,12 @@ class JacobianKernel(BaseKernel):
         It raises `_TooDenseError` above the size limit.
         """
         self._dense = 0
-        if self.reductions.neighbourhoods:
-            raise _TooDenseError
         supports: dict[Expression, Sparse] = {}
-        for reduction in self.reductions.reductions:
-            supports[reduction.symbol] = self._get_reduction_support(reduction, supports)
+        for reduction in self.reductions.steps:
+            if isinstance(reduction, NeighborhoodKernel):
+                supports[reduction.symbol] = self._get_neighborhood_support(reduction, supports)
+            else:
+                supports[reduction.symbol] = self._get_reduction_support(reduction, supports)
         blocks = [scipy.sparse.eye_array(self.size, format='csr')]
         for kernel in self.kernels:
             blocks.extend(self._get_kernel_pattern(kernel, supports))
@@ -526,6 +528,22 @@ class JacobianKernel(BaseKernel):
                 if support is not None:
                     blocks.append(scatter @ support)
         return blocks
+
+    def _get_neighborhood_support(self, reduction: NeighborhoodKernel, supports: dict[Expression, Sparse]) -> Sparse:
+        """Return the states a reduction over neighbours may depend on, for any member.
+
+        The neighbours can change as the members move, so every member may read every state the reduction reads of any
+        member, the dense block of its group.
+        """
+        support = scipy.sparse.csr_array((1, self.size), dtype=bool)
+        for item in reduction.symbols:
+            read = reduction.reads[item].read
+            if item in supports:
+                support = support + scipy.sparse.csr_array(supports[item].sum(axis=0).reshape(1, -1) != 0)
+            elif read.is_state:
+                columns = np.unique(np.asarray(read.index, dtype=np.intp))
+                support = support + (self._get_selection(np.zeros_like(columns), columns, 1.0, self.size, 1) != 0)
+        return support
 
     def _get_reduction_support(self, reduction: ReductionKernel, supports: dict[Expression, Sparse]) -> Sparse:
         """Return the states a reduction depends on.
