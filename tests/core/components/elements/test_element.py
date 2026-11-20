@@ -273,3 +273,24 @@ def test_element_gives_the_hints_of_its_value_arguments():
     """Test that the hints of an element are the annotations of its value arguments, in their order."""
     assert HeatedElement('body')._get_hints() == {'T': Annotated[float, Quantity('energy')], 'm': float}
     assert Element('ball', values={'x': 1.0})._get_hints() == {}
+
+
+def _held(s):
+    """Return a rate of zero of the value `n`, which holds it."""
+    return [RateLaw(s.target.n.diff(s.t), 0)]
+
+
+def test_element_on_a_lattice_reads_values_of_the_lattice_shape_row_by_row():
+    """Test that values of the shape of a lattice give one member per site, in row-major order."""
+    cells = Element('cells', values={'n': np.arange(6.0).reshape(2, 3)}, space=LatticeSpace((2, 3)))
+    hold = Interaction('hold', roles={'target': 'cells'}, laws=_held)
+    system = System(elements=[cells], interactions=[hold]).prepare()
+    assert system.simulate(until=1.0, dt=1.0).get_values('cells.n')[0].tolist() == [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]
+
+
+def test_element_on_a_lattice_rejects_values_of_another_count():
+    """Test that values neither shared nor one per site name the element, the value, and both counts."""
+    cells = Element('cells', values={'n': np.arange(5.0)}, space=LatticeSpace((2, 3)))
+    hold = Interaction('hold', roles={'target': 'cells'}, laws=_held)
+    with pytest.raises(ValidationError, match=r"'cells' has 6 members but its value 'n' has 5 entries"):
+        System(elements=[cells], interactions=[hold]).prepare()
