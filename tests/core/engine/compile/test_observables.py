@@ -38,7 +38,6 @@ NESTING_GAPS = {
     'KochCurveSystem': REWRITING_GAP,
     'SierpinskiSubstitutionSystem': REWRITING_GAP,
     'CantorSetSystem': REWRITING_GAP,
-    'DcMotorSystem': 'Engine gap: a nested System loses the equation of the companion state rotor.phi_d1.',
     'ActivePassiveFlockingSystem': 'Engine gap: the laws of the system still read the companion state x_d1.',
 }
 

@@ -9,7 +9,7 @@ from scipy.linalg import expm
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws import ConstraintLaw, RateLaw
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.systems import System
@@ -55,6 +55,28 @@ def test_simulate_matches_the_equation_of_a_damped_driven_pendulum():
     by_lagrangian = _run([Element('bob', values={'q': 1.0})], [pendulum], 10.0)
     by_hand = _run([Element('bob', values={'q': 1.0})], [PendulumInteraction('pendulum', target='bob')], 10.0)
     np.testing.assert_allclose(by_lagrangian.get_values('bob.q'), by_hand.get_values('bob.q'), atol=1e-7)
+
+
+def test_simulate_holds_an_inertia_of_the_element_fixed_beside_a_constraint():
+    """Test that an inertia `J` read from the element stays a parameter beside an algebraic state.
+
+    The rotor `J q'' = -b q'` keeps the velocity `exp(-b t / J)` while a node holds a value fixed by a constraint.
+    """
+    rotor = EulerLagrangeInteraction(
+        'rotor',
+        target='wheel',
+        states='q',
+        lagrangian=lambda s: s.target.J * s.target.q.diff(s.t) ** 2 / 2,
+        dissipation=lambda s: s.target.b * s.target.q.diff(s.t) ** 2 / 2,
+    )
+    hold = Interaction(
+        'hold',
+        roles={'node': 'node', 'wheel': 'wheel'},
+        laws=lambda s: [ConstraintLaw(s.node.v, s.wheel.q.diff(s.t), target=s.node.v)],
+    )
+    wheel = Element('wheel', values={'q': 0.0, "q'": 1.0, 'J': 2.0, 'b': 1.0})
+    trajectory = _run([wheel, Element('node', values={'v': 1.0})], [rotor, hold], 2.0)
+    np.testing.assert_allclose(trajectory.get_values("wheel.q'"), np.exp(-trajectory.times / 2), atol=1e-6)
 
 
 def test_simulate_solves_a_mass_matrix_of_several_coordinates():

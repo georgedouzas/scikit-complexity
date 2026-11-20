@@ -31,7 +31,8 @@ class EulerLagrangeInteraction(Interaction):
     A Lagrangian, dissipation, or forcing function takes a namespace with the roles, the time `t`, and the parameters a
     subclass declares, and writes the velocity of a coordinate `q` as `q.diff(t)`. The coordinates are the states of
     every role that binds one element or group, `target` by default, and every component of a vector state is a
-    coordinate.
+    coordinate. Every other value of the roles, such as a mass or an inertia, is held fixed when the momenta change in
+    time, so it stays a parameter.
 
     Unlike `HamiltonianInteraction`, which needs canonical momenta, it takes the energy in coordinates and velocities.
     Choose it when the energy is easier to write than the forces, as for linked bodies.
@@ -178,11 +179,35 @@ class EulerLagrangeInteraction(Interaction):
         states = {function(name)(time): symbol for name, symbol in functions.items()}
         return SR(self._get_lagrangian(functional)).subs(rates).subs(states)
 
+    @staticmethod
+    def _get_values(value: object) -> list[Expression]:
+        """Return the values of a namespace of roles, with every component of a vector."""
+        if isinstance(value, SimpleNamespace):
+            return [item for member in vars(value).values() for item in EulerLagrangeInteraction._get_values(member)]
+        if isinstance(value, tuple | FreeModuleElement):
+            return [item for member in value for item in EulerLagrangeInteraction._get_values(member)]
+        return [value] if isinstance(value, Expression) else []
+
+    def _get_held(self, namespace: SimpleNamespace, coordinates: Sequence[Expression]) -> dict[Expression, Expression]:
+        """Return a symbol for every value of the roles that is a function of time.
+
+        The coordinates are left out. Such a value, such as the inertia `J(t)` of a rotor, is held fixed while a momentum changes in time.
+        """
+        time = SR(namespace.t)
+        values = [
+            item
+            for name in self._get_roles(single=True)
+            for item in self._get_values(getattr(namespace, name))
+            if item.operator() is not None and item.operands() == [time] and item not in coordinates
+        ]
+        return {item: SR.var(f'_held_{index}') for index, item in enumerate(dict.fromkeys(values))}
+
     def _get_equations(self, namespace: SimpleNamespace) -> list[BaseComponent]:
         """Return the Euler-Lagrange equation of every coordinate.
 
         The coordinates, their velocities `q.diff(t)`, and their accelerations `q.diff(t, 2)` take symbols while the
-        Lagrangian is differentiated, and the equations are written back in them.
+        Lagrangian is differentiated, and the equations are written back in them. The other values of the roles are
+        held fixed while a momentum changes in time.
         """
         time = SR(namespace.t)
         coordinates = self._get_coordinates(namespace)
@@ -191,6 +216,8 @@ class EulerLagrangeInteraction(Interaction):
         accelerations = [SR.var(f'_acceleration_{index}') for index in range(len(coordinates))]
         rates = {q.diff(time): slot for q, slot in zip(coordinates, slots, strict=True)}
         states = dict(zip(coordinates, positions, strict=True))
+        held = self._get_held(namespace, coordinates)
+        released = {symbol: value for value, symbol in held.items()}
 
         def slotted(value: object) -> Expression:
             return SR(value).subs(rates).subs(states)
@@ -206,7 +233,7 @@ class EulerLagrangeInteraction(Interaction):
         laws: list[BaseComponent] = []
         for q, position, slot, force in zip(coordinates, positions, slots, forces, strict=True):
             momentum = lagrangian.diff(slot)
-            change = momentum.diff(time) + sum(
+            change = momentum.subs(held).diff(time).subs(released) + sum(
                 momentum.diff(other) * other_slot + momentum.diff(other_slot) * acceleration
                 for other, other_slot, acceleration in zip(positions, slots, accelerations, strict=True)
             )
