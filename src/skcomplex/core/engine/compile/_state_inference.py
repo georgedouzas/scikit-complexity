@@ -12,6 +12,7 @@ from typing import Annotated, get_args, get_origin
 
 import numpy as np
 from sage.all__sagemath_symbolics import RR, SR, Expression
+from sage.sets.real_set import RealSet
 from shapely import Polygon
 
 from ...components.base import BaseComponent
@@ -33,6 +34,7 @@ from ...components.laws import (
     LinearProgramLaw,
     LocalRuleLaw,
     NoiseLaw,
+    ObjectiveLaw,
     RateLaw,
     RuleLaw,
     TopologyRequestSpec,
@@ -413,8 +415,12 @@ class _StateInference:
         role: str | None = None,
         moving: bool = False,
         history: object = None,
+        control: bool = False,
     ) -> DeclaredVariableSpec:
         """Return the declaration of a value as a state or a parameter.
+
+        A control of an objective law is an adaptive parameter, bounded by the interval of its allowed values, such as
+        `u: Annotated[float, RealSet.closed(0, 1)]`.
 
         The starting values of the derivatives or past values a law reads are given by their index, and a missing one
         is zero for a derivative and the value itself for a past value. A state with the role `'position'` is a
@@ -452,6 +458,9 @@ class _StateInference:
         if order is None:
             declared = ParameterSpec(domain=domain, vector=vector, n_dim=n_dim, tensor=tensor)
             return DeclaredVariableSpec(value, declared)
+        if control:
+            bounds = (float(domain.inf()), float(domain.sup())) if isinstance(domain, RealSet) else None
+            return DeclaredVariableSpec(value, ParameterSpec(domain=domain, adaptive=True, bounds=bounds))
         if order == 0:
             spec = StateSpec(
                 domain=domain,
@@ -549,6 +558,20 @@ class _StateInference:
                     name = named[read]
                     lags[name] = max(int(steps), lags.get(name, 0))
         return lags
+
+    @staticmethod
+    def _get_controls(compilation: Compilation) -> set[str]:
+        """Return the dotted names of the values an objective law steers as its controls.
+
+        A control, such as the input `u` of `ObjectiveLaw(x**2 + u**2, controls=[u])`, is an adaptive parameter.
+        """
+        census = Compilation._get_required(compilation.census, 'census')
+        return {
+            entry.name
+            for record in census.records
+            if isinstance(record.law, ObjectiveLaw) and record.law.controls is not None
+            for entry in record.targets
+        }
 
     @staticmethod
     def _get_delays(compilation: Compilation) -> set[str]:
@@ -718,6 +741,7 @@ class _StateInference:
         agents = self._get_agent_groups(compilation)
         steps = self._get_steps(compilation)
         delays = self._get_delays(compilation)
+        controls = self._get_controls(compilation)
 
         def declare(element: Element, path: str, space: BaseSpace | None) -> list[BaseElement]:
             agent = path in agents and not self._is_field(element, kinds)
@@ -730,6 +754,7 @@ class _StateInference:
                 sizes=sizes,
                 links=links,
                 delays=frozenset(name.removeprefix(f'{path}.') for name in delays if name.startswith(f'{path}.')),
+                controls=frozenset(name.removeprefix(f'{path}.') for name in controls if name.startswith(f'{path}.')),
                 steps={
                     name.removeprefix(f'{path}.'): moved.removeprefix(f'{path}.')
                     for name, moved in steps.items()
@@ -1082,6 +1107,7 @@ class _StateInference:
         steps: Mapping[str, str] | None = None,
         space: BaseSpace | None = None,
         delays: frozenset[str] = frozenset(),
+        controls: frozenset[str] = frozenset(),
     ) -> list[BaseElement]:
         """Return the declared element of a plain element, or a group of declared members.
 
@@ -1135,6 +1161,7 @@ class _StateInference:
                 role='position' if name in axes else 'velocity' if name in velocities else None,
                 moving=any(axis in values for axis in axes),
                 history=histories[name][1] if name in histories else None,
+                control=name in controls,
             )
             annotation = element._get_hints().get(name, inspect.Parameter.empty)
             tensor = None if self._get_symmetry(annotation) else element._get_shape_of(member)[2]
