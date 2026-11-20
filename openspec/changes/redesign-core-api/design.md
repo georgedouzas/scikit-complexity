@@ -217,7 +217,7 @@ every kind where adding means something: rates, noises, jump channels, and const
 | `RateLaw`, `GeneratorLaw` | `RateLaw`, and `GeneratorLaw` with `HilbertSpec` and a `QuantumCompiler` in the quantum package |
 | `NoiseLaw` | `NoiseLaw` |
 | `JumpLaw`, `TransferLaw`, `Source`, `Sink` | `JumpLaw` with a change mapping, where an empty side is a source or a sink |
-| `UpdateLaw`, `ArrayUpdateLaw`, `RuleLaw`, `LocalRuleLaw`, `TransitionLaw` | `UpdateLaw`, with a random draw for transitions and a neighbourhood binding for local rules |
+| `UpdateLaw`, `ArrayUpdateLaw`, `RuleLaw`, `LocalRuleLaw`, `TransitionLaw` | `UpdateLaw`, with a random draw for transitions, a neighbourhood binding for local rules, and a NumPy function of whole arrays, `UpdateLaw(state, f)`, for numerics that need them, such as SU(N) links or sequence sampling |
 | `EquationLaw`, `BoundaryLaw` | `ConstraintLaw`, a boundary being a constraint applied after each step |
 | `CrossingLaw` | `EventLaw` |
 | `LinearProgramLaw` | `ObjectiveLaw` with `ConstraintLaw`, solved as a linear program when both are linear |
