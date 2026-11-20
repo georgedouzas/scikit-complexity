@@ -131,7 +131,8 @@ class Element(BaseElement):
 
         Args:
             context:
-                The space the element inherits from its system, which an element does not read.
+                The space the element inherits from its system, which an element with `on` and no space of its own
+                sits on.
 
         Raises:
             ValidationError:
@@ -153,7 +154,7 @@ class Element(BaseElement):
                     f'such as half_side for the half side of a table.'
                 )
                 raise ValidationError(error_msg)
-        self._check_on()
+        self._check_on(self.space if self.space is not None else context)
 
     def _get_tags(self) -> Tags:
         """Return the tags of the element, with the tags of its space when it has one.
@@ -165,15 +166,16 @@ class Element(BaseElement):
             return tags
         return replace(tags, space=self.space.get_tags().space)
 
-    def _check_on(self) -> None:
+    def _check_on(self, space: BaseSpace | None) -> None:
         """Raise an error for an `on` that names no part of a network space.
 
-        A value named `on` that the element declares as its own state or parameter names no place.
+        A value named `on` that the element declares as its own state or parameter names no place. The space is the
+        element's own, or else that of its system.
         """
         if isinstance(type(self)._get_specs().get('on'), StateSpec | ParameterSpec):
             return
         on = getattr(self, 'on', None)
-        if on is None or (isinstance(self.space, NetworkSpace) and (on in LINKS or on in self.space.prepare().graphs_)):
+        if on is None or (isinstance(space, NetworkSpace) and (on in LINKS or on in space.prepare().graphs_)):
             return
         error_msg = (
             f'Element {self.label!r} has on = {on!r}, but on is the part of a network space that holds one member '

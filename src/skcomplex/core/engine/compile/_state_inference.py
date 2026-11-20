@@ -14,6 +14,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import RR, SR, Expression
 from sage.sets.real_set import RealSet
 from shapely import Polygon
+from sklearn.base import clone
 
 from ...components.base import BaseComponent
 from ...components.elements import (
@@ -537,22 +538,25 @@ class _StateInference:
         declare: Callable[[Element, str, BaseSpace | None], list[BaseElement]],
         scope: str = '',
         space: BaseSpace | None = None,
+        kinds: frozenset[str] = frozenset(),
     ) -> CompositeSystem:
         """Return a copy of a system tree whose plain elements are declared elements.
 
-        Every element is declared in the space of its nearest system. The copy keeps the observables of every system.
+        Every element is declared in the space of its nearest system, which it takes as its own when `_get_placed` says
+        so for the kinds of the changes the laws make to a network. The copy keeps the observables of every system.
         """
         space = system.space or space
+        placed = [self._get_placed(element, space, kinds) for element in system.elements]
         elements = [
             declared
-            for element in system.elements
+            for element in placed
             for declared in (
                 declare(element, f'{scope}{element.label}', space) if self._is_plain(element) else [element]
             )
         ]
         systems = [
             (
-                self._replace(nested, declare, f'{scope}{nested.label}/', space)
+                self._replace(nested, declare, f'{scope}{nested.label}/', space, kinds)
                 if isinstance(nested, CompositeSystem)
                 else nested
             )
@@ -571,11 +575,12 @@ class _StateInference:
             replaced.observables = list(system.observables)
         return replaced
 
-    def _has_plain(self, system: CompositeSystem) -> bool:
+    def _has_plain(self, system: CompositeSystem, space: BaseSpace | None = None) -> bool:
         """Return whether a system tree holds a plain element."""
-        if any(self._is_plain(element) for element in system.elements):
+        space = system.space or space
+        if any(self._is_plain(self._get_placed(element, space)) for element in system.elements):
             return True
-        return any(isinstance(nested, CompositeSystem) and self._has_plain(nested) for nested in system.systems)
+        return any(isinstance(nested, CompositeSystem) and self._has_plain(nested, space) for nested in system.systems)
 
     @staticmethod
     def _get_lags(law: BaseComponent, named: Mapping[str, str]) -> dict[str, int]:
@@ -819,7 +824,7 @@ class _StateInference:
                 space=space,
             )
 
-        return self._replace(system, declare)
+        return self._replace(system, declare, kinds=kinds)
 
     @staticmethod
     def _is_field(element: Element, kinds: frozenset[str]) -> bool:
@@ -905,21 +910,43 @@ class _StateInference:
             )
         return frozenset(sizes)
 
-    def _get_edge_spaces(self, system: CompositeSystem) -> frozenset[int]:
+    def _get_edge_spaces(self, system: CompositeSystem, space: BaseSpace | None = None) -> frozenset[int]:
         """Return the identities of the networks whose edges a plain element holds.
 
         A network whose edges an element such as `Element('catalysis', space=network, on='edges')` holds takes no
         other group on its edges.
         """
+        space = system.space or space
+        placed = [self._get_placed(element, space) for element in system.elements]
         spaces = {
             id(element.space)
-            for element in system.elements
+            for element in placed
             if self._is_plain(element) and element.on == 'edges' and isinstance(element.space, NetworkSpace)
         }
         for nested in system.systems:
             if isinstance(nested, CompositeSystem):
-                spaces |= self._get_edge_spaces(nested)
+                spaces |= self._get_edge_spaces(nested, space)
         return frozenset(spaces)
+
+    @staticmethod
+    def _get_placed(
+        element: BaseComponent,
+        space: BaseSpace | None,
+        kinds: frozenset[str] = frozenset(),
+    ) -> BaseComponent:
+        """Return an element with the space of its system when it gives none and sits on a network.
+
+        An element on the links of a network, such as `Element('links', on='edges')` in a system on a network, sits on
+        the edges of that network. An element of one member on a network whose nodes or edges the laws change, such as
+        `Element('nodes', values={'age': 0.0})` beside a law that adds nodes, holds one member per node. Every other
+        element keeps its own space, so an element without one stays a single element beside a fixed network.
+        """
+        if not isinstance(element, Element) or element.space is not None or space is None:
+            return element
+        grows = bool(kinds) and isinstance(space, NetworkSpace) and element.size is None
+        if (element.on is None and not grows) or 'space' not in element.get_params(deep=False):
+            return element
+        return clone(element).set_params(space=space)
 
     @staticmethod
     def _get_topology_kinds(compilation: Compilation) -> frozenset[str]:

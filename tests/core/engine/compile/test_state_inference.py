@@ -1709,3 +1709,28 @@ def test_get_declared_keeps_the_failures_of_the_probe_by_component():
     inference = _StateInference(PassCompiler()._get_census_of)
     inference.get_declared(system._get_composite())
     assert [path for path, _ in inference.errors_] == ['spread']
+
+
+def _nodes_on_a_network(laws):
+    """Return the nodes and links of a network that a system holds, with the laws of the network."""
+    space = NetworkSpace(nx.complete_graph(2))
+    return System(
+        elements=[Element('nodes', values={'age': 0.0}), Element('links', on='edges')],
+        interactions=[Interaction('network', laws=laws)],
+        space=space,
+    )
+
+
+def test_get_declared_puts_an_element_without_space_on_the_growing_network_of_its_system():
+    """Test that an element without a space holds one member per node of a network that the laws grow."""
+    system = _nodes_on_a_network([UpdateLaw(TopologyRequestSpec('add-node', edges=1), 1)])
+    declared = PassCompiler()._get_declared_system(system._get_composite())
+    nodes = next(element for element in declared.elements if element.label == 'nodes')
+    assert nodes.space is system.space
+
+
+def test_get_declared_keeps_an_element_without_space_single_beside_a_fixed_network():
+    """Test that an element without a space stays one element when no law changes the network of its system."""
+    declared = PassCompiler()._get_declared_system(_nodes_on_a_network([])._get_composite())
+    nodes = next(element for element in declared.elements if element.label == 'nodes')
+    assert nodes.space is None

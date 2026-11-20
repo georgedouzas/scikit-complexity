@@ -219,6 +219,11 @@ def test_prepare_accepts_an_on_that_names_a_layer_of_a_network():
     assert Element('links', values={'sign': 1}, space=space, on='roads').prepare().on == 'roads'
 
 
+def test_prepare_reads_on_against_the_space_of_its_system():
+    """Test that an element on the edges without a space of its own sits on the network its system gives."""
+    assert Element('links', on='edges').prepare(NetworkSpace(nx.path_graph(3))).on == 'edges'
+
+
 def test_prepare_rejects_a_value_of_its_own_named_on():
     """Test that `on` is reserved for the part of a network space, so a switch with a value `on` must rename it."""
 

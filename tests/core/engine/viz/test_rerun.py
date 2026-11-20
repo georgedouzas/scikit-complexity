@@ -489,19 +489,7 @@ class _AllLogs:
         self.logs.append((path, archetype))
 
 
-@pytest.mark.parametrize(
-    'on_system',
-    [
-        False,
-        pytest.param(
-            True,
-            marks=pytest.mark.skip(
-                reason="engine gap: an element with on='edges' and no space of its own does not sit on the network "
-                'space of its system',
-            ),
-        ),
-    ],
-)
+@pytest.mark.parametrize('on_system', [False, True])
 def test_changing_network_logs_present_nodes_and_changed_edges(on_system):
     """Test that a growing network logs its nodes and changed edges in a graph view, with its space on either owner."""
 
