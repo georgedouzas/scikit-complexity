@@ -10,7 +10,7 @@ import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import Annotated, ClassVar, cast
+from typing import Annotated, ClassVar, Protocol, cast, runtime_checkable
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
@@ -24,9 +24,10 @@ from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import PartnerSpec, UpdateLaw
 from ....core.components.laws.utils import pairs, transfer
 from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
-from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
+from ....core.engine.solvers import BaseSolver, MesaSolver, SystemView
 from ....core.specs import BaseSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
@@ -41,7 +42,8 @@ PHASES = ('growth', 'work', 'banking', 'hiring', 'market', 'living', 'census')
 SIGHT = 5.0
 
 
-class BusinessView(AgentView):
+@runtime_checkable
+class BusinessView(AgentViewProtocol, Protocol):
     """Firm as the rules see it.
 
     It holds its holdings, stock, wage, price, owner, workforce, sales, and policy parameters.
@@ -62,7 +64,7 @@ class BusinessView(AgentView):
     stock_limit: float
 
 
-class CentralBankView(AgentView):
+class CentralBankView(AgentViewProtocol, Protocol):
     """Bank as its rule sees it: its `money` and its `loans`."""
 
     money: float
@@ -116,16 +118,12 @@ class CentralBankElement(Element):
         self.money = money
         self.loans = loans
 
-    @classmethod
-    def _get_view(cls) -> type[CentralBankView]:
-        """Return the view of the bank, with its money and loans."""
-        return CentralBankView
-
 
 type Dividends = list[tuple[CentralBankView, SettlerView | BusinessView]]
 
 
-class PlotView(AgentView):
+@runtime_checkable
+class PlotView(AgentViewProtocol, Protocol):
     """Patch as the rules see it: its `food`, `capacity`, `resistance`, and `regrowth`."""
 
     food: float
@@ -189,19 +187,12 @@ class PlotElement(Element):
         self.resistance = resistance
         self.regrowth = regrowth
 
-    @classmethod
-    def _get_view(cls) -> type[PlotView]:
-        """Return the view of a patch, with its food, capacity, resistance, and regrowth."""
-        return PlotView
 
-
-class SettlerView(AgentView):
+@runtime_checkable
+class SettlerView(AgentViewProtocol, Protocol):
     """Person as the rules see it.
 
-    It holds its holdings, age, family, job, fate, propensities, and needs. Besides its states and parameters it reads
-    two quantities of the markets: `hireable`, the highest wage limit of a job it accepts, which admits every job for an
-    unemployed adult and none otherwise, and `shortfall`, the food it lacks for `reserve` steps, whose decrease by a
-    purchase is the food the person receives.
+    It holds its holdings, age, family, job, fate, propensities, and needs.
     """
 
     food: float
@@ -227,24 +218,6 @@ class SettlerView(AgentView):
     sight: float
     reserve: float
     monetary: float
-
-    @property
-    def hireable(self) -> float:
-        """Return the limit of the jobs the person accepts.
-
-        It is unlimited for an unemployed adult and none otherwise.
-        """
-        return math.inf if self.employer < 0 and self.age >= self.maturity else -math.inf
-
-    @property
-    def shortfall(self) -> float:
-        """Return the food the person lacks for `reserve` steps."""
-        return self.reserve * self.need - self.food
-
-    @shortfall.setter
-    def shortfall(self, value: float) -> None:
-        """Set the food so that the person lacks `value` for `reserve` steps."""
-        self.food = self.reserve * self.need - value
 
 
 @dataclass(frozen=True)
@@ -420,18 +393,13 @@ class SettlerElement(Element):
         self.reserve = reserve
         self.monetary = monetary
 
-    @classmethod
-    def _get_view(cls) -> type[SettlerView]:
-        """Return the view of a person, with its states and parameters."""
-        return SettlerView
-
     @staticmethod
-    def _get_patch_here(agent: AgentView) -> PlotView:
+    def _get_patch_here(agent: AgentViewProtocol) -> PlotView:
         """Return the patch of the cell of an agent."""
         return next(patch for patch in agent.get_agents_here('patches') if isinstance(patch, PlotView))
 
     @staticmethod
-    def _get_cell(agent: AgentView) -> tuple[int, ...]:
+    def _get_cell(agent: AgentViewProtocol) -> tuple[int, ...]:
         """Return the cell of an agent of the lattice."""
         location = agent.location
         if not isinstance(location, tuple):
@@ -667,11 +635,6 @@ class BusinessElement(Element):
         self.adjustment = adjustment
         self.stock_limit = stock_limit
 
-    @classmethod
-    def _get_view(cls) -> type[BusinessView]:
-        """Return the view of a firm, with its states and parameters."""
-        return BusinessView
-
     @staticmethod
     def _get_people_by_id(system: SystemView) -> dict[int, SettlerView]:
         """Return the living people by id.
@@ -680,7 +643,9 @@ class BusinessElement(Element):
         """
         cached = system.storage.get('people')
         if not isinstance(cached, _PeopleSpec) or cached.time != system.time:
-            people = {person.id: person for person in system.get_agents('people', SettlerView) if person.alive}
+            people = {
+                person.id: person for person in cast(list[SettlerView], system.get_agents('people')) if person.alive
+            }
             cached = _PeopleSpec(system.time, people)
             system.storage['people'] = cached
         return dict(cached.people)
@@ -772,7 +737,7 @@ class ProductionInteraction(Interaction):
         """
         people = BusinessElement._get_people_by_id(system)
         workers = [person for person in people.values() if person.employer == agent.id]
-        bank = system.get_agents('bank', CentralBankView)[0]
+        bank = cast(list[CentralBankView], system.get_agents('bank'))[0]
         patch = SettlerElement._get_patch_here(agent)
         sold_out = agent.stock <= 0
         for worker in workers:
@@ -841,7 +806,7 @@ class CommonsInteraction(Interaction):
                 The system view of the interaction.
         """
         cells: dict[tuple[int, ...], list[SettlerView]] = {}
-        for person in system.get_agents('people', SettlerView):
+        for person in cast(list[SettlerView], system.get_agents('people')):
             cells.setdefault(SettlerElement._get_cell(person), []).append(person)
         for group in cells.values():
             patch = SettlerElement._get_patch_here(group[0])
@@ -908,7 +873,7 @@ class EstateInteraction(Interaction):
             system:
                 The system view of the interaction.
         """
-        people = system.get_agents('people', SettlerView)
+        people = cast(list[SettlerView], system.get_agents('people'))
         living = [person for person in people if person.fate == ALIVE]
         dead = [person for person in people if person.fate != ALIVE]
         system.report('births', float(sum(person.age == 0 for person in living)))
@@ -928,8 +893,9 @@ class FoodMarketInteraction(MatchingInteraction[SystemView]):
     """Food market in which people short of food buy from the cheapest shop in sight.
 
     They buy in random order, from stocked shops. A matching of the people, who request their `shortfall` of food for
-    `reserve` steps within the budget of their money, with the firms, which provide their stock at their price. Every
-    purchase moves the money to the firm, which books it as revenue, and the food to the buyer. Build it with
+    `reserve` steps within the budget of their money, with the firms, which provide their stock at their price. The
+    market reads the `shortfall` of a person as `reserve * need - food`, and a purchase lowers it by raising the food.
+    Every purchase moves the money to the firm, which books it as revenue, and the food to the buyer. Build it with
     `PartnerMatchingSpec(sight, 'score', score=FoodMarketInteraction.score, value='provider')`, whose score prefers the
     lowest price. Besides the reporters of a matching, the reporter `gdp` sums the value of the sales of a step.
 
@@ -994,13 +960,33 @@ class FoodMarketInteraction(MatchingInteraction[SystemView]):
         super()._report_matches(matches, unmatched, system)
         system.report('gdp', sum(match.quantity * match.value for match in matches))
 
+    @staticmethod
+    def _get_shortfall(person: SettlerView) -> float:
+        """Return the food a person lacks for `reserve` steps."""
+        return person.reserve * person.need - person.food
+
+    def _read(self, agent: AgentViewProtocol, name: str, default: float) -> float:
+        """Return a state of an agent, or the `shortfall` of a person."""
+        if name == 'shortfall':
+            return self._get_shortfall(cast(SettlerView, agent))
+        return super()._read(agent, name, default)
+
+    def _settle(self, match: MatchSpec, system: SystemView) -> None:
+        """Settle a sale and give the buyer the food it bought."""
+        super()._settle(match, system)
+        if self._get_sides(self.quantity)[0] == 'shortfall':
+            person = cast(SettlerView, match.requester)
+            shortfall = self._get_shortfall(person) - match.quantity
+            person.food = person.reserve * person.need - shortfall
+
 
 class LabourMarketInteraction(MatchingInteraction[SystemView]):
     """Labour market in which unemployed adults take the best-paying vacancy in sight.
 
     They take it in random order. A matching of the people, who request a job, with the firms, which provide their
     vacancies: a person whose `hireable` limit admits a job takes the firm of the highest wage within its sight that
-    still has a vacancy, and moves to it. Build it with
+    still has a vacancy, and moves to it. The market reads the `hireable` limit of a person as unlimited for an
+    unemployed adult and as none otherwise. Build it with
     `PartnerMatchingSpec(sight, 'score', score=LabourMarketInteraction.score, value='provider')`.
 
     Examples:
@@ -1052,6 +1038,13 @@ class LabourMarketInteraction(MatchingInteraction[SystemView]):
         if isinstance(person, SettlerView) and isinstance(firm, BusinessView):
             person.employer = float(firm.id)
             person.move_to(firm.location)
+
+    def _read(self, agent: AgentViewProtocol, name: str, default: float) -> float:
+        """Return a state of an agent, or the `hireable` limit of the jobs a person accepts."""
+        if name == 'hireable':
+            person = cast(SettlerView, agent)
+            return math.inf if person.employer < 0 and person.age >= person.maturity else -math.inf
+        return super()._read(agent, name, default)
 
 
 class MetaphoriaSystem(BaseSystem):
@@ -1203,10 +1196,10 @@ class MetaphoriaSystem(BaseSystem):
     @staticmethod
     def _pay_dividends(system: SystemView) -> None:
         """Pay the income of the bank, its money plus its loans, to a random person, or firm when nobody lives."""
-        banks = system.get_agents('bank', CentralBankView)
-        holders: list[SettlerView] | list[BusinessView] = system.get_agents('people', SettlerView)
+        banks = cast(list[CentralBankView], system.get_agents('bank'))
+        holders: list[SettlerView] | list[BusinessView] = cast(list[SettlerView], system.get_agents('people'))
         if not any(holder.alive for holder in holders):
-            holders = system.get_agents('businesses', BusinessView)
+            holders = cast(list[BusinessView], system.get_agents('businesses'))
         found = cast(Dividends, list(pairs(banks, holders, system.rng, PartnerSpec('all', 'uniform'))))
         for index in system.rng.permutation(len(found)):
             bank, holder = found[int(index)]
