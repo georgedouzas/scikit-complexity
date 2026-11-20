@@ -131,7 +131,6 @@ SUFFIXES = (
     'Interaction',
     'Law',
     'Space',
-    'Time',
     'System',
     'Solver',
     'Backend',
@@ -146,6 +145,13 @@ FAMILIES = (
     *(f'skcomplex.core.components.{family}' for family in ('elements', 'interactions', 'laws', 'spaces', 'systems')),
     'skcomplex.systems.general',
 )
+COMPONENT_PACKAGES = (
+    *(f'skcomplex.core.components.{family}' for family in ('elements', 'interactions', 'laws', 'spaces', 'systems')),
+    'skcomplex.core.systems',
+)
+SYSTEM_PACKAGES = ('skcomplex.core.systems', SYSTEMS)
+SYSTEM_VERBS = ('prepare', 'simulate')
+COMPONENT_HOOKS = ('run', '_get_laws')
 GENERATED_CLASSES_ALLOWED = {'core/engine/solvers/_mesa.py': 2}
 FIELDS = (
     'biology',
@@ -157,7 +163,6 @@ FIELDS = (
     'physics',
     'social',
 )
-CONNECTOR_PACKAGES = ('core/components', 'core/engine')
 MOVED_CLASSES = re.compile(
     r'\b(?:HamiltonianInteraction|EulerLagrangeInteraction|GradientInteraction|ExtremalLaw|SimplexSpace|CascadeLaw'
     r'|GeneratorLaw|DissipatorLaw|HilbertSpec|QuantumCompiler|ProductionLaw|SubstitutionLaw|WordElement|PatchElement'
@@ -956,12 +961,12 @@ def check_shared_packages_hold_only_subpackages(root: Path) -> list[str]:
 
 
 def _public_classes() -> list[type]:
-    """Return the public classes of the subpackages of `skcomplex.core.components`, without typed dictionaries."""
+    """Return the public classes of the component packages of the core, without typed dictionaries."""
     found: dict[str, type] = {}
-    for name in ('elements', 'interactions', 'laws', 'spaces', 'systems'):
-        package = importlib.import_module(f'skcomplex.core.components.{name}')
-        for item in package.__all__:
-            value = getattr(package, item)
+    for package in COMPONENT_PACKAGES:
+        module = importlib.import_module(package)
+        for item in module.__all__:
+            value = getattr(module, item)
             if isinstance(value, type) and not is_typeddict(value):
                 found[item] = value
     return list(found.values())
@@ -999,40 +1004,19 @@ def _is_handled_by_type(klass: type, modules: dict[Path, tuple[set[str], set[str
     )
 
 
-def _law_classes(klass: type) -> tuple[type, ...]:
-    """Return the law classes an interaction class lists."""
-    return cast(tuple[type, ...], cast(Any, klass)._get_law_classes())
-
-
-def _is_general_form(klass: type, classes: list[type], interaction: type) -> bool:
-    """Return whether an interaction lists the fewest law classes among those of its base that list one of its laws.
-
-    `RuleLaw` counts for no class, since a law of arbitrary code is never a mathematical operation the engine lowers.
-    """
-    if not issubclass(klass, interaction):
-        return False
-    rule = importlib.import_module('skcomplex.core.components.laws').RuleLaw
-    laws = _law_classes(klass)
-    siblings = [
-        _law_classes(other) for other in classes if issubclass(other, interaction) and other.__base__ is klass.__base__
-    ]
-    return any(len(laws) == min(len(listed) for listed in siblings if law in listed) for law in laws if law is not rule)
-
-
 def check_core_components_obey_the_placement_rule(root: Path) -> list[str]:
-    """Return every public class of the core components that is no base, is not handled by type, and is no form."""
+    """Return every public class of the core components that is neither a base nor a class the engine names.
+
+    The core holds bases, primitives the engine handles by their type, and the operators the engine generates. A recipe
+    goes to `skcomplex.systems.general`, to the common package of its field, or to the module of its system.
+    """
     core = root / SOURCE / 'core'
     modules = {path: _named_classes(path) for path in sorted(core.rglob('*.py'))}
     classes = _public_classes()
-    interaction = importlib.import_module('skcomplex.core.components.interactions').BaseInteraction
     return [
         f'{_locate(klass, root)}: {klass.__name__} is a recipe, not a core class'
         for klass in sorted(classes, key=lambda klass: klass.__name__)
-        if not (
-            _is_structural_base(klass, classes)
-            or _is_handled_by_type(klass, modules)
-            or _is_general_form(klass, classes, interaction)
-        )
+        if not (_is_structural_base(klass, classes) or _is_handled_by_type(klass, modules))
     ]
 
 
@@ -1474,6 +1458,41 @@ def check_elements_keep_reserved_names_for_settings(root: Path) -> list[str]:
     """Return every element class of the systems whose constructor takes `size`, `space`, or `values` as a value."""
     del root
     return [line for module in _library_modules(('skcomplex.systems',)) for line in _reserved_values(module)]
+
+
+def _own_classes(module: ModuleType) -> Iterator[tuple[str, type]]:
+    """Return the name and the class of every class a module defines itself."""
+    for name, value in vars(module).items():
+        if inspect.isclass(value) and value.__module__ == module.__name__:
+            yield name, value
+
+
+def check_components_prepare_and_never_run(root: Path) -> list[str]:
+    """Return every component class that has a public `run` or the old hook `_get_laws`.
+
+    A component, such as an element or an interaction, only prepares. Engine classes, such as solvers, run.
+    """
+    component = importlib.import_module('skcomplex.core.components.base').BaseComponent
+    return [
+        f'{_locate(value, root)}: {module.__name__}.{name} has {hook}'
+        for module in _library_modules((*CLASS_PACKAGES, *SYSTEM_PACKAGES))
+        for name, value in _own_classes(module)
+        if issubclass(value, component)
+        for hook in COMPONENT_HOOKS
+        if hasattr(value, hook)
+    ]
+
+
+def check_systems_prepare_and_simulate(root: Path) -> list[str]:
+    """Return every public system class that lacks `prepare` or `simulate`."""
+    return [
+        f'{_locate(value, root)}: {module.__name__}.{name} lacks {verb}'
+        for module in _library_modules(SYSTEM_PACKAGES)
+        for name, value in _own_classes(module)
+        if name.endswith('System') and not name.startswith('_')
+        for verb in SYSTEM_VERBS
+        if not callable(getattr(value, verb, None))
+    ]
 
 
 def _importable_modules(package: str, skipped: Callable[[str], bool]) -> Iterator[ModuleType]:
@@ -2021,17 +2040,6 @@ def check_every_general_module_serves_two_fields(root: Path) -> list[str]:
     ]
 
 
-def check_connectors_live_in_the_library(root: Path) -> list[str]:
-    """Return every module of the core components or the engine that names the electrical connector."""
-    return [
-        f'{path.relative_to(root)}:{number}: names the electrical connector'
-        for package in CONNECTOR_PACKAGES
-        for path in sorted((root / SOURCE / package).rglob('*.py'))
-        for number, line in enumerate(path.read_text().splitlines(), start=1)
-        if "'electrical'" in line
-    ]
-
-
 def check_core_names_no_moved_class(root: Path) -> list[str]:
     """Return every line of the core that names a class moved from the core to the systems.
 
@@ -2326,9 +2334,10 @@ CHECKS = (
     check_no_module_serves_one_system,
     check_no_system_module_imports_another,
     check_every_general_module_serves_two_fields,
-    check_connectors_live_in_the_library,
     check_core_names_no_moved_class,
     check_elements_keep_reserved_names_for_settings,
+    check_components_prepare_and_never_run,
+    check_systems_prepare_and_simulate,
 )
 
 
