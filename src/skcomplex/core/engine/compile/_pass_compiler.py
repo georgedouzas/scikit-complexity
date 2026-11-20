@@ -38,6 +38,7 @@ from ...components.laws import (
     UpdateLaw,
 )
 from ...components.laws._draw_spec import RELAXED_KINDS
+from ...components.laws._flow_term import FlowTermLaw
 from ...components.laws._neighbor_reduction_spec import _NeighborReductionSpec
 from ...components.laws._reduction_spec import _ReductionSpec
 from ...components.laws.utils._cells import cell_operations_in
@@ -1207,9 +1208,12 @@ class PassCompiler(BaseCompiler):
     def _get_finite_rate_issues(record: _CensusRecordSpec, name: str) -> list[IssueSpec]:
         """Return the issues of a rate or noise law on a value of a finite set.
 
-        A rate moves a value continuously, so it leaves any finite set of allowed values, such as `{0, 1}`.
+        A rate moves a value continuously, so it leaves any finite set of allowed values, such as `{0, 1}`. The
+        increment a flow adds in one step of discrete time, such as a particle hopping to the next site, is no rate.
         """
-        if not isinstance(record.law, RateLaw | NoiseLaw):
+        if not isinstance(record.law, RateLaw | NoiseLaw) or (
+            isinstance(record.law, FlowTermLaw) and record.law.increment
+        ):
             return []
         issues = []
         for entry in record.targets:

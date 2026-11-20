@@ -13,6 +13,8 @@ from skcomplex.core.components.laws import ConstraintLaw, NoiseLaw, ObjectiveLaw
 from skcomplex.core.components.laws.utils import laplacian, logistic, neighbors
 from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace, NetworkSpace, RadiusNeighborhood
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.solvers import MetropolisSolver
 from skcomplex.core.errors import IncompatibleLawsError, ValidationError
 from skcomplex.core.systems import System
 
@@ -281,3 +283,15 @@ def test_update_law_of_a_discrete_child_stays_a_map():
     system = System(elements=[Element('tank', values={'v': 1.0})], interactions=[decay], systems=[child]).prepare()
     counts = np.ravel(system.simulate(until=3.0).get_values('counter/count.n'))
     assert counts[-1] == 8.0
+
+
+def test_census_takes_the_solver_of_the_system_when_the_compiler_has_none():
+    """Test that an objective of spins is sampled by the Metropolis solver of its system, not read as a program."""
+
+    def laws(s):
+        return [ObjectiveLaw(-s.target.s * neighbors(s.target.other.s) / s.target.T, s.target.s)]
+
+    ring = Element('ring', values={'s': np.ones(8), 'T': 1.0}, space=LatticeSpace(8))
+    ising = Interaction('ising', roles={'target': 'ring'}, laws=laws)
+    system = System(elements=[ring], interactions=[ising], solver=MetropolisSolver(moves={'ring.s': 'flip'}))
+    assert PassCompiler().prepare(system).report_.issues == ()

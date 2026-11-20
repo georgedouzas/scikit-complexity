@@ -5,9 +5,15 @@ import pytest
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws import RateLaw, UpdateLaw
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.systems import System
+
+
+def _step(agent, system):
+    """Move an agent one unit along `x`."""
+    del system
+    agent.x += 1.0
 
 
 def _get_walkers(boundary, order):
@@ -40,3 +46,12 @@ def test_reflecting_boundary_mirrors_scalar_positions_and_reverses_their_velocit
     )
     np.testing.assert_allclose(trajectory.get_values('walkers.x'), [[9.0, 1.0], [9.0, 3.0], [7.0, 5.0]])
     assert trajectory.get_values("walkers.x'")[-1].tolist() == pytest.approx([-2.0, 2.0])
+
+
+def test_periodic_boundary_leaves_agents_to_their_space():
+    """Test that agents whose rule walks `x` past a periodic wall run, with no boundary law on their positions."""
+    box = ContinuousSpace(extent=(10.0, 10.0), boundary='periodic')
+    walkers = Element('walkers', values={'x': [8.5, 1.0], 'y': [5.0, 5.0]}, size=2, space=box)
+    walk = Interaction('walk', roles={'target': 'walkers'}, laws=lambda s: [UpdateLaw(s.target, _step)])
+    trajectory = System(elements=[walkers], interactions=[walk], space=box).prepare().simulate(until=2)
+    np.testing.assert_allclose(trajectory.get_agents('walkers', 2).locations, [[0.5, 5.0], [3.0, 5.0]])

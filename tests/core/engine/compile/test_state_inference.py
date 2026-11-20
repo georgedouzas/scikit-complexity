@@ -782,6 +782,13 @@ def test_get_declared_makes_every_value_of_an_agent_group_a_state():
     assert trajectory.get_values('walkers.count').tolist() == [3.0, 3.0, 2.0, 1.0]
 
 
+def test_get_declared_lets_agents_hold_a_value_named_kind():
+    """Test that agents may hold a value named `kind`, such as the group of a resident of Schelling's city."""
+    walkers = Element('walkers', values={'x': 0.0, 'speed': [2.0, 4.0, 6.0], 'kind': [1, 2, 3]}, size=3)
+    trajectory = System(elements=[walkers], interactions=[Wander('wander')]).prepare().simulate(until=3)
+    assert trajectory.get_values('walkers.count').tolist() == [3.0, 3.0, 2.0, 1.0]
+
+
 class Points(Element):
     """Element whose points `z` are annotated as `object`, since they may be one number or an array."""
 
