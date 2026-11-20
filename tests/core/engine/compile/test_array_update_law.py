@@ -17,6 +17,8 @@ from skcomplex.core.specs import MatrixGroupSpec
 from skcomplex.core.systems import System
 from skcomplex.core.types import Role
 
+U1 = MatrixGroupSpec('U', 1)
+
 
 def test_drive_targets_its_lattice_state():
     """Test that a drive targets the one lattice state it changes."""
@@ -88,9 +90,6 @@ class _DriveInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             self.laws_ = [UpdateLaw(context.target.x, self.function, arrays=True)]
-
-
-U1 = MatrixGroupSpec('U', 1)
 
 
 class PairElement(Element):

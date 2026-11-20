@@ -18,7 +18,7 @@ from ..components import Observable
 from ..components.systems import BaseSystem as CompositeBaseSystem
 from ..engine.problems import BaseProblemSpec
 from ..engine.runtime import Trajectory
-from ..engine.runtime._simulate import compile_problem, run_problem
+from ..engine.runtime._simulate import _compile_problem, _run_problem
 from ..engine.solvers import BaseSolver
 from ..enums import ExecutorKind
 from ..errors import ExperimentError, ValidationError
@@ -427,7 +427,7 @@ def _simulate_composite(
     found = store.get(key)
     compiled = found if isinstance(found, tuple) else None
     if compiled is None:
-        compiled = compile_problem(system, solver=task.solver, observables=task.observables)
+        compiled = _compile_problem(system, solver=task.solver, observables=task.observables)
         store[key] = compiled
     initial_state, schedule = None, None
     if paths or task.scenario.schedule:
@@ -436,7 +436,7 @@ def _simulate_composite(
         functions = _schedule(problem, task.scenario, parameters)
         initial_state = {**(settings['initial_state'] or {}), **states} if states else None
         schedule = {**(settings['schedule'] or {}), **functions} if functions else None
-    return run_problem(
+    return _run_problem(
         system,
         compiled,
         until=task.until,

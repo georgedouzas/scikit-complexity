@@ -1,4 +1,4 @@
-"""Define the functions that compile a system into a problem and run it into a trajectory."""
+"""Define the functions that compile a system and run it into a trajectory."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -157,7 +157,7 @@ def _prepare_runners(
     return composite, stepper, runner, form, observables or tuned_observables
 
 
-def compile_problem(
+def _compile_problem(
     system: BaseSystem,
     *,
     solver: BaseSolver | None = None,
@@ -166,7 +166,7 @@ def compile_problem(
 ) -> tuple[BaseProblemSpec, BaseSolver]:
     """Return the problem compiled from a system, and the solver of its runs.
 
-    They serve runs that change only values. Runs of the problem through `run_problem` set their own initial states,
+    They serve runs that change only values. Runs of the problem through `_run_problem` set their own initial states,
     parameter schedules, and seeds without compiling again, so an experiment compiles a system once per structure and
     keeps the problem for that call.
 
@@ -196,7 +196,7 @@ def compile_problem(
     return simulation.problem_, simulation.stepper_
 
 
-def run_problem(
+def _run_problem(
     system: BaseSystem,
     compiled: tuple[BaseProblemSpec, BaseSolver] | None,
     *,
@@ -218,7 +218,7 @@ def run_problem(
     """Simulate a system and return its trajectory.
 
     It is the run behind the `simulate` method of systems. It starts from a problem compiled from the system by
-    `compile_problem` when one is given.
+    `_compile_problem` when one is given.
 
     Args:
         system:
