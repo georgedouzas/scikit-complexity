@@ -139,7 +139,7 @@ class GradientInteraction(Interaction):
         return self.potential(namespace)
 
     def _get_rate_law(self, state: Target, rate: object, member: SimpleNamespace, time: Expression) -> RateLaw:
-        """Return the law that moves a state by the rate of the gradient, the gradient flow `x' = rate`.
+        """Return the law that moves a state, the gradient flow `x' = rate`.
 
         This is the hook a subclass overrides for Newton's law, `RateLaw(state.diff(time, 2), rate / member.m)`.
 

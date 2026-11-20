@@ -882,9 +882,10 @@ class CensusPass(BasePass):
 
         Such a law, such as `UpdateLaw(s.target.height, drop)`, gives a NumPy function of the whole array its state.
         """
-        if not isinstance(law, UpdateLaw) or not law._is_array_update():
+        function = law.value if isinstance(law, UpdateLaw) else None
+        if not isinstance(law, UpdateLaw) or not law._is_array_update() or not callable(function):
             return law
-        return ArrayUpdateLaw(law.target, law.value, label=law.label, score=law.score)
+        return ArrayUpdateLaw(law.target, function, label=law.label, score=law.score)
 
     @staticmethod
     def _get_relaxation(law: BaseLaw) -> BaseLaw:
