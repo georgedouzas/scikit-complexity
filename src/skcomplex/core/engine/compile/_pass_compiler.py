@@ -635,7 +635,8 @@ class PassCompiler(BaseCompiler):
     def _get_partitioned(self, compilation: Compilation, plan: list[tuple[str, frozenset[str]]]) -> ProblemSpec:
         """Return the problem of a system split into partitions.
 
-        Each partition is compiled with the laws of its owners, and a partition of a nested system keeps its solver.
+        Each partition is compiled with the laws of its owners, and a partition of a nested system keeps its solver. The
+        solver of the root runs the co-simulation, so a partition never takes it.
         """
         solvers = CensusPass._get_solvers(compilation.system, (None, ''))
         partitions = []
@@ -644,8 +645,8 @@ class PassCompiler(BaseCompiler):
             problem = self._get_compiled(self._fork(compilation, owners))
             owned = [entry.indices for entry in problem.states.entries if entry.name.rpartition('.')[0] in owners]
             indices = np.concatenate([np.arange(item.start, item.stop) for item in owned]) if owned else np.zeros(0)
-            solver = solvers.get(f'{name}/', (None, ''))[0]
-            kept = solver if isinstance(solver, BaseConfig) else None
+            solver, holder = solvers.get(f'{name}/', (None, ''))
+            kept = solver if isinstance(solver, BaseConfig) and holder else None
             partitions.append(PartitionSpec(name, problem, indices.astype(np.intp), owners, kept))
             problems.append(problem)
         first = problems[0]
