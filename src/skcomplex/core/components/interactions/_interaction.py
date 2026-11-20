@@ -18,6 +18,7 @@ from ._random_partition import RandomPartition
 HYPEREDGES = 'hyperedges'
 NEIGHBORHOODS = 'neighborhoods'
 MIN_SIZE = 2
+PAIR_ROLES = ('first', 'second')
 
 
 class Interaction(BaseInteraction):
@@ -82,7 +83,9 @@ class Interaction(BaseInteraction):
         within:
             A `RadiusNeighborhood(r)` for laws that run once for every pair of members of the roles `first` and
             `second` closer than `r`, which read `s.first` and `s.second` and give the laws of both, such as the
-            repulsion of walkers of two crowds, or `None` for no pairs.
+            repulsion of walkers of two crowds, or `None` for no pairs. With `among`, both members come from that
+            group. The laws may give the energy of the pair as `ObjectiveLaw(V)` in place of its forces, and each
+            member then feels the force `-dV/dx` on its position `x`.
 
     Examples:
         >>> from typing import Annotated
@@ -132,11 +135,17 @@ class Interaction(BaseInteraction):
         self.within = within
 
     def _get_declared(self) -> Mapping[str, DeclaredVariableSpec]:
-        """Return the numeric arguments as parameters, and `roles` and `among` as roles."""
+        """Return the numeric arguments as parameters, and `roles` and `among` as roles.
+
+        With `within`, `among` binds both members of a pair, `first` and `second`.
+        """
         declared = dict(super()._get_declared())
         for name, binding in (self.roles or {}).items():
             declared[name] = DeclaredVariableSpec(binding, RoleSpec())
-        if self.among is not None and 'among' not in declared and 'among' not in self._get_specs():
+        if self.among is not None and self.within is not None:
+            for name in PAIR_ROLES:
+                declared.setdefault(name, DeclaredVariableSpec(self.among, RoleSpec()))
+        elif self.among is not None and 'among' not in declared and 'among' not in self._get_specs():
             declared['among'] = DeclaredVariableSpec(self.among, RoleSpec())
         return declared
 
@@ -161,6 +170,8 @@ class Interaction(BaseInteraction):
         """
         if self.roles is not None and role in self.roles:
             return self.roles[role]
+        if self.among is not None and self.within is not None and role in PAIR_ROLES:
+            return self.among
         return super()._get_binding(role)
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:

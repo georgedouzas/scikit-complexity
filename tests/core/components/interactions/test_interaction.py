@@ -572,3 +572,19 @@ def test_interaction_within_a_radius_runs_once_per_pair_of_two_groups(backend):
     trajectory = system.simulate(until=0.001, dt=0.001)
     assert trajectory.get_values('left.x')[-1].ravel() == pytest.approx([-0.001, 10.0], abs=1e-5)
     assert trajectory.get_values('right.x')[-1].ravel() == pytest.approx([1.001], abs=1e-5)
+
+
+def test_interaction_within_a_radius_among_a_group_pairs_its_members():
+    """Test that `among` with `within=` pairs the members of one group, as both roles bound to it do."""
+    space = ContinuousSpace(n_dim=1)
+
+    def run(**binding):
+        walkers = Element('walkers', values={'x': np.array([[0.0], [1.0], [10.0]])}, size=3, space=space)
+        push = Interaction('push', within=RadiusNeighborhood(2.0), laws=_push_apart, **binding)
+        system = System(elements=[walkers], interactions=[push], space=space).prepare()
+        return system.simulate(until=0.001, dt=0.001).get_values('walkers.x')[-1].ravel()
+
+    among = run(among='walkers')
+    assert among == pytest.approx(run(roles={'first': 'walkers', 'second': 'walkers'}))
+    assert among[2] == pytest.approx(10.0)
+    assert among[1] - among[0] > 1.0

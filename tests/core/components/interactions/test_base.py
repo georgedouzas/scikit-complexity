@@ -7,7 +7,7 @@ from typing import Annotated
 
 import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import I, function, oo, var
+from sage.all__sagemath_symbolics import I, function, oo, sqrt, var
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.components import interactions
@@ -35,6 +35,7 @@ from skcomplex.core.components.interactions import (
 from skcomplex.core.components.laws import (
     CallSpec,
     NoiseLaw,
+    ObjectiveLaw,
     PartnerSpec,
     RateLaw,
     TopologyRequestSpec,
@@ -51,8 +52,9 @@ from skcomplex.core.components.spaces import (
     RadiusNeighborhood,
 )
 from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.engine.solvers import RK4Solver
+from skcomplex.core.engine.solvers import RK4Solver, VelocityVerletSolver
 from skcomplex.core.enums import ElementKind
 from skcomplex.core.errors import ParameterShapeError, SpaceError, ValidationError
 from skcomplex.core.specs import BaseSpec, ParameterSpec, RoleSpec, StateSpec
@@ -1022,3 +1024,58 @@ def test_array_argument_no_group_shapes_is_an_issue_of_the_shape_of_a_parameter(
         match=r'contraction\.a is an array of shape \(2, 2, 2\).*\[parameter-shape\]',
     ):
         system.prepare()
+
+
+def _distance(s):
+    """Return the separation and the distance of the two members of a pair."""
+    separation = s.first.x - s.second.x
+    return separation, sqrt(separation.dot_product(separation))
+
+
+def _lennard_jones_energy(s):
+    """Return the Lennard-Jones energy `4 * (r**-12 - r**-6)` of a pair."""
+    _, r = _distance(s)
+    return [ObjectiveLaw(4 * (r**-12 - r**-6))]
+
+
+def _lennard_jones_forces(s):
+    """Return the Lennard-Jones forces of a pair, derived by hand."""
+    separation, r = _distance(s)
+    force = 24 * (2 * r**-12 - r**-6) / r**2 * separation
+    return [RateLaw(s.first.x.diff(s.t, 2), force), RateLaw(s.second.x.diff(s.t, 2), -force)]
+
+
+def _lennard_jones_gas(laws, backend):
+    """Return the positions of a run of a Lennard-Jones gas of 16 atoms on a jittered lattice."""
+    rng = np.random.default_rng(0)
+    grid = np.stack(np.meshgrid(np.arange(4), np.arange(4)), axis=-1).reshape(-1, 2) * 1.2
+    space = ContinuousSpace(n_dim=2)
+    values = {'x': grid + rng.normal(0, 0.05, (16, 2)), "x'": rng.normal(0, 0.5, (16, 2))}
+    gas = Element('gas', values=values, size=16, space=space)
+    pairs = Interaction('lj', roles={'first': 'gas', 'second': 'gas'}, within=RadiusNeighborhood(2.5), laws=laws)
+    solver = VelocityVerletSolver(dt=0.005)
+    system = System(elements=[gas], interactions=[pairs], space=space, solver=solver, backend=backend())
+    return system.prepare().simulate(until=0.5, dt=0.05).get_values('gas.x')
+
+
+@pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
+def test_pair_energy_gives_the_trajectory_of_its_forces(backend):
+    """Test that a Lennard-Jones energy of pairs moves a gas as the Lennard-Jones forces derived by hand do."""
+    energy = _lennard_jones_gas(_lennard_jones_energy, backend)
+    forces = _lennard_jones_gas(_lennard_jones_forces, backend)
+    assert np.abs(energy[-1] - energy[0]).max() > 0.1
+    assert energy == pytest.approx(forces, abs=1e-9)
+
+
+def test_pair_energy_with_targets_is_rejected():
+    """Test that a pair energy naming targets raises an error, since it acts on the positions of both members."""
+    space = ContinuousSpace(n_dim=1)
+    gas = Element('gas', values={'x': np.array([[0.0], [1.0]])}, size=2, space=space)
+    pairs = Interaction(
+        'soft',
+        roles={'first': 'gas', 'second': 'gas'},
+        within=RadiusNeighborhood(2.0),
+        laws=lambda s: [ObjectiveLaw(_distance(s)[1] ** 2, s.first.x[0])],
+    )
+    with pytest.raises(ValidationError, match='names targets or controls'):
+        System(elements=[gas], interactions=[pairs], space=space).prepare()

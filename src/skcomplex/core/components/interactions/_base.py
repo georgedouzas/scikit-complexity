@@ -27,7 +27,7 @@ from ...errors import ParameterShapeError, RoleError, SpaceError, ValidationErro
 from ...specs import BaseSpec, DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec
 from .._tags import Tags
 from ..base import BaseComponent
-from ..laws import BaseLaw, NoiseLaw, PartnerSpec, RateLaw, RuleLaw, UpdateLaw
+from ..laws import BaseLaw, NoiseLaw, ObjectiveLaw, PartnerSpec, RateLaw, RuleLaw, UpdateLaw
 from ..laws._flow_term import FlowTermLaw
 from ..laws.utils import delayed, derivative, lag, relax
 from ..laws.utils._fractional import fractional_of
@@ -568,8 +568,11 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
             if not isinstance(self.get_params(deep=False).get(name), list | np.ndarray):
                 raise
             raise self._get_unshaped_error(name) from error
+        stated = prepared.laws_
+        if self._get_within() is not None:
+            stated = [item for law in stated for item in self._get_energy_forces(law, functional, time)]
         laws: list[BaseComponent] = []
-        for law in prepared.laws_:
+        for law in stated:
             if not isinstance(law, BaseLaw):
                 laws.append(law)
                 continue
@@ -582,6 +585,48 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
             terms = FlowTermLaw._get_terms(translated, self.label) if flow else [translated]
             laws.extend(self._get_local_rule(self._get_normalized(term)) for term in terms)
         return laws
+
+    def _get_energy_forces(
+        self,
+        law: BaseComponent,
+        namespace: SimpleNamespace,
+        time: Expression,
+    ) -> list[BaseComponent]:
+        """Return the forces of a pair energy on both members, or the law itself.
+
+        An `ObjectiveLaw(V)` of an interaction that runs for pairs is the energy of the pair, not an objective to
+        minimise. Each member feels the force `-dV/dx` on its position `x`, as the second derivative of `x`, such as
+        `RateLaw(s.first.x.diff(s.t, 2), -dV/dx_first)`.
+
+        Raises:
+            ValidationError:
+                The pair energy names targets or controls.
+        """
+        if not isinstance(law, ObjectiveLaw):
+            return [law]
+        if law.targets is not None or law.controls is not None:
+            error_msg = (
+                f'The pair energy of {self.label!r} names targets or controls. A pair energy acts on the positions of '
+                'both members, such as `ObjectiveLaw(4 * (r**-12 - r**-6))`.'
+            )
+            raise ValidationError(error_msg)
+        energy = SR(law.value)
+        position = getattr(self, 'position', 'x')
+        forces: list[BaseComponent] = []
+        for role in (self._get_role('first'), self._get_role('second')):
+            x = getattr(getattr(namespace, role), position)
+            force = vector(SR, [-self._get_energy_partial(energy, component) for component in x])
+            forces.append(RateLaw(x.diff(time, 2), force))
+        return forces
+
+    @staticmethod
+    def _get_energy_partial(value: Expression, component: Expression) -> Expression:
+        """Return the partial derivative of a value along a function of time.
+
+        The function is a component of a position, such as `x_0(t)`.
+        """
+        dummy = SR.symbol()
+        return SR(value.subs({component: dummy}).diff(dummy).subs({dummy: component}))
 
     def _get_unshaped_error(self, name: str) -> ParameterShapeError:
         """Return the error of an array argument the laws read but no group shapes.

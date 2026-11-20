@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import copy
 import ctypes
 import functools
 import math
@@ -17,13 +18,13 @@ from typing import cast
 import numpy as np
 import numpy.typing as npt
 from lammps import lammps
-from sage.all__sagemath_symbolics import SR, Expression, oo
+from sage.all__sagemath_symbolics import SR, Expression, oo, vector
 from sage.sets.real_set import RealSet
 from sklearn.base import clone
 
 from ...components.elements import GroupElement
-from ...components.interactions import BaseInteraction, PairInteraction
-from ...components.laws import BoundaryLaw, ConstraintLaw, NoiseLaw, RateLaw
+from ...components.interactions import BaseInteraction
+from ...components.laws import BoundaryLaw, ConstraintLaw, NoiseLaw, ObjectiveLaw, RateLaw
 from ...components.spaces import BaseSpace, ContinuousSpace, ContinuousTime, RadiusNeighborhood
 from ...components.systems import CompositeSystem
 from ...enums import FormKind, NoiseKind, OrderKind, VariableKind
@@ -65,7 +66,8 @@ class LammpsSolver(ExternalSolver):
     the interactions on its members names, and 1 without either. Boxes become LAMMPS boundaries and
     `fix wall/reflect`. An interaction whose class `pairs` gives a native pair style becomes that pair style, between
     the members of its roles `first` and `second` closer than the radius of `within=RadiusNeighborhood(r)`, or within
-    its `cutoff`. A `PairInteraction` with a potential and no native pair style becomes a Lepton expression potential.
+    its `cutoff`. A pair interaction with `within=` that gives its energy as `ObjectiveLaw(V)` and has no native pair
+    style becomes a Lepton expression potential.
     An interaction whose class `fixes` gives a native fix becomes that fix. Any other interaction that only changes the
     derivatives of the positions runs through `fix external`, evaluated by the framework.
 
@@ -194,7 +196,7 @@ class LammpsSolver(ExternalSolver):
         if unsupported:
             return unsupported + [f'interaction {item.path}' for item in problem.interactions]
         for item in problem.interactions:
-            if self._is_potential(item):
+            if self._is_potential(problem, item):
                 unsupported += self._check_pair(problem, item)
         external = self._get_external_paths(problem)
         if external:
@@ -216,7 +218,7 @@ class LammpsSolver(ExternalSolver):
         return {
             item.path
             for item in problem.interactions
-            if not self._is_potential(item) and self._get_native(self.fixes or {}, item.interaction) is None
+            if not self._is_potential(problem, item) and self._get_native(self.fixes or {}, item.interaction) is None
         }
 
     def _check_external(self, problem: ProblemSpec, external: set[str]) -> list[str]:
@@ -240,20 +242,48 @@ class LammpsSolver(ExternalSolver):
         return [f'interactions {", ".join(sorted(external))}, which have {", ".join(sorted(set(reasons)))}']
 
     def _get_pair_expression(self, problem: ProblemSpec, p: Array, item: _CompiledInteractionSpec) -> str:
-        """Return the Lepton expression of a pair potential.
+        """Return the Lepton expression of a pair energy.
 
         Its parameters take their current values.
         """
-        interaction = cast(PairInteraction, item.interaction)
-        assert interaction.potential is not None
+        distance = symbol('r', RealSet.open(0, oo))
+        energy = self._get_pair_energy(problem, p, item, distance)
+        assert energy is not None
+        return self._get_lepton_expression(energy, distance)
+
+    def _get_pair_energy(
+        self,
+        problem: ProblemSpec,
+        p: Array,
+        item: _CompiledInteractionSpec,
+        distance: Expression,
+    ) -> Expression | None:
+        """Return the energy of a pair as a function of the distance, or `None`.
+
+        It is the sum of the `ObjectiveLaw` values that an interaction with `within=` sets, with the first member at
+        the distance from the second along the first axis and the parameters at their current values. An interaction
+        without pairs or without an energy returns `None`.
+        """
+        interaction = item.interaction
+        if interaction._get_within() is None:
+            return None
         values = {
             name: float(self._get_parameter(problem, p, item.path, name)[0])
             for name in declarations_of(interaction, VariableKind.PARAMETER)
         }
-        roles = {role: self._get_role_parameters(problem, p, self._get_role_path(item, role)) for role in item.roles}
-        distance = symbol('r', RealSet.open(0, oo))
-        energy = interaction.potential(SimpleNamespace(**values, **roles), distance)
-        return self._get_lepton_expression(energy, distance)
+        roles = {}
+        for end, offset in (('first', distance), ('second', 0)):
+            role = interaction._get_role(end)
+            path = self._get_role_path(item, role)
+            element = next(element for element in problem.elements if element.path == path)
+            name = self._get_position_name(element)
+            n_dim = self._get_state_indices(problem, element.states[name]).shape[1]
+            members = self._get_role_parameters(problem, p, path)
+            setattr(members, name, vector(SR, [offset, *[0] * (n_dim - 1)]))
+            roles[role] = members
+        prepared = copy.copy(interaction).prepare(SimpleNamespace(t=symbol('t'), **values, **roles))
+        energies = [SR(law.value) for law in prepared.laws_ if isinstance(law, ObjectiveLaw)]
+        return SR(sum(energies)) if energies else None
 
     def _get_role_parameters(self, problem: ProblemSpec, p: Array, path: str) -> SimpleNamespace:
         """Return the namespace of the parameter values of the members.
@@ -276,7 +306,7 @@ class LammpsSolver(ExternalSolver):
             cutoffs = [
                 self._get_cutoff(problem, problem.initial_parameters, item)
                 for item in problem.interactions
-                if self._is_potential(item)
+                if self._is_potential(problem, item)
             ]
             margin = max(cutoffs, default=0.0) + 1.0
             low, high = positions.min(axis=0) - margin, positions.max(axis=0) + margin
@@ -300,7 +330,7 @@ class LammpsSolver(ExternalSolver):
 
         There are coefficients for every pair interaction.
         """
-        pairs = [item for item in problem.interactions if self._is_potential(item)]
+        pairs = [item for item in problem.interactions if self._is_potential(problem, item)]
         styles, coefficients = [], []
         counts: defaultdict[str, int] = defaultdict(int)
         largest = 1.0
@@ -621,14 +651,17 @@ class LammpsSolver(ExternalSolver):
             return 1.0
         return float(LammpsSolver._get_parameter(problem, p, element.path, divisors.pop())[0])
 
-    def _is_potential(self, item: _CompiledInteractionSpec) -> bool:
+    def _is_potential(self, problem: ProblemSpec, item: _CompiledInteractionSpec) -> bool:
         """Return whether an interaction is a pair coupling through a pair potential.
 
-        It is a `PairInteraction` with a potential, or an interaction of a class `pairs` gives a native pair style, such
-        as a Lennard-Jones force written as a reduction over the neighbours within a radius.
+        It is an interaction of a class `pairs` gives a native pair style, such as a Lennard-Jones force written as a
+        reduction over the neighbours within a radius, or a pair interaction with `within=` that gives its energy as
+        an `ObjectiveLaw`.
         """
-        paired = isinstance(item.interaction, PairInteraction) and item.interaction.potential is not None
-        return paired or self._get_native(self.pairs or {}, item.interaction) is not None
+        if self._get_native(self.pairs or {}, item.interaction) is not None:
+            return True
+        distance = symbol('r', RealSet.open(0, oo))
+        return self._get_pair_energy(problem, problem.initial_parameters, item, distance) is not None
 
     @staticmethod
     def _get_cutoff(problem: ProblemSpec, p: Array, item: _CompiledInteractionSpec) -> float:
@@ -648,7 +681,7 @@ class LammpsSolver(ExternalSolver):
         An interaction that binds pairs with `within=` pairs the members of its roles `first` and `second`, and an
         interaction of one role, such as `target`, pairs the members of its one group.
         """
-        if isinstance(item.interaction, PairInteraction) or item.interaction._get_within() is not None:
+        if item.interaction._get_within() is not None:
             roles = [item.interaction._get_role(name) for name in ('first', 'second')]
         else:
             roles = [next(iter(item.roles))] * 2
@@ -776,14 +809,17 @@ class LammpsSolver(ExternalSolver):
     def _check_masses(problem: ProblemSpec, element: CompiledElementSpec) -> list[str]:
         """Return the problems of the mass of an element or group.
 
-        They are several divisors, or several values.
+        They are several divisors, or several values of the mass `m` or of the divisor.
         """
         divisors = LammpsSolver._get_divisors(problem, element)
         if len(divisors) > 1:
             return [f'element {element.path}, whose interactions divide by {", ".join(sorted(divisors))}']
-        if not divisors:
+        if problem.parameters.has(f'{element.path}.m'):
+            name = 'm'
+        elif divisors:
+            name = next(iter(divisors))
+        else:
             return []
-        name = next(iter(divisors))
         if name not in element.parameters:
             return [f'element {element.path}, whose divisor {name} is not a parameter']
         masses = LammpsSolver._get_parameter(problem, problem.initial_parameters, element.path, name)

@@ -9,12 +9,12 @@ from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import SR, Expression, exp, oo, sqrt
+from sage.all__sagemath_symbolics import Expression, exp, oo, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.interactions import BaseInteraction, Interaction
-from ....core.components.laws import RateLaw
+from ....core.components.laws import ObjectiveLaw, RateLaw
 from ....core.components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
 from ....core.components.types import Target
 from ....core.engine.backends import BaseBackend
@@ -143,7 +143,7 @@ class SocialRepulsionInteraction(Interaction):
         return RadiusNeighborhood(self.cutoff)
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the accelerations of both walkers of a pair, apart along the line between them.
+        """Set the energy of a pair of walkers, which pushes both apart along the line between them.
 
         Args:
             context:
@@ -151,13 +151,10 @@ class SocialRepulsionInteraction(Interaction):
         """
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            s, t = context, context.t
+            s = context
             separation = s.first.x - s.second.x
             r = sqrt(separation.dot_product(separation))
-            distance = SR.var('r', domain='positive')
-            energy = s.strength * s.falloff * exp((2 * s.radius - distance) / s.falloff)
-            push = -energy.diff(distance).subs({distance: r}) * separation / r
-            self.laws_ = [RateLaw(s.first.x.diff(t, 2), push), RateLaw(s.second.x.diff(t, 2), -push)]
+            self.laws_ = [ObjectiveLaw(s.strength * s.falloff * exp((2 * s.radius - r) / s.falloff))]
 
 
 class WallsInteraction(GradientInteraction):

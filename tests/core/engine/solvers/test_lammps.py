@@ -12,8 +12,8 @@ from sage.all__sagemath_symbolics import SR, arcsinh, exp, oo, sqrt
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import Interaction, PairInteraction
-from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import ObjectiveLaw, RateLaw
 from skcomplex.core.components.laws.utils import where
 from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
 from skcomplex.core.components.systems import CompositeSystem
@@ -22,7 +22,6 @@ from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import BaseSolver, ExternalSolver, LammpsSolver, StepSpec, VelocityVerletSolver
 from skcomplex.core.errors import BackendError, SolverError
-from skcomplex.core.specs import ParameterSpec
 from skcomplex.core.systems import System
 from skcomplex.core.types import Role
 from skcomplex.systems.biology.common.populations import (
@@ -45,106 +44,59 @@ from ....conftest import BodyElement
 CUTOFF = 2.5
 
 
-class LennardJonesInteraction(PairInteraction):
-    """Lennard-Jones pair potential, which LAMMPS runs as a Lepton pair energy."""
+def _distance(s):
+    """Return the distance between the two members of a pair."""
+    separation = s.first.x - s.second.x
+    return sqrt(separation.dot_product(separation))
+
+
+class LennardJonesInteraction(Interaction):
+    """Lennard-Jones pair energy, which LAMMPS runs as a Lepton pair style."""
 
     def __init__(
         self,
         label: str,
-        first: str,
-        second: str,
-        cutoff: float = 1.0,
-        position: str = 'x',
         *,
-        divisor: str | None = None,
-        epsilon: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        sigma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        first: Role,
+        second: Role,
+        cutoff: float = 1.0,
+        epsilon: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        sigma: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(
-            label,
-            first,
-            second,
-            cutoff=cutoff,
-            position=position,
-            potential=self._get_pair_energy,
-            divisor=divisor,
-            order=2,
-        )
+        super().__init__(label, within=RadiusNeighborhood(cutoff))
+        self.first = first
+        self.second = second
+        self.cutoff = cutoff
         self.epsilon = epsilon
         self.sigma = sigma
 
-    def _get_pair_energy(self, s, r):
-        """Return `4 * epsilon * ((sigma / r) ** 12 - (sigma / r) ** 6)`."""
-        return 4 * s.epsilon * ((s.sigma / r) ** 12 - (s.sigma / r) ** 6)
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the energy `4 * epsilon * ((sigma / r) ** 12 - (sigma / r) ** 6)` of a pair."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context
+            r = _distance(s)
+            self.laws_ = [ObjectiveLaw(4 * s.epsilon * ((s.sigma / r) ** 12 - (s.sigma / r) ** 6))]
 
 
-class ExponentialInteraction(PairInteraction):
-    """Exponential repulsion `eps * exp(-r / sigma)`."""
-
-    def __init__(
-        self,
-        label: str,
-        first: str,
-        second: str,
-        cutoff: float = 1.0,
-        position: str = 'x',
-        *,
-        period: float | None = None,
-        eps: Annotated[float, ParameterSpec()] = 1.0,
-        sigma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-    ) -> None:
-        super().__init__(
-            label,
-            first,
-            second,
-            cutoff=cutoff,
-            position=position,
-            potential=self._get_pair_energy,
-            period=period,
-            order=2,
-        )
-        self.eps = eps
-        self.sigma = sigma
-
-    def _get_pair_energy(self, s, r):
-        """Return `eps * exp(-r / sigma)`."""
-        return s.eps * exp(-r / s.sigma)
+def _exponential(eps=1.0, sigma=0.5):
+    """Return the laws of the exponential repulsion `eps * exp(-r / sigma)` of a pair."""
+    return lambda s: [ObjectiveLaw(eps * exp(-_distance(s) / sigma))]
 
 
-class StepwiseInteraction(PairInteraction):
-    """Pair energy with a branch, a harmonic repulsion within a contact distance."""
+def _stepwise(contact=1.3):
+    """Return the laws of a harmonic repulsion within a contact distance, an energy with a branch."""
 
-    def __init__(
-        self,
-        label: str,
-        first: str,
-        second: str,
-        cutoff: float = 1.0,
-        position: str = 'x',
-        *,
-        period: float | None = None,
-        contact: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.3,
-    ) -> None:
-        super().__init__(
-            label,
-            first,
-            second,
-            cutoff=cutoff,
-            position=position,
-            potential=self._get_pair_energy,
-            period=period,
-            order=2,
-        )
-        self.contact = contact
+    def laws(s):
+        r = _distance(s)
+        return [ObjectiveLaw(where(r < contact, (contact - r) ** 2, 0))]
 
-    def _get_pair_energy(self, s, r):
-        """Return `(contact - r) ** 2` within the contact distance and zero elsewhere."""
-        return where(r < s.contact, (s.contact - r) ** 2, 0)
+    return laws
 
 
-def _hyperbolic(s, r):
-    """Return `arcsinh(r)`, a pair energy with no Lepton form."""
-    return arcsinh(r)
+def _hyperbolic(s):
+    """Return the laws of the energy `arcsinh(r)`, which has no Lepton form."""
+    return [ObjectiveLaw(arcsinh(_distance(s)))]
 
 
 def _lattice(n, spacing=1.2, offset=0.6):
@@ -209,7 +161,7 @@ def test_lammps_rejects_pair_energy_without_lepton_form():
     """Test that a pair energy with a function Lepton does not know is reported as unsupported."""
     system = CompositeSystem(
         elements=[BodyElement('gas', x=_lattice(4), size=4)],
-        interactions=[PairInteraction('hyperbolic', 'gas', 'gas', cutoff=1.0, potential=_hyperbolic, order=2)],
+        interactions=[Interaction('hyperbolic', among='gas', within=RadiusNeighborhood(1.0), laws=_hyperbolic)],
         space=ContinuousSpace(n_dim=2),
     )
     with pytest.raises(BackendError, match='arcsinh has no Lepton'):
@@ -217,10 +169,10 @@ def test_lammps_rejects_pair_energy_without_lepton_form():
 
 
 def test_lammps_rejects_groups_with_different_masses():
-    """Test that a group whose members have different values of the divisor is reported as unsupported."""
+    """Test that a group whose members have different masses is reported as unsupported."""
     system = CompositeSystem(
         elements=[BodyElement('gas', x=_lattice(2), m=[1.0, 2.0], size=2)],
-        interactions=[LennardJonesInteraction('lj', first='gas', second='gas', cutoff=CUTOFF, divisor='m')],
+        interactions=[LennardJonesInteraction('lj', first='gas', second='gas', cutoff=CUTOFF)],
         space=ContinuousSpace(n_dim=2),
     )
     with pytest.raises(BackendError, match='different values of m'):
@@ -237,7 +189,9 @@ def test_lammps_custom_pair_energy_matches_native_forces():
                 size=100,
             ),
         ],
-        interactions=[ExponentialInteraction('exp', first='gas', second='gas', cutoff=CUTOFF, eps=2.0)],
+        interactions=[
+            Interaction('exp', among='gas', within=RadiusNeighborhood(CUTOFF), laws=_exponential(eps=2.0)),
+        ],
         space=ContinuousSpace(n_dim=2),
     )
     native = _run(system, VelocityVerletSolver(dt=1e-4), 1e-4, dt=1e-4).get_values("gas.x'")[-1]
@@ -255,7 +209,7 @@ def test_lammps_conditional_pair_energy_matches_native_forces():
                 size=100,
             ),
         ],
-        interactions=[StepwiseInteraction('contact', first='gas', second='gas', cutoff=CUTOFF)],
+        interactions=[Interaction('contact', among='gas', within=RadiusNeighborhood(CUTOFF), laws=_stepwise())],
         space=ContinuousSpace(n_dim=2),
     )
     native = _run(system, VelocityVerletSolver(dt=1e-4), 1e-4, dt=1e-4).get_values("gas.x'")[-1]
@@ -435,3 +389,11 @@ def test_lammps_runs_a_pair_force_within_a_radius_as_its_native_pair_style():
     external = _crowds(LammpsSolver(dt=0.005, pairs=pairs))
     assert np.abs(native[-1] - native[0]).max() > 1e-4
     assert np.allclose(external, native, atol=1e-6)
+
+
+def test_lammps_runs_a_pair_energy_as_a_lepton_pair_style():
+    """Test that the energy of the pairs of a gas becomes a Lepton pair style of the distance."""
+    problem = PassCompiler().prepare(_lennard_jones_gas()).run().problem_
+    solver = LammpsSolver(dt=0.005).prepare(problem)
+    commands = solver._get_pair_commands(problem, problem.initial_parameters)
+    assert f'pair_coeff 1 1 lepton "4.0/r^12 - 4.0/r^6" {CUTOFF}' in commands
