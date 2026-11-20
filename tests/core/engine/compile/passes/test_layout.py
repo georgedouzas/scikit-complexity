@@ -60,7 +60,7 @@ def test_complex_state_reads_back_its_initial_value():
 
 def test_real_state_rejects_complex_value():
     """Test that a complex value of a real state names the state, its domain, and the complex domain."""
-    with pytest.raises(ValidationError, match=r'osc\.omega = 1j.*its domain Real Field.*domain=CC'):
+    with pytest.raises(ValidationError, match=r'osc\.omega = 1j.*its domain Real Field.*complex starting value'):
         phase_system(omega=1j).prepare()
 
 

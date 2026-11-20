@@ -415,7 +415,7 @@ def test_validate_reports_a_cone_without_a_heading():
     group = Element('g', values=given, size=5, space=ContinuousSpace(extent=(2.0, 2.0)))
     issues = PassCompiler().prepare(_reducing(group, over=RadiusNeighborhood(1.0, angle=1.0))).report_.issues
     assert [issue.code for issue in issues] == ['law-domain']
-    assert 'order=2' in issues[0].fix
+    assert 'second derivative' in issues[0].fix
 
 
 def test_validate_accepts_a_cone_along_the_velocity():

@@ -7,7 +7,7 @@ from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 def test_pass_is_prepared_on_its_compilation_and_runs_on_it():
     """Test that a pass takes its compilation in `prepare` and changes it in `run`."""
-    compilation = Compilation(LotkaVolterraSystem().prepare().system_)
+    compilation = Compilation(LotkaVolterraSystem().prepare().system_._get_composite())
     flatten = FlattenPass().prepare(compilation)
     assert flatten.compilation_ is compilation
     assert flatten.run() is flatten

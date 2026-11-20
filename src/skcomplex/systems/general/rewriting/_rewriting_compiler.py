@@ -16,7 +16,7 @@ from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import BaseInteraction
 from ....core.components.spaces import BaseSpace
 from ....core.engine._utils import declarations_of, default_of, symbol
-from ....core.engine.compile import BaseCompiler, Composite, FlattenPass, IssueSpec
+from ....core.engine.compile import BaseCompiler, FlattenPass, IssueSpec, _Composite
 from ....core.engine.problems import BaseProblemSpec, CompiledElementSpec, LayoutSpec
 from ....core.enums import FormKind, VariableKind
 from ....core.errors import IncompatibleLawsError, RewritingError, SkcomplexError, ValidationError
@@ -56,7 +56,7 @@ class RewritingCompiler(BaseCompiler):
         False
     """
 
-    def _get_issues(self, system: Composite) -> list[IssueSpec]:
+    def _get_issues(self, system: _Composite) -> list[IssueSpec]:
         """Return the issue of a system the compiler cannot compile or flatten.
 
         The tree of the system cannot be flattened, or the compiler does not compile it.
@@ -109,7 +109,7 @@ class RewritingCompiler(BaseCompiler):
         return RewritingSolver()
 
     @staticmethod
-    def _is_rewriting(system: Composite) -> bool:
+    def _is_rewriting(system: _Composite) -> bool:
         """Check whether a system holds a word or a patch.
 
         Args:
@@ -283,7 +283,7 @@ class RewritingCompiler(BaseCompiler):
         return next((kind for base, kind in structures.items() if issubclass(element_type, base)), None)
 
     @staticmethod
-    def _compile_rewriting(system: Composite) -> 'RewritingProblemSpec':
+    def _compile_rewriting(system: _Composite) -> 'RewritingProblemSpec':
         """Compile a system of words or patches.
 
         Each is rewritten by the productions or substitutions of the interactions that bind it.

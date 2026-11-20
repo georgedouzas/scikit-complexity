@@ -369,7 +369,10 @@ class PassCompiler(BaseCompiler):
         """
         self._set_passes()
         self.learning_ = None
-        named = self._get_named_compiler(system, nested=False)
+        try:
+            named = self._get_named_compiler(system, nested=False)
+        except PhaseSpaceTooLargeError:
+            named = None
         if named is not None:
             self.nested_ = {'': clone(named).set_params(backend=self.backend, solver=self.solver).prepare(system)}
             self.compilation_ = None

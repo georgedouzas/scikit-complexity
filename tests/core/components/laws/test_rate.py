@@ -166,12 +166,12 @@ def test_newton_superposition_of_separate_laws():
 
 
 def test_order_mismatch_is_rejected():
-    """Test that a law of the first derivative of a state of order 2 names the law, the state, and both orders."""
+    """Test that rate laws of a state on its first and second derivatives name the state and both orders."""
     system = System(
         elements=[MassElement('mass')],
         interactions=[SpringInteraction('spring', target='mass'), MismatchedInteraction('wrong', target='mass')],
     )
-    with pytest.raises(ValidationError, match=r'mass\.x gives the derivative of order 1, but the state has order 2'):
+    with pytest.raises(ValidationError, match=r'mass\.x has rate laws of order 1 and of order 2'):
         system.prepare()
 
 
