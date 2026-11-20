@@ -179,7 +179,8 @@ def _life(s):
 def test_population_births_dominate_and_set_the_net_inflow():
     """Test that births dominate deaths, and that the net inflow of people is births minus deaths."""
     system = System(
-        elements=[PeopleElement('pop')], interactions=[Interaction('life', roles={'target': 'pop'}, laws=_life)],
+        elements=[PeopleElement('pop')],
+        interactions=[Interaction('life', roles={'target': 'pop'}, laws=_life)],
     )
     dominance = loops(system.prepare().simulate(until=5, dt=1), kind='dominance')
     assert dominance.gains[-1] == pytest.approx([0.03, -0.01])
