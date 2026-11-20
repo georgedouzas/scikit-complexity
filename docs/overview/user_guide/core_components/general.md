@@ -2263,7 +2263,7 @@ message
 The message says that the role `target` of `sat` accepts the domain `boolean`, but the element `bits` has the state
 `bit` of the domain `real`. The fix is a Boolean value, such as `values={'bit': False}`.
 
-Finally, `sparse_identification` of the core returns a `CompositeSystem` of core components, never a class of
+Finally, `sparse_identification` of the core returns a `System` of core components, never a class of
 `skcomplex.systems`, so the core runs without the catalog.
 
 ### Recipes of one field

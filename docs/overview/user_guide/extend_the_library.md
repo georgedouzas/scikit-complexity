@@ -137,64 +137,58 @@ the provider by one sale.
 
 ### Agent states that hold objects
 
-This section gives an agent a state that holds any value, such as a tuple of orders, and tells analyses what a state
-means. Each queue below keeps its last two orders, and a [`RuleLaw`](core_components/laws.md#rulelaw) appends the
-current time to them at each step.
+This section gives an agent a value that holds any object, such as a tuple of orders, and tells analyses what a value
+means. Each queue below keeps its last two orders, and an `UpdateLaw` whose target is the element and whose value is a
+function of one agent and the system, a rule, appends the current time to them at each step.
 
 ```python
-from typing import Annotated
+import numpy as np
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import RuleLaw
-from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.systems import System
 
 
 class QueueElement(Element):
-    def __init__(self, label, *, orders: Annotated[object, StateSpec(domain=None)] = ()):
-        super().__init__(label)
+    def __init__(self, label, *, orders: object = (), size=None):
+        super().__init__(label, size=size)
         self.orders = orders
 
-    def _get_laws(self, s):
-        return [RuleLaw(self._step)]
 
-    def _step(self, agent, system):
-        agent.orders = (*agent.orders, int(system.time))[-2:]
+def record(agent, system):
+    agent.orders = (*agent.orders, int(system.time))[-2:]
 
 
-group = GroupElement('queues', element=QueueElement, size=2, values={'orders': [(), (7,)]})
-queues = CompositeSystem(elements=[group], time=DiscreteTime())
-trajectory = simulate(queues, until=1, random_state=0)
+starts = np.empty(2, dtype=object)
+starts[:] = [(), (7,)]
+queues = QueueElement('queues', orders=starts, size=2)
+ordering = Interaction('ordering', roles={'target': 'queues'}, laws=lambda s: [UpdateLaw(s.target, record)])
+trajectory = System(elements=[queues], interactions=[ordering]).prepare().simulate(until=1, random_state=0)
 trajectory.get_agents('queues', 1).values['orders'].tolist()
 ```
 
-After one step the first queue holds `(1,)` and the second `(7, 1)`. A state of an agent with
-`StateSpec(domain=None)` or `StateSpec(domain=object)` holds any hashable value, such as a tuple, a string, or a frozen
-set. The library records such a state as follows.
+After one step the first queue holds `(1,)` and the second `(7, 1)`. A value typed `object` holds any hashable value,
+such as a tuple, a string, or a frozen set, one per agent in an array of objects. The library records such a value as follows.
 
 - A snapshot keeps one object per agent in a one-dimensional array.
 - A composition counts the agents by value.
 - A history keeps any value.
-- An analysis that needs numbers names the state and refuses it.
+- An analysis that needs numbers names the value and refuses it.
 
 Symbolic systems hold numbers only, in the vectors of their solvers.
 
-`StateSpec(role='position')`, `StateSpec(role='direction')`, `StateSpec(role='phase')`, and
-`StateSpec(role='velocity')` tell analyses what a state means. Analyses read positions, directions, phases, and
-velocities from these roles, not from the names of the states. So a state named `phase` is no phase unless it says so.
+Analyses read what a value means from where it lives and how it is typed, not from its name alone.
 
-- A group is a particle group when a state has the role `'position'`, and the first derivative of that state is its
-  velocity.
-- The scalar states of any other group count as series, one per member. A displacement refuses them, since they are no
-  positions.
-- A variable group has no fixed members, so its states are series only when named, with NaN in the rows that hold no
-  member.
-- In a continuous space, a vector state with the role `'position'` is the place of its element. The boundary acts on
-  it, and neighbourhoods measure distances from it.
-- `StateSpec(role='site')` does the same for a place that does not make a member a particle, such as the fixed sites
-  of oscillators on a ring.
+- A value named after an axis of the space of its element, such as `x` and `y` on a continuous space, is a position,
+  and its first derivative, `x'`, is the velocity.
+- A value typed `Annotated[float, Period(2 * pi)]` is an angle, read as a phase, or as a heading when its element has
+  a position.
+- The scalar values of any other element of many members count as series, one per member. A displacement refuses
+  them, since they are no positions.
+- An element whose members are added or removed has no fixed members, so its values are series only when named, with
+  NaN in the rows that hold no member.
+- In a continuous space, the boundary acts on the positions, and neighbourhoods measure distances from them.
 
 ### Checking arguments
 
@@ -317,7 +311,7 @@ One example for each step follows.
 4. The satisfiability once had a check of its own in the compiler, which is engine support inside a recipe. The check
    that a role accepts only Boolean states is a primitive of the core, `Annotated[Role, 'boolean']`, so the recipe
    declares its role with it and the compiler keeps no code for the class.
-5. `sparse_identification` of the core returns a `CompositeSystem` of core components, never a class of
+5. `sparse_identification` of the core returns a `System` of core components, never a class of
    `skcomplex.systems`, so the core runs without the catalog.
 
 ### The root modules
