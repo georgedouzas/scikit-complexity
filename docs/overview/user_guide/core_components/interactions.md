@@ -8,53 +8,40 @@ page](../../../components/interactions.md) compares every interaction class and 
 
 ## Interaction
 
-An `Interaction` is the base of an interaction class of your own. The class declares each role and parameter as an
-argument of its `__init__`, annotated with `RoleSpec` or `ParameterSpec`, and returns its laws from `_get_laws`. Here
-susceptible people become infected at a rate proportional to the product of the two compartments, the mass action of
-epidemiology.
+An `Interaction` is the base of an interaction class of your own. The class takes each role and parameter as an
+argument of its `__init__`, a role typed `Role` and a parameter typed by its number, and sets its laws in `_prepare`
+when the system binds it. Here susceptible people become infected at a rate proportional to the product of the two
+compartments, the mass action of epidemiology.
 
 ```python
-from typing import Annotated
+from types import SimpleNamespace
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
-
-
-class AmountElement(Element):
-    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.x = x
+from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
 class ConversionInteraction(Interaction):
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label,
-        *,
-        target: Annotated[str, RoleSpec()],
-        source: Annotated[str, RoleSpec()],
-        a: Annotated[float, ParameterSpec()] = 0.01,
-    ):
+    def __init__(self, label, *, target: Role, source: Role, a: float = 0.01):
         super().__init__(label)
         self.target = target
         self.source = source
         self.a = a
 
-    def _get_laws(self, namespace):
-        flow = namespace.a * namespace.target.x * namespace.source.x
-        return [RateLaw(namespace.target.x, -flow), RateLaw(namespace.source.x, flow)]
+    def _prepare(self, context=None):
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            target, source = context.target.x, context.source.x
+            flow = context.a * target * source
+            self.laws_ = [RateLaw(target.diff(context.t), -flow), RateLaw(source.diff(context.t), flow)]
 
 
-people = [AmountElement('susceptible', x=99.0), AmountElement('infected', x=1.0)]
+people = [Element('susceptible', values={'x': 99.0}), Element('infected', values={'x': 1.0})]
 infection = ConversionInteraction('infection', target='susceptible', source='infected', a=0.01)
-epidemic = CompositeSystem(elements=people, interactions=[infection])
-simulate(epidemic, until=10, dt=5.0).get_values('infected.x').round(1).tolist()
+epidemic = System(elements=people, interactions=[infection]).prepare()
+epidemic.simulate(until=10, dt=5.0).get_values('infected.x').round(1).tolist()
 ```
 
 The infected grow from 1 to 60.0 after five days and to 99.6 after ten. This is the logistic curve of a simple
@@ -64,41 +51,42 @@ The same class describes autocatalysis in chemistry, where a molecule of `B` tur
 `B`, as in the reaction `A + B -> 2B`.
 
 ```python continuation
-species = [AmountElement('A', x=2.0), AmountElement('B', x=0.1)]
+species = [Element('A', values={'x': 2.0}), Element('B', values={'x': 0.1})]
 autocatalysis = ConversionInteraction('autocatalysis', target='A', source='B', a=1.0)
-reactor = CompositeSystem(elements=species, interactions=[autocatalysis])
-simulate(reactor, until=4, dt=2.0).get_values('B.x').round(3).tolist()
+reactor = System(elements=species, interactions=[autocatalysis]).prepare()
+reactor.simulate(until=4, dt=2.0).get_values('B.x').round(3).tolist()
 ```
 
 The concentration of `B` rises from 0.1 to 1.615 and then to 2.091, close to the total of 2.1 that the reaction
 conserves.
 
-**How the engine runs it.** `prepare` reads the annotations to find the roles and parameters. At compile time the
-interaction returns its laws for a namespace whose attribute `target` holds the symbols of the states of the element
-that role binds, and whose attribute `a` is the symbol of the parameter. The class attribute `law_classes` names the
-kinds of its laws, so `get_tags` knows them before a run. Rate laws on one state add up, and the system of ordinary
-differential equations goes to `ScipyODESolver`.
+**How the engine runs it.** `prepare` reads the type hints to find the roles and parameters. When the system prepares,
+it binds a copy of the interaction and calls `_prepare` with a namespace whose attribute `target` holds the states of
+the element that role binds as functions of the time `t`, and whose attribute `a` is the symbol of the parameter, so
+the parameter stays symbolic. Rate laws on one state add up, and the system of ordinary differential equations goes to
+`ScipyODESolver`.
 
 ```python continuation
-sorted(infection.get_tags().laws), sorted(infection.get_requirements().roles)
+epidemic.equations_['infected.x'], sorted(infection.get_requirements().roles)
 ```
 
-The interaction emits rate laws and binds the roles `source` and `target`.
+The equation of the infected is `infection.a*infected.x*susceptible.x`, and the interaction binds the roles `source`
+and `target`.
 
-**How it combines.** A role binds an element, a group, or a member of a group. When it binds a group, the laws run
-once for every member of the group, as arrays. An interaction of this kind sits beside the others of a system, and
-its laws add to the rates they give to the same state.
+**How it combines.** A role binds an element, or an element of many members. When it binds many members, the laws run
+once for every member, as arrays. An interaction of this kind sits beside the others of a system, and its laws add to
+the rates they give to the same state.
 
 **Limits and errors.** The laws run once per bound element or member, so an interaction that runs along the edges of
-a network or between close members takes `along=` or `within=`. Every role must name an element or a group of the
-system, and `simulate` raises a `RoleError` otherwise.
+a network or between close members takes `along=` or `within=`. Every role must name an element of the system, and
+`prepare` raises a `RoleError` otherwise.
 
 ```python continuation
 from skcomplex.core.errors import RoleError
 
 wrong = ConversionInteraction('infection', target='susceptible', source='sick')
 try:
-    simulate(CompositeSystem(elements=people, interactions=[wrong]), until=1)
+    System(elements=people, interactions=[wrong]).prepare()
 except RoleError as error:
     message = str(error)
 message
@@ -112,29 +100,22 @@ them into new foxes.
 
 ```python continuation
 class PredationInteraction(Interaction):
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label,
-        *,
-        prey: Annotated[str, RoleSpec()],
-        predator: Annotated[str, RoleSpec()],
-        a: Annotated[float, ParameterSpec()] = 0.02,
-        b: Annotated[float, ParameterSpec()] = 0.01,
-    ):
+    def __init__(self, label, *, prey: Role, predator: Role, a: float = 0.02, b: float = 0.01):
         super().__init__(label)
         self.prey = prey
         self.predator = predator
         self.a = a
         self.b = b
 
-    def _get_laws(self, namespace):
-        meetings = namespace.prey.x * namespace.predator.x
-        return [
-            RateLaw(namespace.prey.x, -namespace.a * meetings),
-            RateLaw(namespace.predator.x, namespace.b * meetings),
-        ]
+    def _prepare(self, context=None):
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            prey, predator = context.prey.x, context.predator.x
+            meetings = prey * predator
+            self.laws_ = [
+                RateLaw(prey.diff(context.t), -context.a * meetings),
+                RateLaw(predator.diff(context.t), context.b * meetings),
+            ]
 
 
 PredationInteraction('hunting', prey='rabbits', predator='foxes').get_params()
@@ -146,8 +127,6 @@ Its parameters are the two roles, the label, and the rates `a` and `b`.
 function of the namespace that returns the laws. Here a ball falls under gravity.
 
 ```python continuation
-from skcomplex.core.systems import System
-
 gravity = Interaction(
     'gravity',
     roles={'target': 'ball'},
@@ -235,42 +214,28 @@ training. Here a model of a drug in the blood, which keeps a fraction `a` of the
 series of concentrations that fall to 0.8 of their value each hour.
 
 ```python
-from typing import Annotated
-
 import numpy as np
 
-from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import TrainingInteraction
-from skcomplex.core.components.laws import UpdateLaw
-from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
-from skcomplex.core.components.laws import DatasetSpec
 from skcomplex.core.components import Observable
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction, TrainingInteraction
+from skcomplex.core.components.laws import DatasetSpec, UpdateLaw
+from skcomplex.core.systems import System
 
 
-class FactorElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        x: Annotated[float, StateSpec()] = 1.0,
-        a: Annotated[float, ParameterSpec(adaptive=True)] = 0.5,
-        observed: Annotated[float, ParameterSpec()] = 0.0,
-    ):
-        super().__init__(label)
-        self.x = x
-        self.a = a
-        self.observed = observed
-
-    def _get_laws(self, namespace):
-        return [UpdateLaw(namespace.x, namespace.a * namespace.x)]
+def model(label, a):
+    """Return the system of a value that keeps the fraction `a` of itself at every step."""
+    unit = Element('unit', values={'x': 1.0, 'a': a, 'observed': 0.0})
+    keep = Interaction(
+        'keep',
+        roles={'target': 'unit'},
+        laws=lambda s: [UpdateLaw(s.target.x, s.target.a * s.target.x)],
+    )
+    return System(label, elements=[unit], interactions=[keep])
 
 
 squared_error = Observable('error', lambda s: (s.unit.x - s.unit.observed) ** 2)
 series = 0.8 ** np.arange(1, 11)
-blood = CompositeSystem('blood', elements=[FactorElement('unit')], time=DiscreteTime())
 fit = TrainingInteraction(
     'fit',
     system='blood',
@@ -280,21 +245,20 @@ fit = TrainingInteraction(
     learning_rate=0.05,
     batch_size=1,
 )
-fitting = CompositeSystem('fitting', systems=[blood], interactions=[fit], time=DiscreteTime())
-trajectory = simulate(fitting, until=100, random_state=0)
+fitting = System('fitting', systems=[model('blood', 0.5)], interactions=[fit]).prepare()
+trajectory = fitting.simulate(until=100, random_state=0)
 round(float(trajectory.get_values('blood/unit.a')[-1]), 3), bool(trajectory.get_values('fit/loss')[-1] < 1e-6)
 ```
 
-After 100 epochs the factor is 0.8 and the loss is below `1e-6`. The parameter `a` is declared
-`ParameterSpec(adaptive=True)`, which marks it as trainable. `DatasetSpec` maps the parameter `unit.observed` to one
-sequence of ten values, and the loss is the mean squared error over the steps.
+After 100 epochs the factor is 0.8 and the loss is below `1e-6`. The training names the parameter `unit.a` it fits in
+`trained`. `DatasetSpec` maps the value `unit.observed` to one sequence of ten values, and the loss is the mean squared
+error over the steps.
 
 The same class fits the monthly interest factor of a savings account from twelve monthly balances that grow by 1
 percent a month.
 
 ```python continuation
 balances = 1.01 ** np.arange(1, 13)
-account = CompositeSystem('account', elements=[FactorElement('unit', a=1.0)], time=DiscreteTime())
 fit = TrainingInteraction(
     'fit',
     system='account',
@@ -304,8 +268,8 @@ fit = TrainingInteraction(
     learning_rate=0.005,
     batch_size=1,
 )
-fitting = CompositeSystem('fitting', systems=[account], interactions=[fit], time=DiscreteTime())
-round(float(simulate(fitting, until=100, random_state=0).get_values('account/unit.a')[-1]), 4)
+fitting = System('fitting', systems=[model('account', 1.0)], interactions=[fit]).prepare()
+round(float(fitting.simulate(until=100, random_state=0).get_values('account/unit.a')[-1]), 4)
 ```
 
 The factor reaches 1.01. A real study would hold out part of the data and record a metric on it with `metrics`.
@@ -318,7 +282,7 @@ each epoch as `fit/loss`.
 
 **How it combines.** The role `system` binds a nested system, which runs, is analysed, and is drawn alone before or
 after training. The hyperparameters of the optimizer, such as `learning_rate`, are parameters of the interaction, so a
-schedule of `simulate` changes them between epochs.
+schedule of the run changes them between epochs.
 [Learning by gradient steps](../build_a_custom_system/learning_by_gradient_steps.md) explains the data, the losses,
 and the truncation of the gradient in full.
 
