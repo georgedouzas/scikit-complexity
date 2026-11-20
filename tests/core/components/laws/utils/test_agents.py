@@ -126,7 +126,6 @@ def test_bankrupt_firm_writes_off_its_debt_against_its_lender():
     assert len(trajectory.get_agents('firms', 1).values['loans']) == 0
 
 
-@pytest.mark.skip(reason='engine gap: removing an agent does not check the holdings its Quantity annotations name')
 def test_removing_an_unsettled_agent_destroys_its_holdings():
     """Test that removing a firm that still owes raises a conservation error."""
     with pytest.raises(ConservationError, match='Settle its holdings'):

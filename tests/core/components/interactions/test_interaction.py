@@ -282,7 +282,6 @@ def test_processes_of_one_label_must_agree():
         _shocked(WienerProcessSpec('a'), WienerProcessSpec('a')).prepare()
 
 
-@pytest.mark.skip(reason='engine gap: a path given to a WienerProcessSpec argument is read as a role, not rejected')
 def test_noise_argument_rejects_a_path():
     """Test that a path given where a set of Wiener processes is expected is rejected."""
     with pytest.raises(RoleError, match='takes a WienerProcessSpec'):

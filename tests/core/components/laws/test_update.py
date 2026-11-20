@@ -96,7 +96,6 @@ class PumpElement(Element):
         self.u = u
 
 
-@pytest.mark.skip(reason='engine gap: a control bounded in Annotated is not compiled as a bounded adaptive parameter')
 def test_adaptive_parameters_compile_with_their_bounds():
     """Test that compiling keeps the bounded adaptive parameters, the controls, and leaves the form an ODE."""
 

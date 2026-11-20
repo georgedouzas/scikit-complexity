@@ -12,6 +12,7 @@ import networkx as nx
 import numpy as np
 import scipy.sparse
 from sage.all__sagemath_symbolics import SR, Expression
+from sage.ext.fast_callable import fast_callable
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....components.laws import (
@@ -26,6 +27,7 @@ from ....components.laws import (
     SamplerSpec,
     TableSpec,
     TotalisticSpec,
+    UpdateLaw,
 )
 from ....components.laws.utils._reductions import neighborhoods_in
 from ....components.spaces import (
@@ -722,8 +724,36 @@ class LatticeProblemPass(BasePass):
             return LatticeProblemPass._compile_rule(law, context)
         if isinstance(law, ArrayUpdateLaw):
             return LatticeProblemPass._compile_drive(law, context)
+        if isinstance(law, UpdateLaw):
+            return LatticeProblemPass._compile_drive(LatticeProblemPass._get_array_update(law, context), context)
         error_msg = f'A cascade of {context.owner} holds {law!r}, which is not a local rule or a drive.'
         raise ValidationError(error_msg)
+
+    @staticmethod
+    def _get_array_update(law: UpdateLaw, context: _LatticeContextSpec) -> ArrayUpdateLaw:
+        """Return the drive of a cascade, an update of a state by its own value.
+
+        Such a drive, such as `UpdateLaw(h, h + 1)` adding a grain to every site of a sandpile, changes every site by
+        the same function of its own value.
+
+        Raises:
+            ValidationError:
+                The value reads anything but the state and numbers.
+        """
+        target, value = law.target, SR(law.value)
+        if not isinstance(target, Expression) or not set(value.variables()) <= {target}:
+            error_msg = (
+                f'A drive of {context.owner} updates {target} by {value}, but an update in a cascade reads its state '
+                'alone, such as UpdateLaw(h, h + 1). Give an ArrayUpdateLaw to read other values.'
+            )
+            raise ValidationError(error_msg)
+        step = fast_callable(value, vars=[target], domain=float)
+        return ArrayUpdateLaw(target, functools.partial(LatticeProblemPass._apply_step, step), label=law.label)
+
+    @staticmethod
+    def _apply_step(step: Callable[[float], float], array: Array) -> Array:
+        """Return an array with a function of one value applied to every site."""
+        return np.vectorize(step, otypes=[float])(array)
 
     @staticmethod
     def _compile_cascade(law: RelaxationLaw, context: _LatticeContextSpec) -> CascadeKernel:

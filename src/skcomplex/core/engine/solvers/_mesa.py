@@ -1192,7 +1192,7 @@ class MesaSolver(ExternalSolver):
         self._quantities = {
             spec.path: [
                 name
-                for name, declaration in declarations_of(self._get_agent_type(spec), VariableKind.STATE).items()
+                for name, declaration in declarations_of(self._get_declaring(spec), VariableKind.STATE).items()
                 if declaration.quantity is not None
             ]
             for spec in problem.agents
@@ -2246,6 +2246,15 @@ class MesaSolver(ExternalSolver):
         element = spec.element
         declaring = element.get_declaring_element() if isinstance(element, GroupElement) else type(element)
         return declarations_of(declaring, VariableKind.STATE)
+
+    @staticmethod
+    def _get_declaring(spec: _CompiledAgentsSpec) -> type[BaseElement] | BaseElement:
+        """Return what declares the states of a compiled agent element or group.
+
+        It is the element class, or for an element declared from a plain element, a member with its declarations, such
+        as the quantity `money` of `Annotated[float, Quantity('money')]`.
+        """
+        return spec.element.get_declaring_element() if isinstance(spec.element, GroupElement) else spec.element
 
     @staticmethod
     def _get_agent_type(spec: _CompiledAgentsSpec) -> type[BaseElement]:
