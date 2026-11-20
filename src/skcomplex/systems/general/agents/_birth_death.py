@@ -45,8 +45,8 @@ class BirthDeathInteraction(Interaction):
     arrivals without a parent, as their arguments describe. The process reports the `births`, `deaths`, and `arrivals`
     of every step.
 
-    Unlike `JumpInteraction`, which changes numeric states of a fixed set of members, it adds and removes agents, each
-    with states of its own. Choose it when a population of individuals grows, shrinks, and passes traits to offspring.
+    Unlike a `JumpLaw`, which changes numeric states of a fixed set of members, it adds and removes agents, each with
+    states of its own. Choose it when a population of individuals grows, shrinks, and passes traits to offspring.
 
     It appears in many fields. Rabbits breed and wolves starve in a predator and prey model, cells divide and die in a
     tumour, firms enter and exit a market, and households form and dissolve in a model of demography.

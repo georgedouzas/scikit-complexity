@@ -47,8 +47,8 @@ class MovementInteraction(Interaction):
     never enters a cell held by another agent of the group. The agents move one after another by `schedule`, and every
     step charges its `cost`.
 
-    Unlike `TopologyInteraction`, which changes the space, it changes where agents stand in it. Choose it when agents
-    walk, forage, or relocate.
+    Unlike an `UpdateLaw` on the edges of a network, which changes the space, it changes where agents stand in it.
+    Choose it when agents walk, forage, or relocate.
 
     It appears in many fields. Sheep wander a pasture, foragers follow Lévy flights, ants climb a pheromone gradient,
     and residents move house in the segregation model of Schelling.
