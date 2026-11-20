@@ -731,7 +731,7 @@ class LatticeProblemPass(BasePass):
 
     @staticmethod
     def _get_array_update(law: UpdateLaw, context: _LatticeContextSpec) -> ArrayUpdateLaw:
-        """Return the drive of a cascade written as an update of a state by a value of the state alone.
+        """Return the drive of a cascade, an update of a state by its own value.
 
         Such a drive, such as `UpdateLaw(h, h + 1)` adding a grain to every site of a sandpile, changes every site by
         the same function of its own value.

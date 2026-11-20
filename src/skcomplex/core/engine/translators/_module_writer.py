@@ -293,7 +293,7 @@ class _ModuleWriter:
         )
 
     def _write_laws(self, stock: str) -> str:
-        """Return the function of the rate law of a stock, which reads the function of its rate."""
+        """Return the function of the rate law of a stock, reading its rate."""
         self.expressions.imports.update({(INTERACTIONS_MODULE, 'Interaction'), (LAWS_MODULE, 'RateLaw')})
         return self._write_function(
             f'_laws__{stock}(namespace: SimpleNamespace) -> list[RateLaw]',
@@ -359,7 +359,7 @@ class _ModuleWriter:
         return functions, RATE.format(name=name, label=self.label, stock=stock), name
 
     def _write_rate(self, stock: str, terms: Sequence[tuple[int, object]]) -> tuple[str, str]:
-        """Return the functions of the rest of the net rate of a stock and of its rate law, and its interaction.
+        """Return the rest of the net rate of a stock, its rate law, and its interaction.
 
         The functions are those of what remains of the net rate and of the rate law that reads it, and the source is
         that of the interaction that returns the rate law.
