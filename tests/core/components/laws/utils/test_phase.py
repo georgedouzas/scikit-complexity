@@ -35,7 +35,7 @@ from skcomplex.core.systems import System
 
 GAP = (
     'Engine gap: the broadcast of a field over position onto a phase space, and the moments of a phase-space field '
-    'read over position, key on FieldElement, so a second role bound to a plain element on such a space is not read'
+    'read over position, key on the old field element class, so a role bound to a plain element there is not read'
 )
 
 
