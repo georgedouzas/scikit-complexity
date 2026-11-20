@@ -998,7 +998,7 @@ class PassCompiler(BaseCompiler):
     @staticmethod
     def _get_time_names(classes: tuple[type, ...]) -> str:
         """Return the kinds of time of classes of time joined by `or`, such as `continuous time`."""
-        return ' or '.join(f'{item.time_tag} time' for item in classes)
+        return ' or '.join(f"{getattr(item, 'time_tag', '')} time" for item in classes)
 
     @staticmethod
     def _get_layer_issues(node: _NodeSpec, space: BaseSpace | None) -> list[IssueSpec]:
