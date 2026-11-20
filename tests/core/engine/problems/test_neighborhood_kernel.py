@@ -161,3 +161,9 @@ def test_radius_reductions_read_the_values_on_the_axes_as_positions(backend, bou
     trajectory = system.prepare().simulate(until=1, random_state=0)
     assert trajectory.get_values('walkers.count')[-1].tolist() == counts
     assert trajectory.get_values('walkers.shift')[-1] == pytest.approx(shifts)
+
+
+def test_neighborhood_kernel_get_cone_direction_reads_a_parameter():
+    """Test that a cone takes its direction from a parameter, such as a heading that no law changes."""
+    cone = RadiusNeighborhood(1.0, angle=1.0, direction='heading')
+    assert NeighborhoodKernel._get_cone_direction(cone, {}, 2, ('heading',)) == 'heading'

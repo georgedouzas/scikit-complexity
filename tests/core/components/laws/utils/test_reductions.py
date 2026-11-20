@@ -320,9 +320,6 @@ def test_reduction_over_the_nearest_members_matches_a_direct_search(boundary, ba
     assert np.allclose(_outputs(system, backend), values[nearest].mean(axis=1), atol=1e-12)
 
 
-@pytest.mark.skip(
-    reason='Engine gap: a cone reads its direction only from a state, and a heading that no law changes is a parameter',
-)
 @pytest.mark.parametrize('backend', BACKENDS, ids=['numpy', 'numba'])
 def test_reduction_inside_a_cone_keeps_the_members_ahead(backend):
     """Test that a count over a cone of a heading angle counts the members within the radius and the half-angle."""

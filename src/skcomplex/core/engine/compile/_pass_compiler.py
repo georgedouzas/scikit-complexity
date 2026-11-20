@@ -1795,7 +1795,12 @@ class PassCompiler(BaseCompiler):
             return IssueSpec('law-domain', record.path, message, fix)
         if isinstance(over, RadiusNeighborhood) and float(over.angle) < math.pi:
             try:
-                NeighborhoodKernel._get_cone_direction(over, states, getattr(record.space, 'n_dim_', 0))
+                NeighborhoodKernel._get_cone_direction(
+                    over,
+                    states,
+                    getattr(record.space, 'n_dim_', 0),
+                    declarations_of(node.component_type, VariableKind.PARAMETER),
+                )
             except ValidationError as error:
                 fix = (
                     "Declare the position of order 2, `StateSpec(vector=True, order=2, role='position')`, or "

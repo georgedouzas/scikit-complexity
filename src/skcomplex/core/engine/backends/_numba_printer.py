@@ -979,17 +979,18 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         direction = search.direction
         assert direction is not None
         first = f'_L{2 * self._get_slot(direction.entry)}_'
+        held = 'x' if direction.is_state else 'p'
         if direction.angle:
             lines += [
                 f'{INDENT}_dr{index}_ = np.empty(({reduction.size}, 2))',
                 f'{INDENT}for _i_ in range({reduction.size}):',
-                f'{INDENT * 2}_dr{index}_[_i_, 0] = math.cos(x[{first} + _i_])',
-                f'{INDENT * 2}_dr{index}_[_i_, 1] = math.sin(x[{first} + _i_])',
+                f'{INDENT * 2}_dr{index}_[_i_, 0] = math.cos({held}[{first} + _i_])',
+                f'{INDENT * 2}_dr{index}_[_i_, 1] = math.sin({held}[{first} + _i_])',
             ]
         else:
             lines.append(
-                f'{INDENT}_dr{index}_ = x[{first} : {first} + {reduction.size} * {columns}].reshape(({reduction.size}, '
-                f'{columns}))',
+                f'{INDENT}_dr{index}_ = {held}[{first} : {first} + {reduction.size} * {columns}].reshape('
+                f'({reduction.size}, {columns}))',
             )
         cosine = repr(float(np.cos(neighbourhood.angle)))
         call = (

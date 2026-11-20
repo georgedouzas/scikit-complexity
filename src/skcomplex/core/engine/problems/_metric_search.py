@@ -124,7 +124,6 @@ class MetricSearch(BaseSearch):
         """Set the neighbours of every member at the current positions."""
         state = self._get_state_of(inputs)
         x, q = state.x, state.p
-        del q
         positions = self.get_wrapped(x)
         size = positions.shape[0]
         tree = cKDTree(positions, boxsize=np.asarray(self.periods) if self.periods is not None else None)
@@ -138,7 +137,7 @@ class MetricSearch(BaseSearch):
             readers = np.concatenate([pairs[:, 0], pairs[:, 1]])
             others = np.concatenate([pairs[:, 1], pairs[:, 0]])
             if isinstance(neighbourhood, RadiusNeighborhood) and float(neighbourhood.angle) < math.pi:
-                keep = self._get_inside(x, readers, others, neighbourhood)
+                keep = self._get_inside(x, q, readers, others, neighbourhood)
                 readers, others = readers[keep], others[keep]
         if neighbourhood.center:
             readers, others = self._copy_with_center(readers, others, size)
@@ -190,6 +189,7 @@ class MetricSearch(BaseSearch):
     def _get_inside(
         self,
         x: Array,
+        q: Array,
         readers: Indices,
         others: Indices,
         cone: RadiusNeighborhood,
@@ -197,7 +197,7 @@ class MetricSearch(BaseSearch):
         """Return whether every pair has its neighbour inside the reader's cone."""
         assert self.direction is not None
         separation = -self.get_differences(x, readers, others)
-        direction = self.direction.get_vectors(x)[readers]
+        direction = self.direction.get_vectors(x, q)[readers]
         dot = np.sum(direction * separation, axis=1)
         norms = np.sqrt(np.sum(direction * direction, axis=1)) * np.sqrt(np.sum(separation * separation, axis=1))
         return dot >= np.cos(cone.angle) * norms

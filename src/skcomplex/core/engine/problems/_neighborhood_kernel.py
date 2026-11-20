@@ -6,7 +6,7 @@
 import functools
 import itertools
 import math
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Collection, Mapping
 
 import networkx as nx
 import numpy as np
@@ -555,10 +555,15 @@ class NeighborhoodKernel(BaseKernel):
         return axes if axes and placed else None
 
     @staticmethod
-    def _get_cone_direction(cone: RadiusNeighborhood, states: Mapping[str, VariableSpec], n_dim: int) -> str:
-        """Return the state that holds the direction of a cone.
+    def _get_cone_direction(
+        cone: RadiusNeighborhood,
+        states: Mapping[str, VariableSpec],
+        n_dim: int,
+        parameters: Collection[str] = (),
+    ) -> str:
+        """Return the value that holds the direction of a cone.
 
-        It is the named state, else the derivative of the position.
+        It is the named state or parameter, such as a heading no law changes, else the derivative of the position.
 
         Args:
             cone:
@@ -570,9 +575,12 @@ class NeighborhoodKernel(BaseKernel):
             n_dim:
                 The dimension of the space.
 
+            parameters:
+                The names of the parameters of the members.
+
         Returns:
             name:
-                The name of the direction state, a vector state or in two dimensions a scalar angle.
+                The name of the direction, a vector or in two dimensions a scalar angle.
 
         Raises:
             ValidationError:
@@ -580,7 +588,7 @@ class NeighborhoodKernel(BaseKernel):
         """
         if cone.direction is not None:
             declaration = states.get(cone.direction)
-            if declaration is not None and (declaration.vector or n_dim == PLANE):
+            if cone.direction in parameters or (declaration is not None and (declaration.vector or n_dim == PLANE)):
                 return cone.direction
             error_msg = (
                 f'The cone reads the direction {cone.direction!r}, which is not a vector state of the members, or a '
@@ -701,8 +709,9 @@ class NeighborhoodKernel(BaseKernel):
         periods = continuous.extent_ if continuous.periodic_ else None
         direction = None
         if isinstance(over, RadiusNeighborhood) and float(over.angle) < math.pi:
-            name = NeighborhoodKernel._get_cone_direction(over, states, continuous.n_dim_)
-            direction = _DirectionSpec(entries[name], not states[name].vector) if name in entries else None
+            name = NeighborhoodKernel._get_cone_direction(over, states, continuous.n_dim_, set(entries) - set(states))
+            angle = not states[name].vector if name in states else name in entries and entries[name].columns == 1
+            direction = _DirectionSpec(entries[name], angle, name in states) if name in entries else None
             if direction is None:
                 error_msg = f'The cone reads the direction {name!r}, which the members do not hold.'
                 raise ValidationError(error_msg)
