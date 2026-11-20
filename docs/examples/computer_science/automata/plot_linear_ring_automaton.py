@@ -38,13 +38,14 @@ trajectory = system.prepare().simulate(observers=[observer])
 
 values = trajectory.get_values('cells.value')
 steps = np.arange(values.shape[0])
+ring = LatticeNeighborhood(((-1,), (0,), (1,)))
 laplacian = System(
     elements=[Element('cells', values={'value': 0}, space=LatticeSpace(101))],
     interactions=[
         Interaction(
             'laplacian',
             roles={'target': 'cells'},
-            laws=lambda s: [UpdateLaw(s.target.value, LinearRuleSpec((1, -2, 1), 'GF(3)'), neighborhood=LatticeNeighborhood(((-1,), (0,), (1,))))],
+            laws=lambda s: [UpdateLaw(s.target.value, LinearRuleSpec((1, -2, 1), 'GF(3)'), neighborhood=ring)],
         ),
     ],
 )

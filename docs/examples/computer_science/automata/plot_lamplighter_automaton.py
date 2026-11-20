@@ -36,13 +36,14 @@ trajectory = LamplighterAutomatonSystem(radius=7, density=0.1, random_state=0).p
 
 alive = trajectory.get_values('cells.alive')
 quotient = CayleySpace(lamplighter().PermGroupOnLevel(3)).prepare()
+memory = MemoryNeighborhood(('1', 'a', 'b'))
 parity = System(
     elements=[Element('cells', values={'alive': 0}, space=quotient)],
     interactions=[
         Interaction(
             'parity',
             roles={'target': 'cells'},
-            laws=lambda s: [UpdateLaw(s.target.alive, LinearRuleSpec((1, 1, 1), 'GF(2)'), neighborhood=MemoryNeighborhood(('1', 'a', 'b')))],
+            laws=lambda s: [UpdateLaw(s.target.alive, LinearRuleSpec((1, 1, 1), 'GF(2)'), neighborhood=memory)],
         ),
     ],
 )

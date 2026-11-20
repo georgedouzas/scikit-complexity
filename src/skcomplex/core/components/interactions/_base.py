@@ -30,8 +30,8 @@ from ..base import BaseComponent
 from ..laws import BaseLaw, NoiseLaw, ObjectiveLaw, PartnerSpec, RateLaw, RuleLaw, UpdateLaw
 from ..laws._flow_term import FlowTermLaw
 from ..laws.utils import relax
-from ..laws.utils._history import delayed, derivative, lag
 from ..laws.utils._fractional import fractional_of
+from ..laws.utils._history import delayed, derivative, lag
 from ..laws.utils._relaxations import relaxation_of
 from ..spaces import BaseNeighborhood, BaseSpace, ContinuousSpace
 from ..types import AgentViewProtocol, SystemViewProtocol
