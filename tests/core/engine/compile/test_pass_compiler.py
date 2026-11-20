@@ -957,12 +957,6 @@ def test_compiler_value_outside_domain_raises_error(m):
         PassCompiler().prepare(system).run()
 
 
-@pytest.mark.skip(
-    reason=(
-        'Engine gap: a position value with more components than the dimension of its space is laid out as it '
-        'is instead of being rejected for its shape.'
-    ),
-)
 def test_compiler_wrong_shape_raises_error():
     """Test that a vector value of the wrong size is rejected."""
     space = ContinuousSpace(n_dim=2)
