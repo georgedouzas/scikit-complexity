@@ -65,11 +65,11 @@ class _BoundaryLaw(BaseLaw):
         super()._prepare(context)
         self._check_array('value')
 
-    def _run(self, inputs: object) -> None:
-        """Set `value_` to the new value at given values of the symbols it reads.
+    def _get_value(self, inputs: object) -> object:
+        """Return the new value at given values of the symbols it reads.
 
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
         """
-        self.value_ = self._evaluate(self.value, inputs)
+        return self._evaluate(self.value, inputs)

@@ -368,7 +368,7 @@ class LayoutPass(BasePass):
         its length.
         """
         component = node.component
-        if not isinstance(component, BaseInteraction) or not component._is_preparing_laws():
+        if not isinstance(component, BaseInteraction):
             return {}
         roles = declarations_of(node.component_type, VariableKind.ROLE)
         bound = {role: binding_of(component, role) for role in roles}

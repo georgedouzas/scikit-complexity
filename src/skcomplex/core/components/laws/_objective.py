@@ -78,10 +78,6 @@ class ObjectiveLaw(BaseLaw):
         label:
             The name of the law, or the empty string for a law without one.
 
-    Attributes:
-        value_:
-            The value of the objective at the values of its last run.
-
     See Also:
         ConstraintLaw: A relation that holds at the minimum.
         LinearProgramLaw: A linear objective with linear constraints, solved as a linear program.
@@ -90,8 +86,8 @@ class ObjectiveLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws import ObjectiveLaw
         >>> x = var('x')
-        >>> float(ObjectiveLaw((x - 2) ** 2, x).prepare().run({'x': 5.0}).value_)
-        9.0
+        >>> ObjectiveLaw((x - 2) ** 2, x).prepare().value
+        (x - 2)^2
         >>> u = var('u')
         >>> ObjectiveLaw(x**2 + u**2, controls=[u]).prepare().targets_
         (u,)
@@ -177,11 +173,11 @@ class ObjectiveLaw(BaseLaw):
             error_msg = 'A terminal cost is the cost at the end of a run, so it needs `controls`.'
             raise ValidationError(error_msg)
 
-    def _run(self, inputs: object) -> None:
-        """Set `value_` to the objective at given symbol values.
+    def _get_value(self, inputs: object) -> object:
+        """Return the objective at given symbol values.
 
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
         """
-        self.value_ = self._evaluate(SR(self.value), inputs)
+        return self._evaluate(SR(self.value), inputs)

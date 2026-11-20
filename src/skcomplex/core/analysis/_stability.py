@@ -14,7 +14,6 @@ from sage.all__sagemath_symbolics import SR, Expression, matrix, solve
 from sage.structure.element import Matrix
 from scipy import optimize
 
-from ..components.elements import BaseElement
 from ..components.interactions import BaseInteraction
 from ..components.laws import RateLaw
 from ..components.spaces import LatticeSpace
@@ -540,11 +539,9 @@ def _linearised_rates(
 ) -> tuple[dict[str, Expression], dict[str, Expression], dict[str, object]]:
     """Return the rate of each state, the state symbols, and the field values.
 
-    The Laplacians of the rates become eigenvalues. The rates add the laws of the field's element and of the
-    interactions bound to the field.
+    The Laplacians of the rates become eigenvalues. The rates add the laws of the interactions bound to the field.
     """
     component = field.get_declaring_element()
-    member = field._get_member() if isinstance(component, BaseElement) else field.element(field.label)
     states = list(declarations_of(component, VariableKind.STATE))
     values = {name: default_of(component, name) for name in states} | dict(field.values or {})
     parameters = {}
@@ -557,14 +554,12 @@ def _linearised_rates(
     names = {name: symbol(f'_{name}_') for name in states}
     rates: dict[str, Expression] = {}
     time = symbol('t')
-    for law in member._get_laws(SimpleNamespace(**names, **parameters, t=time)):
-        _add_rate(rates, names, law, field.label)
     for interaction in interactions:
         own = {name: getattr(interaction, name) for name in declarations_of(interaction, VariableKind.PARAMETER)}
         roles = {
             name: SimpleNamespace(**names, **parameters) for name in declarations_of(interaction, VariableKind.ROLE)
         }
-        for law in interaction._get_prepared_laws(SimpleNamespace(**roles, **own, t=time)):
+        for law in interaction._get_laws_of(SimpleNamespace(**roles, **own, t=time)):
             _add_rate(rates, names, law, field.label)
     return {name: rates[name] for name in states if name in rates}, names, values
 

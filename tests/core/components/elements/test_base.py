@@ -1,6 +1,5 @@
 """Test the `_base` module of `skcomplex.core.components.elements`."""
 
-from types import SimpleNamespace
 from typing import Annotated
 
 import pytest
@@ -84,8 +83,8 @@ def test_prepare_rejects_an_element_that_sets_laws():
         _FallingBall('ball').prepare()
 
 
-def test_prepare_twice_after_a_run_keeps_working():
-    """Test that an element run once, which sets laws_, prepares again without the error."""
+def test_prepare_twice_keeps_working():
+    """Test that an element prepared once prepares again and holds no laws."""
     element = Element('ball', values={'x': 1.0}).prepare()
-    element.run(SimpleNamespace())
     assert element.prepare() is element
+    assert not hasattr(element, 'laws_')

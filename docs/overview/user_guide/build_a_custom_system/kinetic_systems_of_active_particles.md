@@ -470,8 +470,6 @@ reads.
 ```python
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import var
-
 from skcomplex.core.analysis import automaton
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
@@ -522,18 +520,14 @@ composition.prepare().simulate(until=1, initial_state=start).get_values('cells.a
 ```
 
 The inverse and the composition are systems like the shift, so `prepare` and `simulate` run them. The composition
-returns the configuration `[1, 0, 1, 1, 0, 0, 0, 1]` unchanged after one step, so it is the identity. The `run` of a
-local rule is one step of the map on configurations. So several steps are a loop over that `run` or a simulation of
-the system, and the two give the same configuration.
+returns the configuration `[1, 0, 1, 1, 0, 0, 0, 1]` unchanged after one step, so it is the identity. Every step of
+the system is one step of the map on configurations, so two steps of the shift move every cell two sites.
 
 ```python continuation
-step = UpdateLaw(var('alive'), TableSpec({(1,): 1}), neighborhood=right).prepare()
 cells = [1, 0, 1, 1, 0, 0, 0, 0]
-for _ in range(2):
-    cells = step.run({'space': ring, 'alive': cells}).value_
-started = cellular_automaton(ring, right, TableSpec({(1,): 1}), alive=[1, 0, 1, 1, 0, 0, 0, 0])
+started = cellular_automaton(ring, right, TableSpec({(1,): 1}), alive=cells)
 frames = started.prepare().simulate(until=2, dt=1).get_values('cells.alive')
-cells.tolist() == frames[-1].astype(int).tolist()
+frames[-1].astype(int).tolist() == cells[2:] + cells[:2]
 ```
 
 The block returns `True`. The kinds of `automaton` decide these properties.

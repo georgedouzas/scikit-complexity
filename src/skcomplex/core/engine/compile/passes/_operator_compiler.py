@@ -598,7 +598,7 @@ class OperatorCompiler(BaseCompiler):
                     generators,
                     dissipators,
                     f'{node.path} on the pair ({source}, {target})',
-                    interaction._get_prepared_laws(namespace),
+                    interaction._get_laws_of(namespace),
                 )
             return
         roles = {
@@ -609,7 +609,7 @@ class OperatorCompiler(BaseCompiler):
             generators,
             dissipators,
             node.path,
-            interaction._get_prepared_laws(SimpleNamespace(**roles, **parameters)),
+            interaction._get_laws_of(SimpleNamespace(**roles, **parameters)),
         )
 
     @staticmethod
@@ -765,20 +765,16 @@ class OperatorCompiler(BaseCompiler):
                 arguments[item] = entry.start + offset
         return arguments
 
-    def _get_element_laws(
-        self,
+    @staticmethod
+    def _get_member_namespaces(
         operator_nodes: list[_NodeSpec],
         subsystems: Mapping[str, _SubsystemSpec],
-        *,
         symbols: Mapping[str, object],
-        time: Expression,
-        generators: Generators,
-        dissipators: Dissipators,
     ) -> dict[str, tuple[SimpleNamespace, ...]]:
-        """Add the laws of every operator element and member.
+        """Return the namespaces of every operator element and member, by path.
 
-        It returns the member namespaces by path. The namespace of a member holds the symbol of its state, which names
-        its subsystem in `local_operator`, and the symbols of its parameters. The laws of the member read time too.
+        The namespace of a member holds the symbol of its state, which names its subsystem in `local_operator`, and the
+        symbols of its parameters.
         """
         members: dict[str, tuple[SimpleNamespace, ...]] = {}
         for node in operator_nodes:
@@ -788,12 +784,6 @@ class OperatorCompiler(BaseCompiler):
                 state = {element.state: subsystems[key].symbol}
                 namespace = SimpleNamespace(**state, **OperatorCompiler._get_parameter_symbols(node, symbols, index))
                 namespaces.append(namespace)
-                self._collect_laws(
-                    generators,
-                    dissipators,
-                    key,
-                    element.element.prepare().run(SimpleNamespace(**vars(namespace), t=time)).laws_,
-                )
             members[node.path] = tuple(namespaces)
         return members
 
@@ -899,14 +889,7 @@ class OperatorCompiler(BaseCompiler):
         groups = {node.path: node for node in operator_nodes if node.members is not None}
         generators: Generators = []
         dissipators: Dissipators = []
-        members = self._get_element_laws(
-            operator_nodes,
-            subsystems,
-            symbols=symbols,
-            time=time,
-            generators=generators,
-            dissipators=dissipators,
-        )
+        members = OperatorCompiler._get_member_namespaces(operator_nodes, subsystems, symbols)
         for node in nodes:
             if isinstance(node.component, BaseInteraction):
                 self._get_interaction_laws(

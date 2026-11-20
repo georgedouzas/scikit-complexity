@@ -1,12 +1,15 @@
 """Test the `base` module of `skcomplex.core.components`."""
 
+import inspect
 from collections.abc import Mapping
 from types import SimpleNamespace
 from typing import Annotated
 
 import pytest
+from sage.all__sagemath_symbolics import var
 from sklearn.base import clone
 
+from skcomplex.core.base import BaseConfig
 from skcomplex.core.components import RoleSpec
 from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import BaseElement, Element
@@ -14,12 +17,12 @@ from skcomplex.core.components.interactions import BaseInteraction, Interaction
 from skcomplex.core.components.laws import BaseLaw, RateLaw
 from skcomplex.core.components.spaces import BaseNeighborhood, BaseSpace
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.systems import System
+from skcomplex.core.systems import BaseSystem, System
 from skcomplex.core.types import Role
 
 
 class DoublingComponent(BaseComponent):
-    """Component that doubles its input after counting its preparations."""
+    """Component that doubles its factor after counting its preparations."""
 
     def __init__(self, label, factor=2):
         super().__init__(label)
@@ -33,14 +36,7 @@ class DoublingComponent(BaseComponent):
             raise ValidationError(error_msg)
         self.prepared_ = getattr(self, 'prepared_', 0) + 1
         self.context_ = context
-
-    def _get_laws(self, namespace):
-        """Return no laws."""
-        return []
-
-    def _run(self, inputs):
-        """Set `doubled_`, the input times the factor."""
-        self.doubled_ = self.factor * inputs
+        self.doubled_ = 2 * self.factor
 
 
 class SpecifiedComponent(BaseComponent):
@@ -57,13 +53,6 @@ class SpecifiedComponent(BaseComponent):
         """Check the label and the declared specs, and prepare nothing else."""
         super()._prepare(context)
 
-    def _get_laws(self, namespace):
-        """Return no laws."""
-        return []
-
-    def _run(self, inputs):
-        """Run nothing."""
-
 
 class ExtendedComponent(SpecifiedComponent):
     """Component that takes the role of its base again without annotating it, and adds a role first."""
@@ -73,11 +62,12 @@ class ExtendedComponent(SpecifiedComponent):
         self.other = other
 
 
-def test_prepare_and_run():
-    """Test that preparing derives the attributes of the component from a context, and running acts."""
-    component = DoublingComponent('doubling').prepare('context')
-    assert (component.prepared_, component.context_) == (1, 'context')
-    assert component.run(3).doubled_ == 6
+def test_prepare_derives_the_attributes():
+    """Test that preparing derives the attributes of the component from a context and returns the component."""
+    component = DoublingComponent('doubling', factor=3)
+    assert component.prepare('context') is component
+    assert (component.prepared_, component.context_, component.doubled_) == (1, 'context', 6)
+    assert component.prepare().prepared_ == 2
 
 
 def test_prepare_checks_the_label_and_the_arguments():
@@ -112,22 +102,44 @@ def test_constructor_only_stores_its_arguments():
     assert cloned is not component
 
 
-def test_element_runs_into_its_laws():
-    """Test that running an element sets its laws for the namespace, as interactions and systems do."""
-
-    class StillElement(Element):
-        def _get_laws(self, namespace):
-            return []
-
-    assert StillElement('a').prepare().run(SimpleNamespace()).laws_ == []
-
-
 def test_components_derive_from_the_component_base():
-    """Test that every component of a system is a component, and a component cannot be made without its hooks."""
+    """Test that every component of a system is a component, and no component is an engine class."""
     components = (BaseElement, BaseInteraction, BaseLaw, System, BaseSpace, BaseNeighborhood)
     assert all(issubclass(component, BaseComponent) for component in components)
-    with pytest.raises(TypeError, match='abstract'):
-        BaseComponent('component')
+    assert not any(issubclass(component, BaseConfig) for component in components)
+
+
+def _get_public_methods(klass):
+    """Return the names of the public methods of a class."""
+    return {name for name, value in inspect.getmembers(klass) if not name.startswith('_') and callable(value)}
+
+
+@pytest.mark.parametrize(
+    ('base', 'verbs'),
+    [
+        (BaseComponent, set()),
+        (BaseElement, {'get_states'}),
+        (BaseInteraction, {'get_requirements'}),
+        (BaseLaw, {'get_requirements'}),
+        (BaseSpace, set()),
+        (BaseNeighborhood, set()),
+        (BaseSystem, {'simulate'}),
+    ],
+)
+def test_bases_list_their_methods(base, verbs):
+    """Test that a component base has the parameter methods, tags, and `prepare`, and its own verb if any."""
+    common = {'get_params', 'set_params', 'get_metadata_routing', 'get_tags', 'prepare'}
+    assert _get_public_methods(base) == common | verbs
+
+
+def test_cloning_shares_the_symbolic_values():
+    """Test that a clone of a component is a new component with the same parameters and shared Sage values."""
+    x = var('x')
+    law = RateLaw(x, -2 * x, label='decay')
+    cloned = clone(law)
+    assert cloned is not law
+    assert cloned.get_params() == law.get_params()
+    assert cloned.value is law.value
 
 
 class VoteInteraction(Interaction):

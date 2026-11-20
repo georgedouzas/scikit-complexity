@@ -3,9 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
 from dataclasses import replace
-from types import SimpleNamespace
 from typing import ClassVar, Self
 
 from ...errors import ValidationError
@@ -16,15 +14,14 @@ from ..spaces import BaseSpace
 from ._visual_spec import VisualSpec
 
 
-class BaseElement(BaseComponent[BaseSpace, SimpleNamespace]):
+class BaseElement(BaseComponent[BaseSpace]):
     """An abstract element, the component of a system that holds its states.
 
     A state is a value that changes as the system runs, such as the size of a population or the position of a particle.
-    An element names its states and parameters, may give laws of its own, and is drawn as its class attribute `visual`
-    says, such as `VisualSpec('line')`, unless a visualisation observer draws it otherwise. A subclass takes
-    each state and parameter as an argument of its `__init__`, annotated with `StateSpec` or `ParameterSpec` inside
-    `Annotated`, and stores it under the same name, as a scikit-learn estimator does. It returns its laws from
-    `_get_laws`, or an empty list when it has none.
+    An element names its states and parameters and is drawn as its class attribute `visual` says, such as
+    `VisualSpec('line')`, unless a visualisation observer draws it otherwise. A subclass takes each state and parameter
+    as an argument of its `__init__`, annotated with `StateSpec` or `ParameterSpec` inside `Annotated`, and stores it
+    under the same name, as a scikit-learn estimator does. It holds no laws, which interactions state.
 
     Unlike `BaseComponent`, it holds states, and the interactions and laws of a system read and change them through it.
     Choose it when a new kind of element stores its members in a way of its own, as `GroupElement` does. Choose
@@ -41,9 +38,6 @@ class BaseElement(BaseComponent[BaseSpace, SimpleNamespace]):
         default_visual_:
             How the element is drawn by default, the `visual` of its class.
 
-        laws_:
-            The laws of the element for the namespace of its last run.
-
     Examples:
         A population with one state and one parameter. The constructor stores its arguments as given.
 
@@ -56,24 +50,11 @@ class BaseElement(BaseComponent[BaseSpace, SimpleNamespace]):
         ...         super().__init__(label)
         ...         self.n = n
         ...         self.r = r
-        ...
-        ...     def _get_laws(self, namespace):
-        ...         return []
         >>> PopulationElement('rabbits', n=40).get_params(deep=False)
         {'label': 'rabbits', 'n': 40, 'r': 0.5}
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec()
-    laws_: Sequence[BaseComponent]
-
-    def _run(self, inputs: SimpleNamespace | None) -> None:
-        """Set `laws_`, the laws of the element for a namespace of symbols.
-
-        Args:
-            inputs:
-                The namespace of the symbols the laws can use.
-        """
-        self.laws_ = self._get_laws_of(inputs)
 
     def _prepare(self, context: BaseSpace | None = None) -> None:
         """Set `default_visual_`, the drawing of the element its class gives.

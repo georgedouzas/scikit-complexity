@@ -53,10 +53,10 @@ def _income(s):
     return [UpdateLaw(e.Y, e.c * (1 + e.v) * e.Y - e.c * e.v * e.Y(t=s.t - 1) + e.G)]
 
 
-def test_update_runs_into_its_value_and_targets_a_topology_request():
-    """Test that an update runs into its new value, and targets a topology request that it fires with a probability."""
+def test_update_gives_its_value_and_targets_a_topology_request():
+    """Test that an update gives its new value, and targets a topology request that it fires with a probability."""
     x = var('x')
-    assert UpdateLaw(x, 2 * x).prepare().run({'x': 1.5}).value_ == 3.0
+    assert UpdateLaw(x, 2 * x).prepare()._get_value({'x': 1.5}) == 3.0
     request = TopologyRequestSpec('rewire', keep='target')
     law = UpdateLaw(request, 0.1).prepare()
     assert law.targets_ == (request,)
@@ -237,7 +237,7 @@ def test_update_with_a_neighborhood_runs_a_local_rule(rule, expected):
     """Test that an update with a neighbourhood sets every cell from the ordered values of its neighbours."""
     x = var('x')
     law = UpdateLaw(x, rule, neighborhood=AROUND).prepare()
-    assert law.run({'space': ROW, 'x': [0, 0, 1, 0, 0]}).value_.tolist() == expected
+    assert law._get_value({'space': ROW, 'x': [0, 0, 1, 0, 0]}).tolist() == expected
 
 
 def test_update_with_a_neighborhood_becomes_a_local_rule():

@@ -18,10 +18,10 @@ from skcomplex.core.systems import System
 
 @pytest.mark.parametrize('process', ['market', ('market', 'rates'), None])
 def test_noise_takes_a_label_labels_or_no_process(process):
-    """Test that a noise law takes a label, a tuple of labels, or no process, and runs into its amplitude."""
+    """Test that a noise law takes a label, a tuple of labels, or no process, and gives its amplitude."""
     n = var('n')
     law = NoiseLaw(n, 0.1 * n, process=process).prepare()
-    assert law.run({'n': 2.0}).value_ == pytest.approx(0.2)
+    assert law._get_value({'n': 2.0}) == pytest.approx(0.2)
 
 
 @pytest.mark.parametrize(

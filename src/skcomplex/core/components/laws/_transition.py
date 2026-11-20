@@ -97,8 +97,8 @@ class _TransitionLaw(BaseLaw):
         if not self._is_function(self.matrix):
             self._check_matrix('matrix')
 
-    def _run(self, inputs: object) -> None:
-        """Set `value_` to the transition matrix at given values of the symbols it reads.
+    def _get_value(self, inputs: object) -> object:
+        """Return the transition matrix at given values of the symbols it reads.
 
         Args:
             inputs:
@@ -106,6 +106,5 @@ class _TransitionLaw(BaseLaw):
         """
         matrix = self.matrix
         if isinstance(matrix, CallSpec) or callable(matrix):
-            self.value_ = matrix
-            return
-        self.value_ = self._evaluate([list(row) for row in matrix], inputs)
+            return matrix
+        return self._evaluate([list(row) for row in matrix], inputs)

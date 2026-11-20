@@ -118,8 +118,8 @@ class UpdateLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws import UpdateLaw
         >>> x = var('x')
-        >>> UpdateLaw(x, 4 * x * (1 - x)).prepare().run({'x': 0.5}).value_
-        1.0
+        >>> UpdateLaw(x, 4 * x * (1 - x)).prepare().targets_
+        (x,)
         >>> UpdateLaw(x, x + 1, increment=True).increment
         True
         >>> UpdateLaw(x, x + 1, phase='imitate').phase
@@ -128,11 +128,11 @@ class UpdateLaw(BaseLaw):
         A local rule reads the ordered neighbours of every cell:
 
         >>> from skcomplex.core.components.laws import TotalisticSpec
-        >>> from skcomplex.core.components.spaces import LatticeSpace, RadiusNeighborhood
+        >>> from skcomplex.core.components.spaces import RadiusNeighborhood
         >>> around = RadiusNeighborhood(1, center=True)
         >>> parity = UpdateLaw(x, TotalisticSpec(lambda total: total % 2), neighborhood=around)
-        >>> parity.prepare().run({'space': LatticeSpace(5), 'x': [0, 0, 1, 0, 0]}).value_.tolist()
-        [0, 1, 1, 1, 0]
+        >>> parity.prepare().neighborhood.radius
+        1
 
         A function of the whole array changes every member at once:
 
@@ -286,8 +286,8 @@ class UpdateLaw(BaseLaw):
             )
             raise ValidationError(error_msg)
 
-    def _run(self, inputs: object) -> None:
-        """Set `value_` to the next value at given values of the symbols it reads.
+    def _get_value(self, inputs: object) -> object:
+        """Return the next value at given values of the symbols it reads.
 
         Args:
             inputs:
@@ -295,6 +295,5 @@ class UpdateLaw(BaseLaw):
                 space of the cells.
         """
         if self.neighborhood is not None:
-            self.value_ = self._get_local_rule().prepare().run(inputs).value_
-            return
-        self.value_ = self._evaluate(self.value, inputs)
+            return self._get_local_rule().prepare()._get_value(inputs)
+        return self._evaluate(self.value, inputs)

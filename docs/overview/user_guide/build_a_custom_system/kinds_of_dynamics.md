@@ -64,7 +64,7 @@ and implements three methods.
 
 - `_get_targets` returns the states it changes, which `prepare` sets as `targets_`.
 - `_get_requirements` returns a `RequirementSpec` of the kinds of space it runs in.
-- `_run` sets `value_`, its value at given values of the symbols it reads, which `prepare` sets as `reads_`.
+- `_get_value` returns its value at given values of the symbols it reads, which `prepare` sets as `reads_`.
 
 Here a decay law returns the rate `-k n` and runs in any space.
 
@@ -91,17 +91,16 @@ class DecayLaw(BaseLaw):
     def _get_requirements(cls):
         return RequirementSpec()
 
-    def _run(self, inputs):
-        self.value_ = float((-self.rate * self.target).subs(**inputs))
+    def _get_value(self, inputs):
+        return float((-self.rate * self.target).subs(**inputs))
 
 
 n, k = var('n k')
 law = DecayLaw(n, k).prepare('atom')
-law.targets_, sorted(map(str, law.reads_)), law.owner_, law.run({'n': 2.0, 'k': 0.5}).value_
+law.targets_, sorted(map(str, law.reads_)), law.owner_
 ```
 
-The law targets `n`, reads `k` and `n`, belongs to `atom`, and returns -1.0 at `n = 2` and `k = 0.5`. It checks,
-prepares, and runs on its own.
+The law targets `n`, reads `k` and `n`, and belongs to `atom`. It checks and prepares on its own.
 
 The passes of the compilers that the library ships are fixed lists of the engine, so no form takes a law of a new
 class inside a system. An [`Interaction`](../core_components/interactions.md#interaction) that sets the law shows

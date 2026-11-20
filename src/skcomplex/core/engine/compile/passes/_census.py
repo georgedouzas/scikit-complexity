@@ -1023,7 +1023,7 @@ class CensusPass(BasePass):
                 An interaction reads a name that the element bound to a role does not have.
         """
         try:
-            return component._get_prepared_laws(spec.namespace)
+            return component._get_laws_of(spec.namespace) if isinstance(component, BaseInteraction) else []
         except AttributeError as error:
             holder = error.obj
             if not isinstance(component, BaseInteraction) or not isinstance(holder, SimpleNamespace):
@@ -1074,7 +1074,7 @@ class CensusPass(BasePass):
         returned = CensusPass._get_returned_laws(spec, component)
         laws = [law for law in returned if isinstance(law, BaseLaw)]
         if not isinstance(returned, list | tuple) or len(laws) < len(returned):
-            error_msg = f'`_get_laws` of {spec.owner} must return a list of laws.'
+            error_msg = f'The `laws_` of {spec.owner} must be a list of laws.'
             raise ValidationError(error_msg)
         laws = [CensusPass._get_sampled(spec, law, solver, scope) for law in laws]
         laws = [item for law in laws for item in CensusPass._get_mean_jumps(law, solver)]

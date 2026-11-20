@@ -36,8 +36,8 @@ class GeneratorLaw(BaseLaw):
         >>> from skcomplex.systems.physics.common.quantum import GeneratorLaw
         >>> from skcomplex.core.components.laws.utils import local_operator
         >>> z = local_operator(SR.symbol('q'), SR.symbol('z'))
-        >>> GeneratorLaw(var('h') * z).prepare().run({'h': 0.5}).value_
-        0.5*local_operator(q, z)
+        >>> GeneratorLaw(var('h') * z).prepare().operator
+        h*local_operator(q, z)
     """
 
     law_tag: ClassVar[str] = 'rate'
@@ -76,8 +76,8 @@ class GeneratorLaw(BaseLaw):
             error_msg = f'A generator takes an operator built from local operators, but got {self.operator!r}.'
             raise ValidationError(error_msg)
 
-    def _run(self, inputs: object) -> None:
-        """Set `value_` to the operator with its coefficients at given symbol values.
+    def _get_value(self, inputs: object) -> object:
+        """Return the operator with its coefficients at given symbol values.
 
         The symbols are those the coefficients read.
 
@@ -85,4 +85,4 @@ class GeneratorLaw(BaseLaw):
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
         """
-        self.value_ = self._evaluate(self.operator, inputs)
+        return self._evaluate(self.operator, inputs)

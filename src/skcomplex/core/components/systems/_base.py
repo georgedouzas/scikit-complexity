@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from collections.abc import Callable, Mapping, Sequence
-from types import SimpleNamespace
 from typing import ClassVar, TypedDict
 
 import numpy.typing as npt
@@ -42,7 +41,7 @@ class RunSettings(TypedDict):
     backend: BaseConfig | None
 
 
-class BaseSystem[CompositeT: BaseSystem](BaseComponent[BaseSpace, SimpleNamespace]):
+class BaseSystem[CompositeT: BaseSystem](BaseComponent[BaseSpace]):
     """An abstract system that builds its components from the parameters of its model.
 
     A subclass takes the parameters of its model as arguments of its `__init__`, such as the rates of an epidemic, and
@@ -71,9 +70,6 @@ class BaseSystem[CompositeT: BaseSystem](BaseComponent[BaseSpace, SimpleNamespac
     Attributes:
         system_:
             The composite of the components built from the model parameters at the last `prepare`.
-
-        laws_:
-            The laws the system contributes for the namespace of its last run.
     """
 
     until: ClassVar[float | None] = None
@@ -86,7 +82,6 @@ class BaseSystem[CompositeT: BaseSystem](BaseComponent[BaseSpace, SimpleNamespac
     backend: ClassVar[BaseConfig | None] = None
 
     system_: CompositeT
-    laws_: Sequence[BaseComponent]
 
     def __init__(self, label: str = 'system') -> None:
         """Store the label of the system.
@@ -143,28 +138,6 @@ class BaseSystem[CompositeT: BaseSystem](BaseComponent[BaseSpace, SimpleNamespac
         """
         super()._prepare(context)
         self.system_ = self._get_pass_parameters().prepare(context)
-
-    def _run(self, inputs: SimpleNamespace | None) -> None:
-        """Set `laws_`, the laws of the system for a namespace of symbols.
-
-        Args:
-            inputs:
-                The namespace of the symbols the laws can use.
-        """
-        self.laws_ = self._get_laws_of(inputs)
-
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
-        """Return the laws of the prepared components for a namespace of symbols.
-
-        Args:
-            namespace:
-                The namespace of the system.
-
-        Returns:
-            laws:
-                The laws of the components.
-        """
-        return self.system_._get_laws(namespace)
 
     def _get_tags(self) -> Tags:
         """Return the tags derived from the components built from the current parameters."""

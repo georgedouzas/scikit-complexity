@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 from collections.abc import Hashable, Sequence
-from types import SimpleNamespace
 from typing import ClassVar
 
 import numpy as np
@@ -18,12 +17,11 @@ from .._tags import Tags
 from ..base import BaseComponent
 
 
-class BaseNeighborhood(BaseComponent[None, SimpleNamespace]):
+class BaseNeighborhood(BaseComponent[None]):
     """An abstract neighbourhood, the members a law reads around a member of a space.
 
     A neighbourhood stores its arguments in its `__init__`, and `prepare` checks them and derives what the engine reads,
-    such as the offsets of a lattice neighbourhood. The space that reads it rejects a neighbourhood of another kind. It
-    returns no laws.
+    such as the offsets of a lattice neighbourhood. The space that reads it rejects a neighbourhood of another kind.
 
     Unlike `BaseSpace`, which places members, it selects some of them around one member. Choose it when a new rule for
     choosing neighbours is needed, and choose an existing neighbourhood, such as `RadiusNeighborhood`, otherwise.
@@ -35,13 +33,6 @@ class BaseNeighborhood(BaseComponent[None, SimpleNamespace]):
         label:
             The name of the neighbourhood, such as `'moore'`.
     """
-
-    def _run(self, inputs: SimpleNamespace | None) -> None:
-        """Run nothing, since a neighbourhood contributes no laws to a system."""
-
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
-        """Return no laws, since a neighbourhood only tells laws which members they read."""
-        return []
 
     def _get_offsets(self, n_dim: int | None = None) -> tuple[IntTuple, ...] | None:
         """Return the lattice offsets of the neighbourhood, none by default.
@@ -149,11 +140,11 @@ class BaseNeighborhood(BaseComponent[None, SimpleNamespace]):
         super()._prepare(context)
 
 
-class BaseSpace(BaseComponent[None, SimpleNamespace]):
+class BaseSpace(BaseComponent[None]):
     """An abstract space, where the members of a group live and who neighbours whom.
 
     A space also gives vector states their dimension. It stores its arguments in its `__init__`, `prepare` checks them
-    and derives its facts, such as its size and shape, and `_get_laws` returns the laws it adds, none by default. A
+    and derives its facts, such as its size and shape. A
     space with sites says so with `_has_sites` and answers the hooks the engine reads: `_get_neighbors` gives the sites
     around a site, `_index_table` the neighbour of every site in every slot of a neighbourhood, `_translation_table` the
     sites a group space reads at the products of a site and a group element, `_ball` the neighbourhood within a radius,
@@ -199,16 +190,6 @@ class BaseSpace(BaseComponent[None, SimpleNamespace]):
     def _get_tags(self) -> Tags:
         """Return the tags of the space: the first space tag of its class, and no laws."""
         return Tags(space=frozenset(self.space_tags[:1]))
-
-    def _run(self, inputs: SimpleNamespace | None) -> None:
-        """Run nothing, since a space contributes no laws to a system."""
-
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
-        """Return the laws the space contributes for a namespace of symbols.
-
-        There are none by default.
-        """
-        return []
 
     def _get_lacks(self) -> frozenset[str]:
         """Return the options lattices offer that the space does not.
@@ -367,11 +348,11 @@ class BaseSpace(BaseComponent[None, SimpleNamespace]):
         return row[row < self.size_]
 
 
-class _BaseTime(BaseComponent[None, SimpleNamespace]):
+class _BaseTime(BaseComponent[None]):
     """An abstract time, which decides the kind of laws a system may hold.
 
     A time stores its arguments in its `__init__`, `prepare` checks them and sets its schedule, and `_get_frames`
-    returns the times of the frames of a run up to a time. It returns no laws.
+    returns the times of the frames of a run up to a time.
 
     Unlike `BaseSpace`, which says where members are, it says how the states advance. Choose it when a system advances
     in a new way, and choose `ContinuousTime`, `DiscreteTime`, or `StaticTime` otherwise.
@@ -393,16 +374,6 @@ class _BaseTime(BaseComponent[None, SimpleNamespace]):
     def _get_tags(self) -> Tags:
         """Return the tags of the time: the time tag of its class, and no laws."""
         return Tags(time=frozenset({self.time_tag} - {''}))
-
-    def _run(self, inputs: SimpleNamespace | None) -> None:
-        """Run nothing, since a time contributes no laws to a system."""
-
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
-        """Return no laws.
-
-        The time decides which laws a system may hold but contributes none.
-        """
-        return []
 
     def _get_frames(self, until: float) -> npt.NDArray[np.float64]:
         """Return the times of the frames of a run up to a time.

@@ -8,7 +8,6 @@ from __future__ import annotations
 from abc import abstractmethod
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import replace
-from types import SimpleNamespace
 from typing import ClassVar, Self
 
 import numpy as np
@@ -31,7 +30,7 @@ SETTINGS = ('solver', 'backend')
 LEARNED = ('states_', 'parameters_', 'equations_', 'form_', 'solver_', 'backend_')
 
 
-class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
+class BaseSystem(BaseComponent[Sequence[Observable]]):
     """An abstract system, which is prepared once and simulated many times.
 
     `prepare` checks the components of the system and compiles them into a problem once, as `fit` does for a
@@ -126,19 +125,6 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
         built._prepare(None)
         return built.system_._get_composite()
 
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
-        """Return the laws of the components for a namespace of symbols.
-
-        Args:
-            namespace:
-                The namespace of the system.
-
-        Returns:
-            laws:
-                The laws of the components.
-        """
-        return self._get_composite()._get_laws(namespace)
-
     def _get_tags(self) -> Tags:
         """Return the tags derived from the components of the system.
 
@@ -197,15 +183,6 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
         super()._prepare(context)
         self.observables_ = tuple(context or ())
         self.initial_state_ = self.initial_state
-
-    def _run(self, inputs: SimpleNamespace | None) -> None:
-        """Set `laws_`, the laws of the system for a namespace of symbols.
-
-        Args:
-            inputs:
-                The namespace of the symbols the laws can use.
-        """
-        self.laws_ = self._get_laws_of(inputs)
 
     def prepare(self, context: Sequence[Observable] | None = None) -> Self:
         """Check the system, build its components, and compile them into a problem.

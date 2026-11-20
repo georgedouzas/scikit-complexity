@@ -36,10 +36,6 @@ class SubstitutionLaw(BaseLaw):
         label:
             The name of the law, or the empty string for a law without one.
 
-    Attributes:
-        value_:
-            Pairs of a prototile name and the scale, the rotation, and the translation of its map, set by `run`.
-
     Examples:
         >>> from skcomplex.systems.general.rewriting import SubstitutionLaw
         >>> from skcomplex.systems.general.rewriting import AffineSpec
@@ -48,8 +44,6 @@ class SubstitutionLaw(BaseLaw):
     """
 
     law_tag: ClassVar[str] = 'update'
-
-    value_: list[tuple[str, object]]
 
     def __init__(self, prototile: str, pieces: Sequence[tuple[str, AffineSpec]], *, label: str = '') -> None:
         super().__init__(label)
@@ -84,8 +78,8 @@ class SubstitutionLaw(BaseLaw):
                 raise RewritingError(error_msg)
             piece[1]._check()
 
-    def _run(self, inputs: object) -> None:
-        """Set `value_` to the pieces with their maps at given values.
+    def _get_value(self, inputs: object) -> object:
+        """Return the pieces with their maps at given values.
 
         It gives the scale, the rotation, and the translation of their maps.
 
@@ -93,7 +87,7 @@ class SubstitutionLaw(BaseLaw):
             inputs:
                 A mapping from the name of every symbol the maps read to its value.
         """
-        self.value_ = [
+        return [
             (name, self._evaluate((affine.scale, affine.rotation, tuple(affine.translation)), inputs))
             for name, affine in self.pieces
         ]

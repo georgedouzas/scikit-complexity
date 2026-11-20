@@ -3,9 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import replace
-from types import SimpleNamespace
 
 import numpy as np
 from sage.all__sagemath_symbolics import ZZ
@@ -13,7 +12,6 @@ from sage.all__sagemath_symbolics import ZZ
 from ...components import RoleSpec, Tags
 from ...components._role_spec import _Spec
 from ...components._state_spec import _StateSpec
-from ...components.base import BaseComponent
 from ...components.elements import BaseElement, VisualSpec
 from ...components.spaces import BaseSpace, NetworkSpace
 from ...errors import SpaceError, ValidationError
@@ -366,18 +364,3 @@ class _GroupElement(BaseElement):
             return None
         prepared = space if 'size_' in vars(space) else space.prepare()
         return prepared if prepared._count_parts('sites') == self.size else None
-
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
-        """Return the laws of the element type for a namespace of symbols.
-
-        The laws are written for one member.
-
-        Args:
-            namespace:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of a member.
-        """
-        return self._get_member()._get_laws(namespace)

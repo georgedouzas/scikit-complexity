@@ -243,10 +243,10 @@ class _LocalRuleLaw(BaseLaw):
         cells = np.broadcast_to(np.asarray(values, dtype=float), (size,)).reshape(shape)
         return cells.astype(np.int64) if np.all(cells == np.rint(cells)) else cells
 
-    def _run(self, inputs: object) -> None:
-        """Set `value_` to the next values of the cells.
+    def _get_value(self, inputs: object) -> object:
+        """Return the next values of the cells.
 
-        A law of several targets sets a tuple of them.
+        A law of several targets returns a tuple of them.
 
         Args:
             inputs:
@@ -281,7 +281,7 @@ class _LocalRuleLaw(BaseLaw):
         else:
             rows, inverse = np.unique(patterns.astype(np.int64), axis=0, return_inverse=True)
             result = np.asarray(self._get_next_values(rows))[inverse.ravel()]
-        self.value_ = (
+        return (
             tuple(self._get_cells(item, shape) for item in result)
             if isinstance(result, tuple)
             else self._get_cells(result, shape)

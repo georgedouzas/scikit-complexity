@@ -26,6 +26,6 @@ class AlgebraicLaw(_BoundaryLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.engine.compile._algebraic_law import AlgebraicLaw
         >>> v, r = var('v r')
-        >>> AlgebraicLaw(v, 2 * r).prepare().run({'r': 1.5}).value_
-        3.0
+        >>> sorted(map(str, AlgebraicLaw(v, 2 * r).prepare().reads_))
+        ['r', 'v']
     """

@@ -58,15 +58,15 @@ class _RealFunction(SymbolicFunction):
         return self(*args)
 
 
-class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace]):
+class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace]):
     """An abstract interaction, the component that changes the states of elements.
 
     An interaction binds elements through roles, such as `'source'` and `'target'`, reads their states, and returns laws
     that change them. It holds no state of its own. A state on a coupling, such as the weight of an edge, lives in a
     group on the edges or hyperedges of a network. A subclass takes each role and parameter as an argument of its
     `__init__`, annotated with `RoleSpec` or `ParameterSpec` inside `Annotated`, and stores it under the same name, as a
-    scikit-learn estimator does. It returns its laws from `_get_laws`, where `namespace.<role>` reads the states of the
-    element a role binds and `namespace.<parameter>` is a symbol.
+    scikit-learn estimator does. Its `_prepare` sets `laws_` when the context is the namespace of a binding, where
+    `context.<role>` reads the states of the element a role binds and `context.<parameter>` is a symbol.
 
     A role states the element kinds and states it needs in its `RoleSpec`, and the class lists the laws it may return in
     `law_classes`, so that `get_requirements` and `get_tags` can name them before a run. A subclass whose arguments
@@ -87,7 +87,7 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
 
     Attributes:
         laws_:
-            The laws the interaction contributes for the namespace of its last run.
+            The laws the interaction states for the namespace it was last prepared against.
 
     Examples:
         >>> from skcomplex.core.components.interactions import BaseInteraction
@@ -97,9 +97,6 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         ...         super().__init__(label)
         ...         self.target = target
         ...         self.r = r
-        ...
-        ...     def _get_laws(self, namespace):
-        ...         return []
         >>> GrowthInteraction('growth', target='rabbits', r=0.5).get_params()
         {'label': 'growth', 'r': 0.5, 'target': 'rabbits'}
     """
@@ -131,7 +128,7 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
     ) -> Tags:
         """Return the tags of the laws an interaction returns for its arguments.
 
-        The tags are unknown below its own `_get_laws`.
+        The tags are unknown when the class lists no law classes.
 
         Args:
             classes:
@@ -170,12 +167,6 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
             or 'random' in (self._get_argument('ties'), self._get_argument('pick'))
         )
 
-    @classmethod
-    def _is_preparing_laws(cls) -> bool:
-        """Return whether the class sets its laws in `_prepare`, not in `_get_laws`."""
-        owner = next(klass for klass in cls.__mro__ if '_get_laws' in vars(klass))
-        return owner is BaseInteraction
-
     def _get_declared(self) -> Mapping[str, _DeclaredVariableSpec]:
         """Return the numeric arguments of an interaction as parameters, by name.
 
@@ -187,8 +178,6 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         positive rate. An argument whose value is a `WienerProcessSpec` binds those processes, as the market noise
         that drives the prices of several assets does. The parameters keep the order of the arguments.
         """
-        if not self._is_preparing_laws():
-            return {}
         specs = self._get_specs()
         allowed = self._get_allowed()
         params = self.get_params(deep=False)
@@ -268,8 +257,6 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
     @classmethod
     def _get_declared_laws(cls) -> tuple[type, ...] | None:
         """Return the law classes a class lists, or `None` when they are unknown."""
-        if not cls._is_preparing_laws():
-            return super()._get_declared_laws()
         for klass in cls.__mro__:
             if klass is BaseInteraction:
                 return None
@@ -277,19 +264,6 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
                 classes: tuple[type, ...] = vars(klass)['law_classes']
                 return classes
         return None
-
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
-        """Return no laws, since an interaction sets its laws in `_prepare`.
-
-        Args:
-            namespace:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                No laws.
-        """
-        return []
 
     @staticmethod
     def _get_function_of(value: Expression) -> SymbolicFunction:
@@ -551,9 +525,7 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         return clone(law).set_params(target=states, order=orders.pop())
 
     def _get_laws_of(self, inputs: object) -> Sequence[BaseComponent]:
-        """Return the laws for a namespace, from a clone prepared on it if needed."""
-        if not self._is_preparing_laws():
-            return super()._get_laws_of(inputs)
+        """Return the laws for a namespace, from a copy prepared on it."""
         if not isinstance(inputs, SimpleNamespace):
             error_msg = f'{type(self).__name__} learns its laws from a namespace of symbols, but got {inputs!r}.'
             raise ValidationError(error_msg)
@@ -721,26 +693,8 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
 
     def _prepare_on(self, space: BaseSpace | SimpleNamespace | None) -> None:
         """Check the interaction on the space of its system, learning no laws."""
-        if not self._is_preparing_laws():
-            super()._prepare_on(space)
-            return
         BaseInteraction._prepare(self, space if isinstance(space, BaseSpace) else None)
         self._prepared = True
-
-    def _get_prepared_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
-        """Return the laws of the interaction for a namespace of symbols."""
-        if self._is_preparing_laws():
-            return self._get_laws_of(namespace)
-        return super()._get_prepared_laws(namespace)
-
-    def _run(self, inputs: SimpleNamespace | None) -> None:
-        """Set `laws_`, the laws of the interaction for a namespace of symbols.
-
-        Args:
-            inputs:
-                The namespace of the symbols the laws can use.
-        """
-        self.laws_ = self._get_laws_of(inputs)
 
     def _get_binding(self, role: str) -> object:
         """Return what a role binds, such as the label of an element.
@@ -1075,15 +1029,12 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
     def _get_law_classes(cls) -> tuple[type[BaseLaw], ...]:
         """Return the law classes the class lists.
 
-        There are none when a subclass writes its own laws below the list.
+        There are none when no class lists them.
         """
         for klass in cls.__mro__:
-            declared = vars(klass)
-            if 'law_classes' in declared:
-                classes: tuple[type[BaseLaw], ...] = declared['law_classes']
+            if 'law_classes' in vars(klass):
+                classes: tuple[type[BaseLaw], ...] = vars(klass)['law_classes']
                 return classes
-            if '_get_laws' in declared:
-                return ()
         return ()
 
     @staticmethod

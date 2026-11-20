@@ -10,7 +10,7 @@ from skcomplex.core.errors import ValidationError
 def test_run_evaluates_the_objective():
     """Running an objective gives its value at the given symbol values."""
     x = var('x')
-    assert float(ObjectiveLaw((x - 2) ** 2, x).prepare().run({'x': 5.0}).value_) == pytest.approx(9.0)
+    assert float(ObjectiveLaw((x - 2) ** 2, x).prepare()._get_value({'x': 5.0})) == pytest.approx(9.0)
 
 
 def test_get_targets_reads_one_or_several_states():

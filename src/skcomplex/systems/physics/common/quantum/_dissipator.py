@@ -40,8 +40,8 @@ class DissipatorLaw(BaseLaw):
         >>> from skcomplex.systems.physics.common.quantum import DissipatorLaw
         >>> from skcomplex.core.components.laws.utils import local_operator
         >>> minus = local_operator(SR.symbol('q'), SR.symbol('minus'))
-        >>> DissipatorLaw(minus, 2 * var('gamma')).prepare().run({'gamma': 0.05}).value_
-        (local_operator(q, minus), 0.1)
+        >>> DissipatorLaw(minus, 2 * var('gamma')).prepare().rate
+        2*gamma
     """
 
     law_tag: ClassVar[str] = 'rate'
@@ -90,8 +90,8 @@ class DissipatorLaw(BaseLaw):
             error_msg = f'The rate of a dissipator is a number or a symbolic expression, but got {self.rate!r}.'
             raise ValidationError(error_msg)
 
-    def _run(self, inputs: object) -> None:
-        """Set `value_` to the operator and the rate at given symbol values.
+    def _get_value(self, inputs: object) -> object:
+        """Return the operator and the rate at given symbol values.
 
         The symbols are those they read.
 
@@ -99,4 +99,4 @@ class DissipatorLaw(BaseLaw):
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
         """
-        self.value_ = self._evaluate((self.operator, self.rate), inputs)
+        return self._evaluate((self.operator, self.rate), inputs)

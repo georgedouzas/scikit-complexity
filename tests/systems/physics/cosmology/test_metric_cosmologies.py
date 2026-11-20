@@ -168,7 +168,7 @@ def test_warped_plane_law_reads_the_second_derivative_along_the_lattice_axis():
         components=[(2, 2)],
         axes={1: 0},
     )
-    (law,) = einstein.prepare().run(namespace).laws_
+    (law,) = einstein.prepare(namespace).laws_
     assert bool(SR(law.value) == partial(partial(u, SR(0)), SR(0)))
 
 
@@ -192,7 +192,7 @@ def test_einstein_interaction_rejects_equations_that_do_not_reduce(components, a
         axes=axes,
     )
     with pytest.raises(ValidationError, match=message):
-        einstein.prepare().run(namespace)
+        einstein.prepare(namespace)
 
 
 def test_einstein_interaction_rejects_coordinates_the_ansatz_keeps():
@@ -211,7 +211,7 @@ def test_einstein_interaction_rejects_coordinates_the_ansatz_keeps():
         components=[(1, 1)],
     )
     with pytest.raises(ValidationError, match='keep the coordinates'):
-        einstein.prepare().run(namespace)
+        einstein.prepare(namespace)
 
 
 def test_einstein_interaction_rejects_functions_that_name_nothing():
@@ -225,7 +225,7 @@ def test_einstein_interaction_rejects_functions_that_name_nothing():
         components=[(1, 1)],
     )
     with pytest.raises(ValidationError, match='time derivative of'):
-        einstein.prepare().run(namespace)
+        einstein.prepare(namespace)
 
 
 @pytest.mark.parametrize(

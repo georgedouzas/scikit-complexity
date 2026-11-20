@@ -82,12 +82,12 @@ class _RuleLaw(BaseLaw):
             error_msg = f'The members of a rule name a role, but they are {self.members!r}.'
             raise ValidationError(error_msg)
 
-    def _run(self, inputs: object) -> None:
-        """Run the rule on its arguments, the agent and the system, or the system alone.
+    def _get_value(self, inputs: object) -> object:
+        """Return the result of the rule on the agent and the system, or the system alone.
 
         Args:
             inputs:
                 The arguments of the function, a sequence such as `(agent, system)`.
         """
         arguments = tuple(inputs) if isinstance(inputs, Sequence) else (inputs,)
-        self.value_ = self.function(*arguments)
+        return self.function(*arguments)

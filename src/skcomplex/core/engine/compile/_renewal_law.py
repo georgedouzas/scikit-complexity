@@ -28,10 +28,6 @@ class RenewalLaw(BaseLaw):
         label:
             The name of the renewal in the trajectory, or the empty string for the path of the element.
 
-    Attributes:
-        value_:
-            The new values of the states at the values the last run read, by state.
-
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws.utils import draw
@@ -39,8 +35,8 @@ class RenewalLaw(BaseLaw):
         >>> n = var('n')
         >>> RenewalLaw(draw('wait', 'expon'), {n: 0}).prepare().targets_
         (n,)
-        >>> RenewalLaw(draw('wait', 'expon'), {n: n + 1}).prepare().run({'n': 2}).value_
-        {n: 3.0}
+        >>> RenewalLaw(draw('wait', 'expon'), {n: n + 1}).reset
+        {n: n + 1}
     """
 
     def __init__(self, waiting: object, reset: Mapping[Expression, object] | None = None, *, label: str = '') -> None:
@@ -60,11 +56,11 @@ class RenewalLaw(BaseLaw):
         """
         return RequirementSpec(time=(_ContinuousTime,))
 
-    def _run(self, inputs: object) -> None:
-        """Set the new values of the states at given values of the symbols the reset reads.
+    def _get_value(self, inputs: object) -> object:
+        """Return the new values of the states at given values of the symbols of the reset.
 
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
         """
-        self.value_ = self._evaluate(dict(self.reset or {}), inputs)
+        return self._evaluate(dict(self.reset or {}), inputs)

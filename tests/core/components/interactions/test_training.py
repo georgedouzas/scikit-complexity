@@ -49,9 +49,9 @@ def test_check_trained_data_and_metrics(arguments):
         training.prepare()
 
 
-def test_run_states_no_laws():
+def test_training_states_no_laws():
     """Test that the training states no laws, since the solver reads its settings."""
-    assert _training(truncation=1).prepare().run(SimpleNamespace()).laws_ == []
+    assert _training(truncation=1).prepare(SimpleNamespace()).laws_ == []
 
 
 def test_get_params_lists_the_hyperparameters():

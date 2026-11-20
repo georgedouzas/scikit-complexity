@@ -22,7 +22,6 @@ from ..components.elements import BaseElement
 from ..components.interactions import BaseInteraction
 from ..enums import VariableKind
 from ..errors import SkcomplexError
-from .problems._group_element import _GroupElement
 from .problems._variable_spec import _VariableSpec
 
 INSTANCE_VARIABLES: weakref.WeakKeyDictionary[
@@ -382,7 +381,7 @@ def _probe_namespace(component: BaseElement | BaseInteraction) -> SimpleNamespac
 def probe_laws(component: object) -> list[object] | None:
     """Return the laws of a component for a namespace of its declared names.
 
-    The laws are returned before the states are declared. A group returns the laws of a representative member. The
+    The laws are returned before the states are declared. An element or a group states none, so it returns none. The
     namespace holds a free symbol for every declared state and parameter, the time `t`, `other` for the neighbour of a
     member, and an empty namespace per role. Laws that read other names, such as the states of the elements a role
     binds, or that index a vector state, are not listed: the errors that reading them raises leave the laws unlisted.
@@ -395,10 +394,11 @@ def probe_laws(component: object) -> list[object] | None:
         laws:
             The laws, or `None` when they cannot be listed.
     """
-    if not isinstance(component, BaseElement | BaseInteraction):
+    if isinstance(component, BaseElement):
+        return []
+    if not isinstance(component, BaseInteraction):
         return None
     try:
-        member = component._get_member() if isinstance(component, _GroupElement) else component
-        return list(member._get_prepared_laws(_probe_namespace(member)))
+        return list(component._get_laws_of(_probe_namespace(component)))
     except (AttributeError, IndexError, KeyError, TypeError, ValueError, ArithmeticError, RuntimeError, SkcomplexError):
         return None

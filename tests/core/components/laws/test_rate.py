@@ -123,12 +123,12 @@ def _decay(label: str, state: str, rate: float) -> Interaction:
     )
 
 
-def test_rate_runs_into_its_value():
-    """Test that a rate law targets its state and runs into its value at given values of the symbols."""
+def test_rate_gives_its_value():
+    """Test that a rate law targets its state and gives its value at given values of the symbols."""
     n, r = var('n r')
     law = RateLaw(n, r * n).prepare()
     assert law.targets_ == (n,)
-    assert law.run({'n': 3.0, 'r': 2.0}).value_ == 6.0
+    assert law._get_value({'n': 3.0, 'r': 2.0}) == 6.0
 
 
 def test_initial_angular_velocity():

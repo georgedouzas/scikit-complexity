@@ -7,9 +7,8 @@ from __future__ import annotations
 
 import inspect
 import numbers
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import replace
-from types import SimpleNamespace
 from typing import Annotated, ClassVar, get_args, get_origin
 
 import numpy as np
@@ -23,7 +22,6 @@ from .._power_series_spec import PowerSeriesSpec
 from .._state_spec import _StateSpec
 from .._subshift_spec import SubshiftSpec
 from .._tags import Tags
-from ..base import BaseComponent
 from ..spaces import BaseSpace, NetworkSpace
 from ._base import BaseElement
 
@@ -42,15 +40,15 @@ class Element(BaseElement):
     """An element whose states and parameters are declared by its own subclass.
 
     A subclass takes each state and parameter as an argument of its `__init__`, annotated with `StateSpec` or
-    `ParameterSpec` inside `Annotated`. It may return laws of its own from `_get_laws`, such as the growth of a
-    population, and it lists their classes in `law_classes`, so that `get_tags` can name their kinds before a run.
+    `ParameterSpec` inside `Annotated`. It lists the classes of the laws that interactions state for it in
+    `law_classes`, so that `get_tags` can name their kinds before a run.
 
     An element whose laws are agent rules, Python functions that change one member at each step, is an agent. Under
     discrete time each member runs its rules with its states as attributes, and these states may hold any value, not
     only numbers. A member is removed only when its states tagged with a quantity reach zero. Its states and parameters
     cannot take the names that the agent view or Mesa reads, such as `location`, `alive`, `position`, or `system`.
 
-    Unlike `BaseElement`, it returns no laws by default, and it can act as an agent. Choose it
+    Unlike `BaseElement`, it declares its states by its own subclass, and it can act as an agent. Choose it
     when a kind of entity deserves a class of its own, such as a population with a growth law or a capacitor with two
     pins, and choose `DeclaredElement` when the states are known only as data.
 
@@ -252,16 +250,3 @@ class Element(BaseElement):
         them with checked types.
         """
         return None
-
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
-        """Return the laws of the element for a namespace of symbols, none by default.
-
-        Args:
-            namespace:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the element.
-        """
-        return []

@@ -242,15 +242,18 @@ package has two subpackages.
 
 ```python
 from skcomplex.core.base import BaseConfig
+from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element
+from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.systems import BaseSystem, System
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
-[issubclass(cls, BaseConfig) for cls in (Element, System, LotkaVolterraSystem)]
+[issubclass(cls, BaseComponent) for cls in (Element, System, LotkaVolterraSystem)], issubclass(RK4Solver, BaseConfig)
 ```
 
-All three checks return `True`. Every estimator, an element, an interaction, a law, a system, and the engine that runs
-them, derives from one root class, `BaseConfig`. A system is prepared and simulated by its own methods, and the
+All four checks return `True`. Every component, an element, an interaction, a law, and a system, derives from
+`BaseComponent`, which gives parameters, cloning, tags, and `prepare`. The engine that runs them, such as a solver,
+derives from `BaseConfig`, which adds `run`. A system is prepared and simulated by its own methods, and the
 analyses and the experiments, calibration among them, are functions of these estimators. Every ready-made system belongs to a field and a subfield of the catalog.
 
 ```python continuation
@@ -317,10 +320,9 @@ One example for each step follows.
 
 This section lists the modules that every package of the core shares.
 
-- `skcomplex.core.base` holds `BaseConfig`, the root of every configurable class. It stores the settings of a class
-  under their own names, as scikit-learn does, so `get_params`, `set_params`, and `clone` work on every class. It gives
-  every class the main public methods `prepare` and `run`, and `get_tags` returns the capability tags of every
-  component.
+- `skcomplex.core.base` holds `BaseConfig`, the base of every engine class, such as a solver or a backend. It stores
+  the settings of a class under their own names, as scikit-learn does, so `get_params`, `set_params`, and `clone`
+  work on it, and it gives the main public methods `prepare` and `run`.
 - `skcomplex.core.errors` holds the errors and warnings, such as `ValidationError`, `RoleError`, `SolverError`, and
   `RewritingError`.
 - `skcomplex.core.types` holds the types that every layer reads, such as arrays, functions, and keys.
@@ -335,7 +337,8 @@ This section lists the modules of `skcomplex.core.components`, which defines wha
 runs. They are listed in their import order, so a module imports only the modules above it.
 
 - `types`: the types of the components, such as the targets of laws and the pairings of transfers.
-- `base`: `BaseComponent`, the base of every component of a system, built on `BaseConfig`.
+- `base`: `BaseComponent`, the base of every component of a system. It gives parameters, cloning, `get_tags`, the
+  capability tags of a component, and `prepare`, and no `run`.
 - `spaces`: the continuous, lattice, network, cell complex, and phase spaces, and their neighbourhoods.
 - `laws`: the `BaseLaw` base and every law. `laws.utils` holds what laws are written with besides Sage, such as
   `where`, reductions, draws, delays, and calls. The helpers that only the compiler reads, such as `reductions_in`,

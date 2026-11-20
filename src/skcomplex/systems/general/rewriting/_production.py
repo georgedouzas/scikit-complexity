@@ -50,19 +50,13 @@ class ProductionLaw(BaseLaw):
         label:
             The name of the law, or the empty string for a law without one.
 
-    Attributes:
-        value_:
-            The modules of the successor, set by `run`.
-
     Examples:
         >>> from skcomplex.systems.general.rewriting import ProductionLaw
-        >>> [module.name for module in ProductionLaw('F', 'F+F--F+F').prepare().run({}).value_]
-        ['F', '+', 'F', '-', '-', 'F', '+', 'F']
+        >>> ProductionLaw('F', 'F+F--F+F').prepare().successor
+        'F+F--F+F'
     """
 
     law_tag: ClassVar[str] = 'update'
-
-    value_: list[ModuleSpec]
 
     def __init__(
         self,
@@ -114,11 +108,11 @@ class ProductionLaw(BaseLaw):
             error_msg = f'The probability of a production is in [0, 1], not {self.probability!r}.'
             raise RewritingError(error_msg)
 
-    def _run(self, inputs: object) -> None:
-        """Set `value_`, the modules of the successor.
+    def _get_value(self, inputs: object) -> object:
+        """Return the modules of the successor.
 
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value, unused.
         """
-        self.value_ = ModuleSpec.parse_word(self.successor)
+        return ModuleSpec.parse_word(self.successor)

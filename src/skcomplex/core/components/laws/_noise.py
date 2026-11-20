@@ -69,8 +69,8 @@ class NoiseLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws import NoiseLaw
         >>> x = var('x')
-        >>> NoiseLaw(x, 0.2 * x, process='shared').prepare().run({'x': 10.0}).value_
-        2.0
+        >>> NoiseLaw(x, 0.2 * x, process='shared').prepare().process
+        'shared'
         >>> D = var('D')
         >>> NoiseLaw(x, 2 * D, hurst=0.7).hurst
         0.7
@@ -172,11 +172,11 @@ class NoiseLaw(BaseLaw):
         self._check_process()
         self._check_hurst()
 
-    def _run(self, inputs: object) -> None:
-        """Set `value_` to the amplitude at given values of the symbols it reads.
+    def _get_value(self, inputs: object) -> object:
+        """Return the amplitude at given values of the symbols it reads.
 
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
         """
-        self.value_ = self._evaluate(self.value, inputs)
+        return self._evaluate(self.value, inputs)
