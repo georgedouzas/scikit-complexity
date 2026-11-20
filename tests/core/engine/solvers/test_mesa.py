@@ -50,13 +50,6 @@ UNDECLARED: list[bool] = []
 LOG: list[tuple[str, int]] = []
 PROBED: list[object] = []
 RECORDED_BOIDS = 'recorded_boids_two_dimensions.json'
-PERIODIC_POSITIONS_GAP = (
-    'Engine gap: the boundary of a periodic continuous space targets the position `x_<group>` of agents, '
-    'which is not a state symbol (x_flock).'
-)
-RESERVED_KIND_GAP = (
-    'Engine gap: the value `kind` of a plain element is reserved and read as the element class (reserved kind).'
-)
 
 
 def _rule(label, target, rule, phase=None, **roles):
@@ -478,7 +471,6 @@ def _views(space, **values):
     return [AgentView(agent, stepper) for agent in stepper._get_group_agents('cows')]
 
 
-@pytest.mark.skip(reason=PERIODIC_POSITIONS_GAP)
 def test_displacement_across_torus_seam():
     """Test that the displacement in a toroidal continuous space is the shortest image across the seam."""
     space = ContinuousSpace(extent=(100.0, 1.0), boundary='periodic')
@@ -957,7 +949,6 @@ def test_recorded_two_dimensional_trajectories_load():
     assert np.asarray(recorded['20']['locations']).shape == (10, 2)
 
 
-@pytest.mark.skip(reason=PERIODIC_POSITIONS_GAP)
 def test_two_dimensional_space_keeps_recorded_trajectories():
     """Test that a system on a two-dimensional continuous space repeats the trajectories recorded before the change."""
     recorded = json.loads((files(__package__) / RECORDED_BOIDS).read_text())
@@ -1000,7 +991,6 @@ def _depth_shift(agent, system):
     agent.near = float(agent.get_displacement_to(other)[2])
 
 
-@pytest.mark.skip(reason=PERIODIC_POSITIONS_GAP)
 def test_neighbours_across_the_depth_boundary():
     """Test that two agents across the periodic third side find each other within a radius of 0.5."""
     space = ContinuousSpace(extent=(10.0, 10.0, 10.0), boundary='periodic')
@@ -1008,7 +998,6 @@ def test_neighbours_across_the_depth_boundary():
     assert _simulate(system, until=1).get_agents('probes', 1).values['near'].tolist() == [1.0, 1.0]
 
 
-@pytest.mark.skip(reason=PERIODIC_POSITIONS_GAP)
 def test_displacement_takes_the_minimum_image_in_depth():
     """Test that the displacement between agents across the third side wraps every coordinate."""
     space = ContinuousSpace(extent=(10.0, 10.0, 10.0), boundary='periodic')
@@ -1033,7 +1022,6 @@ def _walk_in_box(size, step, **values):
     return System(elements=[walkers], interactions=[walk])
 
 
-@pytest.mark.skip(reason=PERIODIC_POSITIONS_GAP)
 def test_gaussian_steps_spread_in_depth():
     """Test that the variance of the third coordinate grows under Gaussian steps and positions stay in the box."""
     trajectory = _simulate(_walk_in_box(100, 'gaussian', x=5.0, y=5.0, z=5.0), until=100)
@@ -1602,7 +1590,6 @@ class Arrive(Interaction):
         system.create('target', age=0.0)
 
 
-@pytest.mark.skip(reason=RESERVED_KIND_GAP)
 def test_created_agents_take_the_values_their_group_shares():
     """Test that a new agent of a plain element takes the shared values its creation leaves out."""
     people = Element('people', values={'age': 5.0, 'kind': 2.0}, size=1)
@@ -1612,7 +1599,6 @@ def test_created_agents_take_the_values_their_group_shares():
     assert agents.values['kind'].tolist() == [2.0, 2.0, 2.0]
 
 
-@pytest.mark.skip(reason=RESERVED_KIND_GAP)
 def test_created_agents_need_the_values_their_group_gives_per_member():
     """Test that a new agent of a plain element needs the values its group gives one per member."""
     people = Element('people', values={'age': 5.0, 'kind': np.array([1.0, 2.0])}, size=2)
@@ -1637,7 +1623,6 @@ class PersonElement(Element):
         self.kind = kind
 
 
-@pytest.mark.skip(reason=RESERVED_KIND_GAP)
 def test_created_agents_take_the_defaults_of_their_element_class():
     """Test that a new agent takes the class default of a value given per member that its creation leaves out."""
     people = PersonElement('people', age=np.array([5.0, 6.0]), kind=np.array([1.0, 2.0]), size=2)
@@ -1647,7 +1632,6 @@ def test_created_agents_take_the_defaults_of_their_element_class():
     assert agents.values['kind'].tolist() == [1.0, 2.0, 7.0]
 
 
-@pytest.mark.skip(reason=RESERVED_KIND_GAP)
 def test_created_agents_take_the_value_their_group_shares_over_the_class_default():
     """Test that a new agent takes a value its group shares rather than the default of its element class."""
     people = PersonElement('people', age=np.array([5.0, 6.0]), kind=3.0, size=2)
@@ -1655,7 +1639,6 @@ def test_created_agents_take_the_value_their_group_shares_over_the_class_default
     assert trajectory.get_agents('people', 1).values['kind'].tolist() == [3.0, 3.0, 3.0]
 
 
-@pytest.mark.skip(reason=RESERVED_KIND_GAP)
 def test_created_agents_of_a_plain_element_name_every_value_they_lack():
     """Test that creating an agent of a plain element without the values its group gives per member names them all."""
     people = Element('people', values={'kind': np.array([1.0, 2.0]), 'age': 5.0, 'height': np.ones(2)}, size=2)
