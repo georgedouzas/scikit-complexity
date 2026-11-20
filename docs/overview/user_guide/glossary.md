@@ -228,7 +228,7 @@ builds new components, while a dotted name changes a value of the built componen
 
 A neighbourhood says which members of a space count as neighbours of each member, such as the four nearest sites of a
 lattice or every point within a radius. Interactions over neighbours read it. See
-[Spaces, neighbourhoods, and times](core_components/spaces.md).
+[Spaces and neighbourhoods](core_components/spaces.md).
 
 ## Nested system
 
@@ -345,7 +345,7 @@ Gillespie algorithm for jumps. The tags of a system choose the default solver. S
 ## Space
 
 A space places the members of a group and says who neighbours whom, such as a lattice, a network, or continuous space.
-See [Spaces, neighbourhoods, and times](core_components/spaces.md).
+See [Spaces and neighbourhoods](core_components/spaces.md).
 
 ## Spec
 

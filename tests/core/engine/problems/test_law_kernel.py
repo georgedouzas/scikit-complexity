@@ -1,23 +1,18 @@
 """Test the `_law_kernel` module of `skcomplex.core.engine.problems`."""
 
-from typing import Annotated
-
 import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import SR, ZZ
+from sage.all__sagemath_symbolics import SR
 
 from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import CallSpec, JumpLaw, RateLaw, TransitionLaw, UpdateLaw
+from skcomplex.core.components.laws import CallSpec, JumpLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import categorical, divergence, reduction, total, where
-from skcomplex.core.components.spaces import DiscreteTime, FiniteVolumeSpec, LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.components.spaces import FiniteVolumeSpec, LatticeSpace
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver, SSPRKSolver
 from skcomplex.core.errors import BackendWarning, ValidationError
-from skcomplex.core.specs import StateSpec
 from skcomplex.core.systems import System
 
 STEPS = 2000
@@ -194,33 +189,6 @@ def test_transition_function_on_numba_runs_in_python():
     with pytest.warns(BackendWarning, match='UpdateLaw laws in Python'):
         states = _chain(_stepper(7), NumbaBackend())
     assert states.mean() == pytest.approx(0.2, abs=0.05)
-
-
-class ChainElement(Element):
-    """Two-state chain whose matrix is given as a function."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        matrix: object = None,
-        x: Annotated[object, StateSpec(domain=ZZ)] = 0,
-    ) -> None:
-        super().__init__(label)
-        self.matrix = matrix
-        self.x = x
-
-    def _get_laws(self, s):
-        """Return the step."""
-        return [TransitionLaw(s.x, self.matrix)]
-
-
-def test_transition_function_rejects_a_matrix_that_is_not_stochastic():
-    """Test that a function that returns rows that do not sum to one raises an error."""
-    chain = ChainElement('a', matrix=lambda t, values: np.array([[0.5, 0.1], [0.4, 0.6]]))
-    system = CompositeSystem(elements=[chain], time=DiscreteTime())
-    with pytest.raises(ValidationError, match='rows sum to 1'):
-        simulate(system, until=STEPS, backend=NumpyBackend(), random_state=7)
 
 
 def _renewals(waiting):

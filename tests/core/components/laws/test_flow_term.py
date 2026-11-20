@@ -6,13 +6,15 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import var
 
-from skcomplex.core.components.elements import Element
+from skcomplex.core.analysis import loops, symbolic
+from skcomplex.core.components.elements import Element, Quantity
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, UpdateLaw
 from skcomplex.core.components.laws._flow_term import FlowTermLaw
-from skcomplex.core.components.laws.utils import shift_member
+from skcomplex.core.components.laws.utils import shift_member, where
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.errors import ValidationError
+from skcomplex.core.engine.runtime import ConservationObserver
+from skcomplex.core.errors import ConservationError, ValidationError
 from skcomplex.core.systems import System
 
 alive, dead, d = var('alive dead d')
@@ -112,3 +114,97 @@ def test_increment_flow_moves_a_value_of_a_finite_set():
     )
     trajectory = System(elements=[Switch('off', lit=1), Switch('on')], interactions=[flip]).prepare().simulate(until=1)
     assert [trajectory.get_values('off.lit')[-1], trajectory.get_values('on.lit')[-1]] == [0, 1]
+
+
+class LedgerElement(Element):
+    """Two accounts of money and a counter of steps."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        a: Annotated[float, Quantity('money')] = 10.0,
+        b: Annotated[float, Quantity('money')] = 0.0,
+        c: float = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.a = a
+        self.b = b
+        self.c = c
+
+
+def _book(s):
+    """Return a payment of a tenth of `a` to `b`, a loan of 1 into `a`, and a counter, once per step."""
+    e = s.target
+    return [
+        UpdateLaw({e.a: -1, e.b: +1}, 0.1 * e.a, increment=True, label='pay'),
+        UpdateLaw({e.a: +1}, 1.0, increment=True, label='lend'),
+        UpdateLaw(e.c, e.c + 1),
+    ]
+
+
+def test_discrete_flows_are_per_step_and_join_the_updates():
+    """Test that in a discrete map a flow moves its amount once per step and money changes only by lending."""
+    book = Interaction('book', roles={'target': 'ledger'}, laws=_book)
+    trajectory = System(elements=[LedgerElement('ledger')], interactions=[book]).prepare().simulate(until=5, dt=1)
+    assert trajectory.get_values('ledger.a').tolist() == pytest.approx([10.0] * 6)
+    assert trajectory.get_values('ledger.b').tolist() == pytest.approx([0.0, 1.0, 2.0, 3.0, 4.0, 5.0])
+    assert trajectory.get_values('__boundary.money')[-1] == pytest.approx(5.0)
+    assert trajectory.get_values('ledger.c')[-1] == pytest.approx(5.0)
+
+
+class PeopleElement(Element):
+    """Population of people with a birth rate `b` and a death rate `d`."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        n: Annotated[float, Quantity('people')] = 10.0,
+        b: float = 0.03,
+        d: float = 0.01,
+    ) -> None:
+        super().__init__(label)
+        self.n = n
+        self.b = b
+        self.d = d
+
+
+def _life(s):
+    """Return births and deaths in proportion to the population."""
+    e = s.target
+    return [RateLaw({e.n: +1}, e.b * e.n, label='births'), RateLaw({e.n: -1}, e.d * e.n, label='deaths')]
+
+
+def test_population_births_dominate_and_set_the_net_inflow():
+    """Test that births dominate deaths, and that the net inflow of people is births minus deaths."""
+    system = System(
+        elements=[PeopleElement('pop')],
+        interactions=[Interaction('life', roles={'target': 'pop'}, laws=_life)],
+    )
+    dominance = loops(system.prepare().simulate(until=5, dt=1), kind='dominance')
+    assert dominance.gains[-1] == pytest.approx([0.03, -0.01])
+    assert dominance.polarities[int(dominance.dominant[-1])] == 'reinforcing'
+    assert str(symbolic(system, kind='conservation').inflows['people']) == 'b_pop*n_pop - d_pop*n_pop'
+
+
+class TubElement(Element):
+    """Tub of water, a quantity that only flows."""
+
+    def __init__(self, label: str, *, water: Annotated[float, Quantity('water')] = 0.0) -> None:
+        super().__init__(label)
+        self.water = water
+
+
+def _clipped(s):
+    """Return an inflow and an update that clips the level at 2, which destroys water."""
+    water = s.target.water
+    return [RateLaw({water: +1}, 1.0, label='faucet'), UpdateLaw(water, where(water > 2, 2, water))]
+
+
+def test_conservation_observer_detects_drift_beyond_the_flows():
+    """Test that clipping a stock outside its flows destroys water, which the conservation observer reports."""
+    clip = Interaction('clip', roles={'target': 'tub'}, laws=_clipped)
+    system = System(elements=[TubElement('tub')], interactions=[clip]).prepare()
+    with pytest.raises(ConservationError, match="'water' drifted"):
+        system.simulate(until=5, dt=1, observers=[ConservationObserver()])

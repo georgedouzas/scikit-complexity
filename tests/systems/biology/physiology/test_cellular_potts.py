@@ -1,17 +1,13 @@
 """Test the cellular Potts modules of `skcomplex.systems.biology.physiology`."""
 
-from typing import Annotated
-
 import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace, NetworkSpace, RadiusNeighborhood
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.spaces import LatticeSpace, NetworkSpace, RadiusNeighborhood
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.physiology import (
     CellAdhesionInteraction,
     CellularPottsSystem,
@@ -38,14 +34,6 @@ def _area(labels):
     return 1.0, 40.0
 
 
-class SiteElement(Element):
-    """Site that holds the label of its region."""
-
-    def __init__(self, label, region: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.region = region
-
-
 def _unit_contact(first, second):
     """Return a contact energy of 1 between any two labels."""
     return np.ones(np.broadcast(first, second).shape)
@@ -61,15 +49,15 @@ def _run(space, regions, score, *, until=200, intensity=1.0, neighborhood=None, 
     copies = RegionSamplingInteraction(
         'copies',
         target='sites',
-        state='region',
+        state='cell',
         objective=score,
         move='copy',
         intensity=intensity,
         neighborhood=neighborhood,
     )
-    sites = GroupElement('sites', element=SiteElement, space=space, values={'region': regions}, on='sites')
-    system = CompositeSystem(elements=[sites], interactions=[copies], time=DiscreteTime())
-    values = simulate(system, until=until, random_state=seed).get_values('sites.region')
+    sites = Element('sites', values={'cell': regions}, space=space)
+    system = System(elements=[sites], interactions=[copies]).prepare()
+    values = system.simulate(until=until, random_state=seed).get_values('sites.cell')
     return np.rint(values.reshape(values.shape[0], -1)).astype(int)
 
 

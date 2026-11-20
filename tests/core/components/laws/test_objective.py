@@ -37,7 +37,7 @@ def test_get_targets_reads_the_controls():
     x, u = var('x u')
     law = ObjectiveLaw(x**2 + u**2, controls=[u], terminal=x)
     assert law.prepare().targets_ == (u,)
-    assert law._get_law_requirements().time[0].__name__ == '_ContinuousTime'
+    assert law._get_law_requirements().time[0].time_tag == 'continuous'
 
 
 @pytest.mark.parametrize(

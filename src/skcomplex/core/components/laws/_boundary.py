@@ -34,6 +34,8 @@ class _BoundaryLaw(BaseLaw):
             The name of the law, or the empty string for a law without one.
     """
 
+    stated_as: ClassVar[str] = 'UpdateLaw'
+
     law_tag: ClassVar[str] = 'update'
 
     def __init__(self, target: Target, value: object, *, label: str = '') -> None:

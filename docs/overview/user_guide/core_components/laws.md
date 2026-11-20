@@ -1,8 +1,8 @@
 # Laws
 
 A law is one equation or rule by which states change, such as a rate, the next value at a step, a random jump, or an
-algebraic equation. Elements and interactions return laws from their hook `_get_laws`, and the compiler lowers the laws
-of a system to one problem that a solver runs. The kind of law decides the form of that problem: rate laws give ordinary
+algebraic equation. Interactions set their laws when a system prepares them, and the compiler lowers the laws of a
+system to one problem that a solver runs. The kind of law decides the form of that problem: rate laws give ordinary
 differential equations, update laws give a map, and jump laws give a Markov chain in continuous time. [How the
 components fit](index.md) shows the families together, and the [laws page](../../../components/laws.md)
 compares every law class and holds its fact sheet.
@@ -14,14 +14,11 @@ hands the array of the state to the function at every step and stores the array 
 function value is `f(t, values)` and gives the next value of one state. Here a sandpile of 5 by 5 sites receives one grain at a random site per step.
 
 ```python
-from typing import Annotated
-
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 
 
 def drop(values, *, random):
@@ -30,19 +27,10 @@ def drop(values, *, random):
     return following
 
 
-class SandElement(Element):
-    law_classes = (UpdateLaw,)
-
-    def __init__(self, label, *, height: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.height = height
-
-    def _get_laws(self, namespace):
-        return [UpdateLaw(namespace.height, drop, arrays=True)]
-
-
-pile = GroupElement('pile', element=SandElement, space=LatticeSpace((5, 5)), on='sites')
-heights = simulate(CompositeSystem(elements=[pile]), until=10, random_state=0).get_lattice('pile.height')
+pile = Element('pile', values={'height': 0.0}, space=LatticeSpace((5, 5)))
+rain = Interaction('rain', roles={'target': 'pile'}, laws=lambda s: [UpdateLaw(s.target.height, drop, arrays=True)])
+system = System(elements=[pile], interactions=[rain]).prepare()
+heights = system.simulate(until=10, random_state=0).get_lattice('pile.height')
 int(heights[-1].sum()), int(heights[-1].max())
 ```
 
@@ -58,19 +46,14 @@ def mutate(values, *, random):
     return following
 
 
-class NucleotideElement(Element):
-    law_classes = (UpdateLaw,)
-
-    def __init__(self, label, *, base: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.base = base
-
-    def _get_laws(self, namespace):
-        return [UpdateLaw(namespace.base, mutate, arrays=True)]
-
-
-genome = GroupElement('genome', element=NucleotideElement, space=LatticeSpace(30), on='sites')
-bases = simulate(CompositeSystem(elements=[genome]), until=20, random_state=1).get_values('genome.base')
+genome = Element('genome', values={'base': 0.0}, space=LatticeSpace(30))
+mutation = Interaction(
+    'mutation',
+    roles={'target': 'genome'},
+    laws=lambda s: [UpdateLaw(s.target.base, mutate, arrays=True)],
+)
+system = System(elements=[genome], interactions=[mutation]).prepare()
+bases = system.simulate(until=20, random_state=1).get_values('genome.base')
 int((bases[-1] != 0).sum())
 ```
 
@@ -81,156 +64,42 @@ holds.
 function once per step with the array of the state, shaped like the lattice or with one row per edge, and the array it
 returns becomes the state. The keyword `random` is the generator of the run, so a fixed `random_state` repeats the run.
 
-**How it combines.** It is the drive of a relaxation, `relax(..., drive=...)`, which adds grains before the lattice relaxes, and it runs in
-the same step as `LocalRuleLaw`s on other states. A function that names `time` reads the time of the step, and one
-that names `space` reads the space of the group.
+**How it combines.** It is the drive of a relaxation, `relax(..., drive=...)`, which adds grains before the lattice
+relaxes, and it runs in the same step as the local rules of other states. A function that names `time` reads the time
+of the step, and one that names `space` reads the space of the element.
 
 **Limits and errors.** The law changes one whole state at once, so it cannot read the ordered neighbourhood of a site
 the way a local rule does. The function takes the array as its only positional argument and everything else by
 keyword. A function `f(t, values)` of two positional arguments gives instead the next value of one state.
 
-**A field realization.** A field names the drive in an interaction of its own, which binds the pile through a role.
+**A field realization.** A field names the drive in an interaction class of its own, which binds the pile through a
+role.
 
 ```python continuation
-from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components import RoleSpec
+from types import SimpleNamespace
+
+from skcomplex.core.types import Role
 
 
 class GrainDropInteraction(Interaction):
-    law_classes = (UpdateLaw,)
-
-    def __init__(self, label, *, pile: Annotated[str, RoleSpec()]):
+    def __init__(self, label, *, pile: Role):
         super().__init__(label)
         self.pile = pile
 
-    def _get_laws(self, namespace):
-        return [UpdateLaw(namespace.pile.height, drop, arrays=True)]
+    def _prepare(self, context=None):
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [UpdateLaw(context.pile.height, drop, arrays=True)]
 
 
-class HeightElement(Element):
-    def __init__(self, label, *, height: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.height = height
-
-
-table = GroupElement('table', element=HeightElement, space=LatticeSpace((3, 3)), on='sites')
-dropping = CompositeSystem(elements=[table], interactions=[GrainDropInteraction('rain', pile='table')])
-int(simulate(dropping, until=4, random_state=0).get_lattice('table.height')[-1].sum())
+table = Element('table', values={'height': 0.0}, space=LatticeSpace((3, 3)))
+dropping = System(elements=[table], interactions=[GrainDropInteraction('rain', pile='table')]).prepare()
+int(dropping.simulate(until=4, random_state=0).get_lattice('table.height')[-1].sum())
 ```
 
 Four steps drop 4 grains on the table.
 
 See the [API entry][skcomplex.core.components.laws.UpdateLaw] of `UpdateLaw`.
-
-## BoundaryLaw
-
-A `BoundaryLaw` sets the value a state takes after every step of the solver. Here a particle drifts at a speed of 0.3
-along a periodic box of length 1, and the law wraps its position back into the box.
-
-```python
-from typing import Annotated
-
-from sage.all__sagemath_symbolics import floor
-
-from skcomplex.core.components.elements import Element
-from skcomplex.core.components.laws import BoundaryLaw, RateLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
-
-
-class DriftElement(Element):
-    law_classes = (RateLaw, BoundaryLaw)
-
-    def __init__(
-        self,
-        label,
-        *,
-        x: Annotated[float, StateSpec()] = 0.2,
-        v: Annotated[float, ParameterSpec()] = 0.3,
-    ):
-        super().__init__(label)
-        self.x = x
-        self.v = v
-
-    def _get_laws(self, namespace):
-        return [RateLaw(namespace.x, namespace.v), BoundaryLaw(namespace.x, namespace.x - floor(namespace.x))]
-
-
-particle = DriftElement('particle')
-simulate(CompositeSystem(elements=[particle]), until=4, dt=1.0).get_values('particle.x').round(2).tolist()
-```
-
-The positions are 0.2, 0.5, 0.8, 0.1, and 0.4. At the third step the particle leaves the box at 1.1 and reenters at
-0.1.
-
-The same law wraps the angle of a rotor into the interval from minus pi to pi.
-
-```python continuation
-from sage.all__sagemath_symbolics import pi
-
-
-class RotorElement(Element):
-    law_classes = (RateLaw, BoundaryLaw)
-
-    def __init__(
-        self,
-        label,
-        *,
-        theta: Annotated[float, StateSpec()] = 0.0,
-        omega: Annotated[float, ParameterSpec()] = 2.0,
-    ):
-        super().__init__(label)
-        self.theta = theta
-        self.omega = omega
-
-    def _get_laws(self, namespace):
-        theta = namespace.theta
-        return [RateLaw(theta, namespace.omega), BoundaryLaw(theta, theta - 2 * pi * floor((theta + pi) / (2 * pi)))]
-
-
-rotor = RotorElement('rotor')
-simulate(CompositeSystem(elements=[rotor]), until=3, dt=1.0).get_values('rotor.theta').round(3).tolist()
-```
-
-The angle reads 0, 2, -2.283, and -0.283. The value 4 lies past pi, so it wraps to `4 - 2 pi`.
-
-**How the engine runs it.** The law leaves the equations of the system as they are. After each step the solver
-evaluates `value` at the new states and writes it into the target. A step that crosses the edge is corrected once, at
-the end of the step, not at the time of contact.
-
-**How it combines.** It runs beside rate laws in continuous time and beside update laws in discrete time, since it
-requires no kind of time. A system of particles in a box with reflecting walls uses one boundary law for the position
-and one for the velocity.
-
-**Limits and errors.** The law corrects a state once per step, so a time of contact needs a `EventLaw`. Its value is
-deterministic, and a random draw in it raises an `IncompatibleLawsError` when the system compiles.
-
-```python continuation
-from skcomplex.core.components.laws.utils import normal
-from skcomplex.core.errors import IncompatibleLawsError
-
-
-class ShakenElement(DriftElement):
-    def _get_laws(self, namespace):
-        return [RateLaw(namespace.x, namespace.v), BoundaryLaw(namespace.x, namespace.x + normal('kick', 0, 0.1))]
-
-
-try:
-    simulate(CompositeSystem(elements=[ShakenElement('particle')]), until=1)
-except IncompatibleLawsError as error:
-    message = str(error)
-message
-```
-
-The message says that the boundary law holds the random draw `normal_kick(0, 0.1)` and that only update and renewal
-laws take random draws. The fix is a `NoiseLaw` for the random part.
-
-**A field realization.** The rotor above is a realization of mechanics. A field of soft matter writes the same law as
-the reflection of a diffusing particle at the walls of a channel.
-
-See its [fact sheet](../../../components/laws.md#boundarylaw)
-and its [API entry][skcomplex.core.components.laws.BoundaryLaw].
 
 ## relax
 
@@ -240,17 +109,14 @@ stable, so one step holds a whole avalanche. In the sandpile of Bak, Tang, and W
 topples and passes one grain to each of its four neighbours, and grains that fall off the edge leave the pile.
 
 ```python
-from typing import Annotated
-
 import numpy as np
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import LocalRuleLaw, UpdateLaw
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.laws.utils import relax
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace, RadiusNeighborhood
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 
 cross = RadiusNeighborhood(1, metric='manhattan', center=True)
 
@@ -265,20 +131,22 @@ def topple(z, *around):
     return z - 4 * (z >= 4) + sum(neighbour >= 4 for neighbour in around)
 
 
-class SandpileElement(Element):
-    def __init__(self, label, *, height: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.height = height
-
-    def _get_laws(self, namespace):
-        drive = UpdateLaw(namespace.height, drop, arrays=True)
-        rule = LocalRuleLaw(namespace.height, cross, topple)
-        relaxed = relax(namespace.height, rule, lambda z: bool((z < 4).all()), drive=drive)
-        return [UpdateLaw(namespace.height, relaxed, label='avalanche')]
+def sandpile(s):
+    height = s.target.height
+    drive = UpdateLaw(height, drop, arrays=True)
+    rule = UpdateLaw(height, topple, neighborhood=cross)
+    relaxed = relax(height, rule, lambda z: bool((z < 4).all()), drive=drive)
+    return [UpdateLaw(height, relaxed, label='avalanche')]
 
 
-pile = GroupElement('pile', element=SandpileElement, space=LatticeSpace((6, 6), boundary='fixed'), on='sites')
-trajectory = simulate(CompositeSystem(elements=[pile]), until=300, dt=100, random_state=0)
+def run(label, space, laws, until, dt, values):
+    """Return the trajectory of one element on a space under the laws of one interaction."""
+    element = Element(label, values=values, space=space)
+    interaction = Interaction('cascade', roles={'target': label}, laws=laws)
+    return System(elements=[element], interactions=[interaction]).prepare().simulate(until=until, dt=dt, random_state=0)
+
+
+trajectory = run('pile', LatticeSpace((6, 6), boundary='fixed'), sandpile, 300, 100, {'height': 0.0})
 len(trajectory.events), max(event.size for event in trajectory.events)
 ```
 
@@ -297,23 +165,16 @@ def slip(z, *around):
     return np.where(z >= 1.0, 0.0, z) + 0.2 * sum(np.where(neighbour >= 1.0, neighbour, 0.0) for neighbour in around)
 
 
-class FaultElement(Element):
-    def __init__(self, label, *, stress: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.stress = stress
-
-    def _get_laws(self, namespace):
-        drive = UpdateLaw(namespace.stress, load, arrays=True)
-        rule = LocalRuleLaw(namespace.stress, cross, slip)
-        relaxed = relax(namespace.stress, rule, lambda z: bool((z < 1.0).all()), drive=drive)
-        return [UpdateLaw(namespace.stress, relaxed, label='earthquake')]
+def fault(s):
+    stress = s.target.stress
+    drive = UpdateLaw(stress, load, arrays=True)
+    rule = UpdateLaw(stress, slip, neighborhood=cross)
+    relaxed = relax(stress, rule, lambda z: bool((z < 1.0).all()), drive=drive)
+    return [UpdateLaw(stress, relaxed, label='earthquake')]
 
 
 stress = np.random.default_rng(0).random((6, 6))
-fault = GroupElement(
-    'fault', element=FaultElement, space=LatticeSpace((6, 6), boundary='fixed'), on='sites', values={'stress': stress}
-)
-quakes = simulate(CompositeSystem(elements=[fault]), until=200, dt=100, random_state=0).events
+quakes = run('fault', LatticeSpace((6, 6), boundary='fixed'), fault, 200, 100, {'stress': stress}).events
 len(quakes), max(event.size for event in quakes)
 ```
 
@@ -335,20 +196,15 @@ def burn(z, *around):
     return np.where(z == 2.0, 0.0, np.where((z == 1.0) & alight, 2.0, z))
 
 
-class ForestElement(Element):
-    def __init__(self, label, *, tree: Annotated[float, StateSpec()] = 1.0):
-        super().__init__(label)
-        self.tree = tree
-
-    def _get_laws(self, namespace):
-        rule = LocalRuleLaw(namespace.tree, cross, burn)
-        drive = UpdateLaw(namespace.tree, strike, arrays=True)
-        relaxed = relax(namespace.tree, rule, lambda z: bool((z < 2.0).all()), drive=drive)
-        return [UpdateLaw(namespace.tree, relaxed, label='fire')]
+def wildfire(s):
+    tree = s.target.tree
+    rule = UpdateLaw(tree, burn, neighborhood=cross)
+    drive = UpdateLaw(tree, strike, arrays=True)
+    relaxed = relax(tree, rule, lambda z: bool((z < 2.0).all()), drive=drive)
+    return [UpdateLaw(tree, relaxed, label='fire')]
 
 
-forest = GroupElement('forest', element=ForestElement, space=LatticeSpace((8, 8), boundary='fixed'), on='sites')
-fires = simulate(CompositeSystem(elements=[forest]), until=1, dt=1, random_state=0).events
+fires = run('forest', LatticeSpace((8, 8), boundary='fixed'), wildfire, 1, 1, {'tree': 1.0}).events
 fires[0].area
 ```
 
@@ -369,24 +225,19 @@ def fire(left, value, right):
     return value * (value < 1.0) + 0.5 * (left >= 1.0) + 0.5 * (right >= 1.0)
 
 
-class NeuronElement(Element):
-    def __init__(self, label, *, potential: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.potential = potential
-
-    def _get_laws(self, namespace):
-        relaxed = relax(
-            namespace.potential,
-            LocalRuleLaw(namespace.potential, line, fire),
-            lambda v: bool((v < 1.0).all()),
-            drive=UpdateLaw(namespace.potential, charge, arrays=True),
-            activity=lambda v: v >= 1.0,
-        )
-        return [UpdateLaw(namespace.potential, relaxed, label='avalanche')]
+def neurons(s):
+    potential = s.target.potential
+    relaxed = relax(
+        potential,
+        UpdateLaw(potential, fire, neighborhood=line),
+        lambda v: bool((v < 1.0).all()),
+        drive=UpdateLaw(potential, charge, arrays=True),
+        activity=lambda v: v >= 1.0,
+    )
+    return [UpdateLaw(potential, relaxed, label='avalanche')]
 
 
-neurons = GroupElement('neurons', element=NeuronElement, space=LatticeSpace(20, boundary='fixed'), on='sites')
-bursts = simulate(CompositeSystem(elements=[neurons]), until=500, dt=500, random_state=0).events
+bursts = run('neurons', LatticeSpace(20, boundary='fixed'), neurons, 500, 500, {'potential': 0.0}).events
 len(bursts) > 0, all(event.size >= event.area for event in bursts)
 ```
 
@@ -397,9 +248,9 @@ the drive laws once, then applies the rules again and again until `stable` holds
 becomes an event in `trajectory.events`, named by the label of the update law, with its size, the number of site
 updates, its duration, the number of iterations, and its area, the number of distinct sites updated.
 
-**How it combines.** Its drive laws are updates of a whole array or `LocalRuleLaw`s, and its rules are `LocalRuleLaw`s,
-or updates of a whole array for a relaxation that sends parcels to random neighbours. The argument `activity` counts the sites
-that topple, in place of the sites that change.
+**How it combines.** Its drive laws are updates of a whole array or local rules, `UpdateLaw`s with a neighbourhood, and
+its rules are local rules, or updates of a whole array for a relaxation that sends parcels to random neighbours. The
+argument `activity` counts the sites that topple, in place of the sites that change.
 
 **Limits and errors.** The relaxation must end. A condition `stable` that never holds stops the step after
 `max_iterations` iterations with a `SolverError`.
@@ -408,17 +259,16 @@ that topple, in place of the sites that change.
 from skcomplex.core.errors import SolverError
 
 
-class StuckElement(SandpileElement):
-    def _get_laws(self, namespace):
-        drive = UpdateLaw(namespace.height, drop, arrays=True)
-        rule = LocalRuleLaw(namespace.height, cross, topple)
-        relaxed = relax(namespace.height, rule, lambda z: bool((z < 0).all()), drive=drive, max_iterations=50)
-        return [UpdateLaw(namespace.height, relaxed)]
+def stuck(s):
+    height = s.target.height
+    drive = UpdateLaw(height, drop, arrays=True)
+    rule = UpdateLaw(height, topple, neighborhood=cross)
+    relaxed = relax(height, rule, lambda z: bool((z < 0).all()), drive=drive, max_iterations=50)
+    return [UpdateLaw(height, relaxed, label='stuck')]
 
 
-stuck = GroupElement('stuck', element=StuckElement, space=LatticeSpace((3, 3), boundary='fixed'), on='sites')
 try:
-    simulate(CompositeSystem(elements=[stuck]), until=1, random_state=0)
+    run('stuck', LatticeSpace((3, 3), boundary='fixed'), stuck, 1, 1, {'height': 0.0})
 except SolverError as error:
     message = str(error)
 message
@@ -427,8 +277,8 @@ message
 The message reads "The cascade stuck is not stable after 50 iterations. Check its stability condition or raise
 max_iterations." The condition `z < 0` never holds for heights, and the fix is `z < 4`.
 
-**A field realization.** The elements above are realizations of the sandpile, of seismology, of forest fires, and of
-neuronal avalanches. A field also wraps the drive and the relaxation in one interaction, with the threshold and the
+**A field realization.** The interactions above are realizations of the sandpile, of seismology, of forest fires, and
+of neuronal avalanches. A field also wraps the drive and the relaxation in one interaction, with the threshold and the
 share as its arguments, as `TopplingInteraction` does for the physics packages.
 
 ## fractional
@@ -668,34 +518,31 @@ mass hung on a spring of stiffness `k` comes to rest where its potential energy 
 `x = m g / k`.
 
 ```python
-from typing import Annotated
+from types import SimpleNamespace
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import ConstraintLaw, ObjectiveLaw
-from skcomplex.core.components import RoleSpec
-from skcomplex.core.specs import StateSpec
 from skcomplex.core.systems import System
-
-
-class PositionElement(Element):
-    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.x = x
+from skcomplex.core.types import Role
 
 
 class HangingInteraction(Interaction):
-    def __init__(self, label, *, target: Annotated[str, RoleSpec()] = 'mass', k=50.0, m=2.0):
+    def __init__(self, label, *, target: Role = 'mass', k=50.0, m=2.0):
         super().__init__(label)
         self.target = target
         self.k = k
         self.m = m
 
-    def _get_laws(self, s):
-        return [ObjectiveLaw(self.k * s.target.x**2 / 2 - self.m * 9.81 * s.target.x, s.target.x)]
+    def _prepare(self, context=None):
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x = context.target.x
+            self.laws_ = [ObjectiveLaw(context.k * x**2 / 2 - context.m * 9.81 * x, x)]
 
 
-hanging = System(elements=[PositionElement('mass')], interactions=[HangingInteraction('spring')]).prepare()
+mass = Element('mass', values={'x': 0.0})
+hanging = System(elements=[mass], interactions=[HangingInteraction('spring')]).prepare()
 round(float(hanging.simulate(until=1.0).get_values('mass.x')[0]), 4)
 ```
 
@@ -708,25 +555,14 @@ The same law allocates a budget. A household splits one unit of money between tw
 from sage.all__sagemath_symbolics import log
 
 
-class SpendingInteraction(Interaction):
-    def __init__(
-        self,
-        label,
-        *,
-        a: Annotated[str, RoleSpec()] = 'a',
-        b: Annotated[str, RoleSpec()] = 'b',
-    ):
-        super().__init__(label)
-        self.a = a
-        self.b = b
-
-    def _get_laws(self, s):
-        utility = log(s.a.x) + 2 * log(s.b.x)
-        return [ObjectiveLaw(-utility, [s.a.x, s.b.x]), ConstraintLaw(s.a.x + s.b.x == 1, target=s.b.x)]
+def spend(s):
+    utility = log(s.a.x) + 2 * log(s.b.x)
+    return [ObjectiveLaw(-utility, [s.a.x, s.b.x]), ConstraintLaw(s.a.x + s.b.x == 1, target=s.b.x)]
 
 
-goods = [PositionElement('a', x=0.5), PositionElement('b', x=0.5)]
-budget = System(elements=goods, interactions=[SpendingInteraction('spending')]).prepare().simulate(until=1.0)
+goods = [Element('a', values={'x': 0.5}), Element('b', values={'x': 0.5})]
+spending = Interaction('spending', roles={'a': 'a', 'b': 'b'}, laws=spend)
+budget = System(elements=goods, interactions=[spending]).prepare().simulate(until=1.0)
 round(float(budget.get_values('a.x')[0]), 4), round(float(budget.get_values('b.x')[0]), 4)
 ```
 
@@ -769,38 +605,22 @@ A `JumpLaw` is a random event that changes states by whole amounts. With `rate`,
 that propensity. Here a small colony of bacteria divides at a rate of 0.5 per cell and dies at a rate of 0.4 per cell.
 
 ```python
-from typing import Annotated
-
 from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import JumpLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.systems import System
 
 
-class ColonyElement(Element):
-    law_classes = (JumpLaw,)
-
-    def __init__(
-        self,
-        label,
-        *,
-        n: Annotated[float, StateSpec()] = 10.0,
-        b: Annotated[float, ParameterSpec()] = 0.5,
-        d: Annotated[float, ParameterSpec()] = 0.4,
-    ):
-        super().__init__(label)
-        self.n = n
-        self.b = b
-        self.d = d
-
-    def _get_laws(self, namespace):
-        n = namespace.n
-        return [JumpLaw(namespace.b * n, {n: 1}), JumpLaw(namespace.d * n, {n: -1})]
+def divide_and_die(s):
+    n = s.target.n
+    return [JumpLaw(s.target.b * n, {n: 1}), JumpLaw(s.target.d * n, {n: -1})]
 
 
-colony = CompositeSystem(elements=[ColonyElement('colony')])
-simulate(colony, until=10, dt=5.0, random_state=0).get_values('colony.n').tolist()
+colony = Element('colony', values={'n': 10.0, 'b': 0.5, 'd': 0.4})
+life = Interaction('life', roles={'target': 'colony'}, laws=divide_and_die)
+System(elements=[colony], interactions=[life]).prepare().simulate(until=10, dt=5.0, random_state=0).get_values(
+    'colony.n'
+).tolist()
 ```
 
 This run counts 10, 6, and 25 cells. The mean grows as `10 exp(0.1 t)`, but a small colony fluctuates far from it.
@@ -812,30 +632,15 @@ minute while anyone waits.
 from skcomplex.core.components.laws.utils import where
 
 
-class QueueElement(Element):
-    law_classes = (JumpLaw,)
-
-    def __init__(
-        self,
-        label,
-        *,
-        q: Annotated[float, StateSpec()] = 0.0,
-        arrival: Annotated[float, ParameterSpec()] = 2.0,
-        service: Annotated[float, ParameterSpec()] = 3.0,
-    ):
-        super().__init__(label)
-        self.q = q
-        self.arrival = arrival
-        self.service = service
-
-    def _get_laws(self, namespace):
-        q = namespace.q
-        return [JumpLaw(namespace.arrival, {q: 1}), JumpLaw(where(q > 0, namespace.service, 0), {q: -1})]
+def arrive_and_leave(s):
+    q = s.target.q
+    return [JumpLaw(s.target.arrival, {q: 1}), JumpLaw(where(q > 0, s.target.service, 0), {q: -1})]
 
 
-desk = CompositeSystem(elements=[QueueElement('desk')])
-lengths = simulate(desk, until=1000, dt=1.0, random_state=0).get_values('desk.q')
-round(float(lengths.mean()), 1)
+desk = Element('desk', values={'q': 0.0, 'arrival': 2.0, 'service': 3.0})
+queue = Interaction('queue', roles={'target': 'desk'}, laws=arrive_and_leave)
+lengths = System(elements=[desk], interactions=[queue]).prepare().simulate(until=1000, dt=1.0, random_state=0)
+round(float(lengths.get_values('desk.q').mean()), 1)
 ```
 
 The mean length of the queue over 1000 minutes is 2.1. Queueing theory gives 2 when customers arrive at 2/3 of the rate
@@ -845,8 +650,8 @@ of service.
 `GillespieSolver` draws the time of the next event and which event fires, an exact stochastic simulation. With
 `waiting` in place of `rate`, each firing waits a drawn time and applies `reset`, and `RenewalSolver` runs it.
 
-**How it combines.** `RateLaw`s and `NoiseLaw`s move the states between jumps. An interaction returns jump laws
-from an interaction, so an event can change the states of several elements at once, as a reaction does.
+**How it combines.** `RateLaw`s and `NoiseLaw`s move the states between jumps. An interaction that binds several
+elements returns jump laws that change the states of all of them at once, as a reaction does.
 
 **Limits and errors.** The changes are fixed numbers or functions of the states. A symbol in a change would make its
 size unknown before the run, and `prepare` raises a `ValidationError`.
@@ -873,214 +678,6 @@ research. Chemistry writes each reaction as a jump law whose changes are the sto
 See its [fact sheet](../../../components/laws.md#jumplaw)
 and its [API entry][skcomplex.core.components.laws.JumpLaw].
 
-## LinearProgramLaw
-
-A `LinearProgramLaw` sets algebraic states, which no derivative governs, to the optimum of a linear program. In flux
-balance analysis a cell takes up at most 10 units of a nutrient, spends at least 2 on its upkeep, and grows on the rest.
-
-```python
-from typing import Annotated
-
-from skcomplex.core.components.elements import Element
-from skcomplex.core.components.laws import LinearProgramLaw
-from skcomplex.core.components.spaces import StaticTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
-from skcomplex.core.components.laws import LinearObjectiveSpec
-
-
-class CellElement(Element):
-    law_classes = (LinearProgramLaw,)
-
-    def __init__(
-        self,
-        label,
-        *,
-        uptake: Annotated[float, StateSpec(algebraic=True)] = 0.0,
-        upkeep: Annotated[float, StateSpec(algebraic=True)] = 0.0,
-        growth: Annotated[float, StateSpec(algebraic=True)] = 0.0,
-        supply: Annotated[float, ParameterSpec()] = 10.0,
-    ):
-        super().__init__(label)
-        self.uptake = uptake
-        self.upkeep = upkeep
-        self.growth = growth
-        self.supply = supply
-
-    def _get_laws(self, namespace):
-        uptake, upkeep, growth = namespace.uptake, namespace.upkeep, namespace.growth
-        constraints = [uptake == upkeep + growth, uptake <= namespace.supply, upkeep >= 2, growth >= 0]
-        return [LinearProgramLaw([uptake, upkeep, growth], constraints, [LinearObjectiveSpec(growth)])]
-
-
-cell = CompositeSystem(elements=[CellElement('cell')], time=StaticTime())
-trajectory = simulate(cell, until=0.0)
-float(trajectory.get_values('cell.growth')[0]), float(trajectory.get_values('cell.uptake')[0])
-```
-
-The cell grows at 8 and takes up the whole supply of 10.
-
-The same law dispatches power plants at least cost. Coal costs 20 per unit and runs up to 100 units, gas costs 50 and
-runs up to 50, and together they meet a demand of 120.
-
-```python continuation
-class GridElement(Element):
-    law_classes = (LinearProgramLaw,)
-
-    def __init__(
-        self,
-        label,
-        *,
-        coal: Annotated[float, StateSpec(algebraic=True)] = 0.0,
-        gas: Annotated[float, StateSpec(algebraic=True)] = 0.0,
-        demand: Annotated[float, ParameterSpec()] = 120.0,
-    ):
-        super().__init__(label)
-        self.coal = coal
-        self.gas = gas
-        self.demand = demand
-
-    def _get_laws(self, namespace):
-        coal, gas = namespace.coal, namespace.gas
-        constraints = [coal + gas == namespace.demand, coal <= 100, gas <= 50, coal >= 0, gas >= 0]
-        cost = LinearObjectiveSpec(20 * coal + 50 * gas, sense='min')
-        return [LinearProgramLaw([coal, gas], constraints, [cost])]
-
-
-grid = CompositeSystem(elements=[GridElement('grid')], time=StaticTime())
-dispatch = simulate(grid, until=0.0)
-[float(dispatch.get_values(name)[0]) for name in ('grid.coal', 'grid.gas', 'grid.objective_0')]
-```
-
-Coal runs at its limit of 100, gas supplies the remaining 20, and the cost is 3000.
-
-**How the engine runs it.** The law runs in continuous, discrete, or static time. HiGHS solves the program through
-`highspy` whenever the form of the system needs its variables: at each frame of a static system, at each step of a
-map, and at each evaluation of the rates of an ordinary differential equation. A run records the variables under their
-paths and the optimum under `<path>.objective_0`.
-
-**How it combines.** The laws whose variables overlap form one program, so an interaction adds a bound to the program
-of an element by returning a law over the variable it bounds. Beside rate laws the program sets the fluxes that the
-rates read at every time.
-
-**Limits and errors.** Every constraint is linear in the variables. A program with no feasible point raises an
-`InfeasibleError` by default.
-
-```python continuation
-from skcomplex.core.errors import InfeasibleError
-
-short = CompositeSystem(elements=[GridElement('grid', demand=300.0)], time=StaticTime())
-try:
-    simulate(short, until=0.0)
-except InfeasibleError as error:
-    message = str(error)
-message
-```
-
-The message says that the program of `grid` has no solution at time 0, names the demand constraint and the two
-variables that cannot hold together, and suggests `infeasible='zero'` or `infeasible='hold'`. The fix is a demand
-the plants can meet, or one of those policies.
-
-**A field realization.** The cell above is a realization of systems biology, and the grid one of energy economics.
-
-See its [fact sheet](../../../components/laws.md#linearprogramlaw)
-and its [API entry][skcomplex.core.components.laws.LinearProgramLaw].
-
-## LocalRuleLaw
-
-A `LocalRuleLaw` sets the next value of every cell of a lattice from the ordered values of its neighbourhood. A model
-writes it as an [`UpdateLaw`](#updatelaw) with a `neighborhood`, which the engine runs as a `LocalRuleLaw`. The
-elementary cellular automaton of rule 90 sets each cell to the sum of its two neighbours modulo 2, and it grows the
-Sierpinski triangle from one live cell.
-
-```python
-from types import SimpleNamespace
-
-import numpy as np
-
-from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import LinearRuleSpec, LocalRuleLaw, UpdateLaw
-from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
-from skcomplex.core.types import Role
-from skcomplex.core.systems import System
-
-
-class RuleInteraction(Interaction):
-    def __init__(self, label, *, target: Role = 'row', rule=None, neighborhood=None):
-        super().__init__(label)
-        self.target = target
-        self.rule = rule
-        self.neighborhood = neighborhood
-
-    def _prepare(self, context):
-        super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context.target.cell, self.rule, neighborhood=self.neighborhood)]
-
-
-seed = np.zeros(15)
-seed[7] = 1
-row = Element('row', values={'cell': seed}, space=LatticeSpace(15))
-rule90 = RuleInteraction('rule90', rule=LinearRuleSpec((1, 1), 'GF(2)'), neighborhood=LatticeNeighborhood(((-1,), (1,))))
-cells = System(elements=[row], interactions=[rule90]).prepare().simulate(until=4, dt=1).get_values('row.cell')
-cells.sum(axis=1).astype(int).tolist()
-```
-
-The numbers of live cells at each step are 1, 2, 2, 4, and 2, the rows of the Sierpinski triangle.
-
-The same form runs Conway's Game of Life on a torus of 8 by 8 cells. A glider moves one cell down and one cell right
-every four steps.
-
-```python continuation
-from skcomplex.core.components.laws import OuterTotalisticSpec
-from skcomplex.core.components.spaces import RadiusNeighborhood
-
-life = OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1})
-glider = np.zeros((8, 8))
-glider[1, 2] = glider[2, 3] = glider[3, 1] = glider[3, 2] = glider[3, 3] = 1
-board = Element('row', values={'cell': glider.ravel()}, space=LatticeSpace((8, 8)))
-moore = RadiusNeighborhood(1, metric='chebyshev')
-game = System(elements=[board], interactions=[RuleInteraction('life', rule=life, neighborhood=moore)])
-frames = game.prepare().simulate(until=4, dt=1).get_lattice('row.cell')
-bool(np.array_equal(frames[-1], np.roll(glider, (1, 1), axis=(0, 1))))
-```
-
-The last frame equals the first one shifted by one cell along both axes.
-
-**How the engine runs it.** The law needs discrete time and a lattice, a network, or the Cayley graph of a group. The
-lattice solver applies the rule to every site from the previous configuration by default. Tables and totalistic rules
-run as lookups, which the Numba backend fuses into one compiled loop. The schedules `'random-sequential'`,
-`'random-site'`, `'checkerboard'`, and `'colored'` update the sites one at a time or one class at a time.
-
-**How it combines.** A rule may read several states and set several targets together. An interaction sets it as an
-`UpdateLaw` with a neighbourhood, and `relax` uses it to relax a lattice.
-
-**Limits and errors.** The rule reads a fixed neighbourhood of each cell, so a change of the whole array at once needs
-an `UpdateLaw` of a function of the whole array. An unknown schedule raises a `ValidationError` from `prepare`.
-
-```python continuation
-from sage.all__sagemath_symbolics import var
-
-from skcomplex.core.errors import ValidationError
-
-try:
-    UpdateLaw(var('cell'), life, neighborhood=moore, schedule='parallel').prepare()
-except ValidationError as error:
-    message = str(error)
-message
-```
-
-The message names the unknown schedule `'parallel'` and lists the five schedules. The fix for an update of every cell
-at once is `'synchronous'`, the default.
-
-**A field realization.** The board above is a realization of computer science. A model of excitable tissue writes the
-states of resting, excited, and refractory cells as one table rule.
-
-See its [fact sheet](../../../components/laws.md#localrulelaw)
-and its [API entry][skcomplex.core.components.laws.LocalRuleLaw].
-
 ## NoiseLaw
 
 A `NoiseLaw` adds the amplitude of a random drive, `value dW`, to the highest derivative of a state, where `dW` is the
@@ -1088,40 +685,23 @@ increment of a Wiener process, the random walk of continuous time. With a `RateL
 equation. A stock price that follows a geometric Brownian motion has the drift `0.05 S` and the amplitude `0.2 S`.
 
 ```python
-from typing import Annotated
-
 import numpy as np
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import NoiseLaw, RateLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.systems import System
 
 
-class StockElement(Element):
-    law_classes = (RateLaw, NoiseLaw)
-
-    def __init__(
-        self,
-        label,
-        *,
-        price: Annotated[float, StateSpec()] = 100.0,
-        mu: Annotated[float, ParameterSpec()] = 0.05,
-        sigma: Annotated[float, ParameterSpec()] = 0.2,
-    ):
-        super().__init__(label)
-        self.price = price
-        self.mu = mu
-        self.sigma = sigma
-
-    def _get_laws(self, namespace):
-        price = namespace.price
-        return [RateLaw(price, namespace.mu * price), NoiseLaw(price, namespace.sigma * price)]
+def brownian_motion(s):
+    price = s.target.price
+    return [RateLaw(price.diff(s.t), s.target.mu * price), NoiseLaw(price, s.target.sigma * price)]
 
 
-stocks = GroupElement('stocks', element=StockElement, size=2000)
-prices = simulate(CompositeSystem(elements=[stocks]), until=1, dt=0.01, random_state=0).get_values('stocks.price')
+stocks = Element('stocks', values={'price': 100.0, 'mu': 0.05, 'sigma': 0.2}, size=2000)
+market = Interaction('market', roles={'target': 'stocks'}, laws=brownian_motion)
+system = System(elements=[stocks], interactions=[market]).prepare()
+prices = system.simulate(until=1, dt=0.01, random_state=0).get_values('stocks.price')
 round(float(prices[-1].mean()), 1), round(float(np.log(prices[-1] / 100).std()), 2)
 ```
 
@@ -1132,26 +712,14 @@ The same law moves a particle that diffuses in a fluid. With the amplitude `sqrt
 position grows as `2 D t`.
 
 ```python continuation
-class ParticleElement(Element):
-    law_classes = (NoiseLaw,)
-
-    def __init__(
-        self,
-        label,
-        *,
-        x: Annotated[float, StateSpec()] = 0.0,
-        D: Annotated[float, ParameterSpec()] = 0.5,
-    ):
-        super().__init__(label)
-        self.x = x
-        self.D = D
-
-    def _get_laws(self, namespace):
-        return [NoiseLaw(namespace.x, (2 * namespace.D) ** 0.5)]
-
-
-particles = GroupElement('particles', element=ParticleElement, size=2000)
-positions = simulate(CompositeSystem(elements=[particles]), until=2, dt=0.1, random_state=0).get_values('particles.x')
+particles = Element('particles', values={'x': 0.0, 'D': 0.5}, size=2000)
+diffusion = Interaction(
+    'diffusion',
+    roles={'target': 'particles'},
+    laws=lambda s: [NoiseLaw(s.target.x, (2 * s.target.D) ** 0.5)],
+)
+system = System(elements=[particles], interactions=[diffusion]).prepare()
+positions = system.simulate(until=2, dt=0.1, random_state=0).get_values('particles.x')
 round(float(positions[-1].var()), 1)
 ```
 
@@ -1189,80 +757,51 @@ and its [API entry][skcomplex.core.components.laws.NoiseLaw].
 
 ## RateLaw
 
-A `RateLaw` adds a rate to the highest time derivative of a state, so that a system with only rate laws is a system of
-ordinary differential equations. A reactant consumed by a reaction of second order has the rate `-k c^2`.
+A `RateLaw` adds a rate to a time derivative of a state, so that a system with only rate laws is a system of ordinary
+differential equations. A reactant consumed by a reaction of second order has the rate `-k c^2`.
 
 ```python
-from typing import Annotated
-
 import numpy as np
 
 from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.systems import System
 
-
-class ReactantElement(Element):
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label,
-        *,
-        c: Annotated[float, StateSpec()] = 1.0,
-        k: Annotated[float, ParameterSpec()] = 0.5,
-    ):
-        super().__init__(label)
-        self.c = c
-        self.k = k
-
-    def _get_laws(self, namespace):
-        return [RateLaw(namespace.c, -namespace.k * namespace.c**2)]
-
-
-reactant = ReactantElement('reactant')
-simulate(CompositeSystem(elements=[reactant]), until=4, dt=2.0).get_values('reactant.c').round(3).tolist()
+reactant = Element('reactant', values={'c': 1.0, 'k': 0.5})
+reaction = Interaction(
+    'reaction',
+    roles={'target': 'reactant'},
+    laws=lambda s: [RateLaw(s.target.c.diff(s.t), -s.target.k * s.target.c**2)],
+)
+system = System(elements=[reactant], interactions=[reaction]).prepare()
+system.simulate(until=4, dt=2.0).get_values('reactant.c').round(3).tolist()
 ```
 
 The concentration falls to 0.5 and 0.333, which is `1 / (1 + 0.5 t)`.
 
-The same law gives the acceleration of a mass on a spring. On a state of order 2 the rate is the second derivative, so
+The same law gives the acceleration of a mass on a spring. On the second derivative the rate is an acceleration, so
 `-k x` is Hooke's law for a unit mass.
 
 ```python continuation
-class SpringElement(Element):
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label,
-        *,
-        x: Annotated[float, StateSpec(order=2)] = 1.0,
-        k: Annotated[float, ParameterSpec()] = 4.0,
-    ):
-        super().__init__(label)
-        self.x = x
-        self.k = k
-
-    def _get_laws(self, namespace):
-        return [RateLaw(namespace.x, -namespace.k * namespace.x)]
-
-
-spring = SpringElement('spring')
-(simulate(CompositeSystem(elements=[spring]), until=np.pi, dt=np.pi / 4).get_values('spring.x').round(3) + 0.0).tolist()
+spring = Element('spring', values={'x': 1.0, 'k': 4.0})
+hooke = Interaction(
+    'hooke',
+    roles={'target': 'spring'},
+    laws=lambda s: [RateLaw(s.target.x.diff(s.t, 2), -s.target.k * s.target.x)],
+)
+system = System(elements=[spring], interactions=[hooke]).prepare()
+(system.simulate(until=np.pi, dt=np.pi / 4).get_values('spring.x').round(3) + 0.0).tolist()
 ```
 
 The position reads 1, 0, -1, 0, and 1 over one period, which is `cos(2 t)`.
 
 **How the engine runs it.** The law needs continuous time. Rates on the same state add, and the compiler writes a
-state of order `k` as `k` states of order 1. `ScipyODESolver` integrates the result by default, and fixed step solvers
-such as `RK4Solver` take the same problem.
+state whose laws reach its derivative of order `k` as `k` states of order 1. `ScipyODESolver` integrates the result by
+default, and fixed step solvers such as `RK4Solver` take the same problem.
 
-**How it combines.** Every mechanism adds its own rate law, so a growth from an element and a predation from an
-interaction superpose on one state. Interactions of one element, of neighbours, and of pairs, and
-`GradientInteraction`, return rate laws. A `NoiseLaw` adds a random part.
+**How it combines.** Every mechanism adds its own rate law, so a growth and a predation superpose on one state.
+Interactions of one element, of neighbours, and of pairs return rate laws. A `NoiseLaw` adds a random part.
 
 **Limits and errors.** A rate is deterministic, so a random draw in it raises an `IncompatibleLawsError`. NumPy builds
 an array when a NumPy scalar multiplies a symbolic vector, and `prepare` rejects that array.
@@ -1283,36 +822,30 @@ message
 The message says that the value of the rate law is a NumPy array and asks to convert the NumPy scalar with
 `float(...)` first. The fix is `float(np.float64(0.5)) * vector([-y, x])`.
 
-**A field realization.** A field names a rate in an interaction of its own, such as the recovery of an epidemic.
+**A field realization.** A field names a rate in an interaction class of its own, such as the recovery of an epidemic.
 
 ```python continuation
-from skcomplex.core.components.elements import DeclaredElement
-from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.specs import DeclaredVariableSpec
-from skcomplex.core.components import RoleSpec
+from types import SimpleNamespace
+
+from skcomplex.core.types import Role
 
 
 class RecoveryInteraction(Interaction):
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label,
-        *,
-        infected: Annotated[str, RoleSpec()],
-        gamma: Annotated[float, ParameterSpec()] = 0.1,
-    ):
+    def __init__(self, label, *, infected: Role, gamma: float = 0.1):
         super().__init__(label)
         self.infected = infected
         self.gamma = gamma
 
-    def _get_laws(self, namespace):
-        return [RateLaw(namespace.infected.x, -namespace.gamma * namespace.infected.x)]
+    def _prepare(self, context=None):
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            x = context.infected.x
+            self.laws_ = [RateLaw(x.diff(context.t), -context.gamma * x)]
 
 
-infected = DeclaredElement('infected', variables={'x': DeclaredVariableSpec(100.0, StateSpec())})
-epidemic = CompositeSystem(elements=[infected], interactions=[RecoveryInteraction('recovery', infected='infected')])
-simulate(epidemic, until=10, dt=10.0).get_values('infected.x').round(1).tolist()
+infected = Element('infected', values={'x': 100.0})
+epidemic = System(elements=[infected], interactions=[RecoveryInteraction('recovery', infected='infected')])
+epidemic.prepare().simulate(until=10, dt=10.0).get_values('infected.x').round(1).tolist()
 ```
 
 The infected fall from 100 to 36.8 in ten days.
@@ -1320,709 +853,25 @@ The infected fall from 100 to 36.8 in ten days.
 See its [fact sheet](../../../components/laws.md#ratelaw)
 and its [API entry][skcomplex.core.components.laws.RateLaw].
 
-## RuleLaw
-
-A `RuleLaw` runs Python code for every member of a group of agents once per step, so behaviour can branch, remember,
-and search. Here 20 sheep wander a pasture of 10 by 10 cells. Each step a sheep moves to a neighbouring cell, keeps or
-loses one unit of energy at random, and dies when its energy runs out.
-
-```python
-from typing import Annotated
-
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import RuleLaw
-from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
-
-
-class SheepElement(Element):
-    law_classes = (RuleLaw,)
-
-    def __init__(self, label, *, energy: Annotated[float, StateSpec()] = 3.0):
-        super().__init__(label)
-        self.energy = energy
-
-    def _get_laws(self, namespace):
-        return [RuleLaw(self.graze)]
-
-    def graze(self, agent, system):
-        cells = agent.get_neighbor_cells()
-        agent.move_to(cells[int(system.rng.integers(len(cells)))])
-        agent.energy += system.rng.integers(2) - 1
-        if agent.energy <= 0:
-            agent.remove()
-
-
-flock = GroupElement('flock', element=SheepElement, size=20, variable=True)
-pasture = CompositeSystem(elements=[flock], space=LatticeSpace((10, 10), boundary='periodic'))
-simulate(pasture, until=10, random_state=0).get_values('flock.count').astype(int).tolist()
-```
-
-The flock counts 20 sheep for three steps, then falls to 15, 12, 8, 5, 5, 3, 1, and 0, since no sheep finds food.
-
-The same law runs a market of ten traders. Each step every trader with at least one unit of money gives one unit to a
-trader drawn at random.
-
-```python continuation
-class TraderElement(Element):
-    law_classes = (RuleLaw,)
-
-    def __init__(self, label, *, cash: Annotated[float, StateSpec()] = 10.0):
-        super().__init__(label)
-        self.cash = cash
-
-    def _get_laws(self, namespace):
-        return [RuleLaw(self.give)]
-
-    def give(self, agent, system):
-        if agent.cash >= 1:
-            others = system.get_agents('traders')
-            other = others[int(system.rng.integers(len(others)))]
-            agent.cash -= 1
-            other.cash += 1
-
-
-traders = GroupElement('traders', element=TraderElement, size=10)
-trajectory = simulate(CompositeSystem(elements=[traders]), until=50, random_state=0)
-cash = trajectory.get_agents('traders', 50).values['cash']
-float(sum(cash)), float(max(cash))
-```
-
-After 50 steps the total is still 100, and the richest trader holds 18, nearly twice the even share.
-
-A rule of an interaction pairs agents with `pairs` of `skcomplex.core.components.laws.utils` and acts on the pairs.
-Here 5 buyers meet 3 sellers in a market, paired at random, and each trade counts a deal for both.
-
-```python continuation
-import numpy as np
-
-from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws.utils import pairs
-
-
-class DealerElement(Element):
-    def __init__(self, label, *, deals: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.deals = deals
-
-
-class MarketInteraction(Interaction):
-    law_classes = (RuleLaw,)
-
-    def _get_laws(self, namespace):
-        return [RuleLaw(self.trade)]
-
-    def trade(self, system):
-        for buyer, seller in pairs(system.get_agents('buyers'), system.get_agents('sellers'), system.rng):
-            buyer.deals += 1
-            seller.deals += 1
-
-
-market = CompositeSystem(
-    elements=[
-        GroupElement('buyers', element=DealerElement, size=5, variable=True),
-        GroupElement('sellers', element=DealerElement, size=3, variable=True),
-    ],
-    interactions=[MarketInteraction('market')],
-)
-trajectory = simulate(market, until=4, random_state=0)
-np.asarray(trajectory.get_agents('buyers', 4).values['deals']).tolist()
-```
-
-After four steps the buyers hold 1, 3, 4, 2, and 2 deals. That is 12 deals, three per step, since each seller trades
-once per step. With `None` as the second group the members of one group pair among themselves, as birds pair in a
-model of mating, a `PartnerSpec` picks partners within reach, by score, or among neighbours, and a function gives a
-stable matching, an order book, or an auction.
-
-**How the engine runs it.** The law needs discrete time, and a system with rules is agent based. `MesaSolver` runs
-one Mesa step per unit of time and activates every agent in random order. A rule of an element receives the agent and
-the system, and a rule of an interaction receives the system.
-
-**How it combines.** An element whose laws include rules is an agent. Rules pair agents with `pairs`, order themselves
-by `phase` within a step, and run beside `UpdateLaw`s of other components. The system gives a rule its random
-generator `system.rng` and the agents of other groups.
-
-**Limits and errors.** A rule runs arbitrary Python, so the compiler can neither lower nor differentiate it. The
-function must be callable.
-
-```python continuation
-from skcomplex.core.errors import ValidationError
-
-try:
-    RuleLaw('graze').prepare()
-except ValidationError as error:
-    message = str(error)
-message
-```
-
-The message reads "The function of a rule must be callable, but it is 'graze'." The fix is the method itself,
-`RuleLaw(self.graze)`.
-
-**A field realization.** The sheep above are a realization of ecology, and the traders and the market ones of
-economics.
-
-See its [fact sheet](../../../components/laws.md#rulelaw)
-and its [API entry][skcomplex.core.components.laws.RuleLaw].
-
-## SampleLaw
-
-A `SampleLaw` makes one Monte Carlo sweep of a lattice per unit of time. It proposes moves at the sites and accepts
-them by the change of an objective, so the states follow a Boltzmann distribution. Below the critical temperature the
-spins of an Ising magnet align.
-
-```python
-from typing import Annotated
-
-import numpy as np
-from sage.all__sagemath_symbolics import ZZ
-
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import SampleLaw
-from skcomplex.core.components.laws.utils import neighbors
-from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace, RadiusNeighborhood
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
-from skcomplex.core.components.laws import MoveSpec, ObjectiveSpec, SamplerSpec
-
-nearest = LatticeNeighborhood(((-1, 0), (0, -1), (0, 1), (1, 0)))
-
-
-class SpinElement(Element):
-    law_classes = (SampleLaw,)
-
-    def __init__(
-        self,
-        label,
-        *,
-        spin: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
-        temperature: Annotated[float, ParameterSpec()] = 1.5,
-    ):
-        super().__init__(label)
-        self.spin = spin
-        self.temperature = temperature
-
-    def _get_laws(self, namespace):
-        energy = -namespace.spin * sum(neighbors(namespace.spin, nearest, reduce='each'))
-        sampler = SamplerSpec('metropolis', 1 / namespace.temperature)
-        return [SampleLaw(ObjectiveSpec(energy, nearest), MoveSpec(namespace.spin, 'flip'), sampler)]
-
-
-magnet = GroupElement('magnet', element=SpinElement, space=LatticeSpace((16, 16)), on='sites')
-spins = simulate(CompositeSystem(elements=[magnet]), until=50, dt=50, random_state=0).get_values('magnet.spin')
-round(float(spins[-1].mean()), 2)
-```
-
-After 50 sweeps at temperature 1.5 the magnetisation is 0.99.
-
-The same law samples cells of three kinds in a tissue, the adhesion part of the cellular Potts model of biology. A site
-whose kind matches a neighbour lowers the energy, so the kinds sort into domains. The full model adds a term that keeps
-every cell near a target area.
-
-```python continuation
-from skcomplex.core.components.laws.utils import where
-
-
-class TissueElement(Element):
-    law_classes = (SampleLaw,)
-
-    def __init__(self, label, *, kind: Annotated[float, StateSpec(domain=ZZ)] = 0.0):
-        super().__init__(label)
-        self.kind = kind
-
-    def _get_laws(self, namespace):
-        kind = namespace.kind
-        energy = -neighbors(where(namespace.other.kind == kind, 1, 0), over=nearest)
-        move = MoveSpec(kind, 'random-value', values=(0.0, 1.0, 2.0))
-        return [SampleLaw(ObjectiveSpec(energy, nearest), move, SamplerSpec('metropolis', 2.0))]
-
-
-def alike(grid):
-    return float(((grid == np.roll(grid, 1, axis=0)).mean() + (grid == np.roll(grid, 1, axis=1)).mean()) / 2)
-
-
-kinds = np.random.default_rng(0).integers(3, size=(16, 16)).astype(float)
-tissue = GroupElement('tissue', element=TissueElement, space=LatticeSpace((16, 16)), on='sites', values={'kind': kinds})
-cells = simulate(CompositeSystem(elements=[tissue]), until=50, dt=50, random_state=0).get_lattice('tissue.kind')
-round(alike(cells[0]), 2), round(alike(cells[-1]), 2)
-```
-
-The share of neighbouring sites of the same kind rises from 0.35, about one third as in a random tissue, to 0.93.
-
-**How the engine runs it.** The law needs discrete time and a lattice or a network. `MonteCarloSolver` makes one sweep
-per unit of time. The change of the objective is derived symbolically from the local objective of a site, and the
-sweep updates the two sublattices of a square lattice in turn by default. The intensity of the sampler is an
-expression of parameters, so a schedule of `simulate` can anneal it.
-
-**How it combines.** An interaction returns it. `MoveSpec` chooses the move, a flip, a new
-value, a rotation, a Gaussian step, or a cluster, and `SamplerSpec` the acceptance, Metropolis, Glauber, or heat bath.
-
-**Limits and errors.** A sweep samples a distribution, so the frames are not a physical time course. An unknown move
-raises a `ValidationError` from `prepare`.
-
-```python continuation
-from sage.all__sagemath_symbolics import var
-
-from skcomplex.core.errors import ValidationError
-
-spin = var('spin')
-try:
-    SampleLaw(ObjectiveSpec(-spin, nearest), MoveSpec(spin, 'swap')).prepare()
-except ValidationError as error:
-    message = str(error)
-message
-```
-
-The message names the unknown move `'swap'` and lists the six moves.
-
-**A field realization.** The magnet above is a realization of statistical physics, and the tissue one of biology.
-
-See its [fact sheet](../../../components/laws.md#samplelaw)
-and its [API entry][skcomplex.core.components.laws.SampleLaw].
-
-## Sink
-
-A `Sink` is a holder outside the system that a transfer releases an amount to. It has no value and never fills. Here a
-tank drains at the rate `0.2` times its water, and the drain receives what the tank loses.
-
-```python
-from typing import Annotated
-
-from skcomplex.core.analysis import loops
-from skcomplex.core.components.elements import Element
-from skcomplex.core.components.laws import Sink, TransferLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
-
-
-class TankElement(Element):
-    law_classes = (TransferLaw,)
-
-    def __init__(
-        self,
-        label,
-        *,
-        water: Annotated[float, StateSpec()] = 100.0,
-        k: Annotated[float, ParameterSpec()] = 0.2,
-    ):
-        super().__init__(label)
-        self.water = water
-        self.k = k
-
-    def _get_laws(self, namespace):
-        return [TransferLaw(namespace.water, Sink('drain'), namespace.k * namespace.water, label='outflow')]
-
-
-trajectory = simulate(CompositeSystem(elements=[TankElement('tank')]), until=5, dt=5.0)
-flows = loops(trajectory, kind='flow-matrix', frame=0)
-round(float(trajectory.get_values('tank.water')[-1]), 2), flows.holders, flows.matrix.tolist()
-```
-
-The tank holds 36.79 after five units of time, which is `100 exp(-1)`. The transaction-flow matrix of the first frame
-has the tank and the drain as columns, and its one row moves 20 per unit of time from the tank to the drain.
-
-The same holder takes the deaths out of a population. A cohort of 1000 people loses 5 percent a year.
-
-```python continuation
-class CohortElement(Element):
-    law_classes = (TransferLaw,)
-
-    def __init__(
-        self,
-        label,
-        *,
-        n: Annotated[float, StateSpec()] = 1000.0,
-        d: Annotated[float, ParameterSpec()] = 0.05,
-    ):
-        super().__init__(label)
-        self.n = n
-        self.d = d
-
-    def _get_laws(self, namespace):
-        return [TransferLaw(namespace.n, Sink('deaths'), namespace.d * namespace.n, label='dying')]
-
-
-cohort = simulate(CompositeSystem(elements=[CohortElement('cohort')]), until=10, dt=10.0)
-round(float(cohort.get_values('cohort.n')[-1]), 1)
-```
-
-After ten years 606.5 people remain, which is `1000 exp(-0.5)`.
-
-**How the engine runs it.** A sink holds no state, so the transfer lowers to a loss of its source alone. Its label
-names the column of the environment in a transaction-flow matrix.
-
-**How it combines.** It is the sink of a `TransferLaw`, and a `Source` is its
-counterpart for what enters.
-
-**Limits and errors.** A sink receives and never gives, so it cannot be the source of a transfer.
-
-```python continuation
-from sage.all__sagemath_symbolics import var
-
-from skcomplex.core.errors import ValidationError
-
-try:
-    TransferLaw(Sink(), var('water'), 1.0).prepare()
-except ValidationError as error:
-    message = str(error)
-message
-```
-
-The message says that the source of a transfer must be the symbol of a scalar state, a symbol read at a member offset,
-or `Source()`. The fix is `Source()` for an inflow from outside.
-
-**A field realization.** A field names its sinks by their meaning, such as `Sink('atmosphere')` for the emissions of a
-carbon cycle.
-
-See its [API entry][skcomplex.core.components.laws.Sink]. It is a spec, not a component, so it has no fact sheet.
-
-## Source
-
-A `Source` is a holder outside the system that a transfer takes an amount from. It has no value and never runs out.
-Here a river feeds a lake at 3 units per day, and the lake releases a tenth of its volume per day to the sea.
-
-```python
-from typing import Annotated
-
-from skcomplex.core.components.elements import Element
-from skcomplex.core.components.laws import Sink, Source, TransferLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
-
-
-class ReservoirElement(Element):
-    law_classes = (TransferLaw,)
-
-    def __init__(
-        self,
-        label,
-        *,
-        volume: Annotated[float, StateSpec()] = 0.0,
-        inflow: Annotated[float, ParameterSpec()] = 3.0,
-        k: Annotated[float, ParameterSpec()] = 0.1,
-    ):
-        super().__init__(label)
-        self.volume = volume
-        self.inflow = inflow
-        self.k = k
-
-    def _get_laws(self, namespace):
-        volume = namespace.volume
-        return [
-            TransferLaw(Source('river'), volume, namespace.inflow, label='inflow'),
-            TransferLaw(volume, Sink('sea'), namespace.k * volume, label='release'),
-        ]
-
-
-lake = simulate(CompositeSystem(elements=[ReservoirElement('lake')]), until=50, dt=25.0)
-lake.get_values('lake.volume').round(2).tolist()
-```
-
-The volume grows from 0 to 27.54 and 29.8, toward the balance `3 / 0.1 = 30`.
-
-The same holder is a bank that creates money. In discrete time the amount of a transfer is moved once per step, so the
-bank lends 50 every step.
-
-```python continuation
-from skcomplex.core.components.spaces import DiscreteTime
-
-
-class LedgerElement(Element):
-    law_classes = (TransferLaw,)
-
-    def __init__(self, label, *, deposits: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.deposits = deposits
-
-    def _get_laws(self, namespace):
-        return [TransferLaw(Source('bank'), namespace.deposits, 50.0, label='lending')]
-
-
-ledger = CompositeSystem(elements=[LedgerElement('ledger')], time=DiscreteTime())
-simulate(ledger, until=4).get_values('ledger.deposits').tolist()
-```
-
-The deposits grow by 50 per step, from 0 to 200.
-
-**How the engine runs it.** A source holds no state, so the transfer lowers to a gain of its sink alone. Its label
-names the column of the environment in a transaction-flow matrix.
-
-**How it combines.** It is the source of a `TransferLaw`, and a `Sink` is its
-counterpart for what leaves.
-
-**Limits and errors.** A source gives and never receives, so it cannot be the sink of a transfer.
-
-```python continuation
-from sage.all__sagemath_symbolics import var
-
-from skcomplex.core.errors import ValidationError
-
-try:
-    TransferLaw(var('volume'), Source(), 1.0).prepare()
-except ValidationError as error:
-    message = str(error)
-message
-```
-
-The message says that the sink of a transfer must be the symbol of a scalar state, a symbol read at a member offset, or
-`Sink()`. The fix is `Sink()` for an outflow.
-
-**A field realization.** A field names its sources by their meaning, such as `Source('births')` for a population.
-
-See its [API entry][skcomplex.core.components.laws.Source]. It is a spec, not a component, so it has no fact sheet.
-
-## TransferLaw
-
-A `TransferLaw` moves an amount from a source holder to a sink holder, so what one loses the other gains, and the run
-records the flow. In an epidemic, people move from susceptible to infected and from infected to recovered.
-
-```python
-from typing import Annotated
-
-from skcomplex.core.components.elements import Element
-from skcomplex.core.components.laws import TransferLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
-
-
-class EpidemicElement(Element):
-    law_classes = (TransferLaw,)
-
-    def __init__(
-        self,
-        label,
-        *,
-        s: Annotated[float, StateSpec()] = 990.0,
-        i: Annotated[float, StateSpec()] = 10.0,
-        r: Annotated[float, StateSpec()] = 0.0,
-        beta: Annotated[float, ParameterSpec()] = 0.0003,
-        gamma: Annotated[float, ParameterSpec()] = 0.1,
-    ):
-        super().__init__(label)
-        self.s = s
-        self.i = i
-        self.r = r
-        self.beta = beta
-        self.gamma = gamma
-
-    def _get_laws(self, namespace):
-        s, i, r = namespace.s, namespace.i, namespace.r
-        return [
-            TransferLaw(s, i, namespace.beta * s * i, label='infections'),
-            TransferLaw(i, r, namespace.gamma * i, label='recoveries'),
-        ]
-
-
-town = CompositeSystem(elements=[EpidemicElement('town')])
-trajectory = simulate(town, until=60, dt=30.0)
-states = [trajectory.get_values(f'town.{name}')[-1] for name in ('s', 'i', 'r')]
-[round(float(value)) for value in states], round(float(sum(states)), 6)
-```
-
-After 60 days, in rounded numbers, 68 people are susceptible, 40 infected, and 891 recovered. The three states still
-sum to 1000, since every transfer conserves what it moves.
-
-The same law saves money from a checking account to a savings account. In discrete time the amount, a tenth of the
-checking account, moves once per month.
-
-```python continuation
-from skcomplex.core.components.spaces import DiscreteTime
-
-
-class AccountsElement(Element):
-    law_classes = (TransferLaw,)
-
-    def __init__(
-        self,
-        label,
-        *,
-        checking: Annotated[float, StateSpec()] = 1000.0,
-        savings: Annotated[float, StateSpec()] = 0.0,
-        share: Annotated[float, ParameterSpec()] = 0.1,
-    ):
-        super().__init__(label)
-        self.checking = checking
-        self.savings = savings
-        self.share = share
-
-    def _get_laws(self, namespace):
-        amount = namespace.share * namespace.checking
-        return [TransferLaw(namespace.checking, namespace.savings, amount, label='saving')]
-
-
-household = CompositeSystem(elements=[AccountsElement('bank')], time=DiscreteTime())
-months = simulate(household, until=3)
-months.get_values('bank.savings').round(2).tolist(), months.get_values('bank.saving').round(2).tolist()
-```
-
-The savings reach 100, 190, and 271. The recorded flow `bank.saving` holds the amount of each month, 100, 90, 81, and
-72.9 at the frames.
-
-**How the engine runs it.** The law lowers to a loss of its source and an equal gain of its sink. The amount is a rate
-in continuous time, an amount per step in discrete time, and the size of each jump when `rate` is given. The run
-records the amount at every frame under `<path>.<label>`.
-
-**How it combines.** `Source` and `Sink` stand for the environment on either side. A holder read by `shift_member`
-moves amounts along a group, such as stock along a supply chain. An interaction returns transfer laws, and the
-analysis `loops` reads their flows as a transaction-flow matrix.
-
-**Limits and errors.** A transfer changes a state on at least one side, so a transfer from a `Source` to a `Sink`
-raises a `ValidationError`.
-
-```python continuation
-from skcomplex.core.components.laws import Sink, Source
-from skcomplex.core.errors import ValidationError
-
-try:
-    TransferLaw(Source(), Sink(), 1.0).prepare()
-except ValidationError as error:
-    message = str(error)
-message
-```
-
-The message reads "A transfer moves a quantity into or out of a state, but both of its holders are the environment."
-
-**A field realization.** The epidemic above is a realization of epidemiology, and the accounts one of finance.
-
-See its [fact sheet](../../../components/laws.md#transferlaw)
-and its [API entry][skcomplex.core.components.laws.TransferLaw].
-
-## TransitionLaw
-
-A `TransitionLaw` draws the next value of a discrete state from the row of a transition matrix that its current value
-selects, the step of a Markov chain. Weather moves between dry and wet days. A dry day stays dry with probability 0.8,
-and a wet day turns dry with probability 0.4.
-
-```python
-from typing import Annotated
-
-from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
-
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import TransitionLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
-
-
-class WeatherElement(Element):
-    law_classes = (TransitionLaw,)
-
-    def __init__(
-        self,
-        label,
-        *,
-        sky: Annotated[str, StateSpec(domain=FiniteEnumeratedSet(['dry', 'wet']))] = 'dry',
-        stay: Annotated[float, ParameterSpec()] = 0.8,
-    ):
-        super().__init__(label)
-        self.sky = sky
-        self.stay = stay
-
-    def _get_laws(self, namespace):
-        return [TransitionLaw(namespace.sky, [[namespace.stay, 1 - namespace.stay], [0.4, 0.6]])]
-
-
-days = simulate(CompositeSystem(elements=[WeatherElement('weather')]), until=5000, random_state=0)
-round(float((days.get_values('weather.sky') == 'wet').mean()), 2)
-```
-
-Over 5000 days 0.34 of them are wet, close to the stationary share `0.2 / (0.2 + 0.4) = 1/3`.
-
-The same law moves the credit rating of loans between grades. Default absorbs a loan, so its row keeps it there.
-
-```python continuation
-grades = FiniteEnumeratedSet(['good', 'poor', 'default'])
-
-
-class RatingElement(Element):
-    law_classes = (TransitionLaw,)
-
-    def __init__(self, label, *, grade: Annotated[str, StateSpec(domain=grades)] = 'good'):
-        super().__init__(label)
-        self.grade = grade
-
-    def _get_laws(self, namespace):
-        return [TransitionLaw(namespace.grade, [[0.9, 0.08, 0.02], [0.2, 0.7, 0.1], [0.0, 0.0, 1.0]])]
-
-
-loans = GroupElement('loans', element=RatingElement, size=1000)
-years = simulate(CompositeSystem(elements=[loans]), until=10, random_state=0).get_values('loans.grade')
-int((years[-1] == 'default').sum())
-```
-
-Of 1000 loans that start in good standing, 291 are in default after ten years.
-
-**How the engine runs it.** The law needs discrete time. A transition is a kind of update, so `IterationSolver` draws
-the next value of every member from its row at each step, with the random stream of the run. With `source`, the law
-draws an observed state from the row that a hidden state selects, as a hidden Markov model does.
-
-**How it combines.** It runs beside `UpdateLaw`s of other states in the same step. An interaction returns it
-from an interaction, and a matrix may hold expressions of parameters, such as `stay` above.
-
-**Limits and errors.** The target takes a finite set of values. The matrix is a nonempty list of rows of equal length,
-and `prepare` raises a `ValidationError` for any other shape.
-
-```python continuation
-from sage.all__sagemath_symbolics import var
-
-from skcomplex.core.errors import ValidationError
-
-try:
-    TransitionLaw(var('sky'), [[0.8, 0.2], [0.4]]).prepare()
-except ValidationError as error:
-    message = str(error)
-message
-```
-
-The message says that the matrix must be a nonempty sequence of rows of equal length and shows the ragged matrix. The
-fix is the full second row `[0.4, 0.6]`.
-
-**A field realization.** The weather above is a realization of meteorology, and the ratings one of finance.
-
-See its [fact sheet](../../../components/laws.md#transitionlaw)
-and its [API entry][skcomplex.core.components.laws.TransitionLaw].
-
 ## UpdateLaw
 
 An `UpdateLaw` gives the next value of a state after one step of discrete time. The logistic map follows a population
 of insects from year to year, `x' = r x (1 - x)`.
 
 ```python
-from typing import Annotated
-
 from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import UpdateLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.systems import System
 
-
-class LogisticElement(Element):
-    law_classes = (UpdateLaw,)
-
-    def __init__(
-        self,
-        label,
-        *,
-        x: Annotated[float, StateSpec()] = 0.2,
-        r: Annotated[float, ParameterSpec()] = 2.5,
-    ):
-        super().__init__(label)
-        self.x = x
-        self.r = r
-
-    def _get_laws(self, namespace):
-        return [UpdateLaw(namespace.x, namespace.r * namespace.x * (1 - namespace.x))]
-
-
-insects = LogisticElement('insects')
-simulate(CompositeSystem(elements=[insects]), until=30).get_values('insects.x')[-3:].round(3).tolist()
+insects = Element('insects', values={'x': 0.2, 'r': 2.5})
+breeding = Interaction(
+    'breeding',
+    roles={'target': 'insects'},
+    laws=lambda s: [UpdateLaw(s.target.x, s.target.r * s.target.x * (1 - s.target.x))],
+)
+system = System(elements=[insects], interactions=[breeding]).prepare()
+system.simulate(until=30).get_values('insects.x')[-3:].round(3).tolist()
 ```
 
 At `r = 2.5` the population settles at the fixed point `1 - 1 / r = 0.6`.
@@ -2031,26 +880,14 @@ The same law compounds interest monthly. A balance of 1000 at a yearly rate of 6
 month.
 
 ```python continuation
-class AccountElement(Element):
-    law_classes = (UpdateLaw,)
-
-    def __init__(
-        self,
-        label,
-        *,
-        balance: Annotated[float, StateSpec()] = 1000.0,
-        rate: Annotated[float, ParameterSpec()] = 0.06,
-    ):
-        super().__init__(label)
-        self.balance = balance
-        self.rate = rate
-
-    def _get_laws(self, namespace):
-        return [UpdateLaw(namespace.balance, namespace.balance * (1 + namespace.rate / 12))]
-
-
-account = AccountElement('account')
-round(float(simulate(CompositeSystem(elements=[account]), until=12).get_values('account.balance')[-1]), 2)
+account = Element('account', values={'balance': 1000.0, 'rate': 0.06})
+interest = Interaction(
+    'interest',
+    roles={'target': 'account'},
+    laws=lambda s: [UpdateLaw(s.target.balance, s.target.balance * (1 + s.target.rate / 12))],
+)
+system = System(elements=[account], interactions=[interest]).prepare()
+round(float(system.simulate(until=12).get_values('account.balance')[-1]), 2)
 ```
 
 After twelve months the balance is 1061.68, which is `1000 * 1.005^12`.
@@ -2059,7 +896,7 @@ After twelve months the balance is 1061.68, which is `1000 * 1.005^12`.
 the start of the step, so the order of the laws does not matter. With `order`, the members of a group update one after
 the other, and with `phase`, the law runs in a phase of the step. With `neighborhood`, the law is a local rule of the
 cells of a lattice or a network, such as `UpdateLaw(s.target.alive, life, neighborhood=MOORE)` for the Game of Life,
-which the lattice solver runs with the lookup tables and fused loops of a [`LocalRuleLaw`](#localrulelaw).
+which the lattice solver runs with lookup tables and fused loops.
 
 **How it combines.** A state takes one update law, unless each of its laws says how it combines: an `increment` law
 adds a change, and a law with a `source` changes only members that hold that value. Update laws take random draws,

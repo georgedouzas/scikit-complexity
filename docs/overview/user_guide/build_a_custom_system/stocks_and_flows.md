@@ -280,7 +280,7 @@ Time in the module runs from zero, and `Time` in the file becomes `t + START`. T
 - A lookup is a `series` of its input through its points. The built-in functions are `where`, `step`, `ramp`, `pulse`,
   `pulse_train`, `distributed_delay` for the delays and smoothings, `delayed`, `minimum`, `maximum`, `clip`, and the
   draws `uniform` and `normal`.
-- A system whose stocks are all subscripted over one range is a `GroupElement` with one member per subscript. `SUM`
+- A system whose stocks are all subscripted over one range is an `Element` with `size=`, one member per subscript. `SUM`
   over the range is `total`, and a read of one subscript is a `total` over that member.
 
 The default solver finds the exact solution. Vensim and Stella integrate with Euler steps by default. A run with

@@ -19,7 +19,7 @@ from skcomplex.core.analysis import alignment, displacement
 from skcomplex.core.base import BaseSpec
 from skcomplex.core.components import Observable
 from skcomplex.core.components.base import BaseComponent
-from skcomplex.core.components.elements import Element, FieldElement, Member, Period, Quantity, VisualSpec
+from skcomplex.core.components.elements import Element, Member, Period, Quantity, VisualSpec
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import (
     ConstraintLaw,
@@ -47,13 +47,11 @@ from skcomplex.core.components.spaces import (
     NetworkSpace,
     RadiusNeighborhood,
 )
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.compile._state_inference import _StateInference
-from skcomplex.core.engine.runtime import ConservationObserver, simulate
+from skcomplex.core.engine.runtime import ConservationObserver
 from skcomplex.core.engine.solvers import AgentView, ETDRK4Solver, IMEXEulerSolver, RK4Solver, SSPRKSolver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec
 from skcomplex.core.systems import System
 from skcomplex.core.types import Role
 from skcomplex.systems.mathematics.networks import TriadicPercolationSystem
@@ -973,26 +971,6 @@ def test_get_declared_puts_one_member_on_every_hyperedge():
     assert last == pytest.approx([1.0 + 2.0 * np.exp(-1.0), 1.0 - np.exp(-1.0), 1.0 - np.exp(-1.0), 5.0], abs=1e-5)
 
 
-class HeatSiteElement(Element):
-    """Site of the old API whose state `u` diffuses."""
-
-    def __init__(self, label: str, *, u: Annotated[object, StateSpec()] = 0.0) -> None:
-        super().__init__(label)
-        self.u = u
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseComponent]:
-        """Return the diffusion of `u`."""
-        return [RateLaw(s.u, laplacian(s.u))]
-
-
-class BurgersSiteElement(HeatSiteElement):
-    """Site of the old API whose state `u` is carried by the Burgers flux."""
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseComponent]:
-        """Return the Burgers transport of `u`."""
-        return [RateLaw(s.u, -divergence([s.u**2 / 2]))]
-
-
 class Transport(Interaction):
     """Diffusion of the state `u` of a field, or its transport by the Burgers flux."""
 
@@ -1011,40 +989,61 @@ class Transport(Interaction):
             ]
 
 
-@pytest.mark.parametrize('name', list(FIELDS))
-def test_field_on_a_lattice_runs_as_the_field_element_of_its_settings(name):
-    """Test that the discretization, edges, symmetry, and scheme of a lattice give the field of the old API."""
+def _run_field(name: str) -> np.ndarray:
+    """Return the values of `u` on a lattice of the settings of a field, at the times 0, 0.25, and 0.5."""
     settings, flux, solver = FIELDS[name]
     values = WAVE - WAVE[::-1] if 'symmetry' in settings else WAVE
-    old = FieldElement(
-        'rod',
-        element=BurgersSiteElement if flux else HeatSiteElement,
-        space=LatticeSpace(SITES, spacing=0.5),
-        values={'u': values},
-        **settings,
-    )
-    old_values = simulate(CompositeSystem(elements=[old]), until=0.5, dt=0.25, solver=solver).get_values('rod.u')
     rod = Element('rod', values={'u': values}, space=LatticeSpace(SITES, spacing=0.5, **settings))
     system = System(elements=[rod], interactions=[Transport('transport', flux=flux)], solver=solver).prepare()
-    np.testing.assert_array_equal(system.simulate(until=0.5, dt=0.25).get_values('rod.u'), old_values)
+    return system.simulate(until=0.5, dt=0.25).get_values('rod.u')
 
 
-def test_field_on_a_mesh_runs_as_the_finite_element_field_of_its_fixed_edges():
-    """Test that the fixed edge of a state on a mesh, a function of the coordinates, gives the field of the old API."""
+@pytest.mark.parametrize('name', ['zero-flux', 'periodic', 'spectral', 'finite-volume', 'godunov'])
+def test_field_on_a_lattice_conserves_its_total_without_inflow(name):
+    """Test that a closed or periodic lattice and a finite-volume scheme keep the total of the field."""
+    values = _run_field(name)
+    np.testing.assert_allclose(values.sum(axis=1), WAVE.sum(), rtol=1e-12)
+
+
+def test_field_on_a_lattice_with_fixed_edges_rises_toward_their_value():
+    """Test that fixed edges of value 2 raise the field at both ends, where a closed lattice barely moves."""
+    fixed, closed = _run_field('fixed'), _run_field('zero-flux')
+    assert fixed[-1, 0] > closed[-1, 0] + 0.4
+    assert fixed[-1, -1] > closed[-1, -1] + 0.4
+    assert fixed[-1].sum() > WAVE.sum() + 2.0
+
+
+def test_spectral_field_on_a_lattice_decays_as_its_fourier_modes():
+    """Test that the spectral heat equation damps every Fourier mode by `exp(-k^2 t)`, as the exact solution does."""
+    k = 2 * np.pi * np.fft.fftfreq(SITES, d=0.5)
+    exact = np.fft.ifft(np.fft.fft(WAVE) * np.exp(-(k**2) * 0.5)).real
+    np.testing.assert_allclose(_run_field('spectral')[-1], exact, atol=1e-12)
+
+
+def test_odd_spectral_field_on_a_lattice_keeps_a_zero_total():
+    """Test that an odd field under the spectral scheme with odd symmetry keeps its zero total as it decays."""
+    values = _run_field('symmetry')
+    np.testing.assert_allclose(values.sum(axis=1), 0.0, atol=1e-12)
+    assert values[-1].max() < values[0].max()
+
+
+def test_finite_volume_limiter_changes_the_burgers_transport():
+    """Test that the van Leer limiter with the Godunov flux gives another Burgers transport than the default one."""
+    assert not np.allclose(_run_field('godunov'), _run_field('finite-volume'))
+
+
+def test_field_on_a_mesh_holds_its_fixed_edges():
+    """Test that a fixed edge on a mesh, a function of the coordinates, holds the boundary as the inside relaxes."""
     grid = skfem.MeshTri.init_lshaped().refined(1)
     edge = ('fixed', lambda x, y: x + y)
-    old = FieldElement(
-        'rod',
-        element=HeatSiteElement,
-        space=CellComplexSpace(points=grid.p, cells=grid.t),
-        boundary={'u': edge},
-        discretization='finite-element',
-    )
-    solver = IMEXEulerSolver(dt=0.05)
-    old_values = simulate(CompositeSystem(elements=[old]), until=0.5, dt=0.25, solver=solver).get_values('rod.u')
     rod = Element('rod', values={'u': 0.0}, space=CellComplexSpace(points=grid.p, cells=grid.t, boundary={'u': edge}))
-    system = System(elements=[rod], interactions=[Transport('transport')], solver=solver).prepare()
-    np.testing.assert_array_equal(system.simulate(until=0.5, dt=0.25).get_values('rod.u'), old_values)
+    system = System(elements=[rod], interactions=[Transport('transport')], solver=IMEXEulerSolver(dt=0.05)).prepare()
+    values = system.simulate(until=0.5, dt=0.25).get_values('rod.u')
+    plane = grid.p[0] + grid.p[1]
+    boundary = grid.boundary_nodes()
+    inside = np.setdiff1d(np.arange(plane.size), boundary)
+    np.testing.assert_allclose(values[:, boundary], np.tile(plane[boundary], (3, 1)), atol=1e-12)
+    np.testing.assert_allclose(values[-1, inside], plane[inside], atol=0.05)
 
 
 class Reserve(Element):

@@ -77,7 +77,7 @@ def test_law_requirements_are_a_requirement_spec():
     """Test that a rate law requires continuous time."""
     requirements = RateLaw(var('x'), 1)._get_requirements()
     assert isinstance(requirements, RequirementSpec)
-    assert [time.__name__ for time in requirements.time] == ['_ContinuousTime']
+    assert [time.time_tag for time in requirements.time] == ['continuous']
 
 
 def test_law_rejects_a_numpy_array_value():

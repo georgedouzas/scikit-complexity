@@ -50,7 +50,8 @@ class PlanPass(BasePass):
         classes: dict[str, list[str]] = {}
         for owner, kinds in owners.items():
             for kind in kinds:
-                classes.setdefault(getattr(kind, '__name__', f'{kind}'), []).append(owner)
+                name = getattr(kind, 'stated_as', '') or getattr(kind, '__name__', f'{kind}')
+                classes.setdefault(name, []).append(owner)
         return '; '.join(f'{kind}: {", ".join(sorted(set(paths)))}' for kind, paths in sorted(classes.items()))
 
     @staticmethod

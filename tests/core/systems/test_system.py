@@ -22,7 +22,7 @@ from skcomplex.core.components.laws import (
     UpdateLaw,
 )
 from skcomplex.core.components.laws.utils import count, mean, neighbors, series, total
-from skcomplex.core.components.spaces import BaseSpace, LatticeSpace, NetworkSpace, RadiusNeighborhood
+from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace, NetworkSpace, RadiusNeighborhood
 from skcomplex.core.engine.backends import NumbaBackend
 from skcomplex.core.engine.solvers import (
     EulerMaruyamaSolver,
@@ -34,10 +34,11 @@ from skcomplex.core.engine.solvers import (
     RK4Solver,
     ScipyODESolver,
 )
-from skcomplex.core.errors import SolverError, ValidationError
+from skcomplex.core.errors import LabelError, SolverError, TagError, ValidationError
 from skcomplex.core.systems import System
 from skcomplex.core.types import Role
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+from skcomplex.systems.general.reactions import ReactionInteraction
 
 
 def meadow_system(solver: RK4Solver | str = 'auto') -> System:
@@ -441,3 +442,77 @@ def test_prepare_keeps_the_breakpoints_of_a_lookup_table():
     system = System(elements=[Element('stock', values={'x': 2.0})], interactions=[_Lookup('lookup')]).prepare()
     assert '< 0.25' in system.equations_['stock.x']
     assert system.simulate(until=0.5, dt=0.5).get_values('stock.x')[-1] == pytest.approx(1.0)
+
+
+def _growth(label: str, target: str) -> Interaction:
+    """Return an interaction of exponential growth of the value `n` of its target."""
+    return Interaction(label, roles={'target': target}, laws=lambda s: [RateLaw(s.target.n.diff(s.t), s.target.n)])
+
+
+def test_prepare_checks_every_component():
+    """Test that preparing a system checks its components, which reject their invalid labels."""
+    with pytest.raises(LabelError, match='Label 1'):
+        System(elements=[Element(1, values={'n': 1.0})]).prepare()
+
+
+def test_prepare_reports_two_children_of_one_label():
+    """Test that two direct children with one label raise an error that names the label."""
+    elements = [Element('a', values={'n': 1.0}), Element('a', values={'n': 1.0})]
+    with pytest.raises(LabelError, match="'a' is used by more than one child"):
+        System('farm', elements=elements).prepare()
+
+
+def test_elements_on_edges_take_the_network_of_their_system():
+    """Test that an element on the edges of the network of its system has one member per edge."""
+    weights = Element('weights', values={'n': 1.0}, on='edges')
+    system = System(
+        elements=[weights],
+        interactions=[_growth('growth', 'weights')],
+        space=NetworkSpace(nx.cycle_graph(30)),
+    )
+    assert system.prepare().simulate(until=0).get_values('weights.n').shape == (1, 30)
+
+
+def test_interactions_couple_the_elements_of_nested_systems_by_path():
+    """Test that an interaction couples the elements of a nested system by their path."""
+    meadow = System('meadow', elements=[Element('rabbits', values={'n': 2.0})])
+    system = System(systems=[meadow], interactions=[_growth('growth', 'meadow/rabbits')]).prepare()
+    assert system.simulate(until=1, dt=0.5).get_values('meadow/rabbits.n')[-1] == pytest.approx(2.0 * np.e, rel=1e-4)
+
+
+def test_periodic_space_wraps_positions_and_keeps_velocities():
+    """Test that a point crossing the side of a periodic space re-enters on the opposite side with its velocity."""
+    space = ContinuousSpace(extent=(1.0, 1.0), boundary='periodic')
+    point = Element('p', values={'x': 0.9, 'y': 0.5, "x'": 1.0, "y'": 0.0})
+    trajectory = System(elements=[point], space=space).prepare().simulate(until=0.2, dt=0.2)
+    assert trajectory.get_values('p.x')[-1] == pytest.approx(0.1)
+    gas = Element('gas', values={'x': [0.95], 'y': [0.5], "x'": [1.0], "y'": [0.0]}, size=1)
+    trajectory = System(elements=[gas], space=space).prepare().simulate(until=0.2, dt=0.1)
+    assert trajectory.get_values('gas.x')[-1] == pytest.approx([0.15])
+    assert trajectory.get_values("gas.x'")[-1] == pytest.approx([1.0])
+
+
+def test_tags_follow_the_laws_of_the_components():
+    """Test that a system of a rate and a noise interaction is stochastic, with both law kinds."""
+    noisy = ReactionInteraction('growth', target='stock', products={'n': 1}, mode='langevin')
+    tags = System(elements=[Element('stock', values={'n': 1.0})], interactions=[noisy]).get_tags()
+    assert (tags.laws, tags.randomness, tags.time, tags.space, tags.domains) == (
+        {'rate', 'noise'},
+        'stochastic',
+        {'continuous'},
+        {'none'},
+        {'real'},
+    )
+
+
+def test_tags_reject_elements_on_spaces_that_nothing_joins():
+    """Test that elements on a lattice and on a network, in a system without a space, disagree on the space."""
+    cells = Element('cells', values={'n': 1.0}, space=LatticeSpace((3,)))
+    nodes = Element('nodes', values={'n': 1.0}, space=NetworkSpace(nx.cycle_graph(3)))
+    with pytest.raises(TagError, match=r"The components 'cells' and 'nodes' disagree on the tag 'space'"):
+        System(elements=[cells, nodes]).get_tags()
+    assert System(elements=[cells, nodes], space=ContinuousSpace(n_dim=2)).get_tags().space == {
+        'continuous',
+        'lattice',
+        'network',
+    }

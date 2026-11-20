@@ -66,6 +66,8 @@ class _LinearProgramLaw(BaseLaw):
             raised by `prepare`.
     """
 
+    stated_as: ClassVar[str] = 'ObjectiveLaw'
+
     law_tag: ClassVar[str] = 'equation'
 
     def __init__(

@@ -14,20 +14,18 @@ from sage.sets.real_set import RealSet
 
 from skcomplex.core.analysis import loops
 from skcomplex.core.components import Observable
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, TopologyRequestSpec, UpdateLaw
 from skcomplex.core.components.laws.utils import neighbors
-from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace, DiscreteTime, NetworkSpace
-from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace, NetworkSpace
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.runtime import BaseObserver, ConservationObserver, RealTimeClock, simulate
+from skcomplex.core.engine.runtime import BaseObserver, ConservationObserver, RealTimeClock
 from skcomplex.core.engine.runtime._simulations import Simulation
 from skcomplex.core.engine.solvers import GillespieSolver, RK4Solver, ScipyODESolver
 from skcomplex.core.engine.solvers._defaults import DEFAULT_SOLVERS
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.core.errors import CapacityError, ParameterError, SimulationError, SolverError, ValidationError
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.errors import ParameterError, SimulationError, SolverError, ValidationError
 from skcomplex.core.systems import System
 from skcomplex.core.types import Role
 from skcomplex.systems.biology.collective_behaviour import BoidsSystem
@@ -541,6 +539,25 @@ def test_checked_mode_catches_values_outside_alphabet():
     assert system.prepare().simulate(until=1).get_values('ann.health').shape == (2,)
 
 
+def test_categorical_values_round_trip_as_labels():
+    """Test that categorical states take labels as values and return them as labels."""
+    system = System(
+        elements=[PersonElement('ann', health='infected')],
+        interactions=[ProgressionInteraction('p', target='ann')],
+    )
+    assert system.prepare().simulate(until=1).get_values('ann.health').tolist() == ['infected', 'recovered']
+
+
+def test_categorical_rejects_an_unknown_label():
+    """Test that an initial value outside the alphabet is rejected."""
+    system = System(
+        elements=[PersonElement('ann', health='dead')],
+        interactions=[ProgressionInteraction('p', target='ann')],
+    )
+    with pytest.raises(ValidationError, match=r"ann\.health = 'dead' is not in its domain"):
+        system.prepare()
+
+
 @pytest.mark.benchmark
 def test_large_game_of_life_runs_in_real_time(tmp_path):
     """Test that a 1000 x 1000 Game of Life on Numba sustains 30 steps per second while streaming images."""
@@ -647,38 +664,3 @@ def test_run_grows_a_group_without_a_capacity_and_the_same_seed_repeats_the_run(
             np.testing.assert_array_equal(network.targets, expected.targets)
         np.testing.assert_array_equal(grown.get_values('nodes.age')[:, :102], other.get_values('nodes.age')[:, :102])
     assert grown.get_network(-1).nodes.size == 102
-
-
-class _AgingElement(Element):
-    """Node of a growing network that ages by one at every step."""
-
-    def __init__(self, label, age: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.age = age
-
-    def _get_laws(self, s):
-        """Return the ageing."""
-        return [UpdateLaw(s.age, s.age + 1)]
-
-
-class _GrowthElement(Element):
-    """Element that adds one node at every step, linked to a node drawn by its degree."""
-
-    def _get_laws(self, s):
-        """Return the request of one new node."""
-        return [UpdateLaw(TopologyRequestSpec('add-node', edges=1, toward=_get_degree), 1)]
-
-
-def _get_capped(capacity):
-    """Return a network of two nodes that gains one node per step, with groups of a capacity of nodes and links."""
-    space = NetworkSpace(nx.path_graph(2))
-    nodes = GroupElement('nodes', element=_AgingElement, space=space, on='sites', variable=True, capacity=capacity)
-    links = GroupElement('links', element=Element, space=space, on='edges', variable=True, capacity=capacity)
-    return CompositeSystem(elements=[nodes, links, _GrowthElement('growth')], time=DiscreteTime())
-
-
-def test_run_keeps_a_given_capacity():
-    """Test that a group given a capacity does not grow, and a request beyond it names the group and its rows."""
-    with pytest.raises(CapacityError, match='capacity') as error:
-        simulate(_get_capped(10), until=40, random_state=0)
-    assert (error.value.path, error.value.rows) == ('nodes', 10)

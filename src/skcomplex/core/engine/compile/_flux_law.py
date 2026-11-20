@@ -39,6 +39,8 @@ class _FluxLaw(BaseLaw):
             The name of the rate law the flux comes from.
     """
 
+    stated_as: ClassVar[str] = 'RateLaw'
+
     law_tag: ClassVar[str] = 'rate'
 
     def __init__(

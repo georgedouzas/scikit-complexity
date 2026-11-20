@@ -16,10 +16,8 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import ObjectiveLaw, RateLaw
 from skcomplex.core.components.laws.utils import where
 from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine._utils import symbol
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import BaseSolver, ExternalSolver, LammpsSolver, StepSpec, VelocityVerletSolver
 from skcomplex.core.errors import BackendError, SolverError
 from skcomplex.core.systems import System
@@ -109,7 +107,7 @@ def _lattice(n, spacing=1.2, offset=0.6):
 def _lennard_jones_gas(n=100, interactions=(), space=None):
     """Return a Lennard-Jones gas on a lattice with random velocities, in an open plane or a given space."""
     velocities = np.random.default_rng(0).normal(0, 0.5, (n, 2))
-    return CompositeSystem(
+    return System(
         elements=[BodyElement('gas', x=_lattice(n), size=n, values={"x'": velocities})],
         interactions=[LennardJonesInteraction('lj', first='gas', second='gas', cutoff=CUTOFF), *interactions],
         space=space or ContinuousSpace(n_dim=2),
@@ -118,7 +116,7 @@ def _lennard_jones_gas(n=100, interactions=(), space=None):
 
 def _run(system, solver, until, dt=0.05):
     """Return the trajectory of a run."""
-    return simulate(system, until=until, solver=solver, dt=dt)
+    return system.set_params(solver=solver).prepare().simulate(until=until, dt=dt)
 
 
 def test_lammps_starts_mpi_without_infiniband_by_default():
@@ -159,29 +157,29 @@ def test_lammps_rejects_population_system():
 
 def test_lammps_rejects_pair_energy_without_lepton_form():
     """Test that a pair energy with a function Lepton does not know is reported as unsupported."""
-    system = CompositeSystem(
+    system = System(
         elements=[BodyElement('gas', x=_lattice(4), size=4)],
         interactions=[Interaction('hyperbolic', among='gas', within=RadiusNeighborhood(1.0), laws=_hyperbolic)],
         space=ContinuousSpace(n_dim=2),
     )
     with pytest.raises(BackendError, match='arcsinh has no Lepton'):
-        simulate(system, until=0.1, solver=LammpsSolver())
+        system.set_params(solver=LammpsSolver()).prepare().simulate(until=0.1)
 
 
 def test_lammps_rejects_groups_with_different_masses():
     """Test that a group whose members have different masses is reported as unsupported."""
-    system = CompositeSystem(
+    system = System(
         elements=[BodyElement('gas', x=_lattice(2), m=[1.0, 2.0], size=2)],
         interactions=[LennardJonesInteraction('lj', first='gas', second='gas', cutoff=CUTOFF)],
         space=ContinuousSpace(n_dim=2),
     )
     with pytest.raises(BackendError, match='different values of m'):
-        simulate(system, until=0.1, solver=LammpsSolver())
+        system.set_params(solver=LammpsSolver()).prepare().simulate(until=0.1)
 
 
 def test_lammps_custom_pair_energy_matches_native_forces():
     """Test that a Lepton pair energy gives the native velocity change within 1e-8 relative error."""
-    system = CompositeSystem(
+    system = System(
         elements=[
             BodyElement(
                 'gas',
@@ -201,7 +199,7 @@ def test_lammps_custom_pair_energy_matches_native_forces():
 
 def test_lammps_conditional_pair_energy_matches_native_forces():
     """Test that a pair energy with a condition on the distance gives the native velocity change in LAMMPS."""
-    system = CompositeSystem(
+    system = System(
         elements=[
             BodyElement(
                 'gas',
@@ -294,7 +292,7 @@ def test_lammps_thermostat_temperature_changes_live():
 def test_lammps_runs_10000_atoms_in_real_time():
     """Test that 10000 Lennard-Jones atoms keep a real-time clock within 0.2 seconds on LAMMPS."""
     n = 10_000
-    system = CompositeSystem(
+    system = System(
         elements=[
             BodyElement(
                 'gas',

@@ -35,7 +35,6 @@ from skcomplex.core.components.elements import Element, Period
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import JumpLaw, UpdateLaw
 from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import AnalysisError, TagError, ValidationError
 from skcomplex.core.systems import System
 from skcomplex.systems.biology.ecology import (
@@ -340,7 +339,8 @@ def test_binding_rejects_unknown_settings_and_objects():
 def test_a_system_class_is_read_as_the_composite_of_its_components():
     """Test that a system class that builds its components is read as its composite, other sources as they are."""
     composite = _composite(BrusselatorSystem((8,)))
-    assert isinstance(composite, CompositeSystem)
+    assert [element.label for element in composite.elements] == ['cells']
+    assert 'autocatalysis' in [interaction.label for interaction in composite.interactions]
     values = np.zeros(3)
     assert _composite(values) is values
 

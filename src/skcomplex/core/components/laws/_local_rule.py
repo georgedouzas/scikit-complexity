@@ -77,6 +77,8 @@ class _LocalRuleLaw(BaseLaw):
             The schedule or the rule spec is invalid, or a run lacks the space or a read state.
     """
 
+    stated_as: ClassVar[str] = 'UpdateLaw'
+
     law_tag: ClassVar[str] = 'update'
 
     def __init__(

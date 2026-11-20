@@ -41,6 +41,8 @@ class _SampleLaw(BaseLaw):
             The name of the law, or the empty string for a law without one.
     """
 
+    stated_as: ClassVar[str] = 'ObjectiveLaw'
+
     law_tag: ClassVar[str] = 'sampling'
 
     def __init__(

@@ -7,13 +7,11 @@ import numpy as np
 import pytest
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace, NetworkSpace
-from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.spaces import BaseSpace, LatticeSpace, NetworkSpace
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.common.sequences import RowScoreSpec, SequenceSamplingInteraction
 
 INFINITE = float('inf')
@@ -21,32 +19,32 @@ LETTERS = 'ACGU'
 
 
 class BitElement(Element):
-    """Binary site with a weight."""
+    """Binary sites with a weight each."""
 
     def __init__(
         self,
         label,
-        s: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1,
-        weight: Annotated[float, ParameterSpec()] = 1.0,
+        *,
+        s: Annotated[float, FiniteEnumeratedSet([0, 1])] = 1,
+        weight: float = 1.0,
+        space: BaseSpace | None = None,
     ):
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.s = s
         self.weight = weight
 
 
-class SpinElement(Element):
-    """Spin site."""
-
-    def __init__(self, label, s: Annotated[float, StateSpec()] = 1.0):
-        super().__init__(label)
-        self.s = s
-
-
 class LetterElement(Element):
-    """Site of a sequence of letters."""
+    """Sites of a sequence of letters."""
 
-    def __init__(self, label, letter: Annotated[str, StateSpec(domain=FiniteEnumeratedSet(list(LETTERS)))] = 'A'):
-        super().__init__(label)
+    def __init__(
+        self,
+        label,
+        *,
+        letter: Annotated[str, FiniteEnumeratedSet(list(LETTERS))] = 'A',
+        space: BaseSpace | None = None,
+    ):
+        super().__init__(label, space=space)
         self.letter = letter
 
 
@@ -67,7 +65,7 @@ def _mutate(row, random):
 def _bits(shape=(1, 20), objective=None, intensity=INFINITE, **settings):
     """Return a binary lattice sampled by the number of its ones."""
     objective = RowScoreSpec(np.sum) if objective is None else objective
-    bits = GroupElement('bits', element=BitElement, space=LatticeSpace(shape), on='sites')
+    bits = BitElement('bits', space=LatticeSpace(shape))
     sampling = SequenceSamplingInteraction(
         'walk',
         target='bits',
@@ -77,14 +75,14 @@ def _bits(shape=(1, 20), objective=None, intensity=INFINITE, **settings):
         intensity=intensity,
         **settings,
     )
-    return CompositeSystem(elements=[bits], interactions=[sampling], time=DiscreteTime())
+    return System(elements=[bits], interactions=[sampling])
 
 
 def test_row_score_never_grows_and_reaches_zero_at_infinite_intensity():
     """Test that the number of ones never grows and reaches 0 before time 2000 in more than 99 of 100 seeds."""
     reached = 0
     for seed in range(100):
-        trajectory = simulate(_bits(), until=500, random_state=seed)
+        trajectory = _bits().prepare().simulate(until=500, random_state=seed)
         scores = trajectory.get_values('walk.score')[:, 0]
         assert np.all(np.diff(scores) <= 0)
         reached += scores[-1] == 0
@@ -93,14 +91,14 @@ def test_row_score_never_grows_and_reaches_zero_at_infinite_intensity():
 
 def test_row_score_at_unit_intensity_matches_the_boltzmann_mean():
     """Test that the mean number of ones at intensity 1 matches `20 / (1 + e)` within 3%."""
-    trajectory = simulate(_bits(intensity=1.0), until=20000, random_state=0)
+    trajectory = _bits(intensity=1.0).prepare().simulate(until=20000, random_state=0)
     assert trajectory.get_values('walk.score')[2000:].mean() == pytest.approx(20 / (1 + np.e), rel=0.03)
 
 
 def test_row_score_glauber_rule_matches_the_boltzmann_mean():
     """Test that the Glauber rule samples the same mean number of ones."""
     system = _bits(intensity=1.0, rule='glauber')
-    trajectory = simulate(system, until=20000, random_state=0)
+    trajectory = system.prepare().simulate(until=20000, random_state=0)
     assert trajectory.get_values('walk.score')[2000:].mean() == pytest.approx(20 / (1 + np.e), rel=0.03)
 
 
@@ -110,7 +108,7 @@ def test_row_score_keeps_a_neutral_walk_on_its_target():
     def score(row):
         return float(row[:3].sum() != 3)
 
-    trajectory = simulate(_bits((4, 10), RowScoreSpec(score)), until=200, random_state=0)
+    trajectory = _bits((4, 10), RowScoreSpec(score)).prepare().simulate(until=200, random_state=0)
     states = trajectory.get_lattice('bits.s').astype(float)
     assert np.all(states[:, :, :3] == 1)
     assert np.any(states[-1] != 1)
@@ -119,7 +117,7 @@ def test_row_score_keeps_a_neutral_walk_on_its_target():
 
 def test_row_score_gives_every_row_its_own_draws():
     """Test that independent rows take different walks."""
-    trajectory = simulate(_bits((3, 20)), until=5, random_state=0)
+    trajectory = _bits((3, 20)).prepare().simulate(until=5, random_state=0)
     states = trajectory.get_lattice('bits.s').astype(float)[-1]
     assert not np.array_equal(states[0], states[1])
 
@@ -127,7 +125,7 @@ def test_row_score_gives_every_row_its_own_draws():
 def test_row_score_proposes_its_declared_number_of_moves():
     """Test that a row score takes its number of proposals per unit of time."""
     system = _bits((1, 20), RowScoreSpec(np.sum, proposals=5), intensity=1e-9)
-    trajectory = simulate(system, until=1, random_state=0)
+    trajectory = system.prepare().simulate(until=1, random_state=0)
     changed = np.abs(np.diff(trajectory.get_lattice('bits.s').astype(float), axis=0)).sum()
     assert 1 <= changed <= 5
     assert changed % 2 == 5 % 2
@@ -141,13 +139,7 @@ def test_row_score_reads_the_parameters_it_names():
         seen.append(np.shape(weight))
         return float(np.sum(row * weight))
 
-    bits = GroupElement(
-        'bits',
-        element=BitElement,
-        space=LatticeSpace((2, 4)),
-        values={'weight': np.ones((2, 4))},
-        on='sites',
-    )
+    bits = BitElement('bits', weight=np.ones((2, 4)), space=LatticeSpace((2, 4)))
     sampling = SequenceSamplingInteraction(
         'walk',
         target='bits',
@@ -155,8 +147,8 @@ def test_row_score_reads_the_parameters_it_names():
         objective=RowScoreSpec(score),
         move=_flip_site,
     )
-    system = CompositeSystem(elements=[bits], interactions=[sampling], time=DiscreteTime())
-    simulate(system, until=1, random_state=0)
+    system = System(elements=[bits], interactions=[sampling])
+    system.prepare().simulate(until=1, random_state=0)
     assert set(seen) == {(4,)}
 
 
@@ -166,7 +158,7 @@ def test_row_score_reads_the_parameters_it_names():
 )
 def test_row_score_takes_named_moves_at_one_site(move, settings):
     """Test that a named move changes at most one site of a row per proposal."""
-    spins = GroupElement('spins', element=SpinElement, space=LatticeSpace((1, 8)), on='sites')
+    spins = Element('spins', values={'s': 1.0}, space=LatticeSpace((1, 8)))
     sampling = SequenceSamplingInteraction(
         'walk',
         target='spins',
@@ -175,15 +167,15 @@ def test_row_score_takes_named_moves_at_one_site(move, settings):
         move=move,
         **settings,
     )
-    system = CompositeSystem(elements=[spins], interactions=[sampling], time=DiscreteTime())
-    trajectory = simulate(system, until=4, random_state=0)
+    system = System(elements=[spins], interactions=[sampling])
+    trajectory = system.prepare().simulate(until=4, random_state=0)
     assert np.all(np.sum(np.diff(trajectory.get_lattice('spins.s'), axis=0) != 0, axis=2) <= 1)
 
 
 def test_row_score_cools_with_time():
     """Test that a cooling that grows with time heats a row score, which then accepts raising moves."""
     system = _bits(intensity=1e6, cooling=lambda t: 1e9 * (1 + t))
-    trajectory = simulate(system, until=50, random_state=0)
+    trajectory = system.prepare().simulate(until=50, random_state=0)
     assert np.any(np.diff(trajectory.get_values('walk.score')[:, 0]) > 0)
 
 
@@ -202,7 +194,7 @@ def test_point_mutation_changes_one_site_to_the_other_letters_equally():
 
 def test_row_score_samples_a_categorical_state_with_labels():
     """Test that a row of letters is sampled as indices and read as its labels."""
-    letters = GroupElement('letters', element=LetterElement, space=LatticeSpace((2, 6)), on='sites')
+    letters = LetterElement('letters', space=LatticeSpace((2, 6)))
     sampling = SequenceSamplingInteraction(
         'walk',
         target='letters',
@@ -210,8 +202,8 @@ def test_row_score_samples_a_categorical_state_with_labels():
         objective=RowScoreSpec(lambda row: 0.0),
         move=_mutate,
     )
-    system = CompositeSystem(elements=[letters], interactions=[sampling], time=DiscreteTime())
-    trajectory = simulate(system, until=5, random_state=0)
+    system = System(elements=[letters], interactions=[sampling])
+    trajectory = system.prepare().simulate(until=5, random_state=0)
     assert set(trajectory.get_values('letters.letter').ravel()) <= set(LETTERS)
 
 
@@ -241,14 +233,14 @@ def test_row_score_rejects_a_heat_bath_without_values_and_clusters(settings):
 def test_row_score_heat_bath_matches_the_boltzmann_mean():
     """Test that the heat-bath rule on a row samples the mean number of ones at intensity 1."""
     system = _bits(intensity=1.0, rule='heat-bath', move='random-value', values=(0.0, 1.0))
-    trajectory = simulate(system, until=20000, random_state=0)
+    trajectory = system.prepare().simulate(until=20000, random_state=0)
     assert trajectory.get_values('walk.score')[2000:].mean() == pytest.approx(20 / (1 + np.e), rel=0.03)
 
 
 def test_row_score_heat_bath_at_infinite_intensity_never_raises_the_score():
     """Test that the heat-bath rule on a row at infinite intensity keeps only values of the lowest score."""
     system = _bits(rule='heat-bath', move='random-value', values=(0.0, 1.0))
-    trajectory = simulate(system, until=300, random_state=0)
+    trajectory = system.prepare().simulate(until=300, random_state=0)
     scores = trajectory.get_values('walk.score')[:, 0]
     assert np.all(np.diff(scores) <= 0)
     assert scores[-1] == 0
@@ -257,7 +249,7 @@ def test_row_score_heat_bath_at_infinite_intensity_never_raises_the_score():
 def test_row_score_reports_a_target_off_a_lattice():
     """Test that the compiler reports a row score of a group on a network as a law-space issue."""
     space = NetworkSpace(nx.path_graph(4))
-    spins = GroupElement('spins', element=SpinElement, space=space, on='sites')
+    spins = Element('spins', values={'s': 1.0}, space=space)
     sampling = SequenceSamplingInteraction(
         'walk',
         target='spins',
@@ -265,13 +257,13 @@ def test_row_score_reports_a_target_off_a_lattice():
         objective=RowScoreSpec(np.sum),
         move=_flip_site,
     )
-    system = CompositeSystem(elements=[spins], interactions=[sampling], time=DiscreteTime())
+    system = System(elements=[spins], interactions=[sampling])
     report = PassCompiler().prepare(system).report_
     assert 'law-space' in {issue.code for issue in report.issues}
 
 
-def test_intensity_rejects_zero_and_negative_values():
+@pytest.mark.parametrize('intensity', [0.0, -1.0])
+def test_intensity_rejects_zero_and_negative_values(intensity):
     """Test that the domain of the intensity holds infinity but neither zero nor negative values."""
-    for intensity in (0.0, -1.0):
-        report = PassCompiler().prepare(_bits(intensity=intensity)).report_
-        assert not report.ok
+    with pytest.raises(ValidationError, match=r'walk\.intensity'):
+        _bits(intensity=intensity).prepare()

@@ -18,7 +18,6 @@ from skcomplex.core.components.laws import (
     TotalisticSpec,
     UpdateLaw,
 )
-from skcomplex.core.components.laws._local_rule import _LocalRuleLaw
 from skcomplex.core.components.laws.utils import bernoulli, shift_member, total, where
 from skcomplex.core.components.spaces import LatticeSpace, RadiusNeighborhood
 from skcomplex.core.errors import ValidationError
@@ -241,7 +240,7 @@ def test_update_with_a_neighborhood_runs_a_local_rule(rule, expected):
     assert law.run({'space': ROW, 'x': [0, 0, 1, 0, 0]}).value_.tolist() == expected
 
 
-def test_update_with_a_neighborhood_becomes_a_local_rule_law():
+def test_update_with_a_neighborhood_becomes_a_local_rule():
     """Test that a local rule keeps its neighbourhood, reads, schedule, and label, and draws when it names `random`."""
     a, b = var('a b')
 
@@ -251,7 +250,6 @@ def test_update_with_a_neighborhood_becomes_a_local_rule_law():
 
     law = UpdateLaw((a, b), flip, neighborhood=AROUND, reads=[b], schedule='checkerboard', label='flip')
     rule = law._get_local_rule()
-    assert isinstance(rule, _LocalRuleLaw)
     assert (rule.targets, rule.over, rule.rule, rule.reads, rule.schedule, rule.stochastic, rule.label) == (
         (a, b),
         AROUND,
