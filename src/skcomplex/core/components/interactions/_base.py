@@ -29,8 +29,9 @@ from .._tags import Tags
 from ..base import BaseComponent
 from ..laws import BaseLaw, NoiseLaw, PartnerSpec, RateLaw, RuleLaw, UpdateLaw
 from ..laws._flow_term import FlowTermLaw
-from ..laws.utils import delayed, derivative, lag
+from ..laws.utils import delayed, derivative, lag, relax
 from ..laws.utils._fractional import fractional_of
+from ..laws.utils._relaxations import relaxation_of
 from ..spaces import BaseNeighborhood, BaseSpace, ContinuousSpace
 from ..types import AgentViewProtocol, SystemViewProtocol
 from ._interaction_requirement_spec import _InteractionRequirementSpec
@@ -428,7 +429,11 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
 
     @staticmethod
     def _get_law_in_states(law: BaseComponent, time: Expression, symbols: Mapping[str, Expression]) -> BaseComponent:
-        """Return a law written with functions of time as a law of the states."""
+        """Return a law written with functions of time as a law of the states.
+
+        The rules and the drive of a relaxation, such as the toppling and the grain of a sandpile, become laws of the
+        states too.
+        """
         if not symbols:
             return law
         discrete = isinstance(law, UpdateLaw)
@@ -442,6 +447,18 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
             for name, item in params.items()
             if name != 'label'
         }
+        relaxation = relaxation_of(params.get('value'))
+        if relaxation is not None:
+            translated['value'] = relax(
+                cast('Expression', translated['value']).operands()[0],
+                [cast(BaseLaw, BaseInteraction._get_law_in_states(rule, time, symbols)) for rule in relaxation.rules],
+                relaxation.stable,
+                drive=[
+                    cast(BaseLaw, BaseInteraction._get_law_in_states(item, time, symbols)) for item in relaxation.drive
+                ],
+                activity=relaxation.activity,
+                max_iterations=relaxation.max_iterations,
+            )
         changed = {name: item for name, item in translated.items() if item is not params[name]}
         return BaseInteraction._get_replaced(law, **changed) if changed else law
 
