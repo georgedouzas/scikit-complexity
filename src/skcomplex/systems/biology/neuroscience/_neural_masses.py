@@ -16,12 +16,11 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components.laws import RateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, StateSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
 
@@ -37,8 +36,8 @@ class NeuralMassElement(Element):
     The excitabilities of the neurons follow a Lorentzian distribution of median `H` and half-width `delta`, so the
     firing rate `r` and the mean membrane potential `v` of the population follow `dr/dt = delta / (tau^2 pi) + 2 r v
     / tau` and `dv/dt = (v^2 + H) / tau - tau (pi r)^2` exactly, with the membrane time constant `tau`. The synaptic
-    field `s` filters the rate with exponential synapses, `ds/dt = (r - s) / tau_d`. Couplings and inputs add to the
-    rate of `v`.
+    field `s` filters the rate with exponential synapses, `ds/dt = (r - s) / tau_d`. The element holds the states and
+    parameters, a `NeuralMassInteraction` gives these laws, and couplings and inputs add to the rate of `v`.
 
     Args:
         label:
@@ -71,19 +70,17 @@ class NeuralMassElement(Element):
         20.0
     """
 
-    law_classes = (RateLaw,)
-
     def __init__(
         self,
         label: str,
         *,
-        r: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        v: Annotated[float, StateSpec()] = -1.0,
-        s: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 20.0,
-        delta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        H: Annotated[float, ParameterSpec()] = -5.0,
-        tau_d: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        r: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        v: float = -1.0,
+        s: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        tau: Annotated[float, RealSet.open(0, oo)] = 20.0,
+        delta: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        H: float = -5.0,
+        tau_d: Annotated[float, RealSet.open(0, oo)] = 10.0,
     ) -> None:
         super().__init__(label)
         self.r = r
@@ -94,22 +91,48 @@ class NeuralMassElement(Element):
         self.H = H
         self.tau_d = tau_d
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the mean-field rate, potential, and synaptic field.
+
+class NeuralMassInteraction(Interaction):
+    """Exact mean-field dynamics of one population of quadratic integrate-and-fire neurons.
+
+    It gives the population of its target the rate `dr/dt = delta / (tau^2 pi) + 2 r v / tau`, the potential
+    `dv/dt = (v^2 + H) / tau - tau (pi r)^2`, and the synaptic field `ds/dt = (r - s) / tau_d`, with the parameters of
+    the target.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the population.
+
+    Examples:
+        >>> from skcomplex.systems.biology.neuroscience import NeuralMassInteraction
+        >>> NeuralMassInteraction('mean_field', target='e').target
+        'e'
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the mean-field rate, potential, and synaptic field of the target.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        return [
-            RateLaw(s.r, s.delta / (s.tau**2 * pi) + 2 * s.r * s.v / s.tau),
-            RateLaw(s.v, (s.v**2 + s.H) / s.tau - s.tau * (pi * s.r) ** 2),
-            RateLaw(s.s, (s.r - s.s) / s.tau_d),
-        ]
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            p = context.target
+            self.laws_ = [
+                RateLaw(p.r, p.delta / (p.tau**2 * pi) + 2 * p.r * p.v / p.tau),
+                RateLaw(p.v, (p.v**2 + p.H) / p.tau - p.tau * (pi * p.r) ** 2),
+                RateLaw(p.s, (p.r - p.s) / p.tau_d),
+            ]
 
 
 class SynapticDriveInteraction(Interaction):
@@ -360,6 +383,7 @@ class NextGenerationNeuralMassSystem(BaseSystem):
                 self.label,
                 elements=[population],
                 interactions=[
+                    NeuralMassInteraction('inhibitory_mean_field', target='inhibitory'),
                     SynapticDriveInteraction(
                         'ii',
                         target='inhibitory',
@@ -384,6 +408,8 @@ class NextGenerationNeuralMassSystem(BaseSystem):
                 NeuralMassElement('inhibitory', tau=10.0, delta=width, H=-5.0 if self.H_i is None else self.H_i),
             ],
             interactions=[
+                NeuralMassInteraction('excitatory_mean_field', target='excitatory'),
+                NeuralMassInteraction('inhibitory_mean_field', target='inhibitory'),
                 SynapticDriveInteraction('ee', target='excitatory', source='excitatory', J=self.J_ee),
                 SynapticDriveInteraction('ie', target='excitatory', source='inhibitory', J=-self.J_ie),
                 SynapticDriveInteraction('ei', target='inhibitory', source='excitatory', J=self.J_ei),

@@ -33,6 +33,7 @@ from ._networks import (
 from ._neural_fields import AmariNeuralFieldSystem, NeuralFieldSiteElement
 from ._neural_masses import (
     NeuralMassElement,
+    NeuralMassInteraction,
     NextGenerationNeuralMassSystem,
     SynapticDriveInteraction,
     ThetaForcingInteraction,
@@ -103,6 +104,7 @@ __all__: list[str] = [
     'MutualInhibitionInteraction',
     'NeuralFieldSiteElement',
     'NeuralMassElement',
+    'NeuralMassInteraction',
     'NextGenerationNeuralMassSystem',
     'PhaseUnitElement',
     'PolyhomeostaticNeuronElement',
