@@ -1629,15 +1629,21 @@ class PassCompiler(BaseCompiler):
     def _get_held_axes(record: _CensusRecordSpec, nodes: Mapping[str, _NodeSpec]) -> list[str]:
         """Return the class axes of the space of the group of a law and of its fields.
 
-        The fields are those its interaction reads.
+        The fields are those the roles of its interaction bind, such as a phase-space field whose moments a rate over
+        position reads.
         """
         spaces = [record.space]
         node = nodes.get(record.path.rpartition('/')[0]) or nodes.get(record.path)
-        sources = getattr(node.component, 'sources', ()) if node is not None else ()
-        if node is not None and isinstance(sources, list | tuple):
-            found = [nodes.get(f'{node.scope}{label}') for label in sources]
+        if node is not None and isinstance(node.component, BaseInteraction):
+            labels = [
+                label
+                for role in declarations_of(node.component, VariableKind.ROLE)
+                for label in bound_labels(binding_of(node.component, role))
+            ]
+            found = [nodes.get(f'{node.scope}{label}'.partition('[')[0]) for label in labels]
             spaces += [getattr(item.component, 'space', None) for item in found if item is not None]
-        return [axis.name for space in spaces if isinstance(space, PhaseSpace) for axis in space.axes]
+        axes = [axis.name for space in spaces if isinstance(space, PhaseSpace) for axis in space.axes]
+        return list(dict.fromkeys(axes))
 
     @staticmethod
     def _get_collision_issue(record: _CensusRecordSpec) -> IssueSpec | None:

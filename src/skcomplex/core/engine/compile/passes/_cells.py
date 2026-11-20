@@ -6,7 +6,7 @@
 import numpy as np
 import scipy.sparse
 
-from ....components.elements import GroupElement
+from ....components.elements import DeclaredElement, GroupElement
 from ....components.spaces import CellComplexSpace, LatticeSpace
 from ....errors import SpaceError
 from ....types import Array
@@ -24,7 +24,8 @@ class CellTables:
     def _get_star(space: CellComplexSpace, degree: int, declarations: DeclarationsSpec) -> Array:
         """Return the diagonal of the Hodge star of a degree.
 
-        On a network complex, it holds the weights of the group.
+        On a network complex, it holds the weights of the group, a parameter of its class or a value of a plain
+        element.
         """
         if isinstance(space.space, LatticeSpace):
             return space.stars_[degree]
@@ -36,9 +37,14 @@ class CellTables:
                 or component.on != PARTS[degree]
             ):
                 continue
-            if STAR_PARAMETER in component.element._get_specs():
-                member = component.element(component.label).set_params(**(component.values or {}))
-                return np.broadcast_to(np.asarray(getattr(member, STAR_PARAMETER), dtype=float), (block.rows,))
+            member = component.element(component.label).set_params(**(component.values or {}))
+            if STAR_PARAMETER in member._get_component_specs():
+                weights = (
+                    member.get_value(STAR_PARAMETER)
+                    if isinstance(member, DeclaredElement)
+                    else getattr(member, STAR_PARAMETER)
+                )
+                return np.broadcast_to(np.asarray(weights, dtype=float), (block.rows,))
         return space.stars_[degree]
 
     @staticmethod

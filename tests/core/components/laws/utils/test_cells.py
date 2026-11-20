@@ -19,10 +19,6 @@ from skcomplex.core.systems import System
 BACKENDS = [NumpyBackend, NumbaBackend]
 GAUSS_LIMIT = 1e-10
 DISPERSION_LIMIT = 0.01
-GAP = (
-    'Engine gap: only a variadic sources role reads a group on a cell complex member by member through the exterior '
-    'calculus, so a cell operation on a second role of another degree fails the check of groups of one size'
-)
 
 
 class SiteElement(Element):
@@ -102,7 +98,6 @@ def test_operations_are_held_symbolically():
     }
 
 
-@pytest.mark.skip(reason=GAP)
 @pytest.mark.parametrize('backend', BACKENDS)
 def test_curl_of_a_gradient_is_exactly_zero(backend):
     """Test that the exterior derivative of the exterior derivative of a random site state is exactly 0."""
@@ -112,7 +107,8 @@ def test_curl_of_a_gradient_is_exactly_zero(backend):
         'curl',
         'faces',
         'f',
-        lambda n: exterior_derivative(exterior_derivative(n.source.u), source='sites'),
+        lambda n: exterior_derivative(exterior_derivative(n.source.u)),
+        source='sites',
     )
     system = System(elements=_groups(space, sites=values), interactions=[rate])
     rates = _rates(system, backend, 'faces.f')
@@ -120,7 +116,6 @@ def test_curl_of_a_gradient_is_exactly_zero(backend):
     assert np.all(rates == 0.0)
 
 
-@pytest.mark.skip(reason=GAP)
 @pytest.mark.parametrize('backend', BACKENDS)
 def test_divergence_of_a_curl_is_zero(backend):
     """Test that the codifferential of the codifferential of a random plaquette state is 0 within 1e-12."""
@@ -130,14 +125,14 @@ def test_divergence_of_a_curl_is_zero(backend):
         'divergence',
         'sites',
         'u',
-        lambda n: codifferential(codifferential(n.source.f), source='faces'),
+        lambda n: codifferential(codifferential(n.source.f)),
+        source='faces',
     )
     rates = _rates(System(elements=_groups(space, faces=values), interactions=[rate]), backend, 'sites.u')
     assert rates.size == space.size_
     assert np.abs(rates).max() < 1e-12
 
 
-@pytest.mark.skip(reason=GAP)
 @pytest.mark.parametrize('backend', BACKENDS)
 def test_operations_are_the_incidence_products(backend):
     """Test the values of every operation against the products of the matrices of the complex."""
@@ -151,25 +146,29 @@ def test_operations_are_the_incidence_products(backend):
             'd0',
             'links',
             'a',
-            lambda n: exterior_derivative(n.source.u, source='sites'),
+            lambda n: exterior_derivative(n.source.u),
+            source='sites',
         ),
         _rate(
             'd1',
             'faces',
             'f',
-            lambda n: exterior_derivative(n.source.a, source='links'),
+            lambda n: exterior_derivative(n.source.a),
+            source='links',
         ),
         _rate(
             'c1',
             'sites',
             'u',
-            lambda n: codifferential(n.source.a, source='links'),
+            lambda n: codifferential(n.source.a),
+            source='links',
         ),
         _rate(
             'c2',
             'links',
             'b',
-            lambda n: codifferential(n.source.f, source='faces'),
+            lambda n: codifferential(n.source.f),
+            source='faces',
         ),
         _rate('star', 'links', 'c', lambda n: hodge_star(n.target.a)),
     ]
@@ -182,7 +181,6 @@ def test_operations_are_the_incidence_products(backend):
     assert np.allclose(_rates(system, backend, 'links.c'), links['a'])
 
 
-@pytest.mark.skip(reason=GAP)
 @pytest.mark.parametrize('backend', BACKENDS)
 def test_codifferential_reads_the_spacings_of_a_lattice(backend):
     """Test the Hodge star of a lattice of spacing 2 inside the codifferential of a link state."""
@@ -192,13 +190,13 @@ def test_codifferential_reads_the_spacings_of_a_lattice(backend):
         'c1',
         'sites',
         'u',
-        lambda n: codifferential(n.source.a, source='links'),
+        lambda n: codifferential(n.source.a),
+        source='links',
     )
     rates = _rates(System(elements=_groups(space, links=links), interactions=[rate]), backend, 'sites.u')
     assert np.allclose(rates, -(space.incidences_[0].T @ links['a']) / 4.0)
 
 
-@pytest.mark.skip(reason=GAP)
 @pytest.mark.parametrize('backend', BACKENDS)
 def test_codifferential_reads_the_weights_of_the_groups_of_a_network(backend):
     """Test the Hodge star of a network complex from the parameter `weight` of its edge group."""
@@ -210,7 +208,8 @@ def test_codifferential_reads_the_weights_of_the_groups_of_a_network(backend):
         'c1',
         'sites',
         'u',
-        lambda n: codifferential(n.source.a, source='links'),
+        lambda n: codifferential(n.source.a),
+        source='links',
     )
     rates = _rates(System(elements=_groups(space, links=links), interactions=[rate]), backend, 'sites.u')
     assert np.allclose(rates, -space.incidences_[0].T @ (weights * links['a']))
@@ -248,7 +247,6 @@ def test_coface_reduction_reads_the_oriented_sum_of_the_one_face(backend):
     assert np.allclose(rates, abs(d1).T @ np.cos(d1 @ links['a']))
 
 
-@pytest.mark.skip(reason=GAP)
 @pytest.mark.parametrize('backend', BACKENDS)
 def test_abelian_plaquette_is_the_exterior_derivative_at_the_faces(backend):
     """Test that a coface reduction of the plaquette sums equals the exterior derivative at the same plaquettes."""
@@ -266,7 +264,8 @@ def test_abelian_plaquette_is_the_exterior_derivative_at_the_faces(backend):
             'plaquette',
             'faces',
             'f',
-            lambda n: exterior_derivative(n.source.a, source='links'),
+            lambda n: exterior_derivative(n.source.a),
+            source='links',
         ),
     ]
     system = System(elements=_groups(space, links=links), interactions=interactions)
