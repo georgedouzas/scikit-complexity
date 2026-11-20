@@ -435,6 +435,18 @@ guide, the arguments, a See Also section of one line per neighbouring class, and
 lines that uses real parts and defines no class only to have something to work on. The docstrings are written last,
 against the new API.
 
+### Per-entry parameters
+
+A value typed `tuple[Role, ...]` binds one role per entry, but the engine does not check that a parameter read
+beside it has one entry per role. Catalog systems pair such roles with sequences of other lengths, and a list of
+floats looks the same as a vector along the axes, so a mismatch fails where the law reads the entry.
+
+### Pair energies
+
+A pair interaction with `within=` may give its energy as `ObjectiveLaw(V(r))` in place of its forces. The engine
+derives the forces by differentiating the energy, and the LAMMPS solver reads the energy for its Lepton pair style.
+This replaces the pair energy of `PairInteraction`, which phase 6.1 removes.
+
 ## Risks / Trade-offs
 
 - [A generic `UpdateLaw` is slower than the specialised kernels of sandpiles or rewriting] → The field package that owns

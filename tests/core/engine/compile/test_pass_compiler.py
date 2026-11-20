@@ -1061,39 +1061,6 @@ def test_compile_plain_role_past_group_end_raises_error():
         PassCompiler().prepare(_hub_and_sites(_site_drive('sites[7]'))).run()
 
 
-class LooseSumInteraction(Interaction):
-    """Update of a target to the sum of its inputs weighted entry by entry, as far as both reach."""
-
-    def __init__(self, label: str, *, target: Role, inputs: tuple[Role, ...], weights: list[float]) -> None:
-        super().__init__(label)
-        self.target = target
-        self.inputs = inputs
-        self.weights = weights
-
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the update of the target."""
-        super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            summed = sum((w * item.x for w, item in zip(s.weights, s.inputs, strict=False)), 0)
-            self.laws_ = [UpdateLaw(s.target.x, summed)]
-
-
-@pytest.mark.skip(
-    reason=(
-        'Engine gap: a per-entry parameter of another length than its role typed `tuple[Role, ...]` is not '
-        'checked, so a rule that zips them loosely compiles.'
-    ),
-)
-def test_compile_per_entry_parameter_with_wrong_length_raises_error():
-    """Test that a per-entry parameter of another length than its role names the interaction and both lengths."""
-    system = _summed(['a', 'b', 'c'])
-    loose = LooseSumInteraction('sum', target='target', inputs=('a', 'b', 'c'), weights=[1.0, 2.0])
-    system = System(elements=system.elements, interactions=[loose])
-    with pytest.raises(ValidationError, match=r"sum .*'weights' 2 values.*'inputs' binds 3 entries"):
-        PassCompiler().prepare(system).run()
-
-
 def test_compile_per_entry_parameter_has_one_component_per_entry():
     """Test that a per-entry parameter is laid out with one addressable component per entry."""
     problem = PassCompiler().prepare(_summed(['a', 'b', 'c'], weights=[1.0, 2.0, 3.0])).run().problem_
