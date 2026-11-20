@@ -97,8 +97,8 @@ def _plaquettes(space, group, values):
 
 
 def test_two_dimensional_su2_reproduces_the_exact_plaquette():
-    """Test that 300 sweeps after 100 of transient on a 16 by 16 lattice give `I_2(2) / I_1(2)` within 0.01."""
-    space, system = _matrix_system((16, 16), ISOSPIN, _matrix_sampling(ISOSPIN))
+    """Test that the mean SU(2) plaquette at `beta = 2` is `I_2(2) / I_1(2)` to 0.01."""
+    space, system = _matrix_system((16, 16), ISOSPIN, _matrix_sampling(ISOSPIN, beta=2.0), beta=2.0)
     values = simulate(system, until=400, random_state=3).get_values('links.U')
     assert abs(_plaquettes(space, ISOSPIN, values)[101:].mean() - iv(2, 2) / iv(1, 2)) < 0.01
 
