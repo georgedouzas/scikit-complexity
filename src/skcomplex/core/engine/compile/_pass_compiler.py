@@ -1476,7 +1476,7 @@ class PassCompiler(BaseCompiler):
 
     @staticmethod
     def _get_field_parameters(nodes: list[_NodeSpec]) -> dict[str, FieldElement]:
-        """Return the field of every parameter symbol of a field, such as `u_b` of a field `b` whose `u` stays put."""
+        """Return the field of every parameter symbol of a field, such as `u_b`."""
         return {
             f'{name}_{node.component.label}': node.component
             for node in nodes
@@ -1830,7 +1830,7 @@ class PassCompiler(BaseCompiler):
 
     @staticmethod
     def _get_law_kind(law_class: type) -> type:
-        """Return the kind of law, of the seven a user writes, that a law class of the engine stands for.
+        """Return the law kind a user writes that a law class of the engine stands for.
 
         A class of one of the seven kinds gives that kind, and any other class gives the kind its tag names, such as
         `UpdateLaw` for a rule an update law runs as Python code. A class with no such tag gives itself.
@@ -2165,7 +2165,7 @@ class PassCompiler(BaseCompiler):
 
     @staticmethod
     def _get_cascaded_paths(nodes: list[_NodeSpec], errors: Sequence[tuple[str, SkcomplexError]]) -> set[str]:
-        """Return the interactions whose role error comes from an element that failed to declare.
+        """Return the interactions whose role error comes from a failed element.
 
         A tensor value without a space fails its element, and the interaction that binds that element then fails to
         find it, which is no issue of its own.

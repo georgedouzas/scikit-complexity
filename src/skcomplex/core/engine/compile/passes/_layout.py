@@ -733,7 +733,7 @@ class LayoutPass(BasePass):
 
     @staticmethod
     def _check_position_shape(name: str, declaration: VariableSpec, space: BaseSpace | None) -> None:
-        """Raise an error for a position whose components are not one per axis of its continuous space.
+        """Raise an error for a position without one component per axis of its space.
 
         A position `[1, 2, 3]` in a plane has the wrong shape, since the plane has 2 axes.
         """

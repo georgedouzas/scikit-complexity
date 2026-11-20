@@ -41,6 +41,17 @@ GRID_CANDIDATES = ('neighbors', 'cell', 'local')
 RATE_DOMAINS = (DomainKind.REAL, DomainKind.INTEGER, DomainKind.COMPLEX, DomainKind.VECTOR)
 
 
+class _RealFunction(SymbolicFunction):
+    """A real function of time, such as `x(t)` for a real state `x`."""
+
+    def __init__(self, name: str) -> None:
+        super().__init__(name, nargs=1)
+
+    def _conjugate_(self, *args: Expression) -> Expression:
+        """Return the function itself, as it is real."""
+        return self(*args)
+
+
 class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace]):
     """An abstract interaction, the component that changes the states of elements.
 
@@ -276,33 +287,15 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
 
     @staticmethod
     def _get_function_of(value: Expression) -> SymbolicFunction:
-        """Return the Sage function of time named after a symbol, real when the symbol is real or an integer."""
-        if not value.is_real():
-            return function(str(value))
-        return function(
-            str(value),
-            conjugate_func=BaseInteraction._get_itself,
-            real_part_func=BaseInteraction._get_itself,
-            imag_part_func=BaseInteraction._get_zero,
-        )
-
-    @staticmethod
-    def _get_itself(function: SymbolicFunction, *args: Expression, **kwargs: object) -> Expression:
-        """Return a real function of time as its own conjugate and real part."""
-        return function(*args)
-
-    @staticmethod
-    def _get_zero(function: SymbolicFunction, *args: Expression, **kwargs: object) -> Expression:
-        """Return zero, the imaginary part of a real function of time."""
-        return SR(0)
+        """Return the function of time named after a symbol, real for a real symbol."""
+        return _RealFunction(str(value)) if value.is_real() else function(str(value))
 
     @staticmethod
     def _get_functional(value: object, time: Expression, functions: dict[str, Expression]) -> object:
         """Return the symbols of states in a value of a role as functions of time.
 
         A complex state, written in its real and imaginary parts as `z_re + I * z_im`, has both parts as functions of
-        time, so `z.diff(t)` is its derivative. A function of a real or integer symbol is real, so its imaginary part
-        is zero and its conjugate is itself.
+        time, so `z.diff(t)` is its derivative. A function of a real symbol is real, so its conjugate is itself.
         """
         if isinstance(value, SimpleNamespace):
             return SimpleNamespace(
