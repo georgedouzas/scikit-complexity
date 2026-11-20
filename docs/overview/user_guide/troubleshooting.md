@@ -112,51 +112,25 @@ gives 30.0, 46.4, and 68.5 thousand hares.
 ## AlgebraicStateError
 
 An algebraic state has no derivative of its own. The equations of its system fix its value at every time, so a rate
-law on it has no meaning.
+law or an update on it has no meaning, and the compiler reports such a law with the code `algebraic-law` and this
+error. It suggests a `ConstraintLaw` for the value, which a system of plain elements writes as below.
 
 ```python
-from typing import Annotated
-
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.errors import AlgebraicStateError
-from skcomplex.core.specs import StateSpec
-
-
-class LevelElement(Element):
-    def __init__(self, label, *, x: Annotated[float, StateSpec(algebraic=True)] = 0.0):
-        super().__init__(label)
-        self.x = x
-
-    def _get_laws(self, namespace):
-        return [RateLaw(namespace.x, 1.0)]
-
-
-try:
-    simulate(CompositeSystem(elements=[LevelElement('level')]), until=1)
-except AlgebraicStateError as error:
-    message = str(error)
-message.splitlines()[-1]
-```
-
-The code is `algebraic-law`. The message says that the `RateLaw` of `level` targets the algebraic state `level.x`, and
-suggests an `ConstraintLaw` for its value or a state of order 1. The fix below states the value with an equation.
-
-```python continuation
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import ConstraintLaw
+from skcomplex.core.systems import System
 
-
-class FixedLevelElement(LevelElement):
-    def _get_laws(self, namespace):
-        return [ConstraintLaw(namespace.x, 2.0, target=namespace.x)]
-
-
-simulate(CompositeSystem(elements=[FixedLevelElement('level')]), until=1, dt=1.0).get_values('level.x').tolist()
+hold = Interaction(
+    'hold',
+    roles={'target': 'level'},
+    laws=lambda s: [ConstraintLaw(s.target.x, 2.0, target=s.target.x)],
+)
+level = System(elements=[Element('level', values={'x': 0.0})], interactions=[hold]).prepare()
+level.simulate(until=1, dt=1.0).get_values('level.x').tolist()
 ```
 
-The level holds 2.0.
+The level holds 2.0, the value its equation gives.
 
 ## ConservationError
 
@@ -739,45 +713,27 @@ the recorder holds the frames 30.0, 52.0, and 90.1.
 
 ## CapacityError
 
-A group without a `capacity` grows as a Python list does, so it never raises this error. A group given a `capacity`
-holds that many rows, and a request to add a member beyond it raises this error. Here a network of three nodes gains
-one node at every step.
+The engine raises this error inside a run when a group of members fills the rows it holds, and catches it at once: it
+doubles the rows, as a Python list grows, and goes on from the step where the group filled. A run never reports it.
+Here a network of three nodes gains one node at every step, with no room to give in advance. The interaction reads no
+element, so its law runs once per step for the whole system.
 
 ```python
 import networkx as nx
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import UpdateLaw
-from skcomplex.core.components.laws import TopologyRequestSpec
-from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.errors import CapacityError
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import TopologyRequestSpec, UpdateLaw
+from skcomplex.core.components.spaces import NetworkSpace
+from skcomplex.core.systems import System
 
-
-class GrowthElement(Element):
-    def _get_laws(self, namespace):
-        return [UpdateLaw(TopologyRequestSpec('add-node'), 1)]
-
-
-def grow(capacity):
-    nodes = GroupElement('nodes', element=Element, on='sites', variable=True, capacity=capacity)
-    links = GroupElement('links', element=Element, on='edges', variable=True, capacity=3 * capacity)
-    network = CompositeSystem(
-        elements=[nodes, links, GrowthElement('growth')], space=NetworkSpace(nx.complete_graph(3)), time=DiscreteTime()
-    )
-    return simulate(network, until=3, random_state=0)
-
-
-try:
-    grow(capacity=4)
-except CapacityError as error:
-    message = str(error)
-message, grow(capacity=6).get_network(-1).nodes.size
+nodes = Element('nodes', values={'k': 0.0}, space=NetworkSpace(nx.complete_graph(3)))
+growth = Interaction('growth', laws=[UpdateLaw(TopologyRequestSpec('add-node'), 1.0)])
+network = System(elements=[nodes], interactions=[growth]).prepare()
+network.simulate(until=3, random_state=0).get_network(-1).nodes.size
 ```
 
-The message says that the group `nodes` holds 4 members, its capacity, and asks for a larger `capacity`. With room for
-6 the network ends with 6 nodes after three steps.
+The network ends with 6 nodes after three steps.
 
 ## ExperimentError
 
