@@ -53,8 +53,8 @@ class EventLaw(BaseLaw):
         >>> from skcomplex.core.components.laws import EventLaw
         >>> y, z = var('y'), var('z')
         >>> law = EventLaw(y, {z: -0.8 * z}, direction=-1).prepare()
-        >>> law.run({'z': -2.0}).value_
-        {z: 1.6}
+        >>> law.targets_
+        (z,)
     """
 
     law_tag: ClassVar[str] = 'update'
@@ -95,8 +95,8 @@ class EventLaw(BaseLaw):
             error_msg = f'The direction of a crossing is -1, 0, or 1, but got {self.direction!r}.'
             raise ValidationError(error_msg)
 
-    def _run(self, inputs: object) -> None:
-        """Set `value_` to the new values of the states at given symbol values.
+    def _get_value(self, inputs: object) -> object:
+        """Return the new values of the states at given symbol values.
 
         The symbols are those the reset reads.
 
@@ -104,4 +104,4 @@ class EventLaw(BaseLaw):
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
         """
-        self.value_ = self._evaluate(dict(self.reset or {}), inputs)
+        return self._evaluate(dict(self.reset or {}), inputs)

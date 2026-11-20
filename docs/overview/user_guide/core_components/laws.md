@@ -928,8 +928,8 @@ and its [API entry][skcomplex.core.components.laws.UpdateLaw].
 ## BaseLaw
 
 `BaseLaw` is the abstract base of every law. A new kind of dynamics that needs a lowering of its own derives from it,
-and every other model chooses an existing law, such as `RateLaw` or `UpdateLaw`. The main public methods `prepare` and
-`run` set the states a law changes, the symbols it reads, and its value at given values of those symbols.
+and every other model chooses an existing law, such as `RateLaw` or `UpdateLaw`. Its public method `prepare` sets the
+states a law changes and the symbols it reads.
 
 ```python
 from sage.all__sagemath_symbolics import var
@@ -938,11 +938,10 @@ from skcomplex.core.components.laws import BaseLaw, RateLaw, UpdateLaw
 
 x, k = var('x k')
 law = RateLaw(x, -k * x).prepare('decay')
-issubclass(UpdateLaw, BaseLaw), law.targets_, sorted(map(str, law.reads_)), law.run({'x': 2.0, 'k': 0.5}).value_
+issubclass(UpdateLaw, BaseLaw), law.targets_, sorted(map(str, law.reads_))
 ```
 
-Every law derives from `BaseLaw`. The rate law above changes `x`, reads `k` and `x`, and has the value -1.0 at
-`x = 2` and `k = 0.5`.
+Every law derives from `BaseLaw`. The rate law above changes `x` and reads `k` and `x`.
 
 See its [fact sheet](../../../components/laws.md#baselaw)
 and its [API entry][skcomplex.core.components.laws.BaseLaw].

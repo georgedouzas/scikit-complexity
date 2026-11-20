@@ -34,10 +34,10 @@ def test_every_law_derives_from_the_law_base():
 
 
 def test_law_runs_alone_once_prepared():
-    """Test that a prepared rate law knows its targets, reads, and owner, and runs into its rate at given values."""
+    """Test that a prepared rate law knows its targets, reads, and owner, and gives its rate at given values."""
     n, r = var('n r')
     law = RateLaw(n, r * n).prepare('meadow/rabbits')
-    assert law.run({'n': 10, 'r': 0.5}).value_ == 5.0
+    assert law._get_value({'n': 10, 'r': 0.5}) == 5.0
     assert law.targets_ == (n,)
     assert law.reads_ == {n, r}
     assert law.owner_ == 'meadow/rabbits'
@@ -46,12 +46,6 @@ def test_law_runs_alone_once_prepared():
 def test_law_without_an_owner_has_none():
     """Test that a law prepared without the path of its owner has no owner."""
     assert RateLaw(var('x'), 1).prepare().owner_ is None
-
-
-def test_law_contributes_itself():
-    """Test that a law contributes itself as its one law, whatever the namespace."""
-    law = RateLaw(var('x'), 1)
-    assert law._get_laws(None) == [law]
 
 
 def test_targets_are_a_tuple_once_prepared():

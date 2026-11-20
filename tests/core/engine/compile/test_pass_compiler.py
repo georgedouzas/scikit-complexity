@@ -1737,7 +1737,7 @@ def test_observable_among_the_laws_is_rejected():
     system = System(elements=[Element('tank', values={'a': 1.0})], interactions=[mixed])
     (issue,) = PassCompiler().prepare(system).report_.errors
     assert issue.path == 'mixed'
-    assert 'of mixed must return a list of' in issue.message
+    assert 'of mixed must be a list of laws' in issue.message
     with pytest.raises(ValidationError, match='mixed'):
         PassCompiler().prepare(system).run()
 

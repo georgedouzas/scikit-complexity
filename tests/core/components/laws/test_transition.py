@@ -7,11 +7,11 @@ from skcomplex.core.components.laws._transition import _TransitionLaw
 from skcomplex.core.errors import ValidationError
 
 
-def test_transition_runs_into_its_square_matrix():
-    """Test that a transition law without a source runs into its matrix at given parameters."""
+def test_transition_gives_its_square_matrix():
+    """Test that a transition law without a source gives its matrix at given parameters."""
     x, q = var('x'), var('q')
     law = _TransitionLaw(x, [[q, 1 - q], [0.4, 0.6]]).prepare()
-    assert law.run({'q': 0.1}).value_ == [[0.1, 0.9], [0.4, 0.6]]
+    assert law._get_value({'q': 0.1}) == [[0.1, 0.9], [0.4, 0.6]]
 
 
 def test_transition_with_a_source_takes_a_rectangular_matrix():
@@ -19,7 +19,7 @@ def test_transition_with_a_source_takes_a_rectangular_matrix():
     observed, hidden = var('observed'), var('hidden')
     law = _TransitionLaw(observed, [[0.7, 0.2, 0.1], [0.1, 0.1, 0.8]], source=hidden).prepare()
     assert law.targets_ == (observed,)
-    assert law.run({}).value_ == [[0.7, 0.2, 0.1], [0.1, 0.1, 0.8]]
+    assert law._get_value({}) == [[0.7, 0.2, 0.1], [0.1, 0.1, 0.8]]
 
 
 def test_transition_with_a_source_rejects_a_function_matrix():

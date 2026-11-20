@@ -49,8 +49,8 @@ class BilinearLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.engine.problems._bilinear_law import BilinearLaw
         >>> f, g = var('f g')
-        >>> BilinearLaw(f, f, g, -0.5).prepare().run({}).value_
-        (-0.5, None)
+        >>> BilinearLaw(f, f, g, -0.5).prepare().rate
+        -0.5
     """
 
     law_tag: ClassVar[str] = 'rate'
@@ -83,15 +83,15 @@ class BilinearLaw(BaseLaw):
         """Return what the law requires: continuous time on lattices of classes."""
         return RequirementSpec(time=(_ContinuousTime,), space=(LatticeSpace,))
 
-    def _run(self, inputs: object) -> None:
-        """Set `value_` to the rate and the outcome table at given symbol values.
+    def _get_value(self, inputs: object) -> object:
+        """Return the rate and the outcome table at given symbol values.
 
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
         """
         outcomes = None if self.outcomes is None else np.asarray(self.outcomes, dtype=object).tolist()
-        self.value_ = self._evaluate((np.asarray(self.rate, dtype=object).tolist(), outcomes), inputs)
+        return self._evaluate((np.asarray(self.rate, dtype=object).tolist(), outcomes), inputs)
 
     @staticmethod
     def _get_lowered(law: BaseLaw) -> BaseLaw:

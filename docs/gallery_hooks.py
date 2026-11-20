@@ -29,6 +29,7 @@ from mkdocs.structure.pages import Page
 from mkdocs_gallery import glr_path_static
 
 from skcomplex.core.base import BaseConfig
+from skcomplex.core.components.base import BaseComponent
 
 LOGGER = logging.getLogger('mkdocs.plugins.skcomplex_gallery')
 GALLERY_PAGES = 'generated/gallery/'
@@ -83,7 +84,7 @@ def _show_expression(value: object) -> None:
         value:
             The value of the expression.
     """
-    if value is None or isinstance(value, BaseConfig):
+    if value is None or isinstance(value, BaseConfig | BaseComponent):
         return
     with np.printoptions(legacy='1.25'):
         text = value if isinstance(value, str) else pprint.pformat(value, width=118, compact=True, sort_dicts=False)

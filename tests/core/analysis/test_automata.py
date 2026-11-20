@@ -111,7 +111,7 @@ def _law(system):
 def _step(system, configuration):
     """Return the image of a configuration under one run of the law of a system."""
     inputs = {'space': system.elements[0].space, 'alive': np.asarray(configuration)}
-    return _law(system).run(inputs).value_
+    return _law(system)._get_value(inputs)
 
 
 def _elementary(number, size):

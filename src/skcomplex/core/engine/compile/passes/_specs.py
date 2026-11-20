@@ -606,7 +606,7 @@ class SpecsPass(BasePass):
                 Several groups with values sit on the same links.
         """
         component = node.component
-        if not (isinstance(component, BaseInteraction) and component._is_preparing_laws()) or len(nodes) != 1:
+        if not isinstance(component, BaseInteraction) or len(nodes) != 1:
             return None
         layer = component._get_layer()
         for part in parts:

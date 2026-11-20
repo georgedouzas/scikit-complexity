@@ -9,7 +9,6 @@ import copy
 import functools
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
-from types import SimpleNamespace
 
 from ...base import BaseConfig
 from ...components import Tags
@@ -45,9 +44,6 @@ class _CompositeSystem(BaseSystem['_CompositeSystem']):
     Attributes:
         system_:
             The system itself, prepared.
-
-        laws_:
-            The laws the system contributes for the namespace of its last run.
     """
 
     def __init__(
@@ -164,23 +160,6 @@ class _CompositeSystem(BaseSystem['_CompositeSystem']):
         composite.system_ = composite
         composite._prepared = True
         return composite
-
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
-        """Return the laws of every component, each for the namespace of its label.
-
-        Args:
-            namespace:
-                The namespace of the system, which holds the namespace of every component under its label.
-
-        Returns:
-            laws:
-                The laws of the space, the elements, the interactions, and the nested systems, in that order.
-        """
-        return [
-            law
-            for component in self._get_components()
-            for law in component._get_laws(getattr(namespace, component.label, SimpleNamespace()))
-        ]
 
     @staticmethod
     def _get_bound_labels(value: object) -> list[str]:

@@ -15,11 +15,11 @@ N, K = var('n k')
 
 
 def test_jump_targets_its_changes_or_its_reset():
-    """Test that a jump at a rate targets and runs into its changes, and one after a waiting time its reset."""
+    """Test that a jump at a rate targets and gives its changes, and one after a waiting time its reset."""
     law = JumpLaw(2 * N, {N: -1}).prepare()
-    assert (law.targets_, law.run({'n': 3.0}).value_) == ((N,), {N: -1})
+    assert (law.targets_, law._get_value({'n': 3.0})) == ((N,), {N: -1})
     waiting = JumpLaw(waiting=draw('wait', 'expon'), reset={N: K}, label='fires').prepare()
-    assert (waiting.targets_, waiting.run({'k': 4.0}).value_) == ((N,), {N: 4.0})
+    assert (waiting.targets_, waiting._get_value({'k': 4.0})) == ((N,), {N: 4.0})
 
 
 def test_jump_at_a_rate_takes_the_label_of_its_channel():

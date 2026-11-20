@@ -630,8 +630,6 @@ def _get_local_rule(interaction: BaseInteraction, system: _CompositeSystem) -> _
     `UpdateLaw(s.target.alive, rule, neighborhood=...)`, is prepared on the states of the elements its roles bind, and
     its first local rule is returned.
     """
-    if not interaction._is_preparing_laws():
-        return None
     roles = {}
     for role in interaction.get_requirements().roles:
         path = interaction._get_binding(role)
@@ -788,7 +786,7 @@ def _step(automaton: _AutomatonSpec, configuration: npt.ArrayLike, space: BaseSp
     It also takes one configuration per row.
     """
     inputs = {'space': automaton.space if space is None else space, automaton.state: np.asarray(configuration)}
-    return np.asarray(automaton.law.run(inputs).value_, dtype=np.int64)
+    return np.asarray(automaton.law._get_value(inputs), dtype=np.int64)
 
 
 def _get_steps(automaton: _AutomatonSpec, configuration: npt.ArrayLike, steps: int) -> IntArray:

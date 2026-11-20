@@ -54,7 +54,7 @@ class SpringCouplingInteraction(HamiltonianInteraction):
         return 0.5 * (s.first.q - s.second.q) ** 2
 
 
-def test_run_returns_the_rate_laws_of_an_oscillator():
+def test_prepare_sets_the_rate_laws_of_an_oscillator():
     """Test that the Hamiltonian of an oscillator gives the rates `p / m` and `-k q`."""
     q, p, m, k, t = var('q p m k t')
     interaction = HamiltonianInteraction(
@@ -62,7 +62,7 @@ def test_run_returns_the_rate_laws_of_an_oscillator():
         target='mass',
         hamiltonian=lambda s: s.target.p**2 / (2 * m) + k * s.target.q**2 / 2,
     )
-    laws = interaction.prepare().run(SimpleNamespace(target=SimpleNamespace(q=q, p=p), t=t)).laws_
+    laws = interaction.prepare(SimpleNamespace(target=SimpleNamespace(q=q, p=p), t=t)).laws_
     assert [type(law) for law in laws] == [RateLaw, RateLaw]
     assert laws[0].target is q
     assert bool(laws[0].value == p / m)
@@ -70,7 +70,7 @@ def test_run_returns_the_rate_laws_of_an_oscillator():
     assert bool(laws[1].value == -k * q)
 
 
-def test_run_differentiates_every_component_of_a_vector_state():
+def test_prepare_differentiates_every_component_of_a_vector_state():
     """Test that a vector coordinate and momentum give the rates of every component."""
     q1, q2, p1, p2, t = var('q1 q2 p1 p2 t')
     interaction = HamiltonianInteraction(
@@ -79,7 +79,7 @@ def test_run_differentiates_every_component_of_a_vector_state():
         hamiltonian=lambda s: s.target.p.dot_product(s.target.p) / 2 + s.target.q[0] * s.target.q[1],
     )
     namespace = SimpleNamespace(target=SimpleNamespace(q=vector([q1, q2]), p=vector([p1, p2])), t=t)
-    laws = interaction.prepare().run(namespace).laws_
+    laws = interaction.prepare(namespace).laws_
     assert list(laws[0].value) == [p1, p2]
     assert list(laws[1].value) == [-q2, -q1]
 
@@ -127,13 +127,13 @@ def test_check_rejects_a_hamiltonian_that_is_not_callable():
         HamiltonianInteraction('energy', target='mass', hamiltonian='kinetic').prepare()
 
 
-def test_run_rejects_a_momentum_of_another_size():
+def test_prepare_rejects_a_momentum_of_another_size():
     """Test that a coordinate and a momentum of different sizes are rejected."""
     q, p1, p2, t = var('q p1 p2 t')
     interaction = HamiltonianInteraction('energy', target='mass', hamiltonian=lambda s: q)
     namespace = SimpleNamespace(target=SimpleNamespace(q=q, p=vector([p1, p2])), t=t)
     with pytest.raises(ValidationError, match='differ in size'):
-        interaction.prepare().run(namespace)
+        interaction.prepare(namespace)
 
 
 def test_prepare_reports_a_coordinate_of_order_2():

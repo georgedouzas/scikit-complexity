@@ -159,8 +159,8 @@ class JumpLaw(BaseLaw):
         self._check_array('waiting')
         self._check_changes()
 
-    def _run(self, inputs: object) -> None:
-        """Set `value_` to the increments or the reset of the jump at given symbol values.
+    def _get_value(self, inputs: object) -> object:
+        """Return the increments or the reset of the jump at given symbol values.
 
         The symbols are those it reads.
 
@@ -169,4 +169,4 @@ class JumpLaw(BaseLaw):
                 A mapping from the name of every symbol the law reads to its value.
         """
         changes = dict(self.changes or {}) if self.waiting is None else dict(self.reset or {})
-        self.value_ = self._evaluate(changes, inputs)
+        return self._evaluate(changes, inputs)

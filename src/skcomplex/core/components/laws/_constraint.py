@@ -111,8 +111,8 @@ class ConstraintLaw(BaseLaw):
             raise ValidationError(error_msg)
         self.lhs_, self.rhs_ = self._get_sides()
 
-    def _run(self, inputs: object) -> None:
-        """Set `value_` to the residual `lhs - rhs` at given symbol values.
+    def _get_value(self, inputs: object) -> object:
+        """Return the residual `lhs - rhs` at given symbol values.
 
         The symbols are those it reads.
 
@@ -121,4 +121,4 @@ class ConstraintLaw(BaseLaw):
                 A mapping from the name of every symbol the law reads to its value.
         """
         lhs, rhs = self._get_sides()
-        self.value_ = self._evaluate(lhs - rhs, inputs)
+        return self._evaluate(lhs - rhs, inputs)

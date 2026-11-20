@@ -10,8 +10,8 @@ from skcomplex.core.errors import ValidationError
 def test_rule_runs_its_function_on_the_agent_and_the_system():
     """Test that a rule of an element receives the agent and the system, and a rule of an interaction the system."""
     moved, world = [], object()
-    _RuleLaw(lambda agent, system: moved.append((agent, system))).prepare().run(('walker', world))
-    _RuleLaw(moved.append).prepare().run(world)
+    _RuleLaw(lambda agent, system: moved.append((agent, system))).prepare()._get_value(('walker', world))
+    _RuleLaw(moved.append).prepare()._get_value(world)
     assert moved == [('walker', world), world]
 
 

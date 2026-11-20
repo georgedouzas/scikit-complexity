@@ -1,6 +1,7 @@
 """Test the `base` module of `skcomplex`."""
 
 import dataclasses
+import inspect
 from dataclasses import dataclass
 
 import pytest
@@ -80,6 +81,19 @@ def test_no_public_check_remains():
     assert not hasattr(BaseSpec, 'prepare')
     assert not hasattr(BaseSpec, 'run')
     assert not hasattr(errors, 'NotCheckedError')
+
+
+def test_bases_list_their_methods():
+    """Test that an engine class prepares and runs, a component only prepares, and a spec has no public method."""
+
+    def get_public_methods(klass):
+        return {name for name, value in inspect.getmembers(klass) if not name.startswith('_') and callable(value)}
+
+    params = {'get_params', 'set_params', 'get_metadata_routing'}
+    assert get_public_methods(BaseConfig) == params | {'prepare', 'run'}
+    assert get_public_methods(BaseComponent) == params | {'get_tags', 'prepare'}
+    assert get_public_methods(BaseSpec) == set()
+    assert not issubclass(BaseComponent, BaseConfig)
 
 
 def test_bad_component_fails_before_it_is_prepared():

@@ -378,17 +378,9 @@ def test_get_requirements_reads_the_names_of_a_tuple_of_states():
     assert reaction.get_requirements().roles['target'].states == ()
 
 
-def test_get_requirements_leaves_unknown_the_laws_a_subclass_writes():
-    """Test that a subclass that writes its own laws lists none, since only running it shows them."""
-
-    class OwnLawsInteraction(ReactionInteraction):
-        """Interaction that returns its own laws."""
-
-        def _get_laws(self, namespace):
-            """Return no law."""
-            return []
-
-    needs = OwnLawsInteraction('own', target='a', reactants={'x': 1}).get_requirements()
+def test_get_requirements_leaves_unknown_the_laws_a_subclass_sets():
+    """Test that a subclass that sets its laws in `_prepare` without listing them lists none."""
+    needs = PullInteraction('pull').get_requirements()
     assert needs.laws == ()
     assert needs.time == ()
 
@@ -442,16 +434,9 @@ def test_interaction_tags_give_the_times_and_structure_of_the_chosen_laws():
     assert TopplingInteraction('cascade', target='a', state='h', threshold=4).get_tags().time == {'discrete'}
 
 
-def test_interaction_that_writes_unlisted_laws_has_unknown_law_kinds():
-    """Test that a subclass that writes its laws without listing them leaves its law kinds and randomness unknown."""
-
-    class CustomReactionInteraction(ReactionInteraction):
-        """Reaction with laws of its own."""
-
-        def _get_laws(self, namespace):
-            return []
-
-    tags = CustomReactionInteraction('decay', target='a', reactants={'x': 1}).get_tags()
+def test_interaction_that_sets_unlisted_laws_has_unknown_law_kinds():
+    """Test that a subclass that sets its laws without listing them leaves its law kinds and randomness unknown."""
+    tags = PullInteraction('pull').get_tags()
     assert (tags.laws, tags.randomness) == (None, None)
     assert Interaction('free').get_tags().laws is None
 
@@ -525,7 +510,7 @@ def _shift(agent, system):
 def test_update_of_a_group_with_a_function_is_an_agent_rule():
     """Test that an update law whose target is a bound group runs its function for every member of the role."""
     walkers = SimpleNamespace(x=var('x'))
-    laws = RuleInteraction('shift', target='walkers', rule=_shift).prepare().run(SimpleNamespace(target=walkers)).laws_
+    laws = RuleInteraction('shift', target='walkers', rule=_shift)._get_laws_of(SimpleNamespace(target=walkers))
     assert [(law.function, law.members, law.phase) for law in laws] == [(_shift, 'target', 'move')]
 
 
@@ -534,7 +519,7 @@ def test_rule_that_is_no_function_of_an_agent_and_the_system_raises(rule):
     """Test that the value of an update law of a group must be a function of one agent and the system."""
     interaction = RuleInteraction('shift', target='walkers', rule=rule)
     with pytest.raises(ValidationError, match='A rule is a function of one agent and the system'):
-        interaction.prepare().run(SimpleNamespace(target=SimpleNamespace(x=var('x'))))
+        interaction._get_laws_of(SimpleNamespace(target=SimpleNamespace(x=var('x'))))
 
 
 class ParityInteraction(Interaction):
@@ -557,7 +542,7 @@ class ParityInteraction(Interaction):
 def test_update_with_a_neighborhood_is_a_local_rule():
     """Test that an update law with a neighbourhood runs as a local rule of the states of the cells."""
     alive = var('alive')
-    laws = ParityInteraction('parity').prepare().run(SimpleNamespace(target=SimpleNamespace(alive=alive))).laws_
+    laws = ParityInteraction('parity')._get_laws_of(SimpleNamespace(target=SimpleNamespace(alive=alive)))
     assert [(law.targets, law.label) for law in laws] == [(alive, '')]
     assert isinstance(laws[0].rule, TotalisticSpec)
 
@@ -566,14 +551,14 @@ def test_local_rule_with_a_setting_of_one_member_raises():
     """Test that a local rule rejects a phase, which only an update of one member takes."""
     interaction = ParityInteraction('parity', phase='move')
     with pytest.raises(ValidationError, match='neighbourhood and phase'):
-        interaction.prepare().run(SimpleNamespace(target=SimpleNamespace(alive=var('alive'))))
+        interaction._get_laws_of(SimpleNamespace(target=SimpleNamespace(alive=var('alive'))))
 
 
 def test_rule_on_a_namespace_no_role_binds_raises():
     """Test that an update law targets the group of a role, not a namespace of its own."""
     interaction = RuleInteraction('shift', target='walkers', rule=_shift, bound=False)
     with pytest.raises(ValidationError, match='which no role binds'):
-        interaction.prepare().run(SimpleNamespace(target=SimpleNamespace(x=var('x'))))
+        interaction._get_laws_of(SimpleNamespace(target=SimpleNamespace(x=var('x'))))
 
 
 class DecayInteraction(Interaction):

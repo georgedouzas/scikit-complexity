@@ -182,11 +182,11 @@ class _TransferLaw(BaseLaw):
             )
             raise ValidationError(error_msg)
 
-    def _run(self, inputs: object) -> None:
-        """Set `value_` to the amount at given values of the symbols it reads.
+    def _get_value(self, inputs: object) -> object:
+        """Return the amount at given values of the symbols it reads.
 
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
         """
-        self.value_ = self._evaluate(self.amount, inputs)
+        return self._evaluate(self.amount, inputs)

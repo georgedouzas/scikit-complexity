@@ -1,6 +1,5 @@
 """Test the `_base` module of `skcomplex.core.components.spaces`."""
 
-from types import SimpleNamespace
 
 import networkx as nx
 import numpy as np
@@ -89,9 +88,9 @@ def test_space_counts_its_sites_only():
 
 
 def test_space_contributes_no_laws_and_lacks_nothing():
-    """Test that a space contributes no laws when run and lacks no option of lattices by default."""
+    """Test that a prepared space contributes no laws and lacks no option of lattices by default."""
     space = RingSpace().prepare()
-    assert not hasattr(space.run(SimpleNamespace()), 'laws_')
+    assert not hasattr(space, 'laws_')
     assert space._get_lacks() == frozenset()
 
 
@@ -117,15 +116,15 @@ def test_space_without_sites_has_no_parts():
 
 
 def test_neighbourhood_contributes_no_laws():
-    """Test that a neighbourhood checks, prepares, and runs, contributing no laws."""
-    assert not hasattr(SidesNeighborhood().prepare().run(SimpleNamespace()), 'laws_')
+    """Test that a neighbourhood checks and prepares, contributing no laws."""
+    assert not hasattr(SidesNeighborhood().prepare(), 'laws_')
 
 
-def test_base_time_runs_into_no_laws_and_frames_its_ends():
+def test_base_time_has_no_laws_and_frames_its_ends():
     """Test that the base time contributes no laws and frames the start and the end of a run."""
     time = TickTime().prepare()
     assert time.schedule_ is None
-    assert not hasattr(time.run(SimpleNamespace()), 'laws_')
+    assert not hasattr(time, 'laws_')
     assert time._get_frames(2.0).tolist() == [0.0, 2.0]
 
 

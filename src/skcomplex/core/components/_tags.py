@@ -22,7 +22,7 @@ class Tags(BaseSpec):
     They say what a component is, what a system derives from its components, or what a solver or a backend supports. The
     tags of a component come from its declarations and its arguments alone, so they are known before `prepare`. A set
     that is empty means any value for `time`, `space`, `domains`, and `laws`, and a fixed structure for `structure`. Law
-    kinds are `None` when the declarations do not show them, such as for a component that writes its laws in `_get_laws`
+    kinds are `None` when the declarations do not show them, such as for an interaction that sets its laws in `_prepare`
     without listing their classes, and the randomness is then `None` too, unless an argument shows it.
 
     Args:

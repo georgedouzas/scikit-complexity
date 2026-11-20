@@ -7,16 +7,15 @@ from __future__ import annotations
 
 import functools
 import inspect
-from abc import abstractmethod
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
-from types import NoneType, SimpleNamespace, UnionType
+from types import NoneType, UnionType
 from typing import Annotated, ClassVar, TypeAliasType, Union, get_args, get_origin
 
 import numpy as np
 from sklearn.base import BaseEstimator
 
-from ..base import BaseConfig
+from ..base import _BaseEstimator
 from ..errors import ValidationError
 from ..types import Role
 from ._declared_variable_spec import _DeclaredVariableSpec
@@ -30,32 +29,29 @@ MATRIX_AXES = 2
 ROLE_CONTAINERS = (tuple, list, Sequence, Mapping, dict)
 
 
-class BaseComponent[ContextT, InputT](BaseConfig[ContextT, InputT]):
-    """An abstract component of a system, with a label, laws, and capability tags.
+class BaseComponent[ContextT](_BaseEstimator[ContextT]):
+    """An abstract component of a system, with a label, parameters, and tags.
 
-    The components of a system are its elements, interactions, laws, spaces, times, and the system itself. Every
-    component has a label, returns its laws from `_get_laws`, and implements two hooks that the main public methods
-    `prepare` and `run` call:
-
-    - `_prepare(context)` checks the arguments, prepares the component against its context, and sets its attributes that
-      end in `_`. It starts with `super()._prepare(context)`, so this base checks the label and the declared specs
-      first.
-    - `_run(inputs)` sets what the component contributes: `laws_`, the laws of an element, an interaction, or a system,
-      or `value_`, the value of a law.
+    The components of a system are its elements, interactions, laws, spaces, and the system itself. Every component has
+    a label and stores its parameters under their own names, so `get_params`, `set_params`, and `clone` work on it. Its
+    one public method `prepare(context)` calls the hook `_prepare(context)`, which checks the arguments, prepares the
+    component against its context, and sets its attributes that end in `_`. The hook starts with
+    `super()._prepare(context)`, so this base checks the label and the declared specs first.
 
     The context of `prepare` depends on the family: a law is prepared against the path of its owner, an element against
-    the space of its system. A component declares which arguments of its constructor are states, parameters, or roles by
+    the space of its system, and an interaction against the namespace of the elements its roles bind, from which it
+    sets `laws_`. A component declares which arguments of its constructor are states, parameters, or roles by
     annotating them with `StateSpec`, `ParameterSpec`, or `RoleSpec` inside `Annotated`.
 
     A component returns its capability tags from `get_tags`, which reads only its declarations and arguments, so the
-    tags are known before `prepare`. Each family derives them in `_get_tags`. A component whose run draws random numbers
-    that its laws do not show, such as an agent rule that reads `system.rng`, sets the class attribute `draws`, or
-    returns it from `_draws` when its arguments decide it. A component whose draws are all uniform, normal, or relaxed
-    Bernoulli or categorical draws sets `reparameterized`, so its runs on JAX are differentiable.
+    tags are known before `prepare`. Each family derives them in `_get_tags`. A component whose rules draw random
+    numbers that its laws do not show, such as an agent rule that reads `system.rng`, sets the class attribute `draws`,
+    or returns it from `_get_draws` when its arguments decide it. A component whose draws are all uniform, normal, or
+    relaxed Bernoulli or categorical draws sets `reparameterized`, so its runs on JAX are differentiable.
 
-    Unlike `BaseConfig`, which only stores and checks arguments, it adds laws, a context for `prepare`, and tags. Choose
-    it when a new family of components is needed, and choose the base of an existing family, such as `BaseElement`,
-    otherwise.
+    Unlike `BaseConfig`, the base of the engine classes, it has no `run`: a system prepares its components and the
+    engine runs what they declare. Choose it when a new family of components is needed, and choose the base of an
+    existing family, such as `BaseElement`, otherwise.
 
     It appears in every field through its families, such as the populations, infections, and contact networks of an
     epidemic, or the accounts, payments, and markets of an economy.
@@ -69,14 +65,8 @@ class BaseComponent[ContextT, InputT](BaseConfig[ContextT, InputT]):
         ...
         ...     def _prepare(self, context=None):
         ...         super()._prepare(context)
-        ...         self.factor_ = float(self.factor)
-        ...
-        ...     def _get_laws(self, namespace):
-        ...         return []
-        ...
-        ...     def _run(self, value):
-        ...         self.doubled_ = self.factor_ * value
-        >>> DoublingComponent('doubling').prepare().run(3).doubled_
+        ...         self.doubled_ = 2.0 * self.factor
+        >>> DoublingComponent('doubling', factor=3).prepare().doubled_
         6.0
     """
 
@@ -222,21 +212,17 @@ class BaseComponent[ContextT, InputT](BaseConfig[ContextT, InputT]):
     def _get_declared_laws(cls) -> tuple[type, ...] | None:
         """Return the law classes the class lists in `law_classes`.
 
-        The result is `None` when the class writes laws it does not list. The nearest class of the method resolution
-        order that lists `law_classes` or writes `_get_laws` decides: a list gives the classes, and a method without a
-        list leaves them unknown.
+        The nearest class of the method resolution order that lists `law_classes` decides, and the result is `None`
+        when no class lists them.
 
         Returns:
             classes:
                 The law classes, or `None` when the declarations do not show them.
         """
         for klass in cls.__mro__:
-            declared = vars(klass)
-            if 'law_classes' in declared:
-                classes: tuple[type, ...] = declared['law_classes']
+            if 'law_classes' in vars(klass):
+                classes: tuple[type, ...] = vars(klass)['law_classes']
                 return classes
-            if '_get_laws' in declared:
-                return None
         return None
 
     @staticmethod
@@ -371,35 +357,3 @@ class BaseComponent[ContextT, InputT](BaseConfig[ContextT, InputT]):
     def _prepare_on(self, space: ContextT | None) -> None:
         """Prepare the component on the space of its system, checking its arguments."""
         self.prepare(space)
-
-    def _get_prepared_laws(self, namespace: InputT) -> Sequence[BaseComponent]:
-        """Return the laws of the component for a namespace, preparing it first if needed."""
-        prepared = self if getattr(self, '_prepared', False) else self.prepare()
-        return prepared.run(namespace).laws_
-
-    @abstractmethod
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
-        """Return the laws the component contributes for a namespace of symbols.
-
-        A law contributes itself.
-        """
-
-    def _get_laws_of(self, inputs: object) -> Sequence[BaseComponent]:
-        """Return the laws of the component for a namespace of symbols.
-
-        Args:
-            inputs:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-
-        Raises:
-            ValidationError:
-                The input is not a namespace.
-        """
-        if not isinstance(inputs, SimpleNamespace):
-            error_msg = f'{type(self).__name__} returns its laws for a namespace of symbols, but got {inputs!r}.'
-            raise ValidationError(error_msg)
-        return self._get_laws(inputs)

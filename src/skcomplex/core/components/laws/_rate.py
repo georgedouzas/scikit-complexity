@@ -54,8 +54,8 @@ class RateLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws import RateLaw
         >>> n = var('n')
-        >>> RateLaw(n, 2 * n).prepare().run({'n': 3.0}).value_
-        6.0
+        >>> RateLaw(n, 2 * n).prepare().targets_
+        (n,)
         >>> alive, dead = var('alive dead')
         >>> RateLaw({alive: -1, dead: +1}, 0.1 * alive, label='deaths').prepare().targets_
         (alive, dead)
@@ -97,11 +97,11 @@ class RateLaw(BaseLaw):
         super()._prepare(context)
         self._check_array('value')
 
-    def _run(self, inputs: object) -> None:
-        """Set `value_` to the rate at given values of the symbols it reads.
+    def _get_value(self, inputs: object) -> object:
+        """Return the rate at given values of the symbols it reads.
 
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
         """
-        self.value_ = self._evaluate(self.value, inputs)
+        return self._evaluate(self.value, inputs)

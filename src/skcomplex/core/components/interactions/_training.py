@@ -15,7 +15,6 @@ from ...errors import ValidationError
 from .._observable_spec import Observable
 from .._parameter_spec import _ParameterSpec
 from .._role_spec import RoleSpec
-from ..base import BaseComponent
 from ..laws import BaseLaw, DatasetSpec
 from ..spaces import BaseSpace
 from ._interaction import Interaction
@@ -195,8 +194,3 @@ class TrainingInteraction(Interaction):
         self._check_counts()
         self._check_observables()
         self.data._check()
-
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
-        """Return no laws, since the solver reads the settings of the training."""
-        del namespace
-        return []

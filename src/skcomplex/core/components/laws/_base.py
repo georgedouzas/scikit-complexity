@@ -10,7 +10,6 @@ import numbers
 from abc import abstractmethod
 from collections.abc import Collection, Mapping
 from dataclasses import replace
-from types import SimpleNamespace
 from typing import ClassVar
 
 import numpy as np
@@ -25,14 +24,14 @@ from ._call_spec import CallSpec
 from ._requirement_spec import RequirementSpec
 
 
-class BaseLaw(BaseComponent[str, object]):
+class BaseLaw(BaseComponent[str]):
     """An abstract law, one equation or rule by which states change.
 
-    An element, an interaction, or a system returns laws from its `_get_laws`, and the compiler lowers them to a problem
-    that a solver runs. A law takes the states it changes and the expressions it reads as arguments of its `__init__`,
-    which stores each under the same name, as a scikit-learn estimator does. A subclass returns the states it changes
-    from `_get_targets`, what it needs of a system, such as continuous or discrete time, from `_get_requirements`, and
-    its value for given values of the symbols it reads from `_run`, which sets it as `value_`.
+    An interaction sets laws in `laws_` when it is prepared, and the compiler lowers them to a problem that a solver
+    runs. A law takes the states it changes and the expressions it reads as arguments of its `__init__`, which stores
+    each under the same name, as a scikit-learn estimator does. A subclass returns the states it changes from
+    `_get_targets`, what it needs of a system, such as continuous or discrete time, from `_get_requirements`, and its
+    value for given values of the symbols it reads from `_get_value`.
 
     Unlike `BaseComponent`, it belongs to another component and is not added to a system on its own. Choose it when a
     new kind of dynamics needs a lowering of its own, and choose an existing law, such as `RateLaw` or `UpdateLaw`,
@@ -55,9 +54,6 @@ class BaseLaw(BaseComponent[str, object]):
         owner_:
             The path of the element or interaction that returns the law, or `None`.
 
-        value_:
-            The value of the law at the values of the symbols of its last run.
-
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws import RateLaw
@@ -65,13 +61,9 @@ class BaseLaw(BaseComponent[str, object]):
         >>> law = RateLaw(x, -k * x).prepare('decay')
         >>> law.targets_, sorted(map(str, law.reads_)), law.owner_
         ((x,), ['k', 'x'], 'decay')
-        >>> law.run({'x': 2.0, 'k': 0.5}).value_
-        -1.0
     """
 
     law_tag: ClassVar[str] = ''
-
-    value_: object
 
     @abstractmethod
     def _get_targets(self) -> tuple[object, ...]:
@@ -116,8 +108,8 @@ class BaseLaw(BaseComponent[str, object]):
         """
         return cls._get_requirements()
 
-    def _run(self, inputs: object) -> None:
-        """Set `value_` to the values of the arguments of the law at given symbol values.
+    def _get_value(self, inputs: object) -> object:
+        """Return the values of the arguments of the law at given symbol values.
 
         The values are those of the symbols the law reads. A law with a value of its own, such as the rate of a
         `RateLaw`, overrides this hook.
@@ -126,11 +118,7 @@ class BaseLaw(BaseComponent[str, object]):
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
         """
-        self.value_ = self._evaluate(self._get_values(), inputs)
-
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the law itself, the one law it contributes, whatever the namespace."""
-        return [self]
+        return self._evaluate(self._get_values(), inputs)
 
     def _get_values(self, include: Collection[str] | None = None, exclude: Collection[str] = ()) -> list[object]:
         """Return the values of the arguments of the law besides its label.

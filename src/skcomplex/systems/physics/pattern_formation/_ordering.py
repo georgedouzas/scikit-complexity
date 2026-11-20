@@ -86,9 +86,9 @@ class LandauEnergyInteraction(GradientInteraction):
         >>> from types import SimpleNamespace
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.systems.physics.pattern_formation._ordering import LandauEnergyInteraction
-        >>> energy = LandauEnergyInteraction('energy', target='mixture').prepare()
+        >>> energy = LandauEnergyInteraction('energy', target='mixture')
         >>> namespace = SimpleNamespace(target=SimpleNamespace(phi=var('phi')), kappa=var('kappa'))
-        >>> [law.value for law in energy.run(namespace).laws_]
+        >>> [law.value for law in energy.prepare(namespace).laws_]
         [-phi^3 + kappa*laplacian(phi) + phi]
     """
 

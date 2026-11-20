@@ -157,7 +157,7 @@ class RewritingCompiler(BaseCompiler):
         """Return the checked productions or substitutions an interaction sets."""
         roles = {name: namespaces[target] for name, target in bound.items()}
         namespace = SimpleNamespace(**roles, **vars(namespaces[path]))
-        laws = list(interaction._get_prepared_laws(namespace))
+        laws = list(interaction._get_laws_of(namespace))
         wrong = [law for law in laws if not isinstance(law, PRODUCTION_LAWS)]
         if wrong:
             error_msg = (
@@ -209,8 +209,6 @@ class RewritingCompiler(BaseCompiler):
     @staticmethod
     def _get_arguments_of(interaction: BaseInteraction) -> dict[str, tuple[object, object]]:
         """Return the allowed values and value of each numeric argument, by name."""
-        if not interaction._is_preparing_laws():
-            return {}
         allowed = interaction._get_allowed()
         roles = interaction._get_specs()
         params = interaction.get_params(deep=False)

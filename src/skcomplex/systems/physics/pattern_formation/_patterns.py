@@ -158,9 +158,9 @@ class SwiftHohenbergEnergyInteraction(GradientInteraction):
         >>> from types import SimpleNamespace
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.systems.physics.pattern_formation._patterns import SwiftHohenbergEnergyInteraction
-        >>> energy = SwiftHohenbergEnergyInteraction('energy', target='cells').prepare()
+        >>> energy = SwiftHohenbergEnergyInteraction('energy', target='cells')
         >>> namespace = SimpleNamespace(target=SimpleNamespace(u=var('u')), r=var('r'), g=0)
-        >>> [law.value for law in energy.run(namespace).laws_]
+        >>> [law.value for law in energy.prepare(namespace).laws_]
         [-u^3 + r*u - u - 2*laplacian(u) - laplacian(laplacian(u))]
     """
 

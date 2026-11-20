@@ -71,7 +71,7 @@ def test_local_rule_rejects_an_unknown_schedule():
 def _run(rule, neighborhood, space, configuration):
     """Return one step of a local rule on a space."""
     law = _LocalRuleLaw(var('alive'), neighborhood, rule).prepare()
-    return law.run({'space': space, 'alive': configuration}).value_
+    return law._get_value({'space': space, 'alive': configuration})
 
 
 def _local_map(rule, neighborhood, space, site, states=2):
@@ -230,20 +230,20 @@ def test_run_function_rule_reads_keywords_and_sets_several_targets():
     height, grains = var('height grains')
     own = LatticeNeighborhood(((0,),))
     reading = _LocalRuleLaw((height, grains), own, lambda x, y: (x + y, x - y), reads=(height, grains))
-    first, second = reading.prepare().run({'space': LatticeSpace(2), 'height': [1, 2], 'grains': [3, 5]}).value_
+    first, second = reading.prepare()._get_value({'space': LatticeSpace(2), 'height': [1, 2], 'grains': [3, 5]})
     assert first.tolist() == [4, 7]
     assert second.tolist() == [-2, -3]
     scaled = _LocalRuleLaw(var('cell'), LatticeNeighborhood(((0,),)), lambda x, *, scale: x * scale).prepare()
-    assert scaled.run({'space': LatticeSpace(2), 'cell': [1, 2], 'scale': 0.5}).value_.tolist() == [0.5, 1.0]
+    assert scaled._get_value({'space': LatticeSpace(2), 'cell': [1, 2], 'scale': 0.5}).tolist() == [0.5, 1.0]
 
 
 def test_run_rejects_invalid_inputs_and_rules():
     """Test that a run without the space or a state, or with an unknown rule or coefficients, raises an error."""
     law = _LocalRuleLaw(var('cell'), LatticeNeighborhood(((-1,), (0,), (1,))), Wolfram(90)).prepare()
     with pytest.raises(ValidationError, match='runs on a mapping'):
-        law.run({'cell': [0, 1, 0]})
+        law._get_value({'cell': [0, 1, 0]})
     with pytest.raises(ValidationError, match='runs on a mapping'):
-        law.run({'space': LatticeSpace(3)})
+        law._get_value({'space': LatticeSpace(3)})
     with pytest.raises(ValidationError, match='is not a TableSpec'):
         _run(object(), LatticeNeighborhood(((-1,), (0,), (1,))), LatticeSpace(3), [0, 1, 0])
     with pytest.raises(ValidationError, match='not a linear rule of 3 neighbours'):

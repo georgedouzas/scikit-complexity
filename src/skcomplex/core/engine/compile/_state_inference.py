@@ -344,7 +344,7 @@ class _StateInference:
 
     @staticmethod
     def _is_plain(component: BaseComponent) -> bool:
-        """Return whether an element has values or members but declares no states or laws.
+        """Return whether an element has values or members but declares no states.
 
         A group with no values, such as workers whose rules change other agents, is plain too. An element that names a
         compiler of its own, through its class as a word that productions rewrite does, or through a value as the
@@ -353,8 +353,6 @@ class _StateInference:
         if not isinstance(component, Element) or isinstance(component, _DeclaredElement):
             return False
         if component._get_compiler() is not None:
-            return False
-        if type(component)._get_laws is not Element._get_laws:
             return False
         valueless = not _StateInference._get_values(component) and component.size is None
         if valueless and not isinstance(component.space, NetworkSpace):

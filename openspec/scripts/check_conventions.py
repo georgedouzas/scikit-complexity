@@ -1727,8 +1727,11 @@ def check_enums_and_protocols_live_in_their_modules(root: Path) -> list[str]:
 
 
 def check_every_base_derives_from_the_root(root: Path) -> list[str]:
-    """Return every class named `Base*` outside the systems that derives from neither `BaseConfig` nor `BaseSpec`."""
-    config = importlib.import_module('skcomplex.core.base').BaseConfig
+    """Return every class named `Base*` outside the systems that derives from neither root of the core.
+
+    The roots are `_BaseEstimator`, the root of `BaseConfig` and `BaseComponent`, and `BaseSpec`.
+    """
+    estimator = importlib.import_module('skcomplex.core.base')._BaseEstimator
     spec = importlib.import_module('skcomplex.core.base').BaseSpec
     return [
         f'{_locate(value, root)}: {module.__name__}.{name}'
@@ -1737,7 +1740,7 @@ def check_every_base_derives_from_the_root(root: Path) -> list[str]:
         if inspect.isclass(value)
         and value.__module__ == module.__name__
         and name.lstrip('_').startswith('Base')
-        and not issubclass(value, config | spec | BaseException)
+        and not issubclass(value, estimator | spec | BaseException)
     ]
 
 

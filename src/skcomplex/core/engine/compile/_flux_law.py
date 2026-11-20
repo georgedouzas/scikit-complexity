@@ -69,11 +69,11 @@ class _FluxLaw(BaseLaw):
         """Return what the law requires: continuous time on a lattice or a mesh."""
         return RequirementSpec(time=(_ContinuousTime,), space=(LatticeSpace, CellComplexSpace))
 
-    def _run(self, inputs: object) -> None:
-        """Set `value_` to the flux at given values of the symbols it reads.
+    def _get_value(self, inputs: object) -> object:
+        """Return the flux at given values of the symbols it reads.
 
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
         """
-        self.value_ = [self._evaluate(item, inputs) for item in self.flux]
+        return [self._evaluate(item, inputs) for item in self.flux]
