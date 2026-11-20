@@ -305,7 +305,8 @@ class GravityInteraction(Interaction):
             first, second = context.first, context.second
             gap = first.x - second.x
             pull = context.G * gap / sqrt(gap.dot_product(gap)) ** 3
-            self.laws_ = [RateLaw(first.x, -second.m * pull, order=2), RateLaw(second.x, first.m * pull, order=2)]
+            t = context.t
+            self.laws_ = [RateLaw(first.x.diff(t, 2), -second.m * pull), RateLaw(second.x.diff(t, 2), first.m * pull)]
 
 
 def _get_kepler_energy(body: SimpleNamespace) -> Expression:
