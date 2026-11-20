@@ -186,10 +186,15 @@ class MemberLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
 
         Raises:
             ValidationError:
-                The expression reads a single element, two groups, or nests reads with different boundaries.
+                The expression reads a single element, two groups, or nests reads with different boundaries. An
+                expression of the values of single elements and interactions alone, such as a parameter of a single
+                element, reads no member at an offset.
         """
         expression = self._shift_draws(SR(expression), offset, boundary, fill)
         members = {item: self._get_member(item) for item in expression.variables() if not self._is_single(item)}
+        values = [item for item in expression.variables() if item != self.time_]
+        if offset and values and not members:
+            self._get_member(values[0])
         groups = {self.spec.references[base].entry.name.rpartition('.')[0] for base, *_ in members.values()}
         if len(groups) > 1:
             error_msg = (

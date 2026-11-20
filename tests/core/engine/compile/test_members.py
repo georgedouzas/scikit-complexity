@@ -116,7 +116,6 @@ def test_shift_member_runs_the_same_on_both_backends():
     np.testing.assert_allclose(trajectories[1], trajectories[0], rtol=1e-10)
 
 
-@pytest.mark.skip(reason='Engine gap: an offset read of a single plain element compiles instead of raising.')
 def test_shift_member_of_a_single_element_raises_error():
     """Test that an offset read of a single element's state names the component and the state."""
     system = System(
