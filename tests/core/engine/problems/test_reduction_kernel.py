@@ -622,10 +622,6 @@ def test_compiler_divides_by_weighted_total_in_interaction(backend):
     np.testing.assert_allclose(_rates(system, backend), values / (weights @ values), atol=1e-12)
 
 
-@pytest.mark.skip(
-    reason='engine gap: a role bound to plain elements of two classes is not rejected, since state inference turns '
-    'both into elements of one declared class',
-)
 def test_element_set_of_mixed_types():
     """Test that a role bound to elements of two types names the role and both types."""
 

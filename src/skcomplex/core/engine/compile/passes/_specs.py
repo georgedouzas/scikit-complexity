@@ -12,7 +12,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import RR, SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....components.elements import FieldElement, GroupElement
+from ....components.elements import DeclaredElement, FieldElement, GroupElement
 from ....components.interactions import (
     BaseInteraction,
     HyperedgeInteraction,
@@ -263,7 +263,7 @@ class SpecsPass(BasePass):
     ) -> list[BlockSpec]:
         """Return the blocks of the single elements a role binds to as an element set.
 
-        The elements are of one type.
+        The elements are of one type, the class of a plain element for an element declared from one.
         """
         blocks = [SpecsPass._resolve_path(node, role, label, elements) for label in labels]
         grouped = [block.node.path for block in blocks if block.node.members is not None]
@@ -273,7 +273,7 @@ class SpecsPass(BasePass):
                 'An element set lists single elements of one type, and a role binds to a group by its path.'
             )
             raise RoleError(error_msg)
-        types = list(dict.fromkeys(type(block.node.component).__name__ for block in blocks))
+        types = list(dict.fromkeys(SpecsPass._get_type_name(block.node.component) for block in blocks))
         if len(types) > 1:
             error_msg = (
                 f'Interaction {node.path} binds the role {role!r} to elements of the types {" and ".join(types)}. An '
@@ -281,6 +281,12 @@ class SpecsPass(BasePass):
             )
             raise RoleError(error_msg)
         return blocks
+
+    @staticmethod
+    def _get_type_name(component: object) -> str:
+        """Return the name of the class of an element, or of the plain element it is declared from."""
+        origin = component.origin if isinstance(component, DeclaredElement) else None
+        return (origin or type(component)).__name__
 
     @staticmethod
     def _resolve_member(
