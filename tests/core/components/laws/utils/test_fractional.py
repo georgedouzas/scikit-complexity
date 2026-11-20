@@ -64,9 +64,9 @@ def mittag_leffler(alpha: float, z: np.ndarray) -> np.ndarray:
 def test_fractional_holds_the_state_and_the_order():
     """Test that the derivative keeps the state and the order and prints both."""
     x = var('x')
-    derivative = fractional(x, 0.5)
-    assert str(derivative) == 'fractional(x, 0.5)'
-    assert fractional_of(derivative) == (x, 0.5)
+    operator = fractional(x, 0.5)
+    assert str(operator) == 'fractional(x, 0.5)'
+    assert fractional_of(operator) == (x, 0.5)
     assert fractional_of(x) is None
 
 
