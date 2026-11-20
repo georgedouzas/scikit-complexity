@@ -443,7 +443,7 @@ class FunctionsPass(BasePass):
 
     @staticmethod
     def _get_declared_phases(system: CompositeSystem, solver: object = None) -> list[PhaseSpec]:
-        """Return the phases of the solvers and the schedules of a system and its nested systems.
+        """Return the phases of the solvers and schedules of a system and its subsystems.
 
         The phases of a solver, such as `MesaSolver(phases=[PhaseSpec('count'), PhaseSpec('copy')])`, come first, the
         solver of the compilation for the root and the solver of each nested system for its own. The first of every

@@ -909,7 +909,7 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         return int(best[int(system.rng.integers(len(best)))])
 
     def _check_processes(self) -> None:
-        """Raise an error for an argument annotated with `WienerProcessSpec` that holds something else.
+        """Raise an error for a `WienerProcessSpec` argument that holds something else.
 
         Such an argument binds a set of Wiener processes, such as `noise=WienerProcessSpec('market')`, so a path such
         as `'market'` binds nothing.

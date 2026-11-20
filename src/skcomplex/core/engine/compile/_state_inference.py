@@ -261,7 +261,7 @@ class _StateInference:
 
     @staticmethod
     def _holds_objects(value: object) -> bool:
-        """Return whether a value holds one object per member, an array of objects that are not all numbers.
+        """Return whether a value is an array of objects that are not all numbers.
 
         Such an array holds, for example, the queue of orders of every member, `[(), (7,)]`.
         """

@@ -284,7 +284,7 @@ class SpecsPass(BasePass):
 
     @staticmethod
     def _get_type_name(component: object) -> str:
-        """Return the name of the class of an element, or of the plain element it is declared from."""
+        """Return the name of the class of an element, or of its plain element."""
         origin = component.origin if isinstance(component, DeclaredElement) else None
         return (origin or type(component)).__name__
 
