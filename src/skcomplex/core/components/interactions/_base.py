@@ -595,8 +595,8 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         """Return the forces of a pair energy on both members, or the law itself.
 
         An `ObjectiveLaw(V)` of an interaction that runs for pairs is the energy of the pair, not an objective to
-        minimise. Each member feels the force `-dV/dx` on its position `x`, as the second derivative of `x`, such as
-        `RateLaw(s.first.x.diff(s.t, 2), -dV/dx_first)`.
+        minimise. Each member feels the force `-dV/dx` on its position `x`, divided by its mass `m` when it has one,
+        as the second derivative of `x`, such as `RateLaw(s.first.x.diff(s.t, 2), -dV/dx_first / s.first.m)`.
 
         Raises:
             ValidationError:
@@ -614,8 +614,10 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         position = getattr(self, 'position', 'x')
         forces: list[BaseComponent] = []
         for role in (self._get_role('first'), self._get_role('second')):
-            x = getattr(getattr(namespace, role), position)
-            force = vector(SR, [-self._get_energy_partial(energy, component) for component in x])
+            member = getattr(namespace, role)
+            x = getattr(member, position)
+            mass = getattr(member, 'm', 1)
+            force = vector(SR, [-self._get_energy_partial(energy, component) / mass for component in x])
             forces.append(RateLaw(x.diff(time, 2), force))
         return forces
 

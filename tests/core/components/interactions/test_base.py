@@ -1038,19 +1038,19 @@ def _lennard_jones_energy(s):
     return [ObjectiveLaw(4 * (r**-12 - r**-6))]
 
 
-def _lennard_jones_forces(s):
-    """Return the Lennard-Jones forces of a pair, derived by hand."""
+def _lennard_jones_forces(s, mass=1.0):
+    """Return the Lennard-Jones accelerations of a pair of a mass, derived by hand."""
     separation, r = _distance(s)
-    force = 24 * (2 * r**-12 - r**-6) / r**2 * separation
+    force = 24 * (2 * r**-12 - r**-6) / r**2 * separation / mass
     return [RateLaw(s.first.x.diff(s.t, 2), force), RateLaw(s.second.x.diff(s.t, 2), -force)]
 
 
-def _lennard_jones_gas(laws, backend):
+def _lennard_jones_gas(laws, backend, masses=None):
     """Return the positions of a run of a Lennard-Jones gas of 16 atoms on a jittered lattice."""
     rng = np.random.default_rng(0)
     grid = np.stack(np.meshgrid(np.arange(4), np.arange(4)), axis=-1).reshape(-1, 2) * 1.2
     space = ContinuousSpace(n_dim=2)
-    values = {'x': grid + rng.normal(0, 0.05, (16, 2)), "x'": rng.normal(0, 0.5, (16, 2))}
+    values = {'x': grid + rng.normal(0, 0.05, (16, 2)), "x'": rng.normal(0, 0.5, (16, 2))} | (masses or {})
     gas = Element('gas', values=values, size=16, space=space)
     pairs = Interaction('lj', roles={'first': 'gas', 'second': 'gas'}, within=RadiusNeighborhood(2.5), laws=laws)
     solver = VelocityVerletSolver(dt=0.005)
@@ -1064,6 +1064,13 @@ def test_pair_energy_gives_the_trajectory_of_its_forces(backend):
     energy = _lennard_jones_gas(_lennard_jones_energy, backend)
     forces = _lennard_jones_gas(_lennard_jones_forces, backend)
     assert np.abs(energy[-1] - energy[0]).max() > 0.1
+    assert energy == pytest.approx(forces, abs=1e-9)
+
+
+def test_pair_energy_divides_the_forces_by_the_mass():
+    """Test that atoms of mass 4 under a Lennard-Jones energy move as the forces divided by 4."""
+    energy = _lennard_jones_gas(_lennard_jones_energy, NumpyBackend, {'m': 4.0})
+    forces = _lennard_jones_gas(lambda s: _lennard_jones_forces(s, 4.0), NumpyBackend)
     assert energy == pytest.approx(forces, abs=1e-9)
 
 

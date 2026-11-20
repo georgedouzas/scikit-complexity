@@ -450,11 +450,10 @@ This replaces the pair energy of `PairInteraction`, which phase 6.1 removes.
 The engine tells a pair energy apart from an objective by where the law comes from, not by a flag on the law. An
 `ObjectiveLaw` set by an interaction with `within=` is the energy `V` of each pair it binds, and every other
 `ObjectiveLaw` is an objective to minimise, sample, or steer, as the law table says. When the interaction states its
-laws for a pair, the engine replaces its energy by the rate laws `RateLaw(s.first.x.diff(s.t, 2), -dV/dx_first)` and
-`RateLaw(s.second.x.diff(s.t, 2), -dV/dx_second)`, so the problem holds forces only and keeps the time the rates
-give. A pair energy names no targets and no controls, since it acts on the positions of both members, and the force
-is the second derivative of the position as a hand written force is, so a mass divides it only where the energy
-divides by one. LAMMPS evaluates the same energy with the first member at the distance `r` from the second and prints
+laws for a pair, the engine replaces its energy by the rate laws `RateLaw(s.first.x.diff(s.t, 2), -dV/dx_first / m)`
+and `RateLaw(s.second.x.diff(s.t, 2), -dV/dx_second / m)`, so the problem holds forces only and keeps the time the rates
+give. A pair energy names no targets and no controls, since it acts on the positions of both members. The force is
+divided by the mass `m` of each member when its element has one, as LAMMPS does, and is used as it is otherwise. LAMMPS evaluates the same energy with the first member at the distance `r` from the second and prints
 it as a Lepton expression of `r`. With `among`, both members of a pair come from that group.
 
 ## Risks / Trade-offs
