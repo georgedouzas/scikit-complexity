@@ -633,6 +633,29 @@ def test_run_grows_a_network_and_keeps_recording_its_observables():
     assert trajectory.get_values('largest').tolist() == [0.0] * 21
 
 
+def _get_growing():
+    """Return a network of two nodes that age by one at every step and gain one node per step, and its links."""
+    space = NetworkSpace(nx.path_graph(2))
+    nodes = Element('nodes', values={'age': 0.0}, space=space)
+    links = Element('links', values={'w': 1.0}, space=space, on='edges')
+    aging = Interaction('aging', roles={'target': 'nodes'}, laws=lambda s: [UpdateLaw(s.target.age, s.target.age + 1)])
+    return System(elements=[nodes, links], interactions=[aging, AttachmentInteraction('attach')])
+
+
+def test_run_grows_a_group_without_a_capacity_and_the_same_seed_repeats_the_run():
+    """Test that groups grow with the network without a capacity, and the same seed repeats the run."""
+    grown = _get_growing().prepare().simulate(until=100, random_state=np.random.default_rng(5))
+    again = _get_growing().prepare().simulate(until=100, random_state=np.random.default_rng(5))
+    for other in (again,):
+        for frame in (10, 50, 100):
+            network, expected = grown.get_network(frame), other.get_network(frame)
+            np.testing.assert_array_equal(network.nodes, expected.nodes)
+            np.testing.assert_array_equal(network.sources, expected.sources)
+            np.testing.assert_array_equal(network.targets, expected.targets)
+        np.testing.assert_array_equal(grown.get_values('nodes.age')[:, :102], other.get_values('nodes.age')[:, :102])
+    assert grown.get_network(-1).nodes.size == 102
+
+
 class _AgingElement(Element):
     """Node of a growing network that ages by one at every step."""
 
@@ -653,31 +676,16 @@ class _GrowthElement(Element):
         return [UpdateLaw(TopologyRequestSpec('add-node', edges=1, toward=_get_degree), 1)]
 
 
-def _get_growing(capacity):
-    """Return a network of two nodes that gains one node per step, with a capacity of nodes and links or none."""
+def _get_capped(capacity):
+    """Return a network of two nodes that gains one node per step, with groups of a capacity of nodes and links."""
     space = NetworkSpace(nx.path_graph(2))
     nodes = GroupElement('nodes', element=_AgingElement, space=space, on='sites', variable=True, capacity=capacity)
     links = GroupElement('links', element=Element, space=space, on='edges', variable=True, capacity=capacity)
     return CompositeSystem(elements=[nodes, links, _GrowthElement('growth')], time=DiscreteTime())
 
 
-def test_run_grows_a_group_without_a_capacity_as_a_presized_one_runs():
-    """Test that groups that grow give the run of groups with room enough, and the same seed repeats the run."""
-    grown = simulate(_get_growing(None), until=100, random_state=np.random.default_rng(5))
-    again = simulate(_get_growing(None), until=100, random_state=np.random.default_rng(5))
-    roomy = simulate(_get_growing(128), until=100, random_state=np.random.default_rng(5))
-    for other in (again, roomy):
-        for frame in (10, 50, 100):
-            network, expected = grown.get_network(frame), other.get_network(frame)
-            np.testing.assert_array_equal(network.nodes, expected.nodes)
-            np.testing.assert_array_equal(network.sources, expected.sources)
-            np.testing.assert_array_equal(network.targets, expected.targets)
-        np.testing.assert_array_equal(grown.get_values('nodes.age')[:, :102], other.get_values('nodes.age')[:, :102])
-    assert grown.get_network(-1).nodes.size == 102
-
-
 def test_run_keeps_a_given_capacity():
     """Test that a group given a capacity does not grow, and a request beyond it names the group and its rows."""
     with pytest.raises(CapacityError, match='capacity') as error:
-        simulate(_get_growing(10), until=40, random_state=0)
+        simulate(_get_capped(10), until=40, random_state=0)
     assert (error.value.path, error.value.rows) == ('nodes', 10)

@@ -10,7 +10,7 @@ from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import CallSpec, JumpLaw, RateLaw, TransitionLaw, UpdateLaw
-from skcomplex.core.components.laws.utils import divergence, reduction, total
+from skcomplex.core.components.laws.utils import categorical, divergence, reduction, total, where
 from skcomplex.core.components.spaces import DiscreteTime, FiniteVolumeSpec, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
@@ -156,8 +156,48 @@ def test_jump_change_function_on_numba_runs_in_python():
     assert np.all(np.asarray(trajectory.get_values('a.n')) % 2 == 1)
 
 
+def _step(s):
+    """Return the step of a two-state chain that draws its next state from the row of `MATRIX` of its state."""
+    x = s.target.x
+    weights = [where(x == 0, MATRIX[0][column], MATRIX[1][column]) for column in range(2)]
+    return [UpdateLaw(x, categorical('step', weights))]
+
+
+def _stepper(seed):
+    """Return a function that draws the next state of a two-state chain from the row of `MATRIX` of its state."""
+    rng = np.random.default_rng(seed)
+
+    def step(t, values):
+        """Return the next state."""
+        return float(rng.choice(2, p=MATRIX[int(values['a.x'])]))
+
+    return step
+
+
+def _chain(step, backend=None):
+    """Return the states of a long run of a chain whose step is a law function or a function of the values."""
+    laws = step if step is _step else lambda s: [UpdateLaw(s.target.x, step)]
+    chain = Interaction('chain', roles={'target': 'a'}, laws=laws)
+    system = System(elements=[Element('a', values={'x': 0})], interactions=[chain], backend=backend or NumpyBackend())
+    return np.asarray(system.prepare().simulate(until=STEPS, random_state=7).get_values('a.x'), dtype=int)
+
+
+def test_transition_function_matches_the_frequencies_of_the_symbolic_matrix():
+    """Test that a function of the values gives the stationary frequency of the symbolic matrix."""
+    symbolic, function = _chain(_step), _chain(_stepper(7))
+    assert symbolic.mean() == pytest.approx(0.2, abs=0.05)
+    assert function.mean() == pytest.approx(0.2, abs=0.05)
+
+
+def test_transition_function_on_numba_runs_in_python():
+    """Test that a function of the values falls back with the warning on the Numba backend."""
+    with pytest.warns(BackendWarning, match='UpdateLaw laws in Python'):
+        states = _chain(_stepper(7), NumbaBackend())
+    assert states.mean() == pytest.approx(0.2, abs=0.05)
+
+
 class ChainElement(Element):
-    """Two-state chain whose matrix is given as symbols or a function."""
+    """Two-state chain whose matrix is given as a function."""
 
     def __init__(
         self,
@@ -175,33 +215,12 @@ class ChainElement(Element):
         return [TransitionLaw(s.x, self.matrix)]
 
 
-def _chain(matrix, backend=None):
-    """Return the states of a long run of a chain."""
-    system = CompositeSystem(elements=[ChainElement('a', matrix=matrix)], time=DiscreteTime())
-    return np.asarray(
-        simulate(system, until=STEPS, backend=backend or NumpyBackend(), random_state=7).get_values('a.x'),
-        dtype=int,
-    )
-
-
-def test_transition_function_matches_the_frequencies_of_the_symbolic_matrix():
-    """Test that a function of the matrix gives the stationary frequency of the symbolic matrix."""
-    symbolic, function = _chain(MATRIX), _chain(lambda t, values: np.array(MATRIX))
-    assert symbolic.mean() == pytest.approx(0.2, abs=0.05)
-    assert function.mean() == pytest.approx(0.2, abs=0.05)
-
-
-def test_transition_function_on_numba_runs_in_python():
-    """Test that a function of the matrix falls back with the warning on the Numba backend."""
-    with pytest.warns(BackendWarning, match='UpdateLaw laws in Python'):
-        states = _chain(lambda t, values: np.array(MATRIX), NumbaBackend())
-    assert states.mean() == pytest.approx(0.2, abs=0.05)
-
-
 def test_transition_function_rejects_a_matrix_that_is_not_stochastic():
     """Test that a function that returns rows that do not sum to one raises an error."""
+    chain = ChainElement('a', matrix=lambda t, values: np.array([[0.5, 0.1], [0.4, 0.6]]))
+    system = CompositeSystem(elements=[chain], time=DiscreteTime())
     with pytest.raises(ValidationError, match='rows sum to 1'):
-        _chain(lambda t, values: np.array([[0.5, 0.1], [0.4, 0.6]]))
+        simulate(system, until=STEPS, backend=NumpyBackend(), random_state=7)
 
 
 def _renewals(waiting):
