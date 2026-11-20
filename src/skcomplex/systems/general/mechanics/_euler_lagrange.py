@@ -191,7 +191,8 @@ class EulerLagrangeInteraction(Interaction):
     def _get_held(self, namespace: SimpleNamespace, coordinates: Sequence[Expression]) -> dict[Expression, Expression]:
         """Return a symbol for every value of the roles that is a function of time.
 
-        The coordinates are left out. Such a value, such as the inertia `J(t)` of a rotor, is held fixed while a momentum changes in time.
+        The coordinates are left out. Such a value, such as the inertia `J(t)` of a rotor, is held fixed while a
+        momentum changes in time.
         """
         time = SR(namespace.t)
         values = [
