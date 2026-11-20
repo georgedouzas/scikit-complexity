@@ -260,6 +260,16 @@ class _StateInference:
         return [value] if _StateInference._is_single(element) else value
 
     @staticmethod
+    def _holds_objects(value: object) -> bool:
+        """Return whether a value holds one object per member, an array of objects that are not all numbers.
+
+        Such an array holds, for example, the queue of orders of every member, `[(), (7,)]`.
+        """
+        if not isinstance(value, np.ndarray) or value.dtype != object:
+            return False
+        return not all(isinstance(item, int | float | complex) for item in value.ravel())
+
+    @staticmethod
     def _get_member_value(element: Element, name: str, value: object, count: int | None) -> object:
         """Return the value of one member, checking an array holds one per member.
 
@@ -416,11 +426,13 @@ class _StateInference:
         moving: bool = False,
         history: object = None,
         control: bool = False,
+        objects: bool = False,
     ) -> DeclaredVariableSpec:
         """Return the declaration of a value as a state or a parameter.
 
         A control of an objective law is an adaptive parameter, bounded by the interval of its allowed values, such as
-        `u: Annotated[float, RealSet.closed(0, 1)]`.
+        `u: Annotated[float, RealSet.closed(0, 1)]`. A value of objects, such as the queue of orders `(3, 7)` every
+        member of a group holds, is a state of objects.
 
         The starting values of the derivatives or past values a law reads are given by their index, and a missing one
         is zero for a derivative and the value itself for a past value. A state with the role `'position'` is a
@@ -439,9 +451,11 @@ class _StateInference:
         group = self._get_group(annotation)
         if period is not None and role is None:
             role = 'direction' if moving else 'phase'
+        if objects:
+            domain = object
         symmetry = self._get_symmetry(annotation)
-        vector, n_dim, tensor = (False, None, symmetry) if symmetry else element._get_shape_of(value)
-        if symmetry is None:
+        vector, n_dim, tensor = (False, None, symmetry) if symmetry or objects else element._get_shape_of(value)
+        if symmetry is None and not objects:
             value = element._get_matrix_entries(value, tensor)
         starting = {
             index: item if symmetry else element._get_matrix_entries(item, tensor)
@@ -1162,9 +1176,11 @@ class _StateInference:
                 moving=any(axis in values for axis in axes),
                 history=histories[name][1] if name in histories else None,
                 control=name in controls,
+                objects=self._holds_objects(value),
             )
             annotation = element._get_hints().get(name, inspect.Parameter.empty)
-            tensor = None if self._get_symmetry(annotation) else element._get_shape_of(member)[2]
+            symmetric = self._get_symmetry(annotation) or self._holds_objects(value)
+            tensor = None if symmetric else element._get_shape_of(member)[2]
             if count is not None and np.ndim(np.asarray(value, dtype=object)) > 0:
                 variables[name] = self._get_new_member_default(element, name, variables[name], member)
                 arrays[name] = self._get_rows(element, element._get_matrix_entries(value, tensor))
