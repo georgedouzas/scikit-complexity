@@ -13,7 +13,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from .....core.analysis import InvariantsResult, invariants
-from .....core.analysis.types import Source
+from .....core.analysis.types import DataSource
 from .....core.components import Observable
 from .....core.components.interactions import BaseInteraction
 from .....core.errors import AnalysisError
@@ -45,7 +45,7 @@ class NoetherResult:
     charge: Expression
 
 
-def poisson_brackets(source: Source, expressions: Sequence[Observable]) -> dict[tuple[str, str], Expression]:
+def poisson_brackets(source: DataSource, expressions: Sequence[Observable]) -> dict[tuple[str, str], Expression]:
     """Return the Poisson bracket of every pair of expressions of a mechanical system.
 
     The bracket is `{f, g} = sum df/dq dg/dp - df/dp dg/dq`, summed over the canonical pairs of the system's
@@ -91,7 +91,7 @@ def poisson_brackets(source: Source, expressions: Sequence[Observable]) -> dict[
 
 
 def noether(
-    source: Source,
+    source: DataSource,
     symmetry: SymmetrySpec,
     *,
     samples: int = 16,

@@ -16,7 +16,7 @@ from ..errors import AnalysisError
 from ..types import Array
 from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _read_real, _read_samples_of
-from .types import Source
+from .types import DataSource
 
 ORDER_COUNT = 2
 KINDS = (
@@ -127,7 +127,7 @@ class DistributionResult:
 
 
 def distribution(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'histogram',
     variables: Sequence[str] | None = None,

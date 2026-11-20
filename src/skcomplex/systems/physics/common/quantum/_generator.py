@@ -7,9 +7,8 @@ from typing import ClassVar
 
 from sage.all__sagemath_symbolics import Expression
 
-from .....core.components.laws import BaseLaw, RequirementSpec
+from .....core.components.laws import BaseLaw, RateLaw, RequirementSpec
 from .....core.components.laws.utils import has_operator
-from .....core.components.spaces import ContinuousTime
 from .....core.errors import ValidationError
 
 
@@ -56,8 +55,8 @@ class GeneratorLaw(BaseLaw):
 
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
-        """Return what the law requires of a system: continuous time."""
-        return RequirementSpec(time=(ContinuousTime,))
+        """Return what the law requires of a system: the continuous time of a rate."""
+        return RateLaw.get_requirements()
 
     def _prepare(self, context: str | None = None) -> None:
         """Raise an error for a function as the operator, or one without local operators.

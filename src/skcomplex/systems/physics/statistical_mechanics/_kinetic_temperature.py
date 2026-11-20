@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from ....core.analysis import alignment
-from ....core.analysis.types import Source
+from ....core.analysis.types import DataSource
 from ....core.engine.runtime import Trajectory
 from ....core.errors import AnalysisError
 from ....core.types import Array
@@ -32,7 +32,7 @@ class KineticTemperatureResult:
     temperature: Array
 
 
-def kinetic_temperature(source: Source, *, group: str | None = None, mass: float = 1.0) -> KineticTemperatureResult:
+def kinetic_temperature(source: DataSource, *, group: str | None = None, mass: float = 1.0) -> KineticTemperatureResult:
     """Return the kinetic temperature `m <|v|²> / d` of the agents of every frame.
 
     The agents move in `d` dimensions, with `k_B = 1`.
@@ -73,7 +73,7 @@ def kinetic_temperature(source: Source, *, group: str | None = None, mass: float
     return KineticTemperatureResult(velocities, _kinetic_temperature(velocities, mass))
 
 
-def _read_velocities(source: Source, group: str | None, analysis: str) -> Array:
+def _read_velocities(source: DataSource, group: str | None, analysis: str) -> Array:
     """Return the velocities of the agents of a trajectory.
 
     The source is a trajectory, or an array of one snapshot or of frames.

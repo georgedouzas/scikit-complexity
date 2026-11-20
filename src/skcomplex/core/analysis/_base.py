@@ -29,7 +29,7 @@ from ._jump_path_spec import _JumpPathSpec
 from ._samples_spec import _SamplesSpec
 from ._series_spec import _SeriesSpec
 from ._snapshots_spec import _SnapshotsSpec
-from .types import Run, Runs, Source
+from .types import DataSource, Run, Runs
 
 SERIES_DIMENSIONS = 1
 SNAPSHOT_DIMENSIONS = 2
@@ -210,7 +210,7 @@ def _is_changed(value: object, default: object) -> bool:
         return value is not default
 
 
-def _get_system(source: Source) -> Source:
+def _get_system(source: DataSource) -> DataSource:
     """Return the `System` a ready-made system builds, or another source as is.
 
     A copy of the ready-made system builds it, so the source is left unprepared.
@@ -230,7 +230,7 @@ def _get_system(source: Source) -> Source:
     return source
 
 
-def _composite(source: Source) -> Source:
+def _composite(source: DataSource) -> DataSource:
     """Return the composite of a system class, or another source as is.
 
     An example of a system class is a ready-made system.
@@ -363,7 +363,7 @@ def _has_series(source: Trajectory | CompositeSystem | BaseProblemSpec, problem:
     return bool(problem.observables or _get_series_states(problem))
 
 
-def _get_data_kinds(source: Source | BaseProblemSpec) -> list[DataKind]:
+def _get_data_kinds(source: DataSource | BaseProblemSpec) -> list[DataKind]:
     """Return the kinds of data a trajectory, a system, a graph, or an array holds.
 
     An array of one dimension is a series, and an array of more dimensions is a field and a set of series.
@@ -536,7 +536,7 @@ def _read_particle_snapshots(trajectory: Trajectory, group: str) -> _SnapshotsSp
     return _SnapshotsSpec(times, ids, positions, velocities, directions, others, box, periodic, phases)
 
 
-def _read_series(source: Source, names: Sequence[str] | None = None) -> _SeriesSpec:
+def _read_series(source: DataSource, names: Sequence[str] | None = None) -> _SeriesSpec:
     """Return named series of a trajectory, or the columns of an array.
 
     An array gives one series per column. A trajectory gives its states, parameters, reporters, or observables, and a
@@ -579,7 +579,7 @@ def _read_series(source: Source, names: Sequence[str] | None = None) -> _SeriesS
     return _SeriesSpec(np.asarray(source.times, dtype=float), np.concatenate(columns, axis=1), labels)
 
 
-def _read_path(source: Source, name: str | None = None) -> _JumpPathSpec:
+def _read_path(source: DataSource, name: str | None = None) -> _JumpPathSpec:
     """Return the jump path of a discrete state of a trajectory or of a state series.
 
     The frames where the state did not change are dropped.
@@ -617,7 +617,7 @@ def _read_path(source: Source, name: str | None = None) -> _JumpPathSpec:
     return _JumpPathSpec(times, states[:, 0] if values.shape[1] == 1 else states, chosen)
 
 
-def _read_fields(source: Source, name: str | None = None) -> Array:
+def _read_fields(source: DataSource, name: str | None = None) -> Array:
     """Return the frames of a lattice or grid state of a trajectory.
 
     An array of frames is returned as it is.
@@ -646,7 +646,7 @@ def _read_fields(source: Source, name: str | None = None) -> Array:
     return np.asarray(source.get_lattice(chosen), dtype=float)
 
 
-def _read_snapshots(source: Source, group: str | None = None) -> _SnapshotsSpec:
+def _read_snapshots(source: DataSource, group: str | None = None) -> _SnapshotsSpec:
     """Return the agents of a group of a trajectory at every frame.
 
     Agent groups give their positions unwrapped across periodic sides, and velocities and directions from the states
@@ -682,7 +682,7 @@ def _read_snapshots(source: Source, group: str | None = None) -> _SnapshotsSpec:
     return _read_agent_snapshots(source, chosen)
 
 
-def _read_samples_of(source: Source, names: Sequence[str] | None, group: str | None) -> _SeriesSpec:
+def _read_samples_of(source: DataSource, names: Sequence[str] | None, group: str | None) -> _SeriesSpec:
     """Return samples as columns.
 
     They are the series of a source, or the speeds of agents with one column per frame. A trajectory gives the speeds of
@@ -719,7 +719,7 @@ def _read_samples_of(source: Source, names: Sequence[str] | None, group: str | N
     return _SeriesSpec(np.arange(speeds.shape[1], dtype=float), speeds.T, labels)
 
 
-def _read_velocities(source: Source, group: str | None = None) -> Array:
+def _read_velocities(source: DataSource, group: str | None = None) -> Array:
     """Return the velocities of the agents of a group.
 
     An array of one snapshot or of frames is also accepted.
@@ -750,7 +750,7 @@ def _read_velocities(source: Source, group: str | None = None) -> Array:
     return velocities
 
 
-def _read_networks(source: Source) -> list[nx.Graph]:
+def _read_networks(source: DataSource) -> list[nx.Graph]:
     """Return the network of every frame of a trajectory.
 
     A graph or a network snapshot is the only frame. A trajectory gives the graphs it records as observables, or the

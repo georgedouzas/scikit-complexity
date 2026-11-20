@@ -15,7 +15,7 @@ from ..errors import AnalysisError
 from ..types import Array
 from ._analysis_tags import AnalysisTags
 from ._base import SNAPSHOT_DIMENSIONS, _read_snapshots
-from .types import Source
+from .types import DataSource
 
 TAGS = AnalysisTags(DataKind.AGENTS)
 
@@ -45,7 +45,7 @@ class CoarseGrainResult:
 
 
 def coarse_grain(
-    source: Source,
+    source: DataSource,
     *,
     shape: Sequence[int] = (32, 32),
     box: Sequence[float] | None = None,
@@ -163,7 +163,7 @@ def _check(
         raise AnalysisError(error_msg)
 
 
-def _read_state(source: Source, state: str | None) -> Array:
+def _read_state(source: DataSource, state: str | None) -> Array:
     """Return the values of the state of every member.
 
     They come from an array or from a trajectory.

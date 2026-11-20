@@ -20,7 +20,7 @@ from ..types import Array
 from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _check_tags, _read_networks
 from ._networks import network_measures
-from .types import Source
+from .types import DataSource
 
 KINDS = ('laplacian', 'geometric')
 SETTINGS = {
@@ -69,7 +69,7 @@ class RenormalizationResult:
 
 
 def renormalization(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'laplacian',
     steps: int = 3,

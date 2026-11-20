@@ -16,7 +16,7 @@ from ..types import AnyArray, Array
 from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _read_real, _read_series
 from ._information import _row_codes
-from .types import Source
+from .types import DataSource
 
 KINDS = ('entropy', 'mutual', 'transfer')
 SETTINGS = {
@@ -51,7 +51,7 @@ class LocalInformationResult:
 
 
 def local_information(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'entropy',
     variables: Sequence[str] | None = None,

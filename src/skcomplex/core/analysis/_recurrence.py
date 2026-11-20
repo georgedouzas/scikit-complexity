@@ -16,7 +16,7 @@ from ..errors import AnalysisError
 from ..types import Array
 from ._analysis_tags import AnalysisTags
 from ._base import _read_series
-from .types import Source
+from .types import DataSource
 
 PAIR_SAMPLE = 200_000
 TAGS = AnalysisTags(DataKind.SERIES)
@@ -75,7 +75,7 @@ class RecurrenceResult:
 
 
 def recurrence(
-    source: Source,
+    source: DataSource,
     *,
     variables: Sequence[str] | None = None,
     radius: float | None = None,

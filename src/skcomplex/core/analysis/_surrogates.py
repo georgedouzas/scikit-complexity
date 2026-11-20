@@ -13,7 +13,7 @@ from ..errors import AnalysisError
 from ..types import Array
 from ._analysis_tags import AnalysisTags
 from ._base import _read_series
-from .types import Source
+from .types import DataSource
 
 ALTERNATIVES = ('greater', 'less', 'two-sided')
 TAGS = AnalysisTags(DataKind.SERIES)
@@ -46,7 +46,7 @@ class SurrogateTestResult:
 
 
 def surrogate_test(
-    source: Source,
+    source: DataSource,
     *,
     analysis: Callable[[Array], object],
     attribute: str,

@@ -203,8 +203,8 @@ class WordKernel(BaseKernel):
         if free:
             error_msg = (
                 f'{owner} uses {", ".join(sorted(map(str, free)))}, which is neither a parameter of its predecessor '
-                'nor a parameter of its element. Declare it as a `ParameterSpec` argument of the word, patch, or host '
-                'graph.'
+                'nor a numeric argument of its interaction. Give it as a numeric argument of the interaction that sets '
+                'the production.'
             )
             raise RewritingError(error_msg)
         printer = ExpressionPrinter(time=time, compiled=True).prepare([*variables, *symbols])

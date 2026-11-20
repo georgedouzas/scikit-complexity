@@ -24,7 +24,7 @@ from ..specs._base_spec import BaseSpec
 from ..types import Array
 from ._analysis_tags import AnalysisTags
 from ._base import _composite
-from .types import Source
+from .types import DataSource
 
 KINDS = ('modes', 'pathways')
 MAXIMUM_DENOMINATOR = 10**6
@@ -70,7 +70,7 @@ class ElementaryModesResult:
 
 
 def elementary_modes(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'modes',
     normalize: str | None = None,

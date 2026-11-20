@@ -6,8 +6,7 @@
 from collections.abc import Sequence
 from typing import ClassVar
 
-from ....core.components.laws import BaseLaw, RequirementSpec
-from ....core.components.spaces import DiscreteTime
+from ....core.components.laws import BaseLaw, RequirementSpec, UpdateLaw
 from ....core.errors import RewritingError
 from ._affine_spec import AffineSpec
 
@@ -66,8 +65,8 @@ class SubstitutionLaw(BaseLaw):
 
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
-        """Return what the law requires of a system: discrete time."""
-        return RequirementSpec(time=(DiscreteTime,))
+        """Return what the law requires of a system: the discrete time of an update."""
+        return UpdateLaw.get_requirements()
 
     def _prepare(self, context: str | None = None) -> None:
         """Raise an error for a piece that is not a pair of a prototile name and a map.

@@ -15,7 +15,7 @@ from ..errors import AnalysisError
 from ..types import Array, IntArray, IntTuple
 from ._analysis_tags import AnalysisTags
 from ._base import _read_series
-from .types import Source
+from .types import DataSource
 
 TAGS = AnalysisTags(DataKind.SERIES)
 
@@ -65,7 +65,7 @@ class EpsilonMachineResult:
 
 
 def epsilon_machine(
-    source: Source,
+    source: DataSource,
     *,
     variables: Sequence[str] | None = None,
     max_length: int = 3,

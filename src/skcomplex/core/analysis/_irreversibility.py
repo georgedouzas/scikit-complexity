@@ -17,7 +17,7 @@ from ..types import Array
 from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _read_path, _read_series
 from ._markov import _stationary_distribution, _transition_counts
-from .types import Source
+from .types import DataSource
 
 MIN_PAIRS = 3
 MIN_PATHS = 2
@@ -139,7 +139,7 @@ class IrreversibilityResult:
 
 
 def irreversibility(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'entropy-production',
     variables: Sequence[str] | None = None,
@@ -389,7 +389,7 @@ def _of_ensemble(
 
 
 def _read_values(
-    source: Source,
+    source: DataSource,
     kind: str,
     variables: Sequence[str] | None,
     duration: float | None,

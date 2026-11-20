@@ -18,9 +18,9 @@ from ..types import AnyArray, Array
 
 type Point = Mapping[str, Expression | float]
 type Partition = npt.ArrayLike | Callable[[AnyArray], npt.ArrayLike]
-type Source = Trajectory | BaseSystem | nx.Graph | NetworkSnapshotSpec | npt.ArrayLike
+type DataSource = Trajectory | BaseSystem | nx.Graph | NetworkSnapshotSpec | npt.ArrayLike
 type Run = Trajectory | npt.ArrayLike
-type Runs = Source | list[Run]
+type Runs = DataSource | list[Run]
 
 
 class ReservoirNodeProtocol(Protocol):

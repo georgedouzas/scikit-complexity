@@ -16,7 +16,7 @@ from ..errors import AnalysisError
 from ..types import Array
 from ._analysis_tags import AnalysisTags
 from ._base import _check_settings, _read_real, _read_samples_of
-from .types import Source
+from .types import DataSource
 
 NAMED_LAWS = {
     'exponential': stats.expon,
@@ -117,7 +117,7 @@ class FitLawResult:
 
 
 def fit_law(
-    source: Source,
+    source: DataSource,
     *,
     law: str = 'power',
     variables: Sequence[str] | None = None,

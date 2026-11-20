@@ -16,7 +16,7 @@ from ..types import Array
 from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _check_tags, _read_networks
 from ._fit import fit_law
-from .types import Source
+from .types import DataSource
 
 KINDS = ('degrees', 'assortativity', 'centrality', 'communities', 'neighbor-degree', 'summary')
 CENTRALITIES = ('degree', 'betweenness', 'closeness', 'eigenvector', 'pagerank')
@@ -116,7 +116,7 @@ class NetworkMeasuresResult:
 
 
 def network_measures(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'summary',
     orders: Sequence[int] = (1, 2),

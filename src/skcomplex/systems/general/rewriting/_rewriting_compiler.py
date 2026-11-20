@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import inspect
 from collections.abc import Collection, Mapping
 from types import SimpleNamespace
 
@@ -13,13 +14,12 @@ from sage.all__sagemath_symbolics import NN, Expression
 from ....core.components.elements import Element
 from ....core.components.interactions import BaseInteraction
 from ....core.components.spaces import BaseSpace
-from ....core.components.systems import CompositeSystem
 from ....core.engine._utils import declarations_of, default_of, symbol
-from ....core.engine.compile import BaseCompiler, FlattenPass, IssueSpec
+from ....core.engine.compile import BaseCompiler, Composite, FlattenPass, IssueSpec
 from ....core.engine.problems import BaseProblemSpec, CompiledElementSpec, LayoutSpec
 from ....core.enums import FormKind, VariableKind
 from ....core.errors import IncompatibleLawsError, RewritingError, SkcomplexError, ValidationError
-from ....core.specs import EntrySpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import EntrySpec, VisualSpec
 from . import _patch, _word
 from ._parameters_spec import _ParametersSpec
 from ._patch_kernel import PatchKernel
@@ -56,7 +56,7 @@ class RewritingCompiler(BaseCompiler):
         False
     """
 
-    def _get_issues(self, system: CompositeSystem) -> list[IssueSpec]:
+    def _get_issues(self, system: Composite) -> list[IssueSpec]:
         """Return the issue of a system the compiler cannot compile or flatten.
 
         The tree of the system cannot be flattened, or the compiler does not compile it.
@@ -109,7 +109,7 @@ class RewritingCompiler(BaseCompiler):
         return RewritingSolver()
 
     @staticmethod
-    def _is_rewriting(system: CompositeSystem) -> bool:
+    def _is_rewriting(system: Composite) -> bool:
         """Check whether a system holds a word or a patch.
 
         Args:
@@ -174,7 +174,8 @@ class RewritingCompiler(BaseCompiler):
         """Return the parameter entries and values of the words, patches, and interactions.
 
         Their namespaces and symbols are also returned. The parameters of an element are those it declares, and those
-        of an interaction its numeric arguments.
+        of an interaction its numeric arguments, in the order of its constructor, with the allowed values `Annotated`
+        gives them.
         """
         entries: list[EntrySpec] = []
         values: list[float] = []
@@ -182,11 +183,7 @@ class RewritingCompiler(BaseCompiler):
         symbols: dict[str, Expression] = {}
         for path, component in components.items():
             if isinstance(component, BaseInteraction):
-                declared = {
-                    name: (item.spec.domain, item.value)
-                    for name, item in component._get_declared().items()
-                    if isinstance(item.spec, StateSpec | ParameterSpec)
-                }
+                declared = RewritingCompiler._get_arguments_of(component)
             else:
                 declared = {
                     name: (
@@ -208,6 +205,23 @@ class RewritingCompiler(BaseCompiler):
                 values.append(float(number))
             namespaces[path] = SimpleNamespace(**names, t=symbol('t'))
         return entries, values, namespaces, symbols
+
+    @staticmethod
+    def _get_arguments_of(interaction: BaseInteraction) -> dict[str, tuple[object, object]]:
+        """Return the allowed values and value of each numeric argument, by name."""
+        if not interaction._is_preparing_laws():
+            return {}
+        allowed = interaction._get_allowed()
+        roles = interaction._get_specs()
+        params = interaction.get_params(deep=False)
+        arguments = {}
+        for name in inspect.signature(type(interaction)).parameters:
+            value = params.get(name)
+            if name == 'label' or name in roles or not interaction._is_numeric(value):
+                continue
+            first = np.asarray(value).ravel()[0].item()
+            arguments[name] = (allowed.get(name, interaction._get_domain_of(first)), value)
+        return arguments
 
     @staticmethod
     def _get_compiled(
@@ -271,7 +285,7 @@ class RewritingCompiler(BaseCompiler):
         return next((kind for base, kind in structures.items() if issubclass(element_type, base)), None)
 
     @staticmethod
-    def _compile_rewriting(system: CompositeSystem) -> 'RewritingProblemSpec':
+    def _compile_rewriting(system: Composite) -> 'RewritingProblemSpec':
         """Compile a system of words or patches.
 
         Each is rewritten by the productions or substitutions of the interactions that bind it.

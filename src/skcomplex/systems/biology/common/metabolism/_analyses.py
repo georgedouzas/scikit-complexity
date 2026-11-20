@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 from sklearn.base import clone
 
-from .....core.analysis.types import Source
+from .....core.analysis.types import DataSource
 from .....core.components.elements import BaseElement, Element
 from .....core.engine.problems import ProblemSpec, RunStateSpec
 from .....core.errors import AnalysisError
@@ -55,7 +55,7 @@ class FluxVariabilityResult:
     ranges: pd.DataFrame
 
 
-def flux_variability(source: Source, *, fraction: float = 1.0, network: str | None = None) -> FluxVariabilityResult:
+def flux_variability(source: DataSource, *, fraction: float = 1.0, network: str | None = None) -> FluxVariabilityResult:
     """Return the range of every flux at an optimum.
 
     The ranges come from the solve of the core, which runs without the extra.
@@ -145,7 +145,7 @@ class ProductionScanResult:
 
 
 def production_scan(
-    source: Source,
+    source: DataSource,
     *,
     target: str = '',
     steps: int = 10,
@@ -257,7 +257,7 @@ class CobraMeasuresResult:
 
 
 def cobra_measures(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'variability',
     fraction: float = 1.0,
@@ -381,7 +381,7 @@ class StrainDesignResult:
 
 
 def strain_design(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'optknock',
     product: str = '',
@@ -489,7 +489,7 @@ def _networks_of(system: System) -> list[tuple[FluxBalanceInteraction, Element]]
 
 
 def _read_network(
-    source: Source,
+    source: DataSource,
     network: str | None,
     analysis: str,
 ) -> tuple[System, FluxBalanceInteraction, Element]:
