@@ -151,14 +151,16 @@ GRID_ONLY = {
 class GrowthInteraction(BaseInteraction):
     """Interaction with a role and a parameter."""
 
-    def __init__(self, label, target: Annotated[str, RoleSpec()], r: Annotated[float, ParameterSpec()] = 1.0):
+    def __init__(self, label, target: Role, r: float = 1.0):
         super().__init__(label)
         self.target = target
         self.r = r
 
-    def _get_laws(self, namespace):
-        """Return no laws."""
-        return []
+    def _prepare(self, context=None):
+        """Set no laws on a namespace."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = []
 
 
 def _get_fixed(interaction):
@@ -283,10 +285,10 @@ def test_interaction_stores_its_roles_and_parameters():
 
 
 def test_interaction_prepares_into_itself():
-    """Test that a checked interaction has nothing to prepare and runs into its laws."""
+    """Test that a checked interaction has nothing to prepare and sets its laws when prepared on a namespace."""
     growth = GrowthInteraction('growth', target='rabbits')
     assert growth.prepare() is growth
-    assert growth.run(SimpleNamespace()).laws_ == []
+    assert growth.prepare(SimpleNamespace()).laws_ == []
 
 
 def test_state_on_an_interaction_is_rejected():
@@ -665,14 +667,6 @@ def test_interaction_that_writes_unlisted_laws_has_unknown_law_kinds():
     assert Interaction('free').get_tags().laws is None
 
 
-class FallElement(Element):
-    """Element of a falling body with a position of order two."""
-
-    def __init__(self, label: str, *, x: Annotated[float, StateSpec(order=2)] = 0.0):
-        super().__init__(label)
-        self.x = x
-
-
 class PullInteraction(Interaction):
     """Interaction that learns a constant pull on its target when it is prepared."""
 
@@ -680,8 +674,8 @@ class PullInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()] = 'ball',
-        g: Annotated[float, ParameterSpec()] = 9.81,
+        target: Role = 'ball',
+        g: float = 9.81,
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -705,14 +699,14 @@ def test_prepare_sets_laws_from_a_namespace():
 
 def test_prepare_keeps_parameters_symbolic_in_a_system():
     """The laws a system learns from an interaction read its parameters as symbols."""
-    system = System(elements=[FallElement('ball', x=10.0)], interactions=[PullInteraction('pull')]).prepare()
+    system = System(elements=[Element('ball', values={'x': 10.0})], interactions=[PullInteraction('pull')]).prepare()
     assert system.equations_["ball.x'"] == '-pull.g'
 
 
 def test_prepare_leaves_the_user_interaction_unchanged():
     """The engine prepares a clone of an interaction for every binding, so the object the user gave has no laws."""
     pull = PullInteraction('pull', target='bodies')
-    bodies = GroupElement('bodies', element=FallElement, size=2, values={'x': [1.0, 2.0]})
+    bodies = Element('bodies', values={'x': [1.0, 2.0]}, size=2)
     System(elements=[bodies], interactions=[pull]).prepare().simulate(until=1.0, dt=0.5)
     assert not hasattr(pull, 'laws_')
 
