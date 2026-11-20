@@ -275,11 +275,34 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         return []
 
     @staticmethod
+    def _get_function_of(value: Expression) -> SymbolicFunction:
+        """Return the Sage function of time named after a symbol, real when the symbol is real or an integer."""
+        if not value.is_real():
+            return function(str(value))
+        return function(
+            str(value),
+            conjugate_func=BaseInteraction._get_itself,
+            real_part_func=BaseInteraction._get_itself,
+            imag_part_func=BaseInteraction._get_zero,
+        )
+
+    @staticmethod
+    def _get_itself(function: SymbolicFunction, *args: Expression, **kwargs: object) -> Expression:
+        """Return a real function of time as its own conjugate and real part."""
+        return function(*args)
+
+    @staticmethod
+    def _get_zero(function: SymbolicFunction, *args: Expression, **kwargs: object) -> Expression:
+        """Return zero, the imaginary part of a real function of time."""
+        return SR(0)
+
+    @staticmethod
     def _get_functional(value: object, time: Expression, functions: dict[str, Expression]) -> object:
         """Return the symbols of states in a value of a role as functions of time.
 
         A complex state, written in its real and imaginary parts as `z_re + I * z_im`, has both parts as functions of
-        time, so `z.diff(t)` is its derivative.
+        time, so `z.diff(t)` is its derivative. A function of a real or integer symbol is real, so its imaginary part
+        is zero and its conjugate is itself.
         """
         if isinstance(value, SimpleNamespace):
             return SimpleNamespace(
@@ -291,7 +314,7 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
             return vector(SR, [BaseInteraction._get_functional(item, time, functions) for item in value])
         if isinstance(value, Expression) and value.is_symbol() and value is not time:
             functions[str(value)] = value
-            return function(str(value))(time)
+            return BaseInteraction._get_function_of(value)(time)
         if isinstance(value, Expression) and value.has(SR(I)):
             return value.subs(
                 {item: BaseInteraction._get_functional(item, time, functions) for item in value.variables()},

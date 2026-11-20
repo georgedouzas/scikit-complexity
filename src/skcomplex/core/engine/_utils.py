@@ -62,7 +62,8 @@ def symbol(name: str, domain: object = RR) -> Expression:
 def domain_of(item: Expression) -> object:
     """Return the Sage set a symbol was declared for.
 
-    It is the integers, the reals, or the complex numbers.
+    It is the integers, the reals, or the complex numbers. A function of time whose imaginary part is zero, as the
+    value of a real state that an interaction receives, is real.
 
     Args:
         item:
@@ -80,7 +81,7 @@ def domain_of(item: Expression) -> object:
     """
     if item.is_integer():
         return ZZ
-    return RR if item.is_real() else CC
+    return RR if item.is_real() or item.imag_part().is_trivial_zero() else CC
 
 
 def vector(components: Iterable[object]) -> FreeModuleElement:

@@ -1357,12 +1357,6 @@ def test_stratonovich_callable_amplitude_raises_an_error_naming_the_drift_correc
         PassCompiler().prepare(system).run()
 
 
-@pytest.mark.skip(
-    reason=(
-        'Engine gap: a value that an interaction receives as a Sage function of the time loses its real domain, '
-        'so `domain_of` gives the complex field.'
-    ),
-)
 def test_components_receive_sage_symbols_and_vectors():
     """Test that values are Sage functions of the time with their domains and vector values are Sage vectors."""
     space = ContinuousSpace(n_dim=3)
