@@ -426,6 +426,13 @@ are the consumers of the core and of their field's common package.
 | Field values, such as `HilbertSpec` and `PartnerSpec` | move to the field package that uses them |
 | Engine records and compile specs, such as `LoweredFunctionsSpec`, `DrawLogSpec`, `EventRecordSpec`, and the eleven specs of `skcomplex.core.components.specs` | private frozen dataclasses beside the code that uses them |
 
+`BaseSpec`, the base of the public value objects, moves to `skcomplex.core.base` beside the other bases.
+
+The old model that the engine still works on, `CompositeSystem`, `GroupElement`, `FieldElement`, `DeclaredElement`,
+`StateSpec` and its family, and the lowered laws such as `BoundaryLaw`, `SampleLaw`, `RuleLaw`, and `LocalRuleLaw`,
+becomes private records of the compiler. No public name of them is left, and the compiler keeps lowering the new laws
+onto them.
+
 Both specs packages, `skcomplex.core.specs` and `skcomplex.core.components.specs`, are removed. Every value lives
 beside the class that uses it: `RoleSpec` and `Role` with the interactions, `Tags` with the components, `Observable`
 with the runtime, the noise values with the noise law, schedules with the solvers that read them, and field values in
@@ -445,6 +452,22 @@ against the new API.
 A value typed `tuple[Role, ...]` binds one role per entry, but the engine does not check that a parameter read
 beside it has one entry per role. Catalog systems pair such roles with sequences of other lengths, and a list of
 floats looks the same as a vector along the axes, so a mismatch fails where the law reads the entry.
+
+### Primed values of agents
+
+An agent rule reads and writes a plain value as an attribute, such as `agent.x`, and a primed value through
+`agent.get_value("x'")` and `agent.set_value("x'", v)`, which every agent view gives. Engine names such as `x_d1`
+never reach a rule.
+
+### Derivatives in member reductions
+
+An observable that reduces over the members of a group may read their derivatives, such as the mean of `x.diff(t)`
+over the agents, as an observable of the whole system does. The engine reads them in every reduction path.
+
+### Flattening once
+
+The compiler flattens a system once. Flattening is structural, and the declarations that the probe infers, the
+orders, lags, and agents, apply to the flat tree afterwards.
 
 ### Pair energies
 
