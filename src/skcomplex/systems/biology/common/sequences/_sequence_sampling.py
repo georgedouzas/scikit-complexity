@@ -22,7 +22,7 @@ from .....core.components.laws import ArrayUpdateLaw, BaseLaw
 from .....core.components.spaces import BaseSpace
 from .....core.enums import MoveKind
 from .....core.errors import ValidationError
-from .....core.specs import BaseSpec, ParameterSpec
+from .....core.specs import BaseSpec
 from .....core.types import Array, Role
 
 MOVES = (MoveKind.FLIP, MoveKind.RANDOM_VALUE, MoveKind.ROTATE, MoveKind.GAUSSIAN)
@@ -159,7 +159,7 @@ class SequenceSamplingInteraction(Interaction):
         state: str,
         objective: RowScoreSpec,
         move: str | Callable[..., object] = 'flip',
-        intensity: Annotated[float, ParameterSpec(domain=POSITIVE_VALUES)] = 1.0,
+        intensity: Annotated[float, POSITIVE_VALUES] = 1.0,
         rule: str = 'metropolis',
         values: Sequence[float] = (),
         width: float = 1.0,

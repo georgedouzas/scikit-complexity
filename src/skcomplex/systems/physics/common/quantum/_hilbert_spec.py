@@ -19,7 +19,7 @@ class HilbertSpec(BaseSpec):
     """A spec of the complex vector space of the states of an element.
 
     It holds the local operators its laws build generators from. An element that takes a `HilbertSpec` and declares a
-    complex state, a `StateSpec` over `CC` or `CC^dimension`, is a subsystem. Its laws read every local operator by
+    complex value, annotated with `CC` or `CC^dimension`, is a subsystem. Its laws read every local operator by
     name, and a group of such elements is the tensor product of its members' spaces, in member order. The space names
     `QuantumCompiler`, so a system of such elements compiles to a quantum problem by itself.
 
