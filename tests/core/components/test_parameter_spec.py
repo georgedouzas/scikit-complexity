@@ -1,4 +1,4 @@
-"""Test the `_parameter_spec` module of `skcomplex.core.specs`."""
+"""Test the `_parameter_spec` module of `skcomplex.core.components`."""
 
 import pytest
 

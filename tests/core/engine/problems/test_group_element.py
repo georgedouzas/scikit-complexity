@@ -1,4 +1,4 @@
-"""Test the `_group` module of `skcomplex.core.components.elements`."""
+"""Test the `_group_element` module of `skcomplex.core.engine.problems`."""
 
 from types import SimpleNamespace
 from typing import Annotated

@@ -1,4 +1,4 @@
-"""Test the `_field` module of `skcomplex.core.components.elements`."""
+"""Test the `_field_element` module of `skcomplex.core.engine.problems`."""
 
 from typing import Annotated
 

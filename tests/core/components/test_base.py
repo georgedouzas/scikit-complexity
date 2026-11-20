@@ -8,13 +8,14 @@ import pytest
 from sklearn.base import clone
 
 from skcomplex.core.components import RoleSpec
+from skcomplex.core.components._parameter_spec import _ParameterSpec
+from skcomplex.core.components._state_spec import _StateSpec
 from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import BaseElement, Element
 from skcomplex.core.components.interactions import BaseInteraction, Interaction
 from skcomplex.core.components.laws import BaseLaw, RateLaw
 from skcomplex.core.components.spaces import BaseNeighborhood, BaseSpace
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.core.systems import System
 from skcomplex.core.types import Role
 
@@ -50,8 +51,8 @@ class SpecifiedComponent(BaseComponent):
     def __init__(
         self,
         label,
-        x: Annotated[float, StateSpec(order=2)] = 0.0,
-        k: Annotated[float, ParameterSpec()] = 1.0,
+        x: Annotated[float, _StateSpec(order=2)] = 0.0,
+        k: Annotated[float, _ParameterSpec()] = 1.0,
         target: Annotated[str, RoleSpec()] = 'a',
         plain=None,
     ):
@@ -76,7 +77,7 @@ class SpecifiedComponent(BaseComponent):
 class ExtendedComponent(SpecifiedComponent):
     """Component that takes the state of its base again without annotating it, and adds a parameter first."""
 
-    def __init__(self, label, r: Annotated[float, ParameterSpec()] = 0.5, x=1.0):
+    def __init__(self, label, r: Annotated[float, _ParameterSpec()] = 0.5, x=1.0):
         super().__init__(label, x=x)
         self.r = r
 
@@ -84,7 +85,7 @@ class ExtendedComponent(SpecifiedComponent):
 class InvalidSpecComponent(SpecifiedComponent):
     """Component that declares a state of an invalid order."""
 
-    def __init__(self, label, y: Annotated[float, StateSpec(order=0)] = 0.0):
+    def __init__(self, label, y: Annotated[float, _StateSpec(order=0)] = 0.0):
         super().__init__(label)
         self.y = y
 
@@ -114,7 +115,7 @@ def test_get_specs_returns_the_annotated_arguments_in_constructor_order():
     """Test that the specs of a component are the annotated arguments of its constructor, in order, and no others."""
     specs = SpecifiedComponent._get_specs()
     assert list(specs) == ['x', 'k', 'target']
-    assert specs['x'] == StateSpec(order=2)
+    assert specs['x'] == _StateSpec(order=2)
     assert isinstance(specs['target'], RoleSpec)
 
 
@@ -122,7 +123,7 @@ def test_get_specs_keeps_the_specs_of_the_bases():
     """Test that a subclass keeps the spec of an argument of its base that it takes again without annotating it."""
     specs = ExtendedComponent._get_specs()
     assert list(specs) == ['r', 'x']
-    assert specs['x'] == StateSpec(order=2)
+    assert specs['x'] == _StateSpec(order=2)
 
 
 def test_constructor_only_stores_its_arguments():

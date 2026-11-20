@@ -10,7 +10,7 @@
 # missing one, and `example` when it repeats a covered pattern. Changes implement `core` entries first.
 #
 # Every entry also maps to the system vocabulary as `system`: its components and interaction bindings, from the
-# `vocabulary` tables. Its time, space, laws, and state domains are the capability tags of `skcomplex.core.specs`:
+# `vocabulary` tables. Its time, space, laws, and state domains are the capability tags of `skcomplex.core.components`:
 # the check reads them from `get_tags()` of the system class of an implemented entry, so they are not written here,
 # and an entry that is pending or blocked writes them with the values of `TimeTag`, `SpaceTag`, `LawTag`, and `DomainTag`.
 #

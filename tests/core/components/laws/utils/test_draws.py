@@ -81,6 +81,6 @@ def test_relaxed_draws_reject_invalid_relaxations(arguments, match):
 def test_draw_functions_have_one_import_path():
     """Test that the law namespace defines the draw functions and no other public core package exports them."""
     law_utils = importlib.import_module('skcomplex.core.components.laws.utils')
-    specs = importlib.import_module('skcomplex.core.specs')
+    components = importlib.import_module('skcomplex.core.components')
     assert law_utils.uniform.__module__ == 'skcomplex.core.components.laws.utils._draws'
-    assert not any(hasattr(specs, name) for name in ('uniform', 'normal', 'bernoulli', 'categorical', 'draw'))
+    assert not any(hasattr(components, name) for name in ('uniform', 'normal', 'bernoulli', 'categorical', 'draw'))

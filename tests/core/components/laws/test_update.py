@@ -11,7 +11,6 @@ from sage.sets.real_set import RealSet
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import (
-    LocalRuleLaw,
     ObjectiveLaw,
     OuterTotalisticSpec,
     RateLaw,
@@ -19,6 +18,7 @@ from skcomplex.core.components.laws import (
     TotalisticSpec,
     UpdateLaw,
 )
+from skcomplex.core.components.laws._local_rule import _LocalRuleLaw
 from skcomplex.core.components.laws.utils import bernoulli, shift_member, total, where
 from skcomplex.core.components.spaces import LatticeSpace, RadiusNeighborhood
 from skcomplex.core.errors import ValidationError
@@ -251,7 +251,7 @@ def test_update_with_a_neighborhood_becomes_a_local_rule_law():
 
     law = UpdateLaw((a, b), flip, neighborhood=AROUND, reads=[b], schedule='checkerboard', label='flip')
     rule = law._get_local_rule()
-    assert isinstance(rule, LocalRuleLaw)
+    assert isinstance(rule, _LocalRuleLaw)
     assert (rule.targets, rule.over, rule.rule, rule.reads, rule.schedule, rule.stochastic, rule.label) == (
         (a, b),
         AROUND,

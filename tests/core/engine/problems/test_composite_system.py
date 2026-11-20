@@ -1,4 +1,4 @@
-"""Test the `_composite` module of `skcomplex.core.components.systems`."""
+"""Test the `_composite_system` module of `skcomplex.core.engine.problems`."""
 
 from types import SimpleNamespace
 from typing import Annotated
@@ -197,7 +197,7 @@ def test_system_runs_into_the_laws_of_its_components():
 def test_system_prints_its_parameters():
     """Test that a system prints the parameters it was given, through scikit-learn."""
     system = _CompositeSystem('meadow', elements=[StockElement('rabbits')])
-    assert repr(system) == "CompositeSystem(elements=[StockElement(label='rabbits')], label='meadow')"
+    assert repr(system) == "_CompositeSystem(elements=[StockElement(label='rabbits')], label='meadow')"
 
 
 def test_four_component_system_runs():
@@ -255,7 +255,7 @@ def test_rate_under_discrete_time_is_reported():
     )
     (issue,) = PassCompiler().prepare(system).report_.errors
     assert issue.code == 'law-time'
-    assert 'needs ContinuousTime' in issue.message
+    assert 'needs _ContinuousTime' in issue.message
 
 
 def test_nested_system_inherits_time():

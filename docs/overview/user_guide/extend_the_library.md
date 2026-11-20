@@ -269,10 +269,9 @@ so that each imports only the packages below it. From top to bottom:
 1. `skcomplex.core.experiments` runs many simulations.
 2. `skcomplex.core.analysis` measures systems, trajectories, and data.
 3. `skcomplex.core.engine` runs systems.
-4. `skcomplex.core.components` defines what a system is.
-5. `skcomplex.core.specs` holds the specs.
-6. `skcomplex.core.base` holds `BaseConfig`.
-7. `skcomplex.core.types`, `skcomplex.core.enums`, and `skcomplex.core.errors` hold the types, the kinds, and the errors.
+4. `skcomplex.core.components` defines what a system is, with the specs its classes read.
+5. `skcomplex.core.base` holds `BaseConfig` and `BaseSpec`.
+6. `skcomplex.core.types`, `skcomplex.core.enums`, and `skcomplex.core.errors` hold the types, the kinds, and the errors.
 
 No part of the core imports `skcomplex.systems`, and the systems import only the public modules of the core. Tests of
 the import contracts enforce the layering.
@@ -332,8 +331,9 @@ This section lists the modules that every package of the core shares.
   `RewritingError`.
 - `skcomplex.core.types` holds the types that every layer reads, such as arrays, functions, and keys.
 - `skcomplex.core.enums` holds the kinds that every layer reads, such as `DataKind`, `FormKind`, and `ElementKind`.
-- `skcomplex.core.specs` holds the specs, frozen values that declare, record, or hold what the classes read, such as
-  `VisualSpec`, and the type `Role` of the arguments that name elements.
+- `skcomplex.core.base` holds `BaseSpec`, the base of the specs, frozen values that declare, record, or hold what the
+  classes read. Each spec lives beside the class that reads it, such as `VisualSpec` beside the elements and
+  `RoleSpec` beside the components.
 
 ### The core
 

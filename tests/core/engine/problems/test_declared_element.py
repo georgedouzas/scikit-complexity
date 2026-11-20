@@ -1,4 +1,4 @@
-"""Test the `_declared` module of `skcomplex.core.components.elements`."""
+"""Test the `_declared_element` module of `skcomplex.core.engine.problems`."""
 
 from typing import Annotated
 

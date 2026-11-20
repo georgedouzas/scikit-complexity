@@ -12,6 +12,8 @@ from sage.sets.real_set import RealSet
 
 from skcomplex.core.base import BaseSpec
 from skcomplex.core.components import RoleSpec, interactions
+from skcomplex.core.components._parameter_spec import _ParameterSpec
+from skcomplex.core.components._state_spec import _StateSpec
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import BaseInteraction, Interaction, TrainingInteraction, WienerProcessSpec
 from skcomplex.core.components.laws import (
@@ -33,7 +35,6 @@ from skcomplex.core.components.spaces import (
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.solvers import RK4Solver, VelocityVerletSolver
 from skcomplex.core.errors import ParameterShapeError, SpaceError, ValidationError
-from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.core.systems import System
 from skcomplex.core.types import Role
 from skcomplex.systems.general.agents import (
@@ -139,7 +140,7 @@ def _get_aliased(interaction):
             *,
             target: Annotated[str, RoleSpec()],
             renamed: str,
-            alias: Annotated[float, ParameterSpec()],
+            alias: Annotated[float, _ParameterSpec()],
             **arguments,
         ):
             super().__init__(label, target=target, **arguments)
@@ -188,7 +189,7 @@ def _run_nodes(interaction):
 class WeightedInteraction(BaseInteraction):
     """Interaction that declares a state, which interactions do not hold."""
 
-    def __init__(self, label, weight: Annotated[float, StateSpec()] = 1.0):
+    def __init__(self, label, weight: Annotated[float, _StateSpec()] = 1.0):
         super().__init__(label)
         self.weight = weight
 
@@ -200,7 +201,7 @@ class WeightedInteraction(BaseInteraction):
 class PolicyInteraction(BaseInteraction):
     """Interaction that declares an adaptive parameter, which interactions do not hold."""
 
-    def __init__(self, label, rate: Annotated[float, ParameterSpec(adaptive=True)] = 1.0):
+    def __init__(self, label, rate: Annotated[float, _ParameterSpec(adaptive=True)] = 1.0):
         super().__init__(label)
         self.rate = rate
 
@@ -564,7 +565,7 @@ def test_update_of_a_group_with_a_function_is_an_agent_rule():
     walkers = SimpleNamespace(x=var('x'))
     laws = RuleInteraction('shift', target='walkers', rule=_shift).prepare().run(SimpleNamespace(target=walkers)).laws_
     assert [(type(law).__name__, law.function, law.members, law.phase) for law in laws] == [
-        ('RuleLaw', _shift, 'target', 'move'),
+        ('_RuleLaw', _shift, 'target', 'move'),
     ]
 
 
@@ -597,7 +598,7 @@ def test_update_with_a_neighborhood_is_a_local_rule():
     """Test that an update law with a neighbourhood runs as a local rule of the states of the cells."""
     alive = var('alive')
     laws = ParityInteraction('parity').prepare().run(SimpleNamespace(target=SimpleNamespace(alive=alive))).laws_
-    assert [(type(law).__name__, law.targets, law.label) for law in laws] == [('LocalRuleLaw', alive, '')]
+    assert [(type(law).__name__, law.targets, law.label) for law in laws] == [('_LocalRuleLaw', alive, '')]
 
 
 def test_local_rule_with_a_setting_of_one_member_raises():

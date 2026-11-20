@@ -8,10 +8,11 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 from sklearn.base import clone
 
+from skcomplex.core.components._state_spec import _StateSpec
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.systems import BaseSystem, CompositeSystem, RunSettings
+from skcomplex.core.components.systems import BaseSystem, RunSettings
+from skcomplex.core.engine.problems._composite_system import _CompositeSystem
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec
 from skcomplex.systems.general.reactions import ReactionInteraction
 
 
@@ -22,13 +23,13 @@ class StockElement(Element):
         self,
         label: str,
         *,
-        n: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        n: Annotated[float, _StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
         super().__init__(label)
         self.n = n
 
 
-class GrowthSystem(BaseSystem[CompositeSystem]):
+class GrowthSystem(BaseSystem[_CompositeSystem]):
     """CompositeSystem of exponential growth whose model parameter is the rate."""
 
     until = 5.0
@@ -37,9 +38,9 @@ class GrowthSystem(BaseSystem[CompositeSystem]):
         super().__init__(label)
         self.r = r
 
-    def _build_system(self) -> CompositeSystem:
+    def _build_system(self) -> _CompositeSystem:
         growth = ReactionInteraction('growth', target='stock', products={'n': 1}, k=self.r)
-        return CompositeSystem(self.label, elements=[StockElement('stock')], interactions=[growth])
+        return _CompositeSystem(self.label, elements=[StockElement('stock')], interactions=[growth])
 
 
 def test_base_system_returns_its_tuned_run_settings():
@@ -70,7 +71,7 @@ class CountingSystem(GrowthSystem):
         self.weights = weights
         self.n_builds = 0
 
-    def _build_system(self) -> CompositeSystem:
+    def _build_system(self) -> _CompositeSystem:
         self.n_builds += 1
         return super()._build_system()
 

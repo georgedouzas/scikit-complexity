@@ -180,7 +180,7 @@ def test_transfer_from_the_environment_takes_a_source():
 
     trajectory = simulate(_CompositeSystem(elements=[FilledElement('f')]), until=3, dt=1.0)
     assert trajectory.get_values('f.n')[-1] == pytest.approx(3.0)
-    with pytest.raises(ValidationError, match='or `Source\\(\\)`, but got None'):
+    with pytest.raises(ValidationError, match='or `_Source\\(\\)`, but got None'):
         _TransferLaw(None, var('n'), 1.0).prepare()
 
 
@@ -224,10 +224,10 @@ def test_flow_between_quantities_is_rejected():
 
 def test_ends_of_a_transfer_print_and_compare_by_their_fields():
     """Test that a source and a sink print as their fields, compare by them, and appear so in an error."""
-    assert (repr(_Source()), repr(_Sink('drain'))) == ("Source(label='environment')", "Sink(label='drain')")
+    assert (repr(_Source()), repr(_Sink('drain'))) == ("_Source(label='environment')", "_Sink(label='drain')")
     assert _Source() == _Source('environment')
     assert _Sink('drain') != _Sink()
-    with pytest.raises(ValidationError, match=r"or `Source\(\)`, but got Sink\(label='environment'\)\."):
+    with pytest.raises(ValidationError, match=r"or `_Source\(\)`, but got _Sink\(label='environment'\)\."):
         _TransferLaw(_Sink(), _Source(), 1.0).prepare()
 
 

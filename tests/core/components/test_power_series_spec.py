@@ -1,4 +1,4 @@
-"""Test the `_power_series_spec` module of `skcomplex.core.specs`."""
+"""Test the `_power_series_spec` module of `skcomplex.core.components`."""
 
 import numpy as np
 import pytest

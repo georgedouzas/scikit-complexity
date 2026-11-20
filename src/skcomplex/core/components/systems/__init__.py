@@ -1,4 +1,4 @@
-"""Define the base of a system class that builds its components from model parameters."""
+"""Define the base of a system class built from model parameters."""
 
 from ._base import BaseSystem, RunSettings
 

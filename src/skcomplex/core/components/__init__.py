@@ -1,4 +1,4 @@
-"""Define the components: elements, interactions, laws, spaces, and systems, with the values they read.
+"""Define the components of a system and the values they read.
 
 An element holds states, an interaction reads them through roles and returns laws, a law is one equation or rule for one
 state, a space places the members of a group, and a system composes them.

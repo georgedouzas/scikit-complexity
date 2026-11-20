@@ -1,4 +1,4 @@
-"""Define the abstract bases of every configurable class and of every spec of the library."""
+"""Define the abstract bases of every configurable class and of every spec."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
