@@ -997,7 +997,7 @@ class PassCompiler(BaseCompiler):
 
     @staticmethod
     def _get_time_names(classes: tuple[type, ...]) -> str:
-        """Return the kinds of time of classes of time joined by `or`, such as `continuous time`."""
+        """Return the kinds of time classes joined by `or`, such as `discrete time`."""
         return ' or '.join(f"{getattr(item, 'time_tag', '')} time" for item in classes)
 
     @staticmethod
@@ -2030,7 +2030,7 @@ class PassCompiler(BaseCompiler):
 
     @staticmethod
     def _get_law_name(record: _CensusRecordSpec) -> str:
-        """Return the name of the law of a census record, by its kind for a law the engine lowered."""
+        """Return the name of the law of a record, by its kind for a lowered law."""
         name = type(record.law).__name__
         name = f'{record.law.law_tag} law' if name.startswith('_') else name
         return f'{name} of {record.path}'
