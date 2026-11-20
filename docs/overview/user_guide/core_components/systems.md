@@ -327,7 +327,7 @@ simulate(outbreak, until=10).get_values('infected.x').round(1).tolist()
 The call asks for 10 days, and the class still gives the step of 10 days, so the run has two frames.
 
 **How it combines.** The settings are the class variables `until`, `dt`, `solver`, `observables`, `initial_state`,
-`invariants`, `schedule`, `compiler`, and `backend` of a `BaseSystem` subclass. A system whose settings depend on its
+`invariants`, `schedule`, and `backend` of a `BaseSystem` subclass. A system whose settings depend on its
 parameters overrides `get_run_settings`.
 
 **Limits and errors.** A `CompositeSystem` has no tuned settings, and a class may leave `until` out. Then a call

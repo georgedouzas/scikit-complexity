@@ -85,8 +85,7 @@ def get_problem(system: AnySystem) -> BaseProblemSpec:
     if isinstance(system, BaseSystem):
         prepared = system if hasattr(system, 'system_') else system.prepare()
         return prepared.system_._problem
-    compiler = system.get_run_settings()['compiler'] or PassCompiler()
-    problem: BaseProblemSpec = clone(compiler).prepare(system.prepare().system_).run().problem_
+    problem: BaseProblemSpec = PassCompiler().prepare(system.prepare().system_).run().problem_
     return problem
 
 

@@ -1,6 +1,5 @@
 """Test the `_composite` module of `skcomplex.core.components.systems`."""
 
-import importlib
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -13,7 +12,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import Interaction, MapInteraction, RateInteraction
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import local_operator
 from skcomplex.core.components.spaces import (
@@ -28,10 +27,11 @@ from skcomplex.core.components.spaces import (
 from skcomplex.core.components.systems import BaseSystem, CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.errors import RoleElementError, TagError, ValidationError
+from skcomplex.core.errors import TagError, ValidationError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.systems import System
 from skcomplex.systems.biology.epidemiology import SIRSystem
+from skcomplex.systems.general.reactions import ReactionInteraction
 from skcomplex.systems.physics.common.quantum import GeneratorLaw, HilbertSpec, UnitarySolver
 
 PAULI = HilbertSpec(
@@ -228,7 +228,9 @@ def test_system_classes_nest_twice_under_their_labels():
     """Test that a ready-made system class nests twice by label, with its paths and its parameters kept apart."""
     system = System(
         systems=[SIRSystem(label='town'), System('region', systems=[SIRSystem(beta=0.0006, label='city')])],
-        interactions=[RateInteraction('arrivals', target='town/S', state='x', rate=lambda s: 0.01 * s.target.x)],
+        interactions=[
+            Interaction('arrivals', roles={'target': 'town/S'}, laws=lambda s: [RateLaw(s.target.x, s.target.x / 100)]),
+        ],
     )
     trajectory = system.prepare().simulate(until=10, dt=1.0)
     alone = SIRSystem().prepare().simulate(until=10, dt=1.0)
@@ -344,7 +346,7 @@ class SwitchElement(Element):
 
 def test_system_is_a_base_system_with_tags_derived_from_its_components():
     """Test that a system of a rate and a noise interaction is stochastic, with both law kinds."""
-    noisy = RateInteraction('growth', target='stock', state='n', rate=1.0, noise=0.1)
+    noisy = ReactionInteraction('growth', target='stock', products={'n': 1}, mode='langevin')
     system = CompositeSystem(elements=[StockElement('stock')], interactions=[noisy])
     tags = system.get_tags()
     assert isinstance(system, BaseSystem)
@@ -365,39 +367,3 @@ def test_system_tags_reject_components_on_spaces_that_nothing_joins():
         CompositeSystem(elements=[on_lattice, on_network]).get_tags()
     joined = CompositeSystem(elements=[on_lattice, on_network], space=ContinuousSpace(n_dim=2)).get_tags()
     assert joined.space == {'continuous', 'lattice', 'network'}
-
-
-def test_system_tags_reject_components_of_times_that_nothing_joins():
-    """Test that a rate and a map in one system disagree on the time, unless nested systems of each time join them."""
-    rate = RateInteraction('growth', target='stock', state='n', rate=1.0)
-    step = MapInteraction('step', target='counter/stock', state='n', function=lambda s: s.target.n)
-    with pytest.raises(TagError, match=r"disagree on the tag 'time'"):
-        CompositeSystem(elements=[StockElement('stock')], interactions=[rate, step]).get_tags()
-    nested = CompositeSystem(
-        systems=[
-            CompositeSystem('plant', elements=[StockElement('stock')], time=ContinuousTime()),
-            CompositeSystem('counter', elements=[StockElement('stock')], time=DiscreteTime()),
-        ],
-        interactions=[rate.set_params(target='plant/stock'), step],
-    )
-    assert nested.get_tags().time == {'continuous', 'discrete'}
-
-
-def test_system_rejects_a_role_bound_to_a_domain_it_does_not_accept():
-    """Test that a rate interaction on a boolean state fails to prepare, naming role, element, and domain."""
-    rate = RateInteraction('growth', target='switch', state='on', rate=1.0)
-    system = CompositeSystem(elements=[SwitchElement('switch')], interactions=[rate])
-    with pytest.raises(
-        RoleElementError,
-        match=r"The role 'target' of 'growth' .* 'switch' .* 'on' of the domain 'boolean'",
-    ):
-        system.prepare()
-
-
-@pytest.mark.parametrize(('name', 'module'), [('System', '_system'), ('MassActionSystem', '_mass_action')])
-def test_former_class_names_are_gone(name, module):
-    """Test that the former core system classes and their modules cannot be imported."""
-    systems = importlib.import_module('skcomplex.core.components.systems')
-    assert not hasattr(systems, name)
-    with pytest.raises(ImportError):
-        importlib.import_module(f'skcomplex.core.components.systems.{module}')

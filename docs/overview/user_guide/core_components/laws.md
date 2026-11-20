@@ -517,36 +517,21 @@ A `EventLaw` resets states, or ends the run, when an expression of the states, i
 dropped from a height of 1 metre bounces off the floor and keeps 80 percent of its speed.
 
 ```python
-from typing import Annotated
-
 from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import EventLaw, RateLaw
-from skcomplex.core.components.laws.utils import derivative
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.systems import System
 
 
-class BallElement(Element):
-    law_classes = (RateLaw, EventLaw)
-
-    def __init__(
-        self,
-        label,
-        *,
-        h: Annotated[float, StateSpec(order=2)] = 1.0,
-        e: Annotated[float, ParameterSpec()] = 0.8,
-    ):
-        super().__init__(label)
-        self.h = h
-        self.e = e
-
-    def _get_laws(self, namespace):
-        speed = derivative(namespace.h, 1)
-        return [RateLaw(namespace.h, -9.81), EventLaw(namespace.h, {speed: -namespace.e * speed}, direction=-1)]
+def bounce(s):
+    h, e = s.target.h, s.target.e
+    speed = h.diff(s.t)
+    return [RateLaw(h.diff(s.t, 2), -9.81), EventLaw(h, {speed: -e * speed}, direction=-1)]
 
 
-trajectory = simulate(CompositeSystem(elements=[BallElement('ball')]), until=2, dt=0.01)
+ball = Element('ball', values={'h': 1.0, 'e': 0.8})
+system = System(elements=[ball], interactions=[Interaction('bounce', roles={'target': 'ball'}, laws=bounce)])
+trajectory = system.prepare().simulate(until=2, dt=0.01)
 [round(event.time, 3) for event in trajectory.events]
 ```
 
@@ -557,28 +542,14 @@ The same law fires a neuron. The potential of a leaky integrate-and-fire neuron 
 when it reaches the threshold 1 it resets to 0.
 
 ```python continuation
-class NeuronElement(Element):
-    law_classes = (RateLaw, EventLaw)
-
-    def __init__(
-        self,
-        label,
-        *,
-        v: Annotated[float, StateSpec()] = 0.0,
-        current: Annotated[float, ParameterSpec()] = 1.5,
-        tau: Annotated[float, ParameterSpec()] = 10.0,
-    ):
-        super().__init__(label)
-        self.v = v
-        self.current = current
-        self.tau = tau
-
-    def _get_laws(self, namespace):
-        v = namespace.v
-        return [RateLaw(v, (namespace.current - v) / namespace.tau), EventLaw(v - 1, {v: 0}, direction=1)]
+def fire(s):
+    v = s.target.v
+    return [RateLaw(v, (s.target.current - v) / s.target.tau), EventLaw(v - 1, {v: 0}, direction=1)]
 
 
-spikes = simulate(CompositeSystem(elements=[NeuronElement('neuron')]), until=50, dt=0.1).events
+neuron = Element('neuron', values={'v': 0.0, 'current': 1.5, 'tau': 10.0})
+system = System(elements=[neuron], interactions=[Interaction('fire', roles={'target': 'neuron'}, laws=fire)])
+spikes = system.prepare().simulate(until=50, dt=0.1).events
 [round(event.time, 2) for event in spikes]
 ```
 
@@ -589,8 +560,8 @@ crossing on its interpolant within its tolerance, applies every reset at once, a
 there. The trajectory keeps each crossing with its time and the states before and after it, and a `terminal` crossing
 ends the run.
 
-**How it combines.** It leaves the equations as they are, so it combines with `RateLaw`s and `NoiseLaw`s. A
-`CrossingInteraction` returns it from an interaction, so a threshold can read the states of several elements.
+**How it combines.** It leaves the equations as they are, so it combines with `RateLaw`s and `NoiseLaw`s. An
+interaction returns it with its other laws, so a threshold can read the states of several elements.
 
 **Limits and errors.** A guard that crosses zero again right after its reset raises an error that names the chattering
 event. The direction is `1` for upward crossings, `-1` for downward ones, or `0` for both, and `prepare` raises a
@@ -622,41 +593,22 @@ An `ConstraintLaw` states a relation that holds the highest time derivatives of 
 law holds an acceleration. The pendulum `m l θ'' = -m g sin θ` is one such relation, written as it reads.
 
 ```python
-from typing import Annotated
-
 from sage.all__sagemath_symbolics import sin
 
 from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import ConstraintLaw
-from skcomplex.core.components.laws.utils import derivative
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.systems import System
 
 
-class PendulumElement(Element):
-    law_classes = (ConstraintLaw,)
-
-    def __init__(
-        self,
-        label,
-        *,
-        theta: Annotated[float, StateSpec(order=2)] = 0.1,
-        m: Annotated[float, ParameterSpec()] = 1.0,
-        l: Annotated[float, ParameterSpec()] = 1.0,
-    ):
-        super().__init__(label)
-        self.theta = theta
-        self.m = m
-        self.l = l
-
-    def _get_laws(self, namespace):
-        theta, m, l = namespace.theta, namespace.m, namespace.l
-        return [ConstraintLaw(m * l * derivative(theta, 2) == -m * 9.81 * sin(theta))]
+def swing(s):
+    theta, m, l = s.target.theta, s.target.m, s.target.l
+    return [ConstraintLaw(m * l * theta.diff(s.t, 2) == -m * 9.81 * sin(theta))]
 
 
-bob = PendulumElement('bob')
-simulate(CompositeSystem(elements=[bob]), until=2, dt=1.0).get_values('bob.theta').round(3).tolist()
+bob = Element('bob', values={'theta': 0.1, 'm': 1.0, 'l': 1.0})
+system = System(elements=[bob], interactions=[Interaction('swing', roles={'target': 'bob'}, laws=swing)])
+system.prepare().simulate(until=2, dt=1.0).get_values('bob.theta').round(3).tolist()
 ```
 
 The angle swings from 0.1 to -0.1 after one second and back to 0.1 after two, close to the small period
@@ -666,31 +618,14 @@ The same law gives the charge `q` of a series circuit of an inductor, a resistor
 `L q'' + R q' + q / C = 0`.
 
 ```python continuation
-class CircuitElement(Element):
-    law_classes = (ConstraintLaw,)
-
-    def __init__(
-        self,
-        label,
-        *,
-        q: Annotated[float, StateSpec(order=2)] = 1.0,
-        L: Annotated[float, ParameterSpec()] = 1.0,
-        R: Annotated[float, ParameterSpec()] = 0.5,
-        C: Annotated[float, ParameterSpec()] = 0.25,
-    ):
-        super().__init__(label)
-        self.q = q
-        self.L = L
-        self.R = R
-        self.C = C
-
-    def _get_laws(self, namespace):
-        q, L, R, C = namespace.q, namespace.L, namespace.R, namespace.C
-        return [ConstraintLaw(L * derivative(q, 2) + R * derivative(q, 1) + q / C == 0)]
+def discharge(s):
+    q, L, R, C = s.target.q, s.target.L, s.target.R, s.target.C
+    return [ConstraintLaw(L * q.diff(s.t, 2) + R * q.diff(s.t) + q / C == 0)]
 
 
-circuit = CircuitElement('rlc')
-simulate(CompositeSystem(elements=[circuit]), until=3, dt=1.0).get_values('rlc.q').round(3).tolist()
+rlc = Element('rlc', values={'q': 1.0, 'L': 1.0, 'R': 0.5, 'C': 0.25})
+system = System(elements=[rlc], interactions=[Interaction('discharge', roles={'target': 'rlc'}, laws=discharge)])
+system.prepare().simulate(until=3, dt=1.0).get_values('rlc.q').round(3).tolist()
 ```
 
 The charge oscillates and decays: 1, -0.223, -0.467, and 0.428.

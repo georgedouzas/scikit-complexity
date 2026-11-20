@@ -41,7 +41,7 @@ from ...components.laws import (
     TopologyRequestSpec,
     UpdateLaw,
 )
-from ...components.laws.utils import delayed, derivative, lag
+from ...components.laws.utils._history import delayed, derivative, lag
 from ...components.spaces import BaseSpace, CellComplexSpace, ContinuousSpace, LatticeSpace, NetworkSpace
 from ...components.systems import CompositeSystem
 from ...enums import TopologyKind, VariableKind

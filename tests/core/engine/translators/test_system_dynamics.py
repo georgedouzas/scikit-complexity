@@ -314,7 +314,7 @@ def test_run_maps_min_of_max_to_clip(fixtures_folder):
     for name in ('series', 'where', 'step', 'ramp', 'pulse', 'pulse_train', 'distributed_delay'):
         assert f'{name}(' in source
     assert 'conserved=False)' in source
-    assert 'delayed(s.level, 2)' in source
+    assert 's.level(t=t - 2)' in source
     assert 'minimum(' in source
     assert 'maximum(' in source
 

@@ -15,7 +15,8 @@ from sage.all__sagemath_symbolics import SR, Expression, I, function
 from ...components import Observable
 from ...components.elements import Element
 from ...components.interactions import BaseInteraction
-from ...components.laws.utils import derivative, local_operator
+from ...components.laws.utils import local_operator
+from ...components.laws.utils._history import derivative
 from ...components.laws.utils._local_operators import has_operator
 from ...components.systems import CompositeSystem
 from ...enums import FormKind, VariableKind

@@ -729,7 +729,7 @@ class PassCompiler(BaseCompiler):
         The issue names that compiler.
         """
         message = f'The system {system.label} is compiled by {compiler}, not by PassCompiler.'
-        return IssueSpec('compiler', system.label, message, f'Pass `compiler={compiler}()`.')
+        return IssueSpec('compiler', system.label, message, f'Prepare the system, which compiles it with {compiler}.')
 
     def _get_counted(self, system: CompositeSystem) -> tuple[Compilation | None, list[IssueSpec]]:
         """Return the compilation of a system through the census of its laws.

@@ -71,7 +71,7 @@ class RewritingCompiler(BaseCompiler):
         """
         if not self._is_rewriting(system):
             message = f'The system {system.label} holds no word or patch, so RewritingCompiler does not compile it.'
-            fix = 'Pass the compiler of the system, or none for PassCompiler.'
+            fix = 'Prepare the system, which compiles it with PassCompiler.'
             return [IssueSpec('compiler', system.label, message, fix)]
         try:
             FlattenPass._flatten_system(system)
