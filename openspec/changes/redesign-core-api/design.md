@@ -217,7 +217,7 @@ every kind where adding means something: rates, noises, jump channels, and const
 | `RateLaw`, `GeneratorLaw` | `RateLaw`, and `GeneratorLaw` with `HilbertSpec` and a `QuantumCompiler` in the quantum package |
 | `NoiseLaw` | `NoiseLaw` |
 | `JumpLaw`, `TransferLaw`, `Source`, `Sink` | `JumpLaw` with a change mapping, where an empty side is a source or a sink |
-| `UpdateLaw`, `ArrayUpdateLaw`, `RuleLaw`, `LocalRuleLaw`, `TransitionLaw` | `UpdateLaw`, with a random draw for transitions, a neighbourhood binding for local rules, and a NumPy function of whole arrays, `UpdateLaw(state, f)`, for numerics that need them, such as SU(N) links or sequence sampling |
+| `UpdateLaw`, `ArrayUpdateLaw`, `RuleLaw`, `LocalRuleLaw`, `TransitionLaw` | `UpdateLaw`, with a random draw for transitions, a neighbourhood binding for local rules, and a NumPy function of whole arrays, `UpdateLaw(state, f, arrays=True)`, for numerics that need them, such as SU(N) links or sequence sampling |
 | `EquationLaw`, `BoundaryLaw` | `ConstraintLaw`, a boundary being a constraint applied after each step |
 | `CrossingLaw` | `EventLaw` |
 | `LinearProgramLaw` | `ObjectiveLaw` with `ConstraintLaw`, solved as a linear program when both are linear |
@@ -236,7 +236,12 @@ Two kinds of model need forms that the table above does not name yet.
   sets an `UpdateLaw` with a rule, a Python function that reads and changes one agent, such as
   `UpdateLaw(s.target, move)` with `def move(agent, system): agent.x += system.rng.normal()`. Births and deaths are
   rules that add or remove members of the group, as a branching process does. The agent solver runs the rules, so
-  `AgentView`, `form='agent'`, and `BirthDeathInteraction` go, and the activation schedule is a setting of that solver.
+  `AgentView` and `form='agent'` go, and the activation schedule is a setting of that solver. `BirthDeathInteraction`
+  stays as a shared recipe of `skcomplex.systems.general.agents`, an interaction that sets these `UpdateLaw` rules.
+- Updates of whole arrays. A law that needs the numerics of a whole array, such as the SU(N) links of a gauge field
+  or the rows of a sequence sampler, says so with `UpdateLaw(state, f, arrays=True)`, and its function receives the
+  array of the state, shaped like the lattice or with one row per member. Without `arrays`, a function value is
+  `f(t, values)` of one state. The form is never read from the signature of the function.
 - Rules of a whole system. A rule whose target is the namespace of the system itself, `UpdateLaw(s, rule)` with
   `def rule(system): ...`, runs once per step after the rules of the agents, such as the matching of riders and
   drivers or a braking event drawn for the whole road.
