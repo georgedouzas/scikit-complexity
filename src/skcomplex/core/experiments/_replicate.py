@@ -139,7 +139,7 @@ def _member_values(
     names = {element.label: set(_value_names(element)) for element in system.elements}
     for path, value in values.items():
         label, _, name = path.partition('.')
-        if label not in names or name not in names[label]:
+        if label not in names or name.rstrip("'") not in names[label]:
             available = ', '.join(f'{item}.{field}' for item, fields in names.items() for field in sorted(fields))
             error_msg = f'{path} is not a state or parameter of the system. Available paths are: {available}.'
             raise ValidationError(error_msg)
@@ -257,7 +257,8 @@ def _replicate_prepared(system: System, size: int, values: Mapping[str, npt.Arra
             The number of members of every element.
 
         values:
-            A mapping from dotted path of a value of an element to its per-member values, one row per member.
+            A mapping from dotted path of a value of an element, or of its starting derivative such as `"ball.x'"`,
+            to its per-member values, one row per member.
 
     Returns:
         system:
@@ -282,7 +283,7 @@ def _replicate_prepared(system: System, size: int, values: Mapping[str, npt.Arra
     by_label: dict[str, dict[str, object]] = {label: {} for label in names}
     for path, value in (values or {}).items():
         label, _, name = path.partition('.')
-        if label not in names or name not in names[label]:
+        if label not in names or name.rstrip("'") not in names[label]:
             available = ', '.join(f'{item}.{field}' for item, fields in names.items() for field in sorted(fields))
             error_msg = f'{path} is not a value of an element of the system. Available paths are: {available}.'
             raise ValidationError(error_msg)

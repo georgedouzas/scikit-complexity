@@ -4,6 +4,8 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.experiments._replicate import _replicate, _replicate_prepared
 from skcomplex.core.systems import System
@@ -70,3 +72,12 @@ def test_replicate_prepared_runs_elements_whose_class_takes_no_size():
     values = np.asarray(replicated.simulate(1.0, dt=0.5).get_values('prey.x'))
     single = LotkaVolterraSystem(prey=40.0).prepare().simulate(1.0, dt=0.5)
     np.testing.assert_allclose(values[:, 1], np.ravel(single.get_values('prey.x')), rtol=1e-5)
+
+
+def test_replicate_prepared_takes_one_starting_derivative_per_member():
+    """Test that replicated masses that coast take their own starting velocity `mass.x'`."""
+    coast = Interaction('coast', roles={'target': 'mass'}, laws=lambda s: [RateLaw(s.target.x.diff(s.t, 2), 0)])
+    system = System(elements=[Element('mass', values={'x': 0.0})], interactions=[coast])
+    replicated = _replicate_prepared(system, 2, {"mass.x'": np.array([1.0, -2.0])}).prepare()
+    final = replicated.simulate(until=1.0, dt=0.01).get_values('mass.x')[-1]
+    assert final == pytest.approx(np.array([1.0, -2.0]), rel=1e-6)
