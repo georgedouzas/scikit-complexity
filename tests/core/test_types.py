@@ -76,7 +76,6 @@ def test_optional_role_may_bind_nothing():
         _prepare(source='nowhere')
 
 
-@pytest.mark.skip(reason='Engine gap: the domains of `Annotated[Role, ...]` are checked by `CompositeSystem` only.')
 def test_role_with_words_accepts_these_domains():
     """`Annotated[Role, 'boolean']` declares a role that accepts boolean states only."""
     assert _prepare(Element('lamp', values={'level': True}), switch='lamp').states_ == ('ball.x',)
