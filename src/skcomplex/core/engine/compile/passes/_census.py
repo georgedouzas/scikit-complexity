@@ -1211,7 +1211,7 @@ class CensusPass(BasePass):
 
     @staticmethod
     def _get_mean_jumps(law: BaseLaw, solver: object) -> list[BaseLaw]:
-        """Return a jump at a rate as the rate laws of its mean when an ODE solver runs it, or the law as it is.
+        """Return a jump as the rate laws of its mean under an ODE solver, else as it is.
 
         A jump that adds `changes` at the rate `r`, such as `JumpLaw(k * a, {a: -1, b: 1})`, moves every state by its
         change times `r` on average, so an ODE solver runs `RateLaw(a, -k * a)` and `RateLaw(b, k * a)`. A labelled jump
