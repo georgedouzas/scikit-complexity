@@ -198,6 +198,24 @@ class _StateInference:
         return max(primes) + 1 if primes else None
 
     @staticmethod
+    def _get_memory(element: Element, name: str, delays: Collection[str]) -> int:
+        """Return the number of past values an agent remembers of a value.
+
+        Agent rules are Python functions, so an agent remembers the last `k` values of a value given with the past
+        value of index `-k`, such as `values={'money': 0.0, 'money[-3]': 0.0}` for savers whose rules read
+        `agent.get_lags('money')`. The history of a delayed value is no memory.
+        """
+        indices = [
+            int(found.group('lag'))
+            for given in (element.values or {})
+            if (found := STARTING.fullmatch(given)) is not None
+            and found.group('name') == name
+            and found.group('lag')
+            and name not in delays
+        ]
+        return max(indices, default=0)
+
+    @staticmethod
     def _get_link(element: Element) -> tuple[str, str | None] | None:
         """Return the part of a network an element sits on and its layer.
 
@@ -759,15 +777,19 @@ class _StateInference:
 
         def declare(element: Element, path: str, space: BaseSpace | None) -> list[BaseElement]:
             agent = path in agents and not self._is_field(element, kinds)
+            delayed = frozenset(name.removeprefix(f'{path}.') for name in delays if name.startswith(f'{path}.'))
             return self._get_declared_elements(
                 element,
                 (lambda name: 1) if agent else (lambda name: orders.get(f'{path}.{name}')),
-                lambda name: lags.get(f'{path}.{name}', 0),
+                lambda name: max(
+                    lags.get(f'{path}.{name}', 0),
+                    self._get_memory(element, name, delayed) if agent else 0,
+                ),
                 kinds,
                 agents=path in agents,
                 sizes=sizes,
                 links=links,
-                delays=frozenset(name.removeprefix(f'{path}.') for name in delays if name.startswith(f'{path}.')),
+                delays=delayed,
                 controls=frozenset(name.removeprefix(f'{path}.') for name in controls if name.startswith(f'{path}.')),
                 steps={
                     name.removeprefix(f'{path}.'): moved.removeprefix(f'{path}.')

@@ -600,13 +600,9 @@ def _save(agent, system):
     agent.money += 1
 
 
-@pytest.mark.skip(
-    reason='Engine gap: an agent value has no form of the new API for a memory of its last 3 values, which '
-    '`get_lags` reads (agent lags).',
-)
 def test_memory_window():
-    """Agents remember the last values of the states their type lists."""
-    savers = Element('savers', values={'money': 0.0, 'seen': 0.0}, size=2)
+    """Agents remember the last values of a value given with its oldest past value."""
+    savers = Element('savers', values={'money': 0.0, 'money[-3]': 0.0, 'seen': 0.0}, size=2)
     system = System(elements=[savers], interactions=[_rule('save', 'savers', _save)])
     trajectory = system.prepare().simulate(until=5, random_state=0)
     assert trajectory.get_agents('savers', 5).values['seen'].tolist() == [3.0, 3.0]

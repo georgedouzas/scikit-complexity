@@ -1671,3 +1671,16 @@ def test_get_declared_reads_an_array_of_tuples_as_a_state_of_objects():
     assert first.values['orders'].tolist() == orders.tolist()
     assert last.values['orders'].tolist() == [(2, 3), (2, 3)]
     assert isinstance(trajectory.get_values('queue.longest')[-1], tuple)
+
+
+def _spend(agent, system):
+    """Spend one unit of money."""
+    agent.money -= 1
+
+
+def test_agents_remember_as_many_values_as_the_oldest_past_value_given():
+    """Test that an agent value given with the past value of index `-3` keeps its last 3 values."""
+    spending = Interaction('spend', roles={'target': 'savers'}, laws=lambda s: [UpdateLaw(s.target, _spend)])
+    savers = Element('savers', values={'money': 5.0, 'money[-3]': 5.0}, size=2)
+    system = System(elements=[savers], interactions=[spending]).prepare()
+    assert system.states_ == ('savers.money', 'savers.money[-1]', 'savers.money[-2]', 'savers.money[-3]')

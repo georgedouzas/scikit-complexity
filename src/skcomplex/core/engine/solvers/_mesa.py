@@ -1022,7 +1022,7 @@ class AgentView:
                 The state of the agent keeps no lags.
         """
         spec = self._stepper._get_spec_of(self._agent)
-        declaration = declarations_of(MesaSolver._get_agent_type(spec), VariableKind.STATE).get(state)
+        declaration = declarations_of(MesaSolver._get_declaring(spec), VariableKind.STATE).get(state)
         if declaration is None or not declaration.lags:
             error_msg = (
                 f'The agents of {spec.path} do not remember {state!r}. Declare the state with lags, such as '
@@ -1184,7 +1184,7 @@ class MesaSolver(ExternalSolver):
         self._lags = {
             spec.path: {
                 name: declaration.lags
-                for name, declaration in declarations_of(self._get_agent_type(spec), VariableKind.STATE).items()
+                for name, declaration in declarations_of(self._get_declaring(spec), VariableKind.STATE).items()
                 if declaration.lags
             }
             for spec in problem.agents
