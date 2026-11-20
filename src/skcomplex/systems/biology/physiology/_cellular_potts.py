@@ -38,7 +38,7 @@ from ....core.components.spaces import (
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec, ParameterSpec
+from ....core.specs import BaseSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Indices, Role
 
@@ -309,7 +309,7 @@ class RegionSamplingInteraction(Interaction):
         state: str,
         objective: RegionScoreSpec,
         move: str = 'copy',
-        intensity: Annotated[float, ParameterSpec(domain=POSITIVE_VALUES)] = 1.0,
+        intensity: Annotated[float, POSITIVE_VALUES] = 1.0,
         rule: str = 'metropolis',
         neighborhood: BaseNeighborhood | None = None,
         cooling: Callable[[Expression | float], object] | None = None,
@@ -569,11 +569,11 @@ class CellAdhesionInteraction(RegionSamplingInteraction):
         target: Role,
         kinds: Sequence[int],
         adhesion: npt.ArrayLike,
-        temperature: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        area_strength: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        target_area: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 40.0,
-        perimeter_strength: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        target_perimeter: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        temperature: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        area_strength: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        target_area: Annotated[float, RealSet.closed_open(0, oo)] = 40.0,
+        perimeter_strength: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        target_perimeter: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
         state: str = 'cell',
         rule: str = 'metropolis',
         neighborhood: BaseNeighborhood | None = None,

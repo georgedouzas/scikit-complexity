@@ -22,7 +22,7 @@ from ....core.components.laws.utils import shift_member, where
 from ....core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend, NumbaBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import StateSpec, VisualSpec
+from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
 
@@ -49,7 +49,7 @@ class ParticleSiteElement(Element):
         self,
         label: str,
         *,
-        n: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        n: Annotated[float, NN] = 0.0,
     ) -> None:
         super().__init__(label)
         self.n = n
