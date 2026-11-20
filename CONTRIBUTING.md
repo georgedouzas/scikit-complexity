@@ -118,7 +118,7 @@ of module functions that stay functions.
 
 This section adds a ready-made system to the catalog. A system of the catalog is a subclass of `BaseSystem` whose name
 ends in `System`. Its `__init__` takes the parameters of the model and stores each under its own name, and its hook
-`_build_system` returns the `CompositeSystem` of its components. Its body sets these class variables:
+`_prepare` sets `system_` to the `System` of its components. Its body sets these class variables:
 
 - `field`, the field path of a field and a subfield, such as `'engineering/processes'`,
 - `topics`, the words that `all_systems` filters by,
@@ -132,20 +132,14 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.systems import BaseSystem, CompositeSystem
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.systems import BaseSystem, System
 
 
 class TankElement(Element):
-    def __init__(
-        self,
-        label,
-        visual=None,
-        *,
-        level: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-    ):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, level: Annotated[float, RealSet.closed_open(0, oo)] = 1.0):
+        super().__init__(label)
         self.level = level
 
 
@@ -158,15 +152,16 @@ class DrainingTankSystem(BaseSystem):
     until = 5.0
     dt = 0.1
 
-    def __init__(self, level=2.0, *, k=0.5, label='system'):
-        super().__init__(label)
+    def __init__(self, level=2.0, *, k=0.5, label='system', solver='auto', backend='auto'):
+        super().__init__(label, solver=solver, backend=backend)
         self.level = level
         self.k = k
 
-    def _build_system(self):
+    def _prepare(self, context=None):
+        super()._prepare(context)
         k = self.k
-        drain = RateInteraction('drain', target='tank', state='level', rate=lambda s: -k * s.target.level)
-        return CompositeSystem(self.label, elements=[TankElement('tank', level=self.level)], interactions=[drain])
+        drain = Interaction('drain', roles={'target': 'tank'}, laws=lambda s: [RateLaw(s.target.level, -k * s.target.level)])
+        self.system_ = System(self.label, elements=[TankElement('tank', level=self.level)], interactions=[drain])
 
 
 DrainingTankSystem().get_params()

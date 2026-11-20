@@ -16,7 +16,9 @@ more on the first site and fewer on the third.
 
 ```python
 from skcomplex.core.components.elements import DeclaredElement, GroupElement
-from skcomplex.core.components.interactions import CouplingInteraction, RateInteraction
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -27,20 +29,28 @@ animals = {
     'prey': [1.5, 1.0, 0.5, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
 }
 habitats = GroupElement('habitats', element=DeclaredElement, on='sites', values=animals)
-births = RateInteraction(
-    'births', target='habitats', state='prey', rate=lambda s: s.target.prey * (1.0 - s.target.predators)
+births = Interaction(
+    'births',
+    roles={'target': 'habitats'},
+    laws=lambda s: [RateLaw(s.target.prey, s.target.prey * (1.0 - s.target.predators))],
 )
-hunting = RateInteraction(
-    'hunting', target='habitats', state='predators', rate=lambda s: s.target.predators * (s.target.prey - 1.0)
+hunting = Interaction(
+    'hunting',
+    roles={'target': 'habitats'},
+    laws=lambda s: [RateLaw(s.target.predators, s.target.predators * (s.target.prey - 1.0))],
 )
-dispersal = CouplingInteraction('dispersal', target='habitats', read='prey', write='prey')
+dispersal = Interaction(
+    'dispersal',
+    roles={'target': 'habitats'},
+    laws=lambda s: [RateLaw(s.target.prey, neighbors(s.target.other.prey - s.target.prey))],
+)
 ecosystem = CompositeSystem(
     'ecosystem', elements=[habitats], interactions=[births, hunting, dispersal], space=LatticeSpace((3, 3))
 )
 simulate(ecosystem, until=4, dt=2.0).get_values('habitats.prey').mean(axis=1).round(2).tolist()
 ```
 
-The mean prey over the lattice rises to 1.65 and falls to 0.53, a cycle of Lotka and Volterra. The group takes the
+The mean prey over the lattice rises to 1.65 and falls to 0.52, a cycle of Lotka and Volterra. The group takes the
 lattice of the system as its space, since it has none of its own.
 
 The same class holds a savings account. Interest of 5 percent a year grows the balance, and withdrawals of 120 a
@@ -48,8 +58,8 @@ year draw it down.
 
 ```python continuation
 account = DeclaredElement('account', variables={'x': DeclaredVariableSpec(1000.0, StateSpec())})
-interest = RateInteraction('interest', target='account', state='x', rate=lambda s: 0.05 * s.target.x)
-withdrawals = RateInteraction('withdrawals', target='account', state='x', rate=-120.0)
+interest = Interaction('interest', roles={'target': 'account'}, laws=lambda s: [RateLaw(s.target.x, 0.05 * s.target.x)])
+withdrawals = Interaction('withdrawals', roles={'target': 'account'}, laws=lambda s: [RateLaw(s.target.x, -120.0)])
 savings = CompositeSystem('savings', elements=[account], interactions=[interest, withdrawals])
 simulate(savings, until=10, dt=5.0).get_values('account.x').round(2).tolist()
 ```
@@ -61,11 +71,10 @@ systems on the space, then the interactions. The compiler collects the laws of e
 problem, and the tags of the system come from its components. The tags choose the default solver.
 
 ```python continuation
-tags = ecosystem.get_tags()
-sorted(tags.laws), sorted(tags.space), sorted(tags.time)
+sorted(ecosystem.get_tags().space)
 ```
 
-The ecosystem holds rate laws on a lattice in continuous time, so `ScipyODESolver` integrates it.
+The ecosystem lives on a lattice, and its rate laws make it run in continuous time, so `ScipyODESolver` integrates it.
 
 **How it combines.** A system nests other systems through `systems`, and an interaction names an element of a nested
 system by its path, such as `savings/account`. Here a family fund grows by 10 percent a year of the balance of the
@@ -73,8 +82,10 @@ nested account, a matching gift that the account itself does not pay.
 
 ```python continuation
 fund = DeclaredElement('fund', variables={'x': DeclaredVariableSpec(0.0, StateSpec())})
-deposit = RateInteraction(
-    'deposit', target='fund', state='x', rate=lambda s: 0.1 * s.sources[0].x, sources=['savings/account']
+deposit = Interaction(
+    'deposit',
+    roles={'target': 'fund', 'source': 'savings/account'},
+    laws=lambda s: [RateLaw(s.target.x, 0.1 * s.source.x)],
 )
 family = CompositeSystem('family', elements=[fund], systems=[savings], interactions=[deposit])
 trajectory = simulate(family, until=2, dt=1.0)
@@ -91,7 +102,7 @@ the run raises a `RoleError`, a kind of `ValidationError`, for a path that names
 ```python continuation
 from skcomplex.core.errors import ValidationError
 
-typo = RateInteraction('interest', target='acount', state='x', rate=lambda s: 0.05 * s.target.x)
+typo = Interaction('interest', roles={'target': 'acount'}, laws=lambda s: [RateLaw(s.target.x, 0.05 * s.target.x)])
 try:
     simulate(CompositeSystem(elements=[account], interactions=[typo]), until=1)
 except ValidationError as error:
@@ -117,8 +128,8 @@ class SavingsSystem(BaseSystem):
 
     def _build_system(self):
         account = DeclaredElement('account', variables={'x': DeclaredVariableSpec(1000.0, StateSpec())})
-        interest = RateInteraction('interest', target='account', state='x', rate=lambda s: self.rate * s.target.x)
-        withdrawals = RateInteraction('withdrawals', target='account', state='x', rate=-self.withdrawal)
+        interest = Interaction('interest', roles={'target': 'account'}, laws=lambda s: [RateLaw(s.target.x, self.rate * s.target.x)])
+        withdrawals = Interaction('withdrawals', roles={'target': 'account'}, laws=lambda s: [RateLaw(s.target.x, -self.withdrawal)])
         return CompositeSystem(self.label, elements=[account], interactions=[interest, withdrawals])
 
 
@@ -139,7 +150,8 @@ logistically in a town, at the rate `beta` among `population` people.
 
 ```python
 from skcomplex.core.components.elements import DeclaredElement
-from skcomplex.core.components.interactions import RateInteraction
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import NoiseLaw, RateLaw
 from skcomplex.core.components.systems import BaseSystem, CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
@@ -157,7 +169,7 @@ class OutbreakSystem(BaseSystem):
     def _build_system(self):
         infected = DeclaredElement('infected', variables={'x': DeclaredVariableSpec(10.0, StateSpec())})
         growth = lambda s: self.beta * s.target.x * (1 - s.target.x / self.population)
-        spread = RateInteraction('spread', target='infected', state='x', rate=growth)
+        spread = Interaction('spread', roles={'target': 'infected'}, laws=lambda s: [RateLaw(s.target.x, growth(s))])
         return CompositeSystem(self.label, elements=[infected], interactions=[spread])
 
 
@@ -184,7 +196,7 @@ class CoolingSystem(BaseSystem):
     def _build_system(self):
         cup = DeclaredElement('coffee', variables={'T': DeclaredVariableSpec(90.0, StateSpec())})
         newton = lambda s: -self.k * (s.target.T - self.room)
-        cooling = RateInteraction('cooling', target='coffee', state='T', rate=newton)
+        cooling = Interaction('cooling', roles={'target': 'coffee'}, laws=lambda s: [RateLaw(s.target.T, newton(s))])
         return CompositeSystem(self.label, elements=[cup], interactions=[cooling])
 
 
@@ -205,11 +217,10 @@ copies the parameters, as for any scikit-learn estimator.
 from sklearn.base import clone
 
 copy = clone(cup)
-copy.get_params(), sorted(copy.get_tags().laws), type(copy.prepare().system_).__name__
+copy.get_params(), type(copy.prepare().system_).__name__
 ```
 
-The clone has the cooling constant 0.05 that `set_params` gave the cup, its laws are rates, and its components form a
-`CompositeSystem`.
+The clone has the cooling constant 0.05 that `set_params` gave the cup, and its components form a `CompositeSystem`.
 
 **How it combines.** A system class nests inside a `CompositeSystem` through `systems`, and its states are named by
 its path, such as `outbreak/infected.x`. The parameters are what calibration fits and what experiments sweep.
@@ -256,7 +267,8 @@ and its [API entry][skcomplex.core.components.systems.BaseSystem].
 
 ```python
 from skcomplex.core.components.elements import DeclaredElement
-from skcomplex.core.components.interactions import RateInteraction
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import NoiseLaw, RateLaw
 from skcomplex.core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
@@ -273,7 +285,7 @@ class OutbreakSystem(BaseSystem):
     def _build_system(self):
         infected = DeclaredElement('infected', variables={'x': DeclaredVariableSpec(10.0, StateSpec())})
         growth = lambda s: self.beta * s.target.x * (1 - s.target.x / 1000)
-        spread = RateInteraction('spread', target='infected', state='x', rate=growth)
+        spread = Interaction('spread', roles={'target': 'infected'}, laws=lambda s: [RateLaw(s.target.x, growth(s))])
         return CompositeSystem(self.label, elements=[infected], interactions=[spread])
 
 
@@ -302,9 +314,11 @@ class PendulumSystem(BaseSystem):
     def _build_system(self):
         variables = {'theta': DeclaredVariableSpec(0.1, StateSpec()), 'omega': DeclaredVariableSpec(0.0, StateSpec())}
         bob = DeclaredElement('bob', variables=variables)
-        swing = RateInteraction('swing', target='bob', state='theta', rate=lambda s: s.target.omega)
-        gravity = RateInteraction(
-            'gravity', target='bob', state='omega', rate=lambda s: -9.81 / self.length * s.target.theta
+        swing = Interaction('swing', roles={'target': 'bob'}, laws=lambda s: [RateLaw(s.target.theta, s.target.omega)])
+        gravity = Interaction(
+            'gravity',
+            roles={'target': 'bob'},
+            laws=lambda s: [RateLaw(s.target.omega, -9.81 / self.length * s.target.theta)],
         )
         return CompositeSystem(self.label, elements=[bob], interactions=[swing, gravity])
 

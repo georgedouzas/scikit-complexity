@@ -273,7 +273,7 @@ Time in the module runs from zero, and `Time` in the file becomes `t + START`. T
   [`FlowInteraction`](../core_components/general.md#flowinteraction) labelled with the name of the flow. A
   flow variable of one stock is a flow with the environment, with only the stock it enters or leaves. The trajectory
   reports each flow as `<element>.<flow>`.
-- The rest of the net rate of a stock is a [`RateInteraction`](../core_components/interactions.md#rateinteraction).
+- The rest of the net rate of a stock is a [`RateLaw`](../core_components/laws.md#ratelaw) of an interaction.
   When it has the form `(goal - stock) / time` or `(goal - stock) * rate`, its rate is `(goal - stock) / time` of a
   goal function and a time function.
 - An auxiliary is a private function `_name(s, t)` of the module that the laws call, and an `Observable` under its

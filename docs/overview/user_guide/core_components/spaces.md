@@ -1125,7 +1125,8 @@ logistically in a town of 1000 people, from 10 infected people at a rate of 0.3 
 
 ```python
 from skcomplex.core.components.elements import DeclaredElement
-from skcomplex.core.components.interactions import RateInteraction
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import NoiseLaw, RateLaw
 from skcomplex.core.components.spaces import ContinuousTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -1133,7 +1134,7 @@ from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
 
 infected = DeclaredElement('infected', variables={'x': DeclaredVariableSpec(10.0, StateSpec())})
 logistic = lambda s: 0.3 * s.target.x * (1 - s.target.x / 1000)
-spread = RateInteraction('spread', target='infected', state='x', rate=logistic)
+spread = Interaction('spread', roles={'target': 'infected'}, laws=lambda s: [RateLaw(s.target.x, logistic(s))])
 epidemic = CompositeSystem(elements=[infected], interactions=[spread], time=ContinuousTime())
 simulate(epidemic, until=20, dt=10.0).get_values('infected.x').round(1).tolist()
 ```
@@ -1146,7 +1147,7 @@ at 5 percent a year with a volatility of 20 percent, and a fixed `random_state` 
 ```python continuation
 stock = DeclaredElement('stock', variables={'x': DeclaredVariableSpec(100.0, StateSpec())})
 drift, volatility = lambda s: 0.05 * s.target.x, lambda s: 0.2 * s.target.x
-price = RateInteraction('price', target='stock', state='x', rate=drift, noise=volatility)
+price = Interaction('price', roles={'target': 'stock'}, laws=lambda s: [RateLaw(s.target.x, drift(s)), NoiseLaw(s.target.x, volatility(s))])
 market = CompositeSystem(elements=[stock], interactions=[price], time=ContinuousTime())
 simulate(market, until=1, dt=0.5, random_state=0).get_values('stock.x').round(1).tolist()
 ```
@@ -1158,8 +1159,7 @@ laws between them. Rate laws alone go to `ScipyODESolver`, rates with noise to `
 `GillespieSolver`.
 
 **How it combines.** A system without a time takes the time its components agree on, so a system of rate laws runs in
-continuous time without naming it. Its laws come from `RateInteraction`, `JumpInteraction`, `CrossingInteraction`, and
-elements with rate laws of their own.
+continuous time without naming it. Its laws are rate, noise, jump, and event laws.
 
 ```python continuation
 sorted(CompositeSystem(elements=[infected], interactions=[spread]).get_tags().time)
@@ -1168,13 +1168,14 @@ sorted(CompositeSystem(elements=[infected], interactions=[spread]).get_tags().ti
 The tags of the system without a time hold `'continuous'`.
 
 **Limits and errors.** It accepts no update laws, which set the next value of a state at a step. A
-`MapInteraction` in continuous time makes the run raise a `ValidationError`.
+map in continuous time makes the run raise a `ValidationError`.
 
 ```python continuation
-from skcomplex.core.components.interactions import MapInteraction
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.errors import ValidationError
 
-census = MapInteraction('census', target='infected', state='x', function=lambda s: 2 * s.target.x)
+census = Interaction('census', roles={'target': 'infected'}, laws=lambda s: [UpdateLaw(s.target.x, 2 * s.target.x)])
 try:
     simulate(CompositeSystem(elements=[infected], interactions=[census], time=ContinuousTime()), until=1)
 except ValidationError as error:
@@ -1183,7 +1184,7 @@ message
 ```
 
 The message says that the update law of `census` needs `DiscreteTime`, but its system declares `ContinuousTime`. The
-fix is `DiscreteTime()`, or a `RateInteraction` in place of the map.
+fix is `DiscreteTime()`, or a rate law in place of the map.
 
 **A field realization.** A field names its clock, such as the calendar of an epidemic that runs in days.
 
@@ -1206,7 +1207,8 @@ beetles grows from one generation to the next by the map of Beverton and Holt, `
 
 ```python
 from skcomplex.core.components.elements import DeclaredElement
-from skcomplex.core.components.interactions import MapInteraction
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -1214,7 +1216,7 @@ from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
 
 beetles = DeclaredElement('beetles', variables={'x': DeclaredVariableSpec(50.0, StateSpec())})
 offspring = lambda s: 2.0 * s.target.x / (1 + s.target.x / 100)
-breeding = MapInteraction('breeding', target='beetles', state='x', function=offspring)
+breeding = Interaction('breeding', roles={'target': 'beetles'}, laws=lambda s: [UpdateLaw(s.target.x, offspring(s))])
 system = CompositeSystem(elements=[beetles], interactions=[breeding], time=DiscreteTime())
 simulate(system, until=3).get_values('beetles.x').round(1).tolist()
 ```
@@ -1225,7 +1227,7 @@ A bank account compounds interest of 6 percent a year once a month. The frames h
 
 ```python continuation
 account = DeclaredElement('account', variables={'x': DeclaredVariableSpec(1000.0, StateSpec())})
-interest = MapInteraction('interest', target='account', state='x', function=lambda s: s.target.x * (1 + 0.06 / 12))
+interest = Interaction('interest', roles={'target': 'account'}, laws=lambda s: [UpdateLaw(s.target.x, s.target.x * (1 + 0.06 / 12))])
 system = CompositeSystem(elements=[account], interactions=[interest], time=DiscreteTime())
 simulate(system, until=12, dt=6).get_values('account.x').round(2).tolist()
 ```
@@ -1237,8 +1239,7 @@ reads the states of the start of the step, and with `'random-sequential'` member
 random order. A `ScheduleSpec` orders the laws of a step in phases, as the phases of agents do. `IterationSolver` runs
 the maps.
 
-**How it combines.** Its laws come from `MapInteraction`, `LocalRuleInteraction`, `TransitionInteraction`,
-`SamplingInteraction`, and agent rules.
+**How it combines.** Its laws are update laws, with or without a neighbourhood, and agent rules.
 
 **Limits and errors.** It accepts no rate laws. The schedule is one of two names or a `ScheduleSpec`, and `prepare`
 raises a `ValidationError` for any other.
@@ -1356,14 +1357,15 @@ into one problem, solves a linear problem in closed form where it can, and passe
 **How it combines.** Its laws are `ConstraintLaw` and the constraints and objectives of linear programs, as in flux
 balance analysis of a metabolic network.
 
-**Limits and errors.** It accepts no rates or updates, since nothing changes in it. A `RateInteraction` makes the run
-raise a `ValidationError`.
+**Limits and errors.** It accepts no rates or updates, since nothing changes in it. A rate law makes the run raise a
+`ValidationError`.
 
 ```python continuation
-from skcomplex.core.components.interactions import RateInteraction
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import NoiseLaw, RateLaw
 from skcomplex.core.errors import ValidationError
 
-drift = RateInteraction('drift', target='node', state='v', rate=1.0)
+drift = Interaction('drift', roles={'target': 'node'}, laws=lambda s: [RateLaw(s.target.v, 1.0)])
 try:
     simulate(CompositeSystem(elements=[DividerElement('node')], interactions=[drift], time=StaticTime()), until=1)
 except ValidationError as error:

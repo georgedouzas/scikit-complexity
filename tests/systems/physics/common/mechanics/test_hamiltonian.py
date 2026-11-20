@@ -41,7 +41,7 @@ class RotorElement(Element):
         self.p = p
 
 
-class CouplingInteraction(HamiltonianInteraction):
+class SpringCouplingInteraction(HamiltonianInteraction):
     """Spring between the coordinates of two oscillators, whose Hamiltonian holds only the coupling energy."""
 
     def __init__(self, label: str, *, first: Role, second: Role) -> None:
@@ -96,7 +96,7 @@ def test_run_sums_the_hamiltonians_of_a_coupling():
     ]
     system = System(
         elements=[OscillatorElement('left', q=1.0), OscillatorElement('right', q=1.0)],
-        interactions=[*free, CouplingInteraction('spring', first='left', second='right')],
+        interactions=[*free, SpringCouplingInteraction('spring', first='left', second='right')],
         solver=ScipyODESolver(rtol=1e-10, atol=1e-12),
     )
     trajectory = system.prepare().simulate(until=1.0, dt=1.0)

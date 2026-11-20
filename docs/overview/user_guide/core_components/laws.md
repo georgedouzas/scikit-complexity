@@ -636,7 +636,7 @@ result to first order. `ScipyODESolver` then integrates it. Equations that share
 solve.
 
 **How it combines.** Equations of several components couple through their derivatives, as the two angles of a double
-pendulum do through a mass matrix. `EulerLagrangeInteraction` and `ConnectionInteraction` return equation laws, and a
+pendulum do through a mass matrix. `EulerLagrangeInteraction` and the balances of circuits return equation laws, and a
 `RateLaw` on the same state adds a force.
 
 **Limits and errors.** The relation must be linear in the highest derivatives. It is solved symbolically, so neither
@@ -844,7 +844,7 @@ of service.
 `GillespieSolver` draws the time of the next event and which event fires, an exact stochastic simulation. With
 `waiting` in place of `rate`, each firing waits a drawn time and applies `reset`, and `RenewalSolver` runs it.
 
-**How it combines.** `RateLaw`s and `NoiseLaw`s move the states between jumps. `JumpInteraction` returns jump laws
+**How it combines.** `RateLaw`s and `NoiseLaw`s move the states between jumps. An interaction returns jump laws
 from an interaction, so an event can change the states of several elements at once, as a reaction does.
 
 **Limits and errors.** The changes are fixed numbers or functions of the states. A symbol in a change would make its
@@ -1260,8 +1260,8 @@ state of order `k` as `k` states of order 1. `ScipyODESolver` integrates the res
 such as `RK4Solver` take the same problem.
 
 **How it combines.** Every mechanism adds its own rate law, so a growth from an element and a predation from an
-interaction superpose on one state. `RateInteraction`, `CouplingInteraction`, `PairInteraction`, and
-`GradientInteraction` return rate laws. A `NoiseLaw` adds a random part.
+interaction superpose on one state. Interactions of one element, of neighbours, and of pairs, and
+`GradientInteraction`, return rate laws. A `NoiseLaw` adds a random part.
 
 **Limits and errors.** A rate is deterministic, so a random draw in it raises an `IncompatibleLawsError`. NumPy builds
 an array when a NumPy scalar multiplies a symbolic vector, and `prepare` rejects that array.
@@ -1554,7 +1554,7 @@ per unit of time. The change of the objective is derived symbolically from the l
 sweep updates the two sublattices of a square lattice in turn by default. The intensity of the sampler is an
 expression of parameters, so a schedule of `simulate` can anneal it.
 
-**How it combines.** `SamplingInteraction` returns it from an interaction. `MoveSpec` chooses the move, a flip, a new
+**How it combines.** An interaction returns it. `MoveSpec` chooses the move, a flip, a new
 value, a rotation, a Gaussian step, or a cluster, and `SamplerSpec` the acceptance, Metropolis, Glauber, or heat bath.
 
 **Limits and errors.** A sweep samples a distribution, so the frames are not a physical time course. An unknown move
@@ -1652,7 +1652,7 @@ After ten years 606.5 people remain, which is `1000 exp(-0.5)`.
 **How the engine runs it.** A sink holds no state, so the transfer lowers to a loss of its source alone. Its label
 names the column of the environment in a transaction-flow matrix.
 
-**How it combines.** It is the sink of a `TransferLaw` or of a leg of a `TransferInteraction`, and a `Source` is its
+**How it combines.** It is the sink of a `TransferLaw`, and a `Source` is its
 counterpart for what enters.
 
 **Limits and errors.** A sink receives and never gives, so it cannot be the source of a transfer.
@@ -1749,7 +1749,7 @@ The deposits grow by 50 per step, from 0 to 200.
 **How the engine runs it.** A source holds no state, so the transfer lowers to a gain of its sink alone. Its label
 names the column of the environment in a transaction-flow matrix.
 
-**How it combines.** It is the source of a `TransferLaw` or of a leg of a `TransferInteraction`, and a `Sink` is its
+**How it combines.** It is the source of a `TransferLaw`, and a `Sink` is its
 counterpart for what leaves.
 
 **Limits and errors.** A source gives and never receives, so it cannot be the sink of a transfer.
@@ -1866,8 +1866,8 @@ in continuous time, an amount per step in discrete time, and the size of each ju
 records the amount at every frame under `<path>.<label>`.
 
 **How it combines.** `Source` and `Sink` stand for the environment on either side. A holder read by `shift_member`
-moves amounts along a group, such as stock along a supply chain. `TransferInteraction` returns transfer laws from an
-interaction, and the analysis `loops` reads their flows as a transaction-flow matrix.
+moves amounts along a group, such as stock along a supply chain. An interaction returns transfer laws, and the
+analysis `loops` reads their flows as a transaction-flow matrix.
 
 **Limits and errors.** A transfer changes a state on at least one side, so a transfer from a `Source` to a `Sink`
 raises a `ValidationError`.
@@ -1960,7 +1960,7 @@ Of 1000 loans that start in good standing, 291 are in default after ten years.
 the next value of every member from its row at each step, with the random stream of the run. With `source`, the law
 draws an observed state from the row that a hidden state selects, as a hidden Markov model does.
 
-**How it combines.** It runs beside `UpdateLaw`s of other states in the same step. `TransitionInteraction` returns it
+**How it combines.** It runs beside `UpdateLaw`s of other states in the same step. An interaction returns it
 from an interaction, and a matrix may hold expressions of parameters, such as `stay` above.
 
 **Limits and errors.** The target takes a finite set of values. The matrix is a nonempty list of rows of equal length,
@@ -2060,8 +2060,8 @@ cells of a lattice or a network, such as `UpdateLaw(s.target.alive, life, neighb
 which the lattice solver runs with the lookup tables and fused loops of a [`LocalRuleLaw`](#localrulelaw).
 
 **How it combines.** A state takes one update law, unless each of its laws says how it combines: an `increment` law
-adds a change, and a law with a `source` changes only members that hold that value. `CouplingInteraction`,
-`MapInteraction`, and `JumpInteraction` return update laws, and update laws take random draws, such as `normal`.
+adds a change, and a law with a `source` changes only members that hold that value. Update laws take random draws,
+such as `normal`.
 
 **Limits and errors.** An increment changes every value, so it takes no source, and `prepare` raises a
 `ValidationError` for both.

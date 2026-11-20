@@ -84,6 +84,21 @@ GRID_ONLY = {
     ),
 }
 
+SPEC_VARIANTS = {
+    'choice rule': lambda spec: ChoiceInteraction(
+        'choice',
+        target='members',
+        state='s',
+        options=(0, 1),
+        utility=lambda s, o: o,
+        rule=spec,
+    ),
+    'imitation rule': lambda spec: ImitationInteraction('imitation', target='players', rule=spec),
+    'evolution selection': lambda spec: EvolutionInteraction('evolution', target='agents', selection=spec),
+    'evolution replacement': lambda spec: EvolutionInteraction('evolution', target='agents', replacement=spec),
+    'cascade mode': lambda spec: TopplingInteraction('cascade', target='sites', state='h', threshold=4, mode=spec),
+}
+
 
 class GrowthInteraction(BaseInteraction):
     """Interaction with a role and a parameter."""
@@ -280,22 +295,6 @@ class FixedSpec(BaseSpec):
     """Variant a subclass defines, holding the value its dispatch method returns."""
 
     value: float = 1.0
-
-
-SPEC_VARIANTS = {
-    'choice rule': lambda spec: ChoiceInteraction(
-        'choice',
-        target='members',
-        state='s',
-        options=(0, 1),
-        utility=lambda s, o: o,
-        rule=spec,
-    ),
-    'imitation rule': lambda spec: ImitationInteraction('imitation', target='players', rule=spec),
-    'evolution selection': lambda spec: EvolutionInteraction('evolution', target='agents', selection=spec),
-    'evolution replacement': lambda spec: EvolutionInteraction('evolution', target='agents', replacement=spec),
-    'cascade mode': lambda spec: TopplingInteraction('cascade', target='sites', state='h', threshold=4, mode=spec),
-}
 
 
 @pytest.mark.parametrize('case', list(SPEC_VARIANTS))

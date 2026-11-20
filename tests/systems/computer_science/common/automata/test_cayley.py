@@ -63,7 +63,7 @@ class CellElement(Element):
         self.alive = alive
 
 
-class LocalRuleInteraction(Interaction):
+class CayleyRuleInteraction(Interaction):
     """Local rule of the cells, a table or a totalistic rule over a memory set."""
 
     def __init__(self, label: str, *, target: Role = 'cells', rule=MAJORITY, neighborhood=FREE_MEMORY) -> None:
@@ -83,7 +83,7 @@ def _cells(space, cells, **rule):
     """Return a system of binary cells on a space with a local rule."""
     return System(
         elements=[CellElement('cells', alive=cells, space=space)],
-        interactions=[LocalRuleInteraction('rule', **rule)],
+        interactions=[CayleyRuleInteraction('rule', **rule)],
     )
 
 
