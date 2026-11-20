@@ -2,18 +2,20 @@
 
 import os
 import time
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
 import pytest
 from lammps import lammps
-from sage.all__sagemath_symbolics import arcsinh, exp, oo
+from sage.all__sagemath_symbolics import SR, arcsinh, exp, oo, sqrt
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import GroupElement
-from skcomplex.core.components.interactions import PairInteraction
+from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.interactions import Interaction, PairInteraction
+from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import where
-from skcomplex.core.components.spaces import ContinuousSpace
+from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine._utils import symbol
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
@@ -21,6 +23,8 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import BaseSolver, ExternalSolver, LammpsSolver, StepSpec, VelocityVerletSolver
 from skcomplex.core.errors import BackendError, SolverError
 from skcomplex.core.specs import ParameterSpec
+from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.biology.common.populations import (
     LogisticGrowthInteraction,
     MortalityInteraction,
@@ -384,3 +388,50 @@ def test_lammps_solver_get_lepton_expression():
     """Test `LammpsSolver._get_lepton_expression` on a small case."""
     x = symbol('x')
     assert LammpsSolver._get_lepton_expression(4 * (x**-12 - x**-6), x) == '4/r^12 - 4/r^6'
+
+
+class CrowdsLennardJonesInteraction(Interaction):
+    """Lennard-Jones force between every pair of members of two crowds closer than the cutoff."""
+
+    def __init__(self, label: str, *, first: Role, second: Role, epsilon: float = 1.0, sigma: float = 1.0) -> None:
+        super().__init__(label, within=RadiusNeighborhood(CUTOFF))
+        self.first = first
+        self.second = second
+        self.epsilon = epsilon
+        self.sigma = sigma
+
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the forces `-U'(r)` of `4 * epsilon * ((sigma / r) ** 12 - (sigma / r) ** 6)` on both members."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            s = context
+            separation = s.first.x - s.second.x
+            r = sqrt(separation.dot_product(separation))
+            distance = SR.var('r', domain='positive')
+            energy = 4 * s.epsilon * ((s.sigma / distance) ** 12 - (s.sigma / distance) ** 6)
+            force = -energy.diff(distance).subs({distance: r}) * separation / r
+            self.laws_ = [RateLaw(s.first.x.diff(s.t, 2), force), RateLaw(s.second.x.diff(s.t, 2), -force)]
+
+
+def _lennard_jones_coefficients(value):
+    """Return the coefficients of `lj/cut`."""
+    return f'{float(value("epsilon")[0])} {float(value("sigma")[0])}'
+
+
+def _crowds(solver):
+    """Return the positions of two crowds of four atoms that a Lennard-Jones force within the cutoff couples."""
+    space = ContinuousSpace(n_dim=2)
+    left = Element('left', values={'x': _lattice(4, spacing=2.4), "x'": np.zeros((4, 2))}, size=4, space=space)
+    right = Element('right', values={'x': _lattice(4, spacing=2.4) + 1.2, "x'": np.zeros((4, 2))}, size=4, space=space)
+    forces = CrowdsLennardJonesInteraction('lj', first='left', second='right')
+    system = System(elements=[left, right], interactions=[forces], space=space, solver=solver)
+    return system.prepare().simulate(until=0.1, dt=0.05).get_values('right.x')
+
+
+def test_lammps_runs_a_pair_force_within_a_radius_as_its_native_pair_style():
+    """Test that a force on the pairs of two crowds within a radius runs as `lj/cut` and agrees with the native run."""
+    pairs = {CrowdsLennardJonesInteraction: ('lj/cut', _lennard_jones_coefficients)}
+    native = _crowds(VelocityVerletSolver(dt=0.005))
+    external = _crowds(LammpsSolver(dt=0.005, pairs=pairs))
+    assert np.abs(native[-1] - native[0]).max() > 1e-4
+    assert np.allclose(external, native, atol=1e-6)
