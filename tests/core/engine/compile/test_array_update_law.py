@@ -1,20 +1,21 @@
 """Test the `_array_update_law` module of `skcomplex.core.engine.compile`."""
 
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import var
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import UpdateLaw
-from skcomplex.core.components.spaces import CellComplexSpace, DiscreteTime, LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.components.spaces import BaseSpace, CellComplexSpace, LatticeSpace
 from skcomplex.core.engine.compile._array_update_law import ArrayUpdateLaw
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import MatrixGroupSpec, RoleSpec, StateSpec
+from skcomplex.core.specs import MatrixGroupSpec
+from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
 def test_drive_targets_its_lattice_state():
@@ -29,47 +30,32 @@ def test_drive_needs_a_callable_function():
         ArrayUpdateLaw(var('height'), 1.0).prepare()
 
 
-class ChainCoordinateElement(Element):
-    """Coordinate of a point of a chain."""
-
-    def __init__(self, label, x: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.x = x
-
-
 class ReplayInteraction(Interaction):
     """Drive that sets a chain to one member of an ensemble per step."""
 
-    def __init__(self, label, *, target: Annotated[str, RoleSpec()], ensemble=None):
+    def __init__(self, label, *, target: Role, ensemble=None):
         super().__init__(label)
         self.target = target
         self.ensemble = ensemble
 
-    def _get_laws(self, namespace):
-        """Return the replay."""
-        last = len(self.ensemble) - 1
-        return [
-            UpdateLaw(
-                self._get_member(namespace, 'target').x,
-                lambda values, *, time: self.ensemble[min(int(time), last)],
-                arrays=True,
-            ),
-        ]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the replay."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [UpdateLaw(context.target.x, self._replay, arrays=True)]
+
+    def _replay(self, values, *, time):
+        """Return the member of the ensemble of the step, or the last member after the ensemble ends."""
+        return self.ensemble[min(int(time), len(self.ensemble) - 1)]
 
 
 def test_drive_replays_an_ensemble_by_the_time_of_the_step():
     """Test that positions at frame 10 are member 10, and positions at frame 40 are member 37 of 38 members."""
     ensemble = np.random.default_rng(0).normal(size=(38, 20, 3))
-    chain = GroupElement(
-        'chain',
-        element=ChainCoordinateElement,
-        space=LatticeSpace((20, 3), boundary='fixed'),
-        values={'x': ensemble[0]},
-        on='sites',
-    )
+    chain = Element('chain', values={'x': ensemble[0]}, space=LatticeSpace((20, 3), boundary='fixed'))
     replay = ReplayInteraction('replay', target='chain', ensemble=ensemble)
-    system = CompositeSystem(elements=[chain], interactions=[replay], time=DiscreteTime())
-    frames = simulate(system, until=40, random_state=0).get_lattice('chain.x')
+    system = System(elements=[chain], interactions=[replay]).prepare()
+    frames = system.simulate(until=40, random_state=0).get_lattice('chain.x')
     assert frames[10] == pytest.approx(ensemble[10])
     assert frames[40] == pytest.approx(ensemble[37])
 
@@ -82,15 +68,9 @@ def test_drive_passes_time_only_to_a_function_that_names_it():
         seen.update(keywords)
         return values
 
-    chain = GroupElement(
-        'chain',
-        element=ChainCoordinateElement,
-        space=LatticeSpace((2, 3), boundary='fixed'),
-        on='sites',
-    )
+    chain = Element('chain', values={'x': 0.0}, space=LatticeSpace((2, 3), boundary='fixed'))
     interaction = _DriveInteraction('drive', target='chain', function=drive)
-    system = CompositeSystem(elements=[chain], interactions=[interaction], time=DiscreteTime())
-    simulate(system, until=1, random_state=0)
+    System(elements=[chain], interactions=[interaction]).prepare().simulate(until=1, random_state=0)
     assert 'time' not in seen
     assert 'random' in seen
 
@@ -98,52 +78,61 @@ def test_drive_passes_time_only_to_a_function_that_names_it():
 class _DriveInteraction(Interaction):
     """Interaction with one drive of a given function."""
 
-    def __init__(self, label, *, target: Annotated[str, RoleSpec()], function=None):
+    def __init__(self, label, *, target: Role, function=None):
         super().__init__(label)
         self.target = target
         self.function = function
 
-    def _get_laws(self, namespace):
-        """Return the drive."""
-        return [UpdateLaw(self._get_member(namespace, 'target').x, self.function, arrays=True)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the drive."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [UpdateLaw(context.target.x, self.function, arrays=True)]
+
+
+U1 = MatrixGroupSpec('U', 1)
 
 
 class PairElement(Element):
-    """Link with a matrix of U(1), two real components."""
+    """Links with a matrix of U(1), two real components."""
 
-    def __init__(self, label, U: Annotated[object, StateSpec(group=MatrixGroupSpec('U', 1))] = (1.0, 0.0)):
-        super().__init__(label)
+    def __init__(
+        self,
+        label,
+        *,
+        U: Annotated[object, U1] = (1.0, 0.0),
+        space: BaseSpace | None = None,
+        on: str | None = None,
+    ):
+        super().__init__(label, space=space, on=on)
         self.U = U
 
 
 class RotationInteraction(Interaction):
     """Drive that rotates the phase of every link by its number of faces."""
 
-    def __init__(self, label, *, target: Annotated[str, RoleSpec()]):
+    def __init__(self, label, *, target: Role):
         super().__init__(label)
         self.target = target
 
-    def _get_laws(self, namespace):
-        """Return the rotation."""
-        return [UpdateLaw(self._get_member(namespace, 'target').U, self._rotate, arrays=True)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set the rotation."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [UpdateLaw(context.target.U, self._rotate, arrays=True)]
 
     def _rotate(self, values, *, space):
         """Return the components rotated by the number of faces of every link."""
-        group = MatrixGroupSpec('U', 1)
         turns = np.exp(1j * (space.cofaces_[1] < space.boundaries_.shape[0]).sum(axis=1))
-        return group.get_components_of(turns[:, None, None] * group.get_matrices_of(values))
+        return U1.get_components_of(turns[:, None, None] * U1.get_matrices_of(values))
 
 
 def test_drive_of_a_matrix_state_receives_the_components_on_a_last_axis_and_the_space():
     """Test that a drive changes all components of every link, read with the space of the group."""
     space = CellComplexSpace(LatticeSpace((3, 3), boundary='fixed'))
-    links = GroupElement('links', element=PairElement, space=space, on='edges')
-    system = CompositeSystem(
-        elements=[links],
-        interactions=[RotationInteraction('turn', target='links')],
-        time=DiscreteTime(),
-    )
-    values = simulate(system, until=1, random_state=0).get_values('links.U')
+    links = PairElement('links', U=np.tile((1.0, 0.0), (12, 1)), space=space, on='edges')
+    system = System(elements=[links], interactions=[RotationInteraction('turn', target='links')]).prepare()
+    values = system.simulate(until=1, random_state=0).get_values('links.U')
     faces = (space.cofaces_[1] < space.boundaries_.shape[0]).sum(axis=1)
     assert values.shape == (2, 12, 2)
     assert np.allclose(values[1, :, 0] + 1j * values[1, :, 1], np.exp(1j * faces))
@@ -152,23 +141,22 @@ def test_drive_of_a_matrix_state_receives_the_components_on_a_last_axis_and_the_
 class PartialInteraction(Interaction):
     """Drive that targets one component of a matrix state."""
 
-    def __init__(self, label, *, target: Annotated[str, RoleSpec()]):
+    def __init__(self, label, *, target: Role):
         super().__init__(label)
         self.target = target
 
-    def _get_laws(self, namespace):
-        """Return a drive of the first component."""
-        return [UpdateLaw(self._get_member(namespace, 'target').U[0], lambda values, *, random: values, arrays=True)]
+    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        """Set a drive of the first component."""
+        super()._prepare(context)
+        if isinstance(context, SimpleNamespace):
+            self.laws_ = [UpdateLaw(context.target.U[0], lambda values, *, random: values, arrays=True)]
 
 
 def test_drive_of_one_component_of_a_matrix_state_raises_an_error():
     """Test that a drive that targets one of the components of a matrix state names the whole state."""
-    space = CellComplexSpace(LatticeSpace((3, 3)))
-    links = GroupElement('links', element=PairElement, space=space, on='edges')
-    system = CompositeSystem(
-        elements=[links],
-        interactions=[PartialInteraction('part', target='links')],
-        time=DiscreteTime(),
+    links = PairElement(
+        'links', U=np.tile((1.0, 0.0), (18, 1)), space=CellComplexSpace(LatticeSpace((3, 3))), on='edges'
     )
+    system = System(elements=[links], interactions=[PartialInteraction('part', target='links')])
     with pytest.raises(ValidationError, match='Target the whole state'):
-        simulate(system, until=0)
+        system.prepare().simulate(until=0)
