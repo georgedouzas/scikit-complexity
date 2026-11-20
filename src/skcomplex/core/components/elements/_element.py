@@ -17,7 +17,7 @@ from sage.all__sagemath_symbolics import CC, RR, ZZ
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ...errors import ValidationError
-from ...specs import ConnectorSpec, MatrixGroupSpec, ParameterSpec, PowerSeriesSpec, StateSpec, SubshiftSpec
+from ...specs import MatrixGroupSpec, ParameterSpec, PowerSeriesSpec, StateSpec, SubshiftSpec
 from .._tags import Tags
 from ..base import BaseComponent
 from ..spaces import BaseSpace, NetworkSpace
@@ -41,17 +41,12 @@ class Element(BaseElement):
     `ParameterSpec` inside `Annotated`. It may return laws of its own from `_get_laws`, such as the growth of a
     population, and it lists their classes in `law_classes`, so that `get_tags` can name their kinds before a run.
 
-    A subclass that connects to other elements, such as a resistor in a circuit, declares its ports in `ports`, a
-    mapping from the name of each port to its `ConnectorSpec`. It then takes one algebraic state per variable of a port,
-    named `<port>_<variable>`. An equation, not a rate, fixes an algebraic state at every time. A flow is positive into
-    the element.
-
     An element whose laws are agent rules, Python functions that change one member at each step, is an agent. Under
     discrete time each member runs its rules with its states as attributes, and these states may hold any value, not
     only numbers. A member is removed only when its states tagged with a quantity reach zero. Its states and parameters
     cannot take the names that the agent view or Mesa reads, such as `location`, `alive`, `position`, or `system`.
 
-    Unlike `BaseElement`, it returns no laws by default, and it can connect through ports or act as an agent. Choose it
+    Unlike `BaseElement`, it returns no laws by default, and it can act as an agent. Choose it
     when a kind of entity deserves a class of its own, such as a population with a growth law or a capacitor with two
     pins, and choose `DeclaredElement` when the states are known only as data.
 
@@ -108,7 +103,6 @@ class Element(BaseElement):
         ([40.0, 65.9], [250.0, 262.82])
     """
 
-    ports: ClassVar[Mapping[str, ConnectorSpec]] = {}
     law_classes: ClassVar[tuple[type, ...]] = ()
 
     def __init__(

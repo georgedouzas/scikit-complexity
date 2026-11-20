@@ -14,8 +14,8 @@ import numpy as np
 
 from skcomplex.core.analysis import automaton
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import LocalRuleInteraction
-from skcomplex.core.components.laws import LinearRuleSpec
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import LinearRuleSpec, UpdateLaw
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.systems import System
@@ -41,12 +41,10 @@ steps = np.arange(values.shape[0])
 laplacian = System(
     elements=[Element('cells', values={'value': 0}, space=LatticeSpace(101))],
     interactions=[
-        LocalRuleInteraction(
+        Interaction(
             'laplacian',
-            target='cells',
-            state='value',
-            rule=LinearRuleSpec((1, -2, 1), 'GF(3)'),
-            neighborhood=LatticeNeighborhood(((-1,), (0,), (1,))),
+            roles={'target': 'cells'},
+            laws=lambda s: [UpdateLaw(s.target.value, LinearRuleSpec((1, -2, 1), 'GF(3)'), neighborhood=LatticeNeighborhood(((-1,), (0,), (1,))))],
         ),
     ],
 )

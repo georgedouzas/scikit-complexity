@@ -79,7 +79,8 @@ class BaseSystem[CompositeT: BaseSystem](BaseComponent[BaseSpace, SimpleNamespac
     Examples:
         >>> from typing import Annotated
         >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.interactions import RateInteraction
+        >>> from skcomplex.core.components.interactions import Interaction
+        >>> from skcomplex.core.components.laws import RateLaw
         >>> from skcomplex.core.components.systems import BaseSystem, CompositeSystem
         >>> from skcomplex.core.specs import StateSpec
         >>> class TankElement(Element):
@@ -92,13 +93,13 @@ class BaseSystem[CompositeT: BaseSystem](BaseComponent[BaseSpace, SimpleNamespac
         ...         self.k = k
         ...
         ...     def _build_system(self):
-        ...         decay = RateInteraction('decay', target='tank', state='x', rate=lambda s: -self.k * s.target.x)
+        ...         decay = Interaction(
+        ...             'decay', roles={'target': 'tank'}, laws=lambda s: [RateLaw(s.target.x, -self.k * s.target.x)]
+        ...         )
         ...         return CompositeSystem(self.label, elements=[TankElement('tank')], interactions=[decay])
         >>> system = DecaySystem(k=0.5).prepare()
         >>> system.get_params()
         {'k': 0.5, 'label': 'decay'}
-        >>> sorted(system.get_tags().laws)
-        ['rate']
     """
 
     until: ClassVar[float | None] = None

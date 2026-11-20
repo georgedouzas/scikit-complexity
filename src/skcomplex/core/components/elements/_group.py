@@ -117,12 +117,15 @@ class GroupElement(BaseElement):
 
         The same class holds the assets of a portfolio, each with its own yearly return.
 
-        >>> from skcomplex.core.components.interactions import RateInteraction
+        >>> from skcomplex.core.components.interactions import Interaction
+        >>> from skcomplex.core.components.laws import RateLaw
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> holdings = {'x': [100.0, 50.0], 'r': [0.05, 0.02]}
         >>> assets = GroupElement('assets', element=StockElement, size=2, values=holdings)
-        >>> returns = RateInteraction('returns', target='assets', state='x', rate=lambda s: s.target.r * s.target.x)
+        >>> returns = Interaction(
+        ...     'returns', roles={'target': 'assets'}, laws=lambda s: [RateLaw(s.target.x, s.target.r * s.target.x)]
+        ... )
         >>> portfolio = CompositeSystem(elements=[assets], interactions=[returns])
         >>> simulate(portfolio, until=1, dt=1.0).get_values('assets.x').round(2).tolist()
         [[100.0, 50.0], [105.13, 51.01]]

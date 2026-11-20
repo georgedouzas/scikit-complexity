@@ -5,7 +5,6 @@ holds what a compiler built.
 """
 
 from ._base_spec import BaseSpec
-from ._connector_spec import ConnectorSpec
 from ._declared_variable_spec import DeclaredVariableSpec
 from ._entry_spec import EntrySpec
 from ._matrix_group_spec import MatrixGroupSpec
@@ -20,7 +19,6 @@ from ._visual_spec import VisualSpec
 
 __all__ = [
     'BaseSpec',
-    'ConnectorSpec',
     'DeclaredVariableSpec',
     'EntrySpec',
     'MatrixGroupSpec',

@@ -15,9 +15,6 @@ from sage.modules.free_module_element import FreeModuleElement
 from ....components.elements import DeclaredElement, FieldElement, GroupElement
 from ....components.interactions import (
     BaseInteraction,
-    HyperedgeInteraction,
-    PairInteraction,
-    TopologyInteraction,
     WienerProcessSpec,
 )
 from ....components.laws.utils._reductions import MAX_NEIGHBOR_HYPEREDGE_SIZE
@@ -165,9 +162,6 @@ class SpecsPass(BasePass):
                 symbols[name] = tensor.get_matrix_of(SpecsPass._get_renamed(item, mapping) for item in value)
             else:
                 symbols[name] = vector(SpecsPass._get_renamed(item, mapping) for item in value)
-        ports = getattr(block.node.component_type, 'ports', None)
-        if ports:
-            symbols['ports'] = ports
         return SimpleNamespace(**symbols)
 
     @staticmethod
@@ -1251,25 +1245,6 @@ class SpecsPass(BasePass):
         return KernelSpec(node.path, namespace, references, 0, pairs, roles=paths)
 
     @staticmethod
-    def _get_growth_specs(specs: list[KernelSpec], declarations: DeclarationsSpec) -> list[KernelSpec]:
-        """Return the specs of an addition of one node per step.
-
-        Their namespace holds the node being added.
-        """
-        nodes = next(
-            (block for block in declarations.capacity.values() if getattr(block.node.component, 'on', None) == 'sites'),
-            None,
-        )
-        if nodes is None:
-            return specs
-        grown = []
-        for spec in specs:
-            references = dict(spec.references)
-            namespace = SpecsPass._copy_with_source(nodes, spec.namespace, references)
-            grown.append(replace(spec, namespace=namespace, references=references))
-        return grown
-
-    @staticmethod
     def _get_interaction_specs(
         block: BlockSpec,
         elements: dict[str, BlockSpec],
@@ -1487,15 +1462,11 @@ class SpecsPass(BasePass):
         if edges and bound:
             return SpecsPass._get_edge_specs(block, elements, declarations)
         grouped = isinstance(component, BaseInteraction) and component._get_grouping() is not None
-        hyperedges = isinstance(component, HyperedgeInteraction) or (
-            isinstance(component, BaseInteraction) and component._runs_on_hyperedges()
-        )
+        hyperedges = isinstance(component, BaseInteraction) and component._runs_on_hyperedges()
         if (hyperedges and bound) or grouped:
             gathered = SpecsPass._get_grouping_specs if grouped else SpecsPass._get_hyperedge_specs
             return gathered(block, elements, time), declarations
         paired = isinstance(component, BaseInteraction) and component._get_within() is not None
-        if isinstance(block.node.component, PairInteraction) or paired:
+        if paired:
             return [SpecsPass._get_pair_spec(block, elements, time)], declarations
-        specs = SpecsPass._get_interaction_specs(block, elements, time, observer)
-        grows = isinstance(component, TopologyInteraction) and component.action == 'add-node' and not bound
-        return (SpecsPass._get_growth_specs(specs, declarations) if grows else specs), declarations
+        return SpecsPass._get_interaction_specs(block, elements, time, observer), declarations

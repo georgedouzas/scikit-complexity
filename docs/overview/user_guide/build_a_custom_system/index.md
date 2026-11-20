@@ -205,7 +205,6 @@ The pages below build other kinds of system from the same components.
 - [Defining elements](defining_elements.md)
 - [Kinds of dynamics](kinds_of_dynamics.md)
 - [General interactions](general_interactions.md)
-- [Ports and connections](ports_and_connections.md)
 - [Delays, events, drivers, and noise](delays_events_drivers_and_noise.md)
 - [Stochastic maps](stochastic_maps.md)
 - [Anomalous processes](anomalous_processes.md)

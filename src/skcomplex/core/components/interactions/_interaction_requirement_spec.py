@@ -34,14 +34,11 @@ class _InteractionRequirementSpec(RequirementSpec):
             The law classes the interaction may return.
 
     Examples:
-        >>> from skcomplex.core.components.interactions import RateInteraction
-        >>> needs = RateInteraction('growth', target='rabbits', state='n', rate=lambda s: s.target.n).get_requirements()
-        >>> needs.roles['target'].states
-        ('n',)
-        >>> [law.__name__ for law in needs.laws]
-        ['RateLaw', 'NoiseLaw']
-        >>> [time.__name__ for time in needs.time]
-        ['ContinuousTime']
+        >>> from skcomplex.core.components.interactions import Interaction
+        >>> from skcomplex.core.components.laws import RateLaw
+        >>> growth = Interaction('growth', roles={'target': 'rabbits'}, laws=lambda s: [RateLaw(s.target.n, 1.0)])
+        >>> list(growth.get_requirements().roles)
+        ['target']
     """
 
     roles: Mapping[str, RoleSpec] = field(default_factory=dict)

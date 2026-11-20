@@ -67,12 +67,15 @@ class DeclaredElement(Element):
         0.1 a day.
 
         >>> from skcomplex.core.components.elements import DeclaredElement
-        >>> from skcomplex.core.components.interactions import RateInteraction
+        >>> from skcomplex.core.components.interactions import Interaction
+        >>> from skcomplex.core.components.laws import RateLaw
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
         >>> infected = DeclaredElement('infected', variables={'x': DeclaredVariableSpec(100.0, StateSpec())})
-        >>> recovery = RateInteraction('recovery', target='infected', state='x', rate=lambda s: -0.1 * s.target.x)
+        >>> recovery = Interaction(
+        ...     'recovery', roles={'target': 'infected'}, laws=lambda s: [RateLaw(s.target.x, -0.1 * s.target.x)]
+        ... )
         >>> epidemic = CompositeSystem(elements=[infected], interactions=[recovery])
         >>> simulate(epidemic, until=10, dt=5.0).get_values('infected.x').round(1).tolist()
         [100.0, 60.7, 36.8]
@@ -80,7 +83,9 @@ class DeclaredElement(Element):
         Interest at 5 percent a year grows the account continuously.
 
         >>> account = DeclaredElement('account', variables={'x': DeclaredVariableSpec(250.0, StateSpec())})
-        >>> interest = RateInteraction('interest', target='account', state='x', rate=lambda s: 0.05 * s.target.x)
+        >>> interest = Interaction(
+        ...     'interest', roles={'target': 'account'}, laws=lambda s: [RateLaw(s.target.x, 0.05 * s.target.x)]
+        ... )
         >>> savings = CompositeSystem(elements=[account], interactions=[interest])
         >>> simulate(savings, until=1, dt=1.0).get_values('account.x').round(2).tolist()
         [250.0, 262.82]

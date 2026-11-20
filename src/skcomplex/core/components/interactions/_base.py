@@ -69,8 +69,8 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
     random, or picks members at random is stochastic whatever its laws.
 
     Unlike `BaseComponent`, it changes the states of other components and holds none of its own. Choose it when a new
-    kind of interaction runs its laws in a way of its own, as `NeighborInteraction` runs them once per edge. Choose
-    `Interaction` for laws that run once for the elements the roles bind.
+    kind of interaction runs its laws in a way of its own. Choose `Interaction` for laws that run for the elements the
+    roles bind, once per pair within a neighbourhood, or once per edge of a network.
 
     It appears in every field through its subclasses, such as infection in an epidemic, a chemical reaction, a payment
     between accounts, and the coupling of oscillators.
@@ -1198,10 +1198,11 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
                 the class lists, and the classes of time and of space these laws run in.
 
         Examples:
-            >>> from skcomplex.core.components.interactions import RateInteraction
-            >>> interaction = RateInteraction('growth', target='rabbits', state='n', rate=lambda s: s.target.n)
-            >>> interaction.get_requirements().roles['target'].states
-            ('n',)
+            >>> from skcomplex.core.components.interactions import Interaction
+            >>> from skcomplex.core.components.laws import RateLaw
+            >>> growth = Interaction('growth', roles={'target': 'rabbits'}, laws=lambda s: [RateLaw(s.target.n, 1.0)])
+            >>> list(growth.get_requirements().roles)
+            ['target']
         """
         laws = self._get_law_classes()
         needs = [law.get_requirements() for law in laws]
