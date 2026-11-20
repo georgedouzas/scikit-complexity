@@ -7,7 +7,6 @@ from collections.abc import Mapping
 from dataclasses import replace
 
 from ...components.laws import (
-    ArrayUpdateLaw,
     BoundaryLaw,
     ConstraintLaw,
     EventLaw,
@@ -66,7 +65,6 @@ class NumpyBackend(BaseBackend):
             laws={
                 BoundaryLaw,
                 EventLaw,
-                ArrayUpdateLaw,
                 ConstraintLaw,
                 JumpLaw,
                 LocalRuleLaw,

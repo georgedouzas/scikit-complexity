@@ -1,4 +1,4 @@
-"""Test the `_array_update` module of `skcomplex.core.components.laws`."""
+"""Test the `_array_update_law` module of `skcomplex.core.engine.compile`."""
 
 from typing import Annotated
 
@@ -8,9 +8,10 @@ from sage.all__sagemath_symbolics import var
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import ArrayUpdateLaw
+from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.spaces import CellComplexSpace, DiscreteTime, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine.compile._array_update_law import ArrayUpdateLaw
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import MatrixGroupSpec, RoleSpec, StateSpec
@@ -48,7 +49,7 @@ class ReplayInteraction(Interaction):
         """Return the replay."""
         last = len(self.ensemble) - 1
         return [
-            ArrayUpdateLaw(
+            UpdateLaw(
                 self._get_member(namespace, 'target').x,
                 lambda values, *, time: self.ensemble[min(int(time), last)],
             ),
@@ -103,7 +104,7 @@ class _DriveInteraction(Interaction):
 
     def _get_laws(self, namespace):
         """Return the drive."""
-        return [ArrayUpdateLaw(self._get_member(namespace, 'target').x, self.function)]
+        return [UpdateLaw(self._get_member(namespace, 'target').x, self.function)]
 
 
 class PairElement(Element):
@@ -123,7 +124,7 @@ class RotationInteraction(Interaction):
 
     def _get_laws(self, namespace):
         """Return the rotation."""
-        return [ArrayUpdateLaw(self._get_member(namespace, 'target').U, self._rotate)]
+        return [UpdateLaw(self._get_member(namespace, 'target').U, self._rotate)]
 
     def _rotate(self, values, *, space):
         """Return the components rotated by the number of faces of every link."""
@@ -156,7 +157,7 @@ class PartialInteraction(Interaction):
 
     def _get_laws(self, namespace):
         """Return a drive of the first component."""
-        return [ArrayUpdateLaw(self._get_member(namespace, 'target').U[0], lambda values, *, random: values)]
+        return [UpdateLaw(self._get_member(namespace, 'target').U[0], lambda values, *, random: values)]
 
 
 def test_drive_of_one_component_of_a_matrix_state_raises_an_error():

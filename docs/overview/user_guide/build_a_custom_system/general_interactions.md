@@ -690,7 +690,7 @@ the change of the objective with probability `exp(-change)`, so an energy over a
 weight at that temperature, which stays a value of the system. With the move `'cluster'`, it makes Wolff cluster flips
 instead.
 
-An interaction that scores more than local terms returns its own Monte Carlo sweep as an `ArrayUpdateLaw`. Biology
+An interaction that scores more than local terms returns its own Monte Carlo sweep as an `UpdateLaw` of a NumPy function of the whole array. Biology
 samples whole rows of sequences this way with `SequenceSamplingInteraction`, as in `RNANeutralNetworksSystem` of
 `skcomplex.systems.biology.evolution`, and physics samples matrix links with `WilsonSamplingInteraction`, as in
 `LatticeYangMillsSystem` of `skcomplex.systems.physics.waves`. A temperature near zero accepts a move only when the

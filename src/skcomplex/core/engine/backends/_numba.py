@@ -17,7 +17,6 @@ import numpy as np
 from numba.core.dispatcher import Dispatcher
 
 from ...components.laws import (
-    ArrayUpdateLaw,
     BoundaryLaw,
     ConstraintLaw,
     EventLaw,
@@ -135,7 +134,6 @@ class NumbaBackend(BaseBackend):
             laws={
                 BoundaryLaw,
                 EventLaw,
-                ArrayUpdateLaw,
                 ConstraintLaw,
                 JumpLaw,
                 LocalRuleLaw,

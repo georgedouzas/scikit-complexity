@@ -16,7 +16,6 @@ from sage.ext.fast_callable import fast_callable
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....components.laws import (
-    ArrayUpdateLaw,
     BaseLaw,
     LinearRuleSpec,
     LocalRuleLaw,
@@ -53,6 +52,7 @@ from ...problems._lattice_state_spec import _LatticeStateSpec
 from ...problems._lookup_spec import _LookupSpec
 from ...problems._monte_carlo_kernel import MonteCarloKernel
 from ...problems._rule_kernel import RuleKernel
+from .._array_update_law import ArrayUpdateLaw
 from .._base import BaseCompiler, BasePass
 from .._compilation import Compilation
 from .._issue_spec import IssueSpec
@@ -744,7 +744,7 @@ class LatticeProblemPass(BasePass):
         if not isinstance(target, Expression) or not set(value.variables()) <= {target}:
             error_msg = (
                 f'A drive of {context.owner} updates {target} by {value}, but an update in a cascade reads its state '
-                'alone, such as UpdateLaw(h, h + 1). Give an ArrayUpdateLaw to read other values.'
+                'alone, such as UpdateLaw(h, h + 1). Give a function of the whole array to read others.'
             )
             raise ValidationError(error_msg)
         step = fast_callable(value, vars=[target], domain=float)

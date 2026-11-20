@@ -21,7 +21,7 @@ from sage.sets.real_set import RealSet
 
 from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
-from .....core.components.laws import ArrayUpdateLaw, ObjectiveLaw
+from .....core.components.laws import ObjectiveLaw, UpdateLaw
 from .....core.components.laws.utils import exterior_derivative, neighbors
 from .....core.components.spaces import BaseSpace, CellComplexSpace, CofaceNeighborhood
 from .....core.errors import ValidationError
@@ -215,7 +215,7 @@ class WilsonSamplingInteraction(Interaction):
         if score is None:
             self.laws_: list[BaseComponent] = [ObjectiveLaw(self._get_action(context), links)]
         else:
-            self.laws_ = [ArrayUpdateLaw(links, self._sample_holonomies, label=self.label)]
+            self.laws_ = [UpdateLaw(links, self._sample_holonomies, label=self.label)]
 
     def _check_holonomy_score(self, score: HolonomyScoreSpec) -> None:
         """Raise an error for a holonomy score with options a matrix group does not take.

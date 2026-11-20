@@ -6,7 +6,6 @@
 import itertools
 
 from ...components.laws import (
-    ArrayUpdateLaw,
     JumpLaw,
     LocalRuleLaw,
     NoiseLaw,
@@ -16,6 +15,7 @@ from ...components.laws import (
     UpdateLaw,
 )
 from ...enums import FormKind
+from ._array_update_law import ArrayUpdateLaw
 from ._relaxation_law import RelaxationLaw
 from ._renewal_law import RenewalLaw
 

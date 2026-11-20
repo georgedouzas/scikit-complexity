@@ -18,7 +18,7 @@ from sage.all__sagemath_symbolics import RR, SR, ConditionSet, Expression
 
 from .....core.components import Tags
 from .....core.components.interactions import Interaction
-from .....core.components.laws import ArrayUpdateLaw, BaseLaw
+from .....core.components.laws import BaseLaw, UpdateLaw
 from .....core.components.spaces import BaseSpace
 from .....core.enums import MoveKind
 from .....core.errors import ValidationError
@@ -149,7 +149,7 @@ class SequenceSamplingInteraction(Interaction):
         (4, 2)
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (ArrayUpdateLaw,)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (UpdateLaw,)
 
     def __init__(
         self,
@@ -178,7 +178,7 @@ class SequenceSamplingInteraction(Interaction):
 
     def _get_tags(self) -> Tags:
         """Return the tags of the update of the rows, which draws."""
-        return self._get_variant_tags((ArrayUpdateLaw,), stochastic=True)
+        return self._get_variant_tags((UpdateLaw,), stochastic=True)
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Raise an error for a sampling it cannot run, and set the law that samples the rows.
@@ -213,7 +213,7 @@ class SequenceSamplingInteraction(Interaction):
             raise ValidationError(error_msg)
         if isinstance(context, SimpleNamespace):
             target = getattr(self._get_member(context, 'target'), self.state)
-            self.laws_ = [ArrayUpdateLaw(target, self._accept_rows, label=self.label, score=self._score_rows)]
+            self.laws_ = [UpdateLaw(target, self._accept_rows, label=self.label, score=self._score_rows)]
 
     def _get_row_keywords(self, score: RowScoreSpec, index: int, parameters: Mapping[str, object]) -> dict[str, object]:
         """Return the parameters that a row score names.

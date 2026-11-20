@@ -7,16 +7,16 @@ differential equations, update laws give a map, and jump laws give a Markov chai
 components fit](index.md) shows the families together, and the [laws page](../../../components/laws.md)
 compares every law class and holds its fact sheet.
 
-## ArrayUpdateLaw
+## Updates of a whole array
 
-An `ArrayUpdateLaw` hands the whole array of a state to a Python function at every step and stores the array it
-returns. Here a sandpile of 5 by 5 sites receives one grain at a random site per step.
+An `UpdateLaw` whose value is a NumPy function of the whole array, `UpdateLaw(state, f)`, hands the array of the state
+to the function at every step and stores the array it returns. Here a sandpile of 5 by 5 sites receives one grain at a random site per step.
 
 ```python
 from typing import Annotated
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import ArrayUpdateLaw
+from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -30,14 +30,14 @@ def drop(values, *, random):
 
 
 class SandElement(Element):
-    law_classes = (ArrayUpdateLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(self, label, *, height: Annotated[float, StateSpec()] = 0.0):
         super().__init__(label)
         self.height = height
 
     def _get_laws(self, namespace):
-        return [ArrayUpdateLaw(namespace.height, drop)]
+        return [UpdateLaw(namespace.height, drop)]
 
 
 pile = GroupElement('pile', element=SandElement, space=LatticeSpace((5, 5)), on='sites')
@@ -58,14 +58,14 @@ def mutate(values, *, random):
 
 
 class NucleotideElement(Element):
-    law_classes = (ArrayUpdateLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(self, label, *, base: Annotated[float, StateSpec()] = 0.0):
         super().__init__(label)
         self.base = base
 
     def _get_laws(self, namespace):
-        return [ArrayUpdateLaw(namespace.base, mutate)]
+        return [UpdateLaw(namespace.base, mutate)]
 
 
 genome = GroupElement('genome', element=NucleotideElement, space=LatticeSpace(30), on='sites')
@@ -85,22 +85,8 @@ the same step as `LocalRuleLaw`s on other states. A function that names `time` r
 that names `space` reads the space of the group.
 
 **Limits and errors.** The law changes one whole state at once, so it cannot read the ordered neighbourhood of a site
-the way a local rule does. The function must be callable, and `prepare` raises a `ValidationError` otherwise.
-
-```python continuation
-from sage.all__sagemath_symbolics import var
-
-from skcomplex.core.errors import ValidationError
-
-try:
-    ArrayUpdateLaw(var('height'), 1.0).prepare()
-except ValidationError as error:
-    message = str(error)
-message
-```
-
-The message reads "The function of an array update must be callable, but it is 1.0." The fix is a function of the
-array, such as `drop` above.
+the way a local rule does. The function takes the array as its only positional argument and everything else by
+keyword. A function `f(t, values)` of two positional arguments gives instead the next value of one state.
 
 **A field realization.** A field names the drive in an interaction of its own, which binds the pile through a role.
 
@@ -110,14 +96,14 @@ from skcomplex.core.specs import RoleSpec
 
 
 class GrainDropInteraction(Interaction):
-    law_classes = (ArrayUpdateLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(self, label, *, pile: Annotated[str, RoleSpec()]):
         super().__init__(label)
         self.pile = pile
 
     def _get_laws(self, namespace):
-        return [ArrayUpdateLaw(namespace.pile.height, drop)]
+        return [UpdateLaw(namespace.pile.height, drop)]
 
 
 class HeightElement(Element):
@@ -133,8 +119,7 @@ int(simulate(dropping, until=4, random_state=0).get_lattice('table.height')[-1].
 
 Four steps drop 4 grains on the table.
 
-See its [fact sheet](../../../components/laws.md#arrayupdatelaw)
-and its [API entry][skcomplex.core.components.laws.ArrayUpdateLaw].
+See the [API entry][skcomplex.core.components.laws.UpdateLaw] of `UpdateLaw`.
 
 ## BoundaryLaw
 
@@ -259,7 +244,7 @@ from typing import Annotated
 import numpy as np
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import ArrayUpdateLaw, LocalRuleLaw, UpdateLaw
+from skcomplex.core.components.laws import LocalRuleLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import relax
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace, RadiusNeighborhood
 from skcomplex.core.components.systems import CompositeSystem
@@ -285,7 +270,7 @@ class SandpileElement(Element):
         self.height = height
 
     def _get_laws(self, namespace):
-        drive = ArrayUpdateLaw(namespace.height, drop)
+        drive = UpdateLaw(namespace.height, drop)
         rule = LocalRuleLaw(namespace.height, cross, topple)
         relaxed = relax(namespace.height, rule, lambda z: bool((z < 4).all()), drive=drive)
         return [UpdateLaw(namespace.height, relaxed, label='avalanche')]
@@ -317,7 +302,7 @@ class FaultElement(Element):
         self.stress = stress
 
     def _get_laws(self, namespace):
-        drive = ArrayUpdateLaw(namespace.stress, load)
+        drive = UpdateLaw(namespace.stress, load)
         rule = LocalRuleLaw(namespace.stress, cross, slip)
         relaxed = relax(namespace.stress, rule, lambda z: bool((z < 1.0).all()), drive=drive)
         return [UpdateLaw(namespace.stress, relaxed, label='earthquake')]
@@ -356,7 +341,7 @@ class ForestElement(Element):
 
     def _get_laws(self, namespace):
         rule = LocalRuleLaw(namespace.tree, cross, burn)
-        drive = ArrayUpdateLaw(namespace.tree, strike)
+        drive = UpdateLaw(namespace.tree, strike)
         relaxed = relax(namespace.tree, rule, lambda z: bool((z < 2.0).all()), drive=drive)
         return [UpdateLaw(namespace.tree, relaxed, label='fire')]
 
@@ -393,7 +378,7 @@ class NeuronElement(Element):
             namespace.potential,
             LocalRuleLaw(namespace.potential, line, fire),
             lambda v: bool((v < 1.0).all()),
-            drive=ArrayUpdateLaw(namespace.potential, charge),
+            drive=UpdateLaw(namespace.potential, charge),
             activity=lambda v: v >= 1.0,
         )
         return [UpdateLaw(namespace.potential, relaxed, label='avalanche')]
@@ -411,8 +396,8 @@ the drive laws once, then applies the rules again and again until `stable` holds
 becomes an event in `trajectory.events`, named by the label of the update law, with its size, the number of site
 updates, its duration, the number of iterations, and its area, the number of distinct sites updated.
 
-**How it combines.** Its drive laws are `ArrayUpdateLaw`s or `LocalRuleLaw`s, and its rules are `LocalRuleLaw`s, or
-`ArrayUpdateLaw`s for a relaxation that sends parcels to random neighbours. The argument `activity` counts the sites
+**How it combines.** Its drive laws are updates of a whole array or `LocalRuleLaw`s, and its rules are `LocalRuleLaw`s,
+or updates of a whole array for a relaxation that sends parcels to random neighbours. The argument `activity` counts the sites
 that topple, in place of the sites that change.
 
 **Limits and errors.** The relaxation must end. A condition `stable` that never holds stops the step after
@@ -424,7 +409,7 @@ from skcomplex.core.errors import SolverError
 
 class StuckElement(SandpileElement):
     def _get_laws(self, namespace):
-        drive = ArrayUpdateLaw(namespace.height, drop)
+        drive = UpdateLaw(namespace.height, drop)
         rule = LocalRuleLaw(namespace.height, cross, topple)
         relaxed = relax(namespace.height, rule, lambda z: bool((z < 0).all()), drive=drive, max_iterations=50)
         return [UpdateLaw(namespace.height, relaxed)]
@@ -1136,7 +1121,7 @@ run as lookups, which the Numba backend fuses into one compiled loop. The schedu
 `UpdateLaw` with a neighbourhood, and `relax` uses it to relax a lattice.
 
 **Limits and errors.** The rule reads a fixed neighbourhood of each cell, so a change of the whole array at once needs
-an `ArrayUpdateLaw`. An unknown schedule raises a `ValidationError` from `prepare`.
+an `UpdateLaw` of a function of the whole array. An unknown schedule raises a `ValidationError` from `prepare`.
 
 ```python continuation
 from sage.all__sagemath_symbolics import var

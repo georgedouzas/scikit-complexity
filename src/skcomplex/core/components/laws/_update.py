@@ -4,17 +4,23 @@
 # License: MIT
 
 import inspect
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import ClassVar
+
+from sage.all__sagemath_symbolics import Expression
+from sage.modules.free_module_element import FreeModuleElement
 
 from ...errors import ValidationError
 from ..spaces import BaseNeighborhood, DiscreteTime
 from ..types import Target
 from ._base import BaseLaw
+from ._call_spec import CallSpec
 from ._local_rule import SCHEDULES, LocalRuleLaw
 from ._requirement_spec import RequirementSpec
 from ._topology_request_spec import TopologyRequestSpec
+
+POSITIONAL = (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
 
 
 class UpdateLaw(BaseLaw):
@@ -41,6 +47,13 @@ class UpdateLaw(BaseLaw):
     receives `random`, a uniform number per cell, and `degree`, the number of neighbours of every cell, when it names
     them. It returns the next values of the target, or one array per state when the target is a tuple of states.
 
+    An update law of a state whose value is a NumPy function of the whole array, with the array as its only positional
+    argument, replaces the state of every member at once, such as `UpdateLaw(s.target.height, drop)` with
+    `def drop(values, *, random): ...` adding a grain at one random site of a sandpile. The function receives the
+    array, shaped like the lattice or with one row per member, and by keyword the parameters of the element and
+    `random`, the generator, `time`, and `space`, when it names them. A function `f(t, values)` of two positional
+    arguments gives instead the next value of one state.
+
     Unlike `RateLaw`, which gives a derivative in continuous time, it gives the next value in discrete time. Choose it
     when the model steps, such as a map, a generation, or a round.
 
@@ -55,7 +68,8 @@ class UpdateLaw(BaseLaw):
 
         value:
             A symbolic expression, a `Call`, or a callable `f(t, values)` that gives the next value, the rule
-            `rule(agent, system)` of the members of a group, or the rule of the cells of a local rule.
+            `rule(agent, system)` of the members of a group, the rule of the cells of a local rule, or a NumPy
+            function `f(values, *, random)` of the whole array of the state.
 
         label:
             The name of the law, or the empty string for a law without one.
@@ -87,10 +101,16 @@ class UpdateLaw(BaseLaw):
             `'random-site'` as many cells chosen at random, `'checkerboard'` the two sublattices of a square lattice in
             turn, and `'colored'` the classes of a proper coloring of the neighbour graph in turn.
 
+        score:
+            A function `score(values, **parameters)` of the whole array of a lattice state, which returns one number
+            per row and which a run records at every frame as `<owner>.score`, or `None`. Only an update of the
+            whole array takes it.
+
     Raises:
         ValidationError:
             The value is a NumPy array, an increment law has a source, or a local rule has a neighbourhood that is no
-            neighbourhood, an unknown schedule, or a setting of a law of one member.
+            neighbourhood, an unknown schedule, a setting of a law of one member, or a score but no function of the
+            whole array.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
@@ -111,6 +131,11 @@ class UpdateLaw(BaseLaw):
         >>> parity = UpdateLaw(x, TotalisticSpec(lambda total: total % 2), neighborhood=around)
         >>> parity.prepare().run({'space': LatticeSpace(5), 'x': [0, 0, 1, 0, 0]}).value_.tolist()
         [0, 1, 1, 1, 0]
+
+        A function of the whole array changes every member at once:
+
+        >>> UpdateLaw(x, lambda values, *, random: values + 1).prepare().targets_
+        (x,)
     """
 
     law_tag: ClassVar[str] = 'update'
@@ -128,6 +153,7 @@ class UpdateLaw(BaseLaw):
         neighborhood: BaseNeighborhood | None = None,
         reads: Sequence[Target] | None = None,
         schedule: str | None = None,
+        score: Callable[..., object] | None = None,
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -139,6 +165,7 @@ class UpdateLaw(BaseLaw):
         self.neighborhood = neighborhood
         self.reads = reads
         self.schedule = schedule
+        self.score = score
 
     def _get_targets(self) -> tuple[object, ...]:
         """Return the state the update sets, or the states a local rule sets together."""
@@ -161,6 +188,25 @@ class UpdateLaw(BaseLaw):
         except (TypeError, ValueError):
             return False
         return parameter is not None and parameter.kind in {parameter.KEYWORD_ONLY, parameter.POSITIONAL_OR_KEYWORD}
+
+    def _is_array_update(self) -> bool:
+        """Return whether the law updates a whole array state by a NumPy function.
+
+        Its target is a state, it has no neighbourhood, and its value is a function whose only positional argument is
+        the array, such as `drop(values, *, random)`, unlike a function `f(t, values)` of one state.
+        """
+        if self.neighborhood is not None or not isinstance(self.target, Expression | FreeModuleElement):
+            return False
+        if isinstance(self.value, Expression | CallSpec) or not callable(self.value):
+            return False
+        try:
+            parameters = inspect.signature(self.value).parameters.values()
+        except (TypeError, ValueError):
+            return False
+        positional = [item for item in parameters if item.kind in POSITIONAL]
+        required = [item for item in positional if item.default is item.empty]
+        varying = any(item.kind is item.VAR_POSITIONAL for item in parameters)
+        return len(required) <= 1 and (bool(positional) or varying)
 
     def _get_local_rule(self) -> LocalRuleLaw:
         """Return the local rule that the engine runs for a law with a neighbourhood.
@@ -233,6 +279,12 @@ class UpdateLaw(BaseLaw):
             )
             raise ValidationError(error_msg)
         self._check_local_rule()
+        if self.score is not None and not self._is_array_update():
+            error_msg = (
+                f'The update law {self.label!r} has a score, which only an update of a whole array by a function '
+                'takes, such as UpdateLaw(s.target.s, accept, score=energy).'
+            )
+            raise ValidationError(error_msg)
 
     def _run(self, inputs: object) -> None:
         """Set `value_` to the next value at given values of the symbols it reads.

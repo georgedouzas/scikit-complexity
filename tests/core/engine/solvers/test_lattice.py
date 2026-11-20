@@ -7,7 +7,6 @@ from sage.all__sagemath_symbolics import var
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import (
-    ArrayUpdateLaw,
     ObjectiveLaw,
     OuterTotalisticSpec,
     SamplerSpec,
@@ -235,7 +234,7 @@ def test_relaxation_records_avalanches():
             lambda left, height, right: height - 2 * (height >= 2) + (left >= 2) + (right >= 2),
             neighborhood=three,
         )
-        drop = ArrayUpdateLaw(height, lambda z, *, random: z + (np.arange(z.size) == 2))
+        drop = UpdateLaw(height, lambda z, *, random: z + (np.arange(z.size) == 2))
         value = relax(
             height,
             topple,
@@ -364,7 +363,7 @@ def _pile(activity, evaluated):
         height = _symbolic(s).height
         cross = RadiusNeighborhood(1, metric='manhattan', center=True)
         rules = UpdateLaw(height, topple, neighborhood=cross)
-        drive = ArrayUpdateLaw(height, drop)
+        drive = UpdateLaw(height, drop)
         value = relax(height, rules, lambda heights: bool((heights < 4).all()), drive=drive, activity=activity)
         return [UpdateLaw(height, value, label='avalanche')]
 

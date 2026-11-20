@@ -26,7 +26,7 @@ from scipy.spatial import Voronoi
 from ....core.components import Observable, Tags
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import ArrayUpdateLaw, BaseLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import (
     AdjacencyNeighborhood,
     BaseNeighborhood,
@@ -299,7 +299,7 @@ class RegionSamplingInteraction(Interaction):
         [0.0, 1.0, 2.0, 3.0]
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (ArrayUpdateLaw,)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (UpdateLaw,)
 
     def __init__(
         self,
@@ -326,7 +326,7 @@ class RegionSamplingInteraction(Interaction):
 
     def _get_tags(self) -> Tags:
         """Return the tags of the update of the labels, which draws."""
-        return self._get_variant_tags((ArrayUpdateLaw,), stochastic=True)
+        return self._get_variant_tags((UpdateLaw,), stochastic=True)
 
     def _get_intensity(self, namespace: SimpleNamespace) -> object:
         """Return the intensity of the acceptance before cooling."""
@@ -368,7 +368,7 @@ class RegionSamplingInteraction(Interaction):
         self.objective._check()
         if isinstance(context, SimpleNamespace):
             target = getattr(self._get_member(context, 'target'), self.state)
-            self.laws_ = [ArrayUpdateLaw(target, self._sample_regions, label=self.label)]
+            self.laws_ = [UpdateLaw(target, self._sample_regions, label=self.label)]
 
     @staticmethod
     @functools.cache

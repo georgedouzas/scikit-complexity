@@ -81,7 +81,7 @@ def relax(
     Examples:
         >>> import numpy as np
         >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws import ArrayUpdateLaw, LocalRuleLaw, UpdateLaw
+        >>> from skcomplex.core.components.laws import LocalRuleLaw, UpdateLaw
         >>> from skcomplex.core.components.laws.utils import relax
         >>> from skcomplex.core.components.spaces import RadiusNeighborhood
         >>> cross = RadiusNeighborhood(1, metric='manhattan', center=True)
@@ -90,7 +90,7 @@ def relax(
 
         >>> height = var('height')
         >>> topple = LocalRuleLaw(height, cross, lambda z, *n: z - 4 * (z >= 4) + sum(m >= 4 for m in n))
-        >>> grain = ArrayUpdateLaw(height, lambda z, *, random: z + np.eye(1, z.size).reshape(z.shape))
+        >>> grain = UpdateLaw(height, lambda z, *, random: z + np.eye(1, z.size).reshape(z.shape))
         >>> pile = relax(height, topple, lambda z: bool((z < 4).all()), drive=grain)
         >>> UpdateLaw(height, pile, label='avalanche').value
         relax(height)

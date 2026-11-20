@@ -1,4 +1,4 @@
-"""Define the law that replaces a whole array state by the output of a function."""
+"""Define the array update the compiler runs for an update law of a whole array."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -9,26 +9,19 @@ from typing import ClassVar
 from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 
+from ...components.laws import BaseLaw, RequirementSpec
+from ...components.spaces import DiscreteTime, LatticeSpace, NetworkSpace
 from ...errors import ValidationError
-from ..spaces import DiscreteTime, LatticeSpace, NetworkSpace
-from ._base import BaseLaw
-from ._requirement_spec import RequirementSpec
 
 
 class ArrayUpdateLaw(BaseLaw):
     """A law that replaces a whole array state by the output of a function.
 
-    At every step the function receives the state of every member as one array, shaped like the lattice or with one row
-    per member of a group on the edges or hyperedges of a network. A state of several components per member has its
-    components on a last axis. The function may also receive the parameters of the element it names, and `random`, the
-    random generator, `time`, the time of the step, and `space`, the space of the group, when it names them. It returns
-    the new array.
-
-    Unlike `UpdateLaw`, which gives the next value of each member by an expression, it hands the whole array to a Python
-    function. Choose it when the change depends on the whole array at once, such as one random site.
-
-    It appears in many fields. A sandpile adds a grain at a random site, a molecular model replays recorded
-    configurations, and a genetic model mutates one random site of a genome.
+    The compiler runs it for an `UpdateLaw` of a state whose value is a NumPy function of the whole array, such as
+    `UpdateLaw(s.target.height, drop)` with `def drop(values, *, random): ...`. At every step the function receives the
+    state of every member as one array, shaped like the lattice or with one row per member of a group on the edges or
+    hyperedges of a network. A state of several components per member has its components on a last axis. The function
+    may also receive the parameters of the element, and `random`, `time`, and `space` when it names them.
 
     Args:
         target:
@@ -43,12 +36,6 @@ class ArrayUpdateLaw(BaseLaw):
         score:
             The function `score(values, **parameters)` of the array of a state on a `LatticeSpace`, which returns one
             number per row, and which a run records at every frame as `<owner>.score`, or `None` for no record.
-
-    Examples:
-        >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws import ArrayUpdateLaw
-        >>> ArrayUpdateLaw(var('height'), lambda values, *, random: values + 1).prepare().targets_
-        (height,)
     """
 
     law_tag: ClassVar[str] = 'update'
