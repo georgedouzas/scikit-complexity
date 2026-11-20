@@ -46,7 +46,8 @@ class DecaySystem(BaseSystem):
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of one decaying tank."""
         super()._prepare(context)
-        self.system_ = System(self.label, elements=[Element('tank', values={'x': 1.0})], interactions=[_decay(k=self.k)])
+        tank = Element('tank', values={'x': 1.0})
+        self.system_ = System(self.label, elements=[tank], interactions=[_decay(k=self.k)])
 
 
 def _level(namespace):

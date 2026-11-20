@@ -466,7 +466,9 @@ def test_elements_on_edges_take_the_network_of_their_system():
     """Test that an element on the edges of the network of its system has one member per edge."""
     weights = Element('weights', values={'n': 1.0}, on='edges')
     system = System(
-        elements=[weights], interactions=[_growth('growth', 'weights')], space=NetworkSpace(nx.cycle_graph(30)),
+        elements=[weights],
+        interactions=[_growth('growth', 'weights')],
+        space=NetworkSpace(nx.cycle_graph(30)),
     )
     assert system.prepare().simulate(until=0).get_values('weights.n').shape == (1, 30)
 

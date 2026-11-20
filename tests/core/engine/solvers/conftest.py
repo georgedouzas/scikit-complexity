@@ -1,6 +1,7 @@
 """Fixtures of the solver tests: optimal control problems with known solutions."""
 
 from collections.abc import Callable
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -10,7 +11,7 @@ from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import ObjectiveLaw, RateLaw
+from skcomplex.core.components.laws import BaseLaw, ObjectiveLaw, RateLaw
 from skcomplex.core.engine.solvers import BaseSolver
 from skcomplex.core.systems import System
 
@@ -37,9 +38,10 @@ def _riccati_control(times: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
 def _linear_quadratic(solver: BaseSolver | str = 'auto', *, terminal: float = 0.0, cost: bool = True) -> System:
     """Return the prepared problem `x' = u`, `x(0) = 1`, with the cost `∫ (x^2 + u^2) / 2 dt + terminal x(T)^2`."""
 
-    def regulate(s):
+    def regulate(s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the rate of the plant and, with a cost, its objective."""
         plant = s.target
-        laws = [RateLaw(plant.x.diff(s.t), plant.u)]
+        laws: list[BaseLaw] = [RateLaw(plant.x.diff(s.t), plant.u)]
         if cost:
             running = (plant.x**2 + plant.u**2) / 2
             laws.append(ObjectiveLaw(running, controls=[plant.u], terminal=terminal * plant.x**2))

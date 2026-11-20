@@ -209,4 +209,3 @@ def test_prepare_compiler_target_not_a_state() -> None:
 def test_prepare_compiler_without_target() -> None:
     """Test that an equation without a target under static time is reported."""
     assert len(_issues(_static(_no_target), 'equation-target')) == 1
-

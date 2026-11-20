@@ -314,4 +314,3 @@ def run_problem(
     )
     trajectory: Trajectory = simulation.prepare().run().trajectory_
     return trajectory
-

@@ -1,6 +1,5 @@
 """Test the `_law_kernel` module of `skcomplex.core.engine.problems`."""
 
-
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import SR
