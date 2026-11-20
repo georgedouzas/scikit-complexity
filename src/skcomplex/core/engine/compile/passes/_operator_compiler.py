@@ -19,6 +19,7 @@ from sklearn.base import clone
 
 from ....components import Observable
 from ....components.elements import BaseElement, DeclaredElement, Element, GroupElement
+from ....components.elements._element import RESERVED
 from ....components.interactions import BaseInteraction
 from ....components.laws import BaseLaw
 from ....components.systems import CompositeSystem
@@ -181,10 +182,7 @@ class OperatorCompiler(BaseCompiler):
         if space is None:
             error_msg = f'{type(element).__name__} {element.label!r} takes no Hilbert space.'
             raise ValidationError(error_msg)
-        plain = OperatorCompiler._is_plain(element)
-        state = (
-            OperatorCompiler._get_plain_state(element) if plain else OperatorCompiler._get_hilbert_state(type(element))
-        )
+        state = OperatorCompiler._get_hilbert_state(element)
         if state is None:
             error_msg = (
                 f'{type(element).__name__} {element.label!r} takes a Hilbert space but has no complex state. Give its '
@@ -192,7 +190,9 @@ class OperatorCompiler(BaseCompiler):
             )
             raise ValidationError(error_msg)
         space._check()
-        domain = CC if plain else declarations_of(element, VariableKind.STATE)[state].domain
+        domain = (
+            CC if OperatorCompiler._is_plain(element) else declarations_of(element, VariableKind.STATE)[state].domain
+        )
         dimension = domain.dimension() if isinstance(domain, FreeModule_generic) else space.dimension
         if dimension != space.dimension:
             error_msg = (
@@ -239,23 +239,39 @@ class OperatorCompiler(BaseCompiler):
         return isinstance(element, BaseElement) and OperatorCompiler._get_hilbert_of(element) is not None
 
     @staticmethod
-    def _get_hilbert_state(element_type: type) -> str | None:
-        """Return the name of the complex state of an element type.
+    def _get_hilbert_state(element: object) -> str | None:
+        """Return the name of the complex state of an element or an element class.
 
-        The state is over `CC` or `CC^dimension`, and the result is `None` for none.
+        The state is over `CC` or `CC^dimension`, and the result is `None` for none. A plain element class names it
+        with complex allowed values, such as `psi: Annotated[object, CC] = 'up'`, and a plain element may also hold it
+        as its only value besides the Hilbert space.
 
         Args:
-            element_type:
-                The element type.
+            element:
+                The element or its class.
 
         Returns:
             name:
                 The name of the state.
         """
+        if isinstance(element, Element) and OperatorCompiler._is_plain(element):
+            return OperatorCompiler._get_plain_state(element)
+        element_type = element if isinstance(element, type) else type(element)
         for name, declaration in declarations_of(element_type, VariableKind.STATE).items():
             if OperatorCompiler._is_complex(declaration.domain):
                 return name
-        return None
+        if not issubclass(element_type, Element) or issubclass(element_type, DeclaredElement):
+            return None
+        parameters = inspect.signature(element_type, eval_str=True).parameters
+        return next(
+            (
+                name
+                for name, parameter in parameters.items()
+                if name not in RESERVED
+                and OperatorCompiler._is_complex(Element._get_domain_of(parameter.annotation, 0.0))
+            ),
+            None,
+        )
 
     @staticmethod
     def _is_complex(domain: object) -> bool:
