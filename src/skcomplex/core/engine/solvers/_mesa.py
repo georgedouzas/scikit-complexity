@@ -2045,7 +2045,7 @@ class MesaSolver(ExternalSolver):
 
     @staticmethod
     def _get_declared_phases(system: CompositeSystem) -> list[PhaseSpec]:
-        """Return the phases of the schedules of a system and its nested systems.
+        """Return the phases declared by a system and its nested systems.
 
         The first phase of every name is kept.
         """
@@ -2053,6 +2053,8 @@ class MesaSolver(ExternalSolver):
         schedule = time.prepare().schedule_ if isinstance(time, DiscreteTime) else None
         phases = list(schedule.phases) if isinstance(schedule, PhasesScheduleSpec) else []
         for nested in system.systems:
+            if isinstance(nested.solver, MesaSolver):
+                phases += nested.solver.phases
             phases += MesaSolver._get_declared_phases(nested)
         kept: dict[str, PhaseSpec] = {}
         for phase in phases:

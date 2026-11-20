@@ -54,10 +54,6 @@ PERIODIC_POSITIONS_GAP = (
     'Engine gap: the boundary of a periodic continuous space targets the position `x_<group>` of agents, '
     'which is not a state symbol (x_flock).'
 )
-NESTED_PHASES_GAP = (
-    'Engine gap: the agent solver reads only the phases of the solver of the root system, not those of a '
-    'nested system.'
-)
 RESERVED_KIND_GAP = (
     'Engine gap: the value `kind` of a plain element is reserved and read as the element class (reserved kind).'
 )
@@ -1304,7 +1300,6 @@ def test_undeclared_phase_raises():
         _market().prepare().simulate(until=1)
 
 
-@pytest.mark.skip(reason=NESTED_PHASES_GAP)
 def test_run_reads_the_phases_of_a_nested_system():
     """Test that rules run in a phase that the solver of a nested system declares."""
     nested = _market('market', solver=MesaSolver(phases=[PhaseSpec('offers')]))
