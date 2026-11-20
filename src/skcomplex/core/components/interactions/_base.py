@@ -554,6 +554,9 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
             raise self._get_unshaped_error(name) from error
         laws: list[BaseComponent] = []
         for law in prepared.laws_:
+            if not isinstance(law, BaseLaw):
+                laws.append(law)
+                continue
             rule = self._get_rule(law, roles, functional)
             if rule is not None:
                 laws.append(rule)

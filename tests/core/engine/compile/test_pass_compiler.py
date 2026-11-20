@@ -1540,12 +1540,6 @@ def _count_steps(agent, system):
     agent.steps += 1
 
 
-@pytest.mark.skip(
-    reason=(
-        'Engine gap: an agent rule written as `UpdateLaw(s.target, rule)` is reported to a solver that does not '
-        'support it as the internal law class of the old API, not as `UpdateLaw`.'
-    ),
-)
 def test_unsupported_solver_lists_capable_solvers():
     """Test that agents validated with RK4 report the unsupported components and capable solvers."""
     ants = Element('ants', values={'steps': np.zeros(3)}, size=3)
@@ -1799,12 +1793,6 @@ def test_validate_accepts_correlated_noise_with_automatic_solver():
     assert NoiseKind.CORRELATED in DEFAULT_SOLVERS[FormKind.SDE]._get_support().noise
 
 
-@pytest.mark.skip(
-    reason=(
-        'Engine gap: an observable among the laws of an interaction raises an AttributeError on `get_params` '
-        'instead of the report issue that names the interaction and the laws it takes.'
-    ),
-)
 def test_observable_among_the_laws_is_rejected():
     """Test that an observable among the laws is an error that names the component and the laws it takes."""
     mixed = _rule('mixed', 'tank', lambda s: [RateLaw(s.target.a, -s.target.a), Observable('level', s.target.a)])

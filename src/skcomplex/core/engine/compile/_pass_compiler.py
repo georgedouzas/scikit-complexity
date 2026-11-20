@@ -28,6 +28,7 @@ from ...components.interactions import (
 )
 from ...components.laws import (
     ConstraintLaw,
+    EventLaw,
     JumpLaw,
     LinearProgramLaw,
     NoiseLaw,
@@ -130,6 +131,15 @@ REPLACEMENTS = {
     DomainKind.HILBERT: 'a generator or dissipator law',
 }
 PARTITIONS = ('plan', 'subsystems')
+LAW_KINDS = (RateLaw, NoiseLaw, JumpLaw, UpdateLaw, ConstraintLaw, EventLaw, ObjectiveLaw)
+LAW_KINDS_BY_TAG = {
+    'rate': RateLaw,
+    'noise': NoiseLaw,
+    'jump': JumpLaw,
+    'update': UpdateLaw,
+    'equation': ConstraintLaw,
+    'objective': ObjectiveLaw,
+}
 POLYGON_COORDINATES = 2
 NONLOCAL_OPERATORS = ('convolve', 'shifted', 'inverse_helmholtz', 'integral_transform', 'cumulative_integral')
 LOCAL_OPERATORS = ('laplacian', 'partial', 'upwind')
@@ -1802,6 +1812,18 @@ class PassCompiler(BaseCompiler):
         }
 
     @staticmethod
+    def _get_law_kind(law_class: type) -> type:
+        """Return the kind of law, of the seven a user writes, that a law class of the engine stands for.
+
+        A class of one of the seven kinds gives that kind, and any other class gives the kind its tag names, such as
+        `UpdateLaw` for a rule an update law runs as Python code. A class with no such tag gives itself.
+        """
+        for kind in LAW_KINDS:
+            if issubclass(law_class, kind):
+                return kind
+        return LAW_KINDS_BY_TAG.get(getattr(law_class, 'law_tag', ''), law_class)
+
+    @staticmethod
     def _get_solver_issues(solver: object, census: _CensusSpec, system: CompositeSystem) -> list[IssueSpec]:
         """Return the solver arguments rejected and the requirements it does not support.
 
@@ -1820,6 +1842,9 @@ class PassCompiler(BaseCompiler):
         support = BaseCompiler._support_of(stepper)
         for category, terms in needs.items():
             missing = support.get_missing(category, terms)
+            if category == 'laws':
+                kinds = [kind for kind in terms if isinstance(kind, type) and kind.__name__ in missing]
+                missing = sorted({PassCompiler._get_law_kind(kind).__name__ for kind in kinds})
             if missing:
                 message = f'The solver {stepper.__name__} does not support the {category} {", ".join(missing)}.'
                 fix = f'Pass a solver that supports the {category} {", ".join(missing)}.'
