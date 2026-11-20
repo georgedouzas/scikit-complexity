@@ -155,7 +155,10 @@ class PartialInteraction(Interaction):
 def test_drive_of_one_component_of_a_matrix_state_raises_an_error():
     """Test that a drive that targets one of the components of a matrix state names the whole state."""
     links = PairElement(
-        'links', U=np.tile((1.0, 0.0), (18, 1)), space=CellComplexSpace(LatticeSpace((3, 3))), on='edges'
+        'links',
+        U=np.tile((1.0, 0.0), (18, 1)),
+        space=CellComplexSpace(LatticeSpace((3, 3))),
+        on='edges',
     )
     system = System(elements=[links], interactions=[PartialInteraction('part', target='links')])
     with pytest.raises(ValidationError, match='Target the whole state'):
