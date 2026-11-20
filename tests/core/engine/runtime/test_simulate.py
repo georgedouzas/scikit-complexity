@@ -15,7 +15,7 @@ from skcomplex.core.components.laws.utils import normal
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.engine.backends import JaxBackend
 from skcomplex.core.engine.runtime import RecorderObserver, Trajectory, _simulate
-from skcomplex.core.engine.runtime._simulate import _choose_solver, _run_problem
+from skcomplex.core.engine.runtime._simulate import _choose_solver, run_problem
 from skcomplex.core.engine.solvers import GillespieSolver, MonteCarloSolver, RootSolver
 from skcomplex.core.errors import ConservationError, TagError, ValidationError
 from skcomplex.core.systems import BaseSystem, System
@@ -117,7 +117,7 @@ def test_simulate_requires_an_end_time():
 def test_run_problem_rejects_what_is_no_system():
     """Test that running a name raises an error that names what it took."""
     with pytest.raises(ValidationError, match=r"simulate takes a system, not 'sir'"):
-        _run_problem('sir', None, until=1.0)
+        run_problem('sir', None, until=1.0)
 
 
 def test_prepare_rejects_a_backend_of_other_spaces():

@@ -22,7 +22,7 @@ from ..engine.backends import BaseBackend
 from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import BaseProblemSpec
 from ..engine.runtime import BaseClock, BaseObserver, Trajectory
-from ..engine.runtime._simulate import _run_problem
+from ..engine.runtime._simulate import run_problem
 from ..engine.solvers import BaseSolver
 from ..enums import FormKind
 from ..errors import NotPreparedError
@@ -314,7 +314,7 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
         named = any(isinstance(value, str) for value in (starting or {}).values())
         compiled = None if observables or named else (prepared._problem, prepared.solver_)
         end = self.until if until is None else until
-        return _run_problem(
+        return run_problem(
             prepared._composite,
             compiled,
             until=0.0 if end is None and prepared.form_ == FormKind.STATIC else end,

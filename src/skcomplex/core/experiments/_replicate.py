@@ -26,7 +26,7 @@ from ..components.systems import CompositeSystem
 from ..engine._utils import declared_variables, probe_laws
 from ..engine.problems import BaseProblemSpec
 from ..engine.runtime import Trajectory
-from ..engine.runtime._simulate import _run_problem
+from ..engine.runtime._simulate import run_problem
 from ..enums import VariableKind
 from ..errors import ValidationError
 from ..specs import ParameterSpec, StateSpec, VariableSpec
@@ -361,5 +361,5 @@ def _run_replicated(
         return trajectory, get_problem(original)
     composite = system.prepare().system_
     replicated_composite = _replicate(composite, size, values)
-    trajectory = _run_problem(replicated_composite, None, until=end, dt=step, random_state=random_state)
+    trajectory = run_problem(replicated_composite, None, until=end, dt=step, random_state=random_state)
     return trajectory, get_problem(composite)
