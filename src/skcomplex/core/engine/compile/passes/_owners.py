@@ -8,8 +8,9 @@ from collections import defaultdict
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....components.laws import BaseLaw, JumpLaw, LinearProgramLaw, NoiseLaw, RateLaw, UpdateLaw
-from ....components.spaces import DiscreteTime
+from ....components.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....components.laws._linear_program import _LinearProgramLaw
+from ....components.spaces._discrete_time import _DiscreteTime
 from ..._utils import vector
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._kernel_spec import KernelSpec
@@ -119,13 +120,15 @@ class OwnersPass(BasePass):
             if path
             and times.get(path) is None
             and all(
-                classes <= {LinearProgramLaw} for owner, classes in kinds.items() if owner.rpartition('/')[0] == path
+                classes <= {_LinearProgramLaw} for owner, classes in kinds.items() if owner.rpartition('/')[0] == path
             )
         }
         for owner, classes in kinds.items():
             path = owner.rpartition('/')[0]
             time = times.get(path)
-            if LinearProgramLaw in classes and (path in alone or (time is not None and issubclass(time, DiscreteTime))):
+            if _LinearProgramLaw in classes and (
+                path in alone or (time is not None and issubclass(time, _DiscreteTime))
+            ):
                 classes.add(UpdateLaw)
 
     @staticmethod

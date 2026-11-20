@@ -11,11 +11,11 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
+from ....components.elements import VisualSpec
 from ....components.laws import BaseLaw, CallSpec, EventLaw, JumpLaw, ObjectiveLaw, RateLaw
 from ....components.spaces import LatticeSpace
 from ....enums import FormKind, VariableKind
 from ....errors import PipelineError, ValidationError
-from ....specs import VisualSpec
 from ....types import Array, Indices
 from ..._utils import components_of, declarations_of, symbols_of
 from ...enums import ReadKind

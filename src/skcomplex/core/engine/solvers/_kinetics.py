@@ -8,7 +8,8 @@ import math
 import numpy as np
 from sage.all__sagemath_symbolics import SR
 
-from ...components.spaces import ContinuousTime, LatticeSpace
+from ...components.spaces import LatticeSpace
+from ...components.spaces._continuous_time import _ContinuousTime
 from ...enums import FormKind, OrderKind
 from ...errors import SolverError
 from ...types import Array, Indices, IntArray
@@ -59,7 +60,7 @@ class KineticSolver(Solver):
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
-            time={ContinuousTime},
+            time={_ContinuousTime},
             space={LatticeSpace},
             laws={BilinearLaw},
             orders=frozenset({OrderKind.INTEGER}),

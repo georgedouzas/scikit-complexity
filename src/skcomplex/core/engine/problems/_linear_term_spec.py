@@ -10,9 +10,9 @@ from dataclasses import dataclass
 
 from sage.all__sagemath_symbolics import Expression
 
-from ...components.elements import FieldElement
-from ...specs._base_spec import BaseSpec
+from ...base import BaseSpec
 from ..types import Chain
+from ._field_element import _FieldElement
 from ._reference_spec import ReferenceSpec
 
 
@@ -44,7 +44,7 @@ class LinearTermSpec(BaseSpec):
 
     target: ReferenceSpec
     source: ReferenceSpec
-    place: FieldElement
+    place: _FieldElement
     chain: Chain
     coefficient: Expression
     references: Mapping[Expression, ReferenceSpec]

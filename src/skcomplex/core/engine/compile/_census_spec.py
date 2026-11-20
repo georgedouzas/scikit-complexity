@@ -10,9 +10,9 @@ from dataclasses import dataclass, field
 
 from sage.all__sagemath_symbolics import Expression
 
-from ...components.systems import CompositeSystem
+from ...base import BaseSpec
 from ...errors import SkcomplexError
-from ...specs._base_spec import BaseSpec
+from ..problems._composite_system import _CompositeSystem
 from ._census_record_spec import _CensusRecordSpec
 
 
@@ -37,7 +37,7 @@ class _CensusSpec(BaseSpec):
             the symbol of the members.
     """
 
-    system: CompositeSystem
+    system: _CompositeSystem
     records: list[_CensusRecordSpec]
     errors: list[tuple[str, SkcomplexError]]
     agents: Mapping[Expression, tuple[str, str]] = field(default_factory=dict)

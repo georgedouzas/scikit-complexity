@@ -16,13 +16,13 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import RR, SR, ConditionSet, Expression
 
+from .....core.base import BaseSpec
 from .....core.components import Tags
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, UpdateLaw
 from .....core.components.spaces import BaseSpace
 from .....core.enums import MoveKind
 from .....core.errors import ValidationError
-from .....core.specs import BaseSpec
 from .....core.types import Array, Role
 
 MOVES = (MoveKind.FLIP, MoveKind.RANDOM_VALUE, MoveKind.ROTATE, MoveKind.GAUSSIAN)

@@ -5,9 +5,9 @@
 
 from dataclasses import dataclass, field
 
+from ...base import BaseSpec
 from ...enums import SeverityKind
 from ...errors import SkcomplexError, ValidationError
-from ...specs._base_spec import BaseSpec
 
 
 @dataclass(frozen=True)

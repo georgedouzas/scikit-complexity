@@ -10,9 +10,9 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from ...base import BaseSpec
+from ...components import EntrySpec
 from ...errors import ValidationError
-from ...specs._base_spec import BaseSpec
-from ...specs._entry_spec import EntrySpec
 from ...types import Array, Indices
 from ..enums import ReadKind
 from ._edge_search import EdgeSearch

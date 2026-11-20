@@ -16,29 +16,20 @@ import numba
 import numpy as np
 from numba.core.dispatcher import Dispatcher
 
-from ...components.laws import (
-    BoundaryLaw,
-    ConstraintLaw,
-    EventLaw,
-    JumpLaw,
-    LocalRuleLaw,
-    NoiseLaw,
-    RateLaw,
-    RuleLaw,
-    SampleLaw,
-    TransferLaw,
-    TransitionLaw,
-    UpdateLaw,
-)
-from ...components.spaces import (
-    BaseSpace,
-    ContinuousTime,
-    DiscreteTime,
-    StaticTime,
-)
+from ...components import EntrySpec
+from ...components.laws import ConstraintLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ...components.laws._boundary import _BoundaryLaw
+from ...components.laws._local_rule import _LocalRuleLaw
+from ...components.laws._rule import _RuleLaw
+from ...components.laws._sample import _SampleLaw
+from ...components.laws._transfer import _TransferLaw
+from ...components.laws._transition import _TransitionLaw
+from ...components.spaces import BaseSpace
+from ...components.spaces._continuous_time import _ContinuousTime
+from ...components.spaces._discrete_time import _DiscreteTime
+from ...components.spaces._static_time import _StaticTime
 from ...enums import FormKind, NoiseKind, OrderKind
 from ...errors import BackendWarning, ValidationError
-from ...specs import EntrySpec
 from ...types import Array, VectorFunction
 from ..enums import ReadKind
 from ..problems._accelerated_spec import _AcceleratedSpec
@@ -129,21 +120,21 @@ class NumbaBackend(BaseBackend):
         It is the times, spaces, laws, noise, and orders.
         """
         return SupportSpec(
-            time={ContinuousTime, DiscreteTime, StaticTime},
+            time={_ContinuousTime, _DiscreteTime, _StaticTime},
             space={None, BaseSpace},
             laws={
-                BoundaryLaw,
+                _BoundaryLaw,
                 EventLaw,
                 ConstraintLaw,
                 JumpLaw,
-                LocalRuleLaw,
+                _LocalRuleLaw,
                 NoiseLaw,
                 BilinearLaw,
                 RateLaw,
-                RuleLaw,
-                SampleLaw,
-                TransferLaw,
-                TransitionLaw,
+                _RuleLaw,
+                _SampleLaw,
+                _TransferLaw,
+                _TransitionLaw,
                 UpdateLaw,
             },
             noise=frozenset(NoiseKind),
@@ -177,7 +168,7 @@ class NumbaBackend(BaseBackend):
             raise ValidationError(error_msg)
         form, size, kernels, draws = inputs.form, inputs.size, inputs.kernels, inputs.draws
         used: dict[type, list[LawKernel]] = {
-            BoundaryLaw: kernels.get(BoundaryLaw, []),
+            _BoundaryLaw: kernels.get(_BoundaryLaw, []),
             RateLaw: kernels.get(RateLaw, []) if form in RATE_FORMS else [],
             NoiseLaw: kernels.get(NoiseLaw, []) if form == FormKind.SDE else [],
             JumpLaw: kernels.get(JumpLaw, []) if form == FormKind.JUMP else [],
@@ -199,11 +190,11 @@ class NumbaBackend(BaseBackend):
             NoiseLaw: ('diffusion', 'concatenate'),
             JumpLaw: ('propensities', 'concatenate'),
             UpdateLaw: ('update', 'assign'),
-            BoundaryLaw: ('boundary', 'assign'),
+            _BoundaryLaw: ('boundary', 'assign'),
         }
         needed = list(FORM_KINDS[form])
-        if kernels.get(BoundaryLaw):
-            needed = [*needed, BoundaryLaw]
+        if kernels.get(_BoundaryLaw):
+            needed = [*needed, _BoundaryLaw]
         parts = [
             (*plan[kind], used[kind], reduced and any(kernel.reads_reductions for kernel in used[kind]))
             for kind in needed
@@ -218,7 +209,7 @@ class NumbaBackend(BaseBackend):
             FormKind.DISCRETE: 'iterate' if draws is None else 'iterate_random',
         }.get(form, '')
         has_loop = bool(accelerated_loop) and all(compiled[kind] for kind in needed)
-        bounded = 'HAS_BOUNDARY = True\n' if BoundaryLaw in needed else NO_BOUNDARY
+        bounded = 'HAS_BOUNDARY = True\n' if _BoundaryLaw in needed else NO_BOUNDARY
         loops = (
             [
                 bounded,
@@ -283,14 +274,14 @@ class NumbaBackend(BaseBackend):
             NoiseLaw: lambda: BaseBackend._get_concatenating_function(used[NoiseLaw]),
             JumpLaw: lambda: BaseBackend._get_concatenating_function(used[JumpLaw]),
             UpdateLaw: lambda: BaseBackend._get_assigning_function(used[UpdateLaw]),
-            BoundaryLaw: lambda: BaseBackend._get_assigning_function(used[BoundaryLaw]),
+            _BoundaryLaw: lambda: BaseBackend._get_assigning_function(used[_BoundaryLaw]),
         }
         names: dict[type, str] = {
             RateLaw: 'drift',
             NoiseLaw: 'diffusion',
             JumpLaw: 'propensities',
             UpdateLaw: 'update',
-            BoundaryLaw: 'boundary',
+            _BoundaryLaw: 'boundary',
         }
         functions: dict[type, VectorFunction | None] = {
             kind: (
@@ -314,7 +305,7 @@ class NumbaBackend(BaseBackend):
             ),
             jumps=LawKernel._jump_channels(used[JumpLaw], changes) if form == FormKind.JUMP else (),
             update=functions[UpdateLaw] if form in (FormKind.DISCRETE, FormKind.STATIC) else None,
-            boundary=functions.get(BoundaryLaw),
+            boundary=functions.get(_BoundaryLaw),
         )
         if form == FormKind.SDE:
             rows, columns, processes, blocks = LawKernel._lower_noise(used[NoiseLaw])

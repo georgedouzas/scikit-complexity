@@ -22,11 +22,11 @@ from sage.all__sagemath_symbolics import SR, Expression, oo, vector
 from sage.sets.real_set import RealSet
 from sklearn.base import clone
 
-from ...components.elements import GroupElement
 from ...components.interactions import BaseInteraction
-from ...components.laws import BoundaryLaw, ConstraintLaw, NoiseLaw, ObjectiveLaw, RateLaw
-from ...components.spaces import BaseSpace, ContinuousSpace, ContinuousTime, RadiusNeighborhood
-from ...components.systems import CompositeSystem
+from ...components.laws import ConstraintLaw, NoiseLaw, ObjectiveLaw, RateLaw
+from ...components.laws._boundary import _BoundaryLaw
+from ...components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
+from ...components.spaces._continuous_time import _ContinuousTime
 from ...enums import FormKind, NoiseKind, OrderKind, VariableKind
 from ...errors import BackendError, SolverError
 from ...types import Array
@@ -35,7 +35,9 @@ from ..backends import NumpyBackend, SupportSpec
 from ..compile._pass_compiler import PassCompiler
 from ..problems import CompiledElementSpec, ProblemSpec
 from ..problems._compiled_interaction_spec import _CompiledInteractionSpec
+from ..problems._composite_system import _CompositeSystem
 from ..problems._expression_printer import ExpressionPrinter
+from ..problems._group_element import _GroupElement
 from ..problems._steps import step_count
 from ..types import PairArguments
 from ._external import ExternalSolver
@@ -143,9 +145,9 @@ class LammpsSolver(ExternalSolver):
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
-            time={ContinuousTime},
+            time={_ContinuousTime},
             space={None, BaseSpace},
-            laws={RateLaw, NoiseLaw, ConstraintLaw, BoundaryLaw},
+            laws={RateLaw, NoiseLaw, ConstraintLaw, _BoundaryLaw},
             noise=frozenset({NoiseKind.DIAGONAL}),
             orders=frozenset({OrderKind.INTEGER}),
         )
@@ -678,7 +680,7 @@ class LammpsSolver(ExternalSolver):
         The members are those of an element, and `None` is returned without such a state. A plain element has it when
         its laws give the second derivative of a state, so the state has the velocity `x'` and no `x''`.
         """
-        declared = element.element.element if isinstance(element.element, GroupElement) else type(element.element)
+        declared = element.element.element if isinstance(element.element, _GroupElement) else type(element.element)
         declarations = declarations_of(declared, VariableKind.STATE)
         found = next(
             (
@@ -721,7 +723,7 @@ class LammpsSolver(ExternalSolver):
 
     @staticmethod
     def _compile_external(
-        system: CompositeSystem | None,
+        system: _CompositeSystem | None,
         keep: set[str],
         backend: NumpyBackend | None = None,
     ) -> ProblemSpec:
@@ -757,7 +759,7 @@ class LammpsSolver(ExternalSolver):
         return problem
 
     @staticmethod
-    def _filter_system(system: CompositeSystem, keep: set[str], scope: str = '') -> CompositeSystem:
+    def _filter_system(system: _CompositeSystem, keep: set[str], scope: str = '') -> _CompositeSystem:
         """Return a copy of a system tree that keeps only some interactions.
 
         The interactions kept are those whose paths are in `keep`. A box of the system or of an element becomes an
@@ -772,7 +774,7 @@ class LammpsSolver(ExternalSolver):
             )
             for element in system.elements
         ]
-        return CompositeSystem(
+        return _CompositeSystem(
             system.label,
             elements=elements,
             interactions=[item for item in system.interactions if f'{scope}{item.label}' in keep],

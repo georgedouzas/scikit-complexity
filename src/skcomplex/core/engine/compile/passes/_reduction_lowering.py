@@ -16,8 +16,9 @@ from sage.all__sagemath_symbolics import RR, SR, Expression, I
 from sage.modules.free_module_element import FreeModuleElement
 from sage.symbolic.operators import add_vararg, mul_vararg
 
-from ....components.elements import FieldElement
-from ....components.laws import BaseLaw, BoundaryLaw, CallSpec, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....components import EntrySpec
+from ....components.laws import BaseLaw, CallSpec, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....components.laws._boundary import _BoundaryLaw
 from ....components.laws._hyperedge_reduction_spec import _HyperedgeReductionSpec
 from ....components.laws._neighbor_reduction_spec import _NeighborReductionSpec
 from ....components.laws._reduction_spec import _ReductionSpec
@@ -39,13 +40,13 @@ from ....components.spaces import (
 )
 from ....enums import VariableKind
 from ....errors import PipelineError, RoleError, ValidationError
-from ....specs import EntrySpec
 from ....types import Indices
 from ..._utils import declarations_of, domain_of, symbol, symbols_of, vector
 from ...enums import ReadKind
 from ...problems._block_spec import BlockSpec
 from ...problems._capacity_rows_spec import ACTIVE_THRESHOLD
 from ...problems._declarations_spec import DeclarationsSpec
+from ...problems._field_element import _FieldElement
 from ...problems._kernel_spec import KernelSpec
 from ...problems._law_kernel import LATTICE_BOUNDARIES
 from ...problems._metric_search import MetricSearch
@@ -177,7 +178,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             return BasePass._get_replaced(law, guard=guard, reset=reset if law.reset is not None else None)
         if isinstance(law, JumpLaw):
             return JumpLaw(self._lower(law.rate, spec), law.changes)
-        if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
+        if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | _BoundaryLaw):
             return law
         value = law.value
         if isinstance(value, CallSpec):
@@ -989,7 +990,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         """
         block = self.declarations_.blocks[group]
         place, space = block.node.component, block.node.space
-        if not isinstance(place, FieldElement) or not isinstance(space, LatticeSpace):
+        if not isinstance(place, _FieldElement) or not isinstance(space, LatticeSpace):
             return None, 0.0
         if not isinstance(space.boundary, Mapping) or not isinstance(over, BaseNeighborhood):
             return None, 0.0

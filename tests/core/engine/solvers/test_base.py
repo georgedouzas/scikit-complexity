@@ -6,6 +6,8 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import RR
 
+from skcomplex.core.base import BaseSpec
+from skcomplex.core.components import EntrySpec
 from skcomplex.core.engine import solvers
 from skcomplex.core.engine._utils import symbol
 from skcomplex.core.engine.problems import BaseProblemSpec, LayoutSpec
@@ -25,7 +27,6 @@ from skcomplex.core.engine.solvers import (
 )
 from skcomplex.core.enums import FormKind, OrderKind
 from skcomplex.core.errors import SkcomplexError, SolverError
-from skcomplex.core.specs import BaseSpec, EntrySpec
 
 SOLVERS = [
     item

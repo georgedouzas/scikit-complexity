@@ -1692,7 +1692,7 @@ def check_every_error_is_raised_in_the_library(root: Path) -> list[str]:
 
 def check_every_dataclass_is_a_frozen_spec_or_result(root: Path) -> list[str]:
     """Return every dataclass of the core that is not frozen, or no spec and no result a function returns."""
-    spec = importlib.import_module('skcomplex.core.specs').BaseSpec
+    spec = importlib.import_module('skcomplex.core.base').BaseSpec
     found = []
     for module in _importable_modules('skcomplex.core', lambda _: False):
         for value in vars(module).values():
@@ -1729,7 +1729,7 @@ def check_enums_and_protocols_live_in_their_modules(root: Path) -> list[str]:
 def check_every_base_derives_from_the_root(root: Path) -> list[str]:
     """Return every class named `Base*` outside the systems that derives from neither `BaseConfig` nor `BaseSpec`."""
     config = importlib.import_module('skcomplex.core.base').BaseConfig
-    spec = importlib.import_module('skcomplex.core.specs').BaseSpec
+    spec = importlib.import_module('skcomplex.core.base').BaseSpec
     return [
         f'{_locate(value, root)}: {module.__name__}.{name}'
         for module in _importable_modules(PACKAGE, lambda name: name.startswith('skcomplex.systems'))

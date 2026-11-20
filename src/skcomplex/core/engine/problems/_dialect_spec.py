@@ -6,8 +6,8 @@
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
+from ...base import BaseSpec
 from ...errors import BackendError, ValidationError
-from ...specs._base_spec import BaseSpec
 
 PYTHON_RELATIONS = {
     'lt': '({0} < {1})',

@@ -15,11 +15,10 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element
+from ....core.components.elements import Element, VisualSpec
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
 from ....core.engine.solvers import BaseSolver, MesaSolver
-from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ..common.exchange import ExchangeInteraction, cobb_douglas
 

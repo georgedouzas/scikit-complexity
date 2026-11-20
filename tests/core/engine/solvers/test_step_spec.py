@@ -1,7 +1,7 @@
 """Test the `_step_spec` module of `skcomplex.core.engine.solvers`."""
 
+from skcomplex.core.base import BaseSpec
 from skcomplex.core.engine.solvers import StepSpec
-from skcomplex.core.specs import BaseSpec
 
 
 def test_a_solver_runs_on_a_step():

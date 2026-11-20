@@ -6,7 +6,7 @@
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
-from ...specs._base_spec import BaseSpec
+from ...base import BaseSpec
 from ...types import AnyArray, IntArray
 
 

@@ -8,8 +8,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from ...base import BaseSpec
 from ...errors import ValidationError
-from ...specs._base_spec import BaseSpec
 from ...types import AnyArray
 
 MIN_DIMENSIONS = 2

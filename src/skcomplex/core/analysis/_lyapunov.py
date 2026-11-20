@@ -11,8 +11,8 @@ import numba
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, dirac_delta, sgn
 
-from ..components.systems import CompositeSystem
 from ..engine.problems import BaseProblemSpec, ProblemSpec
+from ..engine.problems._composite_system import _CompositeSystem
 from ..engine.problems._dynamics_spec import _DynamicsSpec
 from ..engine.problems._expression_printer import ExpressionPrinter
 from ..engine.problems._source_loader import SourceLoader
@@ -276,7 +276,7 @@ def lyapunov(
         )
         return LyapunovResult(values=series.values, labels=series.labels, largest_exponent=largest)
     problem = None
-    if isinstance(source, CompositeSystem | BaseProblemSpec | Trajectory):
+    if isinstance(source, _CompositeSystem | BaseProblemSpec | Trajectory):
         dynamics = StabilityResult._get_dynamics_of(_read_system(source), parameters)
         problem = dynamics.problem
         exponents = _compute_spectrum(dynamics, n_exponents, until, dt, transient)

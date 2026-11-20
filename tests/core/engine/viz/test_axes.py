@@ -6,13 +6,12 @@ import numpy as np
 import pytest
 import rerun as rr
 
-from skcomplex.core.components.elements import Element, Tensor
+from skcomplex.core.components.elements import Element, Tensor, VisualSpec
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import BaseSpace, LatticeSpace
 from skcomplex.core.engine.viz import AxisVisual, RerunObserver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import VisualSpec
 from skcomplex.core.systems import System
 
 

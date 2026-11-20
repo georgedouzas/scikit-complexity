@@ -6,8 +6,8 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from ...base import BaseSpec
 from ...components.laws import DrawSpec
-from ...specs._base_spec import BaseSpec
 from ...types import Array
 
 

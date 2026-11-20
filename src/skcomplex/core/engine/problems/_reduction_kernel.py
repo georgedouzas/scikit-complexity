@@ -12,8 +12,8 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import Expression
 from scipy.special import logsumexp
 
+from ...components import EntrySpec
 from ...errors import ValidationError
-from ...specs import EntrySpec
 from ...types import AnyArray, Array
 from ._base import BaseKernel
 from ._expression_printer import ExpressionPrinter

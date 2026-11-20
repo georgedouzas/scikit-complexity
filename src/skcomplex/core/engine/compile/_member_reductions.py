@@ -10,10 +10,10 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import RR, SR, Expression, I
 
 from ...base import BaseConfig
+from ...components import EntrySpec
 from ...components.laws._reduction_spec import _ReductionSpec
 from ...components.laws.utils._reductions import reductions_in
 from ...errors import RoleError, ValidationError
-from ...specs import EntrySpec
 from .._utils import symbol, symbols_of
 from ..problems._read_spec import _ReadSpec
 from ..problems._reduction_kernel import ReductionKernel

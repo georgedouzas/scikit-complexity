@@ -7,11 +7,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ...base import BaseSpec
 from ...components.base import BaseComponent
-from ...components.elements import Element, GroupElement
+from ...components.elements import Element
 from ...components.interactions import BaseInteraction, WienerProcessSpec
 from ...components.spaces import BaseSpace
-from ...specs._base_spec import BaseSpec
+from ._group_element import _GroupElement
 
 
 @dataclass(frozen=True)
@@ -52,7 +53,7 @@ class _NodeSpec(BaseSpec):
 
     path: str
     scope: str
-    component: Element | GroupElement | BaseInteraction | WienerProcessSpec
+    component: Element | _GroupElement | BaseInteraction | WienerProcessSpec
     space: BaseSpace | None
     component_type: type | BaseComponent
     members: int | None = None
@@ -61,27 +62,27 @@ class _NodeSpec(BaseSpec):
     active: int | None = None
 
     @property
-    def as_element(self) -> Element | GroupElement:
+    def as_element(self) -> Element | _GroupElement:
         """The component of a node of an element or a group.
 
         Raises:
             TypeError:
                 The component is an interaction or a Wiener process.
         """
-        if not isinstance(self.component, Element | GroupElement):
+        if not isinstance(self.component, Element | _GroupElement):
             error_msg = f'The node {self.path} holds a {type(self.component).__name__}, not an element or a group.'
             raise TypeError(error_msg)
         return self.component
 
     @property
-    def as_group(self) -> GroupElement:
+    def as_group(self) -> _GroupElement:
         """The component of a node of a group.
 
         Raises:
             TypeError:
                 The component is not a group.
         """
-        if not isinstance(self.component, GroupElement):
+        if not isinstance(self.component, _GroupElement):
             error_msg = f'The node {self.path} holds a {type(self.component).__name__}, not a group.'
             raise TypeError(error_msg)
         return self.component

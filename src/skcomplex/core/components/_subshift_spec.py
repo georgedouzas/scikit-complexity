@@ -8,8 +8,8 @@ from dataclasses import dataclass
 
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
+from ..base import BaseSpec
 from ..errors import ValidationError
-from ._base_spec import BaseSpec
 
 
 @dataclass(frozen=True)
@@ -33,10 +33,10 @@ class SubshiftSpec(BaseSpec):
 
     Examples:
         >>> from skcomplex.core.components.spaces import LatticeNeighborhood
-        >>> from skcomplex.core.specs import StateSpec, SubshiftSpec
+        >>> from skcomplex.core.components import SubshiftSpec
         >>> golden = SubshiftSpec(LatticeNeighborhood(((0,), (1,))), ((1, 1),))
-        >>> StateSpec(domain=golden).domain.alphabet.cardinality()
-        2
+        >>> golden.forbidden, golden.states
+        (((1, 1),), 2)
     """
 
     neighborhood: object

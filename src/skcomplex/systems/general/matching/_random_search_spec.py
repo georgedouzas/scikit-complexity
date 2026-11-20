@@ -5,8 +5,8 @@
 
 from dataclasses import dataclass
 
+from ....core.base import BaseSpec
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec
 
 CLEARINGS = ('midpoint', 'requester', 'provider')
 

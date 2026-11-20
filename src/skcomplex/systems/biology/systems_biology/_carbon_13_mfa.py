@@ -22,13 +22,13 @@ from sklearn.base import clone
 
 from ....core.analysis import bind_analysis
 from ....core.analysis.types import DataSource
+from ....core.base import BaseSpec
 from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.engine.backends import BaseBackend
 from ....core.engine.problems import ProblemSpec, RunStateSpec
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import AnalysisError, ValidationError
-from ....core.specs import BaseSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
 from ..common.metabolism import FluxBalanceInteraction, MetabolicCellElement, ReactionSpec

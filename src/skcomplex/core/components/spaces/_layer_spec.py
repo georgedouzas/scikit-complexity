@@ -7,8 +7,8 @@ from dataclasses import dataclass
 
 import networkx as nx
 
+from ...base import BaseSpec
 from ...errors import ValidationError
-from ...specs._base_spec import BaseSpec
 
 
 @dataclass(frozen=True)

@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import GF, QQ, RR
 
+from skcomplex.core.components import EntrySpec, PowerSeriesSpec
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import EntrySpec, PowerSeriesSpec
 
 
 def test_product_is_the_truncated_cauchy_product():

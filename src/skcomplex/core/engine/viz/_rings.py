@@ -7,7 +7,7 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...specs import EntrySpec
+from ...components import EntrySpec
 from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec
 from ..problems._compiled_agents_spec import _CompiledAgentsSpec
 from ._base import UPWARD, BaseVisual

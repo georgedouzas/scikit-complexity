@@ -17,10 +17,10 @@ from sklearn.base import clone
 
 from ..components import Observable, Tags
 from ..components.base import BaseComponent
-from ..components.systems import CompositeSystem
 from ..engine.backends import BaseBackend
 from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import BaseProblemSpec
+from ..engine.problems._composite_system import _CompositeSystem
 from ..engine.runtime import BaseClock, BaseObserver, Trajectory, run_problem
 from ..engine.solvers import BaseSolver
 from ..enums import FormKind
@@ -90,7 +90,7 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
     form_: str
     solver_: BaseSolver
     backend_: BaseBackend
-    _composite: CompositeSystem
+    _composite: _CompositeSystem
     _problem: BaseProblemSpec
     _backend: BaseBackend | None
 
@@ -117,7 +117,7 @@ class BaseSystem(BaseComponent[Sequence[Observable], SimpleNamespace]):
         self.solver = solver
         self.backend = backend
 
-    def _get_composite(self) -> CompositeSystem:
+    def _get_composite(self) -> _CompositeSystem:
         """Return the composite of the components that the engine compiles.
 
         A copy of the system builds the components, so reading the tags before `prepare` changes nothing.

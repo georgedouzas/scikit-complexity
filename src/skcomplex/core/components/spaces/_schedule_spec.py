@@ -4,7 +4,7 @@
 # License: MIT
 
 
-from ...specs._base_spec import BaseSpec
+from ...base import BaseSpec
 
 
 class ScheduleSpec(BaseSpec):

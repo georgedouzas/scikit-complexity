@@ -5,8 +5,8 @@
 
 from dataclasses import dataclass
 
+from ...base import BaseSpec
 from ...components.laws import TopologyRequestSpec
-from ...specs._base_spec import BaseSpec
 
 
 @dataclass(frozen=True, eq=False)

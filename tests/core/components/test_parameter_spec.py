@@ -2,20 +2,20 @@
 
 import pytest
 
+from skcomplex.core.components._parameter_spec import _ParameterSpec
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec
 
 
 @pytest.mark.parametrize(
     ('spec', 'message'),
     [
-        (ParameterSpec(per='inputs', vector=True), 'per entry'),
-        (ParameterSpec(per='inputs', adaptive=True), 'per entry'),
-        (ParameterSpec(bounds=(0, 1)), 'adaptive parameter'),
-        (ParameterSpec(adaptive=True, bounds=(1, 0)), 'lower bound at most the upper one'),
-        (ParameterSpec(shape=()), 'nonempty tuple of role names'),
-        (ParameterSpec(shape=('target',), vector=True), 'neither a vector'),
-        (ParameterSpec(shape=('target',), per='inputs'), 'per entry'),
+        (_ParameterSpec(per='inputs', vector=True), 'per entry'),
+        (_ParameterSpec(per='inputs', adaptive=True), 'per entry'),
+        (_ParameterSpec(bounds=(0, 1)), 'adaptive parameter'),
+        (_ParameterSpec(adaptive=True, bounds=(1, 0)), 'lower bound at most the upper one'),
+        (_ParameterSpec(shape=()), 'nonempty tuple of role names'),
+        (_ParameterSpec(shape=('target',), vector=True), 'neither a vector'),
+        (_ParameterSpec(shape=('target',), per='inputs'), 'per entry'),
     ],
 )
 def test_parameter_spec_rejects_invalid_declarations(spec, message):
@@ -26,10 +26,10 @@ def test_parameter_spec_rejects_invalid_declarations(spec, message):
 
 def test_parameter_spec_accepts_bounds_of_an_adaptive_parameter():
     """Test that an adaptive parameter takes bounds."""
-    spec = ParameterSpec(adaptive=True, bounds=(0, 1))
+    spec = _ParameterSpec(adaptive=True, bounds=(0, 1))
     spec._check()
 
 
 def test_parameter_spec_accepts_a_shape_of_role_names():
     """Test that a parameter takes the roles of its shape, a role repeated for a tensor."""
-    assert ParameterSpec(shape=('target',) * 3, adaptive=True).shape == ('target', 'target', 'target')
+    assert _ParameterSpec(shape=('target',) * 3, adaptive=True).shape == ('target', 'target', 'target')

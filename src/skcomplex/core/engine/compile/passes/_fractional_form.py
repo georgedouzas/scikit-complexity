@@ -5,12 +5,12 @@
 
 from __future__ import annotations
 
-from ....components.spaces import ContinuousTime
-from ....components.systems import CompositeSystem
+from ....components.spaces._continuous_time import _ContinuousTime
 from ....enums import FormKind, OrderKind, VariableKind
 from ....errors import BackendError, SolverError
 from ..._utils import declarations_of
 from ...backends import BaseBackend
+from ...problems._composite_system import _CompositeSystem
 from ...problems._node_spec import _NodeSpec
 from .._base import BaseCompiler, BasePass
 from .._census_record_spec import _CensusRecordSpec
@@ -42,7 +42,7 @@ class FractionalFormPass(BasePass):
 
     @staticmethod
     def _get_declared_times(
-        system: CompositeSystem,
+        system: _CompositeSystem,
         scope: str = '',
         inherited: type | None = None,
     ) -> dict[str, type | None]:
@@ -179,7 +179,7 @@ class FractionalFormPass(BasePass):
                 fix = 'Declare a fractional order in the interval (0, 1), or an integer order of at least 1.'
                 issues.append(IssueSpec('fractional-order', item.path, message, fix))
             time = times.get(item.path.rpartition('/')[0])
-            if time is not None and time is not ContinuousTime:
+            if time is not None and time is not _ContinuousTime:
                 message = (
                     f'The state {item.name} has the fractional order {item.order}, but the system declares {time} time.'
                 )

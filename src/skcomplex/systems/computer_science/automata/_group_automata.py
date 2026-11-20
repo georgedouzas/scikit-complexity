@@ -13,7 +13,7 @@ from typing import Annotated
 import numpy as np
 from sage.all__sagemath_symbolics import ZZ
 
-from ....core.components import Observable
+from ....core.components import Observable, SubshiftSpec
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
@@ -21,7 +21,6 @@ from ....core.components.laws import TotalisticSpec, UpdateLaw
 from ....core.components.spaces import BaseNeighborhood, BaseSpace, LatticeNeighborhood, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import SubshiftSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
 from ..common.automata import CayleySpace, MemoryNeighborhood

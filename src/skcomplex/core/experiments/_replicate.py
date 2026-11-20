@@ -10,25 +10,22 @@ import numpy as np
 import numpy.typing as npt
 from sklearn.base import clone
 
-from ..components.elements import BaseElement, DeclaredElement, Element, GroupElement
-from ..components.laws import (
-    BoundaryLaw,
-    ConstraintLaw,
-    EventLaw,
-    JumpLaw,
-    NoiseLaw,
-    RateLaw,
-    TransferLaw,
-    TransitionLaw,
-    UpdateLaw,
-)
-from ..components.systems import CompositeSystem
+from ..components._parameter_spec import _ParameterSpec
+from ..components._state_spec import _StateSpec
+from ..components.elements import BaseElement, Element
+from ..components.laws import ConstraintLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ..components.laws._boundary import _BoundaryLaw
+from ..components.laws._transfer import _TransferLaw
+from ..components.laws._transition import _TransitionLaw
 from ..engine._utils import declared_variables, probe_laws
 from ..engine.problems import BaseProblemSpec
+from ..engine.problems._composite_system import _CompositeSystem
+from ..engine.problems._declared_element import _DeclaredElement
+from ..engine.problems._group_element import _GroupElement
+from ..engine.problems._variable_spec import _VariableSpec
 from ..engine.runtime import Trajectory, run_problem
 from ..enums import VariableKind
 from ..errors import ValidationError
-from ..specs import ParameterSpec, StateSpec, VariableSpec
 from ..systems import BaseSystem, System
 from ._runs import _check_source
 from ._utils import build_system, get_problem
@@ -39,10 +36,10 @@ PLAIN_LAWS = (
     NoiseLaw,
     JumpLaw,
     UpdateLaw,
-    BoundaryLaw,
+    _BoundaryLaw,
     EventLaw,
-    TransitionLaw,
-    TransferLaw,
+    _TransitionLaw,
+    _TransferLaw,
     ConstraintLaw,
 )
 
@@ -55,7 +52,7 @@ def _has_formalism_laws(element: Element) -> bool:
     return any(not isinstance(law, PLAIN_LAWS) for law in probe_laws(element) or [])
 
 
-def _check_plain(system: CompositeSystem) -> None:
+def _check_plain(system: _CompositeSystem) -> None:
     """Raise an error for a system that is not only plain elements and interactions.
 
     The elements must be plain single elements.
@@ -77,7 +74,7 @@ def _check_plain(system: CompositeSystem) -> None:
         raise ValidationError(error_msg)
 
 
-def _is_declared_companion(element: Element, variable: VariableSpec) -> bool:
+def _is_declared_companion(element: Element, variable: _VariableSpec) -> bool:
     """Return whether a variable is a companion of a state declared from data."""
     state = variable.derivative_of or variable.lag_of
     return state is not None and state in element._get_declared()
@@ -101,7 +98,7 @@ def _member_settings(element: Element) -> dict[str, object]:
 
     It takes its values, and the arguments that declare its variables.
     """
-    if isinstance(element, DeclaredElement):
+    if isinstance(element, _DeclaredElement):
         settings = element.get_params(deep=False)
         return {name: value for name, value in settings.items() if name not in {'label', 'visual'}}
     return {name: getattr(element, name) for name in _value_names(element)}
@@ -109,7 +106,7 @@ def _member_settings(element: Element) -> dict[str, object]:
 
 def _member_values(
     values: Mapping[str, npt.ArrayLike],
-    system: CompositeSystem,
+    system: _CompositeSystem,
     size: int,
 ) -> dict[str, dict[str, object]]:
     """Return the per-member values of every element by its label.
@@ -151,10 +148,10 @@ def _member_values(
 
 
 def _replicate(
-    system: CompositeSystem | System,
+    system: _CompositeSystem | System,
     size: int,
     values: Mapping[str, npt.ArrayLike] | None = None,
-) -> CompositeSystem:
+) -> _CompositeSystem:
     """Return a system whose single elements become groups of members.
 
     The members are of the same types and labels. Every member starts from the values of its element, except the dotted
@@ -189,7 +186,7 @@ def _replicate(
     _check_plain(system)
     by_label = _member_values(values or {}, system, size)
     groups = [
-        GroupElement(
+        _GroupElement(
             element.label,
             element=type(element),
             size=size,
@@ -197,7 +194,7 @@ def _replicate(
         )
         for element in system.elements
     ]
-    return CompositeSystem(
+    return _CompositeSystem(
         system.label,
         elements=groups,
         interactions=[copy.copy(interaction) for interaction in system.interactions],
@@ -209,7 +206,7 @@ def _replicate(
 def _declares(element: Element) -> bool:
     """Return whether an element declares its states and parameters."""
     specs = type(element)._get_specs().values()
-    return isinstance(element, DeclaredElement) or any(isinstance(spec, StateSpec | ParameterSpec) for spec in specs)
+    return isinstance(element, _DeclaredElement) or any(isinstance(spec, _StateSpec | _ParameterSpec) for spec in specs)
 
 
 def _get_value_names(element: Element) -> set[str]:
@@ -233,7 +230,7 @@ def _get_members(element: Element, size: int, values: Mapping[str, object]) -> B
     """
     if _declares(element):
         settings = {**_member_settings(element), **values}
-        return GroupElement(element.label, element=type(element), size=size, values=settings)
+        return _GroupElement(element.label, element=type(element), size=size, values=settings)
     arguments = {name: value for name, value in values.items() if name in element._get_hints()}
     entries = {name: value for name, value in values.items() if name not in arguments}
     members = clone(element).set_params(**arguments)

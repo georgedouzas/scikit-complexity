@@ -11,12 +11,12 @@ import numpy as np
 import numpy.typing as npt
 from sage.sets.real_set import RealSet
 
+from ....core.base import BaseSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.errors import SimulationError, ValidationError
-from ....core.specs import BaseSpec
 from ....core.types import Array, Role
 
 SELECTIONS = ('tournament', 'roulette', 'proportional', 'rank')

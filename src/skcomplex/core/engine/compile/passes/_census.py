@@ -14,31 +14,31 @@ from sage.modules.free_module_element import FreeModuleElement
 from sage.structure.element import Matrix
 from sage.symbolic.function import SymbolicFunction
 
+from ....components import EntrySpec, TensorSpec
 from ....components.base import BaseComponent
-from ....components.elements import FieldElement, GroupElement
 from ....components.interactions import BaseInteraction
 from ....components.laws import (
     BaseLaw,
-    BoundaryLaw,
     CallSpec,
     ConstraintLaw,
     EventLaw,
     JumpLaw,
     LinearObjectiveSpec,
-    LinearProgramLaw,
-    LocalRuleLaw,
     MoveSpec,
     NoiseLaw,
     ObjectiveLaw,
     ObjectiveSpec,
     RateLaw,
-    RuleLaw,
-    SampleLaw,
     SamplerSpec,
-    TransferLaw,
     UpdateLaw,
 )
+from ....components.laws._boundary import _BoundaryLaw
 from ....components.laws._flow_term import FlowTermLaw
+from ....components.laws._linear_program import _LinearProgramLaw
+from ....components.laws._local_rule import _LocalRuleLaw
+from ....components.laws._rule import _RuleLaw
+from ....components.laws._sample import _SampleLaw
+from ....components.laws._transfer import _TransferLaw
 from ....components.laws.utils import laplacian, shifted
 from ....components.laws.utils._history import derivative
 from ....components.laws.utils._operators import _OperatorFunction
@@ -46,17 +46,18 @@ from ....components.laws.utils._reductions import hyperedges_in, neighborhoods_i
 from ....components.laws.utils._relaxations import relaxation_of
 from ....components.laws.utils._tensors import distribute_operators
 from ....components.spaces import CellComplexSpace, LatticeSpace, RadiusNeighborhood
-from ....components.systems import CompositeSystem
 from ....enums import ElementKind, FormKind, VariableKind
 from ....errors import RoleElementError, SkcomplexError, TensorShapeError, TensorSymmetryError, ValidationError
-from ....specs import EntrySpec, TensorSpec
 from ....types import ProcessKey
 from ..._utils import components_of, declarations_of, symbol, symbols_of, vector
 from ...enums import ReadKind
 from ...problems._bilinear_law import BilinearLaw
 from ...problems._block_spec import BlockSpec
+from ...problems._composite_system import _CompositeSystem
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._edge_search import EdgeSearch
+from ...problems._field_element import _FieldElement
+from ...problems._group_element import _GroupElement
 from ...problems._kernel_spec import KernelSpec
 from ...problems._node_spec import _NodeSpec
 from ...problems._pair_search import PairSearch
@@ -169,9 +170,9 @@ class CensusPass(BasePass):
     @staticmethod
     def _get_component_kind(node: _NodeSpec) -> ElementKind:
         """Return the kind of the component of a node."""
-        if isinstance(node.component, GroupElement) and node.component.variable:
+        if isinstance(node.component, _GroupElement) and node.component.variable:
             return ElementKind.VARIABLE_GROUP
-        if isinstance(node.component, GroupElement):
+        if isinstance(node.component, _GroupElement):
             parts = {'sites': ElementKind.SITE_GROUP, 'edges': ElementKind.EDGE_GROUP}
             parts['hyperedges'] = ElementKind.HYPEREDGE_GROUP
             return parts.get(node.component.on or '', ElementKind.GROUP)
@@ -225,7 +226,7 @@ class CensusPass(BasePass):
         for spec in specs:
             component = CensusPass._get_component_of(block.node)
             laws = CensusPass._get_declared_laws(spec, component, solver, scope)
-            programs = any(isinstance(law, LinearProgramLaw) for law in laws)
+            programs = any(isinstance(law, _LinearProgramLaw) for law in laws)
             rows = RowsPass._get_settled(spec, list(laws)).rows if programs else spec.rows
             for law in laws:
                 items = [item for target in law._get_targets() for item in ProblemSpec._get_real_components_of(target)]
@@ -245,7 +246,7 @@ class CensusPass(BasePass):
                         vectors,
                         kind,
                         SpecsPass._get_group_space(elements.get(owner, block)),
-                        members=rows if isinstance(law, LinearProgramLaw) else spec.rows,
+                        members=rows if isinstance(law, _LinearProgramLaw) else spec.rows,
                         handles=CensusPass._handle_uses(law, declarations.handles),
                         degrees=CensusPass._get_cell_degrees(spec, declarations),
                         processes=processes,
@@ -276,7 +277,7 @@ class CensusPass(BasePass):
 
     @staticmethod
     def _get_census_of(
-        system: CompositeSystem,
+        system: _CompositeSystem,
         nodes: list[_NodeSpec],
         trained: frozenset[str] = frozenset(),
         solver: object = None,
@@ -344,7 +345,7 @@ class CensusPass(BasePass):
 
     @staticmethod
     def _get_solvers(
-        system: CompositeSystem,
+        system: _CompositeSystem,
         held: tuple[object, str],
         scope: str = '',
     ) -> dict[str, tuple[object, str]]:
@@ -400,7 +401,7 @@ class CensusPass(BasePass):
         plain = not law.increment and law.source is None and law.order is None and law.phase is None
         if not plain or law.neighborhood is not None or owner not in flowing:
             return law
-        return BoundaryLaw(law.target, law.value, label=law.label).prepare(owner)
+        return _BoundaryLaw(law.target, law.value, label=law.label).prepare(owner)
 
     @staticmethod
     def _get_renewal_group(spec: KernelSpec, law: RenewalLaw) -> str:
@@ -422,7 +423,7 @@ class CensusPass(BasePass):
             return CensusPass._get_renewal_group(spec, RenewalLaw(law.waiting, law.reset))
         if isinstance(law, RenewalLaw):
             return CensusPass._get_renewal_group(spec, law)
-        if isinstance(law, RuleLaw):
+        if isinstance(law, _RuleLaw):
             paths = [path for value in spec.roles.values() for path in ([value] if isinstance(value, str) else value)]
             return next((path for path in paths if path in agents), next(iter(paths), spec.owner))
         if TopologyKernel._request_of(law) is not None:
@@ -481,11 +482,11 @@ class CensusPass(BasePass):
         owner = CensusPass._get_special_owner(spec, law, agents)
         if owner is not None:
             return owner
-        if isinstance(law, TransferLaw | ConstraintLaw | EventLaw) or (
+        if isinstance(law, _TransferLaw | ConstraintLaw | EventLaw) or (
             isinstance(law, RelaxationLaw) and not law._get_targets()
         ):
             return spec.owner
-        lattice = isinstance(law, RelaxationLaw | LocalRuleLaw | SampleLaw)
+        lattice = isinstance(law, RelaxationLaw | _LocalRuleLaw | _SampleLaw)
         target = law._get_targets()[0] if lattice else CensusPass._get_changed_target(spec, law)
         return spec._get_target_references(target)[0].entry.name.rpartition('.')[0]
 
@@ -686,7 +687,7 @@ class CensusPass(BasePass):
         return coefficient, member
 
     @staticmethod
-    def _get_squared_spacing(place: FieldElement) -> float | None:
+    def _get_squared_spacing(place: _FieldElement) -> float | None:
         """Return the factor that turns a field Laplacian into a sum over neighbours.
 
         The sum is of the differences over its neighbours. It is the squared spacing of a lattice with one spacing,
@@ -1084,7 +1085,7 @@ class CensusPass(BasePass):
             declared = CensusPass._get_hyperedge_laws(spec, declared)
         searched = spec.pairs is not None and spec.edges is None
         alone = spec.edges is not None and spec.edges.pairs is None
-        rules = [law for law in declared if (searched or alone) and isinstance(law, RuleLaw)]
+        rules = [law for law in declared if (searched or alone) and isinstance(law, _RuleLaw)]
         declared = [law for law in declared if law not in rules]
         if isinstance(spec.pairs, PairSearch) and not all(isinstance(law, RateLaw) for law in declared):
             error_msg = (
@@ -1117,7 +1118,7 @@ class CensusPass(BasePass):
                 ),
                 *lowered,
             ]
-        edge_kinds = (RateLaw, NoiseLaw, JumpLaw, UpdateLaw, BoundaryLaw)
+        edge_kinds = (RateLaw, NoiseLaw, JumpLaw, UpdateLaw, _BoundaryLaw)
         if isinstance(spec.pairs, EdgeSearch) and not all(isinstance(law, edge_kinds) for law in declared):
             error_msg = (
                 f'Interaction {spec.owner} over neighbours returns laws other than Rate, Noise, Jump, Update, or '
@@ -1180,11 +1181,11 @@ class CensusPass(BasePass):
                 )
                 raise ValidationError(error_msg)
             elif inequality:
-                kept.append(LinearProgramLaw([SR(law.target)], [relation], label=law.label))
+                kept.append(_LinearProgramLaw([SR(law.target)], [relation], label=law.label))
             else:
                 kept.append(law)
         converted = [
-            LinearProgramLaw(
+            _LinearProgramLaw(
                 list(law._get_targets()),
                 constraints if position == 0 else [],
                 [LinearObjectiveSpec(value, sense='min') for value in law._get_values_in_order()],
@@ -1244,7 +1245,7 @@ class CensusPass(BasePass):
             getattr(metropolis, 'schedule', 'checkerboard'),
         )
         label = law.label or spec.owner.rpartition('/')[2]
-        return SampleLaw(ObjectiveSpec(law.value, over), move, sampler, label=label)
+        return _SampleLaw(ObjectiveSpec(law.value, over), move, sampler, label=label)
 
     @staticmethod
     def _get_mean_jumps(law: BaseLaw, solver: object) -> list[BaseLaw]:
@@ -1266,7 +1267,7 @@ class CensusPass(BasePass):
     @staticmethod
     def _get_component_of(node: _NodeSpec) -> BaseComponent:
         """Return the component whose laws describe a node, a member for a group."""
-        if isinstance(node.component, GroupElement):
+        if isinstance(node.component, _GroupElement):
             group = node.component
             return group.element(group.label).set_params(**(group.values or {})).prepare()
         if not isinstance(node.component, BaseComponent):

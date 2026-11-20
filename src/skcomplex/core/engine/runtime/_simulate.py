@@ -11,12 +11,13 @@ from sklearn.base import clone
 
 from ...base import BaseConfig
 from ...components import Observable, Tags
-from ...components.systems import BaseSystem, CompositeSystem
+from ...components.systems import BaseSystem
 from ...errors import TagError, ValidationError
 from ..backends import BaseBackend, NumpyBackend
 from ..compile import BaseCompiler
 from ..compile._pass_compiler import PassCompiler
 from ..problems import BaseProblemSpec
+from ..problems._composite_system import _CompositeSystem
 from ..solvers import BaseSolver
 from ..solvers._defaults import DEFAULT_SOLVERS
 from ._base import BaseClock, BaseObserver
@@ -100,7 +101,7 @@ def _prepare_runners(
     solver: BaseSolver | None,
     backend: BaseBackend | None,
     observables: Sequence[Observable],
-) -> tuple[CompositeSystem, BaseSolver | None, BaseBackend | None, BaseCompiler | None, Sequence[Observable]]:
+) -> tuple[_CompositeSystem, BaseSolver | None, BaseBackend | None, BaseCompiler | None, Sequence[Observable]]:
     """Return the composite of a system with copies of its runners, and observables.
 
     The runners are the solver, the backend, and the compiler the system needs. A setting left out comes from the tuned
@@ -143,7 +144,7 @@ def _prepare_runners(
     settings = system.get_run_settings()
     stepper = _clone_setting(settings['solver'] if solver is None else solver)
     runner = _clone_setting(settings['backend'] if backend is None else backend)
-    declared = PassCompiler()._get_declared_system(system) if isinstance(system, CompositeSystem) else system
+    declared = PassCompiler()._get_declared_system(system) if isinstance(system, _CompositeSystem) else system
     tags = declared.get_tags()
     if stepper is not None:
         _check_support(stepper, 'solver', tags)
@@ -151,7 +152,7 @@ def _prepare_runners(
         _check_support(runner, 'backend', tags)
     composite = system.prepare().system_
     form = Simulation._get_default_compiler(composite)
-    tuned_observables = () if isinstance(system, CompositeSystem) else settings['observables']
+    tuned_observables = () if isinstance(system, _CompositeSystem) else settings['observables']
     if stepper is None and form is None and not composite.systems:
         stepper = _choose_solver(tags)
     return composite, stepper, runner, form, observables or tuned_observables
@@ -301,7 +302,7 @@ def run_problem(
         raise ValidationError(error_msg)
     if (record_draws or replay is not None) and backend is None:
         backend = NumpyBackend()
-    source: CompositeSystem | BaseProblemSpec
+    source: _CompositeSystem | BaseProblemSpec
     if compiled is None:
         source, stepper, runner, form, observed = _prepare_runners(system, solver, backend, observables)
     else:
@@ -438,17 +439,6 @@ def simulate(
         TagError:
             The components of the system disagree on a tag, or the solver or the backend does not support a tag of the
             system, named in the message.
-
-    Examples:
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.systems.biology.common.populations import LogisticGrowthInteraction, PopulationElement
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> system = CompositeSystem(
-        ...     elements=[PopulationElement('rabbits', x=10)],
-        ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
-        ... )
-        >>> round(simulate(system, until=20).get_values('rabbits.x')[-1])
-        100
     """
     return run_problem(
         system,

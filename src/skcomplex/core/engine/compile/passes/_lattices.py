@@ -18,16 +18,16 @@ from sage.modules.free_module_element import FreeModuleElement
 from ....components.laws import (
     BaseLaw,
     LinearRuleSpec,
-    LocalRuleLaw,
     MoveSpec,
     ObjectiveSpec,
     OuterTotalisticSpec,
-    SampleLaw,
     SamplerSpec,
     TableSpec,
     TotalisticSpec,
     UpdateLaw,
 )
+from ....components.laws._local_rule import _LocalRuleLaw
+from ....components.laws._sample import _SampleLaw
 from ....components.laws.utils._reductions import neighborhoods_in
 from ....components.spaces import (
     AdjacencyNeighborhood,
@@ -190,7 +190,7 @@ class LatticeProblemPass(BasePass):
         return _LatticeContextSpec(spec.owner, states, arguments, fused, others)
 
     @staticmethod
-    def _get_monte_carlo_step(spec: KernelSpec, law: SampleLaw, context: _LatticeContextSpec) -> LatticeStep:
+    def _get_monte_carlo_step(spec: KernelSpec, law: _SampleLaw, context: _LatticeContextSpec) -> LatticeStep:
         """Return the Monte Carlo sampling of a sample.
 
         It uses Metropolis acceptance at `intensity` by default.
@@ -206,13 +206,13 @@ class LatticeProblemPass(BasePass):
     @staticmethod
     def _get_lattice_step(spec: KernelSpec, law: BaseLaw, context: _LatticeContextSpec) -> LatticeStep | None:
         """Return the step of a lattice law, or `None` for a law of another kind."""
-        if isinstance(law, LocalRuleLaw):
+        if isinstance(law, _LocalRuleLaw):
             return LatticeProblemPass._compile_rule(law, context)
         if isinstance(law, ArrayUpdateLaw):
             return LatticeProblemPass._compile_drive(law, context)
         if isinstance(law, RelaxationLaw):
             return LatticeProblemPass._compile_cascade(law, context)
-        if isinstance(law, SampleLaw):
+        if isinstance(law, _SampleLaw):
             return LatticeProblemPass._get_monte_carlo_step(spec, law, context)
         return None
 
@@ -560,7 +560,7 @@ class LatticeProblemPass(BasePass):
         ).prepare()
 
     @staticmethod
-    def _compile_rule(law: LocalRuleLaw, context: _LatticeContextSpec) -> RuleKernel:
+    def _compile_rule(law: _LocalRuleLaw, context: _LatticeContextSpec) -> RuleKernel:
         """Return a local rule compiled for its lattice.
 
         Args:
@@ -656,7 +656,7 @@ class LatticeProblemPass(BasePass):
         ).prepare()
 
     @staticmethod
-    def _get_rule_name(law: LocalRuleLaw, owner: str) -> str:
+    def _get_rule_name(law: _LocalRuleLaw, owner: str) -> str:
         """Return the name of a local rule that equations show.
 
         It is the name of a named function, else the label of the law, else the label of the component that owns it.
@@ -676,7 +676,7 @@ class LatticeProblemPass(BasePass):
 
     @staticmethod
     def _get_translations_of(
-        law: LocalRuleLaw,
+        law: _LocalRuleLaw,
         space: BaseSpace,
         reads: tuple[_LatticeStateSpec, ...],
         owner: str,
@@ -720,7 +720,7 @@ class LatticeProblemPass(BasePass):
     @staticmethod
     def _compile_part(law: object, context: _LatticeContextSpec) -> RuleKernel | DriveKernel:
         """Return a law of a cascade compiled."""
-        if isinstance(law, LocalRuleLaw):
+        if isinstance(law, _LocalRuleLaw):
             return LatticeProblemPass._compile_rule(law, context)
         if isinstance(law, ArrayUpdateLaw):
             return LatticeProblemPass._compile_drive(law, context)
@@ -994,9 +994,9 @@ class LatticeProblemPass(BasePass):
 
         Without one, it is that of the default sampler.
         """
-        if isinstance(law, LocalRuleLaw):
+        if isinstance(law, _LocalRuleLaw):
             return law.schedule
-        if isinstance(law, SampleLaw):
+        if isinstance(law, _SampleLaw):
             return (law.sampler or SamplerSpec()).schedule
         return None
 

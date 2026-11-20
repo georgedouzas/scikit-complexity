@@ -14,13 +14,12 @@ from types import SimpleNamespace
 
 from sage.all__sagemath_symbolics import Expression
 
-from .....core.components.elements import Element
+from .....core.components.elements import Element, VisualSpec
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, ConstraintLaw, ObjectiveLaw
 from .....core.components.laws.utils import both, either
 from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
-from .....core.specs import VisualSpec
 from .....core.types import Role
 from ._reaction_spec import ReactionSpec
 

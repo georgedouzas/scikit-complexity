@@ -12,7 +12,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import RR, SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....components.elements import DeclaredElement, FieldElement, GroupElement
+from ....components import EntrySpec
 from ....components.interactions import (
     BaseInteraction,
     WienerProcessSpec,
@@ -28,14 +28,16 @@ from ....components.spaces import (
 )
 from ....enums import VariableKind
 from ....errors import LabelError, RoleError, ValidationError
-from ....specs import EntrySpec
 from ....types import Indices
 from ..._utils import binding_of, bound_labels, declarations_of, domain_of, symbol, vector
 from ...enums import ReadKind
 from ...problems import ProblemSpec
 from ...problems._block_spec import BlockSpec
 from ...problems._declarations_spec import ACTIVE, ENDS, MEMBERS, DeclarationsSpec
+from ...problems._declared_element import _DeclaredElement
 from ...problems._edge_search import EdgeSearch
+from ...problems._field_element import _FieldElement
+from ...problems._group_element import _GroupElement
 from ...problems._kernel_spec import KernelSpec
 from ...problems._neighbor_read_spec import _NeighborReadSpec
 from ...problems._node_spec import _NodeSpec
@@ -279,7 +281,7 @@ class SpecsPass(BasePass):
     @staticmethod
     def _get_type_name(component: object) -> str:
         """Return the name of the class of an element, or of its plain element."""
-        origin = component.origin if isinstance(component, DeclaredElement) else None
+        origin = component.origin if isinstance(component, _DeclaredElement) else None
         return (origin or type(component)).__name__
 
     @staticmethod
@@ -381,8 +383,8 @@ class SpecsPass(BasePass):
         if index is None and block.node.members is not None and isinstance(block.node.space, CellComplexSpace):
             return SpecsPass._get_namespace(block, ReadKind.MEMBER)
         place = block.node.component
-        targets = [item.node.component for item in bound.values() if isinstance(item.node.component, FieldElement)]
-        if index is not None or not isinstance(place, FieldElement) or not targets:
+        targets = [item.node.component for item in bound.values() if isinstance(item.node.component, _FieldElement)]
+        if index is not None or not isinstance(place, _FieldElement) or not targets:
             return SpecsPass._get_entry_namespace(block, index)
         space, target = place.space, targets[0].space
         if isinstance(space, PhaseSpace) and not isinstance(target, PhaseSpace):
@@ -611,7 +613,7 @@ class SpecsPass(BasePass):
             found = [
                 block
                 for block in elements.values()
-                if isinstance(block.node.component, GroupElement)
+                if isinstance(block.node.component, _GroupElement)
                 and block.node.component.on == part
                 and block.node.space is nodes[0].node.space
                 and block.node.component.layer == layer
@@ -821,7 +823,7 @@ class SpecsPass(BasePass):
         time: Expression,
         *,
         others: BlockSpec | None = None,
-        place: FieldElement | None = None,
+        place: _FieldElement | None = None,
     ) -> KernelSpec:
         """Return the spec of the laws of the members of a neighbour interaction.
 
@@ -918,7 +920,7 @@ class SpecsPass(BasePass):
             )
             raise LabelError(error_msg)
         component = nodes.node.component
-        place = component if isinstance(component, FieldElement) and edges is None and others is None else None
+        place = component if isinstance(component, _FieldElement) and edges is None and others is None else None
         spread = (
             place is not None
             and (

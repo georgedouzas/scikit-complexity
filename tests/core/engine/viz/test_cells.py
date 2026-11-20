@@ -6,14 +6,13 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import Element, Period
+from skcomplex.core.components.elements import Element, Period, VisualSpec
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import BaseSpace, CellComplexSpace, LatticeSpace, NetworkSpace
 from skcomplex.core.engine.problems import FrameSpec
 from skcomplex.core.engine.viz import CellVisual, RerunObserver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import VisualSpec
 from skcomplex.core.systems import System
 
 SIDE = 32

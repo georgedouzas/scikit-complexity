@@ -14,9 +14,9 @@ from sage.all__sagemath_symbolics import CC, NN, RR, ZZ
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
+from ..base import BaseSpec
 from ..enums import DomainKind
 from ..types import Array, ComplexArray
-from ._base_spec import BaseSpec
 from ._power_series_spec import PowerSeriesSpec
 from ._subshift_spec import SubshiftSpec
 from ._tensor_spec import TensorSpec
@@ -58,11 +58,11 @@ class EntrySpec(BaseSpec):
 
     Examples:
         >>> from sage.all__sagemath_symbolics import CC, RR
-        >>> from skcomplex.core.specs import EntrySpec
+        >>> from skcomplex.core.components import EntrySpec
         >>> entry = EntrySpec('a.z', 0, (2,), CC, is_complex=True)
         >>> entry.size, entry.component_names
         (4, ['a.z[0].real', 'a.z[0].imag', 'a.z[1].real', 'a.z[1].imag'])
-        >>> from skcomplex.core.specs import TensorSpec
+        >>> from skcomplex.core.components import TensorSpec
         >>> tensor = EntrySpec('a.Q', 0, (2,), RR, tensor=TensorSpec('traceless', 2))
         >>> tensor.component_names, tensor.kind.value
         (['a.Q_xx', 'a.Q_xy'], 'tensor')
@@ -181,7 +181,7 @@ class EntrySpec(BaseSpec):
 
         Examples:
             >>> from sage.all__sagemath_symbolics import CC, RR
-            >>> from skcomplex.core.specs import EntrySpec
+            >>> from skcomplex.core.components import EntrySpec
             >>> EntrySpec('a.z', 0, (), CC, is_complex=True).encode(1 + 2j).tolist()
             [1.0, 2.0]
         """
@@ -245,7 +245,7 @@ class EntrySpec(BaseSpec):
 
         Examples:
             >>> from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
-            >>> from skcomplex.core.specs import EntrySpec
+            >>> from skcomplex.core.components import EntrySpec
             >>> EntrySpec('a.s', 0, (), FiniteEnumeratedSet(['S', 'I'])).read([1.0, 0.0]).tolist()
             ['I', 'S']
         """

@@ -14,17 +14,8 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression, matrix, solve
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....components.laws import (
-    BaseLaw,
-    BoundaryLaw,
-    CallSpec,
-    ConstraintLaw,
-    EventLaw,
-    JumpLaw,
-    NoiseLaw,
-    RateLaw,
-    UpdateLaw,
-)
+from ....components.laws import BaseLaw, CallSpec, ConstraintLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....components.laws._boundary import _BoundaryLaw
 from ....components.laws.utils._reductions import reductions_in
 from ....enums import VariableKind
 from ....errors import ValidationError
@@ -428,7 +419,7 @@ class OrdersPass(BasePass):
                 ),
                 reset=reset_value,
             )
-        if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
+        if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | _BoundaryLaw):
             return law
         value = OrdersPass._substitute(law.value, spec, orders, owner)
         if isinstance(law, RateLaw | NoiseLaw):

@@ -8,8 +8,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 
+from ...base import BaseSpec
 from ...components.interactions import BaseInteraction
-from ...specs._base_spec import BaseSpec
 
 
 @dataclass(frozen=True)

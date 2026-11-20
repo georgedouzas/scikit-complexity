@@ -5,8 +5,8 @@
 
 from dataclasses import dataclass
 
+from ...base import BaseSpec
 from ...errors import ValidationError
-from ...specs._base_spec import BaseSpec
 from ...types import Preference
 
 CHOICES = ('uniform', 'score', 'nearest', 'all')

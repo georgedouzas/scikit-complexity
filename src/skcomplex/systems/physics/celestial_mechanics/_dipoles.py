@@ -13,10 +13,9 @@ from types import SimpleNamespace
 from sage.all__sagemath_symbolics import Expression, sqrt
 
 from ....core.components import Observable
-from ....core.components.elements import Element
+from ....core.components.elements import Element, VisualSpec
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
 from ..common.mechanics import LagrangianInteraction

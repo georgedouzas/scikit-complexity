@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ...specs._base_spec import BaseSpec
+from ...base import BaseSpec
 
 
 @dataclass(frozen=True)

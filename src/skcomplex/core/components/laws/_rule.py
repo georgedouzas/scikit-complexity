@@ -7,12 +7,12 @@ from collections.abc import Callable, Sequence
 from typing import ClassVar
 
 from ...errors import ValidationError
-from ..spaces import DiscreteTime
+from ..spaces._discrete_time import _DiscreteTime
 from ._base import BaseLaw
 from ._requirement_spec import RequirementSpec
 
 
-class RuleLaw(BaseLaw):
+class _RuleLaw(BaseLaw):
     """A law of behaviour written as Python code and run once per step.
 
     A rule runs for every member of an agent group, or once for a system. A rule of an element receives the agent and
@@ -39,13 +39,6 @@ class RuleLaw(BaseLaw):
 
         label:
             The name of the law, or the empty string for a law without one.
-
-    Examples:
-        >>> from skcomplex.core.components.laws import RuleLaw
-        >>> moved = []
-        >>> RuleLaw(lambda agent, system: moved.append(agent)).prepare().run(('walker', None)).value_
-        >>> moved
-        ['walker']
     """
 
     law_tag: ClassVar[str] = 'update'
@@ -70,7 +63,7 @@ class RuleLaw(BaseLaw):
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
         """Return what the rule requires of a system: discrete time."""
-        return RequirementSpec(time=(DiscreteTime,))
+        return RequirementSpec(time=(_DiscreteTime,))
 
     def _prepare(self, context: str | None = None) -> None:
         """Raise an error for an uncallable function, or members that name no role.

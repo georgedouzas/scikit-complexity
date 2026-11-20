@@ -81,7 +81,7 @@ def relax(
     Examples:
         >>> import numpy as np
         >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws import LocalRuleLaw, UpdateLaw
+        >>> from skcomplex.core.components.laws import UpdateLaw
         >>> from skcomplex.core.components.laws.utils import relax
         >>> from skcomplex.core.components.spaces import RadiusNeighborhood
         >>> cross = RadiusNeighborhood(1, metric='manhattan', center=True)
@@ -89,7 +89,8 @@ def relax(
         Grains topple in a sandpile, one grain added per step:
 
         >>> height = var('height')
-        >>> topple = LocalRuleLaw(height, cross, lambda z, *n: z - 4 * (z >= 4) + sum(m >= 4 for m in n))
+        >>> rule = lambda z, *n: z - 4 * (z >= 4) + sum(m >= 4 for m in n)
+        >>> topple = UpdateLaw(height, rule, neighborhood=cross)
         >>> grain = UpdateLaw(height, lambda z, *, random: z + np.eye(1, z.size).reshape(z.shape), arrays=True)
         >>> pile = relax(height, topple, lambda z: bool((z < 4).all()), drive=grain)
         >>> UpdateLaw(height, pile, label='avalanche').value
@@ -98,7 +99,7 @@ def relax(
         Fire spreads to the burning neighbours of trees until no tree catches fire:
 
         >>> fire = var('fire')
-        >>> burn = LocalRuleLaw(fire, cross, lambda f, *n: np.maximum(f, np.max(n, axis=0)))
+        >>> burn = UpdateLaw(fire, lambda f, *n: np.maximum(f, np.max(n, axis=0)), neighborhood=cross)
         >>> relax(fire, burn, lambda f: True)
         relax(fire)
     """

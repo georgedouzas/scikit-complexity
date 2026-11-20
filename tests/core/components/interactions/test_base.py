@@ -10,7 +10,8 @@ import pytest
 from sage.all__sagemath_symbolics import I, function, oo, sqrt, var
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.components import interactions
+from skcomplex.core.base import BaseSpec
+from skcomplex.core.components import RoleSpec, interactions
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import BaseInteraction, Interaction, TrainingInteraction, WienerProcessSpec
 from skcomplex.core.components.laws import (
@@ -32,7 +33,7 @@ from skcomplex.core.components.spaces import (
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.solvers import RK4Solver, VelocityVerletSolver
 from skcomplex.core.errors import ParameterShapeError, SpaceError, ValidationError
-from skcomplex.core.specs import BaseSpec, ParameterSpec, RoleSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.core.systems import System
 from skcomplex.core.types import Role
 from skcomplex.systems.general.agents import (

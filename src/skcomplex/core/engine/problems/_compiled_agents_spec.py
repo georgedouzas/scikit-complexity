@@ -8,10 +8,10 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
-from ...components.elements import Element, GroupElement
+from ...base import BaseSpec
+from ...components.elements import Element, VisualSpec
 from ...components.laws import BaseLaw
-from ...specs._base_spec import BaseSpec
-from ...specs._visual_spec import VisualSpec
+from ._group_element import _GroupElement
 
 
 @dataclass(frozen=True)
@@ -50,7 +50,7 @@ class _CompiledAgentsSpec(BaseSpec):
     """
 
     path: str
-    element: Element | GroupElement
+    element: Element | _GroupElement
     size: int
     states: tuple[str, ...]
     values: Mapping[str, object]

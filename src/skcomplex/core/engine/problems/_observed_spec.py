@@ -10,7 +10,7 @@ from types import SimpleNamespace
 
 from sage.all__sagemath_symbolics import Expression
 
-from ...specs._base_spec import BaseSpec
+from ...base import BaseSpec
 from ._reference_spec import ReferenceSpec
 
 

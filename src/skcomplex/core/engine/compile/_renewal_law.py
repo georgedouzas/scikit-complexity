@@ -8,7 +8,7 @@ from collections.abc import Mapping
 from sage.all__sagemath_symbolics import Expression
 
 from ...components.laws import BaseLaw, RequirementSpec
-from ...components.spaces import ContinuousTime
+from ...components.spaces._continuous_time import _ContinuousTime
 
 
 class RenewalLaw(BaseLaw):
@@ -58,7 +58,7 @@ class RenewalLaw(BaseLaw):
 
         The law requires continuous time.
         """
-        return RequirementSpec(time=(ContinuousTime,))
+        return RequirementSpec(time=(_ContinuousTime,))
 
     def _run(self, inputs: object) -> None:
         """Set the new values of the states at given values of the symbols the reset reads.

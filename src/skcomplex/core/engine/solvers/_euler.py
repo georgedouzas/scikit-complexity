@@ -7,8 +7,10 @@ import math
 
 import numpy as np
 
-from ...components.laws import BoundaryLaw, EventLaw, RateLaw, TransferLaw
-from ...components.spaces import ContinuousTime
+from ...components.laws import EventLaw, RateLaw
+from ...components.laws._boundary import _BoundaryLaw
+from ...components.laws._transfer import _TransferLaw
+from ...components.spaces._continuous_time import _ContinuousTime
 from ...enums import FormKind, OrderKind
 from ...errors import SolverError
 from ...types import Array
@@ -59,9 +61,9 @@ class EulerSolver(Solver):
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
-            time={ContinuousTime},
+            time={_ContinuousTime},
             space={None},
-            laws={RateLaw, EventLaw, BoundaryLaw, TransferLaw},
+            laws={RateLaw, EventLaw, _BoundaryLaw, _TransferLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 

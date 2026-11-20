@@ -17,13 +17,12 @@ from sage.sets.real_set import RealSet
 
 from ....core import systems
 from ....core.components import Observable
-from ....core.components.elements import Element
+from ....core.components.elements import Element, VisualSpec
 from ....core.components.laws.utils import neighbors
 from ....core.components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, MetropolisSolver
 from ....core.errors import ValidationError
-from ....core.specs import VisualSpec
 from ....core.types import Role
 from ..common.spins import SpinSamplingInteraction
 

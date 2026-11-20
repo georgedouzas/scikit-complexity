@@ -12,9 +12,9 @@ import numpy as np
 import scipy.sparse
 from sage.all__sagemath_symbolics import Expression
 
+from ...components import EntrySpec
 from ...components.spaces import DelaunayNeighborhood, NearestNeighborhood, RadiusNeighborhood
 from ...errors import BackendError, ValidationError
-from ...specs import EntrySpec
 from .._utils import symbols_of
 from ..enums import ReadKind
 from ..problems import BasePrinter

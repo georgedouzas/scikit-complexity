@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from ...specs._base_spec import BaseSpec
+from ...base import BaseSpec
 from ...types import Array, Indices, Pair
 from ._capacity_rows_spec import _CapacityRowsSpec
 from ._network_snapshot_spec import NetworkSnapshotSpec

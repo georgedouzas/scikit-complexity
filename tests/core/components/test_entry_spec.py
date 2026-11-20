@@ -5,9 +5,9 @@ import pytest
 from sage.all__sagemath_symbolics import RR, ZZ, oo
 from sage.sets.real_set import RealSet
 
+from skcomplex.core.components import EntrySpec, SubshiftSpec, TensorSpec
 from skcomplex.core.components.spaces import LatticeNeighborhood
 from skcomplex.core.enums import DomainKind
-from skcomplex.core.specs import EntrySpec, SubshiftSpec, TensorSpec
 
 
 def test_kind_is_tensor_for_a_tensor_entry():

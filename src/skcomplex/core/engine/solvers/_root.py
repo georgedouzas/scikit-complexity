@@ -6,8 +6,10 @@
 import numpy as np
 from scipy.optimize import root
 
-from ...components.laws import ConstraintLaw, LinearProgramLaw
-from ...components.spaces import BaseSpace, StaticTime
+from ...components.laws import ConstraintLaw
+from ...components.laws._linear_program import _LinearProgramLaw
+from ...components.spaces import BaseSpace
+from ...components.spaces._static_time import _StaticTime
 from ...enums import FormKind, OrderKind
 from ...errors import SolverError
 from ...types import Array
@@ -72,9 +74,9 @@ class RootSolver(Solver):
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
-            time={StaticTime},
+            time={_StaticTime},
             space={None, BaseSpace},
-            laws={LinearProgramLaw, ConstraintLaw},
+            laws={_LinearProgramLaw, ConstraintLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 

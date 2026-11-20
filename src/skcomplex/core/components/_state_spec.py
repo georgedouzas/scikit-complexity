@@ -9,9 +9,9 @@ from dataclasses import dataclass
 
 from sage.all__sagemath_symbolics import RR
 
+from ..base import BaseSpec
 from ..enums import SymmetryKind
 from ..errors import ValidationError
-from ._base_spec import BaseSpec
 from ._entry_spec import EntrySpec
 from ._matrix_group_spec import MatrixGroupSpec
 from ._power_series_spec import PowerSeriesSpec
@@ -20,7 +20,7 @@ ROLES = ('position', 'site', 'direction', 'phase', 'velocity', None)
 
 
 @dataclass(frozen=True)
-class StateSpec(BaseSpec):
+class _StateSpec(BaseSpec):
     """A spec of a state of an element, its domain, order, and lags.
 
     It is given in the annotation of an argument of the constructor of an element, and the default of the argument is
@@ -97,23 +97,6 @@ class StateSpec(BaseSpec):
         n_dim:
             The number of components of a vector state, or of rows of a tensor state, such as `3` for the value
             `[1.0, 0.0, 0.0]`, or `None` for the number of dimensions of the enclosing space.
-
-    Examples:
-        >>> from sage.all__sagemath_symbolics import oo
-        >>> from sage.sets.real_set import RealSet
-        >>> from skcomplex.core.specs import StateSpec
-        >>> spec = StateSpec(domain=RealSet.closed_open(0, oo))
-        >>> 2.5 in spec.domain, -1 in spec.domain
-        (True, False)
-        >>> StateSpec(reference='banks').reference
-        'banks'
-        >>> StateSpec(tensor='traceless').tensor
-        'traceless'
-        >>> StateSpec(algebraic=True).algebraic
-        True
-        >>> from skcomplex.core.specs import MatrixGroupSpec
-        >>> StateSpec(group=MatrixGroupSpec('SU', 3)).group.size
-        18
     """
 
     domain: object = RR

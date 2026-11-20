@@ -16,13 +16,12 @@ from sage.sets.real_set import RealSet
 
 from ....core import systems
 from ....core.components import Observable
-from ....core.components.elements import Element
+from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import EventLaw, RateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
-from ....core.specs import VisualSpec
 from ....core.types import Role
 from ..common.mechanics import PendulumSwingInteraction
 from ..common.particles import LinearDragInteraction, PeriodicForceInteraction, RestoringForceInteraction

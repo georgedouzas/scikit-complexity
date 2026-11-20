@@ -4,8 +4,10 @@
 # License: MIT
 
 
-from ...components.laws import BoundaryLaw, ConstraintLaw, JumpLaw, NoiseLaw, RateLaw
-from ...components.spaces import BaseSpace, ContinuousTime
+from ...components.laws import ConstraintLaw, JumpLaw, NoiseLaw, RateLaw
+from ...components.laws._boundary import _BoundaryLaw
+from ...components.spaces import BaseSpace
+from ...components.spaces._continuous_time import _ContinuousTime
 from ...enums import FormKind, NoiseKind, OrderKind
 from ...types import Array
 from ..backends import SupportSpec
@@ -41,9 +43,9 @@ class RenewalSolver(Solver):
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
-            time={ContinuousTime},
+            time={_ContinuousTime},
             space={None, BaseSpace},
-            laws={JumpLaw, RateLaw, NoiseLaw, ConstraintLaw, BoundaryLaw},
+            laws={JumpLaw, RateLaw, NoiseLaw, ConstraintLaw, _BoundaryLaw},
             noise=frozenset({NoiseKind.DIAGONAL}),
             orders=frozenset({OrderKind.INTEGER}),
         )

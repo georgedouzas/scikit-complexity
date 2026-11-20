@@ -15,7 +15,8 @@ from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....components.interactions import WienerProcessSpec
-from ....components.laws import BaseLaw, BoundaryLaw, CallSpec, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....components.laws import BaseLaw, CallSpec, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....components.laws._boundary import _BoundaryLaw
 from ....components.laws._flow_term import FlowTermLaw
 from ....errors import PipelineError, ValidationError
 from ....types import ProcessKey
@@ -35,7 +36,7 @@ from .._compilation import Compilation, Laws
 from .._laws import KERNEL_FREE_LAWS
 from ._noise import NoisePass
 
-ASSIGNED_KINDS = (UpdateLaw, BoundaryLaw)
+ASSIGNED_KINDS = (UpdateLaw, _BoundaryLaw)
 
 
 class KernelsPass(BasePass):
@@ -190,7 +191,7 @@ class KernelsPass(BasePass):
         if (
             spec.rows <= 1
             or spec.pairs is not None
-            or not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw)
+            or not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | _BoundaryLaw)
         ):
             return False
         if not all(
@@ -216,7 +217,7 @@ class KernelsPass(BasePass):
     @staticmethod
     def _get_law_outputs(
         spec: KernelSpec,
-        law: RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw,
+        law: RateLaw | NoiseLaw | UpdateLaw | _BoundaryLaw,
         targets: list[ReferenceSpec],
         declarations: DeclarationsSpec,
         lowered: dict[int, list[OutputSpec]],
@@ -279,7 +280,7 @@ class KernelsPass(BasePass):
                     laws_of[id(output)] = (spec, law)
                     outputs[(JumpLaw, False, None)].append(output)
                     continue
-                if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
+                if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | _BoundaryLaw):
                     error_msg = f'A {type(law).__name__} of {spec.owner} reached lowering before it was rewritten.'
                     raise ValidationError(error_msg)
                 targets = spec._get_target_references(law._get_targets()[0])

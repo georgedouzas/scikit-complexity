@@ -1,5 +1,6 @@
 """Test the `base` module of `skcomplex`."""
 
+import dataclasses
 from dataclasses import dataclass
 
 import pytest
@@ -7,15 +8,25 @@ from sage.all__sagemath_symbolics import function, var
 from sklearn.base import clone
 
 from skcomplex.core import errors
-from skcomplex.core.base import BaseConfig
+from skcomplex.core.base import BaseConfig, BaseSpec
+from skcomplex.core.components import Observable, RoleSpec
 from skcomplex.core.components.base import BaseComponent
-from skcomplex.core.components.elements import Element
+from skcomplex.core.components.elements import Element, VisualSpec
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws import (
+    MoveSpec,
+    ObjectiveSpec,
+    RateLaw,
+    RequirementSpec,
+    SamplerSpec,
+    TopologyRequestSpec,
+)
 from skcomplex.core.components.laws.utils import series
+from skcomplex.core.components.spaces import LatticeSpace, RadiusNeighborhood, ScheduleSpec
+from skcomplex.core.engine.compile import PhasesScheduleSpec
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import BaseSpec
 from skcomplex.core.systems import System
+from skcomplex.systems.physics.common.quantum import HilbertSpec
 
 
 class ScalingConfig(BaseConfig):
@@ -167,3 +178,41 @@ def test_clone_copies_mutable_settings():
     assert cloned.sizes == [1, 2]
     assert cloned.sizes is not config.sizes
     assert cloned.window is config.window
+
+
+def test_specs_are_frozen_records():
+    """Test that the specs are frozen dataclasses that derive from the spec base, which is not an estimator."""
+    assert not issubclass(BaseSpec, BaseConfig)
+    assert not hasattr(BaseSpec, 'prepare')
+    assert not hasattr(BaseSpec, 'run')
+    for spec in (RoleSpec, VisualSpec, Observable, HilbertSpec, TopologyRequestSpec):
+        assert spec.__bases__ == (BaseSpec,)
+        assert spec.__dataclass_params__.frozen
+    assert PhasesScheduleSpec.__bases__ == (ScheduleSpec,)
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        RoleSpec().variadic = True
+
+
+def test_requirement_and_visual_specs_hold_their_fields():
+    """Test that an empty requirement accepts any time and space and a visual keeps its options."""
+    assert RequirementSpec() == RequirementSpec(time=(), space=())
+    assert RequirementSpec(space=(LatticeSpace,)).space == (LatticeSpace,)
+    assert VisualSpec('points', {'position': 'x'}).options == {'position': 'x'}
+    assert VisualSpec().kind == 'scalars'
+
+
+def test_monte_carlo_specs_check_their_kinds():
+    """Test that an energy has nothing to check, and that moves, samplers, and schedules must be known."""
+    spin = var('spin')
+    assert ObjectiveSpec(-spin, RadiusNeighborhood(1, metric='manhattan')).expression == -spin
+    assert MoveSpec(spin, 'rotate', width=0.5).width == 0.5
+    assert MoveSpec(spin, 'gaussian', width=0.5).kind == 'gaussian'
+    assert MoveSpec(spin, 'function', function=lambda values, random: values).kind == 'function'
+    with pytest.raises(ValidationError, match='Unknown move'):
+        MoveSpec(spin, 'swap')._check()
+    with pytest.raises(ValidationError, match='callable function'):
+        MoveSpec(spin, 'function')._check()
+    with pytest.raises(ValidationError, match='Unknown sampler'):
+        SamplerSpec('wolff')._check()
+    with pytest.raises(ValidationError, match='Unknown Monte Carlo schedule'):
+        SamplerSpec(schedule='parallel')._check()

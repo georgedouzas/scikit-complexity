@@ -8,10 +8,10 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
-from ...components.elements import Element, GroupElement
-from ...specs._base_spec import BaseSpec
-from ...specs._variable_spec import VariableSpec
-from ...specs._visual_spec import VisualSpec
+from ...base import BaseSpec
+from ...components.elements import Element, VisualSpec
+from ._group_element import _GroupElement
+from ._variable_spec import _VariableSpec
 
 
 @dataclass(frozen=True)
@@ -46,11 +46,11 @@ class CompiledElementSpec(BaseSpec):
     """
 
     path: str
-    element: Element | GroupElement
+    element: Element | _GroupElement
     states: Mapping[str, str]
     parameters: Mapping[str, str]
     visual: VisualSpec
     members: int | None = None
-    adaptive: Mapping[str, VariableSpec] = field(default_factory=dict)
+    adaptive: Mapping[str, _VariableSpec] = field(default_factory=dict)
     lattice_shape: tuple[int, ...] | None = None
     roles: Mapping[str, str] = field(default_factory=dict)

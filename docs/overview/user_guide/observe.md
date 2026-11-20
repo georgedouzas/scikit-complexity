@@ -229,7 +229,7 @@ holds the visual of every element in `visuals_`.
 
 Both populations are drawn by a `ScalarsVisual`, one at the path `prey` and one at `predators`. The visuals of
 [`skcomplex.core.engine.viz`][skcomplex.core.engine.viz] are named by a kind, which a
-[`VisualSpec`][skcomplex.core.specs.VisualSpec] gives:
+[`VisualSpec`][skcomplex.core.components.elements.VisualSpec] gives:
 
 | Kind | Visual | What it draws |
 | --- | --- | --- |
@@ -277,7 +277,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.specs import VisualSpec
+from skcomplex.core.components.elements import VisualSpec
 from skcomplex.core.systems import System
 
 

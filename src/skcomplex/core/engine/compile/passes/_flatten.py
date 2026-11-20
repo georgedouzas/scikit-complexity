@@ -8,13 +8,15 @@ import re
 
 import numpy as np
 
-from ....components.elements import DeclaredElement, Element, GroupElement
+from ....components.elements import Element
 from ....components.interactions import BaseInteraction, WienerProcessSpec
 from ....components.spaces import BaseSpace, LatticeSpace, NetworkSpace
-from ....components.systems import CompositeSystem
 from ....enums import VariableKind
 from ....errors import LabelError, RoleError, SkcomplexError, ValidationError
 from ..._utils import binding_of, declarations_of, probe_laws
+from ...problems._composite_system import _CompositeSystem
+from ...problems._declared_element import _DeclaredElement
+from ...problems._group_element import _GroupElement
 from ...problems._node_spec import _NodeSpec
 from .._base import BasePass
 from .._laws import AGENT_LAWS
@@ -97,7 +99,7 @@ class FlattenPass(BasePass):
             raise ValidationError(error_msg)
 
     @staticmethod
-    def _check_group(group: GroupElement, scope: str) -> None:
+    def _check_group(group: _GroupElement, scope: str) -> None:
         """Raise an error for a group with an element type or size that is not valid."""
         where = f'Group {group.label!r} in {scope or "the root system"}'
         space = getattr(group, 'space', None)
@@ -117,7 +119,7 @@ class FlattenPass(BasePass):
 
     @staticmethod
     def _prepare_component(
-        component: Element | GroupElement | BaseInteraction,
+        component: Element | _GroupElement | BaseInteraction,
         place: BaseSpace | None,
         scope: str,
     ) -> None:
@@ -155,7 +157,7 @@ class FlattenPass(BasePass):
         return processes
 
     @staticmethod
-    def _check_processes(system: CompositeSystem, scope: str, labels: set[str]) -> None:
+    def _check_processes(system: _CompositeSystem, scope: str, labels: set[str]) -> None:
         """Raise an error for conflicting Wiener processes of one label.
 
         The processes differ, or another child of a system takes the label.
@@ -181,15 +183,15 @@ class FlattenPass(BasePass):
             raise LabelError(error_msg)
 
     @staticmethod
-    def _check_children(system: CompositeSystem, scope: str, places: dict[int, BaseSpace | None]) -> None:
+    def _check_children(system: _CompositeSystem, scope: str, places: dict[int, BaseSpace | None]) -> None:
         """Raise an error for a child of the wrong type or a duplicated label.
 
         Every element and interaction is prepared on its place, by the identity of the component, which checks it.
         """
-        children: list[tuple[Element | GroupElement | BaseInteraction | CompositeSystem, type | tuple[type, ...]]] = [
-            *((element, (Element, GroupElement)) for element in system.elements),
+        children: list[tuple[Element | _GroupElement | BaseInteraction | _CompositeSystem, type | tuple[type, ...]]] = [
+            *((element, (Element, _GroupElement)) for element in system.elements),
             *((interaction, BaseInteraction) for interaction in system.interactions),
-            *((child, CompositeSystem) for child in system.systems),
+            *((child, _CompositeSystem) for child in system.systems),
         ]
         labels: set[str] = set()
         for child, expected_type in children:
@@ -200,9 +202,9 @@ class FlattenPass(BasePass):
                 error_msg = f'{child!r} in {scope or "the root system"} is not an instance of {names}.'
                 raise ValidationError(error_msg)
             FlattenPass._check_label(child.label, scope)
-            if not isinstance(child, CompositeSystem):
+            if not isinstance(child, _CompositeSystem):
                 FlattenPass._prepare_component(child, places.get(id(child)), scope)
-            if isinstance(child, GroupElement):
+            if isinstance(child, _GroupElement):
                 FlattenPass._check_group(child, scope)
             if child.label in labels:
                 error_msg = f'Label {child.label!r} is used by more than one child of {scope or "the root system"}.'
@@ -240,12 +242,12 @@ class FlattenPass(BasePass):
         return space
 
     @staticmethod
-    def _get_sized(element: Element | GroupElement, space: BaseSpace | None) -> Element | GroupElement:
+    def _get_sized(element: Element | _GroupElement, space: BaseSpace | None) -> Element | _GroupElement:
         """Return a group prepared with its size.
 
         It is a copy when the size counts the parts of the space it inherits.
         """
-        if not isinstance(element, GroupElement):
+        if not isinstance(element, _GroupElement):
             return element
         if element.size is None and element.space is None:
             return copy.copy(element).prepare(space)
@@ -270,7 +272,7 @@ class FlattenPass(BasePass):
             topology_group:
                 Whether the group runs with a capacity layout.
         """
-        if not (isinstance(component, GroupElement) and component.variable and component.on in TOPOLOGY_PARTS):
+        if not (isinstance(component, _GroupElement) and component.variable and component.on in TOPOLOGY_PARTS):
             return False
         if not isinstance(space, NetworkSpace):
             return False
@@ -278,14 +280,14 @@ class FlattenPass(BasePass):
 
     @staticmethod
     def _copy_with_capacity(
-        element: Element | GroupElement,
+        element: Element | _GroupElement,
         space: BaseSpace | None,
-    ) -> tuple[Element | GroupElement, int | None]:
+    ) -> tuple[Element | _GroupElement, int | None]:
         """Return a variable group on a network with its capacity as its size.
 
         It also returns its initial size, or the element otherwise.
         """
-        if not isinstance(element, GroupElement) or not FlattenPass._is_topology_group(element, space):
+        if not isinstance(element, _GroupElement) or not FlattenPass._is_topology_group(element, space):
             return element, None
         group = element
         initial = group.size_
@@ -302,13 +304,13 @@ class FlattenPass(BasePass):
 
     @staticmethod
     def _flatten(
-        system: CompositeSystem,
+        system: _CompositeSystem,
         scope: str,
         space: BaseSpace | None,
         seen: list[BaseSpace] | None = None,
     ) -> list[_NodeSpec]:
         """Return the nodes of a system tree in tree order."""
-        if not isinstance(system, CompositeSystem):
+        if not isinstance(system, _CompositeSystem):
             error_msg = f'{system!r} is not an instance of CompositeSystem.'
             raise ValidationError(error_msg)
         seen = [] if seen is None else seen
@@ -324,11 +326,11 @@ class FlattenPass(BasePass):
         nodes = []
         for element, place in zip(system.elements, places, strict=True):
             sized, active = FlattenPass._copy_with_capacity(FlattenPass._get_sized(element, space), place)
-            if isinstance(sized, GroupElement):
+            if isinstance(sized, _GroupElement):
                 path, members = f'{scope}{element.label}', sized.size_
                 node = _NodeSpec(path, scope, sized, place, sized.get_declaring_element(), members, active=active)
             else:
-                declaring = sized if isinstance(sized, DeclaredElement) else type(sized)
+                declaring = sized if isinstance(sized, _DeclaredElement) else type(sized)
                 node = _NodeSpec(f'{scope}{element.label}', scope, sized, place, declaring)
             nodes.append(node)
         nodes += [
@@ -347,7 +349,7 @@ class FlattenPass(BasePass):
         return nodes
 
     @staticmethod
-    def _flatten_system(system: CompositeSystem, scope: str = '', space: BaseSpace | None = None) -> list[_NodeSpec]:
+    def _flatten_system(system: _CompositeSystem, scope: str = '', space: BaseSpace | None = None) -> list[_NodeSpec]:
         """Return the elements and interactions of a system tree with their paths.
 
         Args:

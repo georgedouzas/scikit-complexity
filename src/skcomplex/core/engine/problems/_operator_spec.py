@@ -9,8 +9,8 @@ from dataclasses import dataclass
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 
+from ...base import BaseSpec
 from ...errors import ValidationError
-from ...specs._base_spec import BaseSpec
 from ._local_operator_spec import LocalOperatorSpec
 
 type Factor = tuple[str, 'LocalOperatorSpec']

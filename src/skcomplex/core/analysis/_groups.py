@@ -10,13 +10,13 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import SR, Expression, max_symbolic, min_symbolic
 
 from ..base import BaseConfig
+from ..components import EntrySpec
 from ..components.laws.utils import where
 from ..engine._utils import components_of, domain_of, symbol
 from ..engine.problems import ProblemSpec
 from ..engine.problems._read_spec import _ReadSpec
 from ..engine.problems._reduction_kernel import ReductionKernel
 from ..errors import ValidationError
-from ..specs import EntrySpec
 
 
 class _Expansion(BaseConfig[ProblemSpec, tuple[set[str], int]]):

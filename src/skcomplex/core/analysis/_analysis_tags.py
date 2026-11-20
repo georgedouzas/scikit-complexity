@@ -7,10 +7,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ..base import BaseSpec
 from ..components import Tags
 from ..enums import DataKind, RandomnessTag, SpaceTag, TimeTag
 from ..errors import ValidationError
-from ..specs._base_spec import BaseSpec
 
 
 @dataclass(frozen=True)

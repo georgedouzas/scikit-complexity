@@ -4,13 +4,13 @@ import numpy as np
 import pytest
 from scipy import sparse
 
+from skcomplex.core.components import EntrySpec
 from skcomplex.core.engine.enums import LinearProgramBound
 from skcomplex.core.engine.problems import RunStateSpec
 from skcomplex.core.engine.problems._linear_program_kernel import LinearProgramKernel
 from skcomplex.core.engine.problems._linear_program_spec import LinearProgramSideSpec, LinearProgramSpec
 from skcomplex.core.engine.problems._reference_spec import ReferenceSpec
 from skcomplex.core.errors import SolverError
-from skcomplex.core.specs import EntrySpec
 
 
 def _program(**settings):

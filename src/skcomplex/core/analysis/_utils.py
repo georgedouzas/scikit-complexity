@@ -7,9 +7,9 @@ from functools import cache
 from importlib import import_module
 from types import ModuleType
 
-from ..components.systems import CompositeSystem
 from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import BaseProblemSpec, ProblemSpec
+from ..engine.problems._composite_system import _CompositeSystem
 from ..errors import AnalysisError
 
 
@@ -33,7 +33,7 @@ def load_module(name: str) -> ModuleType:
     return import_module(name)
 
 
-def compile_problem(system: CompositeSystem | BaseProblemSpec, purpose: str) -> ProblemSpec:
+def compile_problem(system: _CompositeSystem | BaseProblemSpec, purpose: str) -> ProblemSpec:
     """Return the general compiler's problem of a system, or the problem itself.
 
     It serves work that reads its fields.

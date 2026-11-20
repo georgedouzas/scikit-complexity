@@ -1,7 +1,7 @@
 """Test the `_sites` module of `skcomplex.core.engine.viz`."""
 
+from skcomplex.core.components.elements import VisualSpec
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.specs import VisualSpec
 from skcomplex.core.systems import System
 from skcomplex.systems.mathematics.networks import NetworkDiffusionSystem
 from skcomplex.systems.physics.heat import HeatElement

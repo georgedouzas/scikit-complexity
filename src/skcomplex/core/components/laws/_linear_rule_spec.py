@@ -9,8 +9,8 @@ from dataclasses import dataclass
 from sage.all__sagemath_symbolics import GF, QQ
 from sage.rings.ring import Field
 
+from ...base import BaseSpec
 from ...errors import ValidationError
-from ...specs._base_spec import BaseSpec
 
 
 @dataclass(frozen=True)

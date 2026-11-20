@@ -5,11 +5,10 @@
 
 from collections.abc import Sequence
 
-from ....core.components.elements import Element
+from ....core.components.elements import Element, VisualSpec
 from ....core.components.spaces import BaseSpace
 from ....core.engine.compile import BaseCompiler
 from ....core.errors import RewritingError
-from ....core.specs import VisualSpec
 from . import _rewriting_compiler
 from ._affine_spec import AffineSpec
 from ._geometry_visual import GeometryVisual

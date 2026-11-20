@@ -5,7 +5,8 @@
 
 from typing import ClassVar
 
-from ..spaces import DiscreteTime, LatticeSpace, NetworkSpace
+from ..spaces import LatticeSpace, NetworkSpace
+from ..spaces._discrete_time import _DiscreteTime
 from ._base import BaseLaw
 from ._move_spec import MoveSpec
 from ._objective_spec import ObjectiveSpec
@@ -13,7 +14,7 @@ from ._requirement_spec import RequirementSpec
 from ._sampler_spec import SamplerSpec
 
 
-class SampleLaw(BaseLaw):
+class _SampleLaw(BaseLaw):
     """A law of a Monte Carlo sweep that samples states by proposed moves.
 
     In each unit of time the law makes one sweep. It proposes moves and accepts them by the change of `objective`, so
@@ -38,17 +39,6 @@ class SampleLaw(BaseLaw):
 
         label:
             The name of the law, or the empty string for a law without one.
-
-    Examples:
-        >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws import SampleLaw
-        >>> from skcomplex.core.components.spaces import RadiusNeighborhood
-        >>> from skcomplex.core.components.laws import MoveSpec, ObjectiveSpec, SamplerSpec
-        >>> spin = var('spin')
-        >>> cross = RadiusNeighborhood(1, metric='manhattan')
-        >>> law = SampleLaw(ObjectiveSpec(-spin, cross), MoveSpec(spin), SamplerSpec('glauber', 2.0))
-        >>> law.prepare().targets_
-        (spin,)
     """
 
     law_tag: ClassVar[str] = 'sampling'
@@ -73,7 +63,7 @@ class SampleLaw(BaseLaw):
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
         """Return what the sweep requires: discrete time on a lattice or a network."""
-        return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace, NetworkSpace))
+        return RequirementSpec(time=(_DiscreteTime,), space=(LatticeSpace, NetworkSpace))
 
     def _prepare(self, context: str | None = None) -> None:
         """Check the objective, the move, and the sampler.

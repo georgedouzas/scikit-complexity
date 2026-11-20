@@ -8,8 +8,8 @@ from typing import ClassVar
 
 from sage.all__sagemath_symbolics import SR, Expression
 
+from ...base import BaseSpec
 from ...errors import ValidationError
-from ...specs import BaseSpec
 from ._base import BaseLaw
 from ._requirement_spec import RequirementSpec
 
@@ -17,7 +17,7 @@ SHIFT = 'shift_member'
 
 
 @dataclass(frozen=True)
-class Source(BaseSpec):
+class _Source(BaseSpec):
     """A holder outside the system that a transfer takes an amount from.
 
     Unlike a state, it has no value and never runs out. Choose it when an amount enters the system from outside, as the
@@ -29,18 +29,13 @@ class Source(BaseSpec):
     Args:
         label:
             The name of the environment in transaction-flow matrices.
-
-    Examples:
-        >>> from skcomplex.core.components.laws import Source
-        >>> Source().label
-        'environment'
     """
 
     label: str = 'environment'
 
 
 @dataclass(frozen=True)
-class Sink(BaseSpec):
+class _Sink(BaseSpec):
     """A holder outside the system that a transfer releases an amount to.
 
     Unlike a state, it has no value and never fills. Choose it when an amount leaves the system, as the sink of a
@@ -52,17 +47,12 @@ class Sink(BaseSpec):
     Args:
         label:
             The name of the environment in transaction-flow matrices.
-
-    Examples:
-        >>> from skcomplex.core.components.laws import Sink
-        >>> Sink('drain').label
-        'drain'
     """
 
     label: str = 'environment'
 
 
-class TransferLaw(BaseLaw):
+class _TransferLaw(BaseLaw):
     """A law that moves an amount from a source holder to a sink holder.
 
     A transfer is one outflow of its source and one inflow of its sink, so what one loses the other gains. Its `amount`
@@ -101,21 +91,14 @@ class TransferLaw(BaseLaw):
             The path of the component the flow is reported under, relative to the system of the component that declares
             the transfer, such as the element an interaction moves a quantity within, or the empty string for the
             component that declares it.
-
-    Examples:
-        >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws import Source, TransferLaw
-        >>> level = var('level')
-        >>> TransferLaw(Source(), level, 5, label='faucet').prepare().targets_
-        (level,)
     """
 
     law_tag: ClassVar[str] = 'update'
 
     def __init__(
         self,
-        source: Expression | Source,
-        sink: Expression | Sink,
+        source: Expression | _Source,
+        sink: Expression | _Sink,
         amount: object,
         rate: object = None,
         *,
@@ -160,7 +143,7 @@ class TransferLaw(BaseLaw):
 
         The environment is that of its side.
         """
-        for name, holder, environment in (('source', self.source, Source), ('sink', self.sink, Sink)):
+        for name, holder, environment in (('source', self.source, _Source), ('sink', self.sink, _Sink)):
             if isinstance(holder, environment) or self._is_shifted(holder):
                 continue
             if not isinstance(holder, Expression) or holder.operator() is not None:
@@ -172,7 +155,7 @@ class TransferLaw(BaseLaw):
         if self._is_shifted(self.source) and self._is_shifted(self.sink):
             error_msg = 'Both holders of a transfer are read at a member offset. Read one of them at the member itself.'
             raise ValidationError(error_msg)
-        if isinstance(self.source, Source) and isinstance(self.sink, Sink):
+        if isinstance(self.source, _Source) and isinstance(self.sink, _Sink):
             error_msg = (
                 'A transfer moves a quantity into or out of a state, but both of its holders are the environment.'
             )

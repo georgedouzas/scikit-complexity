@@ -14,12 +14,11 @@ from sage.sets.real_set import RealSet
 from scipy import ndimage
 
 from ....core.components import Observable
-from ....core.components.elements import Element
+from ....core.components.elements import Element, VisualSpec
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, SystemView
-from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import AnyArray, IntArray, Role
 from ._random_pairs import NeighborhoodsInteraction

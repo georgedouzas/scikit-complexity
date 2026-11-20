@@ -8,7 +8,8 @@ from typing import ClassVar
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ...errors import ValidationError
-from ..spaces import ContinuousTime, StaticTime
+from ..spaces._continuous_time import _ContinuousTime
+from ..spaces._static_time import _StaticTime
 from ._base import BaseLaw
 from ._requirement_spec import RequirementSpec
 
@@ -77,7 +78,7 @@ class ConstraintLaw(BaseLaw):
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
         """Return what the law requires of a system: continuous or static time."""
-        return RequirementSpec(time=(ContinuousTime, StaticTime))
+        return RequirementSpec(time=(_ContinuousTime, _StaticTime))
 
     def _get_sides(self) -> tuple[Expression, Expression]:
         """Return the two sides of the equation as expressions.

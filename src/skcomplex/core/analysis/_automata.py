@@ -17,23 +17,17 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.structure.element import Matrix
 from sklearn.base import clone
 
-from ..components.elements import GroupElement
+from ..base import BaseSpec
+from ..components import SubshiftSpec
 from ..components.interactions import BaseInteraction, Interaction
-from ..components.laws import (
-    BaseLaw,
-    LinearRuleSpec,
-    LocalRuleLaw,
-    OuterTotalisticSpec,
-    TableSpec,
-    TotalisticSpec,
-    UpdateLaw,
-)
+from ..components.laws import BaseLaw, LinearRuleSpec, OuterTotalisticSpec, TableSpec, TotalisticSpec, UpdateLaw
+from ..components.laws._local_rule import _LocalRuleLaw
 from ..components.spaces import BaseNeighborhood, BaseSpace, LatticeNeighborhood, LatticeSpace
-from ..components.systems import CompositeSystem
 from ..engine.compile._pass_compiler import PassCompiler
+from ..engine.problems._composite_system import _CompositeSystem
+from ..engine.problems._group_element import _GroupElement
 from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import BaseSpec, SubshiftSpec
 from ..systems import System
 from ..types import Indices, IntArray
 from ._analysis_tags import AnalysisTags
@@ -218,7 +212,7 @@ class _LocalRuleSpec(BaseSpec):
     target: str
     state: str | tuple[str, ...]
     reads: tuple[str, ...] | None
-    law: LocalRuleLaw
+    law: _LocalRuleLaw
 
 
 @dataclass(frozen=True)
@@ -228,9 +222,9 @@ class _AutomatonSpec(BaseSpec):
     It holds its rule, law, state, space, number of sites and of values, and local map.
     """
 
-    system: CompositeSystem
+    system: _CompositeSystem
     rule: _LocalRuleSpec
-    law: LocalRuleLaw
+    law: _LocalRuleLaw
     state: str
     space: BaseSpace
     size: int
@@ -364,7 +358,7 @@ def automaton(
         >>> from skcomplex.core.components.interactions import Interaction
         >>> from skcomplex.core.components.laws import TableSpec, TotalisticSpec, UpdateLaw
         >>> from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
-        >>> from skcomplex.core.specs import SubshiftSpec
+        >>> from skcomplex.core.components import SubshiftSpec
         >>> from skcomplex.core.systems import System
         >>> class CellElement(Element):
         ...     def __init__(self, label, alive: Annotated[int, FiniteEnumeratedSet([0, 1])] = 0, space=None):
@@ -440,7 +434,7 @@ def automaton(
         f'automaton of kind {kind!r} reads a system with {" or ".join(sources)}, not {type(source).__name__}. Build '
         'one of them.'
     )
-    if not isinstance(system, System) or not isinstance(source, CompositeSystem):
+    if not isinstance(system, System) or not isinstance(source, _CompositeSystem):
         raise AnalysisError(error_msg)
     found = _find_subshift(source)
     rule = _find_rule(source)
@@ -510,7 +504,7 @@ def _run_pair(
     kind: str,
     system: System,
     *,
-    second: CompositeSystem | None,
+    second: _CompositeSystem | None,
     configuration: npt.ArrayLike | None,
     site: int,
     steps: int,
@@ -563,7 +557,7 @@ def _measure(
 
 
 def _run_subshift(
-    system: CompositeSystem,
+    system: _CompositeSystem,
     kind: str,
     subshift: SubshiftSpec,
     space: BaseSpace,
@@ -594,7 +588,7 @@ def _run_subshift(
     return AutomatonResult(system, admissible=not violations.any())
 
 
-def _get_space(system: CompositeSystem, element: GroupElement) -> BaseSpace:
+def _get_space(system: _CompositeSystem, element: _GroupElement) -> BaseSpace:
     """Return the prepared space of a group of a system.
 
     It is its own space or the space of the system.
@@ -612,10 +606,10 @@ def _get_declared(source: DataSource) -> DataSource:
     Any other source is returned as it is.
     """
     source = _composite(source)
-    return PassCompiler()._get_declared_system(source) if isinstance(source, CompositeSystem) else source
+    return PassCompiler()._get_declared_system(source) if isinstance(source, _CompositeSystem) else source
 
 
-def _get_second(source: DataSource) -> CompositeSystem:
+def _get_second(source: DataSource) -> _CompositeSystem:
     """Return the declared composite of the second automaton of a composition.
 
     Raises:
@@ -623,13 +617,13 @@ def _get_second(source: DataSource) -> CompositeSystem:
             The second automaton is not a system.
     """
     declared = _get_declared(source)
-    if not isinstance(declared, CompositeSystem):
+    if not isinstance(declared, _CompositeSystem):
         error_msg = f'automaton composes with a system, not {type(source).__name__}. Give a System.'
         raise AnalysisError(error_msg)
     return declared
 
 
-def _get_local_rule(interaction: BaseInteraction, system: CompositeSystem) -> _LocalRuleSpec | None:
+def _get_local_rule(interaction: BaseInteraction, system: _CompositeSystem) -> _LocalRuleSpec | None:
     """Return the local rule an interaction states, or `None` without one.
 
     An interaction that sets its laws in `_prepare`, such as one that sets
@@ -650,7 +644,7 @@ def _get_local_rule(interaction: BaseInteraction, system: CompositeSystem) -> _L
         item._get_local_rule() if isinstance(item, UpdateLaw) and item.neighborhood is not None else item
         for item in clone(interaction).prepare(namespace).laws_
     ]
-    law = next((item for item in laws if isinstance(item, LocalRuleLaw)), None)
+    law = next((item for item in laws if isinstance(item, _LocalRuleLaw)), None)
     if law is None:
         return None
     path = next(path for path, states in roles.values() if str(law._get_targets()[0]) in vars(states))
@@ -664,7 +658,7 @@ def _get_local_rule(interaction: BaseInteraction, system: CompositeSystem) -> _L
     )
 
 
-def _find_rule(system: CompositeSystem) -> _LocalRuleSpec | None:
+def _find_rule(system: _CompositeSystem) -> _LocalRuleSpec | None:
     """Return the local rule of a system.
 
     The result is `None` without one, and an error is raised for several.
@@ -678,14 +672,14 @@ def _find_rule(system: CompositeSystem) -> _LocalRuleSpec | None:
     return rules[0] if rules else None
 
 
-def _find_subshift(system: CompositeSystem) -> tuple[GroupElement, SubshiftSpec] | None:
+def _find_subshift(system: _CompositeSystem) -> tuple[_GroupElement, SubshiftSpec] | None:
     """Return the first group of a system with a value whose domain is a subshift.
 
     It comes with its spec, or is `None`. The value is a state, or a parameter when no law changes it, as the cells
     of a window whose words are counted.
     """
     for element in system.elements:
-        if not isinstance(element, GroupElement):
+        if not isinstance(element, _GroupElement):
             continue
         for spec in element._get_member_specs().values():
             domain = getattr(spec, 'domain', None)
@@ -725,14 +719,14 @@ def _get_states(domain: object, rule: object) -> int | None:
     return rule.states if isinstance(rule, TotalisticSpec | OuterTotalisticSpec) else None
 
 
-def _read_automaton(system: CompositeSystem, rule: _LocalRuleSpec) -> _AutomatonSpec:
+def _read_automaton(system: _CompositeSystem, rule: _LocalRuleSpec) -> _AutomatonSpec:
     """Return the law, space, size, number of states, and local map of an automaton.
 
     The automaton is that of a system.
     """
     target = rule.target
     element = next((item for item in system.elements if item.label == target), None)
-    if not isinstance(element, GroupElement) or not isinstance(rule.state, str) or rule.reads is not None:
+    if not isinstance(element, _GroupElement) or not isinstance(rule.state, str) or rule.reads is not None:
         error_msg = (
             f'The local rule {rule.label!r} of an automaton sets and reads one state of a group of the system, '
             f'but it binds {target!r} and the states {rule.state!r} and {rule.reads!r}.'
@@ -1090,7 +1084,7 @@ def _get_reach(automaton: _AutomatonSpec) -> BaseNeighborhood:
     return reach
 
 
-def _compose(automaton: _AutomatonSpec, second: CompositeSystem, system: System) -> System:
+def _compose(automaton: _AutomatonSpec, second: _CompositeSystem, system: System) -> System:
     """Return the `System` of the automaton that applies this one then a second one.
 
     It holds the elements of the system, and both automata act on the same space.

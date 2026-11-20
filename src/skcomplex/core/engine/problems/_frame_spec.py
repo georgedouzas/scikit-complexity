@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 import numpy as np
 import numpy.typing as npt
 
-from ...specs._base_spec import BaseSpec
+from ...base import BaseSpec
 from ...types import AnyArray, Array
 from ._agent_snapshot_spec import AgentSnapshotSpec
 from ._base_problem_spec import BaseProblemSpec

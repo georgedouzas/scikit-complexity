@@ -8,8 +8,7 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from ...base import BaseConfig
-from ...specs._base_spec import BaseSpec
+from ...base import BaseConfig, BaseSpec
 from ._base_problem_spec import BaseProblemSpec
 
 

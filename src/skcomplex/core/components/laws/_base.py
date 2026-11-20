@@ -110,9 +110,9 @@ class BaseLaw(BaseComponent[str, object]):
                 arguments narrow them, such as an `UpdateLaw` of a whole array, returns the widest it can run in.
 
         Examples:
-            >>> from skcomplex.core.components.laws import RuleLaw
-            >>> RuleLaw.get_requirements().time[0].__name__
-            'DiscreteTime'
+            >>> from skcomplex.core.components.laws import UpdateLaw
+            >>> UpdateLaw.get_requirements().space
+            ()
         """
         return cls._get_requirements()
 

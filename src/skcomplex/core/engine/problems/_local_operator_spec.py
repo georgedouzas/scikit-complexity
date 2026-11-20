@@ -9,7 +9,7 @@ import numpy as np
 import qutip
 import scipy.sparse as sp
 
-from ...specs._base_spec import BaseSpec
+from ...base import BaseSpec
 
 ADJOINT_NAMES = {'plus': 'minus', 'minus': 'plus', 'annihilate': 'create', 'create': 'annihilate'}
 ADJOINT_SUFFIX = '.dag'

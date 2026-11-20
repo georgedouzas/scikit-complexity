@@ -12,9 +12,8 @@ import numpy as np
 import qutip
 from sage.all__sagemath_symbolics import CC
 
-from .....core.components.elements import Element
+from .....core.components.elements import Element, VisualSpec
 from .....core.errors import ValidationError
-from .....core.specs import VisualSpec
 from ._hilbert_spec import HilbertSpec
 
 

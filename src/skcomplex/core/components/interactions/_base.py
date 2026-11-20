@@ -22,13 +22,18 @@ from sage.symbolic.function import SymbolicFunction
 from sage.symbolic.operators import FDerivativeOperator
 from sklearn.base import clone
 
+from ...base import BaseSpec
 from ...enums import DomainKind
 from ...errors import ParameterShapeError, RoleError, SpaceError, ValidationError
-from ...specs import BaseSpec, DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec
+from .._declared_variable_spec import _DeclaredVariableSpec
+from .._parameter_spec import _ParameterSpec
+from .._role_spec import RoleSpec
+from .._state_spec import _StateSpec
 from .._tags import Tags
 from ..base import BaseComponent
-from ..laws import BaseLaw, NoiseLaw, ObjectiveLaw, PartnerSpec, RateLaw, RuleLaw, UpdateLaw
+from ..laws import BaseLaw, NoiseLaw, ObjectiveLaw, PartnerSpec, RateLaw, UpdateLaw
 from ..laws._flow_term import FlowTermLaw
+from ..laws._rule import _RuleLaw
 from ..laws.utils import relax
 from ..laws.utils._fractional import fractional_of
 from ..laws.utils._history import delayed, derivative, lag
@@ -171,7 +176,7 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         owner = next(klass for klass in cls.__mro__ if '_get_laws' in vars(klass))
         return owner is BaseInteraction
 
-    def _get_declared(self) -> Mapping[str, DeclaredVariableSpec]:
+    def _get_declared(self) -> Mapping[str, _DeclaredVariableSpec]:
         """Return the numeric arguments of an interaction as parameters, by name.
 
         An argument annotated with a spec keeps its spec, and a role or a setting that is no number declares nothing.
@@ -191,15 +196,15 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         for name in inspect.signature(type(self)).parameters:
             value = params.get(name)
             if isinstance(value, WienerProcessSpec) and name not in specs:
-                declared[name] = DeclaredVariableSpec(value, RoleSpec(noise=True))
+                declared[name] = _DeclaredVariableSpec(value, RoleSpec(noise=True))
                 continue
             if name in specs or name == 'label' or not self._is_numeric(value):
                 continue
             vector, n_dim, tensor = self._get_shape_of(value)
             first = np.asarray(value).ravel()[0].item() if vector or tensor else value
             domain = allowed.get(name, self._get_domain_of(first))
-            spec = ParameterSpec(domain=domain, vector=vector, n_dim=n_dim, tensor=tensor)
-            declared[name] = DeclaredVariableSpec(self._get_matrix_entries(value, tensor), spec)
+            spec = _ParameterSpec(domain=domain, vector=vector, n_dim=n_dim, tensor=tensor)
+            declared[name] = _DeclaredVariableSpec(self._get_matrix_entries(value, tensor), spec)
         return declared
 
     @classmethod
@@ -661,7 +666,7 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         law: BaseComponent,
         roles: Mapping[str, object],
         system: SimpleNamespace | None = None,
-    ) -> RuleLaw | None:
+    ) -> _RuleLaw | None:
         """Return the rule of agents or of the system that an update law states, or `None`.
 
         An update law whose target is a bound group, such as `UpdateLaw(s.target, move)`, is an agent rule: its value
@@ -685,7 +690,7 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
                     'system is a function of the system, such as def brake(system): ...'
                 )
                 raise ValidationError(error_msg)
-            return RuleLaw(rule, law.phase, label=law.label)
+            return _RuleLaw(rule, law.phase, label=law.label)
         role = next((name for name, item in roles.items() if item is law.target), None)
         if role is None:
             error_msg = (
@@ -700,7 +705,7 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
                 'function of one agent and the system, such as def move(agent, system): agent.x += 1.'
             )
             raise ValidationError(error_msg)
-        return RuleLaw(rule, law.phase, members=role, label=law.label)
+        return _RuleLaw(rule, law.phase, members=role, label=law.label)
 
     @staticmethod
     def _is_rule(rule: Callable[..., object], arguments: int = 2) -> bool:
@@ -803,7 +808,7 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
 
     def _declares(self, name: str) -> bool:
         """Return whether the class declares a name as a parameter."""
-        return isinstance(type(self)._get_specs().get(name), ParameterSpec)
+        return isinstance(type(self)._get_specs().get(name), _ParameterSpec)
 
     def _get_parameter_value(self, name: str, system: SystemViewProtocol) -> float:
         """Return the value of a parameter in an agent form.
@@ -1008,11 +1013,11 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace, SimpleNamespace
         The type declares the states or the adaptive parameters.
         """
         specs = self._get_specs()
-        states = [name for name, spec in specs.items() if isinstance(spec, StateSpec)]
+        states = [name for name, spec in specs.items() if isinstance(spec, _StateSpec)]
         adaptive = [
             name
             for name, spec in specs.items()
-            if isinstance(spec, ParameterSpec) and spec.adaptive and spec.shape is None
+            if isinstance(spec, _ParameterSpec) and spec.adaptive and spec.shape is None
         ]
         if adaptive:
             error_msg = (

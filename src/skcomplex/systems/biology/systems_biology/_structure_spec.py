@@ -7,8 +7,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from ....core.base import BaseSpec
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec
 from ....core.types import Array
 
 COORDINATE_DIMENSIONS = 3

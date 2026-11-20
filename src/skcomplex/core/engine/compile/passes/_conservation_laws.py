@@ -6,10 +6,10 @@
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.symbolic.operators import add_vararg, mul_vararg
 
-from ....components.elements import FieldElement
 from ....components.laws import BaseLaw, RateLaw
 from ....errors import ValidationError
 from ...problems._declarations_spec import DeclarationsSpec
+from ...problems._field_element import _FieldElement
 from ...problems._kernel_spec import KernelSpec
 from .._base import BasePass
 from .._compilation import Compilation
@@ -42,7 +42,7 @@ class ConservationLawsPass(BasePass):
         ]
 
     @staticmethod
-    def _get_field(spec: KernelSpec, law: RateLaw, declarations: DeclarationsSpec) -> FieldElement | None:
+    def _get_field(spec: KernelSpec, law: RateLaw, declarations: DeclarationsSpec) -> _FieldElement | None:
         """Return the finite-volume field whose scalar state a rate law targets, or `None`."""
         scalar = isinstance(law.target, Expression) and isinstance(law.value, Expression)
         if law.order not in (None, 1) or not scalar:
@@ -53,7 +53,7 @@ class ConservationLawsPass(BasePass):
         owner = references[0].entry.name.rpartition('.')[0]
         block = declarations.blocks.get(owner)
         place = None if block is None else block.node.component
-        if not isinstance(place, FieldElement) or place.discretization != 'finite-volume':
+        if not isinstance(place, _FieldElement) or place.discretization != 'finite-volume':
             return None
         return place
 

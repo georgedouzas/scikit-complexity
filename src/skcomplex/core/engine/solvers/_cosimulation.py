@@ -10,29 +10,20 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, ZZ, Expression
 from sklearn.base import clone
 
-from ...components.laws import (
-    BoundaryLaw,
-    ConstraintLaw,
-    EventLaw,
-    JumpLaw,
-    LinearProgramLaw,
-    LocalRuleLaw,
-    NoiseLaw,
-    RateLaw,
-    RuleLaw,
-    SampleLaw,
-    TransferLaw,
-    TransitionLaw,
-    UpdateLaw,
-)
-from ...components.spaces import (
-    BaseSpace,
-    ContinuousTime,
-    DiscreteTime,
-)
+from ...components import EntrySpec
+from ...components.laws import ConstraintLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ...components.laws._boundary import _BoundaryLaw
+from ...components.laws._linear_program import _LinearProgramLaw
+from ...components.laws._local_rule import _LocalRuleLaw
+from ...components.laws._rule import _RuleLaw
+from ...components.laws._sample import _SampleLaw
+from ...components.laws._transfer import _TransferLaw
+from ...components.laws._transition import _TransitionLaw
+from ...components.spaces import BaseSpace
+from ...components.spaces._continuous_time import _ContinuousTime
+from ...components.spaces._discrete_time import _DiscreteTime
 from ...enums import FormKind, NoiseKind, OrderKind
 from ...errors import ContextError, SolverError, ValidationError
-from ...specs import EntrySpec
 from ...types import Array
 from ..backends import NumbaBackend, NumpyBackend, SupportSpec
 from ..compile._held_reduction_spec import _HeldReductionSpec
@@ -121,22 +112,22 @@ class CoSimulationSolver(Solver):
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
-            time={ContinuousTime, DiscreteTime},
+            time={_ContinuousTime, _DiscreteTime},
             space={None, BaseSpace},
             laws={
                 RateLaw,
                 NoiseLaw,
                 ConstraintLaw,
                 JumpLaw,
-                LinearProgramLaw,
+                _LinearProgramLaw,
                 EventLaw,
                 UpdateLaw,
-                TransitionLaw,
-                RuleLaw,
-                LocalRuleLaw,
-                SampleLaw,
-                TransferLaw,
-                BoundaryLaw,
+                _TransitionLaw,
+                _RuleLaw,
+                _LocalRuleLaw,
+                _SampleLaw,
+                _TransferLaw,
+                _BoundaryLaw,
             },
             noise=frozenset(NoiseKind) - {NoiseKind.FRACTIONAL},
             orders=frozenset(OrderKind),

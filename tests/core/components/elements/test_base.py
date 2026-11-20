@@ -6,12 +6,11 @@ from typing import Annotated
 import pytest
 from sage.all__sagemath_symbolics import var
 
-from skcomplex.core.components.elements import BaseElement, Element
+from skcomplex.core.components.elements import BaseElement, Element, VisualSpec
 from skcomplex.core.components.interactions import BaseInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import VisualSpec
 from skcomplex.core.systems import System
 
 

@@ -13,7 +13,7 @@ import optax
 
 from ...components.interactions import TrainingInteraction
 from ...components.laws import UpdateLaw
-from ...components.spaces import DiscreteTime
+from ...components.spaces._discrete_time import _DiscreteTime
 from ...enums import FormKind, OptimizerKind, OrderKind
 from ...errors import SolverError, ValidationError
 from ...types import Array
@@ -97,7 +97,7 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
     def _get_support(cls) -> SupportSpec:
         """Return the discrete time of epochs and the updates of the trained parameters."""
         return SupportSpec(
-            time={DiscreteTime},
+            time={_DiscreteTime},
             space={None},
             laws={UpdateLaw},
             noise=frozenset(),

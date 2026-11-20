@@ -9,7 +9,7 @@ from typing import ClassVar
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ...errors import ValidationError
-from ..spaces import ContinuousTime
+from ..spaces._continuous_time import _ContinuousTime
 from ._base import BaseLaw
 from ._call_spec import CallSpec
 from ._requirement_spec import RequirementSpec
@@ -94,7 +94,7 @@ class JumpLaw(BaseLaw):
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
         """Return what the law requires of a system: continuous time."""
-        return RequirementSpec(time=(ContinuousTime,))
+        return RequirementSpec(time=(_ContinuousTime,))
 
     def _check_clock(self) -> None:
         """Raise an error for a jump with both or neither clock, or an unused clock option.

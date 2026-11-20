@@ -8,13 +8,15 @@ from collections.abc import Mapping
 from dataclasses import replace
 from typing import Self
 
+from ...components._declared_variable_spec import _DeclaredVariableSpec
+from ...components._parameter_spec import _ParameterSpec
+from ...components._state_spec import _StateSpec
+from ...components.elements import Element, VisualSpec
+from ...components.spaces import BaseSpace
 from ...errors import ValidationError
-from ...specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
-from ..spaces import BaseSpace
-from ._element import Element
 
 
-class DeclaredElement(Element):
+class _DeclaredElement(Element):
     """An element whose states and parameters are given as data.
 
     The element takes a mapping from each name to its initial value and its spec, so a system can build it without a
@@ -61,47 +63,13 @@ class DeclaredElement(Element):
     Raises:
         ValidationError:
             A name is not an identifier or is an argument of the constructor, raised by `prepare`.
-
-    Examples:
-        An epidemic compartment and a bank account are the same kind of element. Infected people recover at a rate of
-        0.1 a day.
-
-        >>> from skcomplex.core.components.elements import DeclaredElement
-        >>> from skcomplex.core.components.interactions import Interaction
-        >>> from skcomplex.core.components.laws import RateLaw
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
-        >>> infected = DeclaredElement('infected', variables={'x': DeclaredVariableSpec(100.0, StateSpec())})
-        >>> recovery = Interaction(
-        ...     'recovery', roles={'target': 'infected'}, laws=lambda s: [RateLaw(s.target.x, -0.1 * s.target.x)]
-        ... )
-        >>> epidemic = CompositeSystem(elements=[infected], interactions=[recovery])
-        >>> simulate(epidemic, until=10, dt=5.0).get_values('infected.x').round(1).tolist()
-        [100.0, 60.7, 36.8]
-
-        Interest at 5 percent a year grows the account continuously.
-
-        >>> account = DeclaredElement('account', variables={'x': DeclaredVariableSpec(250.0, StateSpec())})
-        >>> interest = Interaction(
-        ...     'interest', roles={'target': 'account'}, laws=lambda s: [RateLaw(s.target.x, 0.05 * s.target.x)]
-        ... )
-        >>> savings = CompositeSystem(elements=[account], interactions=[interest])
-        >>> simulate(savings, until=1, dt=1.0).get_values('account.x').round(2).tolist()
-        [250.0, 262.82]
-
-        A state of second order, such as the position of a mass, has a companion state for its velocity.
-
-        >>> mass = DeclaredElement('mass', variables={'x': DeclaredVariableSpec(1.0, StateSpec(order=2))})
-        >>> mass.get_value('x'), mass.get_value('x_d1')
-        (1.0, 0.0)
     """
 
     def __init__(
         self,
         label: str,
         *,
-        variables: Mapping[str, DeclaredVariableSpec] | None = None,
+        variables: Mapping[str, _DeclaredVariableSpec] | None = None,
         drawing: VisualSpec | None = None,
         view: type | None = None,
         defaults: Mapping[str, object] | None = None,
@@ -118,11 +86,11 @@ class DeclaredElement(Element):
         """Return how the element is drawn, its `drawing` or the `visual` of its class."""
         return self.drawing if self.drawing is not None else super()._get_visual()
 
-    def _declare_variables(self) -> Mapping[str, DeclaredVariableSpec]:
+    def _declare_variables(self) -> Mapping[str, _DeclaredVariableSpec]:
         """Return the variables the element declares from its arguments, by name."""
         return self.variables or {}
 
-    def _get_declared(self) -> Mapping[str, DeclaredVariableSpec]:
+    def _get_declared(self) -> Mapping[str, _DeclaredVariableSpec]:
         """Return the declared variables.
 
         They are read once per set of arguments, since compiling reads them often.
@@ -144,7 +112,7 @@ class DeclaredElement(Element):
         companions: dict[str, tuple[str, int]] = {}
         for name, item in self._get_declared().items():
             spec = item.spec
-            if not isinstance(spec, StateSpec):
+            if not isinstance(spec, _StateSpec):
                 continue
             derivatives = int(spec.order) - 1 if float(spec.order).is_integer() else 0
             companions.update({f'{name}_d{index}': (name, index - 1) for index in range(1, derivatives + 1)})
@@ -159,7 +127,7 @@ class DeclaredElement(Element):
         """
         item = self._get_declared()[name]
         spec = item.spec
-        if not isinstance(spec, StateSpec):
+        if not isinstance(spec, _StateSpec):
             return []
         derivatives = int(spec.order) - 1 if float(spec.order).is_integer() else 0
         missing = 0.0 if derivatives else item.value
@@ -184,7 +152,7 @@ class DeclaredElement(Element):
             if not name.isidentifier() or name in arguments:
                 error_msg = f'Element {self.label!r} declares {name!r}. Use an identifier that no argument takes.'
                 raise ValidationError(error_msg)
-            if not isinstance(item.spec, StateSpec | ParameterSpec):
+            if not isinstance(item.spec, _StateSpec | _ParameterSpec):
                 error_msg = (
                     f'Element {self.label!r} declares {name!r} with {item.spec!r}. An element declares a variable with '
                     'a StateSpec or a ParameterSpec, and a role belongs to an interaction.'
@@ -201,15 +169,6 @@ class DeclaredElement(Element):
         Returns:
             value:
                 The value of the variable.
-
-        Examples:
-            >>> from skcomplex.core.components.elements import DeclaredElement
-            >>> from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
-            >>> DeclaredElement('cell', variables={'x': DeclaredVariableSpec(1.0, StateSpec())}).get_value('x')
-            1.0
-            >>> element = DeclaredElement('mass', variables={'x': DeclaredVariableSpec(1.0, StateSpec(order=2))})
-            >>> element.get_value('x_d1')
-            0.0
         """
         companions = self._get_companions()
         if name in companions:
@@ -230,16 +189,6 @@ class DeclaredElement(Element):
         Returns:
             element:
                 The element itself.
-
-        Examples:
-            >>> from skcomplex.core.components.elements import DeclaredElement
-            >>> from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
-            >>> element = DeclaredElement('cell', variables={'x': DeclaredVariableSpec(1.0, StateSpec())})
-            >>> element.set_params(label='other', x=2.0).get_value('x')
-            2.0
-            >>> element = DeclaredElement('mass', variables={'x': DeclaredVariableSpec(1.0, StateSpec(order=2))})
-            >>> element.set_params(x_d1=0.5).get_value('x_d1')
-            0.5
         """
         arguments = self.get_params(deep=False)
         super().set_params(**{name: value for name, value in params.items() if name in arguments})
@@ -254,7 +203,7 @@ class DeclaredElement(Element):
                 initial.setdefault(state, self._get_initial(state))[position] = value
         for state, values in initial.items():
             item = changed.get(state, declared[state])
-            if isinstance(item.spec, StateSpec):
+            if isinstance(item.spec, _StateSpec):
                 changed[state] = replace(item, spec=replace(item.spec, initial=tuple(values)))
         if changed:
             super().set_params(variables={**(self.variables or {}), **changed})

@@ -6,7 +6,7 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from ...specs import BaseSpec
+from ...base import BaseSpec
 from ...types import Array
 
 

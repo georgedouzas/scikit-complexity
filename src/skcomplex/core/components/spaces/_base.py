@@ -367,7 +367,7 @@ class BaseSpace(BaseComponent[None, SimpleNamespace]):
         return row[row < self.size_]
 
 
-class BaseTime(BaseComponent[None, SimpleNamespace]):
+class _BaseTime(BaseComponent[None, SimpleNamespace]):
     """An abstract time, which decides the kind of laws a system may hold.
 
     A time stores its arguments in its `__init__`, `prepare` checks them and sets its schedule, and `_get_frames`

@@ -11,9 +11,8 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from .....core.components.elements import Element
+from .....core.components.elements import Element, VisualSpec
 from .....core.components.spaces import BaseSpace
-from .....core.specs import VisualSpec
 
 
 class NetworkNodeElement(Element):

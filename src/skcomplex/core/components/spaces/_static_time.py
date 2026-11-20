@@ -8,10 +8,10 @@ from typing import ClassVar
 import numpy as np
 import numpy.typing as npt
 
-from ._base import BaseTime
+from ._base import _BaseTime
 
 
-class StaticTime(BaseTime):
+class _StaticTime(_BaseTime):
     """A time with no change, in which a run solves constraints and objectives once.
 
     The system holds only algebraic equations, constraints, and objectives, and a run solves them once, with no frames.
@@ -25,11 +25,6 @@ class StaticTime(BaseTime):
     Args:
         label:
             The label of the time in its system.
-
-    Examples:
-        >>> from skcomplex.core.components.spaces import StaticTime
-        >>> StaticTime().prepare().schedule_ is None
-        True
     """
 
     time_tag: ClassVar[str] = 'static'

@@ -10,17 +10,11 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
+from ...base import BaseSpec
 from ...errors import ValidationError
-from ...specs import BaseSpec
 from ...types import IntArray
-from ..spaces import (
-    BaseNeighborhood,
-    BaseSpace,
-    DiscreteTime,
-    LatticeNeighborhood,
-    LatticeSpace,
-    NetworkSpace,
-)
+from ..spaces import BaseNeighborhood, BaseSpace, LatticeNeighborhood, LatticeSpace, NetworkSpace
+from ..spaces._discrete_time import _DiscreteTime
 from ._base import BaseLaw
 from ._linear_rule_spec import LinearRuleSpec
 from ._outer_totalistic_spec import OuterTotalisticSpec
@@ -32,7 +26,7 @@ SCHEDULES = ('synchronous', 'random-sequential', 'random-site', 'checkerboard', 
 TABLE_AXES = 2
 
 
-class LocalRuleLaw(BaseLaw):
+class _LocalRuleLaw(BaseLaw):
     """A law that sets the next value of cells from their ordered neighbourhoods.
 
     A function rule receives one array per neighbour of every read state, in neighbourhood order, with one value per
@@ -81,23 +75,6 @@ class LocalRuleLaw(BaseLaw):
     Raises:
         ValidationError:
             The schedule or the rule spec is invalid, or a run lacks the space or a read state.
-
-    Examples:
-        >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws import LocalRuleLaw
-        >>> from skcomplex.core.components.laws import LinearRuleSpec, TotalisticSpec
-        >>> from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
-        >>> cell = var('cell')
-        >>> box = LatticeNeighborhood(((-1,), (0,), (1,)))
-        >>> LocalRuleLaw(cell, box, TotalisticSpec({2: 1})).prepare().targets_
-        (cell,)
-        >>> parity = LocalRuleLaw(cell, box, TotalisticSpec(lambda total: total % 2)).prepare()
-        >>> parity.run({'space': LatticeSpace(5), 'cell': [0, 0, 1, 0, 0]}).value_.tolist()
-        [0, 1, 1, 1, 0]
-        >>> around = LatticeNeighborhood(((-1,), (1,)))
-        >>> rule90 = LocalRuleLaw(cell, around, LinearRuleSpec((1, 1), 'GF(2)')).prepare()
-        >>> rule90.run({'space': LatticeSpace(6), 'cell': [0, 0, 1, 0, 0, 0]}).value_.tolist()
-        [0, 1, 0, 1, 0, 0]
     """
 
     law_tag: ClassVar[str] = 'update'
@@ -131,7 +108,7 @@ class LocalRuleLaw(BaseLaw):
 
         It requires discrete time on a space of sites, such as a lattice, a network, or a Cayley graph.
         """
-        return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace, NetworkSpace), sites=True)
+        return RequirementSpec(time=(_DiscreteTime,), space=(LatticeSpace, NetworkSpace), sites=True)
 
     def _prepare(self, context: str | None = None) -> None:
         """Raise an error for an unknown schedule or an invalid rule spec.

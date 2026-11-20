@@ -6,7 +6,7 @@
 import math
 from dataclasses import dataclass, field
 
-from ...specs._base_spec import BaseSpec
+from ...base import BaseSpec
 
 
 @dataclass(frozen=True)

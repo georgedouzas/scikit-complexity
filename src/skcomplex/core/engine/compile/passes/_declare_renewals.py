@@ -8,8 +8,8 @@ import re
 import numpy as np
 from sage.all__sagemath_symbolics import NN
 
+from ....components import EntrySpec
 from ....components.laws import BaseLaw
-from ....specs import EntrySpec
 from ..._utils import symbol
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._kernel_spec import KernelSpec

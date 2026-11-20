@@ -6,8 +6,8 @@
 from collections.abc import Mapping
 from dataclasses import dataclass
 
+from .....core.base import BaseSpec
 from .....core.errors import ValidationError
-from .....core.specs import BaseSpec
 
 DEFAULT_BOUND = 1000.0
 

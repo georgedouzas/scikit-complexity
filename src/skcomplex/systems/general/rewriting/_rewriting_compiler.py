@@ -11,7 +11,8 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, Expression
 
-from ....core.components.elements import Element
+from ....core.components import EntrySpec
+from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import BaseInteraction
 from ....core.components.spaces import BaseSpace
 from ....core.engine._utils import declarations_of, default_of, symbol
@@ -19,7 +20,6 @@ from ....core.engine.compile import BaseCompiler, Composite, FlattenPass, IssueS
 from ....core.engine.problems import BaseProblemSpec, CompiledElementSpec, LayoutSpec
 from ....core.enums import FormKind, VariableKind
 from ....core.errors import IncompatibleLawsError, RewritingError, SkcomplexError, ValidationError
-from ....core.specs import EntrySpec, VisualSpec
 from . import _patch, _word
 from ._parameters_spec import _ParametersSpec
 from ._patch_kernel import PatchKernel

@@ -16,6 +16,7 @@ from sage.modules.free_module_element import FreeModuleElement
 from scipy.stats import irwinhall
 
 from ....core.components import Observable
+from ....core.components.elements import VisualSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import coordinate, divergence, integral_transform, integration_variable
@@ -23,7 +24,6 @@ from ....core.components.spaces import AxisSpec, BaseSpace, FiniteVolumeSpec, La
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver
 from ....core.errors import ValidationError
-from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
 from ..common.kinetics import ActivityDensityElement

@@ -9,8 +9,8 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
+from ....core.base import BaseSpec
 from ....core.engine.types import Arrays
-from ....core.specs import BaseSpec
 
 
 @dataclass(frozen=True)

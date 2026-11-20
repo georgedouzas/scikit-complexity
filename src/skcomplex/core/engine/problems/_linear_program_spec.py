@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy import sparse
 
-from ...specs._base_spec import BaseSpec
+from ...base import BaseSpec
 from ...types import Array, Indices
 from ._reference_spec import ReferenceSpec
 

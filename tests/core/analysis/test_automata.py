@@ -15,6 +15,7 @@ from scipy.linalg import circulant
 from sklearn.base import clone
 
 from skcomplex.core.analysis import automaton, entropy
+from skcomplex.core.components import SubshiftSpec
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import (
@@ -30,7 +31,6 @@ from skcomplex.core.components.spaces import (
     RadiusNeighborhood,
 )
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.specs import SubshiftSpec
 from skcomplex.core.systems import System
 from skcomplex.core.types import Role
 from skcomplex.systems.computer_science.automata import lamplighter

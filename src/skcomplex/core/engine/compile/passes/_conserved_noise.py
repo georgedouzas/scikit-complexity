@@ -8,13 +8,13 @@ from collections.abc import Mapping
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 
-from ....components.elements import FieldElement
 from ....components.laws import NoiseLaw
 from ....components.spaces import LatticeSpace
 from ....errors import ValidationError
 from ....types import Indices
 from ...enums import ReadKind
 from ...problems._declarations_spec import DeclarationsSpec
+from ...problems._field_element import _FieldElement
 from ...problems._noise_process_spec import _NoiseProcessSpec
 from ...problems._output_spec import OutputSpec
 from ...problems._reference_spec import ReferenceSpec
@@ -89,13 +89,13 @@ class ConservedNoisePass(BasePass):
         return amplitude
 
     @staticmethod
-    def _check_place(owner: str, reference: ReferenceSpec, place: object) -> tuple[FieldElement, LatticeSpace]:
+    def _check_place(owner: str, reference: ReferenceSpec, place: object) -> tuple[_FieldElement, LatticeSpace]:
         """Return the field a conserved noise drives and its lattice.
 
         An error is raised when there is none.
         """
         if (
-            not isinstance(place, FieldElement)
+            not isinstance(place, _FieldElement)
             or not isinstance(place.space, LatticeSpace)
             or place.space.geometry != 'square'
             or place.discretization != 'finite-difference'
@@ -146,7 +146,7 @@ class ConservedNoisePass(BasePass):
         owner: str,
         law: NoiseLaw,
         targets: list[ReferenceSpec],
-        places: Mapping[str, FieldElement],
+        places: Mapping[str, _FieldElement],
         references: Mapping[Expression, ReferenceSpec],
     ) -> list[OutputSpec]:
         """Return the outputs of a conserved noise law.
@@ -207,7 +207,7 @@ class ConservedNoisePass(BasePass):
     def _is_lattice_field(component: object) -> bool:
         """Check whether a component is a finite-difference field on a square lattice."""
         return (
-            isinstance(component, FieldElement)
+            isinstance(component, _FieldElement)
             and isinstance(component.space, LatticeSpace)
             and component.space.geometry == 'square'
             and component.discretization == 'finite-difference'

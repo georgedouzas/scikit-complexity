@@ -14,15 +14,16 @@ from sage.all__sagemath_symbolics import SR, Expression, matrix, solve
 from sage.structure.element import Matrix
 from scipy import optimize
 
-from ..components.elements import BaseElement, FieldElement
+from ..components.elements import BaseElement
 from ..components.interactions import BaseInteraction
 from ..components.laws import RateLaw
 from ..components.spaces import LatticeSpace
-from ..components.systems import CompositeSystem
 from ..engine._utils import binding_of, bound_labels, components_of, declarations_of, default_of, symbol
 from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import BaseProblemSpec, ProblemSpec
+from ..engine.problems._composite_system import _CompositeSystem
 from ..engine.problems._dynamics_spec import _DynamicsSpec
+from ..engine.problems._field_element import _FieldElement
 from ..enums import DataKind, FormKind, VariableKind
 from ..errors import AnalysisError
 from ..systems import System
@@ -197,7 +198,7 @@ class StabilityResult:
 
     @staticmethod
     def _get_dynamics_of(
-        system: CompositeSystem | BaseProblemSpec,
+        system: _CompositeSystem | BaseProblemSpec,
         parameters: Mapping[str, float] | None = None,
     ) -> _DynamicsSpec:
         """Return the first-order equations of a system.
@@ -330,7 +331,7 @@ def stability(
     _check_choice('stability', 'kind', kind, KINDS)
     _check_settings(stability, 'kind', SETTINGS[kind], kind=kind, parameters=parameters, points=points, at=at)
     if kind == 'dispersion':
-        if not isinstance(system, System) or not isinstance(source, CompositeSystem):
+        if not isinstance(system, System) or not isinstance(source, _CompositeSystem):
             error_msg = f'A dispersion relation is computed from a system, not from {type(system).__name__}.'
             raise AnalysisError(error_msg)
         declared = PassCompiler()._get_declared_system(source)
@@ -473,7 +474,7 @@ def _with_eigenvalue(expression: Expression, eigenvalue: Expression) -> Expressi
     return operator(*[_with_eigenvalue(item, eigenvalue) for item in expression.operands()])
 
 
-def _laplacian_eigenvalues(field: FieldElement, lattice: LatticeSpace, waves: Array) -> Array:
+def _laplacian_eigenvalues(field: _FieldElement, lattice: LatticeSpace, waves: Array) -> Array:
     """Return the eigenvalue of the field's Laplacian at every wave vector.
 
     It is that of its discretization.
@@ -484,7 +485,7 @@ def _laplacian_eigenvalues(field: FieldElement, lattice: LatticeSpace, waves: Ar
     return np.sum((2 * np.cos(waves * spacings) - 2) / spacings**2, axis=1)
 
 
-def _bound_interactions(system: CompositeSystem, field: FieldElement) -> list[BaseInteraction]:
+def _bound_interactions(system: _CompositeSystem, field: _FieldElement) -> list[BaseInteraction]:
     """Return the interactions of a system whose every role binds one field.
 
     An error is raised for another.
@@ -503,12 +504,12 @@ def _bound_interactions(system: CompositeSystem, field: FieldElement) -> list[Ba
     return bound
 
 
-def _single_field(system: CompositeSystem) -> tuple[FieldElement, LatticeSpace, list[BaseInteraction]]:
+def _single_field(system: _CompositeSystem) -> tuple[_FieldElement, LatticeSpace, list[BaseInteraction]]:
     """Return the one field of a system, its periodic lattice, and its interactions.
 
     The interactions are those bound to the field. An error is raised when there is none.
     """
-    fields = [element for element in system.elements if isinstance(element, FieldElement)]
+    fields = [element for element in system.elements if isinstance(element, _FieldElement)]
     if len(fields) != 1 or len(system.elements) != 1 or system.systems:
         error_msg = 'The dispersion relation takes a system of one field on a lattice.'
         raise AnalysisError(error_msg)
@@ -534,7 +535,7 @@ def _add_rate(rates: dict[str, Expression], names: dict[str, Expression], law: o
 
 
 def _linearised_rates(
-    field: FieldElement,
+    field: _FieldElement,
     interactions: Sequence[BaseInteraction],
 ) -> tuple[dict[str, Expression], dict[str, Expression], dict[str, object]]:
     """Return the rate of each state, the state symbols, and the field values.
@@ -598,7 +599,7 @@ def _eigenvalue_terms(entry: Expression, name: str) -> list[tuple[float, int]]:
 
 
 def _dispersion_relation(
-    system: CompositeSystem,
+    system: _CompositeSystem,
     at: Mapping[str, float] | None = None,
 ) -> tuple[Array, Array, Array, Array, dict[str, float]]:
     """Return the wave vectors, lengths, growth rates, frequencies, and uniform state.

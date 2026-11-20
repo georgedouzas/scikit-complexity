@@ -14,7 +14,7 @@ from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.components import Observable
-from skcomplex.core.components.elements import Element, Tensor
+from skcomplex.core.components.elements import Element, Tensor, VisualSpec
 from skcomplex.core.components.interactions import Interaction, WienerProcessSpec
 from skcomplex.core.components.laws import (
     JumpLaw,
@@ -80,7 +80,6 @@ from skcomplex.core.errors import (
     UnregisteredLawError,
     ValidationError,
 )
-from skcomplex.core.specs import VisualSpec
 from skcomplex.core.systems import System
 from skcomplex.core.types import Role
 from skcomplex.systems.biology.common.populations import (

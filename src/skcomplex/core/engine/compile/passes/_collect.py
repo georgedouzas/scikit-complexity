@@ -4,7 +4,7 @@
 # License: MIT
 
 
-from ....components.laws import LinearProgramLaw
+from ....components.laws._linear_program import _LinearProgramLaw
 from .._base import BasePass
 from .._compilation import Compilation
 from ._census import CensusPass
@@ -41,10 +41,10 @@ class CollectPass(BasePass):
             ]
             declared.append((spec, corrected, block))
         compilation.collected = [
-            (spec, [law for law in laws if not isinstance(law, LinearProgramLaw)], block)
+            (spec, [law for law in laws if not isinstance(law, _LinearProgramLaw)], block)
             for spec, laws, block in declared
         ]
         compilation.apart = []
         compilation.programs = [
-            (spec, [law for law in laws if isinstance(law, LinearProgramLaw)]) for spec, laws, _ in declared
+            (spec, [law for law in laws if isinstance(law, _LinearProgramLaw)]) for spec, laws, _ in declared
         ]

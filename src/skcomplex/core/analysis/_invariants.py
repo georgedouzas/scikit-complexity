@@ -11,9 +11,9 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ..components import Observable
-from ..components.systems import CompositeSystem
 from ..engine.compile._observables import ObservableEvaluator
 from ..engine.problems import ProblemSpec
+from ..engine.problems._composite_system import _CompositeSystem
 from ..engine.problems._dynamics_spec import _DynamicsSpec
 from ..enums import DataKind
 from ..errors import AnalysisError
@@ -128,7 +128,7 @@ def invariants(
     _check_inputs(expressions, samples)
     system = _get_system(source)
     declared = _read_system(system)
-    if not isinstance(system, System) or not isinstance(declared, CompositeSystem):
+    if not isinstance(system, System) or not isinstance(declared, _CompositeSystem):
         error_msg = (
             f'Invariants are derived from the interactions of a system, not from {type(declared).__name__}. Give the '
             'system.'

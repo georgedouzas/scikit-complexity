@@ -14,13 +14,13 @@ from typing import ClassVar
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
+from .....core.base import BaseSpec
 from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, UpdateLaw
 from .....core.components.laws.utils import relax
 from .....core.components.spaces import BaseNeighborhood, BaseSpace, LatticeNeighborhood, RadiusNeighborhood
 from .....core.errors import ValidationError
-from .....core.specs import BaseSpec
 from .....core.types import Array, Role
 
 MODES = ('redistribute', 'reset', 'random')

@@ -5,7 +5,7 @@
 
 from dataclasses import dataclass
 
-from ..specs._base_spec import BaseSpec
+from ..base import BaseSpec
 from ..types import IntArray
 
 

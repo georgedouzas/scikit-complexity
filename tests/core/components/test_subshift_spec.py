@@ -2,9 +2,9 @@
 
 import pytest
 
+from skcomplex.core.components import SubshiftSpec
 from skcomplex.core.components.spaces import LatticeNeighborhood
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import SubshiftSpec
 
 PAIR = LatticeNeighborhood(((0,), (1,)))
 

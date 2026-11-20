@@ -17,6 +17,7 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.components import Observable, Tags
 from ....core.components.base import BaseComponent
+from ....core.components.elements import VisualSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import NoiseLaw, RateLaw
 from ....core.components.laws.utils import coordinate, gradient, inverse_helmholtz, maximum_entropy, moment
@@ -24,7 +25,6 @@ from ....core.components.spaces import AxisSpec, BaseSpace, LatticeSpace, PhaseS
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver, SemiLagrangianSolver, SSPRKSolver, StrangSplittingSolver
 from ....core.errors import ValidationError
-from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
 from ...general.kinetics import EncounterInteraction

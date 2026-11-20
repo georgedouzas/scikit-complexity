@@ -74,31 +74,6 @@ class BaseSystem[CompositeT: BaseSystem](BaseComponent[BaseSpace, SimpleNamespac
 
         laws_:
             The laws the system contributes for the namespace of its last run.
-
-    Examples:
-        >>> from typing import Annotated
-        >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.interactions import Interaction
-        >>> from skcomplex.core.components.laws import RateLaw
-        >>> from skcomplex.core.components.systems import BaseSystem, CompositeSystem
-        >>> from skcomplex.core.specs import StateSpec
-        >>> class TankElement(Element):
-        ...     def __init__(self, label, x: Annotated[float, StateSpec()] = 1.0):
-        ...         super().__init__(label)
-        ...         self.x = x
-        >>> class DecaySystem(BaseSystem):
-        ...     def __init__(self, label='decay', k=1.0):
-        ...         super().__init__(label)
-        ...         self.k = k
-        ...
-        ...     def _build_system(self):
-        ...         decay = Interaction(
-        ...             'decay', roles={'target': 'tank'}, laws=lambda s: [RateLaw(s.target.x, -self.k * s.target.x)]
-        ...         )
-        ...         return CompositeSystem(self.label, elements=[TankElement('tank')], interactions=[decay])
-        >>> system = DecaySystem(k=0.5).prepare()
-        >>> system.get_params()
-        {'k': 0.5, 'label': 'decay'}
     """
 
     until: ClassVar[float | None] = None
@@ -205,14 +180,6 @@ class BaseSystem[CompositeT: BaseSystem](BaseComponent[BaseSpace, SimpleNamespac
         Returns:
             settings:
                 The tuned run settings by name.
-
-        Examples:
-            >>> from skcomplex.core.components.systems import BaseSystem, CompositeSystem
-            >>> class EmptySystem(BaseSystem):
-            ...     def _build_system(self):
-            ...         return CompositeSystem(self.label)
-            >>> sorted(EmptySystem('system').get_run_settings())
-            ['backend', 'dt', 'initial_state', 'invariants', 'observables', 'schedule', 'solver', 'until']
         """
         return RunSettings(
             until=self.until,

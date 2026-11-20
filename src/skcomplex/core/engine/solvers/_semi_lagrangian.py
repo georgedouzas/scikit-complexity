@@ -10,7 +10,8 @@ import scipy.fft
 from scipy.ndimage import map_coordinates
 
 from ...components.laws import RateLaw
-from ...components.spaces import ContinuousTime, LatticeSpace, PhaseSpace
+from ...components.spaces import LatticeSpace, PhaseSpace
+from ...components.spaces._continuous_time import _ContinuousTime
 from ...enums import FormKind, OrderKind
 from ...errors import SolverError
 from ...types import Array
@@ -72,7 +73,7 @@ class SemiLagrangianSolver(Solver):
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
-            time={ContinuousTime},
+            time={_ContinuousTime},
             space={PhaseSpace, LatticeSpace},
             laws={RateLaw},
             orders=frozenset({OrderKind.INTEGER}),

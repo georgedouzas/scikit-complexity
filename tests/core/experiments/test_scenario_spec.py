@@ -5,8 +5,8 @@ import dataclasses
 import numpy as np
 import pytest
 
+from skcomplex.core.base import BaseSpec
 from skcomplex.core.experiments import ScenarioSpec, compare_scenarios
-from skcomplex.core.specs import BaseSpec
 from skcomplex.core.systems import System
 from skcomplex.systems.economics.resources import HarvestingSystem
 

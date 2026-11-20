@@ -6,11 +6,12 @@
 import dataclasses
 import re
 
-from ....components.elements import BaseElement, GroupElement
+from ....components.elements import BaseElement
 from ....components.interactions import BaseInteraction
-from ....components.laws import RuleLaw
+from ....components.laws._rule import _RuleLaw
 from ....enums import VariableKind
 from ..._utils import binding_of, bound_labels, declarations_of, probe_laws
+from ...problems._group_element import _GroupElement
 from ...problems._node_spec import _NodeSpec
 from .._base import BasePass
 from .._compilation import Compilation
@@ -49,7 +50,7 @@ class AgentsPass(BasePass):
 
         Its element type has no laws of its own.
         """
-        return isinstance(component, GroupElement) and component.on is None and probe_laws(component) == []
+        return isinstance(component, _GroupElement) and component.on is None and probe_laws(component) == []
 
     @staticmethod
     def _get_bound_paths(node: _NodeSpec) -> set[str]:
@@ -76,13 +77,15 @@ class AgentsPass(BasePass):
         interactions = [
             (node, probe_laws(node.component)) for node in nodes if isinstance(node.component, BaseInteraction)
         ]
-        has_rules = bool(agents) or any(any(isinstance(law, RuleLaw) for law in laws or ()) for _, laws in interactions)
+        has_rules = bool(agents) or any(
+            any(isinstance(law, _RuleLaw) for law in laws or ()) for _, laws in interactions
+        )
         if not has_rules:
             return agents
         bound = {
             path
             for node, laws in interactions
-            if laws is None or not all(isinstance(law, RuleLaw) for law in laws)
+            if laws is None or not all(isinstance(law, _RuleLaw) for law in laws)
             for path in AgentsPass._get_bound_paths(node)
         }
         return agents | {node.path for node in passive if node.path not in bound}
@@ -103,8 +106,8 @@ class AgentsPass(BasePass):
             runs_rules:
                 Whether the component is a variable group, or an element or group whose own laws include a `RuleLaw`.
         """
-        if isinstance(component, GroupElement) and component.variable:
+        if isinstance(component, _GroupElement) and component.variable:
             return True
         if not isinstance(component, BaseElement):
             return False
-        return any(isinstance(law, RuleLaw) for law in probe_laws(component) or [])
+        return any(isinstance(law, _RuleLaw) for law in probe_laws(component) or [])

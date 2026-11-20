@@ -560,7 +560,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import LinearRuleSpec, TableSpec, UpdateLaw
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
-from skcomplex.core.specs import SubshiftSpec
+from skcomplex.core.components import SubshiftSpec
 from skcomplex.core.systems import System
 
 

@@ -9,7 +9,7 @@ from typing import ClassVar
 from sage.all__sagemath_symbolics import Expression
 
 from ...errors import ValidationError
-from ..spaces import ContinuousTime
+from ..spaces._continuous_time import _ContinuousTime
 from ._base import BaseLaw
 from ._requirement_spec import RequirementSpec
 
@@ -81,7 +81,7 @@ class EventLaw(BaseLaw):
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
         """Return what the law requires of a system: continuous time."""
-        return RequirementSpec(time=(ContinuousTime,))
+        return RequirementSpec(time=(_ContinuousTime,))
 
     def _prepare(self, context: str | None = None) -> None:
         """Raise an error for a direction that is not -1, 0, or 1.

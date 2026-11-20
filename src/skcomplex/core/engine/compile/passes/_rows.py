@@ -8,23 +8,16 @@ from dataclasses import replace
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
-from ....components.laws import (
-    BaseLaw,
-    BoundaryLaw,
-    ConstraintLaw,
-    EventLaw,
-    JumpLaw,
-    LinearProgramLaw,
-    NoiseLaw,
-    RateLaw,
-    UpdateLaw,
-)
+from ....components.laws import BaseLaw, ConstraintLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....components.laws._boundary import _BoundaryLaw
 from ....components.laws._flow_term import FlowTermLaw
+from ....components.laws._linear_program import _LinearProgramLaw
 from ....components.laws.utils._cells import cell_operations_in
 from ....components.laws.utils._draws import draws_in
 from ....components.laws.utils._phase import axis_reductions_in
 from ....components.laws.utils._reductions import hyperedges_in, neighborhoods_in, reductions_in
-from ....components.spaces import DiscreteTime, PhaseSpace
+from ....components.spaces import PhaseSpace
+from ....components.spaces._discrete_time import _DiscreteTime
 from ....errors import IncompatibleLawsError, RoleError
 from ..._utils import components_of
 from ...enums import ReadKind
@@ -85,7 +78,7 @@ class RowsPass(BasePass):
         holds update laws or flows of increments, become updates.
         """
         born = compilation.transfer.born if compilation.transfer is not None else {}
-        declared = isinstance(compilation.system.time, DiscreteTime)
+        declared = isinstance(compilation.system.time, _DiscreteTime)
         if not declared and not any(
             (isinstance(law, UpdateLaw) and id(law) not in born) or (isinstance(law, FlowTermLaw) and law.increment)
             for items in laws
@@ -186,7 +179,7 @@ class RowsPass(BasePass):
         """
         if isinstance(law, JumpLaw):
             return [law.rate]
-        if isinstance(law, LinearProgramLaw):
+        if isinstance(law, _LinearProgramLaw):
             return [*law.constraints, *(objective.expression for objective in law.objectives), law.active]
         return [getattr(law, 'value', None)]
 
@@ -242,7 +235,7 @@ class RowsPass(BasePass):
         for law in laws:
             if not isinstance(
                 law,
-                RateLaw | NoiseLaw | BoundaryLaw | UpdateLaw | JumpLaw | ConstraintLaw | EventLaw | RenewalLaw,
+                RateLaw | NoiseLaw | _BoundaryLaw | UpdateLaw | JumpLaw | ConstraintLaw | EventLaw | RenewalLaw,
             ):
                 continue
             values = [value for value in law._get_values(include=RANDOM_FIELDS) if DrawLowering._is_symbolic(value)]

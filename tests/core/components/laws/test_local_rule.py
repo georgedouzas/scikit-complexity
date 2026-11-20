@@ -7,15 +7,16 @@ import pytest
 from sage.all__sagemath_gap import PermutationGroup
 from sage.all__sagemath_symbolics import var
 
-from skcomplex.core.components.laws import LinearRuleSpec, LocalRuleLaw, OuterTotalisticSpec, TableSpec, TotalisticSpec
+from skcomplex.core.components.laws import LinearRuleSpec, OuterTotalisticSpec, TableSpec, TotalisticSpec
+from skcomplex.core.components.laws._local_rule import _LocalRuleLaw
 from skcomplex.core.components.spaces import (
     AdjacencyNeighborhood,
-    ContinuousTime,
-    DiscreteTime,
     LatticeNeighborhood,
     LatticeSpace,
     RadiusNeighborhood,
 )
+from skcomplex.core.components.spaces._continuous_time import _ContinuousTime
+from skcomplex.core.components.spaces._discrete_time import _DiscreteTime
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.computer_science.automata import Wolfram
 from skcomplex.systems.computer_science.common.automata import (
@@ -30,12 +31,12 @@ LIFE = OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1})
 def test_local_rule_targets_one_state_or_several_together():
     """Test that a local rule targets one lattice state, or a tuple of them that it updates together."""
     height, grains = var('height grains')
-    assert LocalRuleLaw(
+    assert _LocalRuleLaw(
         height,
         LatticeNeighborhood(((-1,), (0,), (1,))),
         TotalisticSpec({2: 1}),
     ).prepare().targets_ == (height,)
-    together = LocalRuleLaw(
+    together = _LocalRuleLaw(
         (height, grains),
         LatticeNeighborhood(((-1,), (0,), (1,))),
         lambda z, *n: (z, z),
@@ -45,21 +46,21 @@ def test_local_rule_targets_one_state_or_several_together():
 
 def test_local_rule_requires_discrete_time_on_sites():
     """Test that a local rule runs in discrete time on a lattice, a network, or another space with sites."""
-    requirements = LocalRuleLaw(
+    requirements = _LocalRuleLaw(
         var('cell'),
         LatticeNeighborhood(((-1,), (0,), (1,))),
         TotalisticSpec({2: 1}),
     )._get_requirements()
-    assert requirements.time == (DiscreteTime,)
+    assert requirements.time == (_DiscreteTime,)
     assert LatticeSpace in requirements.space
     assert requirements.sites
-    assert ContinuousTime not in requirements.time
+    assert _ContinuousTime not in requirements.time
 
 
 def test_local_rule_rejects_an_unknown_schedule():
     """Test that a local rule rejects a schedule it does not know."""
     with pytest.raises(ValidationError, match='Unknown schedule'):
-        LocalRuleLaw(
+        _LocalRuleLaw(
             var('cell'),
             LatticeNeighborhood(((-1,), (0,), (1,))),
             TotalisticSpec({2: 1}),
@@ -69,7 +70,7 @@ def test_local_rule_rejects_an_unknown_schedule():
 
 def _run(rule, neighborhood, space, configuration):
     """Return one step of a local rule on a space."""
-    law = LocalRuleLaw(var('alive'), neighborhood, rule).prepare()
+    law = _LocalRuleLaw(var('alive'), neighborhood, rule).prepare()
     return law.run({'space': space, 'alive': configuration}).value_
 
 
@@ -228,17 +229,17 @@ def test_run_function_rule_reads_keywords_and_sets_several_targets():
     """Test that a function rule reads the keywords of the input, and returns one array per target."""
     height, grains = var('height grains')
     own = LatticeNeighborhood(((0,),))
-    reading = LocalRuleLaw((height, grains), own, lambda x, y: (x + y, x - y), reads=(height, grains))
+    reading = _LocalRuleLaw((height, grains), own, lambda x, y: (x + y, x - y), reads=(height, grains))
     first, second = reading.prepare().run({'space': LatticeSpace(2), 'height': [1, 2], 'grains': [3, 5]}).value_
     assert first.tolist() == [4, 7]
     assert second.tolist() == [-2, -3]
-    scaled = LocalRuleLaw(var('cell'), LatticeNeighborhood(((0,),)), lambda x, *, scale: x * scale).prepare()
+    scaled = _LocalRuleLaw(var('cell'), LatticeNeighborhood(((0,),)), lambda x, *, scale: x * scale).prepare()
     assert scaled.run({'space': LatticeSpace(2), 'cell': [1, 2], 'scale': 0.5}).value_.tolist() == [0.5, 1.0]
 
 
 def test_run_rejects_invalid_inputs_and_rules():
     """Test that a run without the space or a state, or with an unknown rule or coefficients, raises an error."""
-    law = LocalRuleLaw(var('cell'), LatticeNeighborhood(((-1,), (0,), (1,))), Wolfram(90)).prepare()
+    law = _LocalRuleLaw(var('cell'), LatticeNeighborhood(((-1,), (0,), (1,))), Wolfram(90)).prepare()
     with pytest.raises(ValidationError, match='runs on a mapping'):
         law.run({'cell': [0, 1, 0]})
     with pytest.raises(ValidationError, match='runs on a mapping'):
@@ -248,7 +249,7 @@ def test_run_rejects_invalid_inputs_and_rules():
     with pytest.raises(ValidationError, match='not a linear rule of 3 neighbours'):
         _run(LinearRuleSpec((1,)), LatticeNeighborhood(((-1,), (0,), (1,))), LatticeSpace(3), [0, 1, 0])
     with pytest.raises(ValidationError, match='Unknown field'):
-        LocalRuleLaw(
+        _LocalRuleLaw(
             var('cell'),
             LatticeNeighborhood(((-1,), (0,), (1,))),
             LinearRuleSpec((1, 1, 1), 'GF(x)'),

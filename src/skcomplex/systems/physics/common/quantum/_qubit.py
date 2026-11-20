@@ -11,8 +11,7 @@ from typing import Annotated
 import qutip
 from sage.all__sagemath_symbolics import CC
 
-from .....core.components.elements import Element
-from .....core.specs import VisualSpec
+from .....core.components.elements import Element, VisualSpec
 from ._hilbert_spec import HilbertSpec
 
 QUBIT = HilbertSpec(

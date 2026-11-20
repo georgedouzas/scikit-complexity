@@ -9,7 +9,7 @@ import rerun as rr
 import rerun.blueprint as rrb
 from sage.all__sagemath_symbolics import I
 
-from skcomplex.core.components.elements import Element
+from skcomplex.core.components.elements import Element, VisualSpec
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, TopologyRequestSpec, UpdateLaw
 from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
@@ -24,7 +24,6 @@ from skcomplex.core.engine.viz import (
     SiteVisual,
 )
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import VisualSpec
 from skcomplex.core.systems import System
 from skcomplex.systems.biology.collective_behaviour import BoidsSystem
 from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement

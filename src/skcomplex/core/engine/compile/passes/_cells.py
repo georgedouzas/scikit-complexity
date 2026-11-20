@@ -6,11 +6,12 @@
 import numpy as np
 import scipy.sparse
 
-from ....components.elements import DeclaredElement, GroupElement
 from ....components.spaces import CellComplexSpace, LatticeSpace
 from ....errors import SpaceError
 from ....types import Array
 from ...problems._declarations_spec import DeclarationsSpec
+from ...problems._declared_element import _DeclaredElement
+from ...problems._group_element import _GroupElement
 
 DEGREES = {'sites': 0, 'edges': 1, 'hyperedges': 2}
 PARTS = tuple(DEGREES)
@@ -33,7 +34,7 @@ class CellTables:
             component = block.node.component
             if (
                 block.node.space is not space
-                or not isinstance(component, GroupElement)
+                or not isinstance(component, _GroupElement)
                 or component.on != PARTS[degree]
             ):
                 continue
@@ -41,7 +42,7 @@ class CellTables:
             if STAR_PARAMETER in member._get_component_specs():
                 weights = (
                     member.get_value(STAR_PARAMETER)
-                    if isinstance(member, DeclaredElement)
+                    if isinstance(member, _DeclaredElement)
                     else getattr(member, STAR_PARAMETER)
                 )
                 return np.broadcast_to(np.asarray(weights, dtype=float), (block.rows,))

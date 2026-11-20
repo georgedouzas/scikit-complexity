@@ -8,14 +8,14 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping, Sequence
 
-from ..components import Observable
+from ..components import EntrySpec, Observable
 from ..components.base import BaseComponent
 from ..components.elements import BaseElement
 from ..components.interactions import BaseInteraction
 from ..components.spaces import BaseSpace
-from ..components.systems import CompositeSystem
 from ..engine.backends import BaseBackend, JaxBackend, NumbaBackend, NumpyBackend
 from ..engine.problems import BaseProblemSpec, LayoutSpec, ProblemSpec
+from ..engine.problems._composite_system import _CompositeSystem
 from ..engine.problems._neighborhood_kernel import NeighborhoodKernel
 from ..engine.problems._reduction_kernel import ReductionKernel
 from ..engine.problems._rule_kernel import RuleKernel
@@ -23,7 +23,6 @@ from ..engine.runtime import compile_problem
 from ..engine.solvers import BaseSolver, MetropolisSolver
 from ..enums import FormKind
 from ..errors import ValidationError
-from ..specs import EntrySpec
 from ._base import AUTO, BaseSystem
 
 SETTINGS = ('space', 'solver', 'backend')
@@ -122,14 +121,14 @@ class System(BaseSystem):
         """Return the elements, interactions, and nested systems, addressed by label."""
         return [*self.elements, *self.interactions, *self.systems]
 
-    def _get_composite(self) -> CompositeSystem:
+    def _get_composite(self) -> _CompositeSystem:
         """Return the composite that the engine compiles.
 
         A nested system of this kind is replaced by its own composite, which keeps its solver, and any other nested
         system is kept as it is.
         """
         systems = [system._get_composite() if isinstance(system, BaseSystem) else system for system in self.systems]
-        return CompositeSystem(
+        return _CompositeSystem(
             self.label,
             elements=list(self.elements),
             interactions=list(self.interactions),

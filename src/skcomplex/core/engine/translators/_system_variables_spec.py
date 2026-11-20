@@ -21,7 +21,7 @@ from pysd.translators.structures.abstract_expressions import (
 )
 from pysd.translators.structures.abstract_model import AbstractComponent
 
-from ...specs import BaseSpec
+from ...base import BaseSpec
 
 DELAYS = (DelayStructure, DelayNStructure, SmoothStructure, SmoothNStructure)
 

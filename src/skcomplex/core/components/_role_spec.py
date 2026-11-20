@@ -5,11 +5,11 @@
 
 from dataclasses import dataclass
 
+from ..base import BaseSpec
 from ..enums import ElementKind
 from ..errors import ValidationError
-from ._base_spec import BaseSpec
-from ._parameter_spec import ParameterSpec
-from ._state_spec import StateSpec
+from ._parameter_spec import _ParameterSpec
+from ._state_spec import _StateSpec
 
 
 @dataclass(frozen=True)
@@ -46,7 +46,7 @@ class RoleSpec(BaseSpec):
             none, such as `('real', 'integer')`. Empty accepts any domain.
 
     Examples:
-        >>> from skcomplex.core.specs import RoleSpec
+        >>> from skcomplex.core.components import RoleSpec
         >>> from skcomplex.core.enums import ElementKind
         >>> RoleSpec(variadic=True).variadic
         True
@@ -89,4 +89,4 @@ class RoleSpec(BaseSpec):
         return not self.elements or ElementKind.ANY in self.elements or kind in self.elements
 
 
-type Spec = StateSpec | ParameterSpec | RoleSpec
+type _Spec = _StateSpec | _ParameterSpec | RoleSpec

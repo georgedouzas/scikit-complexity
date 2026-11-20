@@ -5,10 +5,10 @@
 
 from typing import ClassVar
 
-from ._base import BaseTime
+from ._base import _BaseTime
 
 
-class ContinuousTime(BaseTime):
+class _ContinuousTime(_BaseTime):
     """A time that flows continuously, in which rates and events change the states.
 
     The laws it accepts are rates, noise, implicit equations, random jumps, and crossings of a guard. A solver
@@ -23,11 +23,6 @@ class ContinuousTime(BaseTime):
     Args:
         label:
             The label of the time in its system.
-
-    Examples:
-        >>> from skcomplex.core.components.spaces import ContinuousTime
-        >>> ContinuousTime().prepare().schedule_ is None
-        True
     """
 
     time_tag: ClassVar[str] = 'continuous'

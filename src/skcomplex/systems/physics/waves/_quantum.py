@@ -17,7 +17,7 @@ from sage.all__sagemath_symbolics import CC, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.elements import Element
+from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import laplacian, local_operator
@@ -25,7 +25,6 @@ from ....core.components.spaces import BaseSpace, LatticeSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, ETDRK4Solver
 from ....core.errors import ValidationError
-from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
 from ..common.quantum import DissipatorLaw, GeneratorLaw, HilbertSpec

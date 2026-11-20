@@ -9,7 +9,7 @@ import numpy as np
 from scipy.optimize import Bounds, minimize
 
 from ...components.laws import ConstraintLaw, ObjectiveLaw, RateLaw
-from ...components.spaces import ContinuousTime
+from ...components.spaces._continuous_time import _ContinuousTime
 from ...enums import OrderKind
 from ...errors import SolverError, ValidationError
 from ...types import Array
@@ -112,7 +112,7 @@ class CollocationSolver(OptimalControlSolver):
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
-            time={ContinuousTime},
+            time={_ContinuousTime},
             space={None},
             laws={RateLaw, ConstraintLaw, ObjectiveLaw},
             orders=frozenset({OrderKind.INTEGER}),

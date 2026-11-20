@@ -8,9 +8,9 @@ from collections.abc import Callable, Mapping
 import numpy as np
 import numpy.typing as npt
 
+from ...components import EntrySpec
 from ...components.laws import EDGE_KINDS, JumpLaw, TopologyRequestSpec, UpdateLaw
 from ...errors import ValidationError
-from ...specs import EntrySpec
 from ...types import Array, Indices, Pair
 from ._base import BaseKernel
 from ._capacity_rows_spec import _CapacityRowsSpec

@@ -333,7 +333,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
-from skcomplex.core.specs import PowerSeriesSpec
+from skcomplex.core.components import PowerSeriesSpec
 from skcomplex.core.systems import System
 from skcomplex.systems.computer_science.automata import SelfIndexedShiftSystem
 

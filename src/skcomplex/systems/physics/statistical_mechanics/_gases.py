@@ -11,11 +11,11 @@ from collections.abc import Sequence
 import numpy as np
 
 from ....core.components import Observable
+from ....core.components.elements import VisualSpec
 from ....core.components.interactions import BaseInteraction
 from ....core.components.spaces import ContinuousSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, VelocityVerletSolver
-from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ..common.particles import LangevinThermostatInteraction, LennardJonesInteraction, MassPointElement
 

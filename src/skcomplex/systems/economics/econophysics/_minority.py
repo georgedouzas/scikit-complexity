@@ -12,6 +12,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, ZZ
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
+from ....core.base import BaseSpec
 from ....core.components import Observable
 from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
@@ -22,7 +23,6 @@ from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
 from ....core.engine.solvers import BaseSolver, MesaSolver, SystemView
-from ....core.specs import BaseSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import IntArray, Role
 from ...general.agents import ChoiceInteraction, EvolutionInteraction

@@ -12,15 +12,12 @@ import numpy as np
 import scipy.sparse
 from scipy.integrate import BDF, DOP853, LSODA, RK23, RK45, OdeSolver, Radau
 
-from ...components.laws import (
-    BoundaryLaw,
-    ConstraintLaw,
-    EventLaw,
-    LinearProgramLaw,
-    RateLaw,
-    TransferLaw,
-)
-from ...components.spaces import BaseSpace, ContinuousTime
+from ...components.laws import ConstraintLaw, EventLaw, RateLaw
+from ...components.laws._boundary import _BoundaryLaw
+from ...components.laws._linear_program import _LinearProgramLaw
+from ...components.laws._transfer import _TransferLaw
+from ...components.spaces import BaseSpace
+from ...components.spaces._continuous_time import _ContinuousTime
 from ...enums import FormKind, OrderKind
 from ...errors import SolverError
 from ...types import Array
@@ -131,15 +128,15 @@ class ScipyODESolver(Solver):
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
-            time={ContinuousTime},
+            time={_ContinuousTime},
             space={None, BaseSpace},
             laws={
-                LinearProgramLaw,
+                _LinearProgramLaw,
                 RateLaw,
                 ConstraintLaw,
                 EventLaw,
-                BoundaryLaw,
-                TransferLaw,
+                _BoundaryLaw,
+                _TransferLaw,
                 BilinearLaw,
             },
             orders=frozenset({OrderKind.INTEGER}),

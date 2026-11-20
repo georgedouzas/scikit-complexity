@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 
 from sage.all__sagemath_symbolics import Expression
 
-from ...specs._base_spec import BaseSpec
+from ...base import BaseSpec
 from ...types import Indices
 from ..types import NumericFunction
 from ._noise_process_spec import _NoiseProcessSpec

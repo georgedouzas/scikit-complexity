@@ -10,7 +10,7 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from ...specs._base_spec import BaseSpec
+from ...base import BaseSpec
 from ._expression_printer import ExpressionPrinter
 from ._reference_spec import ReferenceSpec
 

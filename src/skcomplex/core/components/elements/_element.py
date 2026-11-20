@@ -17,7 +17,11 @@ from sage.all__sagemath_symbolics import CC, RR, ZZ
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ...errors import ValidationError
-from ...specs import MatrixGroupSpec, ParameterSpec, PowerSeriesSpec, StateSpec, SubshiftSpec
+from .._matrix_group_spec import MatrixGroupSpec
+from .._parameter_spec import _ParameterSpec
+from .._power_series_spec import PowerSeriesSpec
+from .._state_spec import _StateSpec
+from .._subshift_spec import SubshiftSpec
 from .._tags import Tags
 from ..base import BaseComponent
 from ..spaces import BaseSpace, NetworkSpace
@@ -166,7 +170,7 @@ class Element(BaseElement):
         A value named `on` that the element declares as its own state or parameter names no place. The space is the
         element's own, or else that of its system.
         """
-        if isinstance(type(self)._get_specs().get('on'), StateSpec | ParameterSpec):
+        if isinstance(type(self)._get_specs().get('on'), _StateSpec | _ParameterSpec):
             return
         on = getattr(self, 'on', None)
         if on is None or (isinstance(space, NetworkSpace) and (on in LINKS or on in space.prepare().graphs_)):
@@ -222,7 +226,7 @@ class Element(BaseElement):
         values |= {name: value for name, value in (self.values or {}).items() if name.isidentifier()}
         hints = self._get_hints()
         domains = {
-            StateSpec(domain=self._get_domain_of(hints.get(name, inspect.Parameter.empty), value))._get_domain_tag()
+            _StateSpec(domain=self._get_domain_of(hints.get(name, inspect.Parameter.empty), value))._get_domain_tag()
             for name, value in values.items()
             if isinstance(value, numbers.Number | list | np.ndarray)
         }

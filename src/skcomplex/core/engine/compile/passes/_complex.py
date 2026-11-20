@@ -10,17 +10,8 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, I, arctan2, sqrt
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....components.laws import (
-    BaseLaw,
-    BoundaryLaw,
-    CallSpec,
-    ConstraintLaw,
-    EventLaw,
-    JumpLaw,
-    NoiseLaw,
-    RateLaw,
-    UpdateLaw,
-)
+from ....components.laws import BaseLaw, CallSpec, ConstraintLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....components.laws._boundary import _BoundaryLaw
 from ....errors import ValidationError
 from ..._utils import components_of
 from ...types import Parts
@@ -332,7 +323,7 @@ class LowerComplexPass(BasePass):
 
     @staticmethod
     def _split_assignment(
-        law: RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw,
+        law: RateLaw | NoiseLaw | UpdateLaw | _BoundaryLaw,
         owner: str,
         state_of: Callable[[Expression], str],
     ) -> list[BaseLaw]:
@@ -457,7 +448,7 @@ class LowerComplexPass(BasePass):
         """
         if isinstance(law, AGENT_LAWS) or not any(LowerComplexPass._has_complex(item) for item in law._get_values()):
             return [law]
-        if isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
+        if isinstance(law, RateLaw | NoiseLaw | UpdateLaw | _BoundaryLaw):
             return LowerComplexPass._split_assignment(law, owner, state_of)
         if isinstance(law, EventLaw):
             return [LowerComplexPass._split_event(law, owner, state_of)]

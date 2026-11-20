@@ -9,8 +9,8 @@ from dataclasses import dataclass
 
 from sage.all__sagemath_symbolics import Expression
 
+from ...base import BaseSpec
 from ...components.laws import NoiseLaw
-from ...specs._base_spec import BaseSpec
 from ._kernel_spec import KernelSpec
 
 

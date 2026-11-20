@@ -18,7 +18,7 @@ from scipy.optimize import minimize_scalar
 from scipy.special import rel_entr
 
 from ....core.components import Observable
-from ....core.components.elements import Element
+from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace, LatticeSpace
@@ -28,7 +28,6 @@ from ....core.engine.runtime import Trajectory
 from ....core.engine.solvers import BaseSolver
 from ....core.engine.viz import PointsVisual
 from ....core.errors import AnalysisError, ValidationError
-from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
 from ..._extras import import_extra
