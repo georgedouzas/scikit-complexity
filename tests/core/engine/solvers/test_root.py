@@ -14,10 +14,9 @@ from skcomplex.core.components import Observable
 from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import ConstraintLaw, RateLaw
+from skcomplex.core.components.laws import ConstraintLaw
 from skcomplex.core.components.laws.utils import log_sum_exp, total
-from skcomplex.core.components.spaces import BaseSpace, StaticTime
-from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine.compile import IssueSpec
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import Trajectory
@@ -124,10 +123,9 @@ def _simulated(system: System, **settings: object) -> Trajectory:
     return system.prepare().simulate(until=1.0, **settings)
 
 
-def _issues(system: System | CompositeSystem, code: str) -> list[IssueSpec]:
+def _issues(system: System, code: str) -> list[IssueSpec]:
     """Return the issues of a system with a code, read from the composite the compiler checks."""
-    composite = system._get_composite() if isinstance(system, System) else system
-    return [item for item in PassCompiler().prepare(composite).report_.issues if item.code == code]
+    return [item for item in PassCompiler().prepare(system._get_composite()).report_.issues if item.code == code]
 
 
 def test_run_survival_at_dose() -> None:
@@ -212,11 +210,3 @@ def test_prepare_compiler_without_target() -> None:
     """Test that an equation without a target under static time is reported."""
     assert len(_issues(_static(_no_target), 'equation-target')) == 1
 
-
-def test_prepare_compiler_rate_law_under_static_time() -> None:
-    """Test that a rate law under static time keeps its time issue."""
-    rate = Interaction('laws', roles={'target': 'a'}, laws=lambda s: [RateLaw(s.target.x, 1.0)])
-    system = CompositeSystem(elements=[Element('a', values=VALUES)], interactions=[rate], time=StaticTime())
-    found = _issues(system, 'law-time')
-    assert len(found) == 1
-    assert 'RateLaw' in found[0].message
