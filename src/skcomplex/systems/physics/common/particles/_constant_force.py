@@ -38,8 +38,6 @@ class ConstantForceInteraction(Interaction):
         state:
             The name of the position of the target.
 
-        divisor:
-            The name of the mass of the target.
 
     Examples:
         >>> import numpy as np
@@ -62,13 +60,11 @@ class ConstantForceInteraction(Interaction):
         target: Role,
         F: npt.ArrayLike = 0.0,
         state: str = 'x',
-        divisor: str = 'm',
     ) -> None:
         super().__init__(label)
         self.target = target
         self.F = F
         self.state = state
-        self.divisor = divisor
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Set the acceleration of the position of the target.
@@ -84,4 +80,4 @@ class ConstantForceInteraction(Interaction):
             force = context.F
             if isinstance(x, FreeModuleElement) and not isinstance(force, FreeModuleElement):
                 force = vector(SR, [force] * len(x))
-            self.laws_ = [RateLaw(x.diff(t, 2), force / getattr(target, self.divisor))]
+            self.laws_ = [RateLaw(x.diff(t, 2), force / target.m)]

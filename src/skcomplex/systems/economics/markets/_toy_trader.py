@@ -8,7 +8,7 @@ Traders with money and toys buy the cheapest toy they can see.
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
@@ -17,8 +17,9 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.errors import ValidationError
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
@@ -33,7 +34,7 @@ PRICE_UP, PRICE_DOWN, LOWEST_PRICE = 1.0101, 0.99, 0.5
 COPY = 0.5
 
 
-class ToyTraderView(AgentView):
+class ToyTraderView(AgentViewProtocol, Protocol):
     """Trader as the market sees it: its place, money, goods, prices, and pricing rule."""
 
     x: float
@@ -131,11 +132,6 @@ class ToyTraderElement(Element):
         self.blackboard_price = blackboard_price
         self.price_up = price_up
         self.price_down = price_down
-
-    @classmethod
-    def _get_view(cls) -> type[ToyTraderView]:
-        """Return the view of the agents of the element."""
-        return ToyTraderView
 
 
 class ToyMarketInteraction(PolicyRuleInteraction[SystemView]):
@@ -325,7 +321,7 @@ class ToyMarketInteraction(PolicyRuleInteraction[SystemView]):
             system:
                 The system view of the market.
         """
-        traders = sorted(system.get_agents('traders', ToyTraderView), key=lambda trader: trader.id)
+        traders = sorted(cast(list[ToyTraderView], system.get_agents('traders')), key=lambda trader: trader.id)
         prices_of = ('toy_price', 'crayon_price', 'blackboard_price')
         state = {
             'places': np.array([[trader.x, trader.y] for trader in traders]),

@@ -14,7 +14,7 @@ from ...enums import ElementKind, MoveKind
 from ...errors import ValidationError
 from ...specs import BaseSpec, ParameterSpec, RoleSpec
 from .._tags import Tags
-from ..laws import ArrayUpdateLaw, BaseLaw, MoveSpec, ObjectiveSpec, SampleLaw, SamplerSpec
+from ..laws import BaseLaw, MoveSpec, ObjectiveSpec, SampleLaw, SamplerSpec, UpdateLaw
 from ..spaces import BaseNeighborhood, BaseSpace, RadiusNeighborhood
 from ._interaction import Interaction
 
@@ -152,7 +152,7 @@ class SamplingInteraction(Interaction):
         The drives are of a declared score, which draw.
         """
         sweep = callable(self._get_argument('objective'))
-        return self._get_variant_tags((SampleLaw,) if sweep else (ArrayUpdateLaw,), stochastic=True)
+        return self._get_variant_tags((SampleLaw,) if sweep else (UpdateLaw,), stochastic=True)
 
     def __init__(
         self,

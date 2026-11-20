@@ -61,6 +61,7 @@ from ...problems._node_spec import _NodeSpec
 from ...problems._pair_search import PairSearch
 from ...problems._problem_spec import ProblemSpec
 from ...problems._topology_kernel import TopologyKernel
+from .._array_update_law import ArrayUpdateLaw
 from .._base import BasePass
 from .._census_record_spec import _CensusRecordSpec
 from .._census_spec import _CensusSpec
@@ -895,20 +896,36 @@ class CensusPass(BasePass):
                 raise TensorSymmetryError(error_msg)
 
     @staticmethod
+    def _get_array_update(law: BaseLaw) -> BaseLaw:
+        """Return the array update of an update law of a whole array, or the law itself.
+
+        Such a law, such as `UpdateLaw(s.target.height, drop)`, gives a NumPy function of the whole array its state.
+        """
+        function = law.value if isinstance(law, UpdateLaw) else None
+        if not isinstance(law, UpdateLaw) or not law._is_array_update() or not callable(function):
+            return law
+        return ArrayUpdateLaw(law.target, function, label=law.label, score=law.score)
+
+    @staticmethod
     def _get_relaxation(law: BaseLaw) -> BaseLaw:
         """Return the relaxation law of an update law of a relaxation, or the law itself.
 
-        A rule of the relaxation that is an update law with a neighbourhood runs as the local rule it stands for.
+        A rule of the relaxation that is an update law with a neighbourhood runs as the local rule it stands for, and
+        a drive or a rule that updates a whole array by a function as an array update.
         """
         relaxation = relaxation_of(law.value) if isinstance(law, UpdateLaw) else None
         if relaxation is None:
-            return law
+            return CensusPass._get_array_update(law)
         rules = tuple(
-            rule._get_local_rule() if isinstance(rule, UpdateLaw) and rule.neighborhood is not None else rule
+            (
+                rule._get_local_rule()
+                if isinstance(rule, UpdateLaw) and rule.neighborhood is not None
+                else CensusPass._get_array_update(rule)
+            )
             for rule in relaxation.rules
         )
         return RelaxationLaw(
-            relaxation.drive,
+            tuple(CensusPass._get_array_update(item) for item in relaxation.drive),
             rules,
             relaxation.stable,
             relaxation.max_iterations,

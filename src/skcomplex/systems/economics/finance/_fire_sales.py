@@ -8,7 +8,7 @@ Their sales depress the prices of common assets.
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
@@ -17,8 +17,9 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.errors import ValidationError
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
@@ -29,7 +30,7 @@ from ..common.policy import PolicyRuleInteraction
 SELLING_RULES = ('threshold', 'leverage')
 
 
-class MarketAssetView(AgentView):
+class MarketAssetView(AgentViewProtocol, Protocol):
     """Asset as the fire sales see it: its price and the share of it liquidated."""
 
     price: float
@@ -71,11 +72,6 @@ class MarketAssetElement(Element):
         super().__init__(label, size=size)
         self.price = price
         self.liquidated = liquidated
-
-    @classmethod
-    def _get_view(cls) -> type[MarketAssetView]:
-        """Return the view of the agents of the element."""
-        return MarketAssetView
 
 
 class FireSaleInteraction(PolicyRuleInteraction[SystemView]):
@@ -177,8 +173,8 @@ class FireSaleInteraction(PolicyRuleInteraction[SystemView]):
             system:
                 The system view of the fire sales.
         """
-        banks = sorted(system.get_agents('banks', BalanceSheetView), key=lambda bank: bank.id)
-        assets = sorted(system.get_agents('assets', MarketAssetView), key=lambda asset: asset.id)
+        banks = sorted(cast(list[BalanceSheetView], system.get_agents('banks')), key=lambda bank: bank.id)
+        assets = sorted(cast(list[MarketAssetView], system.get_agents('assets')), key=lambda asset: asset.id)
         initial = np.asarray(self.holdings, dtype=float)
         holdings = np.asarray(system.storage.get('holdings', initial))
         prices = np.array([asset.price for asset in assets])

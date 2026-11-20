@@ -9,7 +9,7 @@ The module covers active Brownian, chiral, Ornstein-Uhlenbeck, run-and-tumble, a
 import math
 from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol
 
 import numpy as np
 from sage.all__sagemath_symbolics import SR, cos, oo, sin, sqrt, vector
@@ -20,8 +20,9 @@ from ....core.components.elements import Element, Period
 from ....core.components.interactions import Interaction
 from ....core.components.laws import NoiseLaw, RateLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace, ContinuousSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, EulerMaruyamaSolver, SystemView
+from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
@@ -382,7 +383,7 @@ class OrnsteinUhlenbeckPropulsionInteraction(Interaction):
             ]
 
 
-class TumblerView(AgentView):
+class TumblerView(AgentViewProtocol, Protocol):
     """Run-and-tumble agent as rules see it.
 
     The agent has its direction and the parameters of its group.
@@ -465,11 +466,6 @@ class TumblerElement(Element):
         self.speed = speed
         self.tumble_rate = tumble_rate
         self.width = width
-
-    @classmethod
-    def _get_view(cls) -> type:
-        """Return the class of the views of the element's agents."""
-        return TumblerView
 
 
 class RunAndTumbleInteraction(Interaction):

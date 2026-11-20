@@ -23,6 +23,7 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace
+from ....core.components.types import Target
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, VelocityVerletSolver
 from ....core.systems import BaseSystem, System
@@ -105,9 +106,9 @@ class PotentialEnergyInteraction(GradientInteraction):
 
     Its force on every particle changes its velocity.
 
-    It is the gradient of the energy with the mass as divisor: the force `-dU/dx` on every particle gives the second
-    derivative of its position of order 2, the force divided by its mass. A subclass binds one role per particle and
-    returns the energy from `_get_potential`, or a user passes the energy as `potential`.
+    The force `-dU/dx` on every particle, divided by its mass `m`, gives the second derivative of its position,
+    `x'' = -dU/dx / m`. A subclass binds one role per particle and returns the energy from `_get_potential`, or a user
+    passes the energy as `potential`.
 
     Args:
         label:
@@ -122,17 +123,16 @@ class PotentialEnergyInteraction(GradientInteraction):
         states:
             The name of the vector state that holds the position of every particle.
 
-        divisor:
-            The name of the state or parameter that holds the mass of every particle.
-
     Examples:
-        >>> from types import SimpleNamespace
-        >>> from sage.all__sagemath_symbolics import var, vector
+        >>> import numpy as np
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.physics.waves import PotentialEnergyInteraction
-        >>> ball = SimpleNamespace(x=vector([var('x')]), m=2)
+        >>> ball = Element('ball', values={'x': np.array([1.0]), 'm': 2.0})
         >>> trap = PotentialEnergyInteraction('trap', target='ball', potential=lambda s: s.target.x[0] ** 2)
-        >>> [law.value for law in trap.prepare(SimpleNamespace(target=ball)).laws_]
-        [(-x)]
+        >>> system = System(elements=[ball], interactions=[trap]).prepare()
+        >>> round(float(system.simulate(until=np.pi, dt=np.pi).get_values('ball.x')[-1][0]), 3)
+        -1.0
     """
 
     def __init__(
@@ -142,9 +142,12 @@ class PotentialEnergyInteraction(GradientInteraction):
         target: Role,
         potential: Callable[[SimpleNamespace], object] | None = None,
         states: str | tuple[str, ...] = 'x',
-        divisor: str = 'm',
     ) -> None:
-        super().__init__(label, target=target, states=states, potential=potential, divisor=divisor, order=2)
+        super().__init__(label, target=target, states=states, potential=potential)
+
+    def _get_rate_law(self, state: Target, rate: object, member: SimpleNamespace, time: Expression) -> RateLaw:
+        """Return Newton's law of a position, `x'' = -dU/dx / m`."""
+        return RateLaw(state.diff(time, 2), rate / member.m)
 
 
 class HarmonicPotentialInteraction(PotentialEnergyInteraction):
@@ -168,9 +171,6 @@ class HarmonicPotentialInteraction(PotentialEnergyInteraction):
         states:
             The name of the vector state that holds the position of the particle.
 
-        divisor:
-            The name of the state or parameter that holds the mass of the particle.
-
     Examples:
         >>> from skcomplex.systems.physics.waves import HarmonicPotentialInteraction
         >>> HarmonicPotentialInteraction('trap', target='ball', k=2.0).k
@@ -185,9 +185,8 @@ class HarmonicPotentialInteraction(PotentialEnergyInteraction):
         k: Annotated[float, RealSet.open(0, oo)] = 1.0,
         center: npt.ArrayLike = 0.0,
         states: str = 'x',
-        divisor: str = 'm',
     ) -> None:
-        super().__init__(label, target=target, states=states, divisor=divisor)
+        super().__init__(label, target=target, states=states)
         self.k = k
         self.center = center
 
@@ -237,8 +236,6 @@ class SpringInteraction(PotentialEnergyInteraction):
         states:
             The name of the vector state that holds the positions of the particles.
 
-        divisor:
-            The name of the state or parameter that holds the masses of the particles.
 
     Examples:
         >>> from skcomplex.systems.physics.waves import SpringInteraction
@@ -255,9 +252,8 @@ class SpringInteraction(PotentialEnergyInteraction):
         k: Annotated[float, RealSet.open(0, oo)] = 1.0,
         length: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
         states: str = 'x',
-        divisor: str = 'm',
     ) -> None:
-        super().__init__(label, target=first, states=states, divisor=divisor)
+        super().__init__(label, target=first, states=states)
         self.first = first
         self.second = second
         self.k = k

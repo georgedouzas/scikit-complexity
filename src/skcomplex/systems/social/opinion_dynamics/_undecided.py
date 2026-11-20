@@ -8,7 +8,7 @@ They live on a network and in the mean-field flows between them.
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, runtime_checkable
 
 import networkx as nx
 import numpy as np
@@ -22,14 +22,15 @@ from ....core.components.elements import Element, Quantity
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw, UpdateLaw
 from ....core.components.spaces import NetworkSpace
-from ....core.components.types import SystemViewProtocol
+from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 
 
-class UndecidedView(AgentView):
+@runtime_checkable
+class UndecidedView(AgentViewProtocol, Protocol):
     """View of a voter of the three-state opinion system.
 
     Its states and parameters are attributes.
@@ -76,14 +77,6 @@ class UndecidedElement(Element):
         super().__init__(label, size=size)
         self.opinion = opinion
         self.sensitivity = sensitivity
-
-    @classmethod
-    def _get_view(cls) -> type[UndecidedView]:
-        """Return the class of the views of the agents.
-
-        Their attributes are the states and parameters.
-        """
-        return UndecidedView
 
 
 class UndecidedFlowsElement(Element):

@@ -8,7 +8,7 @@ The iterated dilemma is the prisoner's dilemma.
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import Annotated, Protocol, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -21,8 +21,9 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
@@ -33,7 +34,7 @@ PAYOFFS = {(1, 1): (3.0, 3.0), (1, 0): (0.0, 5.0), (0, 1): (5.0, 0.0), (0, 0): (
 GENES = 7
 
 
-class StrategistView(AgentView):
+class StrategistView(AgentViewProtocol, Protocol):
     """View of a strategist of the iterated prisoner's dilemma.
 
     Its states are attributes.
@@ -85,14 +86,6 @@ class StrategistElement(Element):
         super().__init__(label, size=size)
         self.genome = genome
         self.fitness = fitness
-
-    @classmethod
-    def _get_view(cls) -> type[StrategistView]:
-        """Return the class of the views of the agents.
-
-        Their attributes are the states and parameters.
-        """
-        return StrategistView
 
 
 def _gene(history: list[int]) -> int:

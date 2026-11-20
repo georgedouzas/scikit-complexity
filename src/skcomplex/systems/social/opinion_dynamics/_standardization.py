@@ -7,7 +7,7 @@ The agents have many internal configurations.
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Annotated
+from typing import Annotated, Protocol
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, ZZ, oo
@@ -17,10 +17,10 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
-from ....core.components.types import SystemViewProtocol
+from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
-from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver
+from ....core.engine.solvers import BaseSolver, MesaSolver
 from ....core.systems import BaseSystem, System
 from ....core.types import AnyArray, Array, Role
 from ...general.agents import ChoiceInteraction
@@ -29,7 +29,7 @@ MARKED = 2
 PHASE = 'default'
 
 
-class ComplexAgentView(AgentView):
+class ComplexAgentView(AgentViewProtocol, Protocol):
     """View of an agent of the standardization system.
 
     Its states and parameters are attributes.
@@ -76,14 +76,6 @@ class ComplexAgentElement(Element):
         super().__init__(label, size=size)
         self.configuration = configuration
         self.spin = spin
-
-    @classmethod
-    def _get_view(cls) -> type[ComplexAgentView]:
-        """Return the class of the views of the agents.
-
-        Their attributes are the states and parameters.
-        """
-        return ComplexAgentView
 
 
 class StandardizationInteraction(ChoiceInteraction):

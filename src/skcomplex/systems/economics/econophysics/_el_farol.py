@@ -5,7 +5,7 @@
 
 from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, Protocol, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -19,9 +19,10 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
-from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
+from ....core.engine.solvers import BaseSolver, MesaSolver, SystemView
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
 from ...general.agents import ChoiceInteraction
@@ -32,7 +33,7 @@ N_SEEDED_WEEKS = 10
 MAX_ATTENDANCE = 100.0
 
 
-class PatronView(AgentView):
+class PatronView(AgentViewProtocol, Protocol):
     """Patron as the rules of the bar see it.
 
     It reads the bit mask of its `predictors`, its `forecast`, whether it `attends`, and the `capacity` of the bar.
@@ -44,7 +45,7 @@ class PatronView(AgentView):
     capacity: float
 
 
-class PredictorPoolView(AgentView):
+class PredictorPoolView(AgentViewProtocol, Protocol):
     """Pool of predictors as the rules of the bar see it.
 
     It holds the `forecasts` and the `errors` of its predictors.
@@ -146,11 +147,6 @@ class PredictorPoolElement(Element):
         super().__init__(label, size=size)
         self.forecasts = forecasts
         self.errors = errors
-
-    @classmethod
-    def _get_view(cls) -> type[PredictorPoolView]:
-        """Return the view of the pool."""
-        return PredictorPoolView
 
 
 class ForecastingInteraction(Interaction):
@@ -285,11 +281,6 @@ class PatronElement(Element):
         self.attends = attends
         self.capacity = capacity
 
-    @classmethod
-    def _get_view(cls) -> type[PatronView]:
-        """Return the view of the agents of the element."""
-        return PatronView
-
 
 class PredictingInteraction(Interaction):
     """Forecast of every patron of the El Farol bar with its most accurate predictor.
@@ -339,7 +330,7 @@ class PredictingInteraction(Interaction):
             system:
                 The system.
         """
-        pool = system.get_agents('pool', PredictorPoolView)[0]
+        pool = cast(list[PredictorPoolView], system.get_agents('pool'))[0]
         errors, predicted = np.ravel(pool.errors), np.ravel(pool.forecasts)
         mask = int(agent.predictors)
         held = [index for index in range(len(PREDICTORS)) if mask >> index & 1]

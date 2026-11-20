@@ -8,7 +8,7 @@ They follow exploration and preferential return, or move between nested containe
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import Annotated, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
@@ -20,14 +20,15 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.errors import ValidationError
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
 
 
-class ExplorerView(AgentView):
+class ExplorerView(AgentViewProtocol, Protocol):
     """View of an individual of the mobility systems, with its states as attributes."""
 
     x: float
@@ -81,11 +82,6 @@ class ExplorerElement(Element):
         self.y = y
         self.distinct = distinct
         self.level = level
-
-    @classmethod
-    def _get_view(cls) -> type[ExplorerView]:
-        """Return the class of the views of the agents, whose attributes are the states."""
-        return ExplorerView
 
 
 class ExplorationInteraction(Interaction):

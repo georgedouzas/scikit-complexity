@@ -8,7 +8,7 @@ The impact is social.
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import Annotated, Protocol, cast, runtime_checkable
 
 import networkx as nx
 import numpy as np
@@ -22,9 +22,9 @@ from ....core.components.interactions import Interaction, RandomPartition
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import mean, where
 from ....core.components.spaces import BaseSpace, LatticeSpace, NetworkSpace
-from ....core.components.types import SystemViewProtocol
+from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
@@ -33,7 +33,8 @@ from ._random_pairs import NeighborhoodsInteraction
 TRIPLES = RandomPartition(3)
 
 
-class PersuaderView(AgentView):
+@runtime_checkable
+class PersuaderView(AgentViewProtocol, Protocol):
     """View of an agent of the Sznajd system.
 
     Its states and parameters are attributes.
@@ -77,16 +78,8 @@ class PersuaderElement(Element):
         super().__init__(label, size=size)
         self.opinion = opinion
 
-    @classmethod
-    def _get_view(cls) -> type[PersuaderView]:
-        """Return the class of the views of the agents.
 
-        Their attributes are the states and parameters.
-        """
-        return PersuaderView
-
-
-class CitizenView(AgentView):
+class CitizenView(AgentViewProtocol, Protocol):
     """View of an agent of the Galam majority system.
 
     Its states and parameters are attributes.
@@ -125,16 +118,9 @@ class CitizenElement(Element):
         super().__init__(label, size=size)
         self.opinion = opinion
 
-    @classmethod
-    def _get_view(cls) -> type[CitizenView]:
-        """Return the class of the views of the agents.
 
-        Their attributes are the states and parameters.
-        """
-        return CitizenView
-
-
-class InfluenceeView(AgentView):
+@runtime_checkable
+class InfluenceeView(AgentViewProtocol, Protocol):
     """View of an agent of the social impact system.
 
     Its states and parameters are attributes.
@@ -217,14 +203,6 @@ class InfluenceeElement(Element):
         self.noise = noise
         self.x = x
         self.y = y
-
-    @classmethod
-    def _get_view(cls) -> type[InfluenceeView]:
-        """Return the class of the views of the agents.
-
-        Their attributes are the states and parameters.
-        """
-        return InfluenceeView
 
 
 class DiscussionsInteraction(Interaction):
@@ -360,7 +338,7 @@ class PersuasionInteraction(NeighborhoodsInteraction):
     ) -> None:
         super().__init__(label, target=target, phase=phase)
 
-    def act_on(self, members: list[AgentView], system: SystemView) -> None:
+    def act_on(self, members: list[AgentViewProtocol], system: SystemView) -> None:
         """Convince the neighbours of the first member and of a random neighbour of it.
 
         This happens when the two agree.

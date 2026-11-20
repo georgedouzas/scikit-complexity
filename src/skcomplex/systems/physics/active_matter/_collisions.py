@@ -9,7 +9,7 @@ Self-propelled particles align their headings when they meet.
 import math
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import Expression, cos, oo, sin
@@ -21,14 +21,15 @@ from ....core.components.elements import Element, Period
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace, ContinuousSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
 
 
-class FlockerView(AgentView):
+class FlockerView(AgentViewProtocol, Protocol):
     """Flocker as rules see it, with its heading.
 
     Args:
@@ -90,11 +91,6 @@ class FlockerElement(Element):
         self.x = x
         self.y = y
         self.theta = theta
-
-    @classmethod
-    def _get_view(cls) -> type:
-        """Return the class of the views of the element's agents."""
-        return FlockerView
 
 
 class BinaryCollisionsInteraction(Interaction):
@@ -178,7 +174,7 @@ class BinaryCollisionsInteraction(Interaction):
             system:
                 The system.
         """
-        agents = system.get_agents(self.target, FlockerView)
+        agents = cast(list[FlockerView], system.get_agents(self.target))
         size = np.asarray(system.dimensions, dtype=float)
         positions = np.array([(agent.x, agent.y) for agent in agents], dtype=np.float64)
         headings = np.array([agent.theta for agent in agents], dtype=np.float64)

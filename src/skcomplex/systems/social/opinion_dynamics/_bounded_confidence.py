@@ -8,7 +8,7 @@ They compromise in pairs or all at once.
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import Annotated, Protocol, cast
 
 import networkx as nx
 import numpy as np
@@ -23,8 +23,9 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import neighbors, where
 from ....core.components.spaces import AdjacencyNeighborhood, BaseSpace, NetworkSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
@@ -74,7 +75,7 @@ class ConfidentElement(Element):
         self.confidence = confidence
 
 
-class DiscussantView(AgentView):
+class DiscussantView(AgentViewProtocol, Protocol):
     """View of an agent of the Deffuant bounded confidence system.
 
     Its states and parameters are attributes.
@@ -126,14 +127,6 @@ class DiscussantElement(Element):
         self.opinion = opinion
         self.confidence = confidence
         self.convergence = convergence
-
-    @classmethod
-    def _get_view(cls) -> type[DiscussantView]:
-        """Return the class of the views of the agents.
-
-        Their attributes are the states and parameters.
-        """
-        return DiscussantView
 
 
 class ConfidenceCouplingInteraction(Interaction):
@@ -225,7 +218,7 @@ class EncountersInteraction(RandomPairsInteraction):
         super().__init__(label, target=target, phase=phase)
         self.steepness = steepness
 
-    def act_on(self, members: list[AgentView], system: SystemView) -> None:
+    def act_on(self, members: list[AgentViewProtocol], system: SystemView) -> None:
         """Move the opinions of a pair towards each other when their drawn outcome is 1.
 
         Args:

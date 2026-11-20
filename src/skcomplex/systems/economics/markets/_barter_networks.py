@@ -8,7 +8,7 @@ The networks are complete, isolated, linked, and small-world groups of traders.
 
 import math
 from collections.abc import Callable, Mapping, Sequence
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, Protocol, cast, runtime_checkable
 
 import networkx as nx
 import numpy as np
@@ -21,8 +21,9 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import transfer
 from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
 from ...general.matching import MatchingInteraction, MatchSpec, PartnerMatchingSpec, RandomSearchSpec
@@ -32,7 +33,8 @@ TOPOLOGIES = ('complete', 'isolated', 'linked', 'small_world')
 GOODS = ('good1', 'good2')
 
 
-class BarterTraderView(AgentView):
+@runtime_checkable
+class BarterTraderView(AgentViewProtocol, Protocol):
     """Barter trader as the rules see it.
 
     It holds its holdings `good1` and `good2`, its rate `mrs`, `links`, and `partners`.
@@ -104,11 +106,6 @@ class BarterTraderElement(Element):
         self.mrs = mrs
         self.links = links
         self.partners = partners
-
-    @classmethod
-    def _get_view(cls) -> type[BarterTraderView]:
-        """Return the view of a trader, with its holdings, rate, and links."""
-        return BarterTraderView
 
     @staticmethod
     def is_partner(trader: object, other: object) -> bool:
@@ -285,7 +282,7 @@ class BilateralBarterInteraction(MatchingInteraction[SystemView]):
         system.storage['trades'] = 0.0
         super().match(system)
         system.report('trades', self._get_trades(system))
-        traders = system.get_agents('requesters', BarterTraderView)
+        traders = cast(list[BarterTraderView], system.get_agents('requesters'))
         system.report('searches', float(sum(trader.links for trader in traders)))
 
 
@@ -425,7 +422,7 @@ class WilhiteTradeNetworksSystem(BaseSystem):
     @staticmethod
     def _appraise(system: SystemView) -> None:
         """Set the marginal rate of substitution `good2 / good1` of the bundle of every trader."""
-        for trader in system.get_agents('target', BarterTraderView):
+        for trader in cast(list[BarterTraderView], system.get_agents('target')):
             trader.mrs = trader.good2 / trader.good1
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:

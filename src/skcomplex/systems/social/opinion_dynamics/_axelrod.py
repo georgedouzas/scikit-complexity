@@ -5,7 +5,7 @@
 
 from collections.abc import Sequence
 from functools import partial
-from typing import Annotated, cast
+from typing import Annotated, Protocol, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -16,15 +16,16 @@ from scipy import ndimage
 from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import AnyArray, IntArray, Role
 from ._random_pairs import NeighborhoodsInteraction
 
 
-class VillageView(AgentView):
+class VillageView(AgentViewProtocol, Protocol):
     """View of a village of the Axelrod culture system.
 
     Its states and parameters are attributes.
@@ -92,14 +93,6 @@ class VillageElement(Element):
         self.x = x
         self.y = y
 
-    @classmethod
-    def _get_view(cls) -> type[VillageView]:
-        """Return the class of the views of the agents.
-
-        Their attributes are the states and parameters.
-        """
-        return VillageView
-
 
 def cultural_traits(culture: float, features: int, traits: int) -> IntArray:
     """Return the traits of a culture vector stored as one integer.
@@ -159,7 +152,7 @@ class CulturalInfluenceInteraction(NeighborhoodsInteraction):
     ) -> None:
         super().__init__(label, target=target, phase=phase)
 
-    def act_on(self, members: list[AgentView], system: SystemView) -> None:
+    def act_on(self, members: list[AgentViewProtocol], system: SystemView) -> None:
         """Copy one differing trait of a random neighbour.
 
         The probability is equal to the cultural overlap.

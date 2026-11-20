@@ -77,8 +77,6 @@ and the functions you pass.
   second derivative of a position.
 - Functions are callables of the namespace `s` that return symbolic expressions, such as
   `rate=lambda s: -s.k * s.target.x`. Where an argument allows it, a number stands for a constant function.
-- `divisor` of `GradientInteraction` divides what the gradient adds to the highest derivative, such as a mass or a
-  friction.
 - A variant is a string checked against the constants of its module, such as `mode='increment'`. A variant that
   carries an algorithm of its own is a frozen spec instead, such as the totalistic rule of a cellular automaton.
 
@@ -178,22 +176,27 @@ round(float(flow.simulate(until=1.0, dt=0.01).get_values('walker.x')[-1]), 4)
 
 The walker slides from 1.0 to 0.3679 in the well `x^2 / 2`, the decay `exp(-t)` of the flow `x' = -x`.
 
-With `order=2` the same class gives Newton's equations, the rate going to the second derivative of the position,
-whose first derivative the trajectory reports as `"point.x'"`.
+A subclass that defines the hook `_get_rate_law` gives Newton's equations, the rate going to the second derivative
+of the position, whose first derivative the trajectory reports as `"point.x'"`.
 
 ```python continuation
-spring = GradientInteraction(
-    'spring', target='point', states='x', potential=lambda s: s.target.x * s.target.x / 2, order=2
-)
+from skcomplex.core.components.laws import RateLaw
+
+
+class SpringForceInteraction(GradientInteraction):
+    def _get_rate_law(self, state, rate, member, time):
+        return RateLaw(state.diff(time, 2), rate)
+
+
+spring = SpringForceInteraction('spring', target='point', potential=lambda s: s.target.x * s.target.x / 2)
 newton = System(elements=[Element('point', values={'x': [1.0]})], interactions=[spring]).prepare()
 round(float(newton.simulate(until=3.1416, dt=0.01).get_values('point.x')[-1][0]), 3)
 ```
 
 The point starts at 1.0 and reaches -1.0 after half a period `pi` of the harmonic spring.
 
-`GradientInteraction(target, states, potential, sources=(), divisor=None, variational=False, conserved=False,
-order=1)` also gives the variational or conserved dynamics of a field. The divisor is a name, a function of the member, or a mapping
-of one divisor per state.
+`GradientInteraction(target, states, potential, sources=(), variational=False, conserved=False)` also gives the
+variational or conserved dynamics of a field.
 
 An interaction states Newton's or Hamilton's equations directly as rate laws written in Sage. Here a pendulum swings
 from the angle 0.1 under the law `q'' = -sin q`.
@@ -690,7 +693,7 @@ the change of the objective with probability `exp(-change)`, so an energy over a
 weight at that temperature, which stays a value of the system. With the move `'cluster'`, it makes Wolff cluster flips
 instead.
 
-An interaction that scores more than local terms returns its own Monte Carlo sweep as an `ArrayUpdateLaw`. Biology
+An interaction that scores more than local terms returns its own Monte Carlo sweep as an `UpdateLaw` of a NumPy function of the whole array. Biology
 samples whole rows of sequences this way with `SequenceSamplingInteraction`, as in `RNANeutralNetworksSystem` of
 `skcomplex.systems.biology.evolution`, and physics samples matrix links with `WilsonSamplingInteraction`, as in
 `LatticeYangMillsSystem` of `skcomplex.systems.physics.waves`. A temperature near zero accepts a move only when the

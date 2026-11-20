@@ -9,7 +9,7 @@ It also holds the digital market that removes distance.
 import math
 from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated, SupportsFloat
+from typing import Annotated, Protocol, SupportsFloat, cast, runtime_checkable
 
 import numpy as np
 from sage.all__sagemath_symbolics import SR, oo
@@ -25,7 +25,7 @@ from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
-from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
+from ....core.engine.solvers import BaseSolver, MesaSolver, SystemView
 from ....core.errors import ValidationError
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
@@ -221,7 +221,8 @@ class PriceAdjustmentInteraction(Interaction):
         return clip(stepped, self._read(self.lower, namespace), self._read(self.upper, namespace))
 
 
-class ResidentView(AgentView):
+@runtime_checkable
+class ResidentView(AgentViewProtocol, Protocol):
     """Shopper as the rules see it.
 
     It holds its `bid`, `demand`, `money`, and `travel`, and its shopping parameters. The parameters are the
@@ -236,7 +237,8 @@ class ResidentView(AgentView):
     online: float
 
 
-class StoreView(AgentView):
+@runtime_checkable
+class StoreView(AgentViewProtocol, Protocol):
     """Shop as the rules see it.
 
     The states are the `price`, the `ask` of the step, the `supply` left, the `sales`, the `money`, the `profit`, and
@@ -322,11 +324,6 @@ class ResidentElement(Element):
         self.travel = travel
         self.distance_cost = distance_cost
         self.online = online
-
-    @classmethod
-    def _get_view(cls) -> type[ResidentView]:
-        """Return the view of a shopper, with its states and shopping parameters."""
-        return ResidentView
 
     @staticmethod
     def get_preference(shopper: object, shop: object) -> float:
@@ -444,11 +441,6 @@ class StoreElement(Element):
         self.unit_cost = unit_cost
         self.fixed_cost = fixed_cost
         self.adjustment = adjustment
-
-    @classmethod
-    def _get_view(cls) -> type[StoreView]:
-        """Return the view of a shop, with its states and cost parameters."""
-        return StoreView
 
     @staticmethod
     def get_profit(agent: StoreView) -> float:
@@ -586,12 +578,12 @@ class ShopsSystem(BaseSystem):
 
         A shopper shops online, at no travel cost, with its probability `online`, and in person otherwise.
         """
-        shoppers = system.get_agents('shoppers', ResidentView)
+        shoppers = cast(list[ResidentView], system.get_agents('shoppers'))
         for shopper in shoppers:
             shopper.demand = 1.0
         for shopper in shoppers:
             shopper.travel = 0.0 if system.rng.random() < shopper.online else float(shopper.distance_cost)
-        shops = system.get_agents('shops', StoreView)
+        shops = cast(list[StoreView], system.get_agents('shops'))
         for shop in shops:
             shop.supply = float(shop.capacity)
         for shop in shops:
@@ -606,7 +598,7 @@ class ShopsSystem(BaseSystem):
         A shop turns its price back when its profit falls, records the profit, and pays its costs. The pricing then
         steps the price by the sign of the direction.
         """
-        shops = system.get_agents('shops', StoreView)
+        shops = cast(list[StoreView], system.get_agents('shops'))
         for shop in shops:
             shop.direction = float(-shop.direction if StoreElement.get_profit(shop) < shop.profit else shop.direction)
         for shop in shops:

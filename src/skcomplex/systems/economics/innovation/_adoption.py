@@ -9,7 +9,7 @@ They adopt when they can afford it and know a user.
 from collections import deque
 from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, cast, runtime_checkable
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
@@ -21,8 +21,9 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
@@ -34,7 +35,8 @@ INCOME_SIGMA = 0.6
 MOORE = tuple((dx, dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy)
 
 
-class HouseholdView(AgentView):
+@runtime_checkable
+class HouseholdView(AgentViewProtocol, Protocol):
     """Household as its rule sees it, with its income, phone, and class.
 
     It reads its `income`, its `phone`, its `social_class`, the `growth` of its income, and the `threshold` of affording
@@ -109,11 +111,6 @@ class HouseholdElement(Element):
         self.growth = growth
         self.threshold = threshold
 
-    @classmethod
-    def _get_view(cls) -> type[HouseholdView]:
-        """Return the view of the agents of the element."""
-        return HouseholdView
-
 
 class AdoptionInteraction(Interaction):
     """Growth of the incomes of households and their adoption of a phone.
@@ -150,12 +147,12 @@ class AdoptionInteraction(Interaction):
 
     def _grow(self, system: SystemView) -> None:
         """Grow the income of every household by a year."""
-        for household in system.get_agents('target', HouseholdView):
+        for household in cast(list[HouseholdView], system.get_agents('target')):
             household.income *= 1 + household.growth
 
     def _adopt(self, system: SystemView) -> None:
         """Give a phone to every household that can afford it and has a neighbour with one, in a random order."""
-        households = system.get_agents('target', HouseholdView)
+        households = cast(list[HouseholdView], system.get_agents('target'))
         for index in system.rng.permutation(len(households)):
             household = households[int(index)]
             if household.alive and not household.phone and household.income >= household.threshold:

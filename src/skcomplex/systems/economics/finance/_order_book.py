@@ -9,7 +9,7 @@ They trade in a limit order book and imitate.
 import math
 from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
@@ -21,9 +21,10 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
-from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
+from ....core.engine.solvers import BaseSolver, MesaSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
@@ -36,7 +37,7 @@ LOWEST_PRICE = 0.01
 HOLDINGS = ('money', 'shares')
 
 
-class StockTraderView(AgentView):
+class StockTraderView(AgentViewProtocol, Protocol):
     """Stock trader as the rules see it.
 
     It holds its strategy, holdings, order, wealth, gain, and the parameters of its forecast. The order is the limit
@@ -163,11 +164,6 @@ class StockTraderElement(Element):
         self.reversion = reversion
         self.extrapolation = extrapolation
         self.noise = noise
-
-    @classmethod
-    def _get_view(cls) -> type[StockTraderView]:
-        """Return the view of the agents of the element."""
-        return StockTraderView
 
 
 class LimitOrderInteraction(Interaction):
@@ -296,7 +292,7 @@ class AccountingInteraction(Interaction):
             system:
                 The system view of the accounts.
         """
-        traders = system.get_agents('target', StockTraderView)
+        traders = cast(list[StockTraderView], system.get_agents('target'))
         for trader in traders:
             trader.gain = self.get_gain(trader, system)
         for trader in traders:

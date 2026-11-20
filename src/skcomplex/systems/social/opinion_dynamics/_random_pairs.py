@@ -13,7 +13,8 @@ from ....core.components.base import BaseComponent
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace
-from ....core.engine.solvers import AgentView, SystemView
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.solvers import SystemView
 from ....core.errors import ValidationError
 from ....core.types import Role
 
@@ -62,11 +63,11 @@ class MeetingsInteraction(Interaction):
         for index in system.rng.permutation(len(groups)):
             self.act_on(groups[int(index)], system)
 
-    def _get_groups(self, system: SystemView) -> list[list[AgentView]]:
+    def _get_groups(self, system: SystemView) -> list[list[AgentViewProtocol]]:
         """Return the groups of one step, every agent alone unless a subclass says otherwise."""
         return [[agent] for agent in system.get_agents('target') if agent.alive]
 
-    def act_on(self, members: list[AgentView], system: SystemView) -> None:
+    def act_on(self, members: list[AgentViewProtocol], system: SystemView) -> None:
         """Act on the members of one group, which a subclass does.
 
         Args:
@@ -109,7 +110,7 @@ class RandomPairsInteraction(MeetingsInteraction):
         'people'
     """
 
-    def _get_groups(self, system: SystemView) -> list[list[AgentView]]:
+    def _get_groups(self, system: SystemView) -> list[list[AgentViewProtocol]]:
         """Return one random ordered pair of distinct agents per agent."""
         agents = [agent for agent in system.get_agents('target') if agent.alive]
         if len(agents) < PAIR:
@@ -140,10 +141,10 @@ class NeighborhoodsInteraction(MeetingsInteraction):
         'villages'
     """
 
-    def _get_groups(self, system: SystemView) -> list[list[AgentView]]:
+    def _get_groups(self, system: SystemView) -> list[list[AgentViewProtocol]]:
         """Return every agent followed by the agents in the cells or nodes around it."""
         agents = [agent for agent in system.get_agents('target') if agent.alive]
-        located: dict[object, list[AgentView]] = {}
+        located: dict[object, list[AgentViewProtocol]] = {}
         for agent in agents:
             located.setdefault(agent.location_key, []).append(agent)
         return [

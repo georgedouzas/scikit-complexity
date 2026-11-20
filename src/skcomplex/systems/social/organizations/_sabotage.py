@@ -4,7 +4,7 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Annotated
+from typing import Annotated, Protocol
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
@@ -16,9 +16,9 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import LatticeSpace
-from ....core.components.types import SystemViewProtocol
+from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ...general.agents import BirthDeathInteraction, MovementInteraction
@@ -30,7 +30,7 @@ AFFECT_SHARES = (0.1, 0.8, 0.1)
 HIRE_RESETS = ('disgruntlement', 'stress', 'skill', 'days', 'mean_feeling', 'first', 'expectation')
 
 
-class EmployeeView(AgentView):
+class EmployeeView(AgentViewProtocol, Protocol):
     """View of an employee of the insider sabotage system.
 
     Its states and parameters are attributes.
@@ -215,14 +215,6 @@ class EmployeeElement(Element):
         self.lambda_unseen = lambda_unseen
         self.skill_growth = skill_growth
         self.skill_variance = skill_variance
-
-    @classmethod
-    def _get_view(cls) -> type[EmployeeView]:
-        """Return the class of the views of the agents.
-
-        Their attributes are the states and parameters.
-        """
-        return EmployeeView
 
 
 class InsiderSabotageSystem(BaseSystem):

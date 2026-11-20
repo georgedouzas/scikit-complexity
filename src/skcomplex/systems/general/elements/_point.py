@@ -44,9 +44,11 @@ class PointElement(Element):
         >>> import numpy as np
         >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.general.elements import PointElement
-        >>> from skcomplex.systems.general.gradients import GradientInteraction
+        >>> from skcomplex.core.components.interactions import Interaction
+        >>> from skcomplex.core.components.laws import RateLaw
         >>> ball = PointElement('ball', x=np.array([1.0, 0.0]), values={"x'": np.array([0.0, 1.0])})
-        >>> well = GradientInteraction('well', target='ball', potential=lambda s: s.target.x * s.target.x / 2, order=2)
+        >>> spring = lambda s: [RateLaw(s.target.x.diff(s.t, 2), -s.target.x)]
+        >>> well = Interaction('well', roles={'target': 'ball'}, laws=spring)
         >>> system = System(elements=[ball], interactions=[well]).prepare()
         >>> position = system.simulate(until=np.pi / 2, dt=np.pi / 2).get_values('ball.x')[-1]
         >>> round(float(position[1]), 3)

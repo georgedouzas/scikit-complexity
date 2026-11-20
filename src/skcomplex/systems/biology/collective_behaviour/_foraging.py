@@ -5,7 +5,7 @@
 
 from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import Annotated, Protocol, cast, runtime_checkable
 
 import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo
@@ -20,7 +20,7 @@ from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ...general.agents import MovementInteraction
@@ -74,10 +74,11 @@ class PheromoneElement(Element):
         self.evaporation = evaporation
 
 
-class AntView(AgentView):
+@runtime_checkable
+class AntView(AgentViewProtocol, Protocol):
     """View of an ant, with its states and parameters as attributes.
 
-    `AntElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `AntElement` read them with checked types.
     """
 
     carrying: float
@@ -183,11 +184,6 @@ class AntElement(Element):
         self.attraction = attraction
         self.outward = outward
         self.deposit = deposit
-
-    @classmethod
-    def _get_view(cls) -> type[AntView]:
-        """Return the view of an ant, `AntView`."""
-        return AntView
 
 
 class PheromoneForagingSystem(BaseSystem):

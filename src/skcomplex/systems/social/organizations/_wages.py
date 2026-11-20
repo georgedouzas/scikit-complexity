@@ -8,7 +8,7 @@ In it, employers learn to pay migrant workers below the minimum wage.
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar, cast
+from typing import Annotated, ClassVar, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
@@ -21,14 +21,15 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
 
 
-class FarmerView(AgentView):
+class FarmerView(AgentViewProtocol, Protocol):
     """View of an employer of Ajani's Choice, with its states as attributes."""
 
     wage: float
@@ -37,7 +38,7 @@ class FarmerView(AgentView):
     area: float
 
 
-class HarvesterView(AgentView):
+class HarvesterView(AgentViewProtocol, Protocol):
     """View of a worker of Ajani's Choice, with its states as attributes."""
 
     slum: float
@@ -94,11 +95,6 @@ class FarmerElement(Element):
         self.employed = employed
         self.area = area
 
-    @classmethod
-    def _get_view(cls) -> type[FarmerView]:
-        """Return the class of the views of the agents, whose attributes are the states."""
-        return FarmerView
-
 
 class HarvesterElement(Element):
     """Migrant worker of Ajani's Choice.
@@ -147,11 +143,6 @@ class HarvesterElement(Element):
         self.working = working
         self.pay = pay
         self.total_pay = total_pay
-
-    @classmethod
-    def _get_view(cls) -> type[HarvesterView]:
-        """Return the class of the views of the agents, whose attributes are the states."""
-        return HarvesterView
 
 
 class HarvestInteraction(Interaction):

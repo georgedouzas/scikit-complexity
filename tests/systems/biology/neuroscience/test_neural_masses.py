@@ -5,7 +5,12 @@ import pytest
 from scipy.signal import find_peaks
 
 from skcomplex.core.errors import ValidationError
-from skcomplex.systems.biology.neuroscience import NextGenerationNeuralMassSystem
+from skcomplex.core.systems import System
+from skcomplex.systems.biology.neuroscience import (
+    NeuralMassElement,
+    NeuralMassInteraction,
+    NextGenerationNeuralMassSystem,
+)
 
 from ..conftest import _run_until
 
@@ -42,3 +47,17 @@ def test_unknown_setup_raises():
     """Test that an unknown setup raises an error."""
     with pytest.raises(ValidationError):
         NextGenerationNeuralMassSystem('pong').prepare()
+
+
+def test_mean_field_interaction_gives_the_montbrio_rates():
+    """Test that the interaction gives `r`, `v`, and `s` the exact mean-field rates of one population."""
+    population = NeuralMassElement('e', r=0.02, v=-1.5, s=0.01, tau=20.0, delta=1.0, H=-5.0, tau_d=10.0)
+    system = System(elements=[population], interactions=[NeuralMassInteraction('mean_field', target='e')])
+    problem = system.prepare().simulate(until=0).problem
+    rates = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
+    expected = [
+        1.0 / (20.0**2 * np.pi) + 2 * 0.02 * -1.5 / 20.0,
+        ((-1.5) ** 2 - 5.0) / 20.0 - 20.0 * (np.pi * 0.02) ** 2,
+        (0.02 - 0.01) / 10.0,
+    ]
+    assert np.asarray(rates)[:3] == pytest.approx(expected)

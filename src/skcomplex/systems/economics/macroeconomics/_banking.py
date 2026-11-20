@@ -8,7 +8,7 @@ Loans redeposited at banks multiply the base money.
 
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import Annotated, Protocol, cast, runtime_checkable
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
@@ -21,9 +21,10 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import PartnerSpec, UpdateLaw
 from ....core.components.laws.utils import pairs
 from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
-from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
+from ....core.engine.solvers import BaseSolver, MesaSolver, SystemView
 from ....core.errors import SimulationError
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
@@ -32,7 +33,7 @@ from ..common.policy import PolicyRuleInteraction
 TOLERANCE = 1e-9
 
 
-class DepositorView(AgentView):
+class DepositorView(AgentViewProtocol, Protocol):
     """Customer as the rules see it.
 
     It holds the id of its `bank`, its `deposit`, its `loan`, and its shares of payments, the `spending` share of the
@@ -102,13 +103,9 @@ class DepositorElement(Element):
         self.spending = spending
         self.repayment = repayment
 
-    @classmethod
-    def _get_view(cls) -> type[DepositorView]:
-        """Return the view of a customer, with its bank, deposit, and loan."""
-        return DepositorView
 
-
-class ReserveBankView(AgentView):
+@runtime_checkable
+class ReserveBankView(AgentViewProtocol, Protocol):
     """Bank as the rules see it: its `reserves`, `deposits`, `loans`, and `reserve_ratio`."""
 
     reserves: float
@@ -163,11 +160,6 @@ class ReserveBankElement(Element):
         self.deposits = deposits
         self.loans = loans
         self.reserve_ratio = reserve_ratio
-
-    @classmethod
-    def _get_view(cls) -> type[ReserveBankView]:
-        """Return the view of a bank, with its reserves, deposits, and loans."""
-        return ReserveBankView
 
 
 class PaymentsInteraction(Interaction):
@@ -227,7 +219,7 @@ class PaymentsInteraction(Interaction):
             system:
                 The system view of the payments.
         """
-        customers = system.get_agents('customers', DepositorView)
+        customers = cast(list[DepositorView], system.get_agents('customers'))
         found = cast(Pairs, list(pairs(customers, customers, system.rng, PartnerSpec('all', 'uniform'))))
         for index in system.rng.permutation(len(found)):
             payer, payee = found[int(index)]
@@ -249,7 +241,7 @@ class PaymentsInteraction(Interaction):
             system:
                 The system view of the repayments.
         """
-        customers = system.get_agents('customers', DepositorView)
+        customers = cast(list[DepositorView], system.get_agents('customers'))
         for index in system.rng.permutation(len(customers)):
             customer = customers[int(index)]
             amount = min(customer.repayment * customer.loan, customer.deposit)
@@ -322,7 +314,7 @@ class LendingInteraction(Interaction):
                 The system.
         """
         excess = agent.reserves - agent.reserve_ratio * agent.deposits
-        customers = system.get_agents('customers', DepositorView)
+        customers = cast(list[DepositorView], system.get_agents('customers'))
         own = [customer for customer in customers if customer.get_referenced('bank') is agent]
         if excess <= TOLERANCE or not own:
             return
@@ -398,7 +390,7 @@ class PolicySwitchInteraction(PolicyRuleInteraction[SystemView]):
         """
         before = system.time < system.get_parameter('change_at')
         ratio = system.get_parameter('ratio') if before else system.get_parameter('new_ratio')
-        for bank in system.get_agents(self.banks, ReserveBankView):
+        for bank in cast(list[ReserveBankView], system.get_agents(self.banks)):
             bank.reserve_ratio = ratio
 
 

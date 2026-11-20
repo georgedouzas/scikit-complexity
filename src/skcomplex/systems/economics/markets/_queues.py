@@ -5,7 +5,7 @@
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, cast
 
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
@@ -16,8 +16,9 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
 
@@ -27,7 +28,7 @@ CREW_SIZE = 2
 PARAMETERS = ('p_pass', 'p_enter', 'p_valet', 'wash_work', 'valet_work', 'wash_price', 'valet_price', 'balk')
 
 
-class CarView(AgentView):
+class CarView(AgentViewProtocol, Protocol):
     """Car as the rules see it.
 
     It holds its `stage`, the `work` left on it, and the size of its `crew`.
@@ -76,11 +77,6 @@ class CarElement(Element):
         self.stage = stage
         self.work = work
         self.crew = crew
-
-    @classmethod
-    def _get_view(cls) -> type[CarView]:
-        """Return the view of a car, with its stage, work, and crew."""
-        return CarView
 
 
 class WasherElement(Element):
@@ -139,7 +135,7 @@ class WashingInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.work)]
 
-    def work(self, agent: AgentView, system: SystemView) -> None:
+    def work(self, agent: AgentViewProtocol, system: SystemView) -> None:
         """Work one second on the front car of an area.
 
         Args:
@@ -149,7 +145,7 @@ class WashingInteraction(Interaction):
             system:
                 The system.
         """
-        cars = system.get_agents('cars', CarView)
+        cars = cast(list[CarView], system.get_agents('cars'))
         fronts = [
             car
             for car in (WashingInteraction._get_front(cars, WASH), WashingInteraction._get_front(cars, VALET))
@@ -172,7 +168,7 @@ class WashingInteraction(Interaction):
         return min(waiting, key=lambda car: car.id) if waiting else None
 
 
-class TillView(AgentView):
+class TillView(AgentViewProtocol, Protocol):
     """Till as the operation sees it.
 
     It holds its `revenue` and its counts of `washes`, `valets`, and cars `turned_away`.
@@ -229,11 +225,6 @@ class TillElement(Element):
         self.washes = washes
         self.valets = valets
         self.turned_away = turned_away
-
-    @classmethod
-    def _get_view(cls) -> type[TillView]:
-        """Return the view of the till, with its revenue and counts."""
-        return TillView
 
 
 class CarWashOperationInteraction(Interaction):
@@ -343,14 +334,14 @@ class CarWashOperationInteraction(Interaction):
                 The system.
         """
         values = {name: float(system.get_parameter(name)) for name in PARAMETERS}
-        till = system.get_agents('till', TillView)[0]
-        for car in system.get_agents('cars', CarView):
+        till = cast(list[TillView], system.get_agents('till'))[0]
+        for car in cast(list[CarView], system.get_agents('cars')):
             car.crew = 0
             if car.work <= 0:
                 self._finish(car, till, system, values)
         if system.rng.random() >= values['p_pass'] * values['p_enter']:
             return
-        if sum(car.stage == WASH for car in system.get_agents('cars', CarView)) >= values['balk']:
+        if sum(car.stage == WASH for car in cast(list[CarView], system.get_agents('cars'))) >= values['balk']:
             till.turned_away += 1
             return
         system.create('cars', stage=WASH, work=values['wash_work'])

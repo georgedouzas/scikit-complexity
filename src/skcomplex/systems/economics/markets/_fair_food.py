@@ -8,7 +8,7 @@ They choose under ethics, budget, and peer influence.
 
 import math
 from collections.abc import Mapping, Sequence
-from typing import Annotated
+from typing import Annotated, Protocol, runtime_checkable
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
@@ -18,14 +18,16 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ...general.agents import ChoiceInteraction
 
 
-class ConsumerView(AgentView):
+@runtime_checkable
+class ConsumerView(AgentViewProtocol, Protocol):
     """Consumer as the shopping rule sees it.
 
     It holds its choice `fair`, `ethics`, and `budget`, and its parameters. The parameters are the `premium` of fair
@@ -114,14 +116,6 @@ class ConsumerElement(Element):
         self.ethics_weight = ethics_weight
         self.price_weight = price_weight
         self.social_weight = social_weight
-
-    @classmethod
-    def _get_view(cls) -> type[ConsumerView]:
-        """Return the view of a consumer.
-
-        It holds its states and the parameters of its utility.
-        """
-        return ConsumerView
 
 
 class FairFoodSystem(BaseSystem):

@@ -8,7 +8,7 @@ They choose a direction and then a speed.
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar, cast
+from typing import Annotated, ClassVar, Protocol, cast
 
 import numpy as np
 import scipy.ndimage
@@ -22,8 +22,9 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, IntArray, Role
@@ -31,7 +32,7 @@ from ....core.types import Array, IntArray, Role
 TINY = 1e-12
 
 
-class KineticWalkerView(AgentView):
+class KineticWalkerView(AgentViewProtocol, Protocol):
     """View of a walker of the kinetic crowd system, with its states as attributes."""
 
     x: float
@@ -93,11 +94,6 @@ class KineticWalkerElement(Element):
         self.speed = speed
         self.direction = direction
         self.target = target
-
-    @classmethod
-    def _get_view(cls) -> type[KineticWalkerView]:
-        """Return the class of the views of the agents, whose attributes are the states."""
-        return KineticWalkerView
 
 
 class KineticCrowdInteraction(Interaction):

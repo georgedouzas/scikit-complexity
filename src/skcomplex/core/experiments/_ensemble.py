@@ -15,7 +15,7 @@ from ._results import ExperimentResult
 from ._runs import _check_source, _run_experiment
 from ._scenario_spec import ScenarioSpec
 from ._utils import build_system
-from .types import AnySystem, Output, Source
+from .types import AnySystem, Output, SystemSource
 
 
 def _get_solver(system: AnySystem) -> object:
@@ -26,7 +26,7 @@ def _get_solver(system: AnySystem) -> object:
 
 
 def ensemble(
-    system: Source,
+    system: SystemSource,
     *,
     replicates: int = 10,
     analyses: Sequence[Callable[[Trajectory], object]] | None = None,

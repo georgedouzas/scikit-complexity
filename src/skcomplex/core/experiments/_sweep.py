@@ -13,11 +13,11 @@ from ._designs import _get_rows
 from ._results import ExperimentResult
 from ._runs import _run_experiment
 from ._scenario_spec import ScenarioSpec
-from .types import Bounds, Output, Source
+from .types import Bounds, Output, SystemSource
 
 
 def sweep(
-    system: Source,
+    system: SystemSource,
     parameters: Bounds | Sequence[Mapping[str, object]],
     *,
     design: str = 'grid',

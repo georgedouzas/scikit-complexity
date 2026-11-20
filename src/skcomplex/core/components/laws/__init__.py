@@ -7,7 +7,6 @@ algebraic equation. Elements, interactions, and systems return laws, and the com
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ._array_update import ArrayUpdateLaw
 from ._base import BaseLaw
 from ._boundary import BoundaryLaw
 from ._call_spec import CallSpec
@@ -40,7 +39,6 @@ from ._update import UpdateLaw
 
 __all__: list[str] = [
     'EDGE_KINDS',
-    'ArrayUpdateLaw',
     'BaseLaw',
     'BoundaryLaw',
     'CallSpec',

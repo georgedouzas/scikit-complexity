@@ -8,7 +8,7 @@ The firms switch to cheaper lenders.
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, Protocol, cast, runtime_checkable
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
@@ -21,15 +21,17 @@ from ....core.components.elements import Element, Member
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
-from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
+from ....core.engine.solvers import BaseSolver, MesaSolver, SystemView
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
 from ...general.matching import MatchingInteraction, MatchSpec, PartnerSwitchSpec
 
 
-class FirmView(AgentView):
+@runtime_checkable
+class FirmView(AgentViewProtocol, Protocol):
     """Firm as the rules see it.
 
     It reads its `net_worth`, `demand`, `loan`, `rate`, `partner`, `gross_return`, `injected`, and `defaulted`, and the
@@ -144,13 +146,9 @@ class FirmElement(Element):
         self.volatility = volatility
         self.entry = entry
 
-    @classmethod
-    def _get_view(cls) -> type[FirmView]:
-        """Return the view of a firm, with its balance sheet and its loan."""
-        return FirmView
 
-
-class LenderView(AgentView):
+@runtime_checkable
+class LenderView(AgentViewProtocol, Protocol):
     """Lender as the rules see it.
 
     It holds its `equity`, `ask`, `supply`, `lent`, `losses`, `alpha`, and `capital_ratio`.
@@ -229,11 +227,6 @@ class LenderElement(Element):
         self.alpha = alpha
         self.capital_ratio = capital_ratio
 
-    @classmethod
-    def _get_view(cls) -> type[LenderView]:
-        """Return the view of a bank, with its equity, quote, and loans."""
-        return LenderView
-
 
 class BalanceSheetsInteraction(Interaction):
     """Plan and settlement of the balance sheets of the firms and the banks of the credit network.
@@ -289,10 +282,10 @@ class BalanceSheetsInteraction(Interaction):
             system:
                 The system view of the plan.
         """
-        for firm in system.get_agents('firms', FirmView):
+        for firm in cast(list[FirmView], system.get_agents('firms')):
             firm.demand = firm.leverage * firm.net_worth
             firm.loan = firm.rate = firm.defaulted = firm.injected = 0.0
-        for bank in system.get_agents('banks', LenderView):
+        for bank in cast(list[LenderView], system.get_agents('banks')):
             bank.ask = bank.alpha * max(bank.equity, 1e-6) ** -bank.alpha
             bank.supply = max(bank.equity, 0.0) / bank.capital_ratio
             bank.lent = bank.losses = 0.0
@@ -304,7 +297,7 @@ class BalanceSheetsInteraction(Interaction):
             system:
                 The system view of the settlement.
         """
-        firms = system.get_agents('firms', FirmView)
+        firms = cast(list[FirmView], system.get_agents('firms'))
         for firm in firms:
             draw = firm.mean_return + firm.volatility * system.rng.standard_normal()
             firm.gross_return = (firm.net_worth + firm.loan) * max(draw, -1.0)
@@ -313,7 +306,7 @@ class BalanceSheetsInteraction(Interaction):
             bank = firm.get_referenced('partner') if firm.loan > 0 else None
             if bank is not None:
                 borrowers.setdefault(bank.id, []).append(firm)
-        banks = system.get_agents('banks', LenderView)
+        banks = cast(list[LenderView], system.get_agents('banks'))
         for bank in banks:
             owed = borrowers.get(bank.id, [])
             bank.equity += sum(firm.loan * firm.rate + min(self._get_worth(firm), 0.0) for firm in owed)
@@ -390,8 +383,11 @@ class CreditMarketInteraction(MatchingInteraction[SystemView]):
                 The system view of the market.
         """
         super()._report_matches(matches, unmatched, system)
-        cheapest = min((bank.ask for bank in system.get_agents('providers', LenderView) if bank.ask > 0), default=0.0)
-        paid = [firm.rate for firm in system.get_agents('requesters', FirmView) if firm.loan > 0]
+        cheapest = min(
+            (bank.ask for bank in cast(list[LenderView], system.get_agents('providers')) if bank.ask > 0),
+            default=0.0,
+        )
+        paid = [firm.rate for firm in cast(list[FirmView], system.get_agents('requesters')) if firm.loan > 0]
         spread = float(np.mean(paid) / cheapest - 1) if paid and cheapest > 0 else float('nan')
         system.report('spread', spread)
 

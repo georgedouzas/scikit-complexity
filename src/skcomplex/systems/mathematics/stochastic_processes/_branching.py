@@ -5,7 +5,7 @@
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol
 
 from sage.all__sagemath_symbolics import NN
 
@@ -15,14 +15,15 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
 
 
-class IndividualView(AgentView):
+class IndividualView(AgentViewProtocol, Protocol):
     """View of an individual of a branching process, with its values as attributes."""
 
     generation: float
@@ -58,11 +59,6 @@ class IndividualElement(Element):
     ) -> None:
         super().__init__(label, size=size)
         self.generation = generation
-
-    @classmethod
-    def _get_view(cls) -> type[IndividualView]:
-        """Return the view of the individuals, which types their values."""
-        return IndividualView
 
 
 class BranchingInteraction(Interaction):

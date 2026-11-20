@@ -7,7 +7,7 @@ The cascades run through interbank exposures.
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, cast
 
 import numpy as np
 from sage.sets.real_set import RealSet
@@ -85,7 +85,7 @@ class DefaultCascadeInteraction(PolicyRuleInteraction[SystemView]):
             system:
                 The system view of the cascade.
         """
-        banks = sorted(system.get_agents('banks', BalanceSheetView), key=lambda bank: bank.id)
+        banks = sorted(cast(list[BalanceSheetView], system.get_agents('banks')), key=lambda bank: bank.id)
         status = np.array([bank.status for bank in banks])
         equity = np.array([bank.equity for bank in banks])
         defaulting = status == DEFAULTING
@@ -151,7 +151,7 @@ class PaymentClearingInteraction(PolicyRuleInteraction[SystemView]):
             system:
                 The system view of the clearing.
         """
-        banks = sorted(system.get_agents('banks', BalanceSheetView), key=lambda bank: bank.id)
+        banks = sorted(cast(list[BalanceSheetView], system.get_agents('banks')), key=lambda bank: bank.id)
         matrix = np.asarray(self.liabilities, dtype=float)
         owed = matrix.sum(axis=1)
         shares = np.divide(matrix, owed[:, None], out=np.zeros_like(matrix), where=owed[:, None] > 0)

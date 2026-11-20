@@ -20,7 +20,7 @@ from ..errors import ValidationError
 from ..types import Array
 from ._calibration import SEED_LIMIT, _CalibrationObjective, _check_priors, _check_settings, _series_of, calibrate
 from ._runs import _check_count, _check_source, _map_calls
-from .types import Bounds, Source
+from .types import Bounds, SystemSource
 
 METHODS = ('profile', 'refits')
 WEAK_FACTOR = 10.0
@@ -157,7 +157,7 @@ def _get_verdict(error: float, level: float) -> str:
 
 
 def _get_refits(
-    source: Source,
+    source: SystemSource,
     data: Data,
     bounds: Bounds,
     *,
@@ -205,7 +205,7 @@ def _get_refits(
 
 
 def identifiability(
-    system: Source,
+    system: SystemSource,
     data: Data,
     bounds: Bounds,
     *,

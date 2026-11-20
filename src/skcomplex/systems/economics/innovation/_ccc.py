@@ -7,22 +7,23 @@ Its entities are produced and destroyed by pairs.
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, Protocol, cast
 
 import numpy as np
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
 from ..common.policy import PolicyRuleInteraction
 
 
-class CombinatorialEntityView(AgentView):
+class CombinatorialEntityView(AgentViewProtocol, Protocol):
     """Entity as the update sees it: whether it exists and its fitness."""
 
     exists: float
@@ -66,11 +67,6 @@ class CombinatorialEntityElement(Element):
         super().__init__(label, size=size)
         self.exists = exists
         self.fitness = fitness
-
-    @classmethod
-    def _get_view(cls) -> type[CombinatorialEntityView]:
-        """Return the view of the agents of the element."""
-        return CombinatorialEntityView
 
 
 class CombinatorialUpdateInteraction(PolicyRuleInteraction[SystemView]):
@@ -143,7 +139,10 @@ class CombinatorialUpdateInteraction(PolicyRuleInteraction[SystemView]):
             system:
                 The system view of the update.
         """
-        entities = sorted(system.get_agents('entities', CombinatorialEntityView), key=lambda entity: entity.id)
+        entities = sorted(
+            cast(list[CombinatorialEntityView], system.get_agents('entities')),
+            key=lambda entity: entity.id,
+        )
         size, rng = len(entities), system.rng
         states = np.array([entity.exists for entity in entities])
         before = states.copy()

@@ -5,7 +5,7 @@
 
 from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -17,8 +17,9 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
 
@@ -27,7 +28,7 @@ MAX_LIST_LENGTH = 8
 MAX_MARKUP = 30
 
 
-class ShopperView(AgentView):
+class ShopperView(AgentViewProtocol, Protocol):
     """Shopper as its rule sees it.
 
     It holds its `wanted` items, its `visited` stalls, its `missed` items, and its `spent`.
@@ -39,7 +40,7 @@ class ShopperView(AgentView):
     spent: float
 
 
-class StallView(AgentView):
+class StallView(AgentViewProtocol, Protocol):
     """Stall as the shoppers see it.
 
     It holds its index `stall`, its `stock` of produce as a bit mask, and its `markup`.
@@ -107,11 +108,6 @@ class ShopperElement(Element):
         self.missed = missed
         self.spent = spent
 
-    @classmethod
-    def _get_view(cls) -> type[ShopperView]:
-        """Return the view of a shopper, with its list, visits, misses, and spending."""
-        return ShopperView
-
 
 class ShoppingInteraction(Interaction):
     """Shopping of every shopper, who visits one stall a step and buys what it wants there.
@@ -166,7 +162,9 @@ class ShoppingInteraction(Interaction):
         wanted, visited = int(agent.wanted), int(agent.visited)
         if not wanted:
             return
-        unvisited = [stall for stall in system.get_agents('stalls', StallView) if not visited >> int(stall.stall) & 1]
+        unvisited = [
+            stall for stall in cast(list[StallView], system.get_agents('stalls')) if not visited >> int(stall.stall) & 1
+        ]
         if not unvisited:
             agent.missed, agent.wanted = wanted, 0
             return
@@ -225,11 +223,6 @@ class StallElement(Element):
         self.stall = stall
         self.stock = stock
         self.markup = markup
-
-    @classmethod
-    def _get_view(cls) -> type[StallView]:
-        """Return the view of a stall, with its index, stock, and markup."""
-        return StallView
 
 
 def _get_items_left(wanted: object) -> float:

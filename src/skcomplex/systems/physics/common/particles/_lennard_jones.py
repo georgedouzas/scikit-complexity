@@ -34,8 +34,6 @@ class LennardJonesInteraction(Interaction):
         cutoff:
             The distance beyond which pairs do not interact.
 
-        divisor:
-            The name of the value of the members that holds their masses, or `None` for unit masses.
 
         epsilon:
             The depth of the potential well.
@@ -55,14 +53,12 @@ class LennardJonesInteraction(Interaction):
         *,
         target: Role,
         cutoff: Annotated[float, RealSet.open(0, oo)] = 1.0,
-        divisor: str | None = None,
         epsilon: Annotated[float, RealSet.open(0, oo)] = 1.0,
         sigma: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
         super().__init__(label)
         self.target = target
         self.cutoff = cutoff
-        self.divisor = divisor
         self.epsilon = epsilon
         self.sigma = sigma
 
@@ -82,5 +78,4 @@ class LennardJonesInteraction(Interaction):
             energy = 4 * s.epsilon * ((s.sigma / distance) ** 12 - (s.sigma / distance) ** 6)
             slope = energy.diff(distance).subs({distance: r})
             force = neighbors(-slope * separation / r, RadiusNeighborhood(self.cutoff))
-            mass = 1 if self.divisor is None else getattr(s.target, self.divisor)
-            self.laws_ = [RateLaw(x.diff(s.t, 2), force / mass)]
+            self.laws_ = [RateLaw(x.diff(s.t, 2), force / s.target.m)]

@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Callable, Iterator
 from math import prod
 from types import SimpleNamespace
 from typing import ClassVar
@@ -22,16 +22,13 @@ from ....core.components.types import Target
 from ....core.errors import ValidationError
 from ....core.types import Role
 
-ORDERS = (1, 2)
-
 
 class GradientInteraction(Interaction):
     """An interaction that moves states down the gradient of a potential.
 
-    Every state `x` that the interaction moves gets the rate `-dU/dx / d` on its time derivative of order `order`, where
-    `U` is the potential and `d` the divisor of its member. With order 1 this is a gradient flow `x' = -dU/dx / d`, with
-    `d` a friction. With order 2 it is Newton's law `x'' = -dU/dx / d`, with `d` a mass or an inertia. A vector state
-    gets the gradient of every component.
+    Every state `x` that the interaction moves follows the gradient flow `x' = -dU/dx`, where `U` is the potential. A
+    vector state gets the gradient of every component. A subclass for Newton's law overrides the hook `_get_rate_law`
+    to put the force on the second derivative, `RateLaw(x.diff(t, 2), -dU/dx / m)`.
 
     On a field, the potential is the density `f` of a functional `F`, the integral of `f` over space, and may read the
     field, its derivatives, and its Laplacian. With `variational` the field moves by the functional derivative of `F`,
@@ -61,23 +58,15 @@ class GradientInteraction(Interaction):
         sources:
             The paths of the elements or groups the potential reads but does not move.
 
-        divisor:
-            The name of the state or parameter of every moving member that divides its rate, a function of the
-            namespace of the member that returns the divisor, a mapping from the name of every moving state to its
-            own divisor, or `None`.
-
         variational:
             Whether the potential is the density of a functional of a field, moved by its functional derivative.
 
         conserved:
             Whether the rate is the Laplacian of the derivative of the potential, which conserves the total of a field.
 
-        order:
-            The order of the time derivative that gets the rate, `1` for a gradient flow or `2` for Newton's law.
-
     Raises:
         ValidationError:
-            A state or the divisor is not a name, or the potential is not callable.
+            A state is not a name, or the potential is not callable.
 
     Examples:
         >>> from skcomplex.core.components.elements import Element
@@ -100,29 +89,23 @@ class GradientInteraction(Interaction):
         states: str | tuple[str, ...] = 'x',
         potential: Callable[[SimpleNamespace], object] | None = None,
         sources: tuple[Role, ...] = (),
-        divisor: (
-            str | Callable[[SimpleNamespace], object] | Mapping[str, str | Callable[[SimpleNamespace], object]] | None
-        ) = None,
         variational: bool = False,
         conserved: bool = False,
-        order: int = 1,
     ) -> None:
         super().__init__(label)
         self.target = target
         self.states = states
         self.potential = potential
         self.sources = sources
-        self.divisor = divisor
         self.variational = variational
         self.conserved = conserved
-        self.order = order
 
     def _get_names(self) -> tuple[str, ...]:
         """Return the names of the states the interaction moves."""
         return (self.states,) if isinstance(self.states, str) else tuple(self.states)
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Raise an error for a state or divisor that is not a name, or a bad potential.
+        """Raise an error for a state that is not a name, or a bad potential.
 
         Args:
             context:
@@ -130,35 +113,20 @@ class GradientInteraction(Interaction):
 
         Raises:
             ValidationError:
-                The type declares states, a state is not a name, a divisor is neither a name nor a function, or the
-                potential is not callable.
+                A state is not a name, or the potential is not callable.
         """
         super()._prepare(context)
         names = self._get_names()
         if not names or not all(isinstance(name, str) and name.isidentifier() for name in names):
             error_msg = f'{type(self).__name__} {self.label!r} moves the states {self.states!r}. Give names of states.'
             raise ValidationError(error_msg)
-        divisors = dict(self.divisor) if isinstance(self.divisor, Mapping) else dict.fromkeys(names, self.divisor)
-        valid = all(
-            item is None or callable(item) or (isinstance(item, str) and item.isidentifier())
-            for item in divisors.values()
-        )
-        if not valid or not set(divisors) <= set(names):
-            error_msg = (
-                f'The divisor of {self.label!r} is {self.divisor!r}. Give the name of a state or parameter, a function '
-                'of the namespace of the member, or a mapping from the moving states to them.'
-            )
-            raise ValidationError(error_msg)
         if self.potential is not None and not callable(self.potential):
             error_msg = f'The potential of {self.label!r} is {self.potential!r}. Give a function of the namespace.'
-            raise ValidationError(error_msg)
-        if isinstance(self.order, bool) or self.order not in ORDERS:
-            error_msg = f'The order of {self.label!r} is {self.order!r}. Give 1 for a gradient flow or 2 for Newton.'
             raise ValidationError(error_msg)
         if isinstance(context, SimpleNamespace):
             time = getattr(context, 't', SR.var('t'))
             namespace = self._get_symbolic(context, time)
-            self.laws_: list[BaseComponent] = self._get_gradient_laws(namespace)
+            self.laws_: list[BaseComponent] = self._get_gradient_laws(namespace, context, time)
 
     def _get_potential(self, namespace: SimpleNamespace) -> object:
         """Return the potential.
@@ -170,19 +138,29 @@ class GradientInteraction(Interaction):
             raise ValidationError(error_msg)
         return self.potential(namespace)
 
-    def _get_divisor(self, member: SimpleNamespace, name: str) -> object:
-        """Return the divisor of a moving state of a member, or `None` for none."""
-        divisor = self.divisor.get(name) if isinstance(self.divisor, Mapping) else self.divisor
-        if divisor is None:
-            return None
-        return getattr(member, divisor) if isinstance(divisor, str) else divisor(member)
+    def _get_rate_law(self, state: Target, rate: object, member: SimpleNamespace, time: Expression) -> RateLaw:
+        """Return the law that moves a state, the gradient flow `x' = rate`.
 
-    def _get_rate_state(self, member: SimpleNamespace, name: str) -> object:
-        """Return the state whose highest derivative gets the rate of a moving state.
+        This is the hook a subclass overrides for Newton's law, `RateLaw(state.diff(time, 2), rate / member.m)`.
 
-        It is the moving state itself.
+        Args:
+            state:
+                The moving state as a function of the time.
+
+            rate:
+                The rate down the gradient, `-dU/dx`.
+
+            member:
+                The namespace of the symbols of the moving member, such as its mass `m`.
+
+            time:
+                The time.
+
+        Returns:
+            law:
+                The rate law of the state.
         """
-        return getattr(member, name)
+        return RateLaw(state, rate)
 
     def _walk(self, expression: Expression) -> Iterator[Expression]:
         """Yield an expression and every subexpression of it."""
@@ -301,17 +279,24 @@ class GradientInteraction(Interaction):
         """
         return [getattr(namespace, name) for name in self._get_roles(single=True)]
 
-    def _get_gradient_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
-        """Return the rate of every moving state, down the potential over the divisor."""
+    def _get_gradient_laws(
+        self,
+        namespace: SimpleNamespace,
+        context: SimpleNamespace,
+        time: Expression,
+    ) -> list[BaseComponent]:
+        """Return the rate of every moving state, down the potential.
+
+        The potential is differentiated in the symbols of `namespace`, and the laws target the states of `context`, the
+        same states as functions of the time.
+        """
         potential = SR(self._get_potential(namespace))
         laws: list[BaseComponent] = []
-        for member in self._get_members(namespace):
+        members = zip(self._get_members(namespace), self._get_members(context), strict=True)
+        for member, functional in members:
             for name in self._get_names():
                 state = getattr(member, name)
                 derivative = self._get_derivative(potential, state)
                 rate = self._get_laplacian(derivative, state) if self.conserved else -derivative
-                divisor = self._get_divisor(member, name)
-                if divisor is not None:
-                    rate = rate / divisor
-                laws.append(RateLaw(self._get_rate_state(member, name), rate, self.order))
+                laws.append(self._get_rate_law(getattr(functional, name), rate, member, time))
         return laws

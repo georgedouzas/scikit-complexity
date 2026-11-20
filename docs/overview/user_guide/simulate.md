@@ -423,8 +423,8 @@ Before the first frame the solver checks the system. It raises one error that li
 law it cannot run. The library translates a system to LAMMPS as follows.
 
 - Elements and groups with a vector position whose laws set its second derivative, such as `atoms`, become one atom
-  type per element or group. The velocities of the atoms are the first derivatives of the positions. Their mass is the parameter that the
-  `divisor` of their interactions names, or 1 without one.
+  type per element or group. The velocities of the atoms are the first derivatives of the positions. Their mass is their value `m`, or 1
+  without one.
 - Two or three dimensions become `dimension 2` with `fix enforce2d`, or `dimension 3`.
 - `ContinuousSpace(extent, boundary='reflecting')` becomes `fix wall/reflect` at `0` and the extent.
 - `ContinuousSpace(extent, boundary='periodic')` becomes periodic boundaries of the extent, shared by every group.

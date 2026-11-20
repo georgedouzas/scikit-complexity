@@ -8,7 +8,7 @@ The module covers random walks, persistent and autoregressive walks, and diffusi
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, ZZ, sqrt
@@ -20,8 +20,9 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.components.laws.utils import bernoulli, normal
 from ....core.components.spaces import BaseSpace, ContinuousSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
@@ -353,7 +354,7 @@ class WeakeningForceInteraction(Interaction):
             ]
 
 
-class AgeingWalkerView(AgentView):
+class AgeingWalkerView(AgentViewProtocol, Protocol):
     """View of an ageing walker, with its values as attributes."""
 
     x: float
@@ -395,11 +396,6 @@ class AgeingWalkerElement(Element):
         super().__init__(label, size=size)
         self.x = x
         self.ups = ups
-
-    @classmethod
-    def _get_view(cls) -> type[AgeingWalkerView]:
-        """Return the view of the walkers, which types their values."""
-        return AgeingWalkerView
 
 
 class AgeingStepInteraction(Interaction):

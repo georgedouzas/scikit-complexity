@@ -8,7 +8,7 @@ The speed depends on the distance to the car ahead.
 
 from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
@@ -20,8 +20,9 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace, ContinuousSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.errors import SimulationError
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
@@ -30,7 +31,7 @@ from ....core.types import Role
 ROAD_WIDTH = 1.0
 
 
-class MotoristView(AgentView):
+class MotoristView(AgentViewProtocol, Protocol):
     """View of a car of Charbonneau's traffic system.
 
     Its states and parameters are attributes.
@@ -108,14 +109,6 @@ class MotoristElement(Element):
         self.acceleration = acceleration
         self.speed_limit = speed_limit
 
-    @classmethod
-    def _get_view(cls) -> type[MotoristView]:
-        """Return the view of the cars.
-
-        It types their states and parameters.
-        """
-        return MotoristView
-
 
 class SafeDistanceInteraction(Interaction):
     """Speed rule of the cars of Charbonneau's traffic system.
@@ -161,7 +154,7 @@ class SafeDistanceInteraction(Interaction):
             system:
                 The system.
         """
-        cars = system.get_agents(self.target, MotoristView)
+        cars = cast(list[MotoristView], system.get_agents(self.target))
         ahead = next((car for car in cars if int(car.rank) == int(agent.rank) + 1), None)
         if ahead is None:
             behind = next((car for car in cars if int(car.rank) == int(agent.rank) - 1), None)
@@ -172,7 +165,7 @@ class SafeDistanceInteraction(Interaction):
         agent.v = float(np.clip(agent.v + change, 0.0, agent.speed_limit))
 
 
-class DriverView(AgentView):
+class DriverView(AgentViewProtocol, Protocol):
     """View of a driver on a ring road, with its states and parameters as attributes."""
 
     speed: float
@@ -255,14 +248,6 @@ class DriverElement(Element):
         self.speed_limit = speed_limit
         self.eps = eps
 
-    @classmethod
-    def _get_view(cls) -> type[DriverView]:
-        """Return the view of the drivers.
-
-        It types their states and parameters.
-        """
-        return DriverView
-
 
 class RingRoadDrivingInteraction(Interaction):
     """Driving rule of the drivers on a ring road.
@@ -309,7 +294,7 @@ class RingRoadDrivingInteraction(Interaction):
             system:
                 The system.
         """
-        cars = system.get_agents(self.target, DriverView)
+        cars = cast(list[DriverView], system.get_agents(self.target))
         if system.dimensions is None:
             error_msg = 'Drivers move along a ring road, a continuous space with an extent.'
             raise SimulationError(error_msg)
@@ -324,7 +309,7 @@ class RingRoadDrivingInteraction(Interaction):
         agent.move_to(((x + agent.speed) % length, y))
 
     @staticmethod
-    def _get_position(agent: AgentView) -> tuple[float, float]:
+    def _get_position(agent: AgentViewProtocol) -> tuple[float, float]:
         """Return the position of an agent in a continuous space."""
         x, y = np.asarray(agent.location, dtype=float)
         return float(x), float(y)
@@ -336,7 +321,11 @@ class RingRoadDrivingInteraction(Interaction):
         """
         rank = (int(agent.rank) + 1) % n_cars if n_cars else 0
         return next(
-            (car for car in system.get_agents(self.target, DriverView) if int(car.rank) == rank and car != agent),
+            (
+                car
+                for car in cast(list[DriverView], system.get_agents(self.target))
+                if int(car.rank) == rank and car != agent
+            ),
             None,
         )
 
@@ -396,7 +385,7 @@ class CarelessBrakingInteraction(Interaction):
             system:
                 The system.
         """
-        cars = sorted(system.get_agents('cars', MotoristView), key=lambda car: car.rank)
+        cars = sorted(cast(list[MotoristView], system.get_agents('cars')), key=lambda car: car.rank)
         if not cars:
             return
         if system.rng.random() < self.probability:

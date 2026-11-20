@@ -20,7 +20,7 @@ from scipy.special import rel_entr
 from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import ArrayUpdateLaw, BaseLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.problems import BaseProblemSpec, CompiledElementSpec, FrameSpec
@@ -226,7 +226,7 @@ class EnsembleReplayInteraction(Interaction):
         'x'
     """
 
-    law_classes = (ArrayUpdateLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
@@ -250,7 +250,7 @@ class EnsembleReplayInteraction(Interaction):
         super()._prepare(context)
         if not isinstance(context, SimpleNamespace):
             return
-        self.laws_: Sequence[BaseLaw] = [ArrayUpdateLaw(getattr(context.target, self.state), self._read_member)]
+        self.laws_: Sequence[BaseLaw] = [UpdateLaw(getattr(context.target, self.state), self._read_member)]
 
 
 @dataclass(frozen=True)

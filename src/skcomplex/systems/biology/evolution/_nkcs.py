@@ -6,7 +6,7 @@
 from collections.abc import Sequence
 from functools import lru_cache
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
@@ -17,16 +17,17 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
 
 
-class CoevolvingSpeciesView(AgentView):
+class CoevolvingSpeciesView(AgentViewProtocol, Protocol):
     """View of a coevolving species, with its states as attributes.
 
-    `CoevolvingSpeciesElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `CoevolvingSpeciesElement` read them with checked types.
     """
 
     genome: float
@@ -77,11 +78,6 @@ class CoevolvingSpeciesElement(Element):
         self.genome = genome
         self.fitness = fitness
         self.moves = moves
-
-    @classmethod
-    def _get_view(cls) -> type[CoevolvingSpeciesView]:
-        """Return the view of a species, `CoevolvingSpeciesView`."""
-        return CoevolvingSpeciesView
 
 
 class CoevolutionaryClimbingInteraction(Interaction):
@@ -165,7 +161,7 @@ class CoevolutionaryClimbingInteraction(Interaction):
             system:
                 The system.
         """
-        species = system.get_agents(self.species, CoevolvingSpeciesView)
+        species = cast(list[CoevolvingSpeciesView], system.get_agents(self.species))
         genomes = [int(item.genome) for item in species]
         for index, item in enumerate(species):
             mutant = genomes[index] ^ (1 << int(system.rng.integers(self.n)))

@@ -6,7 +6,7 @@ from sage.all__sagemath_symbolics import var
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import ArrayUpdateLaw, UpdateLaw
+from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.laws.utils import relax
 from skcomplex.core.components.laws.utils._relaxations import relaxation_of
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace, RadiusNeighborhood
@@ -26,7 +26,7 @@ def _avalanche(s):
         lambda left, value, right: value * (value < 1) + 0.5 * (left >= 1) + 0.5 * (right >= 1),
         neighborhood=LINE,
     )
-    drive = ArrayUpdateLaw(potential, lambda values, *, random: values + 0.6 * (np.arange(values.size) == 0))
+    drive = UpdateLaw(potential, lambda values, *, random: values + 0.6 * (np.arange(values.size) == 0))
     relaxation = relax(potential, fire, lambda values: bool((values < 1).all()), drive=drive)
     return [UpdateLaw(potential, relaxation, label='avalanche')]
 
@@ -88,7 +88,7 @@ def _sandpile(symbolic):
     def laws(s):
         height = s.target.height
         topple = UpdateLaw(height, lambda z, *n: z - 4 * (z >= 4) + sum(m >= 4 for m in n[1:]), neighborhood=CROSS)
-        drive = UpdateLaw(height, height + 1) if symbolic else ArrayUpdateLaw(height, lambda z, *, random: z + 1)
+        drive = UpdateLaw(height, height + 1) if symbolic else UpdateLaw(height, lambda z, *, random: z + 1)
         return [UpdateLaw(height, relax(height, topple, lambda z: bool((z < 4).all()), drive=drive))]
 
     return laws

@@ -10,7 +10,7 @@ from sage.all__sagemath_symbolics import sin
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import NeighborInteraction
-from skcomplex.core.components.laws import ArrayUpdateLaw, JumpLaw, LocalRuleLaw, RateLaw, UpdateLaw
+from skcomplex.core.components.laws import JumpLaw, LocalRuleLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import delayed, mean, relax
 from skcomplex.core.components.spaces import (
     AdjacencyNeighborhood,
@@ -564,7 +564,7 @@ def _sandpile(height, over):
         height,
         LocalRuleLaw(height, over, lambda value, *around: value - 3 * (value >= 3) + sum(item >= 3 for item in around)),
         lambda values: bool((values < 3).all()),
-        drive=ArrayUpdateLaw(height, lambda values, *, random: values + (np.arange(values.size) == 2)),
+        drive=UpdateLaw(height, lambda values, *, random: values + (np.arange(values.size) == 2)),
         activity=lambda values: values >= 3,
     )
     return [UpdateLaw(height, relaxation)]

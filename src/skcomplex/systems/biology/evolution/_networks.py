@@ -9,7 +9,7 @@ They cover autocatalytic sets and the extinctions of Solé and Manrubia.
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, cast
 
 import networkx as nx
 import numpy as np
@@ -23,8 +23,9 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, TopologyRequestSpec, UpdateLaw
 from ....core.components.laws.utils import both, minimum, mod, neighbors, total, uniform, where
 from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
@@ -208,10 +209,10 @@ class CatalyticLinkElement(Element):
     visual = VisualSpec('sites', {'states': []})
 
 
-class CompetingSpeciesView(AgentView):
+class CompetingSpeciesView(AgentViewProtocol, Protocol):
     """View of a competing species, with its states as attributes.
 
-    `CompetingSpeciesElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `CompetingSpeciesElement` read them with checked types.
     """
 
     x: float
@@ -256,11 +257,6 @@ class CompetingSpeciesElement(Element):
         super().__init__(label, size=size)
         self.x = x
         self.links = links
-
-    @classmethod
-    def _get_view(cls) -> type[CompetingSpeciesView]:
-        """Return the view of a species, `CompetingSpeciesView`."""
-        return CompetingSpeciesView
 
 
 class CompetitiveSelectionInteraction(Interaction):
@@ -334,7 +330,7 @@ class CompetitiveSelectionInteraction(Interaction):
             system:
                 The system.
         """
-        species = system.get_agents(self.species, CompetingSpeciesView)
+        species = cast(list[CompetingSpeciesView], system.get_agents(self.species))
         matrix = np.array([np.asarray(item.links, dtype=float) for item in species])
         populations = self._relax(matrix, np.array([item.x for item in species]))
         size = len(species)

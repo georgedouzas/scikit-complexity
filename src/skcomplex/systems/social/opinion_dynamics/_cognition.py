@@ -7,7 +7,7 @@ The attitudes settle inside each agent's beliefs.
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Annotated, cast
+from typing import Annotated, Protocol, cast
 
 import networkx as nx
 import numpy as np
@@ -18,8 +18,9 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.spaces import NetworkSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
@@ -32,7 +33,7 @@ MAX_SETTLING = 1000
 POSITIVE = (1.0, 1.0, -1.0)
 
 
-class ThinkerView(AgentView):
+class ThinkerView(AgentViewProtocol, Protocol):
     """View of an agent of the cognitive consistency system.
 
     Its states and parameters are attributes.
@@ -86,14 +87,6 @@ class ThinkerElement(Element):
         self.valences = valences
         self.attitude = attitude
         self.decay = decay
-
-    @classmethod
-    def _get_view(cls) -> type[ThinkerView]:
-        """Return the class of the views of the agents.
-
-        Their attributes are the states and parameters.
-        """
-        return ThinkerView
 
 
 def _settle_once(valences: Array, decay: float) -> Array:
@@ -171,7 +164,7 @@ class ConversationsInteraction(NeighborhoodsInteraction):
     ) -> None:
         super().__init__(label, target=target, phase=phase)
 
-    def act_on(self, members: list[AgentView], system: SystemView) -> None:
+    def act_on(self, members: list[AgentViewProtocol], system: SystemView) -> None:
         """Let the first member speak to a random neighbour.
 
         The neighbour averages the topic and settles its beliefs.

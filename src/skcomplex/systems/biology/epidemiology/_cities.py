@@ -8,7 +8,7 @@ The epidemics spread on the contacts of people who visit the same locations of a
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, cast
 
 import networkx as nx
 import numpy as np
@@ -19,8 +19,9 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, IntArray, Role
@@ -28,10 +29,10 @@ from ....core.types import Array, IntArray, Role
 SUSCEPTIBLE, INFECTED, RECOVERED = 0.0, 1.0, 2.0
 
 
-class CommuterView(AgentView):
+class CommuterView(AgentViewProtocol, Protocol):
     """View of a commuter, with its states as attributes.
 
-    `CommuterElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `CommuterElement` read them with checked types.
     """
 
     home: float
@@ -94,11 +95,6 @@ class CommuterElement(Element):
         self.work = work
         self.health = health
         self.node = node
-
-    @classmethod
-    def _get_view(cls) -> type[CommuterView]:
-        """Return the view of a commuter, `CommuterView`."""
-        return CommuterView
 
 
 class ColocationInteraction(Interaction):
@@ -169,7 +165,7 @@ class ColocationInteraction(Interaction):
             system:
                 The system.
         """
-        people = system.get_agents(self.people, CommuterView)
+        people = cast(list[CommuterView], system.get_agents(self.people))
         at_work = round(system.time) % 2 == 1 and not self.closed
         places = np.array([int(person.work if at_work else person.home) for person in people])
         health = np.array([person.health for person in people])

@@ -5,7 +5,7 @@
 
 import math
 
-from ...components.laws import ArrayUpdateLaw, BoundaryLaw, LocalRuleLaw, UpdateLaw
+from ...components.laws import BoundaryLaw, LocalRuleLaw, UpdateLaw
 from ...components.spaces import DiscreteTime, LatticeSpace, NetworkSpace
 from ...enums import FormKind, OrderKind
 from ...types import Array
@@ -39,7 +39,7 @@ class LatticeSolver(Solver):
         return SupportSpec(
             time={DiscreteTime},
             space={LatticeSpace, NetworkSpace},
-            laws={LocalRuleLaw, ArrayUpdateLaw, UpdateLaw, BoundaryLaw},
+            laws={LocalRuleLaw, UpdateLaw, BoundaryLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 

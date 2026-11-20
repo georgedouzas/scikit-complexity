@@ -5,7 +5,7 @@
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, runtime_checkable
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
@@ -17,14 +17,16 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
 
 
-class ContenderView(AgentView):
+@runtime_checkable
+class ContenderView(AgentViewProtocol, Protocol):
     """View of an agent of the Bonabeau hierarchy system.
 
     Its states and parameters are attributes.
@@ -96,14 +98,6 @@ class ContenderElement(Element):
         self.relaxation = relaxation
         self.x = x
         self.y = y
-
-    @classmethod
-    def _get_view(cls) -> type[ContenderView]:
-        """Return the class of the views of the agents.
-
-        Their attributes are the states and parameters.
-        """
-        return ContenderView
 
 
 class WanderInteraction(Interaction):

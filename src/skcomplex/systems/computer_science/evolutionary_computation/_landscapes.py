@@ -4,7 +4,7 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Annotated
+from typing import Annotated, Protocol
 
 import numpy as np
 import numpy.typing as npt
@@ -13,16 +13,16 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.types import SystemViewProtocol
+from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
 from ...general.agents import EvolutionInteraction
 
 
-class BitStringView(AgentView):
+class BitStringView(AgentViewProtocol, Protocol):
     """View of an individual of a fitness landscape, with its states as attributes."""
 
     genome: float
@@ -67,14 +67,6 @@ class BitStringElement(Element):
         super().__init__(label, size=size)
         self.genome = genome
         self.fitness = fitness
-
-    @classmethod
-    def _get_view(cls) -> type[BitStringView]:
-        """Return the view of the individuals.
-
-        It types their states.
-        """
-        return BitStringView
 
 
 class ReproductionInteraction(EvolutionInteraction):

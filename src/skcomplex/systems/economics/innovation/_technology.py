@@ -8,7 +8,7 @@ They redesign their components or combine logic circuits.
 
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -21,8 +21,9 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
 
@@ -31,7 +32,7 @@ FALSE = (0, 0)
 TRUE = (0, 1)
 
 
-class TechnologyView(AgentView):
+class TechnologyView(AgentViewProtocol, Protocol):
     """Technology as the invention sees it.
 
     It holds its `arity`, its truth `table`, and its `cost` in NAND gates.
@@ -42,7 +43,7 @@ class TechnologyView(AgentView):
     cost: float
 
 
-class PartView(AgentView):
+class PartView(AgentViewProtocol, Protocol):
     """Part of a technology as the redesign sees it: its unit `cost`."""
 
     cost: float
@@ -76,11 +77,6 @@ class PartElement(Element):
     ) -> None:
         super().__init__(label, size=size)
         self.cost = cost
-
-    @classmethod
-    def _get_view(cls) -> type[PartView]:
-        """Return the view of the agents of the element."""
-        return PartView
 
 
 def _truth_table(arity: int, function: Callable[..., bool]) -> int:
@@ -183,7 +179,7 @@ class InventionInteraction(Interaction):
             system:
                 The system.
         """
-        pool = system.get_agents('technologies', TechnologyView)
+        pool = cast(list[TechnologyView], system.get_agents('technologies'))
         arity, table, cost = self._wire(pool, system)
         if (arity, table) not in GOALS:
             return
@@ -265,7 +261,7 @@ class RedesignInteraction(Interaction):
             system:
                 The system.
         """
-        components = sorted(system.get_agents('components', PartView), key=lambda component: component.id)
+        components = sorted(cast(list[PartView], system.get_agents('components')), key=lambda component: component.id)
         cost = np.array([component.cost for component in components])
         proposal, changed = RedesignInteraction._get_components(
             cost,
@@ -334,11 +330,6 @@ class TechnologyElement(Element):
         self.arity = arity
         self.table = table
         self.cost = cost
-
-    @classmethod
-    def _get_view(cls) -> type[TechnologyView]:
-        """Return the view of the agents of the element."""
-        return TechnologyView
 
 
 class NkTechnologySystem(BaseSystem):

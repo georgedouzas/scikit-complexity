@@ -7,7 +7,7 @@ It is the diffusion of good working conditions from buyers to suppliers.
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Annotated
+from typing import Annotated, Protocol, runtime_checkable
 
 import networkx as nx
 import numpy as np
@@ -20,14 +20,15 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import NetworkSpace
-from ....core.components.types import SystemViewProtocol
+from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 
 
-class SupplierView(AgentView):
+@runtime_checkable
+class SupplierView(AgentViewProtocol, Protocol):
     """View of a firm of the supply chain diffusion system.
 
     Its states are attributes.
@@ -80,11 +81,6 @@ class SupplierElement(Element):
         self.adopted = adopted
         self.inflow = inflow
         self.outflow = outflow
-
-    @classmethod
-    def _get_view(cls) -> type[SupplierView]:
-        """Return the class of the views of the agents, whose attributes are the states."""
-        return SupplierView
 
 
 class SupplyChainDiffusionSystem(BaseSystem):

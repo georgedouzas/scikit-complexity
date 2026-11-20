@@ -8,7 +8,7 @@ A stable matching sends the cabs.
 
 from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, cast, runtime_checkable
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
@@ -21,9 +21,10 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import transfer
 from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
-from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
+from ....core.engine.solvers import BaseSolver, MesaSolver, SystemView
 from ....core.errors import ValidationError
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
@@ -34,7 +35,8 @@ from ...general.matching import MatchingInteraction, MatchSpec, StableMatchingSp
 IDLE, PICKING_UP, DELIVERING = 0.0, 1.0, 2.0
 
 
-class CabView(AgentView):
+@runtime_checkable
+class CabView(AgentViewProtocol, Protocol):
     """View of a cab of the ridesharing system.
 
     Its states and parameters are attributes.
@@ -50,7 +52,8 @@ class CabView(AgentView):
     money: float
 
 
-class RiderView(AgentView):
+@runtime_checkable
+class RiderView(AgentViewProtocol, Protocol):
     """View of a rider of the ridesharing system, with its states as attributes."""
 
     destination_x: float
@@ -137,14 +140,6 @@ class CabElement(Element):
         self.seats = seats
         self.money = money
 
-    @classmethod
-    def _get_view(cls) -> type[CabView]:
-        """Return the view of the cabs.
-
-        It types their states and parameters.
-        """
-        return CabView
-
 
 class CabDrivingInteraction(Interaction):
     """Driving rule of the cabs of the ridesharing system.
@@ -204,7 +199,9 @@ class CabDrivingInteraction(Interaction):
 
     def _pick_up(self, agent: CabView, system: SystemView) -> None:
         """Collect the fare of the rider, take it on board, and head for its destination."""
-        rider = next(item for item in system.get_agents(self.riders, RiderView) if item.id == int(agent.rider))
+        rider = next(
+            item for item in cast(list[RiderView], system.get_agents(self.riders)) if item.id == int(agent.rider)
+        )
         destination = (int(agent.destination_x), int(agent.destination_y))
         blocks = CabDrivingInteraction._get_blocks(CabDrivingInteraction._get_cell(agent.location), destination)
         fare = self.base_fare + self.block_fare * blocks
@@ -315,14 +312,6 @@ class RiderElement(Element):
         self.waited = waited
         self.seats = seats
         self.money = money
-
-    @classmethod
-    def _get_view(cls) -> type[RiderView]:
-        """Return the view of the riders.
-
-        It types their states.
-        """
-        return RiderView
 
 
 class ArrivalInteraction(BirthDeathInteraction):

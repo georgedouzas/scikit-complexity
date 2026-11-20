@@ -6,7 +6,7 @@
 import math
 from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import Annotated, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
@@ -21,7 +21,7 @@ from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace, ContinuousSpace, DelaunayNeighborhood
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver
+from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
 
@@ -34,10 +34,10 @@ DAUGHTER_DISTANCE = 0.8
 SPRING_CUTOFF = 1.5
 
 
-class SpringCellView(AgentView):
+class SpringCellView(AgentViewProtocol, Protocol):
     """View of a cell of the off-lattice tumour, with its states and parameters as attributes.
 
-    `SpringCellElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `SpringCellElement` read them with checked types.
     """
 
     cancer: float
@@ -133,11 +133,6 @@ class SpringCellElement(Element):
         self.p_psc = p_psc
         self.lam = lam
         self.s = s
-
-    @classmethod
-    def _get_view(cls) -> type[SpringCellView]:
-        """Return the view of a cell, `SpringCellView`."""
-        return SpringCellView
 
 
 class TumourGrowthInteraction(Interaction):

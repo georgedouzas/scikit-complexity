@@ -5,7 +5,7 @@
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
@@ -17,13 +17,14 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
+from ....core.engine.solvers import BaseSolver, MesaSolver, SystemView
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
 
 
-class InvestingFirmView(AgentView):
+class InvestingFirmView(AgentViewProtocol, Protocol):
     """Firm as its rule sees it.
 
     It holds its states `A`, `K`, `Z`, `B`, `Y`, `P` and parameters `gamma`, `phi`, `r`, `pbar`.
@@ -119,11 +120,6 @@ class InvestingFirmElement(Element):
         self.phi = phi
         self.r = r
         self.pbar = pbar
-
-    @classmethod
-    def _get_view(cls) -> type[InvestingFirmView]:
-        """Return the view of a firm, with its states and parameters."""
-        return InvestingFirmView
 
 
 class InvestmentInteraction(Interaction):

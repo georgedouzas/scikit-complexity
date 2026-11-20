@@ -105,10 +105,14 @@ import numpy as np
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.systems import System
 from skcomplex.systems.general.elements import PointElement
-from skcomplex.systems.general.gradients import GradientInteraction
+from sage.all__sagemath_symbolics import vector
+
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
 
 ball = PointElement('ball', x=np.array([0.0, 0.0]), values={"x'": np.array([1.0, 2.0])})
-gravity = GradientInteraction('gravity', target='ball', potential=lambda s: s.target.x[1], order=2)
+fall = lambda s: [RateLaw(s.target.x.diff(s.t, 2), vector([0, -1]))]
+gravity = Interaction('gravity', roles={'target': 'ball'}, laws=fall)
 flight = System(elements=[ball], interactions=[gravity], space=ContinuousSpace(n_dim=2)).prepare()
 flight.simulate(until=2.0, dt=1.0).get_values('ball.x').round(3).tolist()
 ```
@@ -433,8 +437,8 @@ round(float(trajectory.get_values('model.a')[-1]), 3), round(float(trajectory.ge
 The weights reach 1.0 and -2.0, the minimum of the loss.
 
 **How the engine runs it.** The interaction differentiates the potential symbolically and returns one rate law per
-moving state, `-dU/dx` divided by the divisor. On a state of order 1 this is a gradient flow, and on a state of order
-2 it is Newton's law with the force `-dU/dx`. `ScipyODESolver` integrates the rates.
+moving state, the gradient flow `x' = -dU/dx`. A subclass that defines the hook `_get_rate_law` puts the force
+`-dU/dx` on the second derivative instead, for Newton's law. `ScipyODESolver` integrates the rates.
 
 ```python continuation
 [law.__name__ for law in descent.law_classes]

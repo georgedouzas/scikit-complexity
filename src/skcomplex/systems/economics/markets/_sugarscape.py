@@ -8,7 +8,7 @@ Foragers live on a landscape of regrowing sugar.
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Annotated
+from typing import Annotated, Protocol, runtime_checkable
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
@@ -23,7 +23,7 @@ from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
-from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver
+from ....core.engine.solvers import BaseSolver, MesaSolver
 from ....core.specs import BaseSpec, VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
@@ -35,7 +35,8 @@ BOUNDS = (21, 16, 11, 6)
 DIRECTIONS = ((1, 0), (-1, 0), (0, 1), (0, -1))
 
 
-class ForagerView(AgentView):
+@runtime_checkable
+class ForagerView(AgentViewProtocol, Protocol):
     """Forager as the rules see it.
 
     It holds its wealth `sugar`, its `vision`, and its `metabolism`.
@@ -100,13 +101,9 @@ class ForagerElement(Element):
         self.vision = vision
         self.metabolism = metabolism
 
-    @classmethod
-    def _get_view(cls) -> type[ForagerView]:
-        """Return the view of a forager, with its sugar, vision, and metabolism."""
-        return ForagerView
 
-
-class SugarPatchView(AgentView):
+@runtime_checkable
+class SugarPatchView(AgentViewProtocol, Protocol):
     """Patch as the rules see it: its `sugar`, its `capacity`, and its `growback`."""
 
     sugar: float
@@ -178,11 +175,6 @@ class SugarPatchElement(Element):
         self.sugar = sugar
         self.capacity = capacity
         self.growback = growback
-
-    @classmethod
-    def _get_view(cls) -> type[SugarPatchView]:
-        """Return the view of a patch, with its sugar, capacity, and growback."""
-        return SugarPatchView
 
 
 def _get_gini(wealth: object) -> float:

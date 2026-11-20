@@ -16,6 +16,7 @@ from ....core.components import Observable
 from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
+from ....core.components.types import Target
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver
 from ....core.systems import BaseSystem, System
@@ -201,11 +202,15 @@ class WallsInteraction(GradientInteraction):
         falloff: Annotated[float, RealSet.open(0, oo)] = 0.2,
         radius: Annotated[float, RealSet.closed_open(0, oo)] = 0.3,
     ) -> None:
-        super().__init__(label, target=target, potential=self._get_potential, order=2)
+        super().__init__(label, target=target, potential=self._get_potential)
         self.width = width
         self.strength = strength
         self.falloff = falloff
         self.radius = radius
+
+    def _get_rate_law(self, state: Target, rate: object, member: SimpleNamespace, time: Expression) -> RateLaw:
+        """Return the force per unit mass of the walls on the acceleration of a walker."""
+        return RateLaw(state.diff(time, 2), rate)
 
     def _get_potential(self, s: SimpleNamespace) -> Expression:
         """Return the potential of both walls at the position of a walker."""

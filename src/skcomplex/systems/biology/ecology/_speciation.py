@@ -8,7 +8,7 @@ Its species arise by speciation and vanish by drift.
 
 
 from collections.abc import Mapping, Sequence
-from typing import Annotated
+from typing import Annotated, Protocol
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN
@@ -17,18 +17,19 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import AnyArray, Role
 from ...general.agents import EvolutionInteraction
 
 
-class OrganismView(AgentView):
+class OrganismView(AgentViewProtocol, Protocol):
     """View of an organism, with its states as attributes.
 
-    `OrganismElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `OrganismElement` read them with checked types.
     """
 
     species: float
@@ -72,11 +73,6 @@ class OrganismElement(Element):
     ) -> None:
         super().__init__(label, values=values, size=size, space=space)
         self.species = species
-
-    @classmethod
-    def _get_view(cls) -> type[OrganismView]:
-        """Return the view of an organism, `OrganismView`."""
-        return OrganismView
 
 
 class NeutralReplacementInteraction(EvolutionInteraction):

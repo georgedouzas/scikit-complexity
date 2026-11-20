@@ -8,7 +8,7 @@ It runs under a Covid shock and policies.
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
@@ -17,8 +17,9 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.errors import ValidationError
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
@@ -27,7 +28,7 @@ from ..common.policy import PolicyRuleInteraction
 CREDIT_POLICIES = ('none', 'naive', 'adaptive')
 
 
-class Mark0FirmView(AgentView):
+class Mark0FirmView(AgentViewProtocol, Protocol):
     """Firm as the economy sees it.
 
     It holds its workforce, demand, price, wage, cash, profit, and whether it is active.
@@ -103,11 +104,6 @@ class Mark0FirmElement(Element):
         self.cash = cash
         self.profit = profit
         self.active = active
-
-    @classmethod
-    def _get_view(cls) -> type[Mark0FirmView]:
-        """Return the view of the agents of the element."""
-        return Mark0FirmView
 
 
 class Mark0EconomyInteraction(PolicyRuleInteraction[SystemView]):
@@ -360,7 +356,7 @@ class Mark0EconomyInteraction(PolicyRuleInteraction[SystemView]):
             system:
                 The system view of the economy.
         """
-        firms = sorted(system.get_agents('firms', Mark0FirmView), key=lambda firm: firm.id)
+        firms = sorted(cast(list[Mark0FirmView], system.get_agents('firms')), key=lambda firm: firm.id)
         names = ('workforce', 'demand', 'price', 'wage', 'cash', 'profit', 'active')
         keys = ('n', 'd', 'p', 'w', 'e', 'profit', 'active')
         state = {key: np.array([getattr(firm, name) for firm in firms]) for key, name in zip(keys, names, strict=True)}

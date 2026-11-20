@@ -6,13 +6,13 @@ It holds its external assets, its equity, its payments, and its state of default
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Annotated
+from typing import Annotated, Protocol
 
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from .....core.components.elements import Element
-from .....core.engine.solvers import AgentView
+from .....core.components.types import AgentViewProtocol
 from .....core.specs import VisualSpec
 
 SOLVENT = 0
@@ -20,7 +20,7 @@ DEFAULTING = 1
 DEFAULTED = 2
 
 
-class BalanceSheetView(AgentView):
+class BalanceSheetView(AgentViewProtocol, Protocol):
     """Bank as a contagion sees it: its external assets, equity, payment, and status."""
 
     external: float
@@ -78,8 +78,3 @@ class BalanceSheetElement(Element):
         self.equity = equity
         self.payment = payment
         self.status = status
-
-    @classmethod
-    def _get_view(cls) -> type[BalanceSheetView]:
-        """Return the view of the agents of the element."""
-        return BalanceSheetView

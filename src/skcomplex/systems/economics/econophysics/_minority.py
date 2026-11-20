@@ -6,7 +6,7 @@
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, ZZ
@@ -18,9 +18,10 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
-from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
+from ....core.engine.solvers import BaseSolver, MesaSolver, SystemView
 from ....core.specs import BaseSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import IntArray, Role
@@ -48,7 +49,7 @@ class _GameStateSpec(BaseSpec):
     tables: Mapping[float, IntArray] = field(default_factory=dict)
 
 
-class MinorityPlayerView(AgentView):
+class MinorityPlayerView(AgentViewProtocol, Protocol):
     """Player as the minority game sees it, with its strategies, action, and wealth.
 
     It reads its `first` and `second` strategies, their scores `first_score` and `second_score`, the `strategy` it
@@ -122,11 +123,6 @@ class MinorityPlayerElement(Element):
         self.strategy = strategy
         self.action = action
         self.wealth = wealth
-
-    @classmethod
-    def _get_view(cls) -> type[MinorityPlayerView]:
-        """Return the view of the agents of the element."""
-        return MinorityPlayerView
 
 
 def strategy_table(code: float, memory: int) -> IntArray:
@@ -233,7 +229,7 @@ class MinorityGameInteraction(Interaction):
             system:
                 The system.
         """
-        agents = system.get_agents('players', MinorityPlayerView)
+        agents = cast(list[MinorityPlayerView], system.get_agents('players'))
         history = self._get_state(system).history
         for agent in agents:
             code = agent.second if agent.strategy else agent.first

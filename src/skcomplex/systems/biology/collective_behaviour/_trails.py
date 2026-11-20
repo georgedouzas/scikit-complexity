@@ -5,7 +5,7 @@
 
 from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import Annotated, Protocol, cast, runtime_checkable
 
 import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo
@@ -20,7 +20,7 @@ from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array
@@ -86,10 +86,11 @@ class GroundElement(Element):
         self.tau = tau
 
 
-class WalkerView(AgentView):
+@runtime_checkable
+class WalkerView(AgentViewProtocol, Protocol):
     """View of a walker, with its states and parameters as attributes.
 
-    `WalkerElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `WalkerElement` read them with checked types.
     """
 
     goal_x: float
@@ -190,11 +191,6 @@ class WalkerElement(Element):
         self.G_max = G_max
         self.width = width
         self.height = height
-
-    @classmethod
-    def _get_view(cls) -> type[WalkerView]:
-        """Return the view of a walker, `WalkerView`."""
-        return WalkerView
 
 
 class ActiveWalkersSystem(BaseSystem):

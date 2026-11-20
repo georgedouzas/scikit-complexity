@@ -8,7 +8,7 @@ They are Mitchell's genetic algorithm and Gooding's evolution by circumstance of
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN
@@ -19,8 +19,9 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.errors import ParameterError
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
@@ -36,7 +37,7 @@ MOVES = np.array([[-1, 0], [1, 0], [0, 1], [0, -1]])
 CAN_REWARD, EMPTY_PICK_UP_PENALTY, WALL_PENALTY = 10.0, -1.0, -5.0
 
 
-class StrategyView(AgentView):
+class StrategyView(AgentViewProtocol, Protocol):
     """View of a strategy of a genetic algorithm, with its states as attributes."""
 
     actions: IntArray
@@ -81,14 +82,6 @@ class StrategyElement(Element):
         super().__init__(label, size=size)
         self.actions = actions
         self.score = score
-
-    @classmethod
-    def _get_view(cls) -> type[StrategyView]:
-        """Return the view of the strategies.
-
-        It types their states.
-        """
-        return StrategyView
 
 
 class RoomCleaningInteraction(Interaction):
@@ -149,7 +142,7 @@ class RoomCleaningInteraction(Interaction):
 
     def _score_agents(self, system: SystemView) -> None:
         """Set the score of every strategy of the target to its mean score in random rooms."""
-        agents = system.get_agents('target', StrategyView)
+        agents = cast(list[StrategyView], system.get_agents('target'))
         strategies = np.array([agent.actions for agent in agents], dtype=np.int64)
         for agent, score in zip(agents, self.score(strategies, system.rng), strict=True):
             agent.score = float(score)
@@ -282,14 +275,6 @@ class AgedStrategyElement(StrategyElement):
         super().__init__(label, actions=actions, score=score, size=size)
         self.age = age
 
-    @classmethod
-    def _get_view(cls) -> type[AgedStrategyView]:
-        """Return the view of the aged strategies.
-
-        It types their states.
-        """
-        return AgedStrategyView
-
 
 class CircumstanceInteraction(Interaction):
     """Evolution by circumstance of the strategies of Robby.
@@ -357,7 +342,7 @@ class CircumstanceInteraction(Interaction):
 
         Their places are filled with children of survivors.
         """
-        agents = system.get_agents('target', AgedStrategyView)
+        agents = cast(list[AgedStrategyView], system.get_agents('target'))
         rng = system.rng
         ages = np.array([agent.age for agent in agents]) + 1
         scores = np.array([agent.score for agent in agents])

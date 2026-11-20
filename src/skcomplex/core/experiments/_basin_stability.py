@@ -19,7 +19,7 @@ from ._replicate import _run_replicated
 from ._runs import _check_count, _check_source, _run_experiment
 from ._scenario_spec import ScenarioSpec
 from ._utils import build_system, get_problem
-from .types import Row, Source
+from .types import Row, SystemSource
 
 INTEGER_KINDS = (DomainKind.INTEGER, DomainKind.BOOLEAN)
 
@@ -49,7 +49,7 @@ class BasinStabilityResult:
 
 
 def basin_stability(
-    system: Source,
+    system: SystemSource,
     bounds: Mapping[str, tuple[float, float]],
     classifier: Callable[[Trajectory], object],
     *,

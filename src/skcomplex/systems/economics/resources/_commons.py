@@ -8,7 +8,7 @@ Herders' cows graze a shared meadow.
 
 from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, cast, runtime_checkable
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
@@ -24,7 +24,7 @@ from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
-from ....core.engine.solvers import AgentView, BaseSolver, MesaSolver, SystemView
+from ....core.engine.solvers import BaseSolver, MesaSolver, SystemView
 from ....core.errors import SimulationError
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
@@ -37,7 +37,8 @@ from ..common.policy import PolicyRuleInteraction
 UNLIMITED = 1e9
 
 
-class HerderView(AgentView):
+@runtime_checkable
+class HerderView(AgentViewProtocol, Protocol):
     """Herder as the rules see it, with its income, herd, and quota.
 
     It reads its `income` and `herd` of the step, the `upkeep` and the `newborn` energy of a cow, and its `quota`.
@@ -111,13 +112,9 @@ class HerderElement(Element):
         self.newborn = newborn
         self.quota = quota
 
-    @classmethod
-    def _get_view(cls) -> type[HerderView]:
-        """Return the view of the agents of the element."""
-        return HerderView
 
-
-class CowView(AgentView):
+@runtime_checkable
+class CowView(AgentViewProtocol, Protocol):
     """Cow as the grazing sees it: the number of its `owner` and its `energy`."""
 
     owner: float
@@ -170,13 +167,9 @@ class CowElement(Element):
         self.owner = owner
         self.energy = energy
 
-    @classmethod
-    def _get_view(cls) -> type[CowView]:
-        """Return the view of the agents of the element."""
-        return CowView
 
-
-class PastureView(AgentView):
+@runtime_checkable
+class PastureView(AgentViewProtocol, Protocol):
     """Pasture as the rules see it.
 
     It holds its `grass`, its `capacity`, and the `regrowth` and `seed` of its grass.
@@ -243,11 +236,6 @@ class PastureElement(Element):
         self.capacity = capacity
         self.regrowth = regrowth
         self.seed = seed
-
-    @classmethod
-    def _get_view(cls) -> type[PastureView]:
-        """Return the view of the agents of the element."""
-        return PastureView
 
 
 class RegrassingInteraction(Interaction):
@@ -421,7 +409,7 @@ class GrazingInteraction(MatchingInteraction[SystemView]):
                 The system view of the grazing.
         """
         super().match(system)
-        for cow in system.get_agents('requesters', CowView):
+        for cow in cast(list[CowView], system.get_agents('requesters')):
             cow.energy -= system.get_parameter('metabolism')
             self._get_herder(cow).herd += 1
             if cow.energy < 0:
@@ -484,9 +472,9 @@ class QuotaRegulatorInteraction(PolicyRuleInteraction[SystemView]):
         """
         if not system.get_parameter('regulated'):
             return
-        pastures = system.get_agents('meadow', PastureView)
+        pastures = cast(list[PastureView], system.get_agents('meadow'))
         share = sum(pasture.grass for pasture in pastures) / sum(pasture.capacity for pasture in pastures)
-        for herder in system.get_agents('herders', HerderView):
+        for herder in cast(list[HerderView], system.get_agents('herders')):
             if share < system.get_parameter('low'):
                 herder.quota = max(1.0, float(np.floor(herder.quota / 2)))
             elif share > system.get_parameter('high'):

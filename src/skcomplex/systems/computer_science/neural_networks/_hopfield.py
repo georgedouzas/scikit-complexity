@@ -5,7 +5,7 @@
 
 from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, runtime_checkable
 
 import networkx as nx
 import numpy as np
@@ -18,15 +18,16 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace, NetworkSpace
-from ....core.components.types import SystemViewProtocol
+from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver
+from ....core.engine.solvers import BaseSolver
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
 
 
-class NeuronView(AgentView):
+@runtime_checkable
+class NeuronView(AgentViewProtocol, Protocol):
     """View of a neuron of a Hopfield network, with its states as attributes."""
 
     spin: float
@@ -80,14 +81,6 @@ class NeuronElement(Element):
         super().__init__(label, values=values, size=size, space=space)
         self.spin = spin
         self.weights = weights
-
-    @classmethod
-    def _get_view(cls) -> type[NeuronView]:
-        """Return the view of the neurons.
-
-        It types their states.
-        """
-        return NeuronView
 
 
 class HopfieldUpdateInteraction(Interaction):

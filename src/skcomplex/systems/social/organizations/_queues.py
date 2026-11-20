@@ -5,7 +5,7 @@
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar, cast
+from typing import Annotated, ClassVar, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
@@ -17,14 +17,15 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.specs import VisualSpec
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
 
 
-class TaskView(AgentView):
+class TaskView(AgentViewProtocol, Protocol):
     """View of a task of the priority queue system.
 
     Its states and parameters are attributes.
@@ -84,14 +85,6 @@ class TaskElement(Element):
         self.age = age
         self.wait = wait
         self.greed = greed
-
-    @classmethod
-    def _get_view(cls) -> type[TaskView]:
-        """Return the class of the views of the agents.
-
-        Their attributes are the states and parameters.
-        """
-        return TaskView
 
 
 class ExecutionInteraction(Interaction):

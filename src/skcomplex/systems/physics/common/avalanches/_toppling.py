@@ -16,7 +16,7 @@ from sage.all__sagemath_symbolics import Expression
 
 from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
-from .....core.components.laws import ArrayUpdateLaw, BaseLaw, UpdateLaw
+from .....core.components.laws import BaseLaw, UpdateLaw
 from .....core.components.laws.utils import relax
 from .....core.components.spaces import BaseNeighborhood, BaseSpace, LatticeNeighborhood, RadiusNeighborhood
 from .....core.errors import ValidationError
@@ -79,7 +79,7 @@ class TopplingInteraction(Interaction):
         'redistribute'
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (UpdateLaw, ArrayUpdateLaw)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (UpdateLaw,)
 
     def _get_draws(self) -> bool:
         """Return whether the cascade draws.
@@ -204,12 +204,12 @@ class TopplingInteraction(Interaction):
     def _get_cascade(self, value: Expression) -> list[BaseComponent]:
         """Return the update of the state of the target, driven and relaxed until stable."""
         threshold, share = self.threshold, self.share
-        drive = [] if self.drive is None else [ArrayUpdateLaw(value, self.drive)]
+        drive = [] if self.drive is None else [UpdateLaw(value, self.drive)]
         neighborhood = self.neighborhood
         if neighborhood is None:
             neighborhood = RadiusNeighborhood(1, metric='manhattan', center=True)
         if self.mode == 'random':
-            rules: list[BaseLaw] = [ArrayUpdateLaw(value, self._scatter(neighborhood, threshold, share))]
+            rules: list[BaseLaw] = [UpdateLaw(value, self._scatter(neighborhood, threshold, share))]
         else:
             rules = [UpdateLaw(value, self._relax(threshold, share), neighborhood=neighborhood)]
         relaxation = relax(

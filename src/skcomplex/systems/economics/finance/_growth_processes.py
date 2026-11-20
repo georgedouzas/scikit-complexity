@@ -5,7 +5,7 @@
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
@@ -17,13 +17,14 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
-from ....core.engine.solvers import AgentView, BaseSolver, SystemView
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
 
 
-class GibratFirmView(AgentView):
+class GibratFirmView(AgentViewProtocol, Protocol):
     """Firm of Gibrat's process as the rules see it, with its size and growth factor.
 
     It reads its size `x`, its `previous` size, and the mean `mu` and the deviation `sigma` of its growth factor.
@@ -83,13 +84,8 @@ class GibratFirmElement(Element):
         self.mu = mu
         self.sigma = sigma
 
-    @classmethod
-    def _get_view(cls) -> type[GibratFirmView]:
-        """Return the view of the agents of the element."""
-        return GibratFirmView
 
-
-class KestenFirmView(AgentView):
+class KestenFirmView(AgentViewProtocol, Protocol):
     """Firm of Kesten's process as its rule sees it.
 
     It holds its size `x` and the bounds of its random factor and term.
@@ -155,11 +151,6 @@ class KestenFirmElement(Element):
         self.b_low = b_low
         self.b_high = b_high
 
-    @classmethod
-    def _get_view(cls) -> type[KestenFirmView]:
-        """Return the view of the agents of the element."""
-        return KestenFirmView
-
 
 class GibratGrowthInteraction(Interaction):
     """Growth of the sizes of firms by independent normal factors, `x = lambda x`.
@@ -195,12 +186,12 @@ class GibratGrowthInteraction(Interaction):
 
     def _remember(self, system: SystemView) -> None:
         """Keep the size of every firm as its previous size."""
-        for firm in system.get_agents('target', GibratFirmView):
+        for firm in cast(list[GibratFirmView], system.get_agents('target')):
             firm.previous = firm.x
 
     def _grow(self, system: SystemView) -> None:
         """Multiply the size of every firm by a normal growth factor."""
-        firms = system.get_agents('target', GibratFirmView)
+        firms = cast(list[GibratFirmView], system.get_agents('target'))
         sizes = [firm.x * float(system.rng.normal(firm.mu, firm.sigma)) for firm in firms]
         for firm, size in zip(firms, sizes, strict=True):
             firm.x = size
@@ -240,7 +231,7 @@ class KestenGrowthInteraction(Interaction):
 
     def _grow(self, system: SystemView) -> None:
         """Multiply the size of every firm by a random factor and add a random term."""
-        firms = system.get_agents('target', KestenFirmView)
+        firms = cast(list[KestenFirmView], system.get_agents('target'))
         sizes = []
         for firm in firms:
             factor = float(system.rng.uniform(firm.lambda_low, firm.lambda_high))
@@ -297,7 +288,7 @@ class ReflectingFloorInteraction(Interaction):
 
     def _raise(self, system: SystemView) -> None:
         """Raise every size below `c` times the mean size of the group before the step to that floor."""
-        firms = system.get_agents('target', GibratFirmView)
+        firms = cast(list[GibratFirmView], system.get_agents('target'))
         floor = system.get_parameter('c') * float(np.mean([firm.previous for firm in firms]))
         for firm in firms:
             firm.x = max(firm.x, floor)
