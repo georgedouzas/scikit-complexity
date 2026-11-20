@@ -11,8 +11,7 @@ from sklearn.base import clone
 from ..components.systems import BaseSystem as CompositeBaseSystem
 from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import BaseProblemSpec
-from ..engine.runtime import Trajectory
-from ..engine.runtime._simulate import run_problem
+from ..engine.runtime import Trajectory, run_problem
 from ..engine.solvers import BaseSolver
 from ..errors import ExperimentError, ValidationError
 from ..systems import BaseSystem

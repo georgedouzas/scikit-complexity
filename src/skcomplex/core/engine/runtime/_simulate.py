@@ -1,4 +1,4 @@
-"""Define the functions that compile a system into a problem and run it into a trajectory."""
+"""Define the functions that compile a system and run it into a trajectory."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

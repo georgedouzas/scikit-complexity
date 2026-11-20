@@ -14,8 +14,8 @@ from skcomplex.core.components.laws import JumpLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import normal
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.engine.backends import JaxBackend
-from skcomplex.core.engine.runtime import RecorderObserver, Trajectory, _simulate
-from skcomplex.core.engine.runtime._simulate import _choose_solver, run_problem
+from skcomplex.core.engine.runtime import RecorderObserver, Trajectory, _simulate, run_problem
+from skcomplex.core.engine.runtime._simulate import _choose_solver
 from skcomplex.core.engine.solvers import GillespieSolver, MonteCarloSolver, RootSolver
 from skcomplex.core.errors import ConservationError, TagError, ValidationError
 from skcomplex.core.systems import BaseSystem, System
