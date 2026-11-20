@@ -54,10 +54,6 @@ PERIODIC_POSITIONS_GAP = (
     'Engine gap: the boundary of a periodic continuous space targets the position `x_<group>` of agents, '
     'which is not a state symbol (x_flock).'
 )
-TUPLE_STATES_GAP = (
-    'Engine gap: agent values that hold tuples, such as queues of orders, fail to build the Mesa agents '
-    '(tuple states).'
-)
 NESTED_PHASES_GAP = (
     'Engine gap: the agent solver reads only the phases of the solver of the root system, not those of a '
     'nested system.'
@@ -1233,7 +1229,6 @@ def test_polygon_is_no_location_of_a_lattice():
         _simulate(_people(1, LatticeSpace((5, 5)), spawn, x=0, y=0), until=1)
 
 
-@pytest.mark.skip(reason=TUPLE_STATES_GAP)
 def test_snapshots_keep_tuples_as_they_were():
     """Test that each snapshot keeps one tuple per agent, in a one-dimensional array of objects."""
     trajectory = _queue_run()
@@ -1251,7 +1246,6 @@ def _queues():
     return Element('queues', values={'orders': orders}, size=2)
 
 
-@pytest.mark.skip(reason=TUPLE_STATES_GAP)
 def test_composition_counts_agents_by_tuple():
     """Test that the composition of a group counts its agents by the tuples they hold."""
     seen = []
@@ -1270,15 +1264,13 @@ def test_composition_counts_agents_by_tuple():
     assert sum(seen[1].values()) == 2
 
 
-@pytest.mark.skip(reason=TUPLE_STATES_GAP)
 def test_history_keeps_reported_objects():
     """Test that the reports of a run keep an object at every frame."""
-    values = _queue_run().get_values('queues.longest')
+    values = _queue_run().get_values('queue.longest')
     assert values.dtype == object
     assert isinstance(values[-1], tuple)
 
 
-@pytest.mark.skip(reason=TUPLE_STATES_GAP)
 def test_observable_keeps_a_hashable_value():
     """Test that an observable of a group by a function of its values may give an object."""
     observables = [Observable('lengths', group='queues', variable='orders', reduce=_lengths)]
