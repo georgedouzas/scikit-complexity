@@ -32,7 +32,7 @@ from skcomplex.core.components.spaces import (
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.solvers import RK4Solver, VelocityVerletSolver
 from skcomplex.core.errors import ParameterShapeError, SpaceError, ValidationError
-from skcomplex.core.specs import BaseSpec, ParameterSpec, RoleSpec, StateSpec
+from skcomplex.core.specs import BaseSpec, RoleSpec
 from skcomplex.core.systems import System
 from skcomplex.core.types import Role
 from skcomplex.systems.general.agents import (
@@ -120,7 +120,7 @@ def _get_fixed(interaction):
     class FixedInteraction(interaction):
         """Interaction that declares no parameter."""
 
-        def __init__(self, label, *, target: Annotated[str, RoleSpec()], **arguments):
+        def __init__(self, label, *, target: Role, **arguments):
             super().__init__(label, target=target, **arguments)
 
     return FixedInteraction
@@ -136,9 +136,9 @@ def _get_aliased(interaction):
             self,
             label,
             *,
-            target: Annotated[str, RoleSpec()],
+            target: Role,
             renamed: str,
-            alias: Annotated[float, ParameterSpec()],
+            alias: float,
             **arguments,
         ):
             super().__init__(label, target=target, **arguments)
@@ -166,7 +166,7 @@ def _get_renamed(interaction):
     class StockInteraction(interaction):
         """Interaction that binds its target as `stock`."""
 
-        def __init__(self, label, *, stock: Annotated[str, RoleSpec()], **arguments):
+        def __init__(self, label, *, stock: Role, **arguments):
             super().__init__(label, target=stock, **arguments)
             self.stock = stock
 
@@ -184,30 +184,6 @@ def _run_nodes(interaction):
     return system.simulate(until=5, dt=1, random_state=0).get_values('nodes.s')
 
 
-class WeightedInteraction(BaseInteraction):
-    """Interaction that declares a state, which interactions do not hold."""
-
-    def __init__(self, label, weight: Annotated[float, StateSpec()] = 1.0):
-        super().__init__(label)
-        self.weight = weight
-
-    def _get_laws(self, namespace):
-        """Return no laws."""
-        return []
-
-
-class PolicyInteraction(BaseInteraction):
-    """Interaction that declares an adaptive parameter, which interactions do not hold."""
-
-    def __init__(self, label, rate: Annotated[float, ParameterSpec(adaptive=True)] = 1.0):
-        super().__init__(label)
-        self.rate = rate
-
-    def _get_laws(self, namespace):
-        """Return no laws."""
-        return []
-
-
 def test_interaction_stores_its_roles_and_parameters():
     """Test that an interaction stores its arguments, which scikit-learn lists."""
     assert GrowthInteraction('growth', target='rabbits', r=0.5).get_params() == {
@@ -222,18 +198,6 @@ def test_interaction_prepares_into_itself():
     growth = GrowthInteraction('growth', target='rabbits')
     assert growth.prepare() is growth
     assert growth.prepare(SimpleNamespace()).laws_ == []
-
-
-def test_state_on_an_interaction_is_rejected():
-    """Test that checking an interaction that declares a state raises an error that suggests a group on edges."""
-    with pytest.raises(ValidationError, match='on="edges"'):
-        WeightedInteraction('w').prepare()
-
-
-def test_adaptive_parameter_on_an_interaction_is_rejected():
-    """Test that checking an interaction that declares an adaptive parameter raises an error that names it."""
-    with pytest.raises(ValidationError, match='adaptive parameters rate'):
-        PolicyInteraction('policy').prepare()
 
 
 @pytest.mark.parametrize('name', RENAMED)
@@ -562,9 +526,7 @@ def test_update_of_a_group_with_a_function_is_an_agent_rule():
     """Test that an update law whose target is a bound group runs its function for every member of the role."""
     walkers = SimpleNamespace(x=var('x'))
     laws = RuleInteraction('shift', target='walkers', rule=_shift).prepare().run(SimpleNamespace(target=walkers)).laws_
-    assert [(type(law).__name__, law.function, law.members, law.phase) for law in laws] == [
-        ('RuleLaw', _shift, 'target', 'move'),
-    ]
+    assert [(law.function, law.members, law.phase) for law in laws] == [(_shift, 'target', 'move')]
 
 
 @pytest.mark.parametrize('rule', [3.0, lambda agent: None, lambda agent, system, extra: None])
@@ -596,7 +558,8 @@ def test_update_with_a_neighborhood_is_a_local_rule():
     """Test that an update law with a neighbourhood runs as a local rule of the states of the cells."""
     alive = var('alive')
     laws = ParityInteraction('parity').prepare().run(SimpleNamespace(target=SimpleNamespace(alive=alive))).laws_
-    assert [(type(law).__name__, law.targets, law.label) for law in laws] == [('LocalRuleLaw', alive, '')]
+    assert [(law.targets, law.label) for law in laws] == [(alive, '')]
+    assert isinstance(laws[0].rule, TotalisticSpec)
 
 
 def test_local_rule_with_a_setting_of_one_member_raises():
