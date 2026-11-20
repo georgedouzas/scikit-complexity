@@ -1592,12 +1592,6 @@ def test_mixed_laws_in_nested_systems_are_valid():
     assert PassCompiler().prepare(system).report_.ok
 
 
-@pytest.mark.skip(
-    reason=(
-        'Engine gap: bounded controls. A control that starts outside the allowed values of its `Annotated` '
-        'raises a domain error at prepare instead of the `parameter-bounds` issue at the control.'
-    ),
-)
 def test_validate_control_outside_bounds():
     """Test that a control starting outside its bounds is one error at the control, naming its bounds."""
     system = System(elements=[PlantElement('plant', u=2.0)], interactions=[_plant()])

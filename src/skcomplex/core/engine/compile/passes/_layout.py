@@ -281,7 +281,7 @@ class LayoutPass(BasePass):
             name,
             LayoutPass._get_value_of(node, variable),
             member_shape,
-            declaration.domain,
+            declaration.domain if declaration.bounds is None else RR,
             members,
             period=declaration.period,
         )
