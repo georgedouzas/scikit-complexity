@@ -39,7 +39,7 @@ from ....components.laws import (
     UpdateLaw,
 )
 from ....components.laws._flow_term import FlowTermLaw
-from ....components.laws.utils import laplacian, shifted
+from ....components.laws.utils import derivative, laplacian, shifted
 from ....components.laws.utils._operators import _OperatorFunction
 from ....components.laws.utils._reductions import hyperedges_in, neighborhoods_in, reductions_in
 from ....components.laws.utils._relaxations import relaxation_of
@@ -249,9 +249,28 @@ class CensusPass(BasePass):
                         processes=processes,
                         driven=driven,
                         reads=reads,
+                        differentiated=CensusPass._get_differentiated(spec, law),
                     ),
                 )
         return records
+
+    @staticmethod
+    def _get_differentiated(spec: KernelSpec, law: BaseLaw) -> frozenset[str]:
+        """Return the paths of the elements and groups whose states an equation reads a derivative of.
+
+        It is empty for any other law.
+        """
+        if not isinstance(law, ConstraintLaw):
+            return frozenset()
+        found = set()
+        for value in law._get_values():
+            if not isinstance(value, Expression):
+                continue
+            for call in value.find(derivative(SR.wild(0), SR.wild(1))):
+                reference = spec.references.get(call.operands()[0])
+                if reference is not None and reference.is_state:
+                    found.add(reference.entry.name.rpartition('.')[0])
+        return frozenset(found)
 
     @staticmethod
     def _get_census_of(
@@ -345,11 +364,11 @@ class CensusPass(BasePass):
     def _get_flowing(records: Sequence[_CensusRecordSpec]) -> frozenset[str]:
         """Return the paths of the elements and groups that flow.
 
-        Rate or noise laws change their states.
+        Rate or noise laws change their states, or equations read derivatives of them, as the equations of motion of
+        a cart and its pendulum do.
         """
-        return frozenset(
-            record.owner for record in records if KernelsPass._get_kind_of(record.law) in (RateLaw, NoiseLaw)
-        )
+        rates = {record.owner for record in records if KernelsPass._get_kind_of(record.law) in (RateLaw, NoiseLaw)}
+        return frozenset(rates.union(*(record.differentiated for record in records)))
 
     @staticmethod
     def _get_corrected(law: BaseLaw, owner: str, flowing: frozenset[str]) -> BaseLaw:

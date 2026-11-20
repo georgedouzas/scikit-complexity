@@ -14,7 +14,7 @@ from skcomplex.core.components.laws.utils import laplacian, logistic, neighbors
 from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace, NetworkSpace, RadiusNeighborhood
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.solvers import MetropolisSolver
+from skcomplex.core.engine.solvers import MetropolisSolver, RK4Solver
 from skcomplex.core.errors import IncompatibleLawsError, ValidationError
 from skcomplex.core.systems import System
 
@@ -287,3 +287,21 @@ def test_census_takes_the_solver_of_the_system_when_the_compiler_has_none():
     ising = Interaction('ising', roles={'target': 'ring'}, laws=laws)
     system = System(elements=[ring], interactions=[ising], solver=MetropolisSolver(moves={'ring.s': 'flip'}))
     assert PassCompiler().prepare(system).report_.issues == ()
+
+
+def test_census_corrects_after_each_step_an_input_of_an_element_that_equations_move():
+    """Test that an update of the force on a mass whose equation of motion is a constraint runs after every step."""
+    mass = Element('mass', values={'x': 1.0, 'force': 0.0})
+    motion = Interaction(
+        'motion',
+        roles={'target': 'mass'},
+        laws=lambda s: [ConstraintLaw(s.target.x.diff(s.t, 2) == s.target.force)],
+    )
+    feedback = Interaction(
+        'feedback',
+        roles={'target': 'mass'},
+        laws=lambda s: [UpdateLaw(s.target.force, -s.target.x)],
+    )
+    system = System(elements=[mass], interactions=[motion, feedback], solver=RK4Solver(dt=0.01))
+    trajectory = system.prepare().simulate(until=1.0)
+    assert abs(trajectory.get_values('mass.x')[-1] - np.cos(1.0)) < 1e-2

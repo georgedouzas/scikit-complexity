@@ -62,6 +62,10 @@ class _CensusRecordSpec(BaseSpec):
         degrees:
             The degree of the cells of every symbol the law reads of a group on a cell complex, by the name of the
             symbol.
+
+        differentiated:
+            For an equation, the paths of the elements and groups whose states it reads a derivative of, such as the
+            cart of `(M + m) x'' + m l theta'' cos(theta) == F`.
     """
 
     path: str
@@ -77,3 +81,4 @@ class _CensusRecordSpec(BaseSpec):
     members: int = 1
     handles: tuple[str, ...] = ()
     degrees: Mapping[str, int] = field(default_factory=dict, compare=False)
+    differentiated: frozenset[str] = frozenset()
