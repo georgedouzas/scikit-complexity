@@ -83,7 +83,6 @@ GRID_ONLY = {
         'candidates',
     ),
 }
-
 SPEC_VARIANTS = {
     'choice rule': lambda spec: ChoiceInteraction(
         'choice',
