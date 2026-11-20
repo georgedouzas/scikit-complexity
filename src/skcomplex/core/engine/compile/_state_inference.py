@@ -44,7 +44,7 @@ from ...components.laws.utils import delayed, derivative, lag
 from ...components.spaces import BaseSpace, CellComplexSpace, ContinuousSpace, LatticeSpace, NetworkSpace
 from ...components.systems import CompositeSystem
 from ...enums import TopologyKind, VariableKind
-from ...errors import ValidationError
+from ...errors import SpaceError, ValidationError
 from ...specs import (
     BaseSpec,
     DeclaredVariableSpec,
@@ -738,6 +738,10 @@ class _StateInference:
     def get_declared(self, system: CompositeSystem) -> CompositeSystem:
         """Return a system tree whose plain elements declare what their laws show.
 
+        A probe declares every value as a state and collects the laws. When the probe fails on a space, its system tree,
+        or the system itself when the elements cannot even be probed, is returned, so the compiler reports the failure
+        with every other issue, such as a phase space above its limit or a tensor value without a space.
+
         Args:
             system:
                 The system.
@@ -752,7 +756,14 @@ class _StateInference:
         def probe(element: Element, path: str, space: BaseSpace | None) -> list[BaseElement]:
             return self._get_declared_elements(element, lambda name: 1, lambda name: 0, probing=True, space=space)
 
-        compilation = self.census(self._replace(system, probe))
+        try:
+            probed = self._replace(system, probe)
+        except SpaceError:
+            return system
+        try:
+            compilation = self.census(probed)
+        except SpaceError:
+            return probed
         orders, lags = self._get_orders(compilation)
         orders = dict.fromkeys(self._get_rule_reads(compilation), 1) | orders
         kinds = self._get_topology_kinds(compilation)

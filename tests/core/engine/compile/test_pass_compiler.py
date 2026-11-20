@@ -508,12 +508,6 @@ def test_compiler_reports_spectral_operators_on_edges_that_are_not_periodic():
     assert [issue.code for issue in report.errors] == ['law-space']
 
 
-@pytest.mark.skip(
-    reason=(
-        'Engine gap: the census check of nonlocal operators misses an operand over two plain fields, which the '
-        'field lowering reports later as a `value` issue of the system.'
-    ),
-)
 def test_compiler_reports_an_operand_over_two_spaces():
     """Test that an operand reading fields of two spaces is an `operator-spaces` issue."""
     first, _ = _nonlocal_field('a', lambda s: 0 * s.u, LatticeSpace(8))
@@ -1504,12 +1498,6 @@ def test_valid_system_has_no_issues():
     assert report.issues == ()
 
 
-@pytest.mark.skip(
-    reason=(
-        'Engine gap: a tensor value without a space raises a SpaceError at prepare instead of being a '
-        '`space-missing` issue of the report next to the other issues.'
-    ),
-)
 def test_several_errors_are_reported_at_once():
     """Test that an unbound role and a tensor state without a space are both reported."""
     relax = _rule('relax', 'film', lambda s: [RateLaw(s.target.Q, -s.target.Q)])

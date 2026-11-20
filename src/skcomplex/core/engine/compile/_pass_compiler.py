@@ -71,6 +71,7 @@ from ...errors import (
     PhaseSpaceTooLargeError,
     PipelineError,
     RoleElementError,
+    RoleError,
     SkcomplexError,
     SolverError,
     SpaceError,
@@ -559,6 +560,7 @@ class PassCompiler(BaseCompiler):
         compilation = self._get_new_compilation(system)
         try:
             self._run_passes(compilation, until='nodes')
+            operator = OperatorCompiler._contains_operator(system)
         except PhaseSpaceTooLargeError as error:
             fix = 'Use fewer points on the axes of the phase space, or raise its limit.'
             return None, [IssueSpec('space-size', system.label, str(error), fix, error=PhaseSpaceTooLargeError)]
@@ -567,7 +569,7 @@ class PassCompiler(BaseCompiler):
             return None, [self._get_issue_of(error, system.label, 'structure', fix)]
         issues = (
             [self._get_compiler_issue(system, 'OperatorCompiler')]
-            if OperatorCompiler._contains_operator(system)
+            if operator
             else self._get_port_issues(Compilation._get_required(compilation.nodes, 'nodes'))
         )
         if issues:
@@ -1473,6 +1475,16 @@ class PassCompiler(BaseCompiler):
         return fields, numbers
 
     @staticmethod
+    def _get_field_parameters(nodes: list[_NodeSpec]) -> dict[str, FieldElement]:
+        """Return the field of every parameter symbol of a field, such as `u_b` of a field `b` whose `u` stays put."""
+        return {
+            f'{name}_{node.component.label}': node.component
+            for node in nodes
+            if isinstance(node.component, FieldElement)
+            for name in declarations_of(node.component_type, VariableKind.PARAMETER)
+        }
+
+    @staticmethod
     def _is_negative(screening: Expression, fields: Mapping[str, FieldElement], numbers: Mapping[str, float]) -> bool:
         """Check whether a screening reads a state or has a negative square.
 
@@ -1490,12 +1502,16 @@ class PassCompiler(BaseCompiler):
         call: Expression,
         fields: Mapping[str, FieldElement],
         numbers: Mapping[str, float],
+        owners: Mapping[str, FieldElement],
     ) -> IssueSpec | None:
-        """Return the issue of one nonlocal operator call in a field law, or `None`."""
+        """Return the issue of one nonlocal operator call in a field law, or `None`.
+
+        The fields an operand reads are those of its states and of its parameters, by `owners`.
+        """
         name = getattr(call.operator(), 'name', lambda: '')()
         law = PassCompiler._get_law_name(record)
         operands = call.operands()
-        places = {id(fields[str(item)]): fields[str(item)] for item in operands[0].variables() if str(item) in fields}
+        places = {id(owners[str(item)]): owners[str(item)] for item in operands[0].variables() if str(item) in owners}
         if name in LOCAL_OPERATORS:
             unsupported = [
                 place
@@ -1563,6 +1579,7 @@ class PassCompiler(BaseCompiler):
         They are convolutions, shifted reads, and inversions.
         """
         fields, numbers = PassCompiler._get_field_symbols(nodes)
+        owners = {**PassCompiler._get_field_parameters(nodes), **fields}
         issues = []
         for record in records:
             include = ('rate',) if isinstance(record.law, JumpLaw) else ('value',)
@@ -1574,7 +1591,7 @@ class PassCompiler(BaseCompiler):
                     for name in (*NONLOCAL_OPERATORS, *LOCAL_OPERATORS)
                     for call in FieldLowering._get_operator_calls(SR(value), name)
                 ]
-                found = [PassCompiler._get_operator_issue(record, call, fields, numbers) for call in calls]
+                found = [PassCompiler._get_operator_issue(record, call, fields, numbers, owners) for call in calls]
                 issues += [issue for issue in found if issue is not None]
         return issues
 
@@ -2147,10 +2164,34 @@ class PassCompiler(BaseCompiler):
         return list(found.values())
 
     @staticmethod
+    def _get_cascaded_paths(nodes: list[_NodeSpec], errors: Sequence[tuple[str, SkcomplexError]]) -> set[str]:
+        """Return the interactions whose role error comes from an element that failed to declare.
+
+        A tensor value without a space fails its element, and the interaction that binds that element then fails to
+        find it, which is no issue of its own.
+        """
+        failed = {path for path, failure in errors if not isinstance(failure, RoleError)}
+        by_path = {node.path: node for node in nodes}
+        cascaded = set()
+        for path, failure in errors:
+            node = by_path.get(path)
+            if not isinstance(failure, RoleError) or node is None or not isinstance(node.component, BaseInteraction):
+                continue
+            labels = [
+                label
+                for role in declarations_of(node.component, VariableKind.ROLE)
+                for label in bound_labels(binding_of(node.component, role))
+            ]
+            if any(f'{node.scope}{label}' in failed for label in labels):
+                cascaded.add(path)
+        return cascaded
+
+    @staticmethod
     def _get_census_issues(compilation: Compilation) -> list[IssueSpec]:
         """Return the issues of the components that fail to declare or collect.
 
-        Components whose binding is the problem are left out.
+        Components whose binding is the problem are left out, and so are interactions that fail to bind an element
+        which itself fails to declare.
         """
         census = Compilation._get_required(compilation.census, 'census')
         nodes = Compilation._get_required(compilation.nodes, 'nodes')
@@ -2158,6 +2199,7 @@ class PassCompiler(BaseCompiler):
         shapes = PassCompiler._get_shape_issues(nodes)
         roles = PassCompiler._get_role_issues(nodes)
         unbound = {issue.path for issue in [*bindings, *roles]} | {issue.path.rpartition('.')[0] for issue in shapes}
+        unbound |= PassCompiler._get_cascaded_paths(nodes, census.errors)
         issues = []
         for path, failure in census.errors:
             if path in unbound:
