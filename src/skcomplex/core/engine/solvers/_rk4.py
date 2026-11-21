@@ -26,12 +26,14 @@ from ._solver import Solver
 
 
 class RK4Solver(Solver):
-    """A solver of ordinary differential equations by the classical Runge-Kutta method.
+    """A solver of ordinary differential equations by the classical Runge-Kutta rule.
 
-    ODEs are ordinary differential equations. It takes a fixed internal step. With the Numba backend every internal step
-    of a frame runs in compiled code.
+    It takes steps of a fixed length `dt` and evaluates the rates four times per step, so its error falls with the
+    fourth power of the step, such as `e` to six places for a population that grows at rate 1 over one time unit. With
+    the Numba backend every step of a frame runs in compiled code. Choose it for smooth flows with a fixed step, such as
+    orbits, oscillators, and epidemics.
 
-    Choose it for smooth flows with a fixed step. It appears in every field, such as orbits, oscillators, and epidemics.
+    Read more in the user guide, under Solvers.
 
     Args:
         dt:
@@ -43,21 +45,16 @@ class RK4Solver(Solver):
         until:
             The end time of the run the solver prepares for, infinite for a run that goes on until it is stopped.
 
+    See Also:
+        EulerSolver: Steps with the explicit Euler rule.
+        ScipyODESolver: Steps with adaptive steps of SciPy.
+
     Examples:
-        >>> import numpy as np
-        >>> from skcomplex.core.systems import System
-        >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.solvers import RK4Solver
-        >>> from skcomplex.core.engine.solvers import StepSpec
-        >>> system = System(
-        ...     elements=[PopulationElement('a', x=1)],
-        ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
-        ... )
-        >>> problem = system.prepare().simulate(until=0).problem
-        >>> stepper = RK4Solver(dt=0.001, random_state=0).prepare(problem)
-        >>> step = StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)
-        >>> round(float(stepper.run(step).state_[0]), 10)
-        2.7182818285
+        >>> from skcomplex.systems.biology.ecology import ExponentialGrowthSystem
+        >>> system = ExponentialGrowthSystem(n=1.0, r=1.0, solver=RK4Solver(dt=0.001)).prepare()
+        >>> system.simulate(until=1, dt=1).get_values('population.x').round(6).tolist()
+        [1.0, 2.718282]
     """
 
     @classmethod

@@ -52,20 +52,14 @@ FALLBACK_STEP = 1e-6
 class ScipyODESolver(Solver):
     """A solver of ordinary differential equations with `scipy.integrate`.
 
-    It uses the step solvers of `scipy.integrate`. One integrator runs across the frames of a run, and every frame reads
-    its state from the dense output of the step that covers the frame's time, and it restarts at every frame when a
-    condition on time jumps at a time that depends on parameters. With delays, steps are at most the shortest delay, or
-    a hundredth of the frame when the delay is shorter, and a delay shorter than the step reads the extension of the
-    previous step.
+    It runs one integrator of `scipy.integrate` across the frames of a run with steps it picks to meet the tolerances,
+    and reads each frame from the smooth curve of the step that covers its time, such as `e` for a population that grows
+    at rate 1 over one time unit. The methods `BDF`, `Radau`, and `LSODA` suit stiff problems, whose fast and slow parts
+    force explicit steps to be tiny, and they receive the pattern of the Jacobian that the compiler derives from the
+    laws. With delays, a step is at most the shortest delay. It is the default solver of continuous flows, in epidemics,
+    chemical reactions, and circuits.
 
-    The implicit methods `BDF`, `Radau`, and `LSODA` receive the structure of the Jacobian that the compiler derives
-    from the laws, at every start and restart of the integrator. `BDF` and `Radau` estimate the Jacobian by finite
-    differences over groups of independent columns and factor it with sparse LU, which makes them the stiff path for
-    finite-difference and finite element fields. An explicit method that spans more than 1000 stable steps of the
-    diffusion of a field in one call warns once.
-
-    Choose it as the default for continuous flows, with adaptive steps and stiff methods. It appears in every field,
-    such as epidemics, chemical kinetics, and circuits.
+    Read more in the user guide, under Solvers.
 
     Args:
         method:
@@ -106,21 +100,16 @@ class ScipyODESolver(Solver):
             The keyword arguments of the pattern or the half bandwidths that the integrator receives. The exact
             Jacobian is passed as `jac` at every start of the integrator, with the parameters of the call.
 
+    See Also:
+        RK4Solver: Steps with a fixed step.
+        IMEXEulerSolver: Steps stiff fields with an implicit linear part.
+
     Examples:
-        >>> import numpy as np
-        >>> from skcomplex.core.systems import System
-        >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.solvers import ScipyODESolver
-        >>> from skcomplex.core.engine.solvers import StepSpec
-        >>> system = System(
-        ...     elements=[PopulationElement('a', x=1)],
-        ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
-        ... )
-        >>> problem = system.prepare().simulate(until=0).problem
-        >>> stepper = ScipyODESolver(rtol=1e-8, random_state=0).prepare(problem)
-        >>> x = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_
-        >>> round(float(x[0]), 4)
-        2.7183
+        >>> from skcomplex.systems.biology.ecology import ExponentialGrowthSystem
+        >>> system = ExponentialGrowthSystem(n=1.0, r=1.0, solver=ScipyODESolver(rtol=1e-8)).prepare()
+        >>> system.simulate(until=1, dt=1).get_values('population.x').round(4).tolist()
+        [1.0, 2.7183]
     """
 
     @classmethod

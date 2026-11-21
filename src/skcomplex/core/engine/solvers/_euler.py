@@ -24,11 +24,12 @@ from ._solver import Solver
 class EulerSolver(Solver):
     """A solver that steps ordinary differential equations by the explicit Euler rule.
 
-    It takes a fixed internal step. Every step is `x + h f(t, x)`, the integration Vensim and Stella use by default, so
-    a run with the time step of a system file reproduces the run of those tools step by step.
+    Every step of length `h` sets `x + h f(t, x)`, so a population that doubles its rate grows from 1 to 2.25 over one
+    time unit in two steps of 0.5. It is the rule that Vensim and Stella use by default, so a run with the time step of
+    a model file of those tools matches it step by step. Choose it for teaching and for quick checks with a small step,
+    in models of populations, stocks and flows, and cooling.
 
-    Choose it for teaching and for quick checks with a small step. It appears in every field, as the simplest
-    integrator.
+    Read more in the user guide, under Solvers.
 
     Args:
         dt:
@@ -40,20 +41,16 @@ class EulerSolver(Solver):
         until:
             The end time of the run the solver prepares for, infinite for a run that goes on until it is stopped.
 
+    See Also:
+        RK4Solver: Steps with the classical Runge-Kutta rule of fourth order.
+        ScipyODESolver: Steps with adaptive steps of SciPy.
+
     Examples:
-        >>> from skcomplex.core.systems import System
-        >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.solvers import EulerSolver
-        >>> from skcomplex.core.engine.solvers import StepSpec
-        >>> system = System(
-        ...     elements=[PopulationElement('a', x=1)],
-        ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
-        ... )
-        >>> problem = system.prepare().simulate(until=0).problem
-        >>> stepper = EulerSolver(dt=0.5, random_state=0).prepare(problem)
-        >>> step = StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)
-        >>> float(stepper.run(step).state_[0])
-        2.25
+        >>> from skcomplex.systems.biology.ecology import ExponentialGrowthSystem
+        >>> system = ExponentialGrowthSystem(n=1.0, r=1.0, solver=EulerSolver(dt=0.5)).prepare()
+        >>> system.simulate(until=1, dt=1).get_values('population.x').tolist()
+        [1.0, 2.25]
     """
 
     @classmethod

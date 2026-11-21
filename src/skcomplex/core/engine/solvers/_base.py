@@ -24,22 +24,17 @@ from ._step_spec import StepSpec
 
 
 class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
-    """An abstract solver, which advances a compiled problem in time.
+    """An abstract solver, which moves a compiled problem forward in time.
 
-    A solver advances a problem of one form through time. A solver stores its settings in its constructor, among them
-    the random state of stochastic solvers and the end time of the run it prepares for. `prepare(problem)` prepares it
-    for a problem and `run(step)` advances the state of a `StepSpec` from its time to its end time and keeps the state
-    vector there in `state_`. The last call `run(step, final=True)` releases what preparing acquired, such as an
-    external process.
+    A system turns its laws into a problem of one form, such as ordinary differential equations, and a solver moves that
+    problem from one time to the next, such as the `ScipyODESolver` that `LogisticGrowthSystem` picks.
+    `prepare(problem)` readies it for a problem, and `run(step)` moves the state of a `StepSpec` from its time to its
+    end time and keeps the state there in `state_`. The last call `run(step, final=True)` frees what `prepare` took,
+    such as an outside program. A subclass writes the private methods `_get_form`, `_get_support`, and `_advance`. A
+    solver that draws random numbers whatever laws it solves, such as a Monte Carlo run of particles, sets the class
+    attribute `draws`. Solvers move the populations of an ecosystem, the spins of a magnet, and the prices of a market.
 
-    Subclasses implement the hooks `_get_form`, the form they solve, `_get_support`, what they solve, and `_advance`,
-    and solvers that keep events, agents, or other state outside the state vector also implement `_collect`. Solvers
-    that also solve other forms list them in `_get_forms`. Solvers that treat diffusion implicitly answer
-    `_is_implicit`, so they do not warn about the stability limit of explicit steps. Solvers that fire renewal laws
-    answer `_is_renewing`, solvers that integrate fractional noise `_is_fractional`, and solvers that read external
-    inputs `_reads_inputs`. A solver is generic over the problem it advances, so one written for the compiler's problem
-    reads its fields. A solver that draws random numbers whatever the laws it solves, such as a Monte Carlo simulation
-    of particles, declares it with the class attribute `draws`, so its runs of a deterministic system are stochastic.
+    Read more in the user guide, under Solvers.
 
     Args:
         random_state:
@@ -80,6 +75,17 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
         draw_recorder_:
             The recorder that keeps or replays the named draws and jump firings of the run, which the simulation sets
             after preparing the solver, or `None` for a run that neither records nor replays.
+
+    See Also:
+        Solver: The base of the solvers of the general compiler.
+        StepSpec: The step a solver moves.
+
+    Examples:
+        >>> from skcomplex.core.engine.solvers import BaseSolver
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+        >>> solver = LogisticGrowthSystem().prepare().system_.solver_
+        >>> isinstance(solver, BaseSolver), type(solver).__name__
+        (True, 'ScipyODESolver')
     """
 
     draws: ClassVar[bool] = False

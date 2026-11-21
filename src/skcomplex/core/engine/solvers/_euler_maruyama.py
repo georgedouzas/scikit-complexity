@@ -23,29 +23,26 @@ from ._sde import SDESolver
 class EulerMaruyamaSolver(SDESolver):
     """A solver that steps stochastic differential equations by Euler-Maruyama.
 
-    It takes a fixed internal step.
+    Every step of length `h` sets `x + f(x) h + g(x) dW`, the drift `f` plus the noise `g` times a normal increment `dW`
+    of variance `h`, such as a stock price of 100 that ends near 131 after a year in one run. Choose it as the default
+    for noise in continuous time, in stock prices, diffusing particles, and noisy gene expression.
 
-    Choose it as the default for noise in continuous time. It appears in many fields, such as stock prices, diffusing
-    particles, and noisy gene expression.
+    Read more in the user guide, under Solvers.
 
     Args:
         dt:
             The largest internal time step.
 
+    See Also:
+        HeunSolver: Averages the drift over each step.
+        MilsteinSolver: Corrects noise whose size depends on the state.
+
     Examples:
-        >>> import numpy as np
-        >>> from skcomplex.core.systems import System
-        >>> from skcomplex.systems.economics.finance import AssetElement, GeometricBrownianMotionInteraction
         >>> from skcomplex.core.engine.solvers import EulerMaruyamaSolver
-        >>> from skcomplex.core.engine.solvers import StepSpec
-        >>> system = System(
-        ...     elements=[AssetElement('stock', price=100)],
-        ...     interactions=[GeometricBrownianMotionInteraction('gbm', target='stock', mu=0.05, sigma=0.2)],
-        ... )
-        >>> problem = system.prepare().simulate(until=0).problem
-        >>> stepper = EulerMaruyamaSolver(dt=1e-3, random_state=0).prepare(problem)
-        >>> bool(stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_[0] > 0)
-        True
+        >>> from skcomplex.systems.economics.finance import GeometricBrownianMotionSystem
+        >>> system = GeometricBrownianMotionSystem(solver=EulerMaruyamaSolver(dt=0.01)).prepare()
+        >>> system.simulate(until=1, dt=1, random_state=0).get_values('asset.price').round(2).tolist()
+        [100.0, 131.0]
     """
 
     @classmethod
