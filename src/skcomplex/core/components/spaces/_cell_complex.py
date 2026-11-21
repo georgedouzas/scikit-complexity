@@ -37,10 +37,10 @@ class CellComplexSpace(NetworkSpace):
     live on a link or a face, such as the 128 links of `CellComplexSpace(LatticeSpace((8, 8)))`. Its nodes are the
     sites, its edges the links, and its hyperedges the faces, so groups on edges and hyperedges hold values on links and
     faces. It derives from a lattice or a network, or it is built from the points and triangles of a mesh, such as the
-    `p` and `t` arrays of a scikit-fem mesh, which fits a domain of any shape and is solved by finite elements. A lattice
-    numbers its links by direction and then by site, each pointing along its axis, and a mesh orients each cell by
-    increasing node number. Angles live on the links of a lattice in gauge theory, the flows of a road network split
-    into a part that runs downhill and a part that circulates, and heat flows through a machine part meshed into
+    `p` and `t` arrays of a scikit-fem mesh, which fits a domain of any shape and is solved by finite elements. A
+    lattice numbers its links by direction and then by site, each pointing along its axis, and a mesh orients each
+    cell by increasing node number. Angles live on the links of a lattice in gauge theory, the flows of a road network
+    split into a part that runs downhill and a part that circulates, and heat flows through a machine part meshed into
     triangles.
 
     Read more in the user guide, under Spaces.
