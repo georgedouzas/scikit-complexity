@@ -14,16 +14,15 @@ from ._state_spec import _StateSpec
 
 @dataclass(frozen=True)
 class RoleSpec(BaseSpec):
-    """A spec of a role of an interaction, the elements it binds and reads.
+    """A spec of a role of an interaction: what it binds and which values it reads.
 
-    It is given in the annotation of an argument of the constructor of an interaction. A plain role binds one element
-    path, one group path, or one member of a group, written `<group>[<index>]`. A variadic role binds a sequence of
-    them, and a noise role binds a `WienerProcessSpec`. An optional role may be bound to `None`, and then binds nothing.
-    A role also states what it needs from what fills it: the kinds of element it accepts and the names of the states it
-    reads. A name that is an argument of the constructor means the value of that argument.
+    It annotates an argument of an interaction, such as `prey: Annotated[str, RoleSpec(states=('n',))]`, and says what
+    the argument binds: one element, one group, or one member written `<group>[<index>]`, a sequence of them when
+    variadic, or Wiener processes when it is a noise role. It names the kinds of element the role accepts and the values
+    it reads, so a system rejects a wrong binding before a run. An optional role may be bound to `None`. It types the
+    predator and the prey of predation, the payer of a payment, and the two ends of a spring.
 
-    It appears in every interaction, such as the predator and the prey of predation, the source and the target of a
-    payment, and the two ends of a spring.
+    Read more in the user guide, under Interactions.
 
     Args:
         variadic:
@@ -45,16 +44,15 @@ class RoleSpec(BaseSpec):
             The domain tags the role accepts for the states it reads, or for every state of the element when it names
             none, such as `('real', 'integer')`. Empty accepts any domain.
 
+    See Also:
+        Interaction: Binds elements through its roles.
+
     Examples:
         >>> from skcomplex.core.components import RoleSpec
         >>> from skcomplex.core.enums import ElementKind
-        >>> RoleSpec(variadic=True).variadic
-        True
         >>> role = RoleSpec(elements=(ElementKind.GROUP,), states=('state',))
-        >>> role.accepts(ElementKind.ELEMENT), role.accepts(ElementKind.GROUP), role.states
-        (False, True, ('state',))
-        >>> RoleSpec(domains=('boolean',)).domains
-        ('boolean',)
+        >>> role.accepts(ElementKind.ELEMENT), role.accepts(ElementKind.GROUP)
+        (False, True)
     """
 
     variadic: bool = False

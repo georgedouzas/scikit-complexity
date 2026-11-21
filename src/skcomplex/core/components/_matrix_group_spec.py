@@ -20,13 +20,16 @@ PARTS = 2
 
 @dataclass(frozen=True)
 class MatrixGroupSpec(BaseSpec):
-    """A spec of a compact group of unitary matrices of a degree.
+    """A spec of the values of a state that are unitary matrices of one size.
 
-    It is `SU(n)`, of unit determinant, or `U(n)`. A state of the group holds every matrix by its `2 n^2` real
-    components, the real and the imaginary part of every entry in row order. The path-ordered product of the matrices
-    along the oriented edges of a path is its holonomy, the product of the matrix of every edge traversed along its
-    orientation and of the inverse, the conjugate transpose, of every edge traversed against it, from the first edge of
-    the path to the last.
+    A unitary matrix keeps the length of every complex vector it multiplies, and the group is `U(n)` of all of them or
+    `SU(n)` of those with determinant 1, such as `MatrixGroupSpec('SU', 2)` for the rotations of a spin. A state of the
+    group holds each matrix by the real and imaginary components of its entries in row order, `2 n^2` numbers. The
+    product of the matrices along a path of edges, inverting those walked against their direction, is the holonomy of
+    the path. It holds the links of a lattice gauge theory, the rotations of a rigid body, and the gates of a quantum
+    circuit.
+
+    Read more in the user guide, under Elements.
 
     Args:
         name:
@@ -39,16 +42,15 @@ class MatrixGroupSpec(BaseSpec):
         ValidationError:
             The name is unknown, or the degree is not a positive integer.
 
+    See Also:
+        PowerSeriesSpec: Values that are truncated power series.
+        TensorSpec: The independent components of a matrix value.
+
     Examples:
-        >>> import numpy as np
         >>> from skcomplex.core.components import MatrixGroupSpec
         >>> group = MatrixGroupSpec('SU', 2)
         >>> group.size, group.identity.tolist()
         (8, [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0])
-        >>> links = group.get_uniform_of(np.random.default_rng(0), 3)
-        >>> loop = group.get_holonomy_of(links, [0, 1, 1, 0], [1, 1, -1, -1])
-        >>> bool(np.allclose(loop, np.eye(2)))
-        True
     """
 
     name: str = 'SU'

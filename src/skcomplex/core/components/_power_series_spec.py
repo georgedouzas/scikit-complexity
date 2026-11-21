@@ -20,39 +20,38 @@ from ..types import Array
 
 @dataclass(frozen=True)
 class PowerSeriesSpec(BaseSpec):
-    """A spec of the ring of formal power series over a field, truncated.
+    """A spec of the values of a state that are power series cut after some terms.
 
-    It is the domain of a state of a cell. A state of the ring holds every series `sum_i a_i t^i` by its coefficients
-    `a_0, ..., a_{order - 1}`, so it has `order` components, and local rules read the coefficients of every neighbour on
-    a last axis. Sums and differences are those of the coefficients, reduced modulo the characteristic, and the product
-    is the Cauchy product truncated at the order, so the coefficients up to the order are exact. Sage's power series
-    ring of the same precision, `ring`, converts between the coefficients and its series.
+    A value is a series `a_0 + a_1 t + a_2 t^2 + ...` kept by its first `order` coefficients, such as
+    `PowerSeriesSpec(4)` for the terms up to `t^3`. Sums add the coefficients, and products multiply the series and drop
+    the terms past the order, so the kept coefficients are exact. Local rules read the coefficients of every neighbour
+    on a last axis, and `ring` converts them to Sage power series. It holds the generating functions of cellular
+    automata, the counts of paths in a network, and the Taylor terms of an orbit.
+
+    Read more in the user guide, under Elements.
 
     Args:
         order:
-            The number of coefficients kept, the precision of the truncation.
+            The number of coefficients kept.
 
         field:
-            `'QQ'` for the rationals, `'RR'` for the reals, or `'GF(p)'` for the field of a prime number `p` of
-            elements.
+            `'QQ'` for the rationals, `'RR'` for the reals, or `'GF(p)'` for the whole numbers modulo a prime `p`.
 
         variable:
-            The name of the indeterminate.
+            The name of the variable of the series.
 
     Raises:
         ValidationError:
             The order is not a positive integer, or the field is unknown.
 
+    See Also:
+        MatrixGroupSpec: Values that are unitary matrices.
+
     Examples:
-        >>> import numpy as np
         >>> from skcomplex.core.components import PowerSeriesSpec
         >>> series = PowerSeriesSpec(4)
-        >>> series.multiply(np.array([1, 1, 0, 0]), np.array([1, -1, 0, 0])).tolist()
+        >>> series.multiply([1, 1, 0, 0], [1, -1, 0, 0]).tolist()
         [1.0, 0.0, -1.0, 0.0]
-        >>> series.get_series_of([1, 2, 0, 0])
-        1 + 2*t + O(t^4)
-        >>> series.get_coefficients_of(series.ring.gen() ** 2).tolist()
-        [0.0, 0.0, 1.0, 0.0]
     """
 
     order: int = 8

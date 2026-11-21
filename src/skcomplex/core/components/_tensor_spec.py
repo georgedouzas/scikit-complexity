@@ -23,28 +23,34 @@ AXIS_NAMES = 'xyz'
 
 @dataclass(frozen=True)
 class TensorSpec(BaseSpec):
-    """A spec of the independent components of a rank-2 tensor of one symmetry.
+    """A spec of the independent components of a matrix value of one symmetry.
 
-    The tensor lives in a space of two or three dimensions.
+    A matrix value of two or three rows, such as a stress or an orientation order, often has a symmetry that ties its
+    entries, and the spec keeps only the entries that are free, such as `xx` and `xy` for a symmetric traceless matrix
+    of two rows. It turns these components into the full matrix and back. It holds the order of liquid crystals, the
+    stress of a material, and the covariance of two prices.
+
+    Read more in the user guide, under Elements.
 
     Args:
         symmetry:
             `'full'`, `'symmetric'`, `'antisymmetric'`, or `'traceless'`, which means symmetric and traceless.
 
         n_dim:
-            The number of dimensions of the space.
+            The number of rows and columns, 2 or 3.
 
     Raises:
         ValidationError:
-            The symmetry is unknown or the space does not have two or three dimensions.
+            The symmetry is unknown or the matrix does not have two or three rows.
+
+    See Also:
+        EntrySpec: Locates a matrix value in the vector of a run.
 
     Examples:
         >>> from skcomplex.core.components import TensorSpec
         >>> tensor = TensorSpec('traceless', 2)
-        >>> tensor.names
-        ('xx', 'xy')
-        >>> tensor.get_array_of([1.0, 2.0]).tolist()
-        [[1.0, 2.0], [2.0, -1.0]]
+        >>> tensor.names, tensor.get_array_of([1.0, 2.0]).tolist()
+        (('xx', 'xy'), [[1.0, 2.0], [2.0, -1.0]])
     """
 
     symmetry: str

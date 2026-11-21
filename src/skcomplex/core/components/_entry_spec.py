@@ -29,43 +29,50 @@ BOOLEAN_THRESHOLD = 0.5
 
 @dataclass(frozen=True)
 class EntrySpec(BaseSpec):
-    """A spec of the position of one named variable in a flat vector.
+    """A spec of where one named value sits in the flat vector of a run.
+
+    A run keeps every state in one flat vector, and this spec says where one value starts, its shape, the set of values
+    it takes, and how many members hold it, such as the 1000 positions of a gas from index 0. A complex value takes two
+    places per number, its real and imaginary components, and a tensor only its independent components. Solvers and
+    observers read and write the values of a run through it. It locates the size of a population, the spins of a magnet,
+    and the prices of a market.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         name:
-            The dotted name of the variable, such as `meadow/rabbits.n`.
+            The dotted name of the value, such as `meadow/rabbits.n`.
 
         start:
-            The index of the first component in the vector.
+            The index of its first number in the vector.
 
         shape:
-            The shape of the variable, `()` for a scalar and `(n_dim,)` for a vector.
+            The shape of the value, `()` for a number and `(n_dim,)` for a vector.
 
         domain:
-            The Sage set of the values the variable takes.
+            The Sage set of the values it takes, such as `RR` for the real numbers.
 
         members:
-            The size of the group that holds the variable, or `None` for a single element or an interaction.
+            The number of members of the group that holds the value, or `None` for one element or an interaction.
 
         is_complex:
-            Whether the variable is complex, with the real and imaginary part of every component stored in a row.
+            Whether the value is complex, with the real and imaginary components of every number stored in a row.
 
         period:
-            The period that values of the variable wrap around, or `None`.
+            The period that the value wraps around, such as `2 pi` for an angle, or `None`.
 
         tensor:
-            The independent components of a rank-2 tensor variable, or `None`.
+            The independent components of a value that is a matrix of a symmetry, or `None`.
+
+    See Also:
+        TensorSpec: The independent components of a matrix value.
 
     Examples:
-        >>> from sage.all__sagemath_symbolics import CC, RR
+        >>> from sage.all__sagemath_symbolics import CC
         >>> from skcomplex.core.components import EntrySpec
         >>> entry = EntrySpec('a.z', 0, (2,), CC, is_complex=True)
-        >>> entry.size, entry.component_names
-        (4, ['a.z[0].real', 'a.z[0].imag', 'a.z[1].real', 'a.z[1].imag'])
-        >>> from skcomplex.core.components import TensorSpec
-        >>> tensor = EntrySpec('a.Q', 0, (2,), RR, tensor=TensorSpec('traceless', 2))
-        >>> tensor.component_names, tensor.kind.value
-        (['a.Q_xx', 'a.Q_xy'], 'tensor')
+        >>> entry.size, entry.component_names[:2]
+        (4, ['a.z[0].real', 'a.z[0].imag'])
     """
 
     name: str

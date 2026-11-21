@@ -99,6 +99,8 @@ LAYOUT_PACKAGES = (
     'skcomplex.core.engine.problems._run_state_spec.',
     'skcomplex.core.components.interactions.',
     'skcomplex.core.engine.translators.',
+    'skcomplex.core.components._',
+    'skcomplex.core.components.types.',
 )
 LAYOUT_HEAD = ('summary', 'paragraph', 'user guide')
 LAYOUT_SECTIONS = ('Args:', 'Attributes:', 'Returns:', 'Raises:', 'Warns:', 'See Also:', 'Examples:')

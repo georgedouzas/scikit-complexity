@@ -2,7 +2,7 @@
 
 import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import RR, ZZ, oo
+from sage.all__sagemath_symbolics import CC, RR, ZZ, oo
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.components import EntrySpec, SubshiftSpec, TensorSpec
@@ -21,6 +21,20 @@ def test_component_names_read_the_index_of_every_component():
     entry = EntrySpec('film.Q', 0, (2, 2), RR, 2, tensor=TensorSpec('traceless', 2))
     assert entry.component_names == ['film.Q_xx[0]', 'film.Q_xy[0]', 'film.Q_xx[1]', 'film.Q_xy[1]']
     assert entry.generic_names == ['film.Q_xx[i]', 'film.Q_xy[i]']
+
+
+def test_complex_entry_names_the_real_and_imaginary_component_of_every_number():
+    """A complex entry takes two places per number, its real and imaginary components in a row."""
+    entry = EntrySpec('a.z', 0, (2,), CC, is_complex=True)
+    assert entry.size == 4
+    assert entry.component_names == ['a.z[0].real', 'a.z[0].imag', 'a.z[1].real', 'a.z[1].imag']
+
+
+def test_tensor_entry_of_one_element_names_its_independent_components():
+    """A tensor entry of one element names its independent components and reports the kind tensor."""
+    entry = EntrySpec('a.Q', 0, (2,), RR, tensor=TensorSpec('traceless', 2))
+    assert entry.component_names == ['a.Q_xx', 'a.Q_xy']
+    assert entry.kind == DomainKind.TENSOR
 
 
 def test_subshift_domain_reads_as_its_alphabet():

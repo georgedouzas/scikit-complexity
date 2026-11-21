@@ -28,9 +28,24 @@ type Combination = Callable[[SimpleNamespace, Target], Target]
 
 @runtime_checkable
 class AgentViewProtocol(Protocol):
-    """A protocol of an agent as agent rules read it, such as `AgentView`.
+    """A protocol of an agent as the agent rules of an interaction see it.
 
-    It exposes the id, the location, the moves, and the life of the agent.
+    An agent rule is a Python function `rule(agent, system)` that runs for each member of a group at each step, and the
+    agent it receives gives its id, its group, its place, its neighbours, and its values, and lets the rule move it,
+    remove it, or create new agents, such as `agent.move_to(cell)`. Values are plain attributes, such as `agent.x`, and
+    a primed value is read with `agent.get_value("x'")`. It describes a trader in a market, an animal in a flock, and a
+    voter in a network.
+
+    Read more in the user guide, under Agents.
+
+    See Also:
+        SystemViewProtocol: The system as agent rules see it.
+        UpdateLaw: Runs an agent rule.
+
+    Examples:
+        >>> from skcomplex.core.components.types import AgentViewProtocol
+        >>> hasattr(AgentViewProtocol, 'move_to'), hasattr(AgentViewProtocol, 'get_neighbors')
+        (True, True)
     """
 
     @property
@@ -135,9 +150,23 @@ class AgentViewProtocol(Protocol):
 
 @runtime_checkable
 class SystemViewProtocol(Protocol):
-    """A protocol of a system as agent rules read it, such as `SystemView`.
+    """A protocol of a system as the agent rules of an interaction see it.
 
-    It exposes the agents, the storage, and the random numbers of the system.
+    An agent rule is a Python function `rule(agent, system)`, and the system it receives gives the agents of every
+    group, the random numbers of the run, a storage that lasts the whole run, the parameters, the time, and the fields
+    of a space, such as `system.get_agents('sheep')` or `system.rng.random()`. It describes the market of the traders,
+    the pasture of a flock, and the network of the voters.
+
+    Read more in the user guide, under Agents.
+
+    See Also:
+        AgentViewProtocol: An agent as agent rules see it.
+        UpdateLaw: Runs an agent rule.
+
+    Examples:
+        >>> from skcomplex.core.components.types import SystemViewProtocol
+        >>> hasattr(SystemViewProtocol, 'get_agents'), hasattr(SystemViewProtocol, 'rng')
+        (True, True)
     """
 
     @property

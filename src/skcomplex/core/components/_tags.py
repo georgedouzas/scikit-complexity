@@ -17,13 +17,16 @@ DIFFERENTIABLE_LAWS = frozenset({LawTag.RATE, LawTag.UPDATE, LawTag.EQUATION})
 
 @dataclass(frozen=True)
 class Tags(BaseSpec):
-    """A set of capability tags of a component, a solver, or a backend.
+    """A set of tags that say what a component, a solver, or a backend handles.
 
-    They say what a component is, what a system derives from its components, or what a solver or a backend supports. The
-    tags of a component come from its declarations and its arguments alone, so they are known before `prepare`. A set
-    that is empty means any value for `time`, `space`, `domains`, and `laws`, and a fixed structure for `structure`. Law
-    kinds are `None` when the declarations do not show them, such as for an interaction that sets its laws in `_prepare`
-    without listing their classes, and the randomness is then `None` too, unless an argument shows it.
+    They say the times a component runs in, the domains of its values, its spaces, the kinds of its laws, whether it
+    draws random numbers, and whether its structure changes, such as a continuous time and rate and noise laws for a
+    stochastic differential equation. They come from the arguments and annotations of a component alone, so they are
+    known before `prepare`, and a system compares them with those of a solver to pick one that runs it. An empty set
+    means any value, and a law kind or randomness of `None` means the component does not show it. They match an
+    epidemic, a market, or a magnet with a solver that runs it.
+
+    Read more in the user guide, under Solvers.
 
     Args:
         time:
@@ -39,31 +42,26 @@ class Tags(BaseSpec):
 
         laws:
             The kinds of the laws, among `'rate'`, `'noise'`, `'jump'`, `'update'`, `'equation'`, `'objective'`, and
-            `'sampling'`, or `None` when the declarations do not show them.
+            `'sampling'`, or `None` when the arguments do not show them.
 
         randomness:
-            `'deterministic'`, `'stochastic'`, or `None` when the declarations do not show it.
+            `'deterministic'`, `'stochastic'`, or `None` when the arguments do not show it.
 
         structure:
             How the structure changes, among `'variable membership'` and `'changing topology'`, empty for a fixed one.
 
         reparameterized:
-            Whether every draw of a stochastic component is a uniform, normal, or relaxed Bernoulli or categorical draw
-            of its laws, a function of the uniform or normal value of the step, so its runs have gradients at fixed
-            values.
+            Whether every random draw of a stochastic component is a function of a uniform or normal number of the step,
+            so its runs have gradients at fixed random numbers.
+
+    See Also:
+        BaseComponent: Gives its tags through `get_tags`.
 
     Examples:
         >>> from skcomplex.core.components import Tags
         >>> tags = Tags(time=frozenset({'continuous'}), laws=frozenset({'rate', 'noise'}), randomness='stochastic')
-        >>> sorted(tags.laws), tags.randomness
-        (['noise', 'rate'], 'stochastic')
-        >>> supported = Tags(time=frozenset({'continuous'}), laws=frozenset({'rate'}))
-        >>> supported.get_missing(tags)
+        >>> Tags(time=frozenset({'continuous'}), laws=frozenset({'rate'})).get_missing(tags)
         {'laws': ['noise']}
-        >>> tags.differentiable, supported.differentiable
-        (False, True)
-        >>> Tags(laws=frozenset({'update'}), randomness='stochastic', reparameterized=True).differentiable
-        True
     """
 
     time: frozenset[str] = frozenset()

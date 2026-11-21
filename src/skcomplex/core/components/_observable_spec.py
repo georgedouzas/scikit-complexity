@@ -16,13 +16,14 @@ from ..types import AnyArray
 class Observable(BaseSpec):
     """A spec of a named value of a system that a run computes at every frame.
 
-    The run computes it from the states and parameters of the system. An observable is an expression of the namespace of
-    the system, or of one element when `element` is given, or a reduction over the members of a group. A run records it
-    in its trajectory under `<system path>/<label>`, or `<element>.<label>` for an element, and laws of other partitions
-    read it through a role bound to its path.
+    A run computes it from the values of the system and records it in its trajectory under `<system path>/<label>`, or
+    `<element>.<label>` for one element, such as the mean wealth of the traders in
+    `Observable('mean_wealth', group='traders', variable='wealth')`. It is a function of the elements of the system, of
+    one element, or of one member, or a reduction such as a sum or a mean over the members of a group. Laws of other
+    systems read it through a role bound to its path. It measures the total population of an epidemic, the energy of a
+    pendulum, and the magnetization of a lattice of spins.
 
-    It appears in many fields, such as the total population of an epidemic, the energy of a mechanical system, the
-    magnetization of a lattice of spins, and the mean wealth of an economy.
+    Read more in the user guide, under Observe.
 
     Args:
         label:
@@ -43,12 +44,15 @@ class Observable(BaseSpec):
             values.
 
         variable:
-            The name of the member variable to reduce, instead of an expression.
+            The name of the member value to reduce, instead of an expression.
 
         function:
             A function `f(t, values)` of time and the mapping from the dotted name of every state and parameter to its
-            value, instead of an expression, for a system without agents. A module-level function, since observables
-            are pickled.
+            value, instead of an expression, for a system without agents. A module-level function, since observables are
+            pickled.
+
+    See Also:
+        System: Takes observables as an argument of `simulate`.
 
     Examples:
         >>> from skcomplex.core.components import Observable
