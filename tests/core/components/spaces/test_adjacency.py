@@ -29,7 +29,7 @@ def test_adjacency_neighbourhood_of_a_missing_layer_lists_the_layers():
         laws=lambda s: [
             UpdateLaw(
                 s.target.x,
-                lambda infected, *contacts: np.maximum(infected, sum(contacts) > 0),
+                lambda infected, *contacts, **kwargs: np.maximum(infected, sum(contacts) > 0),
                 neighborhood=AdjacencyNeighborhood(layer='work'),
             ),
         ],

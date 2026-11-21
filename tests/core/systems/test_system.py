@@ -195,7 +195,7 @@ def test_prepare_writes_reductions_readably():
     assert not any(re.search(r'(?<![\w.])_\w', equation) for equation in system.equations_.values())
 
 
-def _keep(center, *around):
+def _keep(center, *around, **kwargs):
     """Return every cell unchanged."""
     return center
 

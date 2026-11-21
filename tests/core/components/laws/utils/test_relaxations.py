@@ -23,10 +23,10 @@ def _avalanche(s):
     potential = Interaction._get_symbolic(s.target, s.t).potential
     fire = UpdateLaw(
         potential,
-        lambda left, value, right: value * (value < 1) + 0.5 * (left >= 1) + 0.5 * (right >= 1),
+        lambda left, value, right, **kwargs: value * (value < 1) + 0.5 * (left >= 1) + 0.5 * (right >= 1),
         neighborhood=LINE,
     )
-    drive = UpdateLaw(potential, lambda values, *, random: values + 0.6 * (np.arange(values.size) == 0), arrays=True)
+    drive = UpdateLaw(potential, lambda values, **kwargs: values + 0.6 * (np.arange(values.size) == 0), arrays=True)
     relaxation = relax(potential, fire, lambda values: bool((values < 1).all()), drive=drive)
     return [UpdateLaw(potential, relaxation, label='avalanche')]
 
@@ -41,9 +41,9 @@ def _run(label, space, laws, until):
 def test_relax_keeps_its_rules_drive_and_settings():
     """Test that a relaxation keeps its rules and drive in order, its stability, and its largest iterations."""
     height = var('height')
-    topple = UpdateLaw(height, lambda z, *n: z, neighborhood=CROSS)
-    settle = UpdateLaw(height, lambda z, *n: z, neighborhood=CROSS)
-    drop = UpdateLaw(height, lambda values, *, random: values + 1, arrays=True)
+    topple = UpdateLaw(height, lambda z, *n, **kwargs: z, neighborhood=CROSS)
+    settle = UpdateLaw(height, lambda z, *n, **kwargs: z, neighborhood=CROSS)
+    drop = UpdateLaw(height, lambda values, **kwargs: values + 1, arrays=True)
     relaxation = relaxation_of(relax(height, [topple, settle], bool, drive=drop, max_iterations=7))
     assert relaxation.rules == (topple, settle)
     assert relaxation.drive == (drop,)
@@ -75,7 +75,7 @@ def test_relax_checks_every_law_it_holds():
     def laws(s):
         """Return the relaxation with the unknown schedule."""
         height = Interaction._get_symbolic(s.target, s.t).height
-        settle = UpdateLaw(height, lambda z, *n: z, neighborhood=CROSS, schedule='parallel')
+        settle = UpdateLaw(height, lambda z, *n, **kwargs: z, neighborhood=CROSS, schedule='parallel')
         return [UpdateLaw(height, relax(height, settle, bool))]
 
     with pytest.raises(ValidationError, match='Unknown schedule'):
@@ -87,10 +87,12 @@ def _sandpile(symbolic):
 
     def laws(s):
         height = s.target.height
-        topple = UpdateLaw(height, lambda z, *n: z - 4 * (z >= 4) + sum(m >= 4 for m in n[1:]), neighborhood=CROSS)
-        drive = (
-            UpdateLaw(height, height + 1) if symbolic else UpdateLaw(height, lambda z, *, random: z + 1, arrays=True)
+        topple = UpdateLaw(
+            height,
+            lambda z, *n, **kwargs: z - 4 * (z >= 4) + sum(m >= 4 for m in n[1:]),
+            neighborhood=CROSS,
         )
+        drive = UpdateLaw(height, height + 1) if symbolic else UpdateLaw(height, lambda z, **kwargs: z + 1, arrays=True)
         return [UpdateLaw(height, relax(height, topple, lambda z: bool((z < 4).all()), drive=drive))]
 
     return laws

@@ -43,7 +43,7 @@ def _local_rule(label, rule, neighborhood, schedule=None):
     )
 
 
-def _translated(space, values, schedule='synchronous', rule=lambda value: value):
+def _translated(space, values, schedule='synchronous', rule=lambda value, **kwargs: value):
     """Return the system of a rule over the memory translated by the values of the cells."""
     return System(
         elements=[GroupValuedElement('cells', value=values, space=space)],
@@ -90,6 +90,19 @@ def test_translated_memory_reads_the_fill_on_a_ball():
     assert set(np.unique(trajectory[2][trajectory[1] == -1])) == {-1}
 
 
+def test_translated_memory_gives_no_degree():
+    """Test that a rule over a translated memory receives `degree` as `None`."""
+    degrees = []
+
+    def keep(value, *, degree, **kwargs):
+        degrees.append(degree)
+        return value
+
+    space = CayleySpace(SYMMETRIC).prepare()
+    _values(_translated(space, np.zeros(space.size_), rule=keep), 1)
+    assert degrees == [None]
+
+
 def test_translated_memory_runs_random_sequentially():
     """Test that a random sequential schedule updates every site once from the latest values."""
     space = CayleySpace(SYMMETRIC).prepare()
@@ -102,7 +115,7 @@ def test_translated_memory_runs_random_sequentially():
 def test_translated_memory_rejects_colorings_and_lookups_of_series():
     """Test that a colored schedule, which needs a fixed table, is rejected with a translated memory."""
     space = CayleySpace(SYMMETRIC).prepare()
-    with pytest.raises(ValidationError, match='neither degrees nor a coloring'):
+    with pytest.raises(ValidationError, match='has no coloring'):
         _translated(space, np.zeros(space.size_), schedule='colored').prepare().simulate(until=0)
 
 
@@ -112,7 +125,7 @@ def test_function_rule_updates_a_power_series_state():
     values = np.zeros((6, 4))
     values[3, 0] = 1.0
 
-    def difference(here, right):
+    def difference(here, right, **kwargs):
         return here - ring.multiply(ring.get_coefficients_of('t'), right)
 
     cells = PowerSeriesCellElement('cells', ring=ring, value=values, space=LatticeSpace(6))

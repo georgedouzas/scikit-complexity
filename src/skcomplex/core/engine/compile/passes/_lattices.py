@@ -4,7 +4,6 @@
 # License: MIT
 
 import functools
-import inspect
 from collections.abc import Callable, Sequence
 from dataclasses import replace
 
@@ -131,40 +130,15 @@ class LatticeProblemPass(BasePass):
         return state
 
     @staticmethod
-    def _get_keywords(context: _LatticeContextSpec, function: Callable[..., object]) -> _ArgumentsSpec:
-        """Return the parameters a function accepts by keyword."""
-        by_name = {
-            name: (is_state, start, size) for name, is_state, start, size in context.arguments.values() if not is_state
-        }
-        names = LatticeProblemPass._get_accepted(function, list(by_name))
-        return _ArgumentsSpec(
-            names,
-            tuple(by_name[name][0] for name in names),
-            tuple(by_name[name][1] for name in names),
-            tuple(by_name[name][2] for name in names),
-        )
-
-    @staticmethod
-    def _get_names_keyword(function: Callable[..., object], name: str) -> bool:
-        """Return whether a function names a keyword, such as `time`, in its signature."""
-        try:
-            parameter = inspect.signature(function).parameters.get(name)
-        except (TypeError, ValueError):
-            return False
-        return parameter is not None and parameter.kind in {parameter.KEYWORD_ONLY, parameter.POSITIONAL_OR_KEYWORD}
-
-    @staticmethod
-    def _get_accepted(function: Callable[..., object], names: Sequence[str]) -> tuple[str, ...]:
-        """Return the keyword names a function accepts among some names."""
-        try:
-            signature = inspect.signature(function)
-        except (TypeError, ValueError):
-            return tuple(names)
-        parameters = signature.parameters.values()
-        if any(item.kind == inspect.Parameter.VAR_KEYWORD for item in parameters):
-            return tuple(names)
-        keywords = {item.name for item in parameters if item.kind in {item.KEYWORD_ONLY, item.POSITIONAL_OR_KEYWORD}}
-        return tuple(name for name in names if name in keywords)
+    def _get_keywords(context: _LatticeContextSpec) -> _ArgumentsSpec:
+        """Return every parameter its component reads, which a rule receives by keyword."""
+        names, starts, sizes = [], [], []
+        for name, is_state, start, size in context.arguments.values():
+            if not is_state:
+                names.append(name)
+                starts.append(start)
+                sizes.append(size)
+        return _ArgumentsSpec(tuple(names), (False,) * len(names), tuple(starts), tuple(sizes))
 
     @staticmethod
     def _get_lattice_context(spec: KernelSpec, declarations: DeclarationsSpec, fused: bool) -> _LatticeContextSpec:
@@ -552,11 +526,9 @@ class LatticeProblemPass(BasePass):
             context.owner,
             state,
             law.function,
-            LatticeProblemPass._get_keywords(context, law.function),
-            timed=LatticeProblemPass._get_names_keyword(law.function, 'time'),
-            drawing=bool(LatticeProblemPass._get_accepted(law.function, ['random'])),
+            LatticeProblemPass._get_keywords(context),
+            stochastic=law.stochastic,
             score=law.score,
-            spaced=LatticeProblemPass._get_names_keyword(law.function, 'space'),
         ).prepare()
 
     @staticmethod
@@ -630,12 +602,12 @@ class LatticeProblemPass(BasePass):
                 )
                 raise ValidationError(error_msg)
             function = rule
-        reads_degree = function is not None and 'degree' in LatticeProblemPass._get_accepted(function, ['degree'])
-        if translations is not None and (reads_degree or law.schedule in {'checkerboard', 'colored'}):
+        reads_degree = function is not None and translations is None
+        if translations is not None and law.schedule in {'checkerboard', 'colored'}:
             error_msg = (
                 f'{owner} reads a memory translated by the values of a state, whose neighbours move with the '
-                "configuration, so it has neither degrees nor a coloring. Use the 'synchronous', "
-                "'random-sequential', or 'random-site' schedule without `degree`."
+                "configuration, so it has no coloring. Use the 'synchronous', 'random-sequential', or 'random-site' "
+                'schedule.'
             )
             raise ValidationError(error_msg)
         return RuleKernel(
@@ -647,7 +619,7 @@ class LatticeProblemPass(BasePass):
             lookup=lookup,
             schedule=law.schedule,
             stochastic=law.stochastic,
-            arguments=LatticeProblemPass._get_keywords(context, function) if function is not None else _ArgumentsSpec(),
+            arguments=LatticeProblemPass._get_keywords(context) if function is not None else _ArgumentsSpec(),
             fused=context.fused and lookup is not None and law.schedule == 'synchronous',
             degrees=LatticeProblemPass._get_degrees_of(table, law.over, space) if reads_degree else None,
             classes=LatticeProblemPass._schedule_classes(law.schedule, space, law.over, table, owner),
@@ -751,8 +723,11 @@ class LatticeProblemPass(BasePass):
         return ArrayUpdateLaw(target, functools.partial(LatticeProblemPass._apply_step, step), label=law.label)
 
     @staticmethod
-    def _apply_step(step: Callable[[float], float], array: Array) -> Array:
-        """Return an array with a function of one value applied to every site."""
+    def _apply_step(step: Callable[[float], float], array: Array, **kwargs: object) -> Array:
+        """Return an array with a function of one value applied to every site.
+
+        It ignores the keywords of a rule.
+        """
         return np.vectorize(step, otypes=[float])(array)
 
     @staticmethod

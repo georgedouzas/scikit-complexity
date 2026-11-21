@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import inspect
 from collections.abc import Callable, Sequence
 from dataclasses import KW_ONLY, dataclass
 from types import SimpleNamespace
@@ -44,15 +43,21 @@ class UpdateLaw(BaseLaw):
     the ordered values of the neighbours of every cell, such as `UpdateLaw(s.target.alive, life(), neighborhood=MOORE)`
     for the Game of Life. The value is then a `TableSpec`, a `TotalisticSpec`, an `OuterTotalisticSpec`, a
     `LinearRuleSpec`, an object whose `get_table()` returns a `TableSpec`, or a function. A function receives one array
-    per neighbour of every read state, in neighbourhood order, and the parameters of the element by keyword. It also
-    receives `random`, a uniform number per cell, and `degree`, the number of neighbours of every cell, when it names
-    them. It returns the next values of the target, or one array per state when the target is a tuple of states.
+    per neighbour of every read state, in neighbourhood order. It returns the next values of the target, or one array
+    per state when the target is a tuple of states.
 
     With `arrays=True`, the value is a NumPy function of the whole array that replaces the state of every member at
-    once, such as `UpdateLaw(s.target.height, drop, arrays=True)` with `def drop(values, *, random): ...` adding a
-    grain at one random site of a sandpile. The function receives the array, shaped like the lattice or with one row
-    per member, and by keyword the parameters of the element and `random`, the generator, `time`, and `space`, when it
-    names them. Without it, a function value is `f(t, values)` and gives the next value of one state.
+    once, such as `UpdateLaw(s.target.height, drop, arrays=True, stochastic=True)` with
+    `def drop(values, *, random, **kwargs): ...` adding a grain at one random site of a sandpile. The function receives
+    the array, shaped like the lattice or with one row per member. Without it, a function value is `f(t, values)` and
+    gives the next value of one state.
+
+    The function of a local rule or of a whole array, and its score, receive the same keywords: the parameters of the
+    element by name, `time`, the time of the step, `space`, the space of the state, `degree`, the number of neighbours
+    of every cell of a local rule, and `random`. With `stochastic=True`, `random` is a uniform number per cell of a
+    local rule or the random generator of an update of a whole array, and it is `None` otherwise, as `degree` is for an
+    update of a whole array, a score, or a memory that moves with the values of a state. A function takes `**kwargs`
+    for the keywords it ignores, since the engine never reads its signature.
 
     Unlike `RateLaw`, which gives a derivative in continuous time, it gives the next value in discrete time. Choose it
     when the model steps, such as a map, a generation, or a round.
@@ -69,7 +74,7 @@ class UpdateLaw(BaseLaw):
         value:
             A symbolic expression, a `Call`, or a callable `f(t, values)` that gives the next value, the rule
             `rule(agent, system)` of the members of a group, the rule of the cells of a local rule, or with `arrays`
-            a NumPy function `f(values, *, random)` of the whole array of the state.
+            a NumPy function `f(values, **kwargs)` of the whole array of the state.
 
         label:
             The name of the law, or the empty string for a law without one.
@@ -110,11 +115,15 @@ class UpdateLaw(BaseLaw):
             Whether the value is a NumPy function of the whole array of the state, which replaces the state of every
             member at once.
 
+        stochastic:
+            Whether the function of a local rule or of a whole array draws numbers, so that it receives `random`.
+
     Raises:
         ValidationError:
             The value is a NumPy array, an increment law has a source, a local rule has a neighbourhood that is no
             neighbourhood, an unknown schedule, or a setting of a law of one member, a law has a score but no function
-            of the whole array, or `arrays` is given with a value that is no function or a target that is no state.
+            of the whole array, `arrays` is given with a value that is no function or a target that is no state, or
+            `stochastic` is given with a value that is no function of a local rule or of a whole array.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
@@ -138,7 +147,14 @@ class UpdateLaw(BaseLaw):
 
         A function of the whole array changes every member at once:
 
-        >>> UpdateLaw(x, lambda values, *, random: values + 1, arrays=True).arrays
+        >>> UpdateLaw(x, lambda values, **kwargs: values + 1, arrays=True).arrays
+        True
+
+        A function that draws numbers says so and receives the random generator:
+
+        >>> def shake(values, *, random, **kwargs):
+        ...     return values + random.random()
+        >>> UpdateLaw(x, shake, arrays=True, stochastic=True).stochastic
         True
     """
 
@@ -157,6 +173,7 @@ class UpdateLaw(BaseLaw):
     schedule: str | None = None
     score: Callable[..., object] | None = None
     arrays: bool = False
+    stochastic: bool = False
 
     def _get_targets(self) -> tuple[object, ...]:
         """Return the state the update sets, or the states a local rule sets together."""
@@ -169,21 +186,10 @@ class UpdateLaw(BaseLaw):
         """Return what the law requires of a system: discrete time."""
         return RequirementSpec(time=(_DiscreteTime,))
 
-    @staticmethod
-    def _is_stochastic(value: object) -> bool:
-        """Return whether a function names the keyword `random` in its signature."""
-        if not callable(value):
-            return False
-        try:
-            parameter = inspect.signature(value).parameters.get('random')
-        except (TypeError, ValueError):
-            return False
-        return parameter is not None and parameter.kind in {parameter.KEYWORD_ONLY, parameter.POSITIONAL_OR_KEYWORD}
-
     def _get_local_rule(self) -> _LocalRuleLaw:
         """Return the local rule that the engine runs for a law with a neighbourhood.
 
-        A function value that names `random` receives a uniform number per cell.
+        A stochastic law gives a function value a uniform number per cell as `random`.
 
         Raises:
             ValidationError:
@@ -198,7 +204,7 @@ class UpdateLaw(BaseLaw):
             self.value,
             reads=None if self.reads is None else tuple(self.reads),
             schedule=self.schedule or 'synchronous',
-            stochastic=self._is_stochastic(self.value),
+            stochastic=self.stochastic,
             label=self.label,
         )
 
@@ -250,7 +256,15 @@ class UpdateLaw(BaseLaw):
         self._check_arrays()
 
     def _check_arrays(self) -> None:
-        """Raise an error for a score or `arrays` on a law of one value."""
+        """Raise an error for a score, `arrays`, or `stochastic` on a law of one value."""
+        function = callable(self.value) and not isinstance(self.value, Expression | CallSpec)
+        if self.stochastic and (not function or (not self.arrays and self.neighborhood is None)):
+            error_msg = (
+                f'The update law {self.label!r} is stochastic, which only a function of a local rule or of a whole '
+                f'array takes, but its value is {self.value!r}. Give one, such as '
+                'UpdateLaw(s.target.height, drop, arrays=True, stochastic=True).'
+            )
+            raise ValidationError(error_msg)
         if self.score is not None and not self.arrays:
             error_msg = (
                 f'The update law {self.label!r} has a score, which only an update of a whole array by a function '
@@ -260,12 +274,11 @@ class UpdateLaw(BaseLaw):
         if not self.arrays:
             return
         state = isinstance(self.target, Expression | FreeModuleElement)
-        function = callable(self.value) and not isinstance(self.value, Expression | CallSpec)
         if not state or not function or self.neighborhood is not None:
             error_msg = (
                 f'The update law {self.label!r} has `arrays=True`, which takes a function of the whole array of a '
                 f'state and no neighbourhood, but its target is {self.target!r} and its value {self.value!r}. Give '
-                'one, such as UpdateLaw(s.target.height, drop, arrays=True) with def drop(values, *, random): ...'
+                'one, such as UpdateLaw(s.target.height, drop, arrays=True) with def drop(values, **kwargs): ...'
             )
             raise ValidationError(error_msg)
 

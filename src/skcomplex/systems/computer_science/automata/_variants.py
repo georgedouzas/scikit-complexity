@@ -110,7 +110,7 @@ class NoisyRuleInteraction(Interaction):
         )
         noise = self.noise
 
-        def noisy(left: Array, center: Array, right: Array, *, random: Array) -> Array:
+        def noisy(left: Array, center: Array, right: Array, *, random: Array, **kwargs: object) -> Array:
             output = outputs[(4 * left + 2 * center + right).astype(int)]
             return np.where(random < noise, 1 - output, output).astype(float)
 
@@ -126,7 +126,7 @@ class NoisyRuleInteraction(Interaction):
         super()._prepare(context)
         alive = context.target.alive
         self.laws_: list[BaseLaw] = [
-            UpdateLaw(alive, self._get_function(), neighborhood=ELEMENTARY, label=self.label),
+            UpdateLaw(alive, self._get_function(), neighborhood=ELEMENTARY, label=self.label, stochastic=True),
         ]
 
 
@@ -161,7 +161,7 @@ class DiscreteDiffusionInteraction(Interaction):
         """Return the content after the exchange of a share of the difference with every neighbour."""
         r = self.r
 
-        def diffuse(level: Array, *around: Array) -> Array:
+        def diffuse(level: Array, *around: Array, **kwargs: object) -> Array:
             return level + r * (sum(around) - len(around) * level)
 
         return diffuse
@@ -203,7 +203,7 @@ class AdditiveRuleInteraction(Interaction):
         self.target = target
 
     @staticmethod
-    def _add(left: Array, center: Array) -> Array:
+    def _add(left: Array, center: Array, **kwargs: object) -> Array:
         """Return the sum of a cell and its left neighbour."""
         return left + center
 

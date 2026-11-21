@@ -23,7 +23,7 @@ U1 = MatrixGroupSpec('U', 1)
 def test_drive_targets_its_lattice_state():
     """Test that a drive targets the one lattice state it changes."""
     height = var('height')
-    assert ArrayUpdateLaw(height, lambda values, *, random: values + 1)._get_targets() == (height,)
+    assert ArrayUpdateLaw(height, lambda values, **kwargs: values + 1)._get_targets() == (height,)
 
 
 def test_drive_needs_a_callable_function():
@@ -46,7 +46,7 @@ class ReplayInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             self.laws_ = [UpdateLaw(context.target.x, self._replay, arrays=True)]
 
-    def _replay(self, values, *, time):
+    def _replay(self, values, *, time, **kwargs):
         """Return the member of the ensemble of the step, or the last member after the ensemble ends."""
         return self.ensemble[min(int(time), len(self.ensemble) - 1)]
 
@@ -62,34 +62,38 @@ def test_drive_replays_an_ensemble_by_the_time_of_the_step():
     assert frames[40] == pytest.approx(ensemble[37])
 
 
-def test_drive_passes_time_only_to_a_function_that_names_it():
-    """Test that a function of any keywords receives the generator and no time."""
+@pytest.mark.parametrize('stochastic', [False, True])
+def test_drive_receives_the_keywords_of_every_rule(stochastic):
+    """Test that a drive receives time, space, degree, and random, the generator if stochastic."""
     seen = {}
 
     def drive(values, **keywords):
         seen.update(keywords)
         return values
 
-    chain = Element('chain', values={'x': 0.0}, space=LatticeSpace((2, 3), boundary='fixed'))
-    interaction = _DriveInteraction('drive', target='chain', function=drive)
+    space = LatticeSpace((2, 3), boundary='fixed')
+    chain = Element('chain', values={'x': 0.0}, space=space)
+    interaction = _DriveInteraction('drive', target='chain', function=drive, stochastic=stochastic)
     System(elements=[chain], interactions=[interaction]).prepare().simulate(until=1, random_state=0)
-    assert 'time' not in seen
-    assert 'random' in seen
+    assert set(seen) == {'time', 'space', 'degree', 'random'}
+    assert (seen['time'], seen['space'], seen['degree']) == (1.0, space, None)
+    assert isinstance(seen['random'], np.random.Generator) if stochastic else seen['random'] is None
 
 
 class _DriveInteraction(Interaction):
     """Interaction with one drive of a given function."""
 
-    def __init__(self, label, *, target: Role, function=None):
+    def __init__(self, label, *, target: Role, function=None, stochastic=False):
         super().__init__(label)
         self.target = target
         self.function = function
+        self.stochastic = stochastic
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Set the drive."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context.target.x, self.function, arrays=True)]
+            self.laws_ = [UpdateLaw(context.target.x, self.function, arrays=True, stochastic=self.stochastic)]
 
 
 class PairElement(Element):
@@ -120,7 +124,7 @@ class RotationInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             self.laws_ = [UpdateLaw(context.target.U, self._rotate, arrays=True)]
 
-    def _rotate(self, values, *, space):
+    def _rotate(self, values, *, space, **kwargs):
         """Return the components rotated by the number of faces of every link."""
         turns = np.exp(1j * (space.cofaces_[1] < space.boundaries_.shape[0]).sum(axis=1))
         return U1.get_components_of(turns[:, None, None] * U1.get_matrices_of(values))
@@ -148,7 +152,7 @@ class PartialInteraction(Interaction):
         """Set a drive of the first component."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context.target.U[0], lambda values, *, random: values, arrays=True)]
+            self.laws_ = [UpdateLaw(context.target.U[0], lambda values, **kwargs: values, arrays=True)]
 
 
 def test_drive_of_one_component_of_a_matrix_state_raises_an_error():

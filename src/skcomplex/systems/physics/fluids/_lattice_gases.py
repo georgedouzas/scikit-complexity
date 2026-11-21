@@ -218,7 +218,7 @@ class LatticeGasCollisionInteraction(Interaction):
         self.geometry = geometry
 
     @staticmethod
-    def _collide_square(*channels: Array) -> tuple[Array, ...]:
+    def _collide_square(*channels: Array, **kwargs: object) -> tuple[Array, ...]:
         """Return the HPP channels after every head-on pair turns by a quarter turn.
 
         This is the only collision.
@@ -233,7 +233,7 @@ class LatticeGasCollisionInteraction(Interaction):
         return tuple(((following >> direction) & 1).astype(float) for direction in range(SQUARE_DIRECTIONS))
 
     @staticmethod
-    def _collide_triangular(*channels: Array, random: Array) -> tuple[Array, ...]:
+    def _collide_triangular(*channels: Array, random: Array, **kwargs: object) -> tuple[Array, ...]:
         """Return the channels after the collisions of FHP-I at every site.
 
         The collisions are the head-on and symmetric three-particle ones.
@@ -267,7 +267,7 @@ class LatticeGasCollisionInteraction(Interaction):
             self.laws_ = [UpdateLaw(channels, self._collide_square, neighborhood=SITE, label=self.label)]
         else:
             channels = tuple(getattr(context.target, name) for name in CHANNELS)
-            law = UpdateLaw(channels, self._collide_triangular, neighborhood=SITE, label=self.label)
+            law = UpdateLaw(channels, self._collide_triangular, neighborhood=SITE, label=self.label, stochastic=True)
             self.laws_ = [law]
 
 
@@ -302,7 +302,7 @@ class LatticeGasPropagationInteraction(Interaction):
         self.geometry = geometry
 
     @staticmethod
-    def _propagate_square(*columns: Array) -> tuple[Array, ...]:
+    def _propagate_square(*columns: Array, **kwargs: object) -> tuple[Array, ...]:
         """Return the channels of the HPP gas after every particle moves one site.
 
         Every particle moves along its direction.
@@ -310,7 +310,7 @@ class LatticeGasPropagationInteraction(Interaction):
         return tuple(columns[SQUARE_DIRECTIONS * direction + direction] for direction in range(SQUARE_DIRECTIONS))
 
     @staticmethod
-    def _propagate_triangular(*columns: Array) -> tuple[Array, ...]:
+    def _propagate_triangular(*columns: Array, **kwargs: object) -> tuple[Array, ...]:
         """Return the channels after every particle moves one site along its direction."""
         return tuple(columns[DIRECTIONS * direction + (direction + 3) % DIRECTIONS] for direction in range(DIRECTIONS))
 
@@ -371,7 +371,7 @@ class ParticleCountInteraction(Interaction):
         self.channels = channels
 
     @staticmethod
-    def _count(*channels: Array) -> Array:
+    def _count(*channels: Array, **kwargs: object) -> Array:
         """Return the number of particles at every site."""
         return np.sum(channels, axis=0)
 

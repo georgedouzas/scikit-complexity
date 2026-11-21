@@ -216,7 +216,16 @@ class SequenceSamplingInteraction(Interaction):
         """
         super()._prepare(context)
         target = getattr(self._get_member(context, 'target'), self.state)
-        self.laws_ = [UpdateLaw(target, self._accept_rows, label=self.label, score=self._score_rows, arrays=True)]
+        self.laws_ = [
+            UpdateLaw(
+                target,
+                self._accept_rows,
+                label=self.label,
+                score=self._score_rows,
+                arrays=True,
+                stochastic=True,
+            ),
+        ]
 
     def _get_row_keywords(self, score: RowScoreSpec, index: int, parameters: Mapping[str, object]) -> dict[str, object]:
         """Return the parameters that a row score names.

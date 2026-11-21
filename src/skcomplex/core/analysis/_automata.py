@@ -1068,7 +1068,7 @@ def _compose(automaton: _AutomatonSpec, second: _CompositeSystem, system: System
     return _get_rule_system(automaton, system, reach, functools.partial(_composed_rule, composed), 'composition')
 
 
-def _composed_rule(composed: _ComposedRuleSpec, *values: npt.ArrayLike) -> IntArray:
+def _composed_rule(composed: _ComposedRuleSpec, *values: npt.ArrayLike, **kwargs: object) -> IntArray:
     """Return the value of the second rule of a composition on the first rule's values.
 
     The values of the first rule are those around every cell.

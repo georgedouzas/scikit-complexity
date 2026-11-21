@@ -6,7 +6,6 @@ A cascade drives a state and then relaxes every member at or above a threshold.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import inspect
 from collections.abc import Callable
 from types import SimpleNamespace
 from typing import ClassVar
@@ -58,8 +57,9 @@ class TopplingInteraction(Interaction):
             `'redistribute'`, `'reset'`, or `'random'`.
 
         drive:
-            A function `f(values, *, random)` of the array of the states and the random generator of the simulation
-            that returns the states after the drive of a step, or `None` for no drive.
+            A function `f(values, *, random, **kwargs)` of the array of the states, the random generator of the
+            simulation, and the other keywords of a rule of an `UpdateLaw`, that returns the states after the drive of
+            a step, or `None` for no drive. A cascade with a drive draws numbers.
 
         neighborhood:
             The neighbourhood of the member itself first and its neighbours, or `None` for the von Neumann
@@ -83,10 +83,9 @@ class TopplingInteraction(Interaction):
     def _get_draws(self) -> bool:
         """Return whether the cascade draws.
 
-        It draws by parcels sent at random, or by a drive that names the generator.
+        It draws by parcels sent at random, or by a drive, which receives the generator.
         """
-        drive = self.drive is not None and 'random' in inspect.signature(self.drive).parameters
-        return super()._get_draws() or self.mode == 'random' or drive
+        return super()._get_draws() or self.mode == 'random' or self.drive is not None
 
     def __init__(
         self,
@@ -173,7 +172,7 @@ class TopplingInteraction(Interaction):
             raise self._get_variant_error(self.mode, 'mode', '_relax')
         reset = self.mode == 'reset'
 
-        def relax(value: Array, *around: Array) -> Array:
+        def relax(value: Array, *around: Array, **kwargs: object) -> Array:
             gains = sum((np.where(item >= threshold, share * (item if reset else 1.0), 0.0) for item in around), 0.0)
             relaxing = value >= threshold
             remaining = np.where(relaxing, 0.0, value) if reset else value - threshold * relaxing
@@ -189,7 +188,7 @@ class TopplingInteraction(Interaction):
         """
         parcels = round(threshold / share)
 
-        def scatter(values: Array, *, random: np.random.Generator) -> Array:
+        def scatter(values: Array, *, random: np.random.Generator, **kwargs: object) -> Array:
             offsets = neighborhood._get_offsets(values.ndim) or ()
             steps = np.array([offset for offset in offsets if any(offset)])
             relaxing = np.argwhere(values >= threshold)
@@ -206,12 +205,14 @@ class TopplingInteraction(Interaction):
     def _get_cascade(self, value: Expression) -> list[BaseLaw]:
         """Return the update of the state of the target, driven and relaxed until stable."""
         threshold, share = self.threshold, self.share
-        drive = [] if self.drive is None else [UpdateLaw(value, self.drive, arrays=True)]
+        drive = [] if self.drive is None else [UpdateLaw(value, self.drive, arrays=True, stochastic=True)]
         neighborhood = self.neighborhood
         if neighborhood is None:
             neighborhood = RadiusNeighborhood(1, metric='manhattan', center=True)
         if self.mode == 'random':
-            rules: list[BaseLaw] = [UpdateLaw(value, self._scatter(neighborhood, threshold, share), arrays=True)]
+            rules: list[BaseLaw] = [
+                UpdateLaw(value, self._scatter(neighborhood, threshold, share), arrays=True, stochastic=True),
+            ]
         else:
             rules = [UpdateLaw(value, self._relax(threshold, share), neighborhood=neighborhood)]
         relaxation = relax(

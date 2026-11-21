@@ -1125,7 +1125,7 @@ def test_get_declared_reads_a_member_of_another_group_and_clears_it_when_removed
     assert trajectory.get_agents('workers', 1).values['employer'].tolist() == [-1, second, -1, -1]
 
 
-def _spread(center, left, right, *gates):
+def _spread(center, left, right, *gates, **kwargs):
     """Return the larger neighbour on an open site, and the site itself on a closed one."""
     return np.where(gates[0] > 0, np.maximum(left, right), center)
 

@@ -89,9 +89,9 @@ def relax(
         Grains topple in a sandpile, one grain added per step:
 
         >>> height = var('height')
-        >>> rule = lambda z, *n: z - 4 * (z >= 4) + sum(m >= 4 for m in n)
+        >>> rule = lambda z, *n, **kwargs: z - 4 * (z >= 4) + sum(m >= 4 for m in n)
         >>> topple = UpdateLaw(height, rule, neighborhood=cross)
-        >>> grain = UpdateLaw(height, lambda z, *, random: z + np.eye(1, z.size).reshape(z.shape), arrays=True)
+        >>> grain = UpdateLaw(height, lambda z, **kwargs: z + np.eye(1, z.size).reshape(z.shape), arrays=True)
         >>> pile = relax(height, topple, lambda z: bool((z < 4).all()), drive=grain)
         >>> UpdateLaw(height, pile, label='avalanche').value
         relax(height)
@@ -99,7 +99,7 @@ def relax(
         Fire spreads to the burning neighbours of trees until no tree catches fire:
 
         >>> fire = var('fire')
-        >>> burn = UpdateLaw(fire, lambda f, *n: np.maximum(f, np.max(n, axis=0)), neighborhood=cross)
+        >>> burn = UpdateLaw(fire, lambda f, *n, **kwargs: np.maximum(f, np.max(n, axis=0)), neighborhood=cross)
         >>> relax(fire, burn, lambda f: True)
         relax(fire)
     """

@@ -138,7 +138,7 @@ class LangtonsAntInteraction(Interaction):
         self.target = target
 
     @staticmethod
-    def _get_next(*values: Array) -> tuple[Array, Array]:
+    def _get_next(*values: Array, **kwargs: object) -> tuple[Array, Array]:
         """Return the next colors and ants from the von Neumann neighbourhoods of both states."""
         colors, ants = values[:5], values[5:]
         color = np.where(ants[0] >= 0, 1 - colors[0], colors[0])

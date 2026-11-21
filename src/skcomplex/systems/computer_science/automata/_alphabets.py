@@ -171,7 +171,7 @@ class SelfIndexedShiftInteraction(Interaction):
         self.target = target
 
     @staticmethod
-    def _translate(value: Array) -> Array:
+    def _translate(value: Array, **kwargs: object) -> Array:
         """Return the value read at the product of a site and its own value, `x(g · x(g))`."""
         return value
 
@@ -222,7 +222,7 @@ class PowerSeriesDifferenceInteraction(Interaction):
         ring = self.ring
         variable = ring.get_coefficients_of(ring.ring.gen())
 
-        def difference(here: Array, right: Array) -> Array:
+        def difference(here: Array, right: Array, **kwargs: object) -> Array:
             return ring.reduce(here - ring.multiply(variable, right))
 
         return difference
@@ -262,7 +262,7 @@ class SubtractionRuleInteraction(Interaction):
         self.target = target
 
     @staticmethod
-    def _subtract(here: Array, right: Array) -> Array:
+    def _subtract(here: Array, right: Array, **kwargs: object) -> Array:
         """Return the truncated difference `max(0, x(n) - x(n + 1))` of the naturals."""
         return np.maximum(0.0, here - right)
 
@@ -299,7 +299,7 @@ class QuadraticRuleInteraction(Interaction):
         self.target = target
 
     @staticmethod
-    def _get_quadratic(here: Array, right: Array) -> Array:
+    def _get_quadratic(here: Array, right: Array, **kwargs: object) -> Array:
         """Return `x(n + 1) - x(n)^2`."""
         return right - here**2
 
@@ -349,7 +349,7 @@ class GroupDifferenceInteraction(Interaction):
         product = np.asarray(alphabet.cayley_table().table(), dtype=np.intp)
         inverse = np.argmin(product, axis=1).astype(np.intp)
 
-        def difference(here: Array, right: Array) -> Array:
+        def difference(here: Array, right: Array, **kwargs: object) -> Array:
             return product[inverse[here.astype(np.intp)], right.astype(np.intp)].astype(float)
 
         return difference

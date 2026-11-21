@@ -69,7 +69,7 @@ try:
     flip = Interaction(
         'flip',
         roles={'target': 'cells'},
-        laws=lambda s: [UpdateLaw(s.target.x, lambda x: 1 - x, neighborhood=RadiusNeighborhood(1), schedule='often')],
+        laws=lambda s: [UpdateLaw(s.target.x, lambda x, **kwargs: 1 - x, neighborhood=RadiusNeighborhood(1), schedule='often')],
     )
     System(elements=[Element('cells', values={'x': 0}, space=LatticeSpace(5))], interactions=[flip]).prepare()
 except ValidationError as error:

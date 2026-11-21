@@ -107,7 +107,7 @@ def test_triangular_rule_spreads_as_hexagons(backend):
     system = _local(
         'forest',
         'fire',
-        lambda *values: np.max(values, axis=0),
+        lambda *values, **kwargs: np.max(values, axis=0),
         RadiusNeighborhood(1, metric='hexagonal', center=True),
         LatticeSpace((40, 40), geometry='triangular'),
         fire=fire,
@@ -152,12 +152,12 @@ def test_totalistic_rule_counts_real_neighbours_on_star():
 
 
 def test_function_rule_reads_degrees_on_star():
-    """Test that a function rule naming `degree` receives the number of neighbours of every node."""
+    """Test that a function rule receives the number of neighbours of every node as `degree`."""
 
     system = _local(
         'star',
         'value',
-        lambda *values, degree: degree,
+        lambda *values, degree, **kwargs: degree,
         AdjacencyNeighborhood(center=True),
         NetworkSpace(nx.star_graph(5)),
     )
@@ -261,7 +261,15 @@ def test_checkerboard_rejected_where_it_does_not_apply(space):
         RadiusNeighborhood(1, metric='hexagonal') if isinstance(space, LatticeSpace) else AdjacencyNeighborhood()
     )
 
-    system = _local('spins', 'spin', lambda *values: -values[0], neighborhood, space, schedule='checkerboard', spin=1.0)
+    system = _local(
+        'spins',
+        'spin',
+        lambda *values, **kwargs: -values[0],
+        neighborhood,
+        space,
+        schedule='checkerboard',
+        spin=1.0,
+    )
     with pytest.raises(ValidationError, match=r"of rule.*'colored'"):
         system.prepare()
 

@@ -32,12 +32,13 @@ class _LocalRuleLaw(BaseLaw):
     """A law that sets the next value of cells from their ordered neighbourhoods.
 
     A function rule receives one array per neighbour of every read state, in neighbourhood order, with one value per
-    site. It also receives the parameters of the element it names, `random`, a uniform number per site, when the rule is
-    stochastic, and `degree`, the number of neighbours of every site, when it names it. It returns the next values of
-    the target, or one array per target. A table or a totalistic rule may stand in place of the function.
+    site. It also receives the keywords of every rule of an `UpdateLaw`: the parameters of the element, `time`, `space`,
+    `degree`, the number of neighbours of every site, and `random`, a uniform number per site when the rule is
+    stochastic and `None` otherwise. It takes `**kwargs` for those it ignores. It returns the next values of the
+    target, or one array per target. A table or a totalistic rule may stand in place of the function.
 
     A run computes one synchronous step. Its input holds `space`, the space of the sites, the values of every read state
-    by the name of its symbol, and the arguments a function rule names. Sites outside a lattice with fixed edges read
+    by the name of its symbol, and the keywords a function rule receives. Sites outside a lattice with fixed edges read
     the fill value of the space.
 
     Unlike `UpdateLaw`, which gives the next value by an expression of one member, it reads the ordered neighbourhood of
@@ -69,7 +70,7 @@ class _LocalRuleLaw(BaseLaw):
             classes of a proper coloring of the neighbour graph in turn.
 
         stochastic:
-            Whether a function rule receives the uniform random array `random`.
+            Whether a function rule draws numbers, so that it receives the uniform random array `random`.
 
         label:
             The name of the law, or the empty string for a law without one.
@@ -168,7 +169,7 @@ class _LocalRuleLaw(BaseLaw):
         table = translations[np.arange(size), np.where(named, elements, 0).astype(np.intp)]
         return np.where(named[..., None], table, size)
 
-    def _get_linear_values(self, *columns: npt.ArrayLike) -> npt.NDArray[np.generic]:
+    def _get_linear_values(self, *columns: npt.ArrayLike, **kwargs: object) -> npt.NDArray[np.generic]:
         """Return the linear combination of one column of values per neighbour.
 
         It is reduced modulo the field size.
@@ -240,8 +241,8 @@ class _LocalRuleLaw(BaseLaw):
 
         Args:
             inputs:
-                A mapping with `space`, the values of every read state by the name of its symbol, and the keyword
-                arguments a function rule names.
+                A mapping with `space`, the values of every read state by the name of its symbol, and the keywords a
+                function rule receives.
         """
         keywords = dict(inputs) if isinstance(inputs, Mapping) else {}
         space = keywords.pop('space', None)

@@ -43,7 +43,7 @@ class PileInteraction(TopplingInteraction):
         return 'pile' if role == 'target' else role
 
 
-def _drop(values, *, random):
+def _drop(values, *, random, **kwargs):
     """Return the heights with one grain dropped on a random site."""
     following = values.copy()
     following[tuple(random.integers(size) for size in values.shape)] += 1

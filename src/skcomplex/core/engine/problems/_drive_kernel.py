@@ -20,9 +20,9 @@ class DriveKernel(BaseKernel):
     """A kernel of a Python function that changes a whole state on a lattice at once.
 
     The function receives the array of the state in the shape of the lattice, with the components of a member on a last
-    axis, and may also receive the time, the random generator, and the space, such as a function that drops one grain of
-    sand on a random site. It runs between the steps of a cascade or of a local rule. It drops grains on a sandpile,
-    lights fires in a forest, and plants seeds on a field.
+    axis, and the keywords of every rule of an `UpdateLaw`: the parameters by name, `time`, `space`, `degree`, which is
+    `None`, and `random`, the generator for a stochastic drive and `None` otherwise. It runs between the steps of a
+    cascade or of a local rule. It drops grains on a sandpile, lights fires in a forest, and plants seeds on a field.
 
     Read more in the user guide, under Extend the library.
 
@@ -39,17 +39,11 @@ class DriveKernel(BaseKernel):
         arguments:
             The parameters the function receives by keyword.
 
-        timed:
-            Whether the function receives the time of the step by the keyword `time`.
-
-        drawing:
-            Whether the function receives the random generator by the keyword `random`.
+        stochastic:
+            Whether the function draws numbers, so that it receives the random generator as `random`.
 
         score:
-            The function of the array of the state and the parameters that gives the score of every row, or `None`.
-
-        spaced:
-            Whether the function receives the space of the state by the keyword `space`.
+            The function of the array of the state and the keywords that gives the score of every row, or `None`.
 
     See Also:
         CascadeKernel: Runs a drive, then relaxes the lattice.
@@ -57,7 +51,7 @@ class DriveKernel(BaseKernel):
     Examples:
         >>> from skcomplex.systems.physics.criticality import SandpileSystem
         >>> kernel = SandpileSystem().prepare().simulate(until=0).problem.lattice[0].drive[0]
-        >>> type(kernel).__name__, kernel.drawing
+        >>> type(kernel).__name__, kernel.stochastic
         ('DriveKernel', True)
     """
 
@@ -70,40 +64,40 @@ class DriveKernel(BaseKernel):
         function: Callable[..., object],
         arguments: _ArgumentsSpec = NO_ARGUMENTS,
         *,
-        timed: bool = False,
-        drawing: bool = True,
+        stochastic: bool = False,
         score: Callable[..., object] | None = None,
-        spaced: bool = False,
     ) -> None:
         self.owner = owner
         self.target = target
         self.function = function
         self.arguments = arguments
-        self.timed = timed
-        self.drawing = drawing
+        self.stochastic = stochastic
         self.score = score
-        self.spaced = spaced
 
     @property
     def targets(self) -> tuple[_LatticeStateSpec, ...]:
         """Lattice states the drive changes."""
         return (self.target,)
 
-    def _get_keywords(self, x: Array, p: Array) -> dict[str, object]:
-        """Return the parameters the functions receive by keyword.
+    def _get_keywords(self, t: float, x: Array, p: Array, random: np.random.Generator | None) -> dict[str, object]:
+        """Return the keywords the functions receive.
 
-        Those of one value per site come in lattice shape.
+        Parameters of one value per site come in lattice shape.
         """
         shape = self.target.shape
-        return {
+        parameters = {
             name: np.reshape(value, shape) if np.size(value) == self.target.size and np.ndim(value) else value
             for name, value in self.arguments.get_values(x, p).items()
         }
+        return {**parameters, 'time': t, 'space': self.target.space, 'degree': None, 'random': random}
 
-    def read_score(self, x: Array, p: Array) -> object:
+    def read_score(self, t: float, x: Array, p: Array) -> object:
         """Return the score of every row of the state.
 
         Args:
+            t:
+                The time.
+
             x:
                 The state vector.
 
@@ -116,21 +110,16 @@ class DriveKernel(BaseKernel):
         """
         if self.score is None:
             return None
-        return self.score(np.reshape(x[self.target.sites].copy(), self.target.shape), **self._get_keywords(x, p))
+        values = np.reshape(x[self.target.sites].copy(), self.target.shape)
+        return self.score(values, **self._get_keywords(t, x, p, None))
 
     def _run(self, inputs: RunStateSpec | None) -> None:
         """Update the state vector of the state in place by one application of the drive."""
         self.values_ = None
         state = self._get_state_of(inputs)
-        x, p, rng = state.x, state.p, state.rng
+        x, p = state.x, state.p
         shape = self.target.shape if self.target.components == 1 else (*self.target.shape, self.target.components)
-        keywords = self._get_keywords(x, p)
-        if self.timed:
-            keywords['time'] = state.t
-        if self.drawing:
-            keywords['random'] = rng
-        if self.spaced:
-            keywords['space'] = self.target.space
+        keywords = self._get_keywords(state.t, x, p, state.rng if self.stochastic else None)
         values = np.reshape(x[self.target.sites].copy(), shape)
         result = self.function(values, **keywords)
         x[self.target.sites] = np.broadcast_to(np.asarray(result, dtype=float), shape).ravel()

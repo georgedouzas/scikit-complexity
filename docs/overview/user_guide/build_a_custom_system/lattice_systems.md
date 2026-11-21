@@ -93,8 +93,9 @@ They are `{'cells.alive[i]': "life(neighbors(cells.alive, reduce='each'))"}`.
   `LatticeNeighborhood`.
 - A rule is a `TableSpec` of patterns, a `TotalisticSpec` or `OuterTotalisticSpec` rule, a rule code whose
   `get_table()` returns a table, or a function of NumPy arrays, one per neighbour. A function also receives the
-  parameters of the cells it names, `random`, one uniform number per cell, when it names it, and `degree`, the number
-  of neighbours of each cell, when it names it.
+  keywords of every rule of an update law: the parameters of the cells, `time`, `space`, `degree`, the number of
+  neighbours of each cell, and `random`, one uniform number per cell when the law says `stochastic=True` and `None`
+  otherwise. It takes `**kwargs` for the keywords it ignores.
 - A tuple of states as the target, such as `(s.target.color, s.target.ant)` for Langton's ant, sets them together from
   one function that returns one array per state, and `reads=` names other states whose neighbours the function reads.
 - Tables and totalistic rules run as lookups, fused into one compiled loop on the Numba backend, which a system picks
@@ -203,7 +204,7 @@ from skcomplex.core.types import Role
 from skcomplex.core.systems import System
 
 
-def spread(*values):
+def spread(*values, **kwargs):
     return np.max(values, axis=0)
 
 
@@ -275,8 +276,8 @@ graph stays ordered too.
 - `AdjacencyNeighborhood(center=False)` pads the neighbours of every node to the largest degree with the `fill` value
   of the network.
 - Local rules, drives, relaxations, and Monte Carlo laws run on graphs as on lattices.
-- Lookup rules on graphs take the totalistic forms. A function rule that names the keyword `degree` receives the
-  number of real neighbours of every site.
+- Lookup rules on graphs take the totalistic forms. A function rule receives the number of real neighbours of every
+  site as the keyword `degree`.
 - The padded table grows with the largest degree. Graphs with hubs of very high degree, beyond scale-free graphs of
   about 10^5 nodes, therefore use much memory.
 
@@ -342,7 +343,7 @@ class Series(Element):
         self.value = value
 
 
-def difference(here, right):
+def difference(here, right, **kwargs):
     return here - RING.multiply(RING.get_coefficients_of('t'), right)
 
 

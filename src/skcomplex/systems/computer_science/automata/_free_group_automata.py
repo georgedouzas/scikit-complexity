@@ -103,7 +103,7 @@ class MullerRuleInteraction(Interaction):
         """Return the rule on the pairs at `a`, `a^-1`, `b`, and `b^-1`."""
         modulus = self.modulus
 
-        def muller(*values: Array) -> tuple[Array, Array]:
+        def muller(*values: Array, **kwargs: object) -> tuple[Array, Array]:
             first, second = values[:4], values[4:]
             total = first[0] + first[1] + second[2] + second[3]
             return total % modulus, np.zeros_like(total)
@@ -154,7 +154,7 @@ class SurjectiveLinearRuleInteraction(Interaction):
         """Return the rule on the pairs at `a`, `a^-1`, `b`, and `b^-1`."""
         modulus = self.modulus
 
-        def linear(*values: Array) -> tuple[Array, Array]:
+        def linear(*values: Array, **kwargs: object) -> tuple[Array, Array]:
             first = values[:4]
             return (first[0] + first[1]) % modulus, (first[2] + first[3]) % modulus
 

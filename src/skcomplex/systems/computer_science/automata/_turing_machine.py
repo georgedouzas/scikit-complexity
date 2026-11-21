@@ -127,7 +127,7 @@ class TuringMachineInteraction(Interaction):
         for symbol in range(symbols):
             writes[halted, symbol] = symbol
 
-        def rule(*values: Array) -> tuple[Array, Array]:
+        def rule(*values: Array, **kwargs: object) -> tuple[Array, Array]:
             symbol, head = values[:3], values[3:]
             read = [cell.astype(int) for cell in symbol]
             state = [np.where(cell >= 0, cell, halted).astype(int) for cell in head]

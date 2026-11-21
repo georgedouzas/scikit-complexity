@@ -143,7 +143,7 @@ class GapShiftInteraction(Interaction):
         """Return the shift that reads the cell to the right, or draws a new cell at the right end."""
         hazards = np.asarray(self.hazards, dtype=float)
 
-        def shift(*values: Array, random: Array) -> Array:
+        def shift(*values: Array, random: Array, **kwargs: object) -> Array:
             window = np.stack(values)
             right, inside = window[-1], window[1:-1]
             ones = inside[::-1] == 1
@@ -164,7 +164,7 @@ class GapShiftInteraction(Interaction):
         window = LatticeNeighborhood(tuple((offset,) for offset in range(1 - self.size, 2)))
         alive = context.target.alive
         self.laws_: list[BaseLaw] = [
-            UpdateLaw(alive, self._get_function(), neighborhood=window, label=self.label),
+            UpdateLaw(alive, self._get_function(), neighborhood=window, label=self.label, stochastic=True),
         ]
 
 
@@ -217,7 +217,7 @@ class ContextFreeMoveInteraction(Interaction):
         )
 
     @staticmethod
-    def _get_move(*values: Array, random: Array) -> Array:
+    def _get_move(*values: Array, random: Array, **kwargs: object) -> Array:
         """Return the cell changed to another random symbol, unless the ring would leave the subshift."""
         window = np.stack(values)
         size = (window.shape[0] + 1) // 2
@@ -242,7 +242,14 @@ class ContextFreeMoveInteraction(Interaction):
         ring = LatticeNeighborhood(tuple((offset,) for offset in range(1 - self.size, self.size)))
         symbol = context.target.symbol
         self.laws_: list[BaseLaw] = [
-            UpdateLaw(symbol, self._get_move, neighborhood=ring, schedule='random-sequential', label=self.label),
+            UpdateLaw(
+                symbol,
+                self._get_move,
+                neighborhood=ring,
+                schedule='random-sequential',
+                label=self.label,
+                stochastic=True,
+            ),
         ]
 
 
@@ -281,7 +288,7 @@ class CarryInteraction(Interaction):
         """Return the digit plus 1 modulo the base when every lower digit is `base - 1`, and the digit otherwise."""
         base = self.base
 
-        def carry(*digits: Array) -> Array:
+        def carry(*digits: Array, **kwargs: object) -> Array:
             window = np.stack(digits)
             carried = np.all(window[:-1] == base - 1, axis=0)
             return np.where(carried, (window[-1] + 1) % base, window[-1])

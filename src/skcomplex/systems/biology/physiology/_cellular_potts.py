@@ -372,7 +372,7 @@ class RegionSamplingInteraction(Interaction):
         """
         super()._prepare(context)
         target = getattr(self._get_member(context, 'target'), self.state)
-        self.laws_ = [UpdateLaw(target, self._sample_regions, label=self.label, arrays=True)]
+        self.laws_ = [UpdateLaw(target, self._sample_regions, label=self.label, arrays=True, stochastic=True)]
 
     @staticmethod
     @functools.cache

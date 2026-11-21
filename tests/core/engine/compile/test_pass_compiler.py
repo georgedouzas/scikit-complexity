@@ -2,6 +2,7 @@
 
 import re
 import time
+from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -17,10 +18,12 @@ from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element, Tensor, VisualSpec
 from skcomplex.core.components.interactions import Interaction, WienerProcessSpec
 from skcomplex.core.components.laws import (
+    BaseLaw,
     JumpLaw,
     NoiseLaw,
     ObjectiveLaw,
     RateLaw,
+    RequirementSpec,
     UpdateLaw,
 )
 from skcomplex.core.components.laws.utils import (
@@ -212,8 +215,21 @@ def _codes(report):
     return [issue.code for issue in report.issues]
 
 
-class ScaledRateLaw(RateLaw):
-    """A rate law of a class the engine has no form for."""
+@dataclass(frozen=True)
+class DecayLaw(BaseLaw):
+    """A law of a class the engine has no form for, which is no rate law."""
+
+    target: object
+    value: object
+
+    def _get_targets(self):
+        """Return the state the law changes."""
+        return (self.target,)
+
+    @classmethod
+    def _get_requirements(cls):
+        """Return no requirement of a system."""
+        return RequirementSpec()
 
 
 class PlantElement(Element):
@@ -1504,14 +1520,14 @@ def test_mixed_laws_suggest_partitions():
 
 def test_law_of_a_class_with_no_form_names_its_class():
     """Test that a law of a class with no form raises the unregistered law error, not a mix of laws."""
-    decay = _rule('decay', 'rabbits', lambda s: [ScaledRateLaw(s.target.n, -s.target.n)])
+    decay = _rule('decay', 'rabbits', lambda s: [DecayLaw(s.target.n, -s.target.n)])
     system = System(
         elements=[StockElement('rabbits'), CounterElement('clock')],
         interactions=[decay, _tick('tick', 'clock')],
     )
     (issue,) = PassCompiler().prepare(system).report_.errors
     assert (issue.code, issue.error) == ('law-unregistered', UnregisteredLawError)
-    with pytest.raises(UnregisteredLawError, match=r'rabbits: The law class ScaledRateLaw has no form'):
+    with pytest.raises(UnregisteredLawError, match=r'rabbits: The law class DecayLaw has no form'):
         PassCompiler().prepare(system).run()
 
 

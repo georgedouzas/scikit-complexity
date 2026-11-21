@@ -112,6 +112,7 @@ class HodgepodgeInteraction(Interaction):
         k1: float | Array,
         k2: float | Array,
         g: float | Array,
+        **kwargs: object,
     ) -> Array:
         """Return the next levels.
 

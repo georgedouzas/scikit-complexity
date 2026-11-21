@@ -221,7 +221,7 @@ def test_complex_equation_and_event_split_into_parts():
         (lambda s: [RateLaw(s.z, mod(s.z, 2))], 'only real values'),
         (lambda s: [RateLaw(s.z, gamma(s.z))], 'cannot write with real and imaginary parts'),
         (
-            lambda s: [UpdateLaw(s.z, lambda left: left, neighborhood=LatticeNeighborhood(((-1,),)))],
+            lambda s: [UpdateLaw(s.z, lambda left, **kwargs: left, neighborhood=LatticeNeighborhood(((-1,),)))],
             'of rule needs a LatticeSpace',
         ),
     ],
