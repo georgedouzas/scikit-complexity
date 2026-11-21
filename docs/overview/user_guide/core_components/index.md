@@ -217,7 +217,14 @@ The kinds of law of a system decide the form of its problem and the default solv
 | `RateLaw` | ordinary differential equations | `ScipyODESolver` with `LSODA` |
 | `RateLaw` and `NoiseLaw` | stochastic differential equations | `EulerMaruyamaSolver` |
 | `JumpLaw` | jump process | `GillespieSolver` |
+| `RateLaw` and `ConstraintLaw` | differential-algebraic equations | `ScipyODESolver`, solving the constraints at every step |
 | `UpdateLaw` | discrete map | `IterationSolver` |
+| `EventLaw` beside rates | ordinary differential equations with events | `ScipyODESolver` with root finding |
+| `ObjectiveLaw` | static solution | `MinimizeSolver` |
+
+The solver is a setting of the system, so the same laws can run another way. A `JumpLaw` given `ScipyODESolver()` runs
+as the rate equations of its mean, and an `ObjectiveLaw` given `MetropolisSolver()` is sampled instead of minimised, as
+the Ising model is. An unsuitable solver raises an error that names the solvers the problem supports.
 
 A run also records [observables](../glossary.md#observable), named values computed from the states at every frame, and
 checks the [invariants](../glossary.md#invariant) it is given.

@@ -415,8 +415,7 @@ message.splitlines()[-1]
 
 The code is `role-element`. The message says that the role `target` of births reads the state `n`, but the element
 bound to it carries `x`. The fix reads `s.target.x`, or gives the element a value `n`. The page
-[Check a system](check.md#a-role-that-rejects-the-kind-of-its-element) shows the same error for a role that accepts
-groups only.
+[Check a system](check.md#a-value-the-element-does-not-have) shows the same error for a one-off interaction.
 
 ## TagError
 
@@ -543,7 +542,7 @@ class GrowthLaw(RateLaw):
 
 hares = Element('hares', values={'x': 30.0})
 births = Interaction(
-    'births', roles={'target': 'hares'}, laws=lambda s: [GrowthLaw(s.target.x.diff(s.t), 0.55 * s.target.x)]
+    'births', roles={'target': 'hares'}, laws=lambda s: [GrowthLaw(s.target.x, 0.55 * s.target.x)]
 )
 try:
     System(elements=[hares], interactions=[births]).prepare()
@@ -553,7 +552,8 @@ message.splitlines()[-1]
 ```
 
 The code is `law-unregistered`. The message says that the law class `GrowthLaw` has no form the engine knows. The fix
-writes the law with a kind the core provides, here `RateLaw(s.target.x.diff(s.t), 0.55 * s.target.x)`.
+writes the law with a kind the core provides, here `RateLaw(s.target.x, 0.55 * s.target.x)`, where a rate law whose
+target is the value `x` itself gives the rate of change of `x`.
 
 ## IncompatibleLawsError
 

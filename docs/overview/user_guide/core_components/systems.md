@@ -4,7 +4,7 @@ A system composes elements, interactions, nested systems, and a space into one m
 interactions set the laws that change them, and a space places the members of an element. A `System` takes these
 components as data, `prepare` compiles them into one problem, and `simulate` runs it, as `fit` and `predict` do for a
 scikit-learn estimator. A `BaseSystem` builds its system from the parameters of a model, so users can set, sweep, and
-calibrate them. `RunSettings` names the run settings that suit a system class. [How the components fit](index.md)
+calibrate them. Its class variables, such as `until` and `dt`, are the run settings that suit it. [How the components fit](index.md)
 shows the families together, and the [systems page](../../../components/systems.md) compares the system classes and
 holds their fact sheets.
 
@@ -243,18 +243,16 @@ physics. The catalog writes each of its systems the same way.
 See its [fact sheet](../../../components/systems.md#basesystem)
 and its [API entry][skcomplex.core.systems.BaseSystem].
 
-## RunSettings
+## Run settings
 
-`RunSettings` names the run settings of a system class: the end time, the time between frames, the solver, the
-observables, the initial state, the invariants, the schedule, and the backend. A ready-made system tunes them as class
-variables, and `simulate` reads each one only where the call gives no value. An outbreak runs for a month, in frames
+The run settings of a system class are the end time `until`, the time between frames `dt`, the observables, the initial
+state, the invariants, and the schedule. A ready-made system tunes them as class variables, and `simulate` reads each one only where the call gives no value. An outbreak runs for a month, in frames
 ten days apart.
 
 ```python
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import RunSettings
 from skcomplex.core.systems import BaseSystem, System
 
 
@@ -279,7 +277,7 @@ class OutbreakSystem(BaseSystem):
 
 
 outbreak = OutbreakSystem().prepare()
-sorted(RunSettings.__annotations__), outbreak.simulate().times.tolist()
+outbreak.simulate().times.tolist()
 ```
 
 The run takes the end time 30 and the step 10 from the class, so it has frames at 0, 10, 20, and 30.
@@ -363,4 +361,4 @@ season = SeasonSystem(days=20.0).prepare()
 season.simulate(until=season.days).times[-1]
 ```
 
-See its [API entry][skcomplex.core.components.systems.RunSettings]. It is not a component, so it has no fact sheet.
+The run settings are class variables of [`BaseSystem`](#basesystem), not a class of their own.

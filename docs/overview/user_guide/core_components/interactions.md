@@ -1,7 +1,7 @@
 # Interactions
 
 An interaction changes the states of elements. It binds elements through roles, such as `target` and `source`, reads
-their states, and returns laws, the equations or rules that a solver runs. It holds no state of its own. An element
+their states, and sets in `laws_` the laws, the equations or rules that a solver runs. It holds no state of its own. An element
 holds the states, a space says which members neighbour each other, and a system composes elements, interactions, and a
 space into one model. [How the components fit](index.md) shows the families together, and the [interactions
 page](../../../components/interactions.md) compares every interaction class and holds its fact sheet.

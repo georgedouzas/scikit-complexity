@@ -19,12 +19,13 @@ to it is a function.
 
 | scikit-learn | scikit-complexity |
 | --- | --- |
-| an estimator, such as `Ridge`, with `get_params`, `set_params`, and `clone` | a component of a system, an element, an interaction, a law, or a system, such as `SIRSystem` |
+| an estimator, such as `Ridge`, with `get_params`, `set_params`, and `clone` | a component of a system, an element, an interaction, a space, or a system, such as `SIRSystem` |
 | `Pipeline` | `System`, the composite of elements, interactions, and nested systems, with nested parameters such as `gravity__g` |
 | `fit` | `prepare`, which checks and compiles a system once |
 | `predict` | `simulate`, which returns a `Trajectory` |
 | estimator tags | capability tags, from `get_tags()` |
 | `all_estimators()` | `all_systems()` |
+| `solver=` of `LogisticRegression` | `solver=` of a system, such as `GillespieSolver()` or `ScipyODESolver()` |
 | `n_jobs` | `backend=` |
 | `sklearn.metrics` | the analysis functions, such as `lyapunov` and `entropy` |
 | `validation_curve` and repeated cross-validation | the experiment functions, such as `sweep` and `ensemble` |
@@ -33,6 +34,77 @@ to it is a function.
 A [system](glossary.md#system) is a class whose constructor takes the parameters of its model and stores them.
 `set_params` changes them, and `clone` copies them. `prepare` compiles the system once, and `simulate`, the analyses,
 and the experiments read it and return frozen results. They never change its parameters.
+
+## The running examples
+
+Four small systems come back on many pages, each built on one kind of law. The README builds all four, and the pages
+below take them further.
+
+- **A falling ball.** `Element('ball', values={'x': 10.0, 'm': 1.0})` and a gravity whose `RateLaw` sets the second
+  derivative `x.diff(t, 2)` to `-g`. It shows states, parameters, equations, and one prepared system run many times.
+- **A reaction network.** The reaction `A + B -> C` as a `JumpLaw` that removes one `A` and one `B` and adds one `C`.
+  It runs as random jumps with `GillespieSolver` and as rate equations with `ScipyODESolver`, by changing only
+  `solver=`.
+- **Heat in a rod.** One value `u` per cell of a `LatticeSpace`, with `RateLaw(u.diff(t), D * laplacian(u))`. It shows
+  elements with one member per site and the operators of a space.
+- **The Ising model.** One spin per site of a square lattice, with its energy over the temperature as an
+  `ObjectiveLaw`, sampled by `MetropolisSolver`. It shows objectives, sampling solvers, and sweeps over a parameter.
+
+The four look like this in one block. The README explains each line.
+
+```python
+import numpy as np
+
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import JumpLaw, ObjectiveLaw, RateLaw
+from skcomplex.core.components.laws.utils import laplacian, neighbors
+from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
+from skcomplex.core.engine.solvers import MetropolisSolver, ScipyODESolver
+from skcomplex.core.systems import System
+
+gravity = Interaction('gravity', roles={'target': 'ball'}, laws=lambda s: [RateLaw(s.target.x.diff(s.t, 2), -9.81)])
+ball = System(elements=[Element('ball', values={'x': 10.0, 'm': 1.0})], interactions=[gravity])
+
+bind = Interaction(
+    'bind',
+    roles={'a': 'A', 'b': 'B', 'c': 'C'},
+    laws=lambda s: [JumpLaw(0.01 * s.a.n * s.b.n, {s.a.n: -1, s.b.n: -1, s.c.n: +1})],
+)
+molecules = [Element(name, values={'n': n}) for name, n in (('A', 100), ('B', 80), ('C', 0))]
+jumps = System(elements=molecules, interactions=[bind])
+mean = System(elements=molecules, interactions=[bind], solver=ScipyODESolver())
+
+start = np.zeros(21)
+start[10] = 1.0
+rod = Element('rod', values={'u': start}, space=LatticeSpace(21, boundary={'u': ('fixed', 0.0)}))
+conduction = Interaction(
+    'conduction',
+    roles={'target': 'rod'},
+    laws=lambda s: [RateLaw(s.target.u.diff(s.t), laplacian(s.target.u))],
+)
+heat = System(elements=[rod], interactions=[conduction])
+
+nearest = LatticeNeighborhood(((-1, 0), (0, -1), (0, 1), (1, 0)))
+
+
+def ising(s):
+    spin = s.target.spin
+    return [ObjectiveLaw(-spin * sum(neighbors(spin, nearest, reduce='each')) / 1.5, spin)]
+
+
+spins = Element('spins', values={'spin': np.ones(256)}, space=LatticeSpace((16, 16)))
+magnet = System(
+    elements=[spins],
+    interactions=[Interaction('ising', roles={'target': 'spins'}, laws=ising)],
+    solver=MetropolisSolver(moves={'spins.spin': 'flip'}, neighborhood=nearest),
+)
+[system.prepare().form_ for system in (ball, jumps, mean, heat, magnet)]
+```
+
+The five systems are ordinary differential equations, a jump process, ordinary differential equations again, ordinary
+differential equations with one equation per cell, and Monte Carlo sampling. Nobody named the problem: `prepare` read
+it from the kinds of law and the solver.
 
 ## Two ways in
 

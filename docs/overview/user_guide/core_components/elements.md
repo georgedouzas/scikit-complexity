@@ -1,7 +1,7 @@
 # Elements
 
 An element holds the states of a system, the numbers that change as the system runs. An interaction reads these states
-and returns laws that change them, a space places the members of a group, and a system composes elements,
+and sets the laws that change them, a space places the members of a group, and a system composes elements,
 interactions, and a space into one model. [How the components fit](index.md) shows the families together, and the
 [elements page](../../../components/elements.md) compares every element class and holds its fact sheet.
 
