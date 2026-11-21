@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Mapping
+from dataclasses import KW_ONLY, dataclass
 
 from sage.all__sagemath_symbolics import SR, Expression
 
@@ -18,6 +19,7 @@ SIGNS = (-1, 1)
 SHIFT = 'shift_member'
 
 
+@dataclass(frozen=True)
 class FlowTermLaw(_OrderedRateLaw):
     """A law of the rate `sign * f` that a flow adds to one of its stocks.
 
@@ -40,6 +42,9 @@ class FlowTermLaw(_OrderedRateLaw):
         value:
             The rate the flow adds to the stock, `sign * f`.
 
+        order:
+            The order of the derivative the term gives, the first.
+
         label:
             The name of the flow.
 
@@ -54,20 +59,11 @@ class FlowTermLaw(_OrderedRateLaw):
             so every member takes the term of the member behind it.
     """
 
-    def __init__(
-        self,
-        target: Expression,
-        value: object,
-        *,
-        label: str = '',
-        sign: int = 1,
-        increment: bool = False,
-        shifted: bool = False,
-    ) -> None:
-        super().__init__(target, value, 1, label=label)
-        self.sign = sign
-        self.increment = increment
-        self.shifted = shifted
+    order: float | None = 1
+    _: KW_ONLY
+    sign: int = 1
+    increment: bool = False
+    shifted: bool = False
 
     @classmethod
     def _get_terms(cls, law: RateLaw | UpdateLaw, owner: str) -> list[RateLaw | UpdateLaw]:
@@ -98,7 +94,7 @@ class FlowTermLaw(_OrderedRateLaw):
             error_msg = f'A flow of {owner!r} has no label. Name it, {example}.'
             raise ValidationError(error_msg)
         increment = isinstance(law, UpdateLaw)
-        if increment and not law.increment:
+        if isinstance(law, UpdateLaw) and not law.increment:
             error_msg = (
                 f'The flow {law.label!r} of {owner!r} is an update law that maps stocks, but not an increment. Write '
                 f"it as one, such as UpdateLaw({{s.lane: +1}}, f, increment=True, label={law.label!r})."
@@ -112,7 +108,7 @@ class FlowTermLaw(_OrderedRateLaw):
             )
             raise ValidationError(error_msg)
         presence = cls._get_presence(law.target)
-        terms = []
+        terms: list[RateLaw | UpdateLaw] = []
         for stock, sign in law.target.items():
             state, value = cls._get_unshifted(stock, int(sign) * SR(law.value), presence)
             shifted = state is not stock

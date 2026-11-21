@@ -21,7 +21,7 @@ def test_get_requirements_takes_continuous_discrete_or_static_time():
 
 def test_prepare_targets_the_variables():
     """Test that the targets of the law are its variables."""
-    assert _LinearProgramLaw([V, W], [V + W <= 1]).prepare('flows').targets_ == (V, W)
+    assert _LinearProgramLaw([V, W], [V + W <= 1])._get_targets() == (V, W)
 
 
 @pytest.mark.parametrize(
@@ -36,12 +36,12 @@ def test_prepare_targets_the_variables():
 def test_check_rejects_a_malformed_program(arguments, message):
     """Test that a program without variables, a malformed constraint, or a malformed objective is rejected."""
     with pytest.raises(ValidationError, match=message):
-        _LinearProgramLaw(*arguments).prepare()
+        _LinearProgramLaw(*arguments)._check()
 
 
 def test_check_rejects_an_unknown_policy_and_sense():
     """Test that an unknown infeasibility policy and an unknown sense of an objective are rejected."""
     with pytest.raises(ValidationError, match='raise, zero, hold'):
-        _LinearProgramLaw([V], [V <= 1], infeasible='stop').prepare()
+        _LinearProgramLaw([V], [V <= 1], infeasible='stop')._check()
     with pytest.raises(ValidationError, match='max, min'):
-        _LinearProgramLaw([V], [V <= 1], [LinearObjectiveSpec(V, sense='most')]).prepare()
+        _LinearProgramLaw([V], [V <= 1], [LinearObjectiveSpec(V, sense='most')])._check()

@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Callable, Sequence
+from dataclasses import KW_ONLY, dataclass
 from typing import ClassVar
 
 from ...errors import ValidationError
@@ -12,6 +13,7 @@ from ._base import BaseLaw
 from ._requirement_spec import RequirementSpec
 
 
+@dataclass(frozen=True)
 class _RuleLaw(BaseLaw):
     """A law of behaviour written as Python code and run once per step.
 
@@ -43,18 +45,11 @@ class _RuleLaw(BaseLaw):
 
     law_tag: ClassVar[str] = 'update'
 
-    def __init__(
-        self,
-        function: Callable[..., object],
-        phase: str | None = None,
-        *,
-        members: str | None = None,
-        label: str = '',
-    ) -> None:
-        super().__init__(label)
-        self.function = function
-        self.phase = phase
-        self.members = members
+    function: Callable[..., object]
+    phase: str | None = None
+    _: KW_ONLY
+    members: str | None = None
+    label: str = ''
 
     @classmethod
     def _get_name(cls) -> str:
@@ -70,14 +65,9 @@ class _RuleLaw(BaseLaw):
         """Return what the rule requires of a system: discrete time."""
         return RequirementSpec(time=(_DiscreteTime,))
 
-    def _prepare(self, context: str | None = None) -> None:
-        """Raise an error for an uncallable function, or members that name no role.
-
-        Args:
-            context:
-                The path of the element or interaction that returns the law, or `None`.
-        """
-        super()._prepare(context)
+    def _check(self) -> None:
+        """Raise an error for an uncallable function, or members that name no role."""
+        super()._check()
         if not callable(self.function):
             error_msg = f'The function of a rule must be callable, but it is {self.function!r}.'
             raise ValidationError(error_msg)

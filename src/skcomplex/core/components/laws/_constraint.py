@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from dataclasses import KW_ONLY, dataclass
 from typing import ClassVar
 
 from sage.all__sagemath_symbolics import SR, Expression
@@ -14,6 +15,7 @@ from ._base import BaseLaw
 from ._requirement_spec import RequirementSpec
 
 
+@dataclass(frozen=True)
 class ConstraintLaw(BaseLaw):
     """A law that states an implicit relation between the derivatives of states.
 
@@ -44,29 +46,22 @@ class ConstraintLaw(BaseLaw):
         label:
             The name of the law, or the empty string for a law without one.
 
-    Attributes:
-        lhs_:
-            The left side.
-
-        rhs_:
-            The right side.
-
     Examples:
         >>> from sage.all__sagemath_symbolics import function, sin, var
         >>> from skcomplex.core.components.laws import ConstraintLaw
         >>> t, g, l = var('t g l')
         >>> theta = function('theta')(t)
-        >>> ConstraintLaw(l * theta.diff(t, 2) == -g * sin(theta)).prepare().rhs_
+        >>> ConstraintLaw(l * theta.diff(t, 2), -g * sin(theta)).rhs
         -g*sin(theta(t))
     """
 
     law_tag: ClassVar[str] = 'equation'
 
-    def __init__(self, lhs: object, rhs: object = None, *, target: object = None, label: str = '') -> None:
-        super().__init__(label)
-        self.lhs = lhs
-        self.rhs = rhs
-        self.target = target
+    lhs: object
+    rhs: object = None
+    _: KW_ONLY
+    target: object = None
+    label: str = ''
 
     def _get_targets(self) -> tuple[object, ...]:
         """Return no states.
@@ -89,17 +84,12 @@ class ConstraintLaw(BaseLaw):
             return self.lhs.lhs(), self.lhs.rhs()
         return SR(self.lhs), SR(self.rhs)
 
-    def _prepare(self, context: str | None = None) -> None:
-        """Set `lhs_` and `rhs_`, the two sides, besides the attributes of every law.
+    def _check(self) -> None:
+        """Raise an error for a function as a side, or a missing right side.
 
-        It first raises an error for a function as a side, or a missing right side. An equation without a right side
-        must be a relation.
-
-        Args:
-            context:
-                The path of the element or interaction that returns the law, or `None`.
+        An equation without a right side must be a relation.
         """
-        super()._prepare(context)
+        super()._check()
         if any(callable(item) and not isinstance(item, Expression) for item in (self.lhs, self.rhs)):
             error_msg = (
                 'Equations are solved symbolically, so a side of an equation cannot be a function. Use a `RateLaw` of '
@@ -109,7 +99,6 @@ class ConstraintLaw(BaseLaw):
         if self.rhs is None and not (isinstance(self.lhs, Expression) and self.lhs.is_relational()):
             error_msg = 'An equation takes a left and a right side, or one relation `lhs == rhs`.'
             raise ValidationError(error_msg)
-        self.lhs_, self.rhs_ = self._get_sides()
 
     def _get_value(self, inputs: object) -> object:
         """Return the residual `lhs - rhs` at given symbol values.

@@ -6,10 +6,9 @@ from types import SimpleNamespace
 import numpy as np
 from sage.all__sagemath_symbolics import I
 
-from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import NoiseLaw, RateLaw, UpdateLaw
+from skcomplex.core.components.laws import BaseLaw, NoiseLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.systems import System
 from skcomplex.core.types import Role
@@ -73,7 +72,7 @@ class PairNoiseInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             first, second = self.conventions
             pair = context.target
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 NoiseLaw(pair.x, pair.sigma * pair.y, convention=first, process=self.process),
                 NoiseLaw(pair.y, pair.sigma * pair.x, convention=second, process=self.process),
             ]

@@ -18,10 +18,10 @@ from shapely import box
 from skcomplex.core.analysis import alignment, displacement
 from skcomplex.core.base import BaseSpec
 from skcomplex.core.components import Observable
-from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element, Member, Period, Quantity, VisualSpec
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import (
+    BaseLaw,
     ConstraintLaw,
     NoiseLaw,
     RateLaw,
@@ -118,7 +118,7 @@ class Gravity(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             x, t = context.target.x, context.t
-            self.laws_: list[BaseComponent] = [RateLaw(x.diff(t, 2), -context.g)]
+            self.laws_: list[BaseLaw] = [RateLaw(x.diff(t, 2), -context.g)]
 
 
 class Jerk(Interaction):
@@ -427,7 +427,7 @@ class Diffusion(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             u = context.target.u
-            self.laws_: list[BaseComponent] = [RateLaw(u.diff(context.t), context.D * laplacian(u))]
+            self.laws_: list[BaseLaw] = [RateLaw(u.diff(context.t), context.D * laplacian(u))]
 
 
 class Consensus(Interaction):
@@ -443,7 +443,7 @@ class Consensus(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             x = context.target.x
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 RateLaw(x.diff(context.t), context.k * neighbors(context.target.other.x - x)),
             ]
 
@@ -499,7 +499,7 @@ class Resistor(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             current = (context.a.v - context.b.v) / context.R
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 ConstraintLaw(-current, 0, target=context.a.v),
                 ConstraintLaw(current, 0, target=context.b.v),
             ]
@@ -531,7 +531,7 @@ class VoltageSource(Interaction):
         if isinstance(context, SimpleNamespace):
             current = context.branch.i
             voltage = context.E * (1 + context.w * sin(context.t))
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 ConstraintLaw(context.plus.v - context.minus.v, voltage, target=current),
                 ConstraintLaw(current, 0, target=context.plus.v),
                 ConstraintLaw(-current, 0, target=context.minus.v),
@@ -550,7 +550,7 @@ class Ground(Interaction):
         """Set zero potential as the equation of the current, and the current as a term of the balance."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 ConstraintLaw(context.node.v, 0, target=context.branch.i),
                 ConstraintLaw(context.branch.i, 0, target=context.node.v),
             ]
@@ -571,7 +571,7 @@ class Loop(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             q, t = context.target.q, context.t
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 ConstraintLaw(context.L * q.diff(t, 2) + context.R * q.diff(t) + q / context.C == 0),
             ]
 
@@ -621,7 +621,7 @@ class Walk(Interaction):
         """Set a noise of variance `2 D` per unit time on `x`."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [NoiseLaw(context.target.x, sqrt(2 * context.D))]
+            self.laws_: list[BaseLaw] = [NoiseLaw(context.target.x, sqrt(2 * context.D))]
 
 
 def test_get_declared_reads_a_value_named_after_an_axis_as_a_position():
@@ -661,7 +661,7 @@ class Growth(Interaction):
         """Set the request of one new node as the law."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(TopologyRequestSpec('add-node', edges=1, one=True), 1.0)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(TopologyRequestSpec('add-node', edges=1, one=True), 1.0)]
 
 
 def test_get_declared_records_the_values_of_a_growing_network():
@@ -725,7 +725,7 @@ class Count(Interaction):
         """Set the next count as the law."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.target.n, context.target.n + 1)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(context.target.n, context.target.n + 1)]
 
 
 def test_get_declared_reads_an_int_as_an_integer():
@@ -749,7 +749,7 @@ class Julia(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             z = context.target.z
-            self.laws_: list[BaseComponent] = [UpdateLaw(z, z**2 + context.c)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(z, z**2 + context.c)]
 
 
 def test_get_declared_maps_a_complex_value():
@@ -774,7 +774,7 @@ class Wander(Interaction):
         """Set the rule of the members as the law."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.wander)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.wander)]
 
     def wander(self, agent: object, system: object) -> None:
         """Move an agent by its speed, or remove it once it passes ten."""
@@ -826,7 +826,7 @@ class Drift(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             x, v = context.target.x, context.target.v
-            self.laws_: list[BaseComponent] = [UpdateLaw(x, x + v), UpdateLaw(v, v / 2)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(x, x + v), UpdateLaw(v, v / 2)]
 
 
 def test_get_declared_reads_the_step_of_a_position_as_its_velocity():
@@ -850,7 +850,7 @@ class Brake(Interaction):
         if isinstance(context, SimpleNamespace):
             cart, t = context.cart, context.t
             speed = cart.x.diff(t)
-            self.laws_: list[BaseComponent] = [RateLaw(speed.diff(t), cart.force), UpdateLaw(cart.force, -2 * speed)]
+            self.laws_: list[BaseLaw] = [RateLaw(speed.diff(t), cart.force), UpdateLaw(cart.force, -2 * speed)]
 
 
 def test_get_declared_holds_a_value_a_controller_sets_after_every_step():
@@ -875,7 +875,7 @@ class WeightedExchange(Interaction):
         if isinstance(context, SimpleNamespace):
             s = context
             flow = s.edge.w * (s.source.x - s.target.x)
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 RateLaw(s.target.x.diff(s.t), flow),
                 RateLaw(s.source.x.diff(s.t), -flow),
             ]
@@ -910,7 +910,7 @@ class Regulation(Interaction):
             regulator = s.others[1].active
             allowed = where(s.edge.sign > 0, regulator, 1 - regulator)
             retained = bernoulli('retained', s.p) * allowed
-            self.laws_: list[BaseComponent] = [UpdateLaw(s.edge.active, retained, phase='regulation')]
+            self.laws_: list[BaseLaw] = [UpdateLaw(s.edge.active, retained, phase='regulation')]
 
 
 class Percolation(Interaction):
@@ -926,7 +926,7 @@ class Percolation(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             giant = components(context.links.active, reduce='giant')
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.nodes.active, giant, phase='percolation')]
+            self.laws_: list[BaseLaw] = [UpdateLaw(context.nodes.active, giant, phase='percolation')]
 
 
 def test_get_declared_gives_the_signed_links_of_triadic_percolation():
@@ -957,7 +957,7 @@ class Majority(Interaction):
             s = context
             center = (s.member.x + sum(other.x for other in s.others)) / (1 + len(s.others))
             pull = s.hyperedge.k * (center - s.member.x)
-            self.laws_: list[BaseComponent] = [RateLaw(s.member.x.diff(s.t), pull)]
+            self.laws_: list[BaseLaw] = [RateLaw(s.member.x.diff(s.t), pull)]
 
 
 def test_get_declared_puts_one_member_on_every_hyperedge():
@@ -983,7 +983,7 @@ class Transport(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             u = context.target.u
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 RateLaw(u.diff(context.t), -divergence([u**2 / 2]) if self.flux else laplacian(u)),
             ]
 
@@ -1410,7 +1410,7 @@ class Combination(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             request = TopologyRequestSpec('add-node', hyperedge=3, independent=True, one=True)
-            self.laws_: list[BaseComponent] = [UpdateLaw(request, 1.0)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(request, 1.0)]
 
 
 def test_get_declared_grows_a_group_on_the_hyperedges_the_laws_add():

@@ -3,11 +3,12 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from dataclasses import dataclass
 
-from ..types import Process, Target
 from ._noise import NoiseLaw
 
 
+@dataclass(frozen=True)
 class _OrderedNoiseLaw(NoiseLaw):
     """A noise law on a state that keeps the order of the derivative it drives.
 
@@ -40,28 +41,7 @@ class _OrderedNoiseLaw(NoiseLaw):
             The name of the law, or the empty string for a law without one.
     """
 
-    def __init__(
-        self,
-        target: Target,
-        value: object,
-        order: float | None = None,
-        *,
-        convention: str = 'ito',
-        process: Process = None,
-        conserved: bool = False,
-        hurst: object = None,
-        label: str = '',
-    ) -> None:
-        super().__init__(
-            target,
-            value,
-            convention=convention,
-            process=process,
-            conserved=conserved,
-            hurst=hurst,
-            label=label,
-        )
-        self.order = order
+    order: float | None = None
 
     @classmethod
     def _get_name(cls) -> str:

@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from dataclasses import KW_ONLY, dataclass
 from typing import ClassVar
 
 from ..types import Target
@@ -10,6 +11,7 @@ from ._base import BaseLaw
 from ._requirement_spec import RequirementSpec
 
 
+@dataclass(frozen=True)
 class _BoundaryLaw(BaseLaw):
     """A law that sets the value a state takes after every solver step.
 
@@ -36,10 +38,10 @@ class _BoundaryLaw(BaseLaw):
 
     law_tag: ClassVar[str] = 'update'
 
-    def __init__(self, target: Target, value: object, *, label: str = '') -> None:
-        super().__init__(label)
-        self.target = target
-        self.value = value
+    target: Target
+    value: object
+    _: KW_ONLY
+    label: str = ''
 
     @classmethod
     def _get_name(cls) -> str:
@@ -58,14 +60,9 @@ class _BoundaryLaw(BaseLaw):
         """
         return RequirementSpec()
 
-    def _prepare(self, context: str | None = None) -> None:
-        """Raise an error for a value that is a NumPy array.
-
-        Args:
-            context:
-                The path of the element or interaction that returns the law, or `None`.
-        """
-        super()._prepare(context)
+    def _check(self) -> None:
+        """Raise an error for a value that is a NumPy array."""
+        super()._check()
         self._check_array('value')
 
     def _get_value(self, inputs: object) -> object:

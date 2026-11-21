@@ -8,10 +8,10 @@ import numpy as np
 import pytest
 from sklearn.base import clone
 
-from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import (
+    BaseLaw,
     ConstraintLaw,
     EventLaw,
     JumpLaw,
@@ -152,7 +152,7 @@ class _Consensus(Interaction):
         if isinstance(context, SimpleNamespace):
             x = context.target.x
             pull = neighbors(context.target.other.x - x) if self.over == 'neighbours' else mean(x) - x
-            self.laws_: list[BaseComponent] = [RateLaw(x.diff(context.t), pull)]
+            self.laws_: list[BaseLaw] = [RateLaw(x.diff(context.t), pull)]
 
 
 def test_prepare_writes_reductions_readably():
@@ -186,7 +186,7 @@ class _Rules(Interaction):
         if isinstance(context, SimpleNamespace):
             alive = context.target.alive
             around = RadiusNeighborhood(1, center=True)
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 UpdateLaw(alive, _keep, neighborhood=around),
                 UpdateLaw(alive, TotalisticSpec({1: 1}), neighborhood=around, label='parity'),
             ]
@@ -215,9 +215,9 @@ class _Process(Interaction):
             x, t = context.target.x, context.t
             if self.kind == 'dae':
                 y = context.target.y
-                self.laws_: list[BaseComponent] = [RateLaw(x.diff(t), -x + y), ConstraintLaw(y - 2 * x, 0, target=y)]
+                self.laws_: list[BaseLaw] = [RateLaw(x.diff(t), -x + y), ConstraintLaw(y - 2 * x, 0, target=y)]
                 return
-            laws: dict[str, list[BaseComponent]] = {
+            laws: dict[str, list[BaseLaw]] = {
                 'ode': [RateLaw(x.diff(t), -x)],
                 'sde': [RateLaw(x.diff(t), -x), NoiseLaw(x, 0.1)],
                 'jump': [JumpLaw(x, {x: -1})],
@@ -280,7 +280,7 @@ class _Conversion(Interaction):
         """Set the transfer of one unit at the rate `k a`."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [JumpLaw(context.k * context.a.n, {context.a.n: -1, context.b.n: 1})]
+            self.laws_: list[BaseLaw] = [JumpLaw(context.k * context.a.n, {context.a.n: -1, context.b.n: 1})]
 
 
 def test_one_reaction_runs_as_jumps_or_as_its_mean_with_two_solvers():
@@ -305,7 +305,7 @@ class _Hold(Interaction):
         """Set the next input."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.control.u, -context.plant.x / 2)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(context.control.u, -context.plant.x / 2)]
 
 
 class _Plant(Interaction):
@@ -321,7 +321,7 @@ class _Plant(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             x, t = context.plant.x, context.t
-            self.laws_: list[BaseComponent] = [RateLaw(x.diff(t), -x + context.control.u)]
+            self.laws_: list[BaseLaw] = [RateLaw(x.diff(t), -x + context.control.u)]
 
 
 def test_nested_systems_keep_the_time_their_laws_imply() -> None:
@@ -384,7 +384,7 @@ class _Attraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             x = context.target.x
-            self.laws_: list[BaseComponent] = [RateLaw(x.diff(context.t), total(context.target.other.x - x) / count())]
+            self.laws_: list[BaseLaw] = [RateLaw(x.diff(context.t), total(context.target.other.x - x) / count())]
 
 
 class _Majority(Interaction):

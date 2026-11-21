@@ -6,10 +6,9 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import var
 
-from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws import BaseLaw, RateLaw
 from skcomplex.core.components.laws.utils import contraction
 from skcomplex.core.components.laws.utils._contractions import contractions_in
 from skcomplex.core.components.spaces import BaseSpace
@@ -40,7 +39,7 @@ class CubicInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             x = context.target.x
-            self.laws_: list[BaseComponent] = [RateLaw(x.diff(context.t), contraction(context.T, x, x))]
+            self.laws_: list[BaseLaw] = [RateLaw(x.diff(context.t), contraction(context.T, x, x))]
 
 
 def _cubic(tensor, x, target='species', backend='auto'):

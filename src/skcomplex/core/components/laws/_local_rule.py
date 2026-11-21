@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Mapping
+from dataclasses import KW_ONLY, dataclass
 from typing import ClassVar
 
 import numpy as np
@@ -26,6 +27,7 @@ SCHEDULES = ('synchronous', 'random-sequential', 'random-site', 'checkerboard', 
 TABLE_AXES = 2
 
 
+@dataclass(frozen=True)
 class _LocalRuleLaw(BaseLaw):
     """A law that sets the next value of cells from their ordered neighbourhoods.
 
@@ -79,24 +81,14 @@ class _LocalRuleLaw(BaseLaw):
 
     law_tag: ClassVar[str] = 'update'
 
-    def __init__(
-        self,
-        targets: Expression | tuple[Expression, ...],
-        over: BaseNeighborhood,
-        rule: object,
-        *,
-        reads: tuple[Expression, ...] | None = None,
-        schedule: str = 'synchronous',
-        stochastic: bool = False,
-        label: str = '',
-    ) -> None:
-        super().__init__(label)
-        self.targets = targets
-        self.over = over
-        self.rule = rule
-        self.reads = reads
-        self.schedule = schedule
-        self.stochastic = stochastic
+    targets: Expression | tuple[Expression, ...]
+    over: BaseNeighborhood
+    rule: object
+    _: KW_ONLY
+    reads: tuple[Expression, ...] | None = None
+    schedule: str = 'synchronous'
+    stochastic: bool = False
+    label: str = ''
 
     @classmethod
     def _get_name(cls) -> str:
@@ -115,14 +107,9 @@ class _LocalRuleLaw(BaseLaw):
         """
         return RequirementSpec(time=(_DiscreteTime,), space=(LatticeSpace, NetworkSpace), sites=True)
 
-    def _prepare(self, context: str | None = None) -> None:
-        """Raise an error for an unknown schedule or an invalid rule spec.
-
-        Args:
-            context:
-                The path of the element or interaction that returns the law, or `None`.
-        """
-        super()._prepare(context)
+    def _check(self) -> None:
+        """Raise an error for an unknown schedule or an invalid rule spec."""
+        super()._check()
         if self.schedule not in SCHEDULES:
             error_msg = f'Unknown schedule {self.schedule!r}. Use one of {", ".join(SCHEDULES)}.'
             raise ValidationError(error_msg)

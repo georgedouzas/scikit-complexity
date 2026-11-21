@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from dataclasses import KW_ONLY, dataclass
 from typing import ClassVar
 
 import numpy as np
@@ -15,6 +16,7 @@ from ...components.spaces._continuous_time import _ContinuousTime
 from ...errors import ValidationError
 
 
+@dataclass(frozen=True)
 class BilinearLaw(BaseLaw):
     """A law where members of two densities meet and change class.
 
@@ -49,30 +51,20 @@ class BilinearLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.engine.problems._bilinear_law import BilinearLaw
         >>> f, g = var('f g')
-        >>> BilinearLaw(f, f, g, -0.5).prepare().rate
+        >>> BilinearLaw(f, f, g, -0.5).rate
         -0.5
     """
 
     law_tag: ClassVar[str] = 'rate'
 
-    def __init__(
-        self,
-        target: Expression,
-        first: Expression,
-        second: Expression | None,
-        rate: object,
-        outcomes: object = None,
-        *,
-        conserved: bool = False,
-        label: str = '',
-    ) -> None:
-        super().__init__(label)
-        self.target = target
-        self.first = first
-        self.second = second
-        self.rate = rate
-        self.outcomes = outcomes
-        self.conserved = conserved
+    target: Expression
+    first: Expression
+    second: Expression | None
+    rate: object
+    outcomes: object = None
+    _: KW_ONLY
+    conserved: bool = False
+    label: str = ''
 
     @classmethod
     def _get_name(cls) -> str:

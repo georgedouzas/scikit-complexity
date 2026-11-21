@@ -13,10 +13,9 @@ from sage.all__sagemath_symbolics import ceil, sin
 from scipy.integrate import solve_ivp
 from sklearn.base import clone
 
-from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import EventLaw, RateLaw
+from skcomplex.core.components.laws import BaseLaw, EventLaw, RateLaw
 from skcomplex.core.components.laws.utils import laplacian, mean, step, total, where
 from skcomplex.core.components.spaces import BaseSpace, LatticeSpace
 from skcomplex.core.engine.backends import NumpyBackend
@@ -96,7 +95,7 @@ class ExplosionInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             x = context.target.x
-            self.laws_: list[BaseComponent] = [RateLaw(x.diff(context.t), x**2)]
+            self.laws_: list[BaseLaw] = [RateLaw(x.diff(context.t), x**2)]
 
 
 def test_scipy_ode_failure_raises_error():
@@ -355,7 +354,7 @@ class LevelInteraction(Interaction):
         """Set the event that ends the run when the total of the line reaches the level."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [EventLaw(total(context.line.u) - context.level, terminal=True)]
+            self.laws_: list[BaseLaw] = [EventLaw(total(context.line.u) - context.level, terminal=True)]
 
 
 def _stiff_fisher(size=SIZE):

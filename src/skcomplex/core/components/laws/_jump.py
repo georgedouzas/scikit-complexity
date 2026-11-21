@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Mapping
+from dataclasses import KW_ONLY, dataclass
 from typing import ClassVar
 
 from sage.all__sagemath_symbolics import SR, Expression
@@ -15,6 +16,7 @@ from ._call_spec import CallSpec
 from ._requirement_spec import RequirementSpec
 
 
+@dataclass(frozen=True)
 class JumpLaw(BaseLaw):
     """A law of a random event that changes states.
 
@@ -60,29 +62,21 @@ class JumpLaw(BaseLaw):
         >>> from skcomplex.core.components.laws import JumpLaw
         >>> from skcomplex.core.components.laws.utils import draw
         >>> s, i = var('s'), var('i')
-        >>> JumpLaw(0.1 * s * i, {s: -1, i: 1}).prepare().targets_
-        (s, i)
+        >>> JumpLaw(0.1 * s * i, {s: -1, i: 1}).changes
+        {s: -1, i: 1}
         >>> n = var('n')
-        >>> JumpLaw(waiting=draw('wait', 'expon'), reset={n: 0}).prepare().targets_
-        (n,)
+        >>> JumpLaw(waiting=draw('wait', 'expon'), reset={n: 0}).reset
+        {n: 0}
     """
 
     law_tag: ClassVar[str] = 'jump'
 
-    def __init__(
-        self,
-        rate: object = None,
-        changes: Mapping[Expression, object] | None = None,
-        waiting: object = None,
-        reset: Mapping[Expression, object] | None = None,
-        *,
-        label: str = '',
-    ) -> None:
-        super().__init__(label)
-        self.rate = rate
-        self.changes = changes
-        self.waiting = waiting
-        self.reset = reset
+    rate: object = None
+    changes: Mapping[Expression, object] | None = None
+    waiting: object = None
+    reset: Mapping[Expression, object] | None = None
+    _: KW_ONLY
+    label: str = ''
 
     def _get_targets(self) -> tuple[object, ...]:
         """Return the states the jump changes.
@@ -143,16 +137,12 @@ class JumpLaw(BaseLaw):
                 )
                 raise ValidationError(error_msg)
 
-    def _prepare(self, context: str | None = None) -> None:
+    def _check(self) -> None:
         """Raise an error for an invalid clock, an array rate, or a symbolic increment.
 
         The array rate is a rate that is a NumPy array.
-
-        Args:
-            context:
-                The path of the element or interaction that returns the law, or `None`.
         """
-        super()._prepare(context)
+        super()._check()
         self._check_clock()
         self._check_reset()
         self._check_array('rate')

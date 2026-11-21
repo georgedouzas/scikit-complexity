@@ -375,8 +375,9 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         """
         increments: dict[tuple[object, ...], list[tuple[KernelSpec, Expression, Expression]]] = defaultdict(list)
         for spec, laws in specs:
-            for law in [law for law in laws if id(law) in self.born_ and isinstance(law, RateLaw)]:
-                laws.remove(law)
+            born = [law for law in laws if id(law) in self.born_ and isinstance(law, RateLaw)]
+            laws[:] = [law for law in laws if all(law is not item for item in born)]
+            for law in born:
                 target = SR(law._get_targets()[0])
                 reference = spec.references[target]
                 key: tuple[object, ...] = (reference.entry.name, reference.column)

@@ -332,13 +332,14 @@ class OrdersPass(BasePass):
 
         The placeholders stand for the highest derivatives it contains.
         """
-        description = f'the equation {law.lhs_} == {law.rhs_} of {spec.owner}'
+        left, right = law._get_sides()
+        description = f'the equation {left} == {right} of {spec.owner}'
         if spec.pairs is not None:
             error_msg = f'Pair interaction {spec.owner} returns {description}. Pair interactions take only rate laws.'
             raise ValidationError(error_msg)
         highest: dict[Expression, Expression] = {}
-        lhs = OrdersPass._substitute(SR(law.lhs_), spec, orders, f'In {description}, it', highest)
-        rhs = OrdersPass._substitute(SR(law.rhs_), spec, orders, f'In {description}, it', highest)
+        lhs = OrdersPass._substitute(SR(left), spec, orders, f'In {description}, it', highest)
+        rhs = OrdersPass._substitute(SR(right), spec, orders, f'In {description}, it', highest)
         reference = spec.references.get(law.target) if isinstance(law.target, Expression) else None
         key = None if reference is None else (reference.entry.name, reference.column)
         target = None if key is None else law.target
@@ -601,7 +602,10 @@ class OrdersPass(BasePass):
         if not relations:
             return kept
         values = OrdersPass._get_exact_solution(relations)
+        solved: list[tuple[KernelSpec, list[BaseLaw]]]
         if values is None:
-            return [*kept, *((item.spec, [RateLaw(item.target, item.expression)]) for item in relations)]
-        pairs = zip(relations, values, strict=True)
-        return [*kept, *((item.spec, [UpdateLaw(item.target, value)]) for item, value in pairs)]
+            solved = [(item.spec, [RateLaw(item.target, item.expression)]) for item in relations]
+        else:
+            pairs = zip(relations, values, strict=True)
+            solved = [(item.spec, [UpdateLaw(item.target, value)]) for item, value in pairs]
+        return [*kept, *solved]

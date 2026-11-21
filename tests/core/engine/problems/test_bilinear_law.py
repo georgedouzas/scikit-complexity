@@ -15,7 +15,7 @@ F, G, H, MU, Q = var('f g h mu q')
 
 def lower(target, form):
     """Return the bilinear law of a rate law with a bilinear form."""
-    return BilinearLaw._get_lowered(RateLaw(target, form)).prepare()
+    return BilinearLaw._get_lowered(RateLaw(target, form))
 
 
 def test_lowered_law_runs_into_its_signed_rate_and_outcomes():
@@ -38,7 +38,7 @@ def test_lowered_law_evaluates_parameter_tables():
     rate, outcomes = law._get_value({'q': 0.25})
     assert rate == 0.25
     assert outcomes[0][0] == [0.25, 0.75]
-    assert law.reads_ == {F, Q}
+    assert law._get_reads() == {F, Q}
 
 
 def test_lowered_law_needs_continuous_time_on_class_lattices():

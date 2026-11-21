@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Callable
+from dataclasses import KW_ONLY, dataclass
 from typing import ClassVar
 
 from sage.all__sagemath_symbolics import Expression
@@ -15,6 +16,7 @@ from ...components.spaces._discrete_time import _DiscreteTime
 from ...errors import ValidationError
 
 
+@dataclass(frozen=True)
 class ArrayUpdateLaw(BaseLaw):
     """A law that replaces a whole array state by the output of a function.
 
@@ -42,18 +44,11 @@ class ArrayUpdateLaw(BaseLaw):
 
     law_tag: ClassVar[str] = 'update'
 
-    def __init__(
-        self,
-        target: Expression | FreeModuleElement,
-        function: Callable[..., object],
-        *,
-        label: str = '',
-        score: Callable[..., object] | None = None,
-    ) -> None:
-        super().__init__(label)
-        self.target = target
-        self.function = function
-        self.score = score
+    target: Expression | FreeModuleElement
+    function: Callable[..., object]
+    _: KW_ONLY
+    label: str = ''
+    score: Callable[..., object] | None = None
 
     @classmethod
     def _get_name(cls) -> str:
@@ -75,14 +70,9 @@ class ArrayUpdateLaw(BaseLaw):
             return self._get_requirements()
         return RequirementSpec(time=(_DiscreteTime,), space=(LatticeSpace,))
 
-    def _prepare(self, context: str | None = None) -> None:
-        """Raise an error for a function that cannot be called.
-
-        Args:
-            context:
-                The path of the element or interaction that returns the law, or `None`.
-        """
-        super()._prepare(context)
+    def _check(self) -> None:
+        """Raise an error for a function that cannot be called."""
+        super()._check()
         if not callable(self.function):
             error_msg = f'The function of an array update must be callable, but it is {self.function!r}.'
             raise ValidationError(error_msg)

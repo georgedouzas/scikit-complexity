@@ -737,7 +737,8 @@ def _read_automaton(system: _CompositeSystem, rule: _LocalRuleSpec) -> _Automato
             f'stochastic={rule.law.stochastic!r}.'
         )
         raise AnalysisError(error_msg)
-    law = rule.law.prepare()
+    law = rule.law
+    law._check()
     space = _get_space(system, element)
     states = _get_states(element.get_states()[rule.state].domain, law._get_rule())
     read = _AutomatonSpec(system, rule, law, rule.state, space, int(space.size_ or 0), states)

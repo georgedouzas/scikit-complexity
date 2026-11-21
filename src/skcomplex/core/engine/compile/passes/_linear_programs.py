@@ -121,6 +121,7 @@ class LinearProgramsPass(BasePass):
             _BoundLawSpec(spec, law, CensusPass._get_law_owner(spec, law, set()))
             for spec, items in laws
             for law in items
+            if isinstance(law, _LinearProgramLaw)
         ]
         owners = compilation.owners
         return [item for item in found if not owned or owners is None or item.owner in owners]

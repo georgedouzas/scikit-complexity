@@ -522,7 +522,26 @@ class BasePass(BaseConfig[Compilation, None]):
             law:
                 The new law, which the compiler reads without checking it again.
         """
-        return type(law)(**{**law.get_params(deep=False), **changes})
+        return dataclasses.replace(law, **changes)
+
+    @staticmethod
+    def _get_checked_law[L: BaseLaw](law: L) -> L:
+        """Return a law once its fields are checked.
+
+        Args:
+            law:
+                The law.
+
+        Returns:
+            law:
+                The same law.
+
+        Raises:
+            ValidationError:
+                A field of the law is invalid, named in the message.
+        """
+        law._check()
+        return law
 
     @staticmethod
     def _get_calls_of(expression: Expression, name: str) -> list[Expression]:

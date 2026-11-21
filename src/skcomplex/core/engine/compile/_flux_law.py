@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Sequence
+from dataclasses import KW_ONLY, dataclass
 from typing import ClassVar
 
 from ...components.laws import BaseLaw, RequirementSpec
@@ -12,6 +13,7 @@ from ...components.spaces._continuous_time import _ContinuousTime
 from ...components.types import Target
 
 
+@dataclass(frozen=True)
 class _FluxLaw(BaseLaw):
     """A flux law the compiler reads from a conservation law of a field.
 
@@ -41,22 +43,13 @@ class _FluxLaw(BaseLaw):
 
     law_tag: ClassVar[str] = 'rate'
 
-    def __init__(
-        self,
-        target: Target,
-        flux: Sequence[object],
-        *,
-        limiter: str | None = 'minmod',
-        riemann: str = 'rusanov',
-        speed: object = None,
-        label: str = '',
-    ) -> None:
-        super().__init__(label)
-        self.target = target
-        self.flux = flux
-        self.limiter = limiter
-        self.riemann = riemann
-        self.speed = speed
+    target: Target
+    flux: Sequence[object]
+    _: KW_ONLY
+    limiter: str | None = 'minmod'
+    riemann: str = 'rusanov'
+    speed: object = None
+    label: str = ''
 
     @classmethod
     def _get_name(cls) -> str:

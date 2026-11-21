@@ -573,7 +573,7 @@ class _StateInference:
         return any(isinstance(nested, _CompositeSystem) and self._has_plain(nested, space) for nested in system.systems)
 
     @staticmethod
-    def _get_lags(law: BaseComponent, named: Mapping[str, str]) -> dict[str, int]:
+    def _get_lags(law: BaseLaw, named: Mapping[str, str]) -> dict[str, int]:
         """Return the number of past values a law reads of every value, by its dotted name.
 
         A reduction over neighbours that reads past values of the other member, such as the delayed headings of a flock,
@@ -689,7 +689,7 @@ class _StateInference:
         raise ValidationError(error_msg)
 
     @staticmethod
-    def _get_densities(law: BaseComponent, named: Mapping[str, str]) -> list[str]:
+    def _get_densities(law: BaseLaw, named: Mapping[str, str]) -> list[str]:
         """Return the names of the densities a bilinear form reads.
 
         A density that two populations meet through, such as the field of an encounter, is a state also when no law
@@ -880,7 +880,7 @@ class _StateInference:
         for record in census.records:
             law = record.law
             local = isinstance(law, _LocalRuleLaw) or (isinstance(law, UpdateLaw) and law.neighborhood is not None)
-            if local and law.reads is not None:
+            if local and isinstance(law, _LocalRuleLaw | UpdateLaw) and law.reads is not None:
                 reads.update(named[str(item)] for item in law.reads if str(item) in named)
         return reads
 

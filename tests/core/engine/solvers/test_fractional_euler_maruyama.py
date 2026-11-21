@@ -5,10 +5,9 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import NoiseLaw
+from skcomplex.core.components.laws import BaseLaw, NoiseLaw
 from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver, FractionalEulerMaruyamaSolver
 from skcomplex.core.errors import SolverError
@@ -28,7 +27,7 @@ class NoiseInteraction(Interaction):
         """Set the noise of the walkers."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [NoiseLaw(context.target.x, 1, hurst=self.hurst)]
+            self.laws_: list[BaseLaw] = [NoiseLaw(context.target.x, 1, hurst=self.hurst)]
 
 
 class TaggedNoiseInteraction(NoiseInteraction):

@@ -14,7 +14,7 @@ from skcomplex.core.components import RoleSpec
 from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import BaseElement, Element
 from skcomplex.core.components.interactions import BaseInteraction, Interaction
-from skcomplex.core.components.laws import BaseLaw, RateLaw
+from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import BaseNeighborhood, BaseSpace
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.systems import BaseSystem, System
@@ -104,7 +104,7 @@ def test_constructor_only_stores_its_arguments():
 
 def test_components_derive_from_the_component_base():
     """Test that every component of a system is a component, and no component is an engine class."""
-    components = (BaseElement, BaseInteraction, BaseLaw, System, BaseSpace, BaseNeighborhood)
+    components = (BaseElement, BaseInteraction, System, BaseSpace, BaseNeighborhood)
     assert all(issubclass(component, BaseComponent) for component in components)
     assert not any(issubclass(component, BaseConfig) for component in components)
 
@@ -120,7 +120,6 @@ def _get_public_methods(klass):
         (BaseComponent, set()),
         (BaseElement, {'get_states'}),
         (BaseInteraction, {'get_requirements'}),
-        (BaseLaw, {'get_requirements'}),
         (BaseSpace, set()),
         (BaseNeighborhood, set()),
         (BaseSystem, {'simulate'}),
@@ -135,11 +134,11 @@ def test_bases_list_their_methods(base, verbs):
 def test_cloning_shares_the_symbolic_values():
     """Test that a clone of a component is a new component with the same parameters and shared Sage values."""
     x = var('x')
-    law = RateLaw(x, -2 * x, label='decay')
-    cloned = clone(law)
-    assert cloned is not law
-    assert cloned.get_params() == law.get_params()
-    assert cloned.value is law.value
+    component = DoublingComponent('doubling', factor=-2 * x)
+    cloned = clone(component)
+    assert cloned is not component
+    assert cloned.get_params() == component.get_params()
+    assert cloned.factor is component.factor
 
 
 class VoteInteraction(Interaction):

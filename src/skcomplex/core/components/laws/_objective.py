@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Sequence
+from dataclasses import KW_ONLY, dataclass
 from typing import ClassVar
 
 from sage.all__sagemath_symbolics import SR, Expression
@@ -15,6 +16,7 @@ from ._base import BaseLaw
 from ._requirement_spec import RequirementSpec
 
 
+@dataclass(frozen=True)
 class ObjectiveLaw(BaseLaw):
     """A law that gives a scalar function of states, which a system minimises.
 
@@ -86,35 +88,24 @@ class ObjectiveLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws import ObjectiveLaw
         >>> x = var('x')
-        >>> ObjectiveLaw((x - 2) ** 2, x).prepare().value
+        >>> ObjectiveLaw((x - 2) ** 2, x).value
         (x - 2)^2
         >>> u = var('u')
-        >>> ObjectiveLaw(x**2 + u**2, controls=[u]).prepare().targets_
-        (u,)
+        >>> ObjectiveLaw(x**2 + u**2, controls=[u]).controls
+        [u]
     """
 
     law_tag: ClassVar[str] = 'objective'
 
-    def __init__(
-        self,
-        value: object,
-        targets: object = None,
-        *,
-        controls: Sequence[object] | None = None,
-        terminal: object = 0,
-        active: object = None,
-        infeasible: str = 'raise',
-        duals: bool = False,
-        label: str = '',
-    ) -> None:
-        super().__init__(label)
-        self.value = value
-        self.targets = targets
-        self.controls = controls
-        self.terminal = terminal
-        self.active = active
-        self.infeasible = infeasible
-        self.duals = duals
+    value: object
+    targets: object = None
+    _: KW_ONLY
+    controls: Sequence[object] | None = None
+    terminal: object = 0
+    active: object = None
+    infeasible: str = 'raise'
+    duals: bool = False
+    label: str = ''
 
     def _get_targets(self) -> tuple[object, ...]:
         """Return the states the minimum is sought over, or the controls."""
@@ -141,19 +132,15 @@ class ObjectiveLaw(BaseLaw):
         """Return what the law requires of a system: static time."""
         return RequirementSpec(time=(_StaticTime,))
 
-    def _prepare(self, context: str | None = None) -> None:
+    def _check(self) -> None:
         """Raise an error for an objective that is no expression or varies no state.
-
-        Args:
-            context:
-                The path of the element or interaction that returns the law, or `None`.
 
         Raises:
             ValidationError:
                 The value is a function, the law names no target or both targets and controls, or a terminal cost
                 without controls.
         """
-        super()._prepare(context)
+        super()._check()
         if callable(self.value) and not isinstance(self.value, Expression):
             error_msg = 'An objective is minimised with its exact gradient, so its value is a symbolic expression.'
             raise ValidationError(error_msg)

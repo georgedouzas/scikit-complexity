@@ -5,6 +5,7 @@
 
 import inspect
 from collections.abc import Callable, Sequence
+from dataclasses import KW_ONLY, dataclass
 from types import SimpleNamespace
 from typing import ClassVar
 
@@ -22,6 +23,7 @@ from ._requirement_spec import RequirementSpec
 from ._topology_request_spec import TopologyRequestSpec
 
 
+@dataclass(frozen=True)
 class UpdateLaw(BaseLaw):
     """A law that gives the next value of a state after one discrete time step.
 
@@ -118,8 +120,8 @@ class UpdateLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws import UpdateLaw
         >>> x = var('x')
-        >>> UpdateLaw(x, 4 * x * (1 - x)).prepare().targets_
-        (x,)
+        >>> UpdateLaw(x, 4 * x * (1 - x)).target
+        x
         >>> UpdateLaw(x, x + 1, increment=True).increment
         True
         >>> UpdateLaw(x, x + 1, phase='imitate').phase
@@ -131,45 +133,30 @@ class UpdateLaw(BaseLaw):
         >>> from skcomplex.core.components.spaces import RadiusNeighborhood
         >>> around = RadiusNeighborhood(1, center=True)
         >>> parity = UpdateLaw(x, TotalisticSpec(lambda total: total % 2), neighborhood=around)
-        >>> parity.prepare().neighborhood.radius
+        >>> parity.neighborhood.radius
         1
 
         A function of the whole array changes every member at once:
 
-        >>> UpdateLaw(x, lambda values, *, random: values + 1, arrays=True).prepare().arrays
+        >>> UpdateLaw(x, lambda values, *, random: values + 1, arrays=True).arrays
         True
     """
 
     law_tag: ClassVar[str] = 'update'
 
-    def __init__(
-        self,
-        target: Target | tuple[Target, ...] | TopologyRequestSpec | SimpleNamespace,
-        value: object,
-        *,
-        label: str = '',
-        increment: bool = False,
-        source: float | None = None,
-        order: object = None,
-        phase: str | None = None,
-        neighborhood: BaseNeighborhood | None = None,
-        reads: Sequence[Target] | None = None,
-        schedule: str | None = None,
-        score: Callable[..., object] | None = None,
-        arrays: bool = False,
-    ) -> None:
-        super().__init__(label)
-        self.target = target
-        self.value = value
-        self.increment = increment
-        self.source = source
-        self.order = order
-        self.phase = phase
-        self.neighborhood = neighborhood
-        self.reads = reads
-        self.schedule = schedule
-        self.score = score
-        self.arrays = arrays
+    target: Target | tuple[Target, ...] | TopologyRequestSpec | SimpleNamespace
+    value: object
+    _: KW_ONLY
+    label: str = ''
+    increment: bool = False
+    source: float | None = None
+    order: object = None
+    phase: str | None = None
+    neighborhood: BaseNeighborhood | None = None
+    reads: Sequence[Target] | None = None
+    schedule: str | None = None
+    score: Callable[..., object] | None = None
+    arrays: bool = False
 
     def _get_targets(self) -> tuple[object, ...]:
         """Return the state the update sets, or the states a local rule sets together."""
@@ -243,19 +230,15 @@ class UpdateLaw(BaseLaw):
             )
             raise ValidationError(error_msg)
 
-    def _prepare(self, context: str | None = None) -> None:
+    def _check(self) -> None:
         """Raise an error for an array value, an increment with a source, or a bad rule.
-
-        Args:
-            context:
-                The path of the element or interaction that returns the law, or `None`.
 
         Raises:
             ValidationError:
                 The value is a NumPy array, an increment law has a source, or a local rule has a neighbourhood that
                 is no neighbourhood, an unknown schedule, or a setting of a law of one member.
         """
-        super()._prepare(context)
+        super()._check()
         self._check_array('value')
         if self.increment and self.source is not None:
             error_msg = (
@@ -295,5 +278,7 @@ class UpdateLaw(BaseLaw):
                 space of the cells.
         """
         if self.neighborhood is not None:
-            return self._get_local_rule().prepare()._get_value(inputs)
+            rule = self._get_local_rule()
+            rule._check()
+            return rule._get_value(inputs)
         return self._evaluate(self.value, inputs)

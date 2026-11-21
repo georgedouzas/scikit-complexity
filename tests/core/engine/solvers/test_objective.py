@@ -5,10 +5,9 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import ObjectiveLaw
+from skcomplex.core.components.laws import BaseLaw, ObjectiveLaw
 from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine.solvers import GradientFlowSolver, MetropolisSolver, MinimizeSolver
 from skcomplex.core.engine.solvers._objective import BaseObjectiveSolver
@@ -29,7 +28,7 @@ class Well(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             x = context.target.x
-            self.laws_: list[BaseComponent] = [ObjectiveLaw((x - context.centre) ** 2, x)]
+            self.laws_: list[BaseLaw] = [ObjectiveLaw((x - context.centre) ** 2, x)]
 
 
 @pytest.mark.parametrize('solver', [MinimizeSolver, GradientFlowSolver, MetropolisSolver])

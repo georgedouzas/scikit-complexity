@@ -5,10 +5,9 @@ from types import SimpleNamespace
 import pytest
 from sage.all__sagemath_symbolics import cos
 
-from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import ConstraintLaw, ObjectiveLaw
+from skcomplex.core.components.laws import BaseLaw, ConstraintLaw, ObjectiveLaw
 from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine.solvers import MinimizeSolver
 from skcomplex.core.systems import System
@@ -35,7 +34,7 @@ class PullInteraction(Interaction):
         """Set the quadratic cost."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [ObjectiveLaw((context.target.x - self.goal) ** 2, context.target.x)]
+            self.laws_: list[BaseLaw] = [ObjectiveLaw((context.target.x - self.goal) ** 2, context.target.x)]
 
 
 class BudgetInteraction(Interaction):
@@ -56,7 +55,7 @@ class BudgetInteraction(Interaction):
         """Set the cost and the budget."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 ObjectiveLaw(context.a.x**2 + context.b.x**2, [context.a.x, context.b.x]),
                 ConstraintLaw(context.a.x + context.b.x == 1, target=context.b.x),
             ]
@@ -80,7 +79,7 @@ class ImplicitInteraction(Interaction):
         """Set the cost and an implicit constraint."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 ObjectiveLaw((context.a.x - 1) ** 2, context.a.x),
                 ConstraintLaw(context.b.x == cos(context.b.x) + context.a.x, target=context.b.x),
             ]

@@ -7,10 +7,9 @@ import pytest
 from sklearn.base import clone
 
 from skcomplex.core.components import Observable
-from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import ObjectiveLaw, UpdateLaw
+from skcomplex.core.components.laws import BaseLaw, ObjectiveLaw, UpdateLaw
 from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine.backends import BaseBackend, NumbaBackend, NumpyBackend
 from skcomplex.core.engine.runtime import Trajectory
@@ -157,7 +156,7 @@ class CountInteraction(Interaction):
         """Set the next count as the law."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.target.n, context.target.n + 1)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(context.target.n, context.target.n + 1)]
 
 
 def test_get_tags_reads_the_domains_of_values_from_the_laws() -> None:

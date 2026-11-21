@@ -56,10 +56,10 @@ def _income(s):
 def test_update_gives_its_value_and_targets_a_topology_request():
     """Test that an update gives its new value, and targets a topology request that it fires with a probability."""
     x = var('x')
-    assert UpdateLaw(x, 2 * x).prepare()._get_value({'x': 1.5}) == 3.0
+    assert UpdateLaw(x, 2 * x)._get_value({'x': 1.5}) == 3.0
     request = TopologyRequestSpec('rewire', keep='target')
-    law = UpdateLaw(request, 0.1).prepare()
-    assert law.targets_ == (request,)
+    law = UpdateLaw(request, 0.1)
+    assert law._get_targets() == (request,)
 
 
 def test_adaptive_parameter_changes_only_when_the_policy_fires():
@@ -209,20 +209,20 @@ def test_update_without_arrays_calls_a_function_of_two_arguments_with_time_and_v
 def test_update_check_rejects_arrays_without_a_function_of_a_state(target, value, settings):
     """Test that `arrays=True` needs a function value, a state target, and no neighbourhood."""
     with pytest.raises(ValidationError, match='arrays=True'):
-        UpdateLaw(target, value, arrays=True, **settings).prepare()
+        UpdateLaw(target, value, arrays=True, **settings)._check()
 
 
 def test_update_check_rejects_a_score_without_arrays():
     """Test that a score needs an update of the whole array."""
     with pytest.raises(ValidationError, match='has a score'):
-        UpdateLaw(var('x'), _shift, score=np.sum).prepare()
+        UpdateLaw(var('x'), _shift, score=np.sum)._check()
 
 
 def test_update_check_rejects_an_increment_with_a_source():
     """Test that an increment law with a source raises an error."""
     x = var('x')
     with pytest.raises(ValidationError, match='no source'):
-        UpdateLaw(x, x + 1, increment=True, source=0).prepare()
+        UpdateLaw(x, x + 1, increment=True, source=0)._check()
 
 
 @pytest.mark.parametrize(
@@ -236,7 +236,7 @@ def test_update_check_rejects_an_increment_with_a_source():
 def test_update_with_a_neighborhood_runs_a_local_rule(rule, expected):
     """Test that an update with a neighbourhood sets every cell from the ordered values of its neighbours."""
     x = var('x')
-    law = UpdateLaw(x, rule, neighborhood=AROUND).prepare()
+    law = UpdateLaw(x, rule, neighborhood=AROUND)
     assert law._get_value({'space': ROW, 'x': [0, 0, 1, 0, 0]}).tolist() == expected
 
 
@@ -278,7 +278,7 @@ def test_update_check_rejects_a_bad_local_rule(settings, message):
     """Test that a local rule needs a neighbourhood, a known schedule, and none of the settings of one member."""
     x = var('x')
     with pytest.raises(ValidationError, match=message):
-        UpdateLaw(x, TotalisticSpec({1: 1}), **settings).prepare()
+        UpdateLaw(x, TotalisticSpec({1: 1}), **settings)._check()
 
 
 class StepTransferInteraction(Interaction):

@@ -7,10 +7,9 @@ import numpy as np
 import numpy.typing as npt
 import pytest
 
-from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction, WienerProcessSpec
-from skcomplex.core.components.laws import NoiseLaw
+from skcomplex.core.components.laws import BaseLaw, NoiseLaw
 from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver, HeunSolver, StepSpec
@@ -38,7 +37,7 @@ class DriveInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             dw = context.noise.dW
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 NoiseLaw(context.first.n, 1.0, process=dw[0]),
                 NoiseLaw(context.second.n, 1.0, process=dw[1]),
             ]

@@ -5,6 +5,7 @@
 
 from dataclasses import replace
 
+from ....components.laws import EventLaw
 from ...enums import ReadKind
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._kernel_spec import KernelSpec
@@ -40,7 +41,7 @@ class ReductionsPass(BasePass):
         events = reductions.run([(spec, [event]) for spec, event in crossings]).lowered_
         compilation.reduced = lowered[: len(specs)]
         compilation.reduced_apart = lowered[len(specs) :]
-        compilation.events = [(spec, laws[0]) for spec, laws in events]
+        compilation.events = [(spec, law) for spec, (law, *_) in events if isinstance(law, EventLaw)]
         reductions._apply_references()
         compilation._replace_specs(
             {

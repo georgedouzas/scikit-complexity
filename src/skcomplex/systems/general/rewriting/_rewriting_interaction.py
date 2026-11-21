@@ -7,7 +7,6 @@ from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import ClassVar
 
-from ....core.components.base import BaseComponent
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw
 from ....core.components.spaces import BaseSpace
@@ -82,4 +81,4 @@ class RewritingInteraction(Interaction):
             error_msg = f'{self.label!r} rewrites by {wrong[0]!r}. Give ProductionLaw or SubstitutionLaw laws.'
             raise RewritingError(error_msg)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = laws
+            self.laws_: list[BaseLaw] = laws

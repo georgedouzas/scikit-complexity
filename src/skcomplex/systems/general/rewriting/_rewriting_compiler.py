@@ -156,15 +156,18 @@ class RewritingCompiler(BaseCompiler):
         """Return the checked productions or substitutions an interaction sets."""
         roles = {name: namespaces[target] for name, target in bound.items()}
         namespace = SimpleNamespace(**roles, **vars(namespaces[path]))
-        laws = list(interaction._get_laws_of(namespace))
-        wrong = [law for law in laws if not isinstance(law, PRODUCTION_LAWS)]
+        returned = list(interaction._get_laws_of(namespace))
+        laws = [law for law in returned if isinstance(law, PRODUCTION_LAWS)]
+        wrong = [law for law in returned if not isinstance(law, PRODUCTION_LAWS)]
         if wrong:
             error_msg = (
                 f'{path} sets {type(wrong[0]).__name__} in `laws_`, but a word or a patch changes by its '
                 'productions only. Set ProductionLaw or SubstitutionLaw laws.'
             )
             raise RewritingError(error_msg)
-        return [law.prepare(path) for law in laws]
+        for law in laws:
+            law._check()
+        return laws
 
     @staticmethod
     def _get_parameters(

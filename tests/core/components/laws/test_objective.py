@@ -10,7 +10,7 @@ from skcomplex.core.errors import ValidationError
 def test_run_evaluates_the_objective():
     """Running an objective gives its value at the given symbol values."""
     x = var('x')
-    assert float(ObjectiveLaw((x - 2) ** 2, x).prepare()._get_value({'x': 5.0})) == pytest.approx(9.0)
+    assert float(ObjectiveLaw((x - 2) ** 2, x)._get_value({'x': 5.0})) == pytest.approx(9.0)
 
 
 def test_get_targets_reads_one_or_several_states():
@@ -23,20 +23,20 @@ def test_get_targets_reads_one_or_several_states():
 def test_prepare_rejects_a_function():
     """An objective given as a Python function raises an error, since it is minimised with its gradient."""
     with pytest.raises(ValidationError, match='symbolic expression'):
-        ObjectiveLaw(lambda s: 0.0, var('x')).prepare()
+        ObjectiveLaw(lambda s: 0.0, var('x'))._check()
 
 
 def test_prepare_rejects_no_targets():
     """An objective with no state to vary raises an error."""
     with pytest.raises(ValidationError, match='names the states'):
-        ObjectiveLaw(var('x') ** 2, []).prepare()
+        ObjectiveLaw(var('x') ** 2, [])._check()
 
 
 def test_get_targets_reads_the_controls():
     """An objective with controls steers them over a run, so they are its targets."""
     x, u = var('x u')
     law = ObjectiveLaw(x**2 + u**2, controls=[u], terminal=x)
-    assert law.prepare().targets_ == (u,)
+    assert law._get_targets() == (u,)
     assert law._get_law_requirements().time[0].time_tag == 'continuous'
 
 
@@ -47,7 +47,7 @@ def test_get_targets_reads_the_controls():
 def test_prepare_rejects_targets_with_controls_or_a_terminal_cost(arguments, match):
     """An objective takes targets or controls, and a terminal cost only with controls."""
     with pytest.raises(ValidationError, match=match):
-        ObjectiveLaw(var('x') ** 2, **arguments).prepare()
+        ObjectiveLaw(var('x') ** 2, **arguments)._check()
 
 
 def test_values_in_order_read_one_value_or_a_sequence():
