@@ -1,4 +1,8 @@
-"""Visualize running simulations in Rerun."""
+"""Draw running simulations in Rerun.
+
+A visual draws the values of an element at every frame, such as the points of a flock, the image of a grid, or the line
+of a population over time.
+"""
 
 from ._agents import AgentsVisual
 from ._axes import AxisVisual
