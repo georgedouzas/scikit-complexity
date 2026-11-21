@@ -382,7 +382,6 @@ name = "Core packages import only the packages listed before them"
 type = "layers"
 containers = ["skcomplex.core.components"]
 layers = [
-    "systems",
     "elements | interactions",
     "laws",
     "spaces",
@@ -442,6 +441,13 @@ ignore_imports = [
     "skcomplex.systems.** -> skcomplex.core.analysis.types",
     "skcomplex.systems.** -> skcomplex.core.engine.*",
 ]
+
+[[tool.importlinter.contracts]]
+name = "Systems import nothing from the private modules of the engine"
+type = "forbidden"
+source_modules = ["skcomplex.systems"]
+forbidden_modules = ["skcomplex.core.engine._utils"]
+allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
 name = "Realizations shared by several fields import no field package"

@@ -61,7 +61,7 @@ FAMILY_PAGES = {
     'interactions.md': 'skcomplex.core.components.interactions',
     'laws.md': 'skcomplex.core.components.laws',
     'spaces.md': 'skcomplex.core.components.spaces',
-    'systems.md': 'skcomplex.core.components.systems',
+    'systems.md': 'skcomplex.core.systems',
 }
 GALLERY = Path('docs') / 'examples'
 OWN_RECEIVERS = ('self', 'cls', 'super()')
@@ -142,11 +142,12 @@ SUFFIXES = (
 )
 KINDS = {suffix: suffix.lower() for suffix in SUFFIXES} | {'Neighborhood': 'neighbourhood'}
 FAMILIES = (
-    *(f'skcomplex.core.components.{family}' for family in ('elements', 'interactions', 'laws', 'spaces', 'systems')),
+    *(f'skcomplex.core.components.{family}' for family in ('elements', 'interactions', 'laws', 'spaces')),
+    'skcomplex.core.systems',
     'skcomplex.systems.general',
 )
 COMPONENT_PACKAGES = (
-    *(f'skcomplex.core.components.{family}' for family in ('elements', 'interactions', 'laws', 'spaces', 'systems')),
+    *(f'skcomplex.core.components.{family}' for family in ('elements', 'interactions', 'laws', 'spaces')),
     'skcomplex.core.systems',
 )
 SYSTEM_PACKAGES = ('skcomplex.core.systems', SYSTEMS)

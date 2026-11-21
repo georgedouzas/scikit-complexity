@@ -9,16 +9,15 @@ from types import SimpleNamespace
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import NN, Expression
+from sage.all__sagemath_symbolics import NN, SR, Expression
 
 from ....core.components import EntrySpec
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import BaseInteraction
 from ....core.components.spaces import BaseSpace
-from ....core.engine._utils import declarations_of, default_of, symbol
 from ....core.engine.compile import BaseCompiler, FlattenPass, IssueSpec, _Composite
 from ....core.engine.problems import BaseProblemSpec, CompiledElementSpec, LayoutSpec
-from ....core.enums import FormKind, VariableKind
+from ....core.enums import FormKind
 from ....core.errors import IncompatibleLawsError, RewritingError, SkcomplexError, ValidationError
 from . import _patch, _word
 from ._parameters_spec import _ParametersSpec
@@ -182,16 +181,7 @@ class RewritingCompiler(BaseCompiler):
         namespaces: dict[str, SimpleNamespace] = {}
         symbols: dict[str, Expression] = {}
         for path, component in components.items():
-            if isinstance(component, BaseInteraction):
-                declared = RewritingCompiler._get_arguments_of(component)
-            else:
-                declared = {
-                    name: (
-                        declaration.domain,
-                        getattr(component, name) if hasattr(component, name) else default_of(component, name),
-                    )
-                    for name, declaration in declarations_of(type(component), VariableKind.PARAMETER).items()
-                }
+            declared = RewritingCompiler._get_arguments_of(component) if isinstance(component, BaseInteraction) else {}
             names = {}
             for name, (domain, value) in declared.items():
                 number = np.asarray(value)
@@ -199,12 +189,20 @@ class RewritingCompiler(BaseCompiler):
                     error_msg = f'{path}.{name} = {value!r} is not a number in the {domain} domain.'
                     raise ValidationError(error_msg)
                 dotted = f'{path}.{name}'
-                names[name] = symbol(f'{name}_{path}'.replace('/', '_').replace('-', '_'))
+                names[name] = RewritingCompiler._get_symbol(f'{name}_{path}'.replace('/', '_').replace('-', '_'))
                 symbols[dotted] = names[name]
                 entries.append(EntrySpec(dotted, len(entries), (), domain))
                 values.append(float(number))
-            namespaces[path] = SimpleNamespace(**names, t=symbol('t'))
+            namespaces[path] = SimpleNamespace(**names, t=RewritingCompiler._get_symbol('t'))
         return entries, values, namespaces, symbols
+
+    @staticmethod
+    def _get_symbol(name: str) -> Expression:
+        """Return the real Sage symbol of a name, declared without loading Maxima."""
+        item = SR.symbol(name)
+        item.decl_forget('integer')
+        item.decl_assume('real')
+        return item
 
     @staticmethod
     def _get_arguments_of(interaction: BaseInteraction) -> dict[str, tuple[object, object]]:
@@ -340,7 +338,7 @@ class RewritingCompiler(BaseCompiler):
             **{path: interaction for path, (_, interaction) in interactions.items()},
         }
         entries, values, namespaces, symbols = RewritingCompiler._get_parameters(components)
-        parameters = _ParametersSpec(tuple(symbols.values()), symbol('t'))
+        parameters = _ParametersSpec(tuple(symbols.values()), RewritingCompiler._get_symbol('t'))
         initial_parameters = np.asarray(values, dtype=float)
         productions: dict[str, list[Production]] = {path: [] for path in elements}
         for path, (_, interaction) in interactions.items():
@@ -378,7 +376,7 @@ class RewritingCompiler(BaseCompiler):
             parameters=LayoutSpec(tuple(entries)),
             initial_state=np.asarray(initial, dtype=float),
             initial_parameters=initial_parameters,
-            time=symbol('t'),
+            time=RewritingCompiler._get_symbol('t'),
             symbols=symbols,
             elements=tuple(compiled_elements),
             system=system,

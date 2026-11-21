@@ -1,6 +1,5 @@
 """Test the `_base` module of `skcomplex.core.components.spaces`."""
 
-
 import networkx as nx
 import numpy as np
 import pytest

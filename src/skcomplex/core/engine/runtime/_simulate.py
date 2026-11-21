@@ -11,7 +11,6 @@ from sklearn.base import clone
 
 from ...base import BaseConfig
 from ...components import Observable, Tags
-from ...components.systems import BaseSystem
 from ...errors import TagError, ValidationError
 from ..backends import BaseBackend, NumpyBackend
 from ..compile import BaseCompiler
@@ -97,7 +96,7 @@ def _choose_solver(tags: Tags) -> BaseSolver | None:
 
 
 def _prepare_runners(
-    system: BaseSystem,
+    system: _CompositeSystem,
     solver: BaseSolver | None,
     backend: BaseBackend | None,
     observables: Sequence[Observable],
@@ -159,7 +158,7 @@ def _prepare_runners(
 
 
 def compile_problem(
-    system: BaseSystem,
+    system: _CompositeSystem,
     *,
     solver: BaseSolver | None = None,
     backend: BaseBackend | None = None,
@@ -191,13 +190,6 @@ def compile_problem(
 
         solver:
             The solver of the runs, which every run copies.
-
-    Examples:
-        >>> from skcomplex.core.engine.runtime import compile_problem
-        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
-        >>> problem, solver = compile_problem(LotkaVolterraSystem())
-        >>> type(solver).__name__
-        'ScipyODESolver'
     """
     composite, stepper, runner, form, observed = _prepare_runners(system, solver, backend, observables)
     simulation = Simulation(composite, compiler=form, solver=stepper, backend=runner, observables=observed).prepare()
@@ -205,7 +197,7 @@ def compile_problem(
 
 
 def run_problem(
-    system: BaseSystem,
+    system: _CompositeSystem,
     compiled: tuple[BaseProblemSpec, BaseSolver] | None,
     *,
     until: float | None = None,
@@ -284,15 +276,8 @@ def run_problem(
     Raises:
         ValidationError:
             The system is not a system, or no end time is given or tuned.
-
-    Examples:
-        >>> from skcomplex.core.engine.runtime import compile_problem, run_problem
-        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
-        >>> system = LotkaVolterraSystem()
-        >>> float(run_problem(system, compile_problem(system), until=5.0).times[-1])
-        5.0
     """
-    if not isinstance(system, BaseSystem):
+    if not isinstance(system, _CompositeSystem):
         error_msg = f'simulate takes a system, not {system!r}.'
         raise ValidationError(error_msg)
     settings = system.get_run_settings()

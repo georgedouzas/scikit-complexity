@@ -7,11 +7,14 @@ from __future__ import annotations
 
 import copy
 import functools
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import replace
+from typing import ClassVar, TypedDict
+
+import numpy.typing as npt
 
 from ...base import BaseConfig
-from ...components import Tags
+from ...components import Observable, Tags
 from ...components._parameter_spec import _ParameterSpec
 from ...components._state_spec import _StateSpec
 from ...components.base import BaseComponent
@@ -19,11 +22,23 @@ from ...components.elements import BaseElement
 from ...components.interactions import BaseInteraction
 from ...components.spaces import BaseSpace
 from ...components.spaces._base import _BaseTime
-from ...components.systems import BaseSystem
 from ...errors import RoleElementError, TagError
 
 
-class _CompositeSystem(BaseSystem['_CompositeSystem']):
+class _RunSettings(TypedDict):
+    """A mapping of the tuned run settings of a composite, which runs read."""
+
+    until: float | None
+    dt: float | None
+    solver: BaseConfig | None
+    observables: Sequence[Observable]
+    initial_state: Mapping[str, object] | None
+    invariants: Mapping[str, float] | None
+    schedule: Mapping[str, Callable[[float], float | npt.ArrayLike]] | None
+    backend: BaseConfig | None
+
+
+class _CompositeSystem(BaseComponent[BaseSpace]):
     """A system that composes elements, interactions, and nested systems as data.
 
     The system lives on a space, in a time, and says nothing about how it runs. An interaction refers to an element by
@@ -35,16 +50,20 @@ class _CompositeSystem(BaseSystem['_CompositeSystem']):
     stochastic. `prepare` rejects an element bound to a role that does not accept the domains of the states the role
     reads.
 
-    Unlike `BaseSystem`, which builds its components from model parameters, it takes the components themselves. Choose
-    it when composing a model from components once, or when nesting systems inside a larger one.
-
-    It appears in many fields. A predator and its prey on a lattice, a savings account with interest and withdrawals, a
-    circuit of resistors and capacitors, and an economy of nested regions are composite systems.
-
     Attributes:
         system_:
             The system itself, prepared.
     """
+
+    until: ClassVar[float | None] = None
+    dt: ClassVar[float | None] = None
+    observables: Sequence[Observable] = ()
+    initial_state: ClassVar[Mapping[str, object] | None] = None
+    invariants: ClassVar[Mapping[str, float] | None] = None
+    schedule: ClassVar[Mapping[str, Callable[[float], float | npt.ArrayLike]] | None] = None
+    backend: ClassVar[BaseConfig | None] = None
+
+    system_: _CompositeSystem
 
     def __init__(
         self,
@@ -52,7 +71,7 @@ class _CompositeSystem(BaseSystem['_CompositeSystem']):
         *,
         elements: Sequence[BaseElement] = (),
         interactions: Sequence[BaseInteraction] = (),
-        systems: Sequence[BaseSystem] = (),
+        systems: Sequence[_CompositeSystem] = (),
         space: BaseSpace | None = None,
         time: _BaseTime | None = None,
         solver: BaseConfig | None = None,
@@ -92,9 +111,18 @@ class _CompositeSystem(BaseSystem['_CompositeSystem']):
         self.time = time
         self.solver = solver
 
-    def _build_system(self) -> _CompositeSystem:
-        """Return the system itself, whose components are its arguments."""
-        return self
+    def get_run_settings(self) -> _RunSettings:
+        """Return the tuned run settings, which runs read for the arguments they omit."""
+        return _RunSettings(
+            until=self.until,
+            dt=self.dt,
+            solver=self.solver,
+            observables=self.observables,
+            initial_state=self.initial_state,
+            invariants=self.invariants,
+            schedule=self.schedule,
+            backend=self.backend,
+        )
 
     def _get_components(self) -> list[BaseComponent]:
         """Return the components of the system.
@@ -190,7 +218,7 @@ class _CompositeSystem(BaseSystem['_CompositeSystem']):
         system: _CompositeSystem | None = self
         for scope in scopes:
             nested = next((item for item in system.systems if item.label == scope), None) if system else None
-            system = getattr(nested, 'system_', nested)
+            system = nested.system_ if nested is not None and hasattr(nested, 'system_') else nested
         if system is None:
             return None
         return next((element for element in system.elements if element.label == label), None)
@@ -317,7 +345,7 @@ class _CompositeSystem(BaseSystem['_CompositeSystem']):
         }
         nested = []
         for system in self.systems:
-            tags = system._get_pass_parameters()._get_joined_tags()
+            tags = system._get_joined_tags()
             nested.append(replace(tags, randomness='stochastic') if system._get_draws() else tags)
         nested_time = frozenset[str]().union(*(item.time for item in nested))
         nested_space = frozenset[str]().union(*(item.space for item in nested))

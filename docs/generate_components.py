@@ -12,19 +12,19 @@ import griffe
 import mkdocs_gen_files
 from gallery_tools import library_systems
 
-from skcomplex.core import analysis, experiments
+from skcomplex.core import analysis, experiments, systems
 from skcomplex.core.analysis import AnalysisTags
-from skcomplex.core.components import RoleSpec, Tags, elements, interactions, laws, spaces, systems
+from skcomplex.core.components import RoleSpec, Tags, elements, interactions, laws, spaces
 from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import BaseElement
 from skcomplex.core.components.interactions import BaseInteraction
 from skcomplex.core.components.laws import BaseLaw
 from skcomplex.core.components.spaces import BaseNeighborhood, BaseSpace
-from skcomplex.core.components.systems import BaseSystem
 from skcomplex.core.engine import backends, solvers
 from skcomplex.core.engine.backends import BaseBackend
 from skcomplex.core.engine.solvers import BaseSolver
 from skcomplex.core.enums import LawTag, SpaceTag, TimeTag
+from skcomplex.core.systems import BaseSystem
 from skcomplex.systems import all_systems
 from skcomplex.systems.general import dynamics
 from skcomplex.systems.general.reactions import ReactionNetworkSystem

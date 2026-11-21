@@ -16,7 +16,6 @@ from sklearn.base import clone
 from .. import systems
 from ..components import Tags
 from ..components.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
-from ..components.systems import BaseSystem
 from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import BaseProblemSpec, CompiledElementSpec, NetworkSnapshotSpec
 from ..engine.problems._composite_system import _CompositeSystem
@@ -117,7 +116,7 @@ def _get_source_tags(source: object) -> Tags | None:
         source = source.problem
     if isinstance(source, BaseProblemSpec):
         source = source.system
-    return source.get_tags() if isinstance(source, BaseSystem) else None
+    return source.get_tags() if isinstance(source, systems.BaseSystem | _CompositeSystem) else None
 
 
 def _check_tags(analysis: Callable[..., object], source: object, kind: str | None = None) -> None:
@@ -246,8 +245,6 @@ def _composite(source: DataSource) -> DataSource:
     """
     if isinstance(source, systems.BaseSystem):
         return source._get_composite()
-    if isinstance(source, BaseSystem) and not isinstance(source, _CompositeSystem):
-        return source.prepare().system_
     return source
 
 
@@ -807,8 +804,6 @@ def _read_system(source: object) -> _CompositeSystem | BaseProblemSpec:
         return source.problem
     if isinstance(source, systems.BaseSystem):
         return source._get_composite()
-    if isinstance(source, BaseSystem) and not isinstance(source, _CompositeSystem):
-        return source.prepare().system_
     if isinstance(source, _CompositeSystem | BaseProblemSpec):
         return source
     error_msg = (

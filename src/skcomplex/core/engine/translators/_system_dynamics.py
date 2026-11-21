@@ -22,7 +22,6 @@ from pysd.translators.xmile.xmile_file import XmileFile
 
 from ...base import BaseConfig
 from ...components.elements import Element
-from ...components.systems import BaseSystem
 from ...errors import ValidationError
 from ._expressions import INTERPOLATED, _ExpressionWriter
 from ._module_writer import _ModuleWriter
@@ -33,8 +32,9 @@ VENSIM_SUFFIX = '.mdl'
 XMILE_SUFFIXES = ('.xmile', '.xml', '.stmx')
 MAIN_SECTION = 'main'
 CONTROL_NAMES = ('initial_time', 'final_time', 'time_step', 'saveper')
+SYSTEM_NAMES = ('prepare', 'simulate', 'system_', 'until', 'dt', 'solver', 'backend', 'observables', 'schedule')
 RESERVED_NAMES = frozenset(
-    {'t', 'time', 'member', 'label', 'visual', *CONTROL_NAMES, *dir(Element), *dir(BaseSystem)},
+    {'t', 'time', 'member', 'label', 'visual', *CONTROL_NAMES, *dir(Element), *SYSTEM_NAMES},
 )
 
 

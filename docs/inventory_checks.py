@@ -12,9 +12,9 @@ from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
-from skcomplex.core.components.systems import BaseSystem
 from skcomplex.core.enums import DomainTag, LawTag, SpaceTag, TimeTag
 from skcomplex.core.errors import SkcomplexError
+from skcomplex.core.systems import BaseSystem
 from skcomplex.systems import all_systems
 
 ROOT = Path(str(files('gallery_tools'))).parent.parent

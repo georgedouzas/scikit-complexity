@@ -13,7 +13,6 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 
-from ....core.engine._utils import symbols_of
 from ....core.engine.problems import BaseKernel, BaseProblemSpec, ExpressionPrinter, RunStateSpec
 from ....core.engine.types import Arrays
 from ....core.errors import RewritingError
@@ -199,7 +198,7 @@ class WordKernel(BaseKernel):
         """
         values = [SR(item) for item in expressions]
         symbols, time = self.parameters.symbols, self.parameters.time
-        free = symbols_of(values) - set(variables) - set(symbols) - {time}
+        free = {item for value in values for item in value.variables()} - set(variables) - set(symbols) - {time}
         if free:
             error_msg = (
                 f'{owner} uses {", ".join(sorted(map(str, free)))}, which is neither a parameter of its predecessor '

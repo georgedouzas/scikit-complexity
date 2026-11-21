@@ -11,9 +11,9 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
-from ..components.systems import BaseSystem
 from ..engine.problems import NetworkSnapshotSpec
 from ..engine.runtime import Trajectory
+from ..systems import BaseSystem
 from ..types import AnyArray, Array
 
 type Point = Mapping[str, Expression | float]

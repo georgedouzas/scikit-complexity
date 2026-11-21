@@ -11,8 +11,8 @@ from importlib.resources import files
 from pathlib import Path
 
 from ..core.components import Tags
-from ..core.components.systems import BaseSystem
 from ..core.errors import RegistryError, ValidationError
+from ..core.systems import BaseSystem
 
 LISTED = ('field', 'topics', 'references')
 

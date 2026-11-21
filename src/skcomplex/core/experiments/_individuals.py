@@ -13,7 +13,7 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
-from ..components.systems import BaseSystem as CompositeBaseSystem
+from ..engine.problems._composite_system import _CompositeSystem
 from ..engine.solvers import BaseSolver
 from ..errors import ValidationError
 from ..systems import BaseSystem
@@ -173,7 +173,7 @@ def calibrate_individuals(
     sources: list[SystemSource] = []
     for individual in data:
         values = dict(known.get(individual, {}))
-        if isinstance(source, BaseSystem | CompositeBaseSystem):
+        if isinstance(source, BaseSystem | _CompositeSystem):
             sources.append(build_system(source, values))
         else:
             sources.append(functools.partial(source, **values))

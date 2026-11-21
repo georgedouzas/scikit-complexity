@@ -20,9 +20,8 @@ from skcomplex.core.analysis import symbolic
 from skcomplex.core.components import Tags
 from skcomplex.core.components.elements import BaseElement
 from skcomplex.core.components.interactions import BaseInteraction
-from skcomplex.core.components.systems import BaseSystem
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.systems import System
+from skcomplex.core.systems import BaseSystem, System
 
 DOCS = Path(str(files('gallery_tools'))).parent
 INVENTORY = DOCS / 'overview' / 'inventory.toml'

@@ -15,8 +15,8 @@ import numpy as np
 import numpy.typing as npt
 
 from ..components import Observable
-from ..components.systems import BaseSystem as CompositeBaseSystem
 from ..engine.problems import BaseProblemSpec
+from ..engine.problems._composite_system import _CompositeSystem
 from ..engine.runtime import Trajectory, compile_problem, run_problem
 from ..engine.solvers import BaseSolver
 from ..enums import ExecutorKind
@@ -58,7 +58,7 @@ def _check_source(source: object) -> SystemSource:
             'of the system class, such as `SIRSystem()`, or the class itself.'
         )
         raise ExperimentError(error_msg)
-    if isinstance(source, BaseSystem | CompositeBaseSystem) or callable(source):
+    if isinstance(source, BaseSystem | _CompositeSystem) or callable(source):
         return source
     error_msg = f'An experiment takes a system or a factory of systems, not {source!r}.'
     raise ExperimentError(error_msg)
@@ -393,7 +393,7 @@ def _simulate_prepared(
 
 def _simulate_composite(
     task: _TaskSpec,
-    system: CompositeBaseSystem,
+    system: _CompositeSystem,
     paths: Mapping[str, object],
     store: Problems,
     key: Hashable,

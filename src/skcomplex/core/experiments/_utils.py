@@ -8,9 +8,9 @@ from collections.abc import Mapping
 import numpy as np
 from sklearn.base import clone
 
-from ..components.systems import BaseSystem as CompositeBaseSystem
 from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import BaseProblemSpec
+from ..engine.problems._composite_system import _CompositeSystem
 from ..engine.runtime import Trajectory, run_problem
 from ..engine.solvers import BaseSolver
 from ..errors import ExperimentError, ValidationError
@@ -46,7 +46,7 @@ def build_system(source: SystemSource, arguments: Mapping[str, object], solver: 
         ExperimentError:
             The factory returns no system.
     """
-    if isinstance(source, BaseSystem | CompositeBaseSystem):
+    if isinstance(source, BaseSystem | _CompositeSystem):
         deep = isinstance(source, BaseSystem)
         unknown = sorted(set(arguments) - set(source.get_params(deep=deep)))
         if unknown:
@@ -59,7 +59,7 @@ def build_system(source: SystemSource, arguments: Mapping[str, object], solver: 
         system = clone(source).set_params(**arguments)
     else:
         system = source(**arguments)
-        if not isinstance(system, BaseSystem | CompositeBaseSystem):
+        if not isinstance(system, BaseSystem | _CompositeSystem):
             error_msg = f'The factory of an experiment returns a system, not {type(system).__name__}.'
             raise ExperimentError(error_msg)
     if solver is not None and isinstance(system, BaseSystem):
