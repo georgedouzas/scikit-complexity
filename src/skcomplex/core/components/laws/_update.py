@@ -28,8 +28,8 @@ class UpdateLaw(BaseLaw):
 
     It says what a value becomes at the next step, such as `UpdateLaw(s.insects.x, s.insects.r * s.insects.x * (1 -
     s.insects.x))` inside the interaction of a logistic map, where a population of insects grows and crowds itself out
-    from year to year. Every update reads the values at the start of the step, so the order of the laws does not
-    matter. A value takes one update law, unless each of its laws says how it combines with the others, by `increment`
+    from year to year. Every update reads the values and the time at the start of the step, so the order of the laws
+    does not matter. A value takes one update law, unless each of its laws says how it combines with the others, by `increment`
     or by `source`. With `neighborhood`, the law is a local rule that reads the neighbours of every cell of a lattice or
     node of a network, such as the Game of Life, and with `arrays`, a function of the whole array changes every member
     at once. Its target may also be a group, whose members each run a rule `rule(agent, system)` that may add and
