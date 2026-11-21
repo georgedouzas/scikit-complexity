@@ -415,8 +415,7 @@ message.splitlines()[-1]
 
 The code is `role-element`. The message says that the role `target` of births reads the state `n`, but the element
 bound to it carries `x`. The fix reads `s.target.x`, or gives the element a value `n`. The page
-[Check a system](check.md#a-role-that-rejects-the-kind-of-its-element) shows the same error for a role that accepts
-groups only.
+[Check a system](check.md#a-value-the-element-does-not-have) shows the same error for a one-off interaction.
 
 ## TagError
 

@@ -164,7 +164,7 @@ ensemble of runs. An analysis reads its kind from a trajectory or from measured 
 
 The kind of an element says how many members it holds and where they sit, such as `element`, `group`, or
 `site-group`. A role accepts some kinds and rejects the others. See
-[Check a system](check.md#what-an-element-carries).
+[Check a system](check.md#what-an-interaction-needs).
 
 ## Label
 
