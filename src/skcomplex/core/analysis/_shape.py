@@ -26,12 +26,27 @@ TAGS = AnalysisTags(DataKind.AGENTS)
 class ChainShapeResult:
     """A result of `chain_shape`, the geometry of a chain of points per frame.
 
+    It holds the positions and one value per frame, the radius of gyration, the distance between the ends, or the
+    deviation from a reference shape, such as the radius 1 of two points 2 apart. It reports the size of a polymer, the
+    stretch of a strand of DNA, and how far a folding protein lies from its native shape.
+
+    Read more in the user guide, under Analyse.
+
     Args:
         positions:
             The positions, frames by points by dimensions.
 
         values:
             The value per frame.
+
+    See Also:
+        chain_shape: Returns this result.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.analysis import chain_shape
+        >>> chain_shape(np.array([[[0.0, 0.0], [2.0, 0.0]]])).values.tolist()
+        [1.0]
     """
 
     positions: Array
@@ -47,10 +62,12 @@ def chain_shape(
 ) -> ChainShapeResult:
     """Return the geometry of a chain of points per frame.
 
-    The chain is made of the positions of the members of a group in member order.
+    The chain is made of the positions of the members of a group in member order, and every frame gives one value of
+    its size or shape, such as the distance 5 between the ends of a chain from `(0, 0)` to `(3, 4)`. It measures the
+    size of a polymer, the end to end distance of a strand of DNA, and how far a folding protein lies from its native
+    shape.
 
-    It appears in many fields. It measures the size of a polymer, the end-to-end distance of a strand of DNA, and how
-    far a folding protein lies from its native shape.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
@@ -75,6 +92,10 @@ def chain_shape(
         AnalysisError:
             The kind is unknown, the kind `'rmsd'` has no reference, or the positions are not frames by points by
             dimensions.
+
+    See Also:
+        displacement: Gives the mean squared distance particles travel over every lag.
+        neighbors: Gives the neighbours of agents, grid cells, or network nodes.
 
     Examples:
         >>> import numpy as np

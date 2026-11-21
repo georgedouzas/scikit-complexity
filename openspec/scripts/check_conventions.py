@@ -127,6 +127,10 @@ LAYOUT_PACKAGES = (
             '_scaling',
             '_sections',
             '_series_spec',
+            '_shape',
+            '_signature_spec',
+            '_signatures',
+            '_snapshots_spec',
             'types',
         )
     ),
