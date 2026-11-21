@@ -202,7 +202,12 @@ class _Graph:
 class LoopsResult:
     """A result of `loops`, the feedback loops of a system.
 
-    They come with their dominance in time, or its flow matrix.
+    It holds the signed graph of which state drives which, its loops with their polarity and gain, the dominant loop
+    at every frame, or the matrix of the flows between holders, such as a reinforcing loop of word of mouth and a
+    balancing loop of saturation in the spread of a product. It reports the loops of a model of system dynamics, a gene
+    network, and an ecosystem.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         problem:
@@ -241,6 +246,15 @@ class LoopsResult:
 
         matrix:
             The outflow, negative, and the inflow, positive, of every flow for every holder.
+
+    See Also:
+        loops: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import loops
+        >>> from skcomplex.systems.economics.innovation import BassDiffusionSystem
+        >>> loops(BassDiffusionSystem().prepare().system_).polarities
+        ['reinforcing', 'balancing']
     """
 
     problem: ProblemSpec
@@ -266,32 +280,14 @@ def loops(
 ) -> LoopsResult:
     """Return the feedback loops of the signed dependency graph of a system.
 
-    They come with their dominance, or its flow matrix. The signed dependency graph of a system has the state variables
-    as nodes and an edge from `x_j` to `x_i` when the rate of `x_i` depends on `x_j`, with the sign of the partial
-    derivative `df_i/dx_j`, the entry of the Jacobian. The rate of a map is the change of its state in one step, its
-    next value minus itself. A flow is a rate law whose target maps each stock to the sign of its change, such as
-    `RateLaw({s.source.n: -1, s.sink.n: +1}, f, label='births')`, or a transfer. When a system
-    declares flows, the flows are nodes too: an edge goes from each state to every flow whose amount depends on it, with
-    the sign of the partial derivative, and from each flow to its sink with sign `+` and to its source with sign `-`, so
-    the graph shows the path of every influence through the flows. Rate laws of single elements give the edges into the
-    states they change, and the Jacobian, as `stability` derives it with the parameters at their values, gives the edges
-    into every other state, such as the members of a group or the velocity of a state of second order. Delays and
-    smoothings pass their input with gain one.
+    The graph has the states as nodes and an edge from `x_j` to `x_i` when the rate of `x_i` depends on `x_j`, with
+    the sign of `df_i/dx_j`, the entry of the Jacobian, and a loop is a closed path of edges, reinforcing when the
+    product of its signs is positive and balancing when it is negative, such as word of mouth and saturation in the
+    spread of a product. The rate of a map is its next value minus itself, and delays and smoothings pass their input
+    with gain one. It finds the reinforcing and balancing loops of a model of system dynamics, a gene network, and an
+    ecosystem.
 
-    The kinds read a system or a trajectory:
-
-    - `'loops'`: the signed dependency graph and its feedback loops, the elementary cycles of the graph found with
-      Johnson's algorithm. The gain of a loop is the product of the partial derivatives along it, and its polarity
-      the sign of the gain.
-    - `'dominance'`: the gains of the loops along a trajectory, at every frame, and the dominant loop, with the largest
-      absolute gain, at every frame.
-    - `'flow-matrix'`: the transaction-flow matrix of one frame of a trajectory, with flows as rows and holders as
-      columns. Every row holds the outflow of its flow at the source, negative, and the inflow at the sink, positive,
-      so every row sums to zero. Flows of a group sum over its members. The matrix books the amounts the flows move
-      between holders, which the Jacobian does not hold, so it is defined only for systems that declare flows.
-
-    It appears in many fields. It finds the reinforcing and balancing loops of a model of system dynamics, of a gene
-    network, and of an ecosystem.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
@@ -299,7 +295,20 @@ def loops(
             `'flow-matrix'`.
 
         kind:
-            What to derive of the loops, one of the kinds above.
+            What to return. `'loops'` gives the signed graph and its loops, the elementary cycles found with the
+            algorithm of Johnson, with the gain of every loop, the product of the partial derivatives along it, and its
+            polarity, the sign of the gain. Rate laws of single elements give the edges into the states they change,
+            and the Jacobian, as `stability` derives it with the parameters at their values, gives the edges into
+            every other state, such as the members of a group or the velocity of a state of second order. A flow is a
+            rate law whose target maps each stock to the sign of its change, such as
+            `RateLaw({s.source.n: -1, s.sink.n: +1}, f, label='births')`, or a transfer. When a system declares flows,
+            the flows are nodes too, with an edge from each state to every flow whose amount depends on it and from
+            each flow to its sink with sign `+` and to its source with sign `-`. `'dominance'` gives the gains of the
+            loops at every frame of a trajectory and the dominant loop, the one with the largest absolute gain.
+            `'flow-matrix'` gives the transaction flow matrix of one frame of a trajectory, with flows as rows and
+            holders as columns. Every row holds the outflow of its flow at the source, negative, and the inflow at the
+            sink, positive, so every row sums to zero, and flows of a group sum over its members. It needs a system
+            that declares flows, since the Jacobian does not hold the amounts the flows move.
 
         at:
             The state vector the signs of `'loops'` are evaluated at, or `None` for the initial state.
@@ -319,11 +328,13 @@ def loops(
             The kind is unknown, a setting the kind does not read is changed, the kind reads a trajectory and gets
             another source, the system has no loop to dominate, or it declares no flows for a flow matrix.
 
+    See Also:
+        stability: Finds the fixed points of a system and whether they are stable.
+        elementary_modes: Finds the simplest steady routes through a network of flows.
+
     Examples:
         >>> from skcomplex.core.analysis import loops
         >>> from skcomplex.systems.economics.innovation import BassDiffusionSystem
-        >>> loops(BassDiffusionSystem().prepare().system_).polarities
-        ['reinforcing', 'balancing']
         >>> trajectory = BassDiffusionSystem().prepare().simulate(until=2, dt=1)
         >>> loops(trajectory, kind='dominance').gains.shape
         (3, 2)

@@ -108,6 +108,10 @@ LAYOUT_PACKAGES = (
             '_kramers_moyal',
             '_large_deviations',
             '_linearization',
+            '_local_information',
+            '_loop_spec',
+            '_loops',
+            '_lyapunov',
         )
     ),
 )
