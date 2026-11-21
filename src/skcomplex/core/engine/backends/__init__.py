@@ -1,4 +1,4 @@
-"""Define backends, which write the numeric functions of compiled problems.
+"""Define the backends, which write the numeric functions solvers call.
 
 They are NumPy, the default, Numba, which compiles kernels, and JAX, which differentiates them.
 """

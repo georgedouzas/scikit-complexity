@@ -1,4 +1,4 @@
-"""Define the lowered functions spec."""
+"""Define the spec of the numeric functions a backend writes from a problem."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,14 +17,21 @@ from ..problems._wiener_block_spec import _WienerBlockSpec
 
 @dataclass(frozen=True)
 class LoweredFunctionsSpec(BaseSpec):
-    """A spec of the numeric functions that a backend produces from a problem.
+    """A spec of the numeric functions that a backend writes from a problem.
+
+    It holds what a solver calls, each a function of the time, the states, and the parameters: the rates `f` of
+    `x' = f(t, x, p)`, the size of the noise, the rates of random jumps, or the next state of a map. A field that the
+    problem does not need stays `None`, so `LoweredFunctionsSpec()` holds no function at all. The rates of a falling
+    ball, the noise of a stock price, and the jumps of a chemical reaction all reach their solver through it.
+
+    Read more in the user guide, under Backends.
 
     Args:
         drift:
-            The drift function, or `None`.
+            The function `f(t, x, p)` of the rates of the states, or `None`.
 
         diffusion:
-            The function that returns every Wiener process amplitude, or `None`.
+            The function that returns the size of every source of noise, or `None`.
 
         noise_rows:
             The state index each noise amplitude drives.
@@ -55,6 +62,14 @@ class LoweredFunctionsSpec(BaseSpec):
 
         backends:
             The backend that runs the kernels of every law kind, by the kind's name, when it differs by kind.
+
+    See Also:
+        BaseBackend: Writes these functions in `functions_`.
+
+    Examples:
+        >>> from skcomplex.core.engine.backends import LoweredFunctionsSpec
+        >>> LoweredFunctionsSpec().drift is None
+        True
     """
 
     drift: VectorFunction | None = None

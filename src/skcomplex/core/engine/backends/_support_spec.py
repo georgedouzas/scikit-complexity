@@ -1,4 +1,4 @@
-"""Define the support spec."""
+"""Define the spec of the times, spaces, laws, and noise a runner supports."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,9 +19,12 @@ from ...enums import NoiseKind, OrderKind
 class SupportSpec(BaseSpec):
     """A spec of what a solver or a backend supports.
 
-    It holds the classes of time, space, and laws, and the kinds of noise and orders. An empty field supports any class
-    or kind. A class is supported when it is one of the classes of its field or a subclass of one, and `None` in the
-    space field supports a system without a space.
+    It lists the kinds of time, space, and law a solver or a backend can run, so a system can refuse a choice that does
+    not fit, such as a backend that writes rate laws alone in `SupportSpec(laws={RateLaw})`. An empty field supports
+    anything, a subclass of a listed class is supported too, and `None` among the spaces supports a system with no
+    space. It keeps a stiff chemical network off a solver of maps and a lattice of spins off a backend with no rules.
+
+    Read more in the user guide, under Backends.
 
     Args:
         time:
@@ -39,13 +42,14 @@ class SupportSpec(BaseSpec):
         orders:
             The kinds of derivative orders supported.
 
+    See Also:
+        BaseBackend: Declares what it supports with this spec.
+
     Examples:
         >>> from skcomplex.core.components.laws import NoiseLaw, RateLaw
         >>> from skcomplex.core.engine.backends import SupportSpec
         >>> SupportSpec(laws={RateLaw}).get_missing('laws', [RateLaw, NoiseLaw])
         ['NoiseLaw']
-        >>> sorted(SupportSpec(laws={RateLaw, NoiseLaw}).get_tags().laws)
-        ['noise', 'rate']
     """
 
     time: AbstractSet[type] = frozenset()
