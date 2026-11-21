@@ -472,6 +472,28 @@ over the agents, as an observable of the whole system does. The engine reads the
 The compiler flattens a system once. Flattening is structural, and the declarations that the probe infers, the
 orders, lags, and agents, apply to the flat tree afterwards.
 
+### Inertia as an argument
+
+`GradientInteraction` and `SoftSphereInteraction` take `inertia=True` to move the second derivative of the position,
+`RateLaw(x.diff(t, 2), force / m)`, dividing by the mass `m` when the element has one, as pair energies do. Without it
+the force moves the position itself. No subclass overrides a private hook to choose this.
+
+### Fixed keywords of rules
+
+Every function of an `UpdateLaw` receives the same keywords, such as `random`, `time`, and `space`, and takes `**kwargs`
+for those it ignores. `UpdateLaw(..., stochastic=True)` says that the rule draws numbers. The engine never reads the
+signature of a rule.
+
+### Laws are values
+
+A law is a frozen value with its fields, not a component. It has no `prepare`, label, or cloning, and private methods
+give its targets and requirements. Interactions return laws in `laws_`.
+
+### Element values as parameters
+
+`get_params` lists each value of an element as `<element>__<name>`, so `set_params(ball__x=2.0)`, grid searches, and
+sweeps reach single values.
+
 ### Pair energies
 
 A pair interaction with `within=` may give its energy as `ObjectiveLaw(V(r))` in place of its forces. The engine
