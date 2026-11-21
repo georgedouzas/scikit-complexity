@@ -133,6 +133,8 @@ LAYOUT_PACKAGES = (
             '_snapshots_spec',
             '_sparse_identification',
             '_spectrum',
+            '_stability',
+            '_surrogates',
             'types',
         )
     ),
