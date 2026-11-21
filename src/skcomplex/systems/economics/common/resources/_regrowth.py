@@ -11,7 +11,6 @@ from types import SimpleNamespace
 from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
 from .....core.components.laws import UpdateLaw
-from .....core.components.spaces import BaseSpace
 from .....core.components.types import SystemViewProtocol
 from .....core.types import Role
 
@@ -74,11 +73,15 @@ class RegrowthInteraction(Interaction):
         self.relative = relative
         self.phase = phase
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the regrowth of every agent of the target as a rule of the system, in its phase."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the regrowth of every agent of the target as a rule of the system, in its phase.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self._regrow, phase=self.phase)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context, self._regrow, phase=self.phase)]
 
     def _regrow(self, system: SystemViewProtocol) -> None:
         """Grow the resource of every agent back, at most to its capacity."""

@@ -14,7 +14,6 @@ from sage.sets.real_set import RealSet
 
 from .....core.components.interactions import Interaction
 from .....core.components.laws import NoiseLaw
-from .....core.components.spaces import BaseSpace
 from .....core.types import Role
 
 
@@ -61,7 +60,7 @@ class FrictionNoiseInteraction(Interaction):
         self.target = target
         self.temperature = temperature
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the noise of the position of the target.
 
         Args:
@@ -69,6 +68,5 @@ class FrictionNoiseInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            gamma = context.target.gamma
-            self.laws_ = [NoiseLaw(context.target.x, sqrt(2 * gamma * context.temperature) / gamma)]
+        gamma = context.target.gamma
+        self.laws_ = [NoiseLaw(context.target.x, sqrt(2 * gamma * context.temperature) / gamma)]

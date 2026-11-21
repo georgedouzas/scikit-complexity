@@ -14,7 +14,6 @@ from sage.sets.real_set import RealSet
 
 from .....core.components.interactions import Interaction
 from .....core.components.laws import RateLaw
-from .....core.components.spaces import BaseSpace
 from .....core.types import Role
 
 
@@ -70,7 +69,7 @@ class SelfPropulsionInteraction(Interaction):
         self.state = state
         self.heading = heading
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the drift of the position of the target along its heading.
 
         Args:
@@ -78,7 +77,6 @@ class SelfPropulsionInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            heading = getattr(context.target, self.heading)
-            velocity = context.speed * vector(SR, [cos(heading), sin(heading)])
-            self.laws_ = [RateLaw(getattr(context.target, self.state), velocity)]
+        heading = getattr(context.target, self.heading)
+        velocity = context.speed * vector(SR, [cos(heading), sin(heading)])
+        self.laws_ = [RateLaw(getattr(context.target, self.state), velocity)]

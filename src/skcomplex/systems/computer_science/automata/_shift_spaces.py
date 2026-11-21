@@ -154,15 +154,19 @@ class GapShiftInteraction(Interaction):
 
         return shift
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the shift, which reads the whole window and the cell to the right, as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the shift, which reads the whole window and the cell to the right, as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            window = LatticeNeighborhood(tuple((offset,) for offset in range(1 - self.size, 2)))
-            alive = context.target.alive
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(alive, self._get_function(), neighborhood=window, label=self.label),
-            ]
+        window = LatticeNeighborhood(tuple((offset,) for offset in range(1 - self.size, 2)))
+        alive = context.target.alive
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(alive, self._get_function(), neighborhood=window, label=self.label),
+        ]
 
 
 class ContextFreeMoveInteraction(Interaction):
@@ -228,15 +232,19 @@ class ContextFreeMoveInteraction(Interaction):
                 following[row] = proposals[row]
         return following
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the moves, which read every cell of the ring from both sides, as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the moves, which read every cell of the ring from both sides, as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            ring = LatticeNeighborhood(tuple((offset,) for offset in range(1 - self.size, self.size)))
-            symbol = context.target.symbol
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(symbol, self._get_move, neighborhood=ring, schedule='random-sequential', label=self.label),
-            ]
+        ring = LatticeNeighborhood(tuple((offset,) for offset in range(1 - self.size, self.size)))
+        symbol = context.target.symbol
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(symbol, self._get_move, neighborhood=ring, schedule='random-sequential', label=self.label),
+        ]
 
 
 class CarryInteraction(Interaction):
@@ -281,15 +289,19 @@ class CarryInteraction(Interaction):
 
         return carry
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the carry, which reads every lower digit, as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the carry, which reads every lower digit, as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            lower = LatticeNeighborhood(tuple((offset,) for offset in range(1 - self.digits, 1)))
-            digit = context.target.digit
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(digit, self._get_function(), neighborhood=lower, label=self.label),
-            ]
+        lower = LatticeNeighborhood(tuple((offset,) for offset in range(1 - self.digits, 1)))
+        digit = context.target.digit
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(digit, self._get_function(), neighborhood=lower, label=self.label),
+        ]
 
 
 class GapSubshiftSystem(BaseSystem):

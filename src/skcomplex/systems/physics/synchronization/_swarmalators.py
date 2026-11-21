@@ -19,7 +19,7 @@ from ....core.components.elements import VisualSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import neighbors
-from ....core.components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
+from ....core.components.spaces import ContinuousSpace, RadiusNeighborhood
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver
 from ....core.systems import BaseSystem, System
@@ -124,7 +124,7 @@ class SwarmalatorCouplingInteraction(Interaction):
         self.K = K
         self.n_units = n_units
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the moves and the phase turns of the swarmalators toward the others.
 
         Args:
@@ -132,16 +132,15 @@ class SwarmalatorCouplingInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            unit, other = s.target, s.target.other
-            separation = other.x - unit.x
-            r = sqrt(separation.dot_product(separation))
-            difference = other.theta - unit.theta
-            over = RadiusNeighborhood(self.cutoff)
-            move = neighbors(((s.A + s.J * cos(difference)) / r - s.B / r**2) * separation / self.n_units, over=over)
-            turn = neighbors(s.K * sin(difference) / (self.n_units * r), over=over)
-            self.laws_ = [RateLaw(unit.x.diff(s.t), move), RateLaw(unit.theta.diff(s.t), turn)]
+        s = context
+        unit, other = s.target, s.target.other
+        separation = other.x - unit.x
+        r = sqrt(separation.dot_product(separation))
+        difference = other.theta - unit.theta
+        over = RadiusNeighborhood(self.cutoff)
+        move = neighbors(((s.A + s.J * cos(difference)) / r - s.B / r**2) * separation / self.n_units, over=over)
+        turn = neighbors(s.K * sin(difference) / (self.n_units * r), over=over)
+        self.laws_ = [RateLaw(unit.x.diff(s.t), move), RateLaw(unit.theta.diff(s.t), turn)]
 
 
 class SwarmalatorsSystem(BaseSystem):

@@ -13,7 +13,6 @@ from ....core.components import Observable
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import where
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, CoSimulationSolver, RK4Solver
 from ....core.systems import BaseSystem, System
@@ -74,7 +73,7 @@ class GlucoseSensorInteraction(Interaction):
         self.source = source
         self.threshold = threshold
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the update of the node.
 
         Args:
@@ -82,8 +81,6 @@ class GlucoseSensorInteraction(Interaction):
                 The namespace of the node and its source.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         if self.threshold is None:
             self.laws_: list[BaseLaw] = [UpdateLaw(context.node.x, context.source.x)]
         else:

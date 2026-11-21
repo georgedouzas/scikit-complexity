@@ -15,7 +15,6 @@ from sage.sets.real_set import RealSet
 from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction, WienerProcessSpec
 from .....core.components.laws import NoiseLaw, RateLaw
-from .....core.components.spaces import BaseSpace
 from .....core.types import Role
 
 
@@ -73,15 +72,19 @@ class GeometricBrownianMotionInteraction(Interaction):
         self.process = process
         self.index = index
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the drift `mu * S` and the noise `sigma * S dW` of the price as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the drift `mu * S` and the noise `sigma * S dW` of the price as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            price = context.target.price
-            process = None
-            if self.process is not None:
-                process = context.process.dW if self.index is None else context.process.dW[self.index]
-            self.laws_: list[BaseComponent] = [
-                RateLaw(price, context.mu * price),
-                NoiseLaw(price, context.sigma * price, process=process),
-            ]
+        price = context.target.price
+        process = None
+        if self.process is not None:
+            process = context.process.dW if self.index is None else context.process.dW[self.index]
+        self.laws_: list[BaseComponent] = [
+            RateLaw(price, context.mu * price),
+            NoiseLaw(price, context.sigma * price, process=process),
+        ]

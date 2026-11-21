@@ -20,7 +20,7 @@ from ....core.components.elements import VisualSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import neighbors
-from ....core.components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
+from ....core.components.spaces import ContinuousSpace, RadiusNeighborhood
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver
 from ....core.systems import BaseSystem, System
@@ -74,7 +74,7 @@ class PolarAlignmentInteraction(Interaction):
         self.gamma = gamma
         self.cutoff = cutoff
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the torque on the heading of every particle of the target from its neighbours.
 
         Args:
@@ -82,10 +82,9 @@ class PolarAlignmentInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            theta = context.target.theta
-            torque = neighbors(context.gamma * sin(context.target.other.theta - theta), RadiusNeighborhood(self.cutoff))
-            self.laws_ = [RateLaw(theta.diff(context.t), torque)]
+        theta = context.target.theta
+        torque = neighbors(context.gamma * sin(context.target.other.theta - theta), RadiusNeighborhood(self.cutoff))
+        self.laws_ = [RateLaw(theta.diff(context.t), torque)]
 
 
 def _get_heading(member: SimpleNamespace) -> Expression:

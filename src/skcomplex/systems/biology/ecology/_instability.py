@@ -18,7 +18,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import bernoulli, clip, normal, where
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -107,7 +106,7 @@ class ResidentMapInteraction(Interaction):
         self.alpha = alpha
         self.sigma = sigma
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the map of the resident population.
 
         Args:
@@ -115,11 +114,10 @@ class ResidentMapInteraction(Interaction):
                 The namespace of the populations, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            x, y = s.target.x, s.target.y
-            resident = (x - s.eta * (x - s.mean)) * exp(-s.alpha * y) + sqrt(x) * s.sigma * normal('chi_x')
-            self.laws_ = [UpdateLaw(x, clip(resident, low=0))]
+        s = context
+        x, y = s.target.x, s.target.y
+        resident = (x - s.eta * (x - s.mean)) * exp(-s.alpha * y) + sqrt(x) * s.sigma * normal('chi_x')
+        self.laws_ = [UpdateLaw(x, clip(resident, low=0))]
 
 
 class InvaderMapInteraction(Interaction):
@@ -173,7 +171,7 @@ class InvaderMapInteraction(Interaction):
         self.p = p
         self.sigma = sigma
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the map of the invading population.
 
         Args:
@@ -181,11 +179,10 @@ class InvaderMapInteraction(Interaction):
                 The namespace of the populations, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            x, y = s.target.x, s.target.y
-            grown = y * (1 + s.beta) + sqrt(y) * s.sigma * normal('chi_y')
-            self.laws_ = [UpdateLaw(y, clip(where(bernoulli('mutation', s.p) > 0, y + s.nu * x, grown), low=0))]
+        s = context
+        x, y = s.target.x, s.target.y
+        grown = y * (1 + s.beta) + sqrt(y) * s.sigma * normal('chi_y')
+        self.laws_ = [UpdateLaw(y, clip(where(bernoulli('mutation', s.p) > 0, y + s.nu * x, grown), low=0))]
 
 
 class IntrinsicInstabilitySystem(BaseSystem):

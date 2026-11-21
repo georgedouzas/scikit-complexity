@@ -17,7 +17,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import mod, where
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -127,7 +126,7 @@ class ResistiveFlowInteraction(Interaction):
         self.R = R
         self.valve = valve
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the flow of blood from the source chamber to the target chamber.
 
         Args:
@@ -135,9 +134,8 @@ class ResistiveFlowInteraction(Interaction):
                 The namespace of the two chambers.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            flow = {context.source.V: -1, context.target.V: +1}
-            self.laws_: list[BaseLaw] = [RateLaw(flow, self._get_flow(context), label='flow')]
+        flow = {context.source.V: -1, context.target.V: +1}
+        self.laws_: list[BaseLaw] = [RateLaw(flow, self._get_flow(context), label='flow')]
 
     def _get_pressure(self, chamber: SimpleNamespace, t: Expression) -> Expression:
         """Return the pressure of a chamber.

@@ -88,7 +88,7 @@ class GinzburgLandauInteraction(Interaction):
         self.b = b
         self.c = c
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rates of the real and imaginary parts of the amplitude of the target.
 
         Args:
@@ -96,14 +96,13 @@ class GinzburgLandauInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, t = context, context.t
-            u, v = s.target.u, s.target.v
-            square = u**2 + v**2
-            self.laws_ = [
-                RateLaw(u.diff(t), u + laplacian(u) - s.b * laplacian(v) - square * (u - s.c * v)),
-                RateLaw(v.diff(t), v + s.b * laplacian(u) + laplacian(v) - square * (s.c * u + v)),
-            ]
+        s, t = context, context.t
+        u, v = s.target.u, s.target.v
+        square = u**2 + v**2
+        self.laws_ = [
+            RateLaw(u.diff(t), u + laplacian(u) - s.b * laplacian(v) - square * (u - s.c * v)),
+            RateLaw(v.diff(t), v + s.b * laplacian(u) + laplacian(v) - square * (s.c * u + v)),
+        ]
 
 
 class PatternFieldElement(Element):

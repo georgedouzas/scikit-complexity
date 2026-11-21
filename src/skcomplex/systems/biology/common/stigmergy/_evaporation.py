@@ -12,7 +12,6 @@ from sage.all__sagemath_symbolics import Expression
 
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, RateLaw
-from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
 from .....core.types import Role
 
@@ -68,23 +67,27 @@ class EvaporationInteraction(Interaction):
         self.state = state
         self.evaporation = evaporation
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _check_arguments(self) -> None:
         """Raise an error for a name of the rate of evaporation that is no parameter.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The state or the name of the rate of evaporation is not a name.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if not isinstance(self.evaporation, str) or not self.evaporation.isidentifier():
             error_msg = f'The evaporation of {self.label!r} is {self.evaporation!r}. Name a parameter of the target.'
             raise ValidationError(error_msg)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = [RateLaw(getattr(context.target, self.state), self._get_rate(context))]
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the laws of a binding.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [RateLaw(getattr(context.target, self.state), self._get_rate(context))]
 
     def _get_rate(self, namespace: SimpleNamespace) -> Expression:
         """Return the loss `-e m` of the mark.

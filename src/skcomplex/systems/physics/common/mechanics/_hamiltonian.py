@@ -13,7 +13,6 @@ from sage.modules.free_module_element import FreeModuleElement
 from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, RateLaw
-from .....core.components.spaces import BaseSpace
 from .....core.components.types import Target
 from .....core.errors import ValidationError
 from .....core.types import Role
@@ -92,20 +91,15 @@ class HamiltonianInteraction(Interaction):
         """Return the names of the states of one side of the canonical pairs."""
         return (names,) if isinstance(names, str) else tuple(names)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rates of the canonical pairs, after checking the states and the Hamiltonian.
-
-        Args:
-            context:
-                The space the interaction inherits from its system, or the namespace of its roles, the time `t`, and
-                the parameters.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The type declares states, a state is not a name, the coordinates and the momenta differ in count, or
                 the Hamiltonian is not callable.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         for side in ('coordinates', 'momenta'):
             names = self._get_names(getattr(self, side))
             if not names or not all(isinstance(name, str) and name.isidentifier() for name in names):
@@ -122,8 +116,16 @@ class HamiltonianInteraction(Interaction):
         if self.hamiltonian is not None and not callable(self.hamiltonian):
             error_msg = f'The hamiltonian of {self.label!r} is {self.hamiltonian!r}. Give a function of the namespace.'
             raise ValidationError(error_msg)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = self._get_canonical_laws(context)
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rates of the canonical pairs, after checking the states and the Hamiltonian.
+
+        Args:
+            context:
+                The namespace of its roles, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        self.laws_ = self._get_canonical_laws(context)
 
     def _get_hamiltonian(self, namespace: SimpleNamespace) -> object:
         """Return the Hamiltonian.

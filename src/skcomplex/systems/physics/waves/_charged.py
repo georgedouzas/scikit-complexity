@@ -116,7 +116,7 @@ class MinimalCouplingInteraction(Interaction):
         self.E = E
         self.duration = duration
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the minimally coupled Schrödinger equation of the real and imaginary parts of the target.
 
         Args:
@@ -124,16 +124,15 @@ class MinimalCouplingInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, t = context, context.t
-            u, w = s.target.u, s.target.w
-            potential = s.A_x - s.E * ramp(t, 0, s.duration, s.duration)
-            drift = 2 * s.D * s.q * potential
-            phase = s.q * s.A_t - s.D * s.q**2 * potential**2
-            self.laws_ = [
-                RateLaw(u.diff(t), -s.D * laplacian(w) + drift * gradient(u, 1)[0] - phase * w),
-                RateLaw(w.diff(t), s.D * laplacian(u) + drift * gradient(w, 1)[0] + phase * u),
-            ]
+        s, t = context, context.t
+        u, w = s.target.u, s.target.w
+        potential = s.A_x - s.E * ramp(t, 0, s.duration, s.duration)
+        drift = 2 * s.D * s.q * potential
+        phase = s.q * s.A_t - s.D * s.q**2 * potential**2
+        self.laws_ = [
+            RateLaw(u.diff(t), -s.D * laplacian(w) + drift * gradient(u, 1)[0] - phase * w),
+            RateLaw(w.diff(t), s.D * laplacian(u) + drift * gradient(w, 1)[0] + phase * u),
+        ]
 
 
 class ChargedSchrodingerSystem(BaseSystem):

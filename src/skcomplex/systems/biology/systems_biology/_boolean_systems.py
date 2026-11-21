@@ -18,7 +18,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import total, uniform, where
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
@@ -145,7 +144,7 @@ class NoisyMajorityInteraction(Interaction):
         self.nodes = nodes
         self.inputs = inputs
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the noisy majority update.
 
         Args:
@@ -153,8 +152,6 @@ class NoisyMajorityInteraction(Interaction):
                 The namespace of the group of nodes.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         node = context.nodes
         weights = self.inputs if scipy.sparse.issparse(self.inputs) else np.asarray(self.inputs, dtype=float)
         majority = where(total(node.sigma, weights=weights) > 0, 1, -1)

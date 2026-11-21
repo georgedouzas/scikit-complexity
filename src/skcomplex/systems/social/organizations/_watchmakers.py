@@ -18,7 +18,6 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, SystemView
@@ -127,11 +126,15 @@ class AssemblyInteraction(Interaction):
         self.target = target
         self.interruption = interruption
 
-    def _prepare(self, s: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the assembly rule."""
+    def _prepare(self, s: SimpleNamespace) -> None:
+        """Set the assembly rule.
+
+        Args:
+            s:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(s)
-        if isinstance(s, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(s, self.assemble)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(s, self.assemble)]
 
     def assemble(self, system: SystemView) -> None:
         """Take one action of every watchmaker.

@@ -19,7 +19,6 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
@@ -157,23 +156,26 @@ class HouseholdDemandInteraction(Interaction):
             return s.alpha * s.budget / price
         return s.alpha * s.budget / s.initial_price * (price / s.initial_price) ** s.elasticity
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rise of the price and the demand, expenditure, and utility at the new price as the laws.
-
-        Args:
-            context:
-                The space the interaction inherits from its system, or the namespace of the households.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The demand is unknown.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if self.kind not in DEMANDS:
             error_msg = f'The demand of {self.label!r} is {self.kind!r}. Use one of {DEMANDS}.'
             raise ValidationError(error_msg)
-        if not isinstance(context, SimpleNamespace):
-            return
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rise of the price and the demand, expenditure, and utility at the new price as the laws.
+
+        Args:
+            context:
+                The namespace of the households.
+        """
+        super()._prepare(context)
         s = context.target
         price = s.price * (1 + s.change)
         demand = self.get_demand(s, price)

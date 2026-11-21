@@ -20,7 +20,6 @@ from .....core.base import BaseSpec
 from .....core.components import Tags
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, UpdateLaw
-from .....core.components.spaces import BaseSpace
 from .....core.enums import MoveKind
 from .....core.errors import ValidationError
 from .....core.types import Array, Role
@@ -180,19 +179,15 @@ class SequenceSamplingInteraction(Interaction):
         """Return the tags of the update of the rows, which draws."""
         return self._get_variant_tags((UpdateLaw,), stochastic=True)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Raise an error for a sampling it cannot run, and set the law that samples the rows.
-
-        Args:
-            context:
-                The space the interaction inherits from its system, or the namespace of the target and the parameters.
+    def _check_arguments(self) -> None:
+        """Raise an error for a sampling it cannot run.
 
         Raises:
             ValidationError:
                 The move or the rule is unknown, the objective is not a row score, the cooling is not callable, or the
                 heat-bath rule has no values.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if self.cooling is not None and not callable(self.cooling):
             error_msg = f'The cooling of sampling {self.label!r} must be a function of the time.'
             raise ValidationError(error_msg)
@@ -211,9 +206,17 @@ class SequenceSamplingInteraction(Interaction):
                 "'random-value' and its `values`."
             )
             raise ValidationError(error_msg)
-        if isinstance(context, SimpleNamespace):
-            target = getattr(self._get_member(context, 'target'), self.state)
-            self.laws_ = [UpdateLaw(target, self._accept_rows, label=self.label, score=self._score_rows, arrays=True)]
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the law that samples the rows.
+
+        Args:
+            context:
+                The namespace of the target and the parameters.
+        """
+        super()._prepare(context)
+        target = getattr(self._get_member(context, 'target'), self.state)
+        self.laws_ = [UpdateLaw(target, self._accept_rows, label=self.label, score=self._score_rows, arrays=True)]
 
     def _get_row_keywords(self, score: RowScoreSpec, index: int, parameters: Mapping[str, object]) -> dict[str, object]:
         """Return the parameters that a row score names.

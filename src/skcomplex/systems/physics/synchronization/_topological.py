@@ -20,7 +20,7 @@ from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import codifferential, exterior_derivative, mean
-from ....core.components.spaces import BaseSpace, CellComplexSpace, NetworkSpace
+from ....core.components.spaces import CellComplexSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
@@ -76,7 +76,7 @@ class NodeCouplingInteraction(Interaction):
         """Return the modulus of the mean unit vector of the angles of an expression over a group."""
         return sqrt(mean(cos(expression), over=over) ** 2 + mean(sin(expression), over=over) ** 2)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate of the node phases.
 
         Args:
@@ -84,11 +84,10 @@ class NodeCouplingInteraction(Interaction):
                 The namespace of the nodes, the links, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            nodes, links = context.nodes, context.links
-            order = NodeCouplingInteraction._get_order_of(codifferential(links.theta), nodes)
-            rate = context.K * order * codifferential(sin(exterior_derivative(nodes.theta)))
-            self.laws_ = [RateLaw(nodes.theta.diff(context.t), rate)]
+        nodes, links = context.nodes, context.links
+        order = NodeCouplingInteraction._get_order_of(codifferential(links.theta), nodes)
+        rate = context.K * order * codifferential(sin(exterior_derivative(nodes.theta)))
+        self.laws_ = [RateLaw(nodes.theta.diff(context.t), rate)]
 
 
 class LinkCouplingInteraction(Interaction):
@@ -143,7 +142,7 @@ class LinkCouplingInteraction(Interaction):
         """Return the modulus of the mean unit vector of the angles of an expression over a group."""
         return sqrt(mean(cos(expression), over=over) ** 2 + mean(sin(expression), over=over) ** 2)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate of the link phases.
 
         Args:
@@ -151,18 +150,17 @@ class LinkCouplingInteraction(Interaction):
                 The namespace of the links, the nodes, the triangles, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            links, nodes = context.links, context.nodes
-            down = exterior_derivative(sin(codifferential(links.theta)))
-            up = codifferential(sin(exterior_derivative(links.theta)))
-            node_order = LinkCouplingInteraction._get_order_of(nodes.theta, nodes)
-            if self.triangles is None:
-                rate = context.K * (node_order * down - up)
-            else:
-                order_down = LinkCouplingInteraction._get_order_of(codifferential(links.theta), nodes)
-                order_up = LinkCouplingInteraction._get_order_of(exterior_derivative(links.theta), context.triangles)
-                rate = context.K * (node_order * order_up * down - order_down * up)
-            self.laws_ = [RateLaw(links.theta.diff(context.t), rate)]
+        links, nodes = context.links, context.nodes
+        down = exterior_derivative(sin(codifferential(links.theta)))
+        up = codifferential(sin(exterior_derivative(links.theta)))
+        node_order = LinkCouplingInteraction._get_order_of(nodes.theta, nodes)
+        if self.triangles is None:
+            rate = context.K * (node_order * down - up)
+        else:
+            order_down = LinkCouplingInteraction._get_order_of(codifferential(links.theta), nodes)
+            order_up = LinkCouplingInteraction._get_order_of(exterior_derivative(links.theta), context.triangles)
+            rate = context.K * (node_order * order_up * down - order_down * up)
+        self.laws_ = [RateLaw(links.theta.diff(context.t), rate)]
 
 
 class TopologicalKuramotoSystem(BaseSystem):

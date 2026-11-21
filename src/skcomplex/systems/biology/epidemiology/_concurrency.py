@@ -19,7 +19,7 @@ from ....core.components import Observable
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import JumpLaw, RateLaw, TopologyRequestSpec
-from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.components.spaces import NetworkSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -150,7 +150,7 @@ class PartnershipInfectionInteraction(Interaction):
         self.T = T
         self.nu = nu
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the infection by new and current partners, the exposed period, and the progression.
 
         Args:
@@ -158,8 +158,6 @@ class PartnershipInfectionInteraction(Interaction):
                 The namespace of the population.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         s, t = context.target, context.t
         S, E, I, R, J = s.S, s.E, s.I, s.R, s.J
         active = S + E + I

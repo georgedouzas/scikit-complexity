@@ -18,7 +18,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw, UpdateLaw
 from ....core.components.laws.utils import both, where
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver
 from ....core.systems import BaseSystem, System
@@ -65,7 +64,7 @@ class BeamBeamInteraction(Interaction):
         self.nu = nu
         self.c = c
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the position and the momentum of the particle after one turn.
 
         Args:
@@ -73,13 +72,12 @@ class BeamBeamInteraction(Interaction):
                 The namespace of the particle, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, y = context.target.x, context.target.y
-            a, b = cos(pi * context.nu), sin(pi * context.nu)
-            position, momentum = a * x + b * y, -b * x + a * y
-            safe = where(position == 0, 1, position)
-            kick = 8 * pi * context.c * where(position == 0, 0, (1 - exp(-(safe**2) / 2)) / safe)
-            self.laws_ = [UpdateLaw(x, position), UpdateLaw(y, momentum - kick)]
+        x, y = context.target.x, context.target.y
+        a, b = cos(pi * context.nu), sin(pi * context.nu)
+        position, momentum = a * x + b * y, -b * x + a * y
+        safe = where(position == 0, 1, position)
+        kick = 8 * pi * context.c * where(position == 0, 0, (1 - exp(-(safe**2) / 2)) / safe)
+        self.laws_ = [UpdateLaw(x, position), UpdateLaw(y, momentum - kick)]
 
 
 class StickSlipInteraction(Interaction):
@@ -143,7 +141,7 @@ class StickSlipInteraction(Interaction):
         self.g = g
         self.v_stick = v_stick
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rates of the position and the velocity, both zero while the static friction holds the mass.
 
         Args:
@@ -151,14 +149,13 @@ class StickSlipInteraction(Interaction):
                 The namespace of the mass, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            t, x, v, m = context.t, context.target.x, context.target.v, context.target.m
-            force = -context.k * x - context.c * v
-            moving = abs(v) > context.v_stick
-            direction = where(moving, where(v > 0, 1, -1), where(force > 0, 1, -1))
-            stuck = both(abs(v) <= context.v_stick, abs(context.k * x) <= context.mu_s * m * context.g)
-            acceleration = where(stuck, 0, (force - context.mu_k * m * context.g * direction) / m)
-            self.laws_ = [RateLaw(x.diff(t), where(moving, v, 0)), RateLaw(v.diff(t), acceleration)]
+        t, x, v, m = context.t, context.target.x, context.target.v, context.target.m
+        force = -context.k * x - context.c * v
+        moving = abs(v) > context.v_stick
+        direction = where(moving, where(v > 0, 1, -1), where(force > 0, 1, -1))
+        stuck = both(abs(v) <= context.v_stick, abs(context.k * x) <= context.mu_s * m * context.g)
+        acceleration = where(stuck, 0, (force - context.mu_k * m * context.g * direction) / m)
+        self.laws_ = [RateLaw(x.diff(t), where(moving, v, 0)), RateLaw(v.diff(t), acceleration)]
 
 
 class BeamBeamMapSystem(BaseSystem):

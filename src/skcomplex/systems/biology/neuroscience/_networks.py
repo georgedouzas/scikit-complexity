@@ -87,7 +87,7 @@ class InhibitorDecayInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the decay of the inhibitor.
 
         Args:
@@ -95,8 +95,7 @@ class InhibitorDecayInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [RateLaw(context.target.z, -context.target.phi * context.target.z)]
+        self.laws_ = [RateLaw(context.target.z, -context.target.phi * context.target.z)]
 
 
 class SpikingNeuronElement(Element):
@@ -256,7 +255,7 @@ class TermanWangInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the fast variable and the slow recovery of the target.
 
         Args:
@@ -264,12 +263,11 @@ class TermanWangInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context.target
-            self.laws_ = [
-                RateLaw(s.x, 3 * s.x - s.x**3 + 2 - s.y + s.I),
-                RateLaw(s.y, s.epsilon * (s.gamma * (1 + tanh(s.x / s.beta)) - s.y)),
-            ]
+        s = context.target
+        self.laws_ = [
+            RateLaw(s.x, 3 * s.x - s.x**3 + 2 - s.y + s.I),
+            RateLaw(s.y, s.epsilon * (s.gamma * (1 + tanh(s.x / s.beta)) - s.y)),
+        ]
 
 
 class DelayedSynapseInteraction(Interaction):
@@ -319,7 +317,7 @@ class DelayedSynapseInteraction(Interaction):
         self.J = J
         self.D = D
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the delayed synaptic input `J s_source(t - D)` of the postsynaptic potential.
 
         Args:
@@ -327,9 +325,8 @@ class DelayedSynapseInteraction(Interaction):
                 The namespace of the source and the target.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            delayed = context.source.s(t=context.t - context.D)
-            self.laws_: list[BaseLaw] = [RateLaw(context.target.v, context.J * delayed)]
+        delayed = context.source.s(t=context.t - context.D)
+        self.laws_: list[BaseLaw] = [RateLaw(context.target.v, context.J * delayed)]
 
 
 class GlobalInhibitionInteraction(Interaction):
@@ -379,7 +376,7 @@ class GlobalInhibitionInteraction(Interaction):
         self.W_z = W_z
         self.theta_z = theta_z
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the inhibition `-W_z H(z - theta_z)` of every oscillator.
 
         Args:
@@ -387,10 +384,9 @@ class GlobalInhibitionInteraction(Interaction):
                 The namespace of the oscillators and the inhibitor.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            member, hub = context.oscillators, context.inhibitor
-            inhibition = -context.W_z * logistic(hub.z - context.theta_z, 0, member.kappa)
-            self.laws_: list[BaseLaw] = [RateLaw(member.x, inhibition)]
+        member, hub = context.oscillators, context.inhibitor
+        inhibition = -context.W_z * logistic(hub.z - context.theta_z, 0, member.kappa)
+        self.laws_: list[BaseLaw] = [RateLaw(member.x, inhibition)]
 
 
 class InhibitorDriveInteraction(Interaction):
@@ -431,7 +427,7 @@ class InhibitorDriveInteraction(Interaction):
         self.inhibitor = inhibitor
         self.oscillators = oscillators
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the drive `phi max_j m_j H(x_j - theta_x)` of the inhibitor.
 
         Args:
@@ -439,10 +435,9 @@ class InhibitorDriveInteraction(Interaction):
                 The namespace of the inhibitor and the oscillators.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            hub, other = context.inhibitor, context.oscillators
-            drive = hub.phi * other.m * logistic(other.x - other.theta_x, 0, other.kappa) * SR(1)
-            self.laws_: list[BaseLaw] = [RateLaw(hub.z, maximum(drive, over=other))]
+        hub, other = context.inhibitor, context.oscillators
+        drive = hub.phi * other.m * logistic(other.x - other.theta_x, 0, other.kappa) * SR(1)
+        self.laws_: list[BaseLaw] = [RateLaw(hub.z, maximum(drive, over=other))]
 
 
 class DelayedLIFNetworkSystem(BaseSystem):

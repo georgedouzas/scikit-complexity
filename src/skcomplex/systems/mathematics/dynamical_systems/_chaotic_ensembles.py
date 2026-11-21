@@ -94,15 +94,19 @@ class CubicWalkInteraction(Interaction):
         self.target = target
         self.lam = lam
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the next value of the map and the next position as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the next value of the map and the next position as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            u, x = context.target.u, context.target.x
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(u, context.lam * u * (u - 1 / 2) * (u - 1) + u),
-                UpdateLaw(x, x + 2 * u - 1),
-            ]
+        u, x = context.target.u, context.target.x
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(u, context.lam * u * (u - 1 / 2) * (u - 1) + u),
+            UpdateLaw(x, x + 2 * u - 1),
+        ]
 
 
 class DoublingMapInteraction(Interaction):
@@ -131,12 +135,16 @@ class DoublingMapInteraction(Interaction):
         self.target = target
         self.q = q
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the next value, rounded to the grid, as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the next value, rounded to the grid, as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, q = context.target.x, context.q
-            self.laws_: list[BaseComponent] = [UpdateLaw(x, mod(2 * floor(q * x + 1 / 2), q) / q)]
+        x, q = context.target.x, context.q
+        self.laws_: list[BaseComponent] = [UpdateLaw(x, mod(2 * floor(q * x + 1 / 2), q) / q)]
 
 
 class SkewTentMapInteraction(Interaction):
@@ -165,12 +173,16 @@ class SkewTentMapInteraction(Interaction):
         self.target = target
         self.a = a
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the next value as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the next value as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, a = context.target.x, context.a
-            self.laws_: list[BaseComponent] = [UpdateLaw(x, where(x < a, x / a, (1 - x) / (1 - a)))]
+        x, a = context.target.x, context.a
+        self.laws_: list[BaseComponent] = [UpdateLaw(x, where(x < a, x / a, (1 - x) / (1 - a)))]
 
 
 def _get_square_displacement(member: SimpleNamespace) -> Expression:

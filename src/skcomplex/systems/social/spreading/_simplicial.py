@@ -95,14 +95,18 @@ class RecoveryInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the recovery of an infected node as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the recovery of an infected node as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            node = context.target
-            self.laws_: list[BaseComponent] = [
-                JumpLaw(node.recovery * where(node.infected == 1, 1, 0), {node.infected: -1}),
-            ]
+        node = context.target
+        self.laws_: list[BaseComponent] = [
+            JumpLaw(node.recovery * where(node.infected == 1, 1, 0), {node.infected: -1}),
+        ]
 
 
 class SimplicialInfectionInteraction(Interaction):
@@ -149,14 +153,18 @@ class SimplicialInfectionInteraction(Interaction):
         self.beta = beta
         self.beta_triangle = beta_triangle
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the infection of the focal node, when every other member of its link or triangle is infected."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the infection of the focal node, when every other member of its link or triangle is infected.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            infected = context.member.infected
-            rate = context.beta if len(context.others) + 1 == PAIR else context.beta_triangle
-            exposed = math.prod((other.infected for other in context.others), start=where(infected == 0, 1, 0))
-            self.laws_: list[BaseComponent] = [JumpLaw(rate * exposed, {infected: 1})]
+        infected = context.member.infected
+        rate = context.beta if len(context.others) + 1 == PAIR else context.beta_triangle
+        exposed = math.prod((other.infected for other in context.others), start=where(infected == 0, 1, 0))
+        self.laws_: list[BaseComponent] = [JumpLaw(rate * exposed, {infected: 1})]
 
 
 class SimplicialContagionSystem(BaseSystem):

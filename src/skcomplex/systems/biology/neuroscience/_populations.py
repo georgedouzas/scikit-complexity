@@ -18,7 +18,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import logistic, mean
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -168,7 +167,7 @@ class SaturatingGrowthInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the self-limited growth of the activity.
 
         Args:
@@ -176,9 +175,8 @@ class SaturatingGrowthInteraction(Interaction):
                 The namespace of the unit.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context.target
-            self.laws_: list[BaseLaw] = [RateLaw(s.x, s.x * (s.I - s.x) / s.tau)]
+        s = context.target
+        self.laws_: list[BaseLaw] = [RateLaw(s.x, s.x * (s.I - s.x) / s.tau)]
 
 
 class WilsonCowanElement(Element):
@@ -325,7 +323,7 @@ class MutualInhibitionInteraction(Interaction):
         self.units = units
         self.beta = beta
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the inhibition of every unit by the other units, term by term.
 
         Args:
@@ -333,8 +331,6 @@ class MutualInhibitionInteraction(Interaction):
                 The namespace of the units.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         laws: list[BaseLaw] = []
         for unit in context.units:
             parts = [
@@ -387,7 +383,7 @@ class PulseCouplingInteraction(Interaction):
         self.kappa = kappa
         self.n = n
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the current of the mean pulse into every neuron.
 
         Args:
@@ -395,8 +391,6 @@ class PulseCouplingInteraction(Interaction):
                 The namespace of the symbols the laws can use.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         s = context
         theta = s.neurons.theta
         normalization = 2**self.n * math.factorial(self.n) ** 2 / math.factorial(2 * self.n)

@@ -20,7 +20,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import NoiseLaw, RateLaw
 from ....core.components.laws.utils import ramp
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver
 from ....core.errors import ValidationError
@@ -110,7 +109,7 @@ class FoldFollowerInteraction(Interaction):
         self.coupling = coupling
         self.sigma = sigma
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the forced fold of the follower and its noise.
 
         Args:
@@ -118,10 +117,9 @@ class FoldFollowerInteraction(Interaction):
                 The namespace of the follower and the leader, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            y = context.target.y
-            rate = -(y**3) + y + context.c + context.coupling * context.leader.x
-            self.laws_ = [RateLaw(y.diff(context.t), rate), NoiseLaw(y, context.sigma)]
+        y = context.target.y
+        rate = -(y**3) + y + context.c + context.coupling * context.leader.x
+        self.laws_ = [RateLaw(y.diff(context.t), rate), NoiseLaw(y, context.sigma)]
 
 
 class HopfFollowerElement(Element):
@@ -205,7 +203,7 @@ class HopfFollowerInteraction(Interaction):
         self.coupling = coupling
         self.sigma = sigma
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the forced Hopf normal form of the follower and its noise.
 
         Args:
@@ -213,16 +211,15 @@ class HopfFollowerInteraction(Interaction):
                 The namespace of the follower and the leader, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            y, z, t = context.target.y, context.target.z, context.t
-            radius = y**2 + z**2
-            forcing = context.coupling * context.leader.x
-            self.laws_ = [
-                RateLaw(y.diff(t), context.mu * y - context.omega * z - radius * y + forcing * y),
-                RateLaw(z.diff(t), context.omega * y + context.mu * z - radius * z + forcing * z),
-                NoiseLaw(y, context.sigma),
-                NoiseLaw(z, context.sigma),
-            ]
+        y, z, t = context.target.y, context.target.z, context.t
+        radius = y**2 + z**2
+        forcing = context.coupling * context.leader.x
+        self.laws_ = [
+            RateLaw(y.diff(t), context.mu * y - context.omega * z - radius * y + forcing * y),
+            RateLaw(z.diff(t), context.omega * y + context.mu * z - radius * z + forcing * z),
+            NoiseLaw(y, context.sigma),
+            NoiseLaw(z, context.sigma),
+        ]
 
 
 class RampedFoldElement(Element):
@@ -306,7 +303,7 @@ class RampedFoldInteraction(Interaction):
         self.phi1 = phi1
         self.rate = rate
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the fold with its ramped control and its noise.
 
         Args:
@@ -314,10 +311,9 @@ class RampedFoldInteraction(Interaction):
                 The namespace of the element, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, t = context.target.x, context.t
-            control = self.phi0 + ramp(t, 0.0, (self.phi1 - self.phi0) / self.rate, self.phi1 - self.phi0)
-            self.laws_ = [RateLaw(x.diff(t), context.a * x**3 + context.b * x + control), NoiseLaw(x, context.sigma)]
+        x, t = context.target.x, context.t
+        control = self.phi0 + ramp(t, 0.0, (self.phi1 - self.phi0) / self.rate, self.phi1 - self.phi0)
+        self.laws_ = [RateLaw(x.diff(t), context.a * x**3 + context.b * x + control), NoiseLaw(x, context.sigma)]
 
 
 class StochasticEnergyBalanceInteraction(Interaction):
@@ -391,7 +387,7 @@ class StochasticEnergyBalanceInteraction(Interaction):
         self.c0 = c0
         self.c1 = c1
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the energy balance, the drift of the control, the ramp, and the noise of the temperature.
 
         Args:
@@ -399,16 +395,15 @@ class StochasticEnergyBalanceInteraction(Interaction):
                 The namespace of the planet, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            T, mu, lam, t = context.target.T, context.target.mu, context.target.lam, context.t
-            b2 = context.b_ini + lam * (context.b_fin - context.b_ini)
-            a2 = context.a_ini + context.c1 * mu * (b2**2 - context.b_ini**2) / 4
-            self.laws_ = [
-                RateLaw(T.diff(t), context.c0 * (-(T**4) + context.c1 * mu * (b2 * T**2 - a2))),
-                RateLaw(mu.diff(t), -context.drift),
-                RateLaw(lam.diff(t), context.rho * lam * (1 - lam)),
-                NoiseLaw(T, context.nu**0.5),
-            ]
+        T, mu, lam, t = context.target.T, context.target.mu, context.target.lam, context.t
+        b2 = context.b_ini + lam * (context.b_fin - context.b_ini)
+        a2 = context.a_ini + context.c1 * mu * (b2**2 - context.b_ini**2) / 4
+        self.laws_ = [
+            RateLaw(T.diff(t), context.c0 * (-(T**4) + context.c1 * mu * (b2 * T**2 - a2))),
+            RateLaw(mu.diff(t), -context.drift),
+            RateLaw(lam.diff(t), context.rho * lam * (1 - lam)),
+            NoiseLaw(T, context.nu**0.5),
+        ]
 
 
 class SuteraFraedrichTippingSystem(BaseSystem):

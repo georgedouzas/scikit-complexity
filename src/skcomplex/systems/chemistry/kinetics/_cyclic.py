@@ -106,14 +106,18 @@ class CyclicAdvanceInteraction(Interaction):
         successors = sum((item == following).astype(float) for item in around)
         return np.where(successors >= threshold, following, level)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the advance of the levels as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the advance of the levels as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            level = context.target.level
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(level, self._advance_cyclically, neighborhood=VON_NEUMANN, label=self.label),
-            ]
+        level = context.target.level
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(level, self._advance_cyclically, neighborhood=VON_NEUMANN, label=self.label),
+        ]
 
 
 class CyclicCellularAutomatonSystem(BaseSystem):

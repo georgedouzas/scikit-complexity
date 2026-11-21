@@ -99,15 +99,19 @@ class MemoryStepInteraction(Interaction):
         self.alpha = alpha
         self.sigma = sigma
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the next position and the next velocity as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the next position and the next velocity as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, v = context.target.x, context.target.v
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(x, x + v),
-                UpdateLaw(v, context.alpha * v + normal('xi', 0, context.sigma)),
-            ]
+        x, v = context.target.x, context.target.v
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(x, x + v),
+            UpdateLaw(v, context.alpha * v + normal('xi', 0, context.sigma)),
+        ]
 
 
 class PersistentWalkerElement(Element):
@@ -178,15 +182,19 @@ class PersistentStepInteraction(Interaction):
         self.target = target
         self.persistence = persistence
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the next direction and the next position as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the next direction and the next position as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            d, x = context.target.d, context.target.x
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(d, d * (1 - 2 * bernoulli('turn', 1 - context.persistence))),
-                UpdateLaw(x, x + d),
-            ]
+        d, x = context.target.d, context.target.x
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(d, d * (1 - 2 * bernoulli('turn', 1 - context.persistence))),
+            UpdateLaw(x, x + d),
+        ]
 
 
 class RandomWalkerElement(Element):
@@ -255,15 +263,19 @@ class RandomStepInteraction(Interaction):
         self.rate = rate
         self.bias = bias
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the steps up and down as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the steps up and down as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x = context.target.x
-            self.laws_: list[BaseComponent] = [
-                JumpLaw(context.rate * context.bias, {x: 1}),
-                JumpLaw(context.rate * (1 - context.bias), {x: -1}),
-            ]
+        x = context.target.x
+        self.laws_: list[BaseComponent] = [
+            JumpLaw(context.rate * context.bias, {x: 1}),
+            JumpLaw(context.rate * (1 - context.bias), {x: -1}),
+        ]
 
 
 class WeakeningParticleElement(Element):
@@ -342,15 +354,19 @@ class WeakeningForceInteraction(Interaction):
         self.ell = ell
         self.D = D
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the restoring force and the noise as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the restoring force and the noise as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x = context.target.x
-            self.laws_: list[BaseComponent] = [
-                RateLaw(x, -context.k * x / (1 + (x / context.ell) ** 2)),
-                NoiseLaw(x, sqrt(2 * context.D)),
-            ]
+        x = context.target.x
+        self.laws_: list[BaseComponent] = [
+            RateLaw(x, -context.k * x / (1 + (x / context.ell) ** 2)),
+            NoiseLaw(x, sqrt(2 * context.D)),
+        ]
 
 
 class AgeingWalkerView(AgentViewProtocol, Protocol):
@@ -430,11 +446,15 @@ class AgeingStepInteraction(Interaction):
         self.p = p
         self.nu = nu
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the step of every walker as the rule."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the step of every walker as the rule.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self._step)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self._step)]
 
     def _step(self, agent: AgeingWalkerView, system: SystemView) -> None:
         """Step one walker up or down, counting its up steps."""

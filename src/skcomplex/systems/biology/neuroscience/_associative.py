@@ -20,7 +20,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import total, where
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -105,7 +104,7 @@ class ReservoirInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the laws of the target.
 
         Args:
@@ -113,10 +112,9 @@ class ReservoirInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            target = context.target
-            recovery = target.gamma_plus * (1 - target.phi) * (1 - target.x / target.x_c)
-            self.laws_ = [RateLaw(target.phi, where(target.x > target.x_c, -target.gamma_minus * target.phi, recovery))]
+        target = context.target
+        recovery = target.gamma_plus * (1 - target.phi) * (1 - target.x / target.x_c)
+        self.laws_ = [RateLaw(target.phi, where(target.x > target.x_c, -target.gamma_minus * target.phi, recovery))]
 
 
 class CliqueCompetitionInteraction(Interaction):
@@ -190,7 +188,7 @@ class CliqueCompetitionInteraction(Interaction):
         self.f_w_min = f_w_min
         self.f_z_min = f_z_min
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the growth and decay of the activities.
 
         Args:
@@ -198,8 +196,6 @@ class CliqueCompetitionInteraction(Interaction):
                 The namespace of the symbols the laws can use.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         s = context
         site = s.sites
         excitatory = np.asarray(self.w, dtype=float)

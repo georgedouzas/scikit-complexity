@@ -19,7 +19,7 @@ from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import JumpLaw
 from ....core.components.laws.utils import shift_member, where
-from ....core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace
+from ....core.components.spaces import ContinuousSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend, NumbaBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -130,7 +130,7 @@ class ExclusionHopsInteraction(Interaction):
         self.p = p
         self.q = q
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the hops of a particle to the empty site on the right and back.
 
         Args:
@@ -138,14 +138,13 @@ class ExclusionHopsInteraction(Interaction):
                 The namespace of the sites, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            n = context.sites.n
-            right = shift_member(n, 1, boundary='fixed')
-            full = shift_member(n, 1, boundary='fixed', fill=1.0)
-            self.laws_ = [
-                JumpLaw(context.p * n * (1 - full), {n: -1, right: 1}),
-                JumpLaw(context.q * right * (1 - n), {right: -1, n: 1}),
-            ]
+        n = context.sites.n
+        right = shift_member(n, 1, boundary='fixed')
+        full = shift_member(n, 1, boundary='fixed', fill=1.0)
+        self.laws_ = [
+            JumpLaw(context.p * n * (1 - full), {n: -1, right: 1}),
+            JumpLaw(context.q * right * (1 - n), {right: -1, n: 1}),
+        ]
 
 
 class ReservoirInteraction(Interaction):
@@ -193,7 +192,7 @@ class ReservoirInteraction(Interaction):
         self.outflow = outflow
         self.exclusion = exclusion
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the entries and the exits of a particle at every site.
 
         Under exclusion a particle enters only an empty site, and a particle leaves only an occupied one.
@@ -203,14 +202,13 @@ class ReservoirInteraction(Interaction):
                 The namespace of the sites, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = []
-            for site in context.sites:
-                entry = context.inflow * (1 - site.n if self.exclusion else 1)
-                self.laws_ += [
-                    JumpLaw(entry, {site.n: 1}),
-                    JumpLaw(context.outflow * where(site.n > 0, 1, 0), {site.n: -1}),
-                ]
+        self.laws_ = []
+        for site in context.sites:
+            entry = context.inflow * (1 - site.n if self.exclusion else 1)
+            self.laws_ += [
+                JumpLaw(entry, {site.n: 1}),
+                JumpLaw(context.outflow * where(site.n > 0, 1, 0), {site.n: -1}),
+            ]
 
 
 class ZeroRangeHopInteraction(Interaction):
@@ -258,7 +256,7 @@ class ZeroRangeHopInteraction(Interaction):
         self.q = q
         self.b = b
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the hops forward from the first site of the link and back from the second.
 
         Args:
@@ -266,12 +264,11 @@ class ZeroRangeHopInteraction(Interaction):
                 The namespace of the two sites, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            first, second = context.link
-            self.laws_ = [
-                JumpLaw(context.p * self._get_departure_rate(first.n, context.b), {first.n: -1, second.n: 1}),
-                JumpLaw(context.q * self._get_departure_rate(second.n, context.b), {second.n: -1, first.n: 1}),
-            ]
+        first, second = context.link
+        self.laws_ = [
+            JumpLaw(context.p * self._get_departure_rate(first.n, context.b), {first.n: -1, second.n: 1}),
+            JumpLaw(context.q * self._get_departure_rate(second.n, context.b), {second.n: -1, first.n: 1}),
+        ]
 
     @staticmethod
     def _get_departure_rate(n: Expression, b: Expression) -> Expression:
@@ -328,7 +325,7 @@ class ZeroRangeHopsInteraction(Interaction):
         self.q = q
         self.b = b
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the hops of a particle to the site on the right and back.
 
         Args:
@@ -336,13 +333,12 @@ class ZeroRangeHopsInteraction(Interaction):
                 The namespace of the sites, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            n = context.sites.n
-            right = shift_member(n, 1)
-            self.laws_ = [
-                JumpLaw(context.p * ZeroRangeHopInteraction._get_departure_rate(n, context.b), {n: -1, right: 1}),
-                JumpLaw(context.q * ZeroRangeHopInteraction._get_departure_rate(right, context.b), {right: -1, n: 1}),
-            ]
+        n = context.sites.n
+        right = shift_member(n, 1)
+        self.laws_ = [
+            JumpLaw(context.p * ZeroRangeHopInteraction._get_departure_rate(n, context.b), {n: -1, right: 1}),
+            JumpLaw(context.q * ZeroRangeHopInteraction._get_departure_rate(right, context.b), {right: -1, n: 1}),
+        ]
 
 
 class ZeroRangeProcessSystem(BaseSystem):

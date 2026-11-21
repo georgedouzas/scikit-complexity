@@ -161,11 +161,14 @@ class SignedRegulationInteraction(Interaction):
         self.p = p
         self.phase = phase
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the activity of the link from its regulating nodes, the members of the hyperedge after its ends."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the activity of the link from its regulating nodes, the members of the hyperedge after its ends.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         s = context
         negatives, positives = s.edge.negatives, s.edge.positives
         blocked, silent = SR(1), SR(1)
@@ -218,12 +221,16 @@ class PercolationInteraction(Interaction):
         self.links = links
         self.phase = phase
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the membership of the giant component of the active links."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the membership of the giant component of the active links.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            giant = components(context.links.active, reduce='giant')
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.nodes.active, giant, phase=self.phase)]
+        giant = components(context.links.active, reduce='giant')
+        self.laws_: list[BaseComponent] = [UpdateLaw(context.nodes.active, giant, phase=self.phase)]
 
 
 class SpatialTriadicPercolationSystem(BaseSystem):

@@ -174,7 +174,7 @@ class MaxwellInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the acceleration of the potential.
 
         Args:
@@ -182,9 +182,8 @@ class MaxwellInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            potential = context.target.A
-            self.laws_ = [RateLaw(potential.diff(context.t, 2), -codifferential(exterior_derivative(potential)))]
+        potential = context.target.A
+        self.laws_ = [RateLaw(potential.diff(context.t, 2), -codifferential(exterior_derivative(potential)))]
 
 
 class LatticeGaugeFieldsSystem(BaseSystem):

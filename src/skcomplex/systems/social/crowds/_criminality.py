@@ -329,11 +329,15 @@ class RecruitmentInteraction(Interaction):
         self.recruitment = recruitment
         self.retirement = retirement
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the recruitment less the retirement of the security forces as the rate of their density."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the recruitment less the retirement of the security forces as the rate of their density.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [RateLaw(context.target.x, self._get_rate(context))]
+        self.laws_: list[BaseComponent] = [RateLaw(context.target.x, self._get_rate(context))]
 
     def _get_rate(self, s: SimpleNamespace) -> Expression:
         """Return the recruitment of security agents, less the retirement.

@@ -125,12 +125,16 @@ class HodgepodgeInteraction(Interaction):
         worsening = np.minimum(np.floor((level + neighbours.sum(axis=0)) / (infected + ill + 1)) + g, n)
         return np.where(level <= 0, np.minimum(healthy, n), np.where(level >= n, 0.0, worsening))
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the infection of the cells as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the infection of the cells as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            level = context.target.level
-            self.laws_: list[BaseComponent] = [UpdateLaw(level, self._infect, neighborhood=MOORE, label=self.label)]
+        level = context.target.level
+        self.laws_: list[BaseComponent] = [UpdateLaw(level, self._infect, neighborhood=MOORE, label=self.label)]
 
 
 class HodgepodgeSystem(BaseSystem):

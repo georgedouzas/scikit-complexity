@@ -14,7 +14,6 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from .....core.components.interactions import Interaction
 from .....core.components.laws import RateLaw
-from .....core.components.spaces import BaseSpace
 from .....core.types import Role
 
 
@@ -66,7 +65,7 @@ class ConstantForceInteraction(Interaction):
         self.F = F
         self.state = state
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the acceleration of the position of the target.
 
         Args:
@@ -74,10 +73,9 @@ class ConstantForceInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            t, target = context.t, context.target
-            x = getattr(target, self.state)
-            force = context.F
-            if isinstance(x, FreeModuleElement) and not isinstance(force, FreeModuleElement):
-                force = vector(SR, [force] * len(x))
-            self.laws_ = [RateLaw(x.diff(t, 2), force / target.m)]
+        t, target = context.t, context.target
+        x = getattr(target, self.state)
+        force = context.F
+        if isinstance(x, FreeModuleElement) and not isinstance(force, FreeModuleElement):
+            force = vector(SR, [force] * len(x))
+        self.laws_ = [RateLaw(x.diff(t, 2), force / target.m)]

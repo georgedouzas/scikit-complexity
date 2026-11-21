@@ -113,19 +113,23 @@ class ExposureInteraction(Interaction):
         self.rate = rate
         self.exponent = exponent
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the next state of every participant, from the sum of the doses of its environments, as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the next state of every participant, from the sum of the doses of its environments, as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            member = context.target
-            others = total(member.members.infected, over=member.members) - member.infected
-            share = others / (count(over=member.members) - 1)
-            dose = hyperedges(context.rate * share**context.exponent)
-            draw = uniform('exposure')
-            infection = where(draw < 1 - exp(-dose), 1, 0)
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(member.infected, where(member.infected == 1, where(draw < member.recovery, 0, 1), infection)),
-            ]
+        member = context.target
+        others = total(member.members.infected, over=member.members) - member.infected
+        share = others / (count(over=member.members) - 1)
+        dose = hyperedges(context.rate * share**context.exponent)
+        draw = uniform('exposure')
+        infection = where(draw < 1 - exp(-dose), 1, 0)
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(member.infected, where(member.infected == 1, where(draw < member.recovery, 0, 1), infection)),
+        ]
 
 
 class HypergraphExposureSisSystem(BaseSystem):

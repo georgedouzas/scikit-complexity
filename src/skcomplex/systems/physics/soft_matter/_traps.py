@@ -120,7 +120,7 @@ class BiasedHopInteraction(Interaction):
         next_occupied = (stays | arrives).astype(float)
         return next_occupied, np.maximum(visited, next_occupied), np.where(stays, clock + 1, 0.0)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the hops of the walkers on the sites of the target.
 
         Args:
@@ -128,12 +128,11 @@ class BiasedHopInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context.target
-            states = (s.occupied, s.visited, s.clock)
-            self.laws_ = [
-                UpdateLaw(states, self._hop, neighborhood=ALONG_ROW, reads=(*states, s.tau), label=self.label),
-            ]
+        s = context.target
+        states = (s.occupied, s.visited, s.clock)
+        self.laws_ = [
+            UpdateLaw(states, self._hop, neighborhood=ALONG_ROW, reads=(*states, s.tau), label=self.label),
+        ]
 
 
 def _get_mean_position(s: SimpleNamespace) -> object:

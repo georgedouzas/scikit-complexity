@@ -21,7 +21,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import ConstraintLaw, RateLaw, UpdateLaw
 from ....core.components.laws.utils import clip
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver
 from ....core.errors import ValidationError
@@ -73,11 +72,14 @@ class CartPendulumInteraction(Interaction):
         self.target = target
         self.g = g
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the equations of motion of the cart and the pendulum."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the equations of motion of the cart and the pendulum.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         cart, t = context.target, context.t
         x_acceleration, theta_acceleration = cart.x.diff(t, 2), cart.theta.diff(t, 2)
         spin = cart.theta.diff(t)
@@ -123,11 +125,14 @@ class DrivenOscillatorInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the acceleration of the oscillator."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the acceleration of the oscillator.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         oscillator, t = context.target, context.t
         x, omega = oscillator.x, oscillator.omega
         acceleration = -(omega**2) * x - 2 * oscillator.zeta * omega * x.diff(t) + oscillator.force
@@ -208,11 +213,14 @@ class PIDInteraction(Interaction):
         self.measure = measure
         self.limits = limits
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rate of the integral of the error and the control input it sets."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate of the integral of the error and the control input it sets.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         s, value = context, context.integrator.value
         measured = getattr(s.plant, self.measure)
         error = s.setpoint - measured
@@ -277,11 +285,14 @@ class StateFeedbackInteraction(Interaction):
         self.gain = gain
         self.limits = limits
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the control input the feedback sets."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the control input the feedback sets.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         plant, t = context.plant, context.t
         read = [getattr(plant, name.rstrip("'")).diff(t, name.count("'")) for name in self.states]
         feedback = -sum((float(gain) * value for value, gain in zip(read, self.gain, strict=True)), 0)

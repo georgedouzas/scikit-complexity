@@ -19,7 +19,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import EventLaw, RateLaw
 from ....core.components.laws.utils import count, maximum, total, where
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -92,7 +91,7 @@ class ChargingInteraction(Interaction):
         self.S = S
         self.gamma = gamma
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate of the charge of the target.
 
         Args:
@@ -100,9 +99,8 @@ class ChargingInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x = context.target.x
-            self.laws_ = [RateLaw(x.diff(context.t), context.S - context.gamma * x)]
+        x = context.target.x
+        self.laws_ = [RateLaw(x.diff(context.t), context.S - context.gamma * x)]
 
 
 class PulseFiringInteraction(Interaction):
@@ -141,7 +139,7 @@ class PulseFiringInteraction(Interaction):
         self.target = target
         self.epsilon = epsilon
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the firing of the group as an event at the crossing of 1 by its largest charge.
 
         Args:
@@ -149,10 +147,9 @@ class PulseFiringInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, epsilon = context.target.x, context.epsilon
-            reset = where(x >= maximum(x), 0, where(x + epsilon >= 1, 0, x + epsilon))
-            self.laws_ = [EventLaw(maximum(x) - 1, {x: reset}, direction=1, label=self.label)]
+        x, epsilon = context.target.x, context.epsilon
+        reset = where(x >= maximum(x), 0, where(x + epsilon >= 1, 0, x + epsilon))
+        self.laws_ = [EventLaw(maximum(x) - 1, {x: reset}, direction=1, label=self.label)]
 
 
 class WinfreeMeanFieldInteraction(Interaction):
@@ -187,7 +184,7 @@ class WinfreeMeanFieldInteraction(Interaction):
         self.target = target
         self.K = K
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate of the phases of the target.
 
         Args:
@@ -195,11 +192,10 @@ class WinfreeMeanFieldInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            oscillator = context.target
-            theta = oscillator.theta
-            response = total(context.K * (1 + cos(oscillator.other.theta)) * -sin(theta)) / count()
-            self.laws_ = [RateLaw(theta.diff(context.t), oscillator.omega + response)]
+        oscillator = context.target
+        theta = oscillator.theta
+        response = total(context.K * (1 + cos(oscillator.other.theta)) * -sin(theta)) / count()
+        self.laws_ = [RateLaw(theta.diff(context.t), oscillator.omega + response)]
 
 
 class WinfreeSystem(BaseSystem):

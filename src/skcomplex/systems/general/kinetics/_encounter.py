@@ -13,7 +13,6 @@ from sage.all__sagemath_symbolics import SR, Expression
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import bilinear, collision_integral
-from ....core.components.spaces import BaseSpace
 from ....core.errors import ValidationError
 from ....core.types import Role
 
@@ -138,12 +137,8 @@ class EncounterInteraction(Interaction):
             error_msg = f'The cross-section of {self.label!r} sets the rate. Give no rate, kernel, field, or outcome.'
             raise ValidationError(error_msg)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Check the encounter, and set the rate law of the candidate for a binding.
-
-        Args:
-            context:
-                The space the interaction inherits from its system, or the namespace of the candidate and the field.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
@@ -151,10 +146,18 @@ class EncounterInteraction(Interaction):
                 no kernel, an encounter without a field is not conservative, an encounter has neither a rate nor a
                 cross-section, or a cross-section comes with a rate, a kernel, a field, or an outcome.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         self._check_encounter()
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = self._get_encounter_laws(context)
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate law of the candidate for a binding.
+
+        Args:
+            context:
+                The namespace of the candidate and the field.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = self._get_encounter_laws(context)
 
     def _check_encounter(self) -> None:
         """Raise an error for an unknown outcome, a bad function, or a missing kernel."""

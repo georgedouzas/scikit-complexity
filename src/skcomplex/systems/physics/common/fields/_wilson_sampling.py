@@ -194,26 +194,28 @@ class WilsonSamplingInteraction(Interaction):
             return {}
         return {name: value for name, value in parameters.items() if name in names}
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Raise an error for options matrix links do not take, and set the action or the sweep of the links.
-
-        Args:
-            context:
-                The space the interaction inherits from its system, or the namespace of the links, the time `t`, and
-                the parameters.
+    def _check_arguments(self) -> None:
+        """Raise an error for options matrix links do not take.
 
         Raises:
             ValidationError:
                 The holonomy score of matrix links has a move, a rule, or a schedule they do not take.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         score = self._get_score()
         if score is not None:
             self._check_holonomy_score(score)
-        if not isinstance(context, SimpleNamespace):
-            return
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the action or the sweep of the links.
+
+        Args:
+            context:
+                The namespace of the links, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
         links = getattr(self._get_member(context, 'target'), self.state)
-        if score is None:
+        if self._get_score() is None:
             self.laws_: list[BaseComponent] = [ObjectiveLaw(self._get_action(context), links)]
         else:
             self.laws_ = [UpdateLaw(links, self._sample_holonomies, label=self.label, arrays=True)]

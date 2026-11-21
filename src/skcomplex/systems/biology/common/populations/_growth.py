@@ -11,7 +11,6 @@ from sage.sets.real_set import RealSet
 
 from .....core.components.interactions import Interaction
 from .....core.components.laws import RateLaw
-from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
 from .....core.types import Role
 
@@ -176,24 +175,28 @@ class GrowthInteraction(Interaction):
             )
             raise ValidationError(error_msg)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rate of the population, raising an error for a form, a delay, or an exponent it cannot take.
-
-        Args:
-            context:
-                The namespace of the target, the time `t`, and the parameters.
+    def _check_arguments(self) -> None:
+        """Raise an error for a form, a delay, or an exponent it cannot take.
 
         Raises:
             ValidationError:
                 The state is not a name, the form is unknown, a delay is given to a form without a limiting factor, or
                 the von Bertalanffy exponent is 1.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         self._check_state()
         self._check_form()
         self._check_settings()
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [RateLaw(getattr(context.target, self.state), self._get_rate(context))]
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate of the population.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        self.laws_ = [RateLaw(getattr(context.target, self.state), self._get_rate(context))]
 
     def _get_rate(self, namespace: SimpleNamespace) -> Expression:
         """Return the rate of the population, the growth of the form minus the harvest.

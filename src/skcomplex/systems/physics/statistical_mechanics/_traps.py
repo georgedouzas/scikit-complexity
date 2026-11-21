@@ -106,7 +106,7 @@ class TrapEscapeInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the escapes of the walkers.
 
         Args:
@@ -114,11 +114,10 @@ class TrapEscapeInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context.target
-            reset = {item: uniform(f'place{index}') for index, item in enumerate(s.x)}
-            waiting = draw('escape', 'expon', scale=s.tau0 * exp(s.E / s.T))
-            self.laws_ = [JumpLaw(waiting=waiting, reset={**reset, s.E: draw('depth', 'expon')}, label=self.label)]
+        s = context.target
+        reset = {item: uniform(f'place{index}') for index, item in enumerate(s.x)}
+        waiting = draw('escape', 'expon', scale=s.tau0 * exp(s.E / s.T))
+        self.laws_ = [JumpLaw(waiting=waiting, reset={**reset, s.E: draw('depth', 'expon')}, label=self.label)]
 
 
 class TrapSystem(BaseSystem):

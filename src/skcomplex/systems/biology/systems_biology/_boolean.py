@@ -13,7 +13,6 @@ from ....core.components import Observable
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import where
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
@@ -86,7 +85,7 @@ class ThresholdFunctionInteraction(Interaction):
         self.weights = weights
         self.decays = decays
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the next value of a node from its weighted input.
 
         The value is 1 for a positive weighted input, 0 for a negative one, and the held or decayed value for none.
@@ -96,8 +95,6 @@ class ThresholdFunctionInteraction(Interaction):
                 The namespace of the node and its inputs.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         weights = context.weights if self.inputs else ()
         total = sum((weight * item.x for weight, item in zip(weights, context.inputs, strict=True)), start=SR(0))
         unchanged = 0 if self.decays else context.target.x

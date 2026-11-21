@@ -15,7 +15,6 @@ from ....core.components import Observable
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, JumpLaw, RateLaw, UpdateLaw
 from ....core.components.laws.utils import clip
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, ScipyODESolver
 from ....core.systems import BaseSystem, System
@@ -78,7 +77,7 @@ class ParasitismInteraction(Interaction):
         self.a = a
         self.c = c
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the next generations `k H exp(-a P)` and `c H (1 - exp(-a P))`.
 
         Args:
@@ -86,11 +85,10 @@ class ParasitismInteraction(Interaction):
                 The namespace of the bound elements, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            hosts, parasitoids = s.host.x, s.parasitoid.x
-            escape = exp(-s.a * parasitoids)
-            self.laws_ = [UpdateLaw(hosts, s.k * hosts * escape), UpdateLaw(parasitoids, s.c * hosts * (1 - escape))]
+        s = context
+        hosts, parasitoids = s.host.x, s.parasitoid.x
+        escape = exp(-s.a * parasitoids)
+        self.laws_ = [UpdateLaw(hosts, s.k * hosts * escape), UpdateLaw(parasitoids, s.c * hosts * (1 - escape))]
 
 
 class PredatorPreyEventsInteraction(Interaction):
@@ -176,7 +174,7 @@ class PredatorPreyEventsInteraction(Interaction):
             return JumpLaw(propensity, {member.x: step})
         return RateLaw(member.x, step * propensity)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the five channels of births and deaths.
 
         Args:
@@ -184,18 +182,17 @@ class PredatorPreyEventsInteraction(Interaction):
                 The namespace of the bound elements, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            prey, predators = s.prey, s.predators
-            x, y = prey.x, predators.x
-            kills = s.a * x * y / (1 + s.a * s.h * x)
-            self.laws_ = [
-                self._get_change(prey, 1, s.r * x),
-                self._get_change(prey, -1, s.r * x**2 / s.K),
-                self._get_change(prey, -1, kills),
-                self._get_change(predators, 1, s.e * kills),
-                self._get_change(predators, -1, s.m * y),
-            ]
+        s = context
+        prey, predators = s.prey, s.predators
+        x, y = prey.x, predators.x
+        kills = s.a * x * y / (1 + s.a * s.h * x)
+        self.laws_ = [
+            self._get_change(prey, 1, s.r * x),
+            self._get_change(prey, -1, s.r * x**2 / s.K),
+            self._get_change(prey, -1, kills),
+            self._get_change(predators, 1, s.e * kills),
+            self._get_change(predators, -1, s.m * y),
+        ]
 
 
 class RosenzweigMacArthurInteraction(Interaction):
@@ -261,7 +258,7 @@ class RosenzweigMacArthurInteraction(Interaction):
         self.phi_end = phi_end
         self.rate = rate
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rates of the prey and the predators under the ramp of the crowding.
 
         Args:
@@ -269,12 +266,11 @@ class RosenzweigMacArthurInteraction(Interaction):
                 The namespace of the bound elements, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            x, y = s.prey.x, s.predators.x
-            crowding = clip(s.phi + s.rate * s.t, high=s.phi_end)
-            feeding = x * y / (1 + s.eta * x)
-            self.laws_ = [RateLaw(x, (x * (1 - crowding * x) - feeding) / s.kappa), RateLaw(y, feeding - y)]
+        s = context
+        x, y = s.prey.x, s.predators.x
+        crowding = clip(s.phi + s.rate * s.t, high=s.phi_end)
+        feeding = x * y / (1 + s.eta * x)
+        self.laws_ = [RateLaw(x, (x * (1 - crowding * x) - feeding) / s.kappa), RateLaw(y, feeding - y)]
 
 
 class RosenzweigMacarthurSystem(BaseSystem):

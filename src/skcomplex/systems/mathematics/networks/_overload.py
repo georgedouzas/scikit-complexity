@@ -97,16 +97,20 @@ class OverloadInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the loads, the size of the largest component, and the failures as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the loads, the size of the largest component, and the failures as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            node = context.target
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(node.load, shortest_paths(1)),
-                UpdateLaw(node.giant, components(1, reduce='largest')),
-                UpdateLaw(TopologyRequestSpec('remove-node'), where(shortest_paths(1) > node.capacity, 1, 0)),
-            ]
+        node = context.target
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(node.load, shortest_paths(1)),
+            UpdateLaw(node.giant, components(1, reduce='largest')),
+            UpdateLaw(TopologyRequestSpec('remove-node'), where(shortest_paths(1) > node.capacity, 1, 0)),
+        ]
 
 
 class MotterLaiOverloadSystem(BaseSystem):

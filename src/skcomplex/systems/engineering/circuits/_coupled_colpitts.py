@@ -19,7 +19,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import where
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -121,16 +120,14 @@ class ColpittsDynamicsInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rates of the three variables of the oscillator.
 
         Args:
             context:
-                The space the interaction inherits from its system, or the namespace of the oscillator.
+                The namespace of the oscillator.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         o, t = context.target, context.t
         conduction = where(o.z < -1, -1 - o.z, 0)
         self.laws_: list[BaseComponent] = [
@@ -179,16 +176,14 @@ class ColpittsCouplingInteraction(Interaction):
         self.target = target
         self.k = k
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate `k (y_s - y_t)` of the second variable of the target.
 
         Args:
             context:
-                The space the interaction inherits from its system, or the namespace of both oscillators.
+                The namespace of both oscillators.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         y = context.target.y
         self.laws_: list[BaseComponent] = [RateLaw(y.diff(context.t), context.k * (context.source.y - y))]
 

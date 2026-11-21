@@ -15,7 +15,7 @@ from ....core.components import Observable
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import hyperedges, neighbors
-from ....core.components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
+from ....core.components.spaces import ContinuousSpace, RadiusNeighborhood
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -64,7 +64,7 @@ class RayleighPropulsionInteraction(Interaction):
         self.alpha = alpha
         self.beta = beta
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the propulsion of the velocity of every agent.
 
         Args:
@@ -72,11 +72,10 @@ class RayleighPropulsionInteraction(Interaction):
                 The namespace of the agents, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, t = context, context.t
-            x = s.target.x
-            velocity = x.diff(t)
-            self.laws_ = [RateLaw(x.diff(t, 2), (s.alpha - s.beta * velocity.dot_product(velocity)) * velocity)]
+        s, t = context, context.t
+        x = s.target.x
+        velocity = x.diff(t)
+        self.laws_ = [RateLaw(x.diff(t, 2), (s.alpha - s.beta * velocity.dot_product(velocity)) * velocity)]
 
 
 class MorseAlignmentInteraction(Interaction):
@@ -144,7 +143,7 @@ class MorseAlignmentInteraction(Interaction):
         self.gamma = gamma
         self.l_v = l_v
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the sum of the Morse forces and the alignments of the neighbours within `R`.
 
         Args:
@@ -152,15 +151,14 @@ class MorseAlignmentInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, t = context, context.t
-            x, other = s.target.x, s.target.other.x
-            offset = other - x
-            rho = sqrt(offset.dot_product(offset))
-            slope = -s.C_r / s.l_r * exp(-rho / s.l_r) + s.C_a / s.l_a * exp(-rho / s.l_a)
-            cutoff = (1 - rho**2 / self.R**2) ** 2
-            term = cutoff * (slope * offset / rho + s.gamma * exp(-rho / s.l_v) * (other.diff(t) - x.diff(t)))
-            self.laws_ = [RateLaw(x.diff(t, 2), neighbors(term, RadiusNeighborhood(self.R)))]
+        s, t = context, context.t
+        x, other = s.target.x, s.target.other.x
+        offset = other - x
+        rho = sqrt(offset.dot_product(offset))
+        slope = -s.C_r / s.l_r * exp(-rho / s.l_r) + s.C_a / s.l_a * exp(-rho / s.l_a)
+        cutoff = (1 - rho**2 / self.R**2) ** 2
+        term = cutoff * (slope * offset / rho + s.gamma * exp(-rho / s.l_v) * (other.diff(t) - x.diff(t)))
+        self.laws_ = [RateLaw(x.diff(t, 2), neighbors(term, RadiusNeighborhood(self.R)))]
 
 
 class FlankingInteraction(Interaction):
@@ -208,7 +206,7 @@ class FlankingInteraction(Interaction):
         self.kappa_v = kappa_v
         self.l_3 = l_3
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the sum of the flanking alignments over the pairs of neighbours within `R`.
 
         Args:
@@ -216,19 +214,18 @@ class FlankingInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, t, member = context, context.t, context.target
-            weight, relative = SR(1), vector(SR, [0] * len(member.x))
-            directions = []
-            for other in member.others[:2]:
-                offset = other.x - member.x
-                rho = sqrt(offset.dot_product(offset))
-                weight *= (1 - rho**2 / self.R**2) ** 2 * exp(-rho / s.l_3)
-                directions.append(offset / rho)
-                relative += other.x.diff(t) - member.x.diff(t)
-            cosine = directions[0].dot_product(directions[1])
-            term = s.kappa_v * weight * (1 - cosine) / 2 * relative / 2
-            self.laws_ = [RateLaw(member.x.diff(t, 2), hyperedges(term, size=3, over=RadiusNeighborhood(self.R)))]
+        s, t, member = context, context.t, context.target
+        weight, relative = SR(1), vector(SR, [0] * len(member.x))
+        directions = []
+        for other in member.others[:2]:
+            offset = other.x - member.x
+            rho = sqrt(offset.dot_product(offset))
+            weight *= (1 - rho**2 / self.R**2) ** 2 * exp(-rho / s.l_3)
+            directions.append(offset / rho)
+            relative += other.x.diff(t) - member.x.diff(t)
+        cosine = directions[0].dot_product(directions[1])
+        term = s.kappa_v * weight * (1 - cosine) / 2 * relative / 2
+        self.laws_ = [RateLaw(member.x.diff(t, 2), hyperedges(term, size=3, over=RadiusNeighborhood(self.R)))]
 
 
 class EncirclementInteraction(Interaction):
@@ -277,7 +274,7 @@ class EncirclementInteraction(Interaction):
         self.kappa_4 = kappa_4
         self.l_3 = l_3
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the sum of the encirclement alignments over the triples of neighbours within `R`.
 
         Args:
@@ -285,18 +282,17 @@ class EncirclementInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, t, member = context, context.t, context.target
-            zero = vector(SR, [0] * len(member.x))
-            weight, directions, relative = SR(1), zero, zero
-            for other in member.others[:3]:
-                offset = other.x - member.x
-                rho = sqrt(offset.dot_product(offset))
-                weight *= (1 - rho**2 / self.R**2) ** 2 * exp(-rho / s.l_3)
-                directions += offset / rho
-                relative += other.x.diff(t) - member.x.diff(t)
-            term = s.kappa_4 * weight * (1 - directions.dot_product(directions) / 9) * relative / 3
-            self.laws_ = [RateLaw(member.x.diff(t, 2), hyperedges(term, size=4, over=RadiusNeighborhood(self.R)))]
+        s, t, member = context, context.t, context.target
+        zero = vector(SR, [0] * len(member.x))
+        weight, directions, relative = SR(1), zero, zero
+        for other in member.others[:3]:
+            offset = other.x - member.x
+            rho = sqrt(offset.dot_product(offset))
+            weight *= (1 - rho**2 / self.R**2) ** 2 * exp(-rho / s.l_3)
+            directions += offset / rho
+            relative += other.x.diff(t) - member.x.diff(t)
+        term = s.kappa_4 * weight * (1 - directions.dot_product(directions) / 9) * relative / 3
+        self.laws_ = [RateLaw(member.x.diff(t, 2), hyperedges(term, size=4, over=RadiusNeighborhood(self.R)))]
 
 
 class ManyBodyAlignmentSwarmSystem(BaseSystem):

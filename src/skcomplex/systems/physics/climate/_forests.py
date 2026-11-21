@@ -17,7 +17,6 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -145,7 +144,7 @@ class ForestGrowthInteraction(Interaction):
         """Return the factor of the growth rate, 1 for a forest on its own."""
         return 1
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the logistic growth of the cover minus its disturbance.
 
         Args:
@@ -153,12 +152,11 @@ class ForestGrowthInteraction(Interaction):
                 The namespace of the forest, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            forest = context.target
-            temperature = self._get_temperature(forest, forest.v)
-            growth = context.g0 * (1 - ((temperature - context.Topt) / context.beta) ** 2)
-            rate = growth * self._get_efficiency(context) * forest.v * (1 - forest.v) - context.gamma * forest.v
-            self.laws_ = [RateLaw(forest.v.diff(context.t), rate)]
+        forest = context.target
+        temperature = self._get_temperature(forest, forest.v)
+        growth = context.g0 * (1 - ((temperature - context.Topt) / context.beta) ** 2)
+        rate = growth * self._get_efficiency(context) * forest.v * (1 - forest.v) - context.gamma * forest.v
+        self.laws_ = [RateLaw(forest.v.diff(context.t), rate)]
 
 
 class MitigatedForestGrowthInteraction(ForestGrowthInteraction):
@@ -286,7 +284,7 @@ class MitigationInteraction(Interaction):
         self.tp = tp
         self.tf = tf
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the replicator rate of the share of mitigators.
 
         Args:
@@ -294,20 +292,19 @@ class MitigationInteraction(Interaction):
                 The namespace of the population and the forest, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            people, forest, t = context.target, context.forest, context.t
-            past = forest.v(t=t - context.tp)
-            perceived = (
-                context.tf
-                / context.tp
-                * (
-                    ForestGrowthInteraction._get_temperature(forest, forest.v)
-                    - ForestGrowthInteraction._get_temperature(forest, past)
-                )
+        people, forest, t = context.target, context.forest, context.t
+        past = forest.v(t=t - context.tp)
+        perceived = (
+            context.tf
+            / context.tp
+            * (
+                ForestGrowthInteraction._get_temperature(forest, forest.v)
+                - ForestGrowthInteraction._get_temperature(forest, past)
             )
-            cost = context.fmax / (1 + exp(-context.w * (perceived - context.Tc)))
-            rate = people.x * (1 - people.x) * (-context.alpha + cost + context.delta * (2 * people.x - 1))
-            self.laws_ = [RateLaw(people.x.diff(t), rate)]
+        )
+        cost = context.fmax / (1 + exp(-context.w * (perceived - context.Tc)))
+        rate = people.x * (1 - people.x) * (-context.alpha + cost + context.delta * (2 * people.x - 1))
+        self.laws_ = [RateLaw(people.x.diff(t), rate)]
 
 
 class ForestDiebackSystem(BaseSystem):

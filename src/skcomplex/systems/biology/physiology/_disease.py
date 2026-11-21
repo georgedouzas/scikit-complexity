@@ -87,7 +87,7 @@ class CellRotationInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rotation of the phase.
 
         Args:
@@ -95,9 +95,8 @@ class CellRotationInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context.target
-            self.laws_ = [RateLaw(s.phi, s.omega)]
+        s = context.target
+        self.laws_ = [RateLaw(s.phi, s.omega)]
 
 
 class CytokineLinkElement(Element):
@@ -196,7 +195,7 @@ class AdaptivePhaseCouplingInteraction(Interaction):
         self.beta = beta
         self.epsilon = epsilon
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the coupling of the receiving cell and the adaptation of the link.
 
         Args:
@@ -204,8 +203,6 @@ class AdaptivePhaseCouplingInteraction(Interaction):
                 The namespace of the two cells of an edge, its link, and the parameters.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         s = context
         difference = s.target.phi - s.source.phi
         kappa = s.edge.kappa
@@ -252,7 +249,7 @@ class LayerCouplingInteraction(Interaction):
         super().__init__(label, among=among, along=along)
         self.sigma = sigma
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the pull of the receiving cell towards its partner.
 
         Args:
@@ -260,9 +257,8 @@ class LayerCouplingInteraction(Interaction):
                 The namespace of the two cells of an edge and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [RateLaw(s.target.phi, -s.sigma * sin(s.target.phi - s.source.phi))]
+        s = context
+        self.laws_ = [RateLaw(s.target.phi, -s.sigma * sin(s.target.phi - s.source.phi))]
 
 
 class TwoLayerSepsisSystem(BaseSystem):

@@ -18,7 +18,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction, TrainingInteraction
 from ....core.components.laws import DatasetSpec, UpdateLaw
 from ....core.components.laws.utils import total
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -171,7 +170,7 @@ class InputCouplingInteraction(Interaction):
         self.source = source
         self.D = D
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the drive of the hidden units in the phase `drive`.
 
         Args:
@@ -179,9 +178,8 @@ class InputCouplingInteraction(Interaction):
                 The namespace of the units, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            drive = total(context.source.x, weights=context.D)
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.target.u, drive, phase='drive')]
+        drive = total(context.source.x, weights=context.D)
+        self.laws_: list[BaseComponent] = [UpdateLaw(context.target.u, drive, phase='drive')]
 
 
 class RecurrenceCouplingInteraction(Interaction):
@@ -212,7 +210,7 @@ class RecurrenceCouplingInteraction(Interaction):
         self.target = target
         self.A = A
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the next activity of the hidden units in the phase `hidden`.
 
         Args:
@@ -220,11 +218,10 @@ class RecurrenceCouplingInteraction(Interaction):
                 The namespace of the units, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            hidden = context.target
-            recurrent = total(hidden.s, weights=context.A)
-            activity = 1 / (1 + exp(-(recurrent + hidden.u + hidden.b)))
-            self.laws_: list[BaseComponent] = [UpdateLaw(hidden.s, activity, phase='hidden')]
+        hidden = context.target
+        recurrent = total(hidden.s, weights=context.A)
+        activity = 1 / (1 + exp(-(recurrent + hidden.u + hidden.b)))
+        self.laws_: list[BaseComponent] = [UpdateLaw(hidden.s, activity, phase='hidden')]
 
 
 class ReadoutCouplingInteraction(Interaction):
@@ -258,7 +255,7 @@ class ReadoutCouplingInteraction(Interaction):
         self.source = source
         self.W = W
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the next prediction of the output units in the phase `readout`.
 
         Args:
@@ -266,11 +263,10 @@ class ReadoutCouplingInteraction(Interaction):
                 The namespace of the units, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            outputs = context.target
-            readout = total(context.source.s, weights=context.W)
-            prediction = 1 / (1 + exp(-(readout + outputs.c)))
-            self.laws_: list[BaseComponent] = [UpdateLaw(outputs.y, prediction, phase='readout')]
+        outputs = context.target
+        readout = total(context.source.s, weights=context.W)
+        prediction = 1 / (1 + exp(-(readout + outputs.c)))
+        self.laws_: list[BaseComponent] = [UpdateLaw(outputs.y, prediction, phase='readout')]
 
 
 class ElmanNetworkSystem(BaseSystem):

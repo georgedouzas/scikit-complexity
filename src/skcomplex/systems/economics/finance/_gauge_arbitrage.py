@@ -161,18 +161,22 @@ class TraderCurrentInteraction(Interaction):
         self.D = D
         self.q = q
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rates of the good at both ends of a link and of its electric field as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rates of the good at both ends of a link and of its electric field as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            source, target, edge = context.source, context.target, context.edge
-            middle = (source.rho + target.rho) / 2
-            current = -context.D * (target.rho - source.rho - context.q * edge.A * middle)
-            self.laws_: list[BaseComponent] = [
-                RateLaw(source.rho, -current),
-                RateLaw(target.rho, current),
-                RateLaw(edge.E, -current),
-            ]
+        source, target, edge = context.source, context.target, context.edge
+        middle = (source.rho + target.rho) / 2
+        current = -context.D * (target.rho - source.rho - context.q * edge.A * middle)
+        self.laws_: list[BaseComponent] = [
+            RateLaw(source.rho, -current),
+            RateLaw(target.rho, current),
+            RateLaw(edge.E, -current),
+        ]
 
 
 class GaugeArbitrageMarketSystem(BaseSystem):

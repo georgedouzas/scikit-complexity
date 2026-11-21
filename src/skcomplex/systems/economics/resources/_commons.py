@@ -267,11 +267,15 @@ class RegrassingInteraction(Interaction):
         self.target = target
         self.phase = phase
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the regrowth rule of every pasture."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the regrowth rule of every pasture.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.grow, phase=self.phase)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.grow, phase=self.phase)]
 
     def grow(self, agent: PastureView, system: SystemView) -> None:
         """Grow the grass logistically up to the capacity.

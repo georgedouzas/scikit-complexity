@@ -102,7 +102,7 @@ class ActiveCahnHilliardInteraction(Interaction):
         self.zeta = zeta
         self.D = D
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the conserved rate and the conserved noise of the field of the target.
 
         Args:
@@ -110,16 +110,15 @@ class ActiveCahnHilliardInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            phi = s.target.phi
-            slope = gradient(phi)
-            potential = -phi + phi**3 - s.kappa * laplacian(phi) + s.lam * sum(item**2 for item in slope)
-            active = [s.zeta * laplacian(phi) * item for item in slope]
-            self.laws_ = [
-                RateLaw(phi.diff(s.t), laplacian(potential) - divergence(active)),
-                NoiseLaw(phi, sqrt(2 * s.D), conserved=True),
-            ]
+        s = context
+        phi = s.target.phi
+        slope = gradient(phi)
+        potential = -phi + phi**3 - s.kappa * laplacian(phi) + s.lam * sum(item**2 for item in slope)
+        active = [s.zeta * laplacian(phi) * item for item in slope]
+        self.laws_ = [
+            RateLaw(phi.diff(s.t), laplacian(potential) - divergence(active)),
+            NoiseLaw(phi, sqrt(2 * s.D), conserved=True),
+        ]
 
 
 class ActiveSystemBSystem(BaseSystem):

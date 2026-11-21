@@ -21,7 +21,6 @@ from .....core.components import Tags
 from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, CallSpec, RateLaw, UpdateLaw
-from .....core.components.spaces import BaseSpace
 from .....core.components.types import NamespaceFunction, PairPotential, Target
 from .....core.errors import ValidationError
 from .....core.types import Array, Role
@@ -357,21 +356,14 @@ class StokesianMobilityInteraction(Interaction):
         self.temperature = temperature
         self.dt = dt
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Raise an error for an unknown variant, a bad function, or continuous noise, and set the laws.
-
-        The noise may not run in continuous time.
-
-        Args:
-            context:
-                The space the interaction inherits from its system, or the namespace of the target, the time `t`, and
-                the parameters.
+    def _check_arguments(self) -> None:
+        """Raise an error for an unknown variant, a bad function, or continuous noise.
 
         Raises:
             ValidationError:
                 A variant is unknown, a function is not callable, or the rate form has a positive temperature.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         self._check_variant('tensor', self.tensor, TENSORS)
         self._check_variant('form', self.form, FORMS)
         self._check_variant('root', self.root, ROOTS)
@@ -386,8 +378,16 @@ class StokesianMobilityInteraction(Interaction):
                 "which has no noise. Use `form='map'` in discrete time for Brownian displacements."
             )
             raise ValidationError(error_msg)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = self._get_motion_laws(context)
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the laws.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        self.laws_ = self._get_motion_laws(context)
 
     def _get_vector(self, function: NamespaceFunction | None, namespace: SimpleNamespace, size: int) -> list[Target]:
         """Return the components of a vector function of the namespace.

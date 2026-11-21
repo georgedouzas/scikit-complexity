@@ -18,7 +18,6 @@ from .....core.components.elements import Element, VisualSpec
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, ConstraintLaw, ObjectiveLaw
 from .....core.components.laws.utils import both, either
-from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
 from .....core.types import Role
 from ._reaction_spec import ReactionSpec
@@ -256,7 +255,7 @@ class FluxBalanceInteraction(Interaction):
                 values.append(sum(absolutes[1:], absolutes[0]))
         return ObjectiveLaw(values, fluxes, active=active, infeasible=self.infeasible)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the objective of the network with its balances and bounds.
 
         Args:
@@ -264,6 +263,5 @@ class FluxBalanceInteraction(Interaction):
                 The namespace of the cell and the biomass.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            laws: list[BaseLaw] = [*self._get_balances(context.cell), *self._get_bounds(context.cell)]
-            self.laws_ = [*laws, self._get_objective(context.cell, None if self.biomass is None else context.biomass)]
+        laws: list[BaseLaw] = [*self._get_balances(context.cell), *self._get_bounds(context.cell)]
+        self.laws_ = [*laws, self._get_objective(context.cell, None if self.biomass is None else context.biomass)]

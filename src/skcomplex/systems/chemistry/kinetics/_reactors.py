@@ -16,7 +16,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import pulse_train
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -170,16 +169,14 @@ class ElectrodeKineticsInteraction(Interaction):
         self.period = period
         self.width = width
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the charging of the double layer and the balance of the reactant.
 
         Args:
             context:
-                The space the interaction inherits from its system, or the namespace of the electrode.
+                The namespace of the electrode.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         s, eta, c = context, context.target.eta, context.target.c
         faradaic = c * exp(s.alpha * eta) - exp(-(1 - s.alpha) * eta)
         applied = s.current * pulse_train(s.t, self.period, self.width)

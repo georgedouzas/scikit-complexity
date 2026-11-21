@@ -16,7 +16,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, ConstraintLaw, RateLaw
 from ....core.components.laws.utils import where
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, ScipyODESolver
 from ....core.errors import ParameterError
@@ -78,11 +77,14 @@ class KirchhoffVoltageInteraction(Interaction):
         self.V = V
         self.omega = omega
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the voltage law of the loop."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the voltage law of the loop.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         loop, t = context.target, context.t
         q = getattr(loop, self.state)
         law = ConstraintLaw(
@@ -172,16 +174,14 @@ class ChuaInteraction(Interaction):
         self.m0 = m0
         self.m1 = m1
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rates of the states of the circuit.
 
         Args:
             context:
-                The space the interaction inherits from its system, or the namespace of the circuit.
+                The namespace of the circuit.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         s, x, y, z = context, context.target.x, context.target.y, context.target.z
         self.laws_: list[BaseComponent] = [
             RateLaw(x.diff(s.t), s.alpha * (y - x - s.m1 * x - (s.m0 - s.m1) * (abs(x + 1) - abs(x - 1)) / 2)),
@@ -255,16 +255,14 @@ class MultiscrollChuaInteraction(Interaction):
         slope = b * pi / (2 * a)
         return where(x >= edge, slope * (x - edge), where(x <= -edge, slope * (x + edge), -b * sin(pi * x / (2 * a))))
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rates of the states of the circuit.
 
         Args:
             context:
-                The space the interaction inherits from its system, or the namespace of the circuit.
+                The namespace of the circuit.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         s, x, y, z = context, context.target.x, context.target.y, context.target.z
         self.laws_: list[BaseComponent] = [
             RateLaw(x.diff(s.t), s.alpha * (y - self._scroll_nonlinearity(x, s.a, s.b, s.c))),
@@ -337,16 +335,14 @@ class MixedModeChuaInteraction(Interaction):
         self.beta = beta
         self.c = c
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rates of the states of the circuit.
 
         Args:
             context:
-                The space the interaction inherits from its system, or the namespace of the circuit.
+                The namespace of the circuit.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         s, x, y, z = context, context.target.x, context.target.y, context.target.z
         self.laws_: list[BaseComponent] = [
             RateLaw(x.diff(s.t), (-y + (s.a + s.b * x) * x**2) / s.epsilon),

@@ -119,7 +119,7 @@ class ActiveRouseInteraction(Interaction):
         self.D_t = D_t
         self.D_r = D_r
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the propulsion, the bonds, and the noises of the beads of the target.
 
         Args:
@@ -127,16 +127,15 @@ class ActiveRouseInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, t = context, context.t
-            x, y, theta = s.target.x, s.target.y, s.target.theta
-            self.laws_ = [
-                RateLaw(x.diff(t), s.v0 * cos(theta) + s.k * laplacian(x)),
-                RateLaw(y.diff(t), s.v0 * sin(theta) + s.k * laplacian(y)),
-                NoiseLaw(x, sqrt(2 * s.D_t)),
-                NoiseLaw(y, sqrt(2 * s.D_t)),
-                NoiseLaw(theta, sqrt(2 * s.D_r)),
-            ]
+        s, t = context, context.t
+        x, y, theta = s.target.x, s.target.y, s.target.theta
+        self.laws_ = [
+            RateLaw(x.diff(t), s.v0 * cos(theta) + s.k * laplacian(x)),
+            RateLaw(y.diff(t), s.v0 * sin(theta) + s.k * laplacian(y)),
+            NoiseLaw(x, sqrt(2 * s.D_t)),
+            NoiseLaw(y, sqrt(2 * s.D_t)),
+            NoiseLaw(theta, sqrt(2 * s.D_r)),
+        ]
 
 
 class ActivePolymerSystem(BaseSystem):

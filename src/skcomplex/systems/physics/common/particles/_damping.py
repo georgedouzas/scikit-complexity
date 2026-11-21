@@ -14,7 +14,6 @@ from sage.sets.real_set import RealSet
 
 from .....core.components.interactions import Interaction
 from .....core.components.laws import RateLaw
-from .....core.components.spaces import BaseSpace
 from .....core.types import Role
 
 
@@ -64,7 +63,7 @@ class DampingInteraction(Interaction):
         self.gamma = gamma
         self.state = state
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the acceleration of the position of the target.
 
         Args:
@@ -72,7 +71,6 @@ class DampingInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            t, target = context.t, context.target
-            x = getattr(target, self.state)
-            self.laws_ = [RateLaw(x.diff(t, 2), -context.gamma * x.diff(t) / target.m)]
+        t, target = context.t, context.target
+        x = getattr(target, self.state)
+        self.laws_ = [RateLaw(x.diff(t, 2), -context.gamma * x.diff(t) / target.m)]

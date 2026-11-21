@@ -7,7 +7,6 @@ Their sales depress the prices of common assets.
 # License: MIT
 
 from collections.abc import Sequence
-from types import SimpleNamespace
 from typing import Annotated, ClassVar, Protocol, cast
 
 import numpy as np
@@ -16,7 +15,6 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, SystemView
@@ -150,18 +148,14 @@ class FireSaleInteraction(PolicyRuleInteraction[SystemView]):
         self.leverage = leverage
         self.selling = selling
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _check_arguments(self) -> None:
         """Raise an error for an unknown rule.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The rule is unknown.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if self.selling not in SELLING_RULES:
             error_msg = f'The rule of {self.label!r} is {self.selling!r}. Use one of {SELLING_RULES}.'
             raise ValidationError(error_msg)

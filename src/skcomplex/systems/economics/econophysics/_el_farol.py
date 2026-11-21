@@ -18,7 +18,6 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
@@ -181,11 +180,15 @@ class ForecastingInteraction(Interaction):
         self.target = target
         self.phase = phase
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the forecast of the pool as its rule."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the forecast of the pool as its rule.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.forecast, phase=self.phase)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.forecast, phase=self.phase)]
 
     def _get_history(self, system: SystemView) -> Array:
         """Return the attendances, after ten random weeks drawn at the first week."""
@@ -314,11 +317,15 @@ class PredictingInteraction(Interaction):
         self.pool = pool
         self.phase = phase
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the forecast of every patron as its rule."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the forecast of every patron as its rule.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.predict, phase=self.phase)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.predict, phase=self.phase)]
 
     def predict(self, agent: PatronView, system: SystemView) -> None:
         """Forecast the attendance with the most accurate predictor held.

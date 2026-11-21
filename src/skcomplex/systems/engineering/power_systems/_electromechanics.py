@@ -19,7 +19,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import pulse_train, sign
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -89,11 +88,14 @@ class WheelLoadInteraction(Interaction):
         self.width = width
         self.spacing = spacing
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the acceleration of the rail by the wheels."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the acceleration of the rail by the wheels.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         s, z = context, getattr(context.target, self.state)
         load = pulse_train(s.t, s.T, s.width, s.F) + pulse_train(s.t, s.T, s.width, s.F, start=s.spacing)
         self.laws_: list[BaseComponent] = [RateLaw(z.diff(s.t, 2), load / getattr(s.target, self.mass))]
@@ -164,11 +166,14 @@ class BallastInteraction(Interaction):
         self.alpha = alpha
         self.beta = beta
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the acceleration of the sleeper by the ballast."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the acceleration of the sleeper by the ballast.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         s, zs = context, getattr(context.target, self.state)
         force = -s.bs * zs.diff(s.t) - s.ks * zs - s.k2 * (s.alpha * zs**2 + s.beta * zs**3)
         self.laws_: list[BaseComponent] = [RateLaw(zs.diff(s.t, 2), force / getattr(s.target, self.mass))]

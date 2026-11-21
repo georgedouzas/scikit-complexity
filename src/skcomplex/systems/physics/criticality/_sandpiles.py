@@ -119,7 +119,7 @@ class ToppleInteraction(Interaction):
         gained = np.sum([neighbor >= self.threshold for neighbor in around], axis=0)
         return height - self.threshold * (height >= self.threshold) + gained
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the toppling of the heights of the target.
 
         Args:
@@ -127,11 +127,10 @@ class ToppleInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            neighborhood = RadiusNeighborhood(1, metric='manhattan', center=True)
-            self.laws_ = [
-                UpdateLaw(context.target.height, self._get_topple, neighborhood=neighborhood, label=self.label),
-            ]
+        neighborhood = RadiusNeighborhood(1, metric='manhattan', center=True)
+        self.laws_ = [
+            UpdateLaw(context.target.height, self._get_topple, neighborhood=neighborhood, label=self.label),
+        ]
 
 
 def _get_active(site: SimpleNamespace) -> Expression:
@@ -355,7 +354,7 @@ class BranchingInteraction(Interaction):
         """
         return either(tree.g >= self.generations, tree.z == 0)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the active sites, the generation, and the branching probability of the next step.
 
         Args:
@@ -363,16 +362,15 @@ class BranchingInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            tree = context.target
-            ends = self._get_ends(tree)
-            sites = 2 ** (self.generations + 1) - 1
-            dissipated = where(tree.g >= self.generations, tree.z, 0)
-            self.laws_ = [
-                UpdateLaw(tree.z, where(ends, 1, 2 * draw('children', 'binom', n=tree.z, p=tree.p))),
-                UpdateLaw(tree.g, where(ends, 0, tree.g + 1)),
-                UpdateLaw(tree.p, where(ends, tree.p + (1 - dissipated) / sites, tree.p)),
-            ]
+        tree = context.target
+        ends = self._get_ends(tree)
+        sites = 2 ** (self.generations + 1) - 1
+        dissipated = where(tree.g >= self.generations, tree.z, 0)
+        self.laws_ = [
+            UpdateLaw(tree.z, where(ends, 1, 2 * draw('children', 'binom', n=tree.z, p=tree.p))),
+            UpdateLaw(tree.g, where(ends, 0, tree.g + 1)),
+            UpdateLaw(tree.p, where(ends, tree.p + (1 - dissipated) / sites, tree.p)),
+        ]
 
 
 class SelfOrganizedBranchingSystem(BaseSystem):

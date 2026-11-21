@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import ObjectiveLaw, RateLaw
-from ....core.components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
+from ....core.components.spaces import ContinuousSpace, RadiusNeighborhood
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver
 from ....core.systems import BaseSystem, System
@@ -69,7 +69,7 @@ class MotivationInteraction(Interaction):
         self.direction = direction
         self.tau = tau
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the relaxation of the velocity of the target towards its desired velocity.
 
         Args:
@@ -77,10 +77,9 @@ class MotivationInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, t = context, context.t
-            x = s.target.x
-            self.laws_ = [RateLaw(x.diff(t, 2), (s.speed * s.direction - x.diff(t)) / s.tau)]
+        s, t = context, context.t
+        x = s.target.x
+        self.laws_ = [RateLaw(x.diff(t, 2), (s.speed * s.direction - x.diff(t)) / s.tau)]
 
 
 class SocialRepulsionInteraction(Interaction):
@@ -141,7 +140,7 @@ class SocialRepulsionInteraction(Interaction):
         """Return the neighbourhood of the cutoff, whose pairs of walkers repel."""
         return RadiusNeighborhood(self.cutoff)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the energy of a pair of walkers, which pushes both apart along the line between them.
 
         Args:
@@ -149,11 +148,10 @@ class SocialRepulsionInteraction(Interaction):
                 The namespace of the pair, `s.first` and `s.second`, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            separation = s.first.x - s.second.x
-            r = sqrt(separation.dot_product(separation))
-            self.laws_ = [ObjectiveLaw(s.strength * s.falloff * exp((2 * s.radius - r) / s.falloff))]
+        s = context
+        separation = s.first.x - s.second.x
+        r = sqrt(separation.dot_product(separation))
+        self.laws_ = [ObjectiveLaw(s.strength * s.falloff * exp((2 * s.radius - r) / s.falloff))]
 
 
 class WallsInteraction(GradientInteraction):

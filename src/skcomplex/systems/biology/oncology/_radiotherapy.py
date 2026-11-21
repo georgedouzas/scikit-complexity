@@ -16,7 +16,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, EventLaw, RateLaw
 from ....core.components.laws.utils import periodic_guard, pulse_train
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -295,7 +294,7 @@ class IrradiationInteraction(Interaction):
         """
         return (1 + s.ap * s.target.Us) * (s.alpha * s.dose + s.beta * s.dose**2)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the fractions, which leave the surviving and lethally irradiated cells and add to the dose.
 
         The surviving cells are the proliferating ones.
@@ -305,8 +304,6 @@ class IrradiationInteraction(Interaction):
                 The namespace of the tumour, with `context.target`.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         s = context
         reset = {
             s.target.A1: SR(s.target.A1 * exp(-self._get_damage(s))),

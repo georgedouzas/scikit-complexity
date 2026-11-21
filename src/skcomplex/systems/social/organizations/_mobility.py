@@ -19,7 +19,6 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, SystemView
@@ -138,11 +137,15 @@ class ExplorationInteraction(Interaction):
         self.beta = beta
         self.least_jump = least_jump
 
-    def _prepare(self, s: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the displacement rule."""
+    def _prepare(self, s: SimpleNamespace) -> None:
+        """Set the displacement rule.
+
+        Args:
+            s:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(s)
-        if isinstance(s, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(s, self.move)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(s, self.move)]
 
     def move(self, system: SystemView) -> None:
         """Displace every individual once, to a new location or back to a visited one.
@@ -235,23 +238,27 @@ class ContainerMobilityInteraction(Interaction):
         self.travel = travel
         self.exponent = exponent
 
-    def _prepare(self, s: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the displacement rule.
-
-        Args:
-            s:
-                The space the interaction inherits from its system, or the namespace of the symbols the laws can use.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The probabilities of travel do not match the levels.
         """
-        super()._prepare(s)
+        super()._check_arguments()
         if len(self.travel) != self.levels or not np.isclose(sum(self.travel), 1.0):
             error_msg = f'Give {self.levels} probabilities of travel that sum to 1, not {tuple(self.travel)}.'
             raise ValidationError(error_msg)
-        if isinstance(s, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(s, self.move)]
+
+    def _prepare(self, s: SimpleNamespace) -> None:
+        """Set the displacement rule.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+        """
+        super()._prepare(s)
+        self.laws_: list[BaseComponent] = [UpdateLaw(s, self.move)]
 
     def _get_attractiveness(self, rng: np.random.Generator) -> list[Array]:
         """Return the attractiveness of every container of every level.

@@ -13,7 +13,6 @@ from typing import ClassVar
 from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, UpdateLaw
-from .....core.components.spaces import BaseSpace
 from .....core.components.types import SystemViewProtocol
 from .....core.errors import ValidationError
 
@@ -57,11 +56,15 @@ class PolicyRuleInteraction[SystemT: SystemViewProtocol](Interaction):
         self.rule = rule
         self.phase = phase
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rule of the feedback in its phase, a rule of the whole system."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule of the feedback in its phase, a rule of the whole system.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self.act, phase=self.phase)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context, self.act, phase=self.phase)]
 
     def act(self, system: SystemT) -> None:
         """Read the system and set parameters.

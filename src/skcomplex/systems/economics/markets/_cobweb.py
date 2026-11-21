@@ -15,7 +15,6 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -98,12 +97,16 @@ class CobwebInteraction(Interaction):
         self.c = c
         self.d = d
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the next price `(a - c - d * price) / b`, at which demand buys the supply of the last price."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the next price `(a - c - d * price) / b`, at which demand buys the supply of the last price.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_: list[BaseComponent] = [UpdateLaw(s.target.price, (s.a - s.c - s.d * s.target.price) / s.b)]
+        s = context
+        self.laws_: list[BaseComponent] = [UpdateLaw(s.target.price, (s.a - s.c - s.d * s.target.price) / s.b)]
 
 
 class CobwebSystem(BaseSystem):

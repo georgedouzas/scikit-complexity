@@ -138,7 +138,7 @@ class ShoppingInteraction(Interaction):
         self.target = target
         self.stalls = stalls
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the shopping rule of every shopper.
 
         Args:
@@ -146,8 +146,7 @@ class ShoppingInteraction(Interaction):
                 The namespace of the shoppers and the stalls.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.shop)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.shop)]
 
     def shop(self, agent: ShopperView, system: SystemView) -> None:
         """Visit a random stall not visited yet and buy every wanted item that it sells.

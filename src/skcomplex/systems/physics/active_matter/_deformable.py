@@ -132,7 +132,7 @@ class ShapeVelocityCouplingInteraction(Interaction):
         self.kappa = kappa
         self.noise = noise
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the motion, the velocity and its noise, and the deformation of the target.
 
         Args:
@@ -140,19 +140,18 @@ class ShapeVelocityCouplingInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            x, v, S = s.target.x, s.target.v, s.target.S
-            tensor = matrix(SR, [[S[0], S[1]], [S[1], -S[0]]])
-            speed = v.dot_product(v)
-            stretch = v.outer_product(v) - speed / 2 * identity_matrix(SR, 2)
-            deformation = -s.kappa * tensor + s.b * stretch
-            self.laws_ = [
-                RateLaw(x, v),
-                RateLaw(v, s.gamma * v - speed * v - s.a * (tensor * v)),
-                NoiseLaw(v, sqrt(2) * s.noise),
-                RateLaw(S, vector(SR, [deformation[0, 0], deformation[0, 1]])),
-            ]
+        s = context
+        x, v, S = s.target.x, s.target.v, s.target.S
+        tensor = matrix(SR, [[S[0], S[1]], [S[1], -S[0]]])
+        speed = v.dot_product(v)
+        stretch = v.outer_product(v) - speed / 2 * identity_matrix(SR, 2)
+        deformation = -s.kappa * tensor + s.b * stretch
+        self.laws_ = [
+            RateLaw(x, v),
+            RateLaw(v, s.gamma * v - speed * v - s.a * (tensor * v)),
+            NoiseLaw(v, sqrt(2) * s.noise),
+            RateLaw(S, vector(SR, [deformation[0, 0], deformation[0, 1]])),
+        ]
 
 
 class DeformableActiveParticlesSystem(BaseSystem):

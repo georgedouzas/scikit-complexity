@@ -10,7 +10,6 @@ from types import SimpleNamespace
 
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, EventLaw
-from .....core.components.spaces import BaseSpace
 from .....core.types import Role
 
 
@@ -80,7 +79,7 @@ class SpikeResetInteraction(Interaction):
         self.kicked = kicked
         self.kick = kick
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the spike, an event when the potential rises through the threshold.
 
         Args:
@@ -88,11 +87,10 @@ class SpikeResetInteraction(Interaction):
                 The namespace of the neuron, the threshold, the potential after a spike, and the kick.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            neuron = context.target
-            potential = getattr(neuron, self.state)
-            reset = {potential: context.after}
-            if self.kicked is not None:
-                kicked = getattr(neuron, self.kicked)
-                reset[kicked] = kicked + context.kick
-            self.laws_: list[BaseLaw] = [EventLaw(potential - context.threshold, reset, 1, label=self.label)]
+        neuron = context.target
+        potential = getattr(neuron, self.state)
+        reset = {potential: context.after}
+        if self.kicked is not None:
+            kicked = getattr(neuron, self.kicked)
+            reset[kicked] = kicked + context.kick
+        self.laws_: list[BaseLaw] = [EventLaw(potential - context.threshold, reset, 1, label=self.label)]

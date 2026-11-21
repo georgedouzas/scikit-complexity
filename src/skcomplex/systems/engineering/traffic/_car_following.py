@@ -16,7 +16,7 @@ from ....core.components.base import BaseComponent
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import shift_member
-from ....core.components.spaces import BaseSpace, ContinuousSpace
+from ....core.components.spaces import ContinuousSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -69,7 +69,7 @@ class LeadCarInteraction(Interaction):
         self.amplitude = amplitude
         self.omega = omega
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the forced swing of the speed of the lead car.
 
         Args:
@@ -77,11 +77,10 @@ class LeadCarInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, t = context, context.t
-            self.laws_: list[BaseComponent] = [
-                RateLaw(s.target.x.diff(t, 2), -s.u * s.amplitude * s.omega * cos(s.omega * t)),
-            ]
+        s, t = context, context.t
+        self.laws_: list[BaseComponent] = [
+            RateLaw(s.target.x.diff(t, 2), -s.u * s.amplitude * s.omega * cos(s.omega * t)),
+        ]
 
 
 class DelayedFollowingInteraction(Interaction):
@@ -135,7 +134,7 @@ class DelayedFollowingInteraction(Interaction):
         self.T = T
         self.power = power
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the delayed response of the follower to its leader.
 
         Args:
@@ -143,12 +142,11 @@ class DelayedFollowingInteraction(Interaction):
                 The namespace of the cars, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, t = context, context.t
-            leader, follower = s.leader.x, s.target.x
-            gap = (leader - follower)(t=t - s.T)
-            approach = (leader.diff(t) - follower.diff(t))(t=t - s.T)
-            self.laws_: list[BaseComponent] = [RateLaw(follower.diff(t, 2), s.reaction * approach / gap**s.power)]
+        s, t = context, context.t
+        leader, follower = s.leader.x, s.target.x
+        gap = (leader - follower)(t=t - s.T)
+        approach = (leader.diff(t) - follower.diff(t))(t=t - s.T)
+        self.laws_: list[BaseComponent] = [RateLaw(follower.diff(t, 2), s.reaction * approach / gap**s.power)]
 
 
 class IntelligentDriverInteraction(Interaction):
@@ -222,7 +220,7 @@ class IntelligentDriverInteraction(Interaction):
         self.length = length
         self.road_length = road_length
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the acceleration of the intelligent driver system.
 
         Args:
@@ -230,15 +228,14 @@ class IntelligentDriverInteraction(Interaction):
                 The namespace of the cars, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, t = context, context.t
-            x = s.target.x
-            v = x.diff(t)
-            gap = s.s0 + v * s.T + v * (v - shift_member(v, 1)) / (2 * sqrt(s.a * s.b))
-            headway = OptimalVelocityInteraction._get_headway(x, s.road_length)
-            self.laws_: list[BaseComponent] = [
-                RateLaw(x.diff(t, 2), s.a * (1 - (v / s.v0) ** s.delta - (gap / (headway - s.length)) ** 2)),
-            ]
+        s, t = context, context.t
+        x = s.target.x
+        v = x.diff(t)
+        gap = s.s0 + v * s.T + v * (v - shift_member(v, 1)) / (2 * sqrt(s.a * s.b))
+        headway = OptimalVelocityInteraction._get_headway(x, s.road_length)
+        self.laws_: list[BaseComponent] = [
+            RateLaw(x.diff(t, 2), s.a * (1 - (v / s.v0) ** s.delta - (gap / (headway - s.length)) ** 2)),
+        ]
 
 
 class OptimalVelocitySystem(BaseSystem):

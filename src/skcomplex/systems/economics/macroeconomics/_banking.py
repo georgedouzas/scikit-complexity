@@ -20,7 +20,6 @@ from ....core.components.elements import Element, Member
 from ....core.components.interactions import Interaction
 from ....core.components.laws import PartnerSpec, UpdateLaw
 from ....core.components.laws.utils import pairs
-from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
@@ -194,14 +193,18 @@ class PaymentsInteraction(Interaction):
         self.customers = customers
         self.phase = phase
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the payments and then the repayments of every step as rules of the system."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the payments and then the repayments of every step as rules of the system.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(context, self.pay, phase=self.phase),
-                UpdateLaw(context, self.repay, phase=self.phase),
-            ]
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(context, self.pay, phase=self.phase),
+            UpdateLaw(context, self.repay, phase=self.phase),
+        ]
 
     @staticmethod
     def _get_bank(customer: DepositorView) -> ReserveBankView:
@@ -295,11 +298,15 @@ class LendingInteraction(Interaction):
         self.customers = customers
         self.phase = phase
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the lending rule of every bank."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the lending rule of every bank.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.lend, phase=self.phase)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.lend, phase=self.phase)]
 
     def lend(self, agent: ReserveBankView, system: SystemView) -> None:
         """Lend the excess reserves to a random customer.

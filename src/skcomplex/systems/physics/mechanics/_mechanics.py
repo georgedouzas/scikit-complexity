@@ -19,7 +19,6 @@ from ....core.components import Observable
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import EventLaw, RateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.types import Role
@@ -205,7 +204,7 @@ class ElasticCollisionInteraction(Interaction):
         self.right = right
         self.diameter = diameter
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the event of the contact, which swaps the velocities of the balls.
 
         Args:
@@ -213,10 +212,9 @@ class ElasticCollisionInteraction(Interaction):
                 The namespace of the two balls, the time `t`, and the diameter.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            t, left, right = context.t, context.left.x, context.right.x
-            swap = {left.diff(t): right.diff(t), right.diff(t): left.diff(t)}
-            self.laws_ = [EventLaw(right - left - context.diameter, swap, direction=-1)]
+        t, left, right = context.t, context.left.x, context.right.x
+        swap = {left.diff(t): right.diff(t), right.diff(t): left.diff(t)}
+        self.laws_ = [EventLaw(right - left - context.diameter, swap, direction=-1)]
 
 
 class HangingSwingInteraction(Interaction):
@@ -244,7 +242,7 @@ class HangingSwingInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the acceleration of the ball.
 
         Args:
@@ -252,9 +250,8 @@ class HangingSwingInteraction(Interaction):
                 The namespace of the ball and the time `t`.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            ball = context.target
-            self.laws_ = [RateLaw(ball.x.diff(context.t, 2), -ball.g * (ball.x - ball.rest) / ball.length)]
+        ball = context.target
+        self.laws_ = [RateLaw(ball.x.diff(context.t, 2), -ball.g * (ball.x - ball.rest) / ball.length)]
 
 
 class UniformGravityInteraction(Interaction):
@@ -287,7 +284,7 @@ class UniformGravityInteraction(Interaction):
         self.g = g
         self.coordinate = coordinate
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the acceleration of the height of the body.
 
         Args:
@@ -295,9 +292,8 @@ class UniformGravityInteraction(Interaction):
                 The namespace of the body, the time `t`, and the gravity.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            height = getattr(context.target, self.coordinate)
-            self.laws_ = [RateLaw(height.diff(context.t, 2), -context.g)]
+        height = getattr(context.target, self.coordinate)
+        self.laws_ = [RateLaw(height.diff(context.t, 2), -context.g)]
 
 
 class FloorImpactInteraction(Interaction):
@@ -329,7 +325,7 @@ class FloorImpactInteraction(Interaction):
         self.target = target
         self.e = e
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the event of the impact, which reverses the vertical velocity.
 
         Args:
@@ -337,11 +333,10 @@ class FloorImpactInteraction(Interaction):
                 The namespace of the ball, the time `t`, and the restitution.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            height = context.target.h
-            velocity = height.diff(context.t)
-            reset = {velocity: velocity - (1 + context.e) * velocity}
-            self.laws_ = [EventLaw(height, reset, direction=-1, label=self.label)]
+        height = context.target.h
+        velocity = height.diff(context.t)
+        reset = {velocity: velocity - (1 + context.e) * velocity}
+        self.laws_ = [EventLaw(height, reset, direction=-1, label=self.label)]
 
 
 class FreeFlightInteraction(Interaction):
@@ -368,7 +363,7 @@ class FreeFlightInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rates of the position of the particle.
 
         Args:
@@ -376,9 +371,8 @@ class FreeFlightInteraction(Interaction):
                 The namespace of the particle and the time `t`.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            p, t = context.target, context.t
-            self.laws_ = [RateLaw(p.x.diff(t), p.vx), RateLaw(p.y.diff(t), p.vy)]
+        p, t = context.target, context.t
+        self.laws_ = [RateLaw(p.x.diff(t), p.vx), RateLaw(p.y.diff(t), p.vy)]
 
 
 class DiscWallInteraction(Interaction):
@@ -407,7 +401,7 @@ class DiscWallInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the event that reflects the velocity about the normal of the wall.
 
         Args:
@@ -415,15 +409,14 @@ class DiscWallInteraction(Interaction):
                 The namespace of the particle and the time `t`.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            p = context.target
-            guard = p.x**2 + p.y**2 - p.radius**2
-            normal = [2 * p.x, 2 * p.y]
-            velocities = [p.vx, p.vy]
-            speed = sum((v * n for v, n in zip(velocities, normal, strict=True)), SR(0))
-            scale = 2 * speed / sum((n**2 for n in normal), SR(0))
-            reset = {v: v - scale * n for v, n in zip(velocities, normal, strict=True)}
-            self.laws_ = [EventLaw(guard, reset, direction=1, label=self.label)]
+        p = context.target
+        guard = p.x**2 + p.y**2 - p.radius**2
+        normal = [2 * p.x, 2 * p.y]
+        velocities = [p.vx, p.vy]
+        speed = sum((v * n for v, n in zip(velocities, normal, strict=True)), SR(0))
+        scale = 2 * speed / sum((n**2 for n in normal), SR(0))
+        reset = {v: v - scale * n for v, n in zip(velocities, normal, strict=True)}
+        self.laws_ = [EventLaw(guard, reset, direction=1, label=self.label)]
 
 
 class ProjectileSystem(systems.BaseSystem):

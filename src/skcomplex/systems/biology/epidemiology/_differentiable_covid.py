@@ -19,7 +19,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import bernoulli, total
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -182,11 +181,14 @@ class CovidTransmissionInteraction(Interaction):
         self.temperature = temperature
         self.hard = hard
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the updates of the states of every agent."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the updates of the states of every agent.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         namespace = context
         s = namespace.target
         betas = (s.beta_household, s.beta_school, s.beta_company)
@@ -241,11 +243,14 @@ class CaseCountInteraction(Interaction):
         self.source = source
         self.children = children
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the counts of the new infections of children and of adults."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the counts of the new infections of children and of adults.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         namespace = context
         cases, people = namespace.target, namespace.source
         children = np.asarray(self.children, dtype=float)

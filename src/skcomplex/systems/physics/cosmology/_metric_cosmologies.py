@@ -193,31 +193,36 @@ class EinsteinFieldEquationsInteraction(Interaction):
             )
             raise SpaceError(error_msg)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the prepared space, the mixed Einstein tensor of its metric, and the laws of a binding.
-
-        It first raises an error for states not names, mismatched components, or a source.
-
-        Args:
-            context:
-                The space the interaction inherits from its system, which the equations do not read, or the namespace
-                of the target, the time `t`, and the parameters.
+    def _check_arguments(self) -> None:
+        """Raise an error for states not names, mismatched components, a source, or a space.
 
         Raises:
             SpaceError:
                 The space is not a pseudo-Riemannian space with curvature.
             ValidationError:
-                A state is not a name, the components do not give one index pair per state, the source is not
-                callable, or an equation does not reduce to rate laws of the states.
+                A state is not a name, the components do not give one index pair per state, or the source is not
+                callable.
+        """
+        super()._check_arguments()
+        self._check()
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the prepared space, the mixed Einstein tensor of its metric, and the laws of a binding.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+
+        Raises:
+            ValidationError:
+                An equation does not reduce to rate laws of the states.
         """
         super()._prepare(context)
-        self._check()
         if not isinstance(self.space, SpacetimeSpace):
             return
         self.space_ = self.space.prepare()
         self.equations_: Matrix = self.space_.inverse_metric_ * self.space_.einstein_
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = self._get_rate_laws(context)
+        self.laws_ = self._get_rate_laws(context)
 
     def _walk(self, expression: Expression) -> Iterator[Expression]:
         """Yield an expression and every subexpression of it."""

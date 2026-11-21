@@ -131,7 +131,7 @@ class DephasingInteraction(Interaction):
         self.target = target
         self.gamma = gamma
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set one dissipator per spin.
 
         Args:
@@ -139,8 +139,7 @@ class DephasingInteraction(Interaction):
                 The namespace of the spins of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [DissipatorLaw(local_operator(member.psi, 'z'), context.gamma) for member in context.target]
+        self.laws_ = [DissipatorLaw(local_operator(member.psi, 'z'), context.gamma) for member in context.target]
 
 
 class XXZExchangeInteraction(Interaction):
@@ -184,7 +183,7 @@ class XXZExchangeInteraction(Interaction):
         self.J = J
         self.delta = delta
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the exchange Hamiltonian of one pair of neighbours.
 
         Args:
@@ -192,14 +191,13 @@ class XXZExchangeInteraction(Interaction):
                 The namespace of the pair, with `source` and `target`, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            first, second = context.source.psi, context.target.psi
-            exchange = (
-                local_operator(first, 'x') * local_operator(second, 'x')
-                + local_operator(first, 'y') * local_operator(second, 'y')
-                + context.delta * local_operator(first, 'z') * local_operator(second, 'z')
-            )
-            self.laws_ = [GeneratorLaw(context.J * exchange)]
+        first, second = context.source.psi, context.target.psi
+        exchange = (
+            local_operator(first, 'x') * local_operator(second, 'x')
+            + local_operator(first, 'y') * local_operator(second, 'y')
+            + context.delta * local_operator(first, 'z') * local_operator(second, 'z')
+        )
+        self.laws_ = [GeneratorLaw(context.J * exchange)]
 
 
 class ZeemanFieldInteraction(Interaction):
@@ -226,7 +224,7 @@ class ZeemanFieldInteraction(Interaction):
         self.target = target
         self.h = h
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the Hamiltonian of the field.
 
         Args:
@@ -234,8 +232,7 @@ class ZeemanFieldInteraction(Interaction):
                 The namespace of the spins of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [GeneratorLaw(-context.h * sum(local_operator(member.psi, 'z') for member in context.target))]
+        self.laws_ = [GeneratorLaw(-context.h * sum(local_operator(member.psi, 'z') for member in context.target))]
 
 
 def local_magnetization(member: SimpleNamespace) -> Expression:

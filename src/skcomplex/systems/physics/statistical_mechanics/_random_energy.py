@@ -16,7 +16,6 @@ from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import ConstraintLaw
 from ....core.components.laws.utils import log_sum_exp, total
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -132,7 +131,7 @@ class BoltzmannSumInteraction(Interaction):
         self.temperature = temperature
         self.n_spins = n_spins
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the equations of the log partition function, the mean energy, and the entropy per spin.
 
         Args:
@@ -140,8 +139,6 @@ class BoltzmannSumInteraction(Interaction):
                 The namespace of the target, the levels, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         s = context
         weight = -s.levels.energy / s.temperature
         log_partition = log_sum_exp(weight, over=s.levels)

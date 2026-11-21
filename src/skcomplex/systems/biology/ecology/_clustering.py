@@ -105,7 +105,7 @@ class HoppingInteraction(Interaction):
         self.beta = beta
         self.links = links
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set one hop per ordered pair of neighbouring patches.
 
         Args:
@@ -113,10 +113,9 @@ class HoppingInteraction(Interaction):
                 The namespace of the bound elements, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            patches = s.patches
-            self.laws_ = [JumpLaw(s.beta * patches[i].x, {patches[i].x: -1, patches[j].x: 1}) for i, j in self.links]
+        s = context
+        patches = s.patches
+        self.laws_ = [JumpLaw(s.beta * patches[i].x, {patches[i].x: -1, patches[j].x: 1}) for i, j in self.links]
 
 
 class NeutralClusteringSystem(BaseSystem):

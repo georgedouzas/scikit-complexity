@@ -206,18 +206,14 @@ class OptimizationInteraction(Interaction):
         self.algorithm = algorithm
         self.phase = phase
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Raise an error for an algorithm that is not a spec or an uncallable objective, and set the rule of a step.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
+    def _check_arguments(self) -> None:
+        """Raise an error for an algorithm that is not a spec or an uncallable objective.
 
         Raises:
             ValidationError:
                 The algorithm is not an algorithm spec, or the objective is not callable.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if not isinstance(self.algorithm, ALGORITHM_SPECS):
             names = ', '.join(item.__name__ for item in ALGORITHM_SPECS)
             error_msg = f'The algorithm {self.algorithm!r} of {self.label!r} is no algorithm spec. Use one of {names}.'
@@ -225,8 +221,16 @@ class OptimizationInteraction(Interaction):
         if not callable(self.objective):
             error_msg = f'The objective of {self.label!r} must be a function of the array of candidates.'
             raise ValidationError(error_msg)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = [UpdateLaw(context, self._advance, phase=self.phase)]
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule of a step.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self._advance, phase=self.phase)]
 
     def _get_differential_evolution(self, spec: DifferentialEvolutionSpec, candidates: Array) -> Algorithm:
         """Return differential evolution from the candidates."""
@@ -403,7 +407,7 @@ class AnnealingInteraction(Interaction):
         self.temperature = temperature
         self.generations = generations
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the objective of every candidate, its energy over the temperature of the time.
 
         Args:
@@ -411,10 +415,9 @@ class AnnealingInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            state = getattr(self._get_member(context, 'target'), self.state)
-            cooled = SR(context.temperature) * COOLED ** (context.t / context.generations)
-            self.laws_: list[BaseLaw] = [ObjectiveLaw(SR(self.energy(context)) / cooled, state)]
+        state = getattr(self._get_member(context, 'target'), self.state)
+        cooled = SR(context.temperature) * COOLED ** (context.t / context.generations)
+        self.laws_: list[BaseLaw] = [ObjectiveLaw(SR(self.energy(context)) / cooled, state)]
 
 
 class RunningBestElement(Element):
@@ -496,7 +499,7 @@ class RunningBestInteraction(Interaction):
         self.target = target
         self.source = source
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the update of the lowest value.
 
         Args:
@@ -504,9 +507,8 @@ class RunningBestInteraction(Interaction):
                 The namespace of the target and of the observable.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            best, value = context.target.best, context.source.value
-            self.laws_ = [UpdateLaw(best, where(value < best, value, best))]
+        best, value = context.target.best, context.source.value
+        self.laws_ = [UpdateLaw(best, where(value < best, value, best))]
 
 
 def _rastrigin(x: Expression, y: Expression) -> Expression:

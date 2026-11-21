@@ -187,7 +187,7 @@ class FireInteraction(Interaction):
         empty = np.where(random < growth, 1.0, 0.0)
         return np.where(cover == BURNING, 0.0, np.where(cover == 1, tree, empty))
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rule of the covers of the target.
 
         Args:
@@ -195,8 +195,7 @@ class FireInteraction(Interaction):
                 The namespace of the target and the time `t`.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context.target.cover, self._burn, neighborhood=self.neighborhood)]
+        self.laws_ = [UpdateLaw(context.target.cover, self._burn, neighborhood=self.neighborhood)]
 
 
 class SandpileSystem(BaseSystem):

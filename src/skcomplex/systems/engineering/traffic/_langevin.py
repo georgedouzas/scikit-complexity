@@ -115,7 +115,7 @@ class TrafficMomentsInteraction(Interaction):
         self.rho_max = rho_max
         self.D1 = D1
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the closed moment equations of the density and the flow.
 
         Args:
@@ -123,19 +123,18 @@ class TrafficMomentsInteraction(Interaction):
                 The namespace of the road, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, t = context, context.t
-            rho, w = s.target.rho, s.target.w
-            speed = LangevinDrivingInteraction._get_target_speed(rho, s)
-            self.laws_: list[BaseComponent] = [
-                RateLaw(rho.diff(t), -divergence([w]) + laplacian(s.D1 * rho**2 / 2)),
-                RateLaw(
-                    w.diff(t),
-                    -divergence([2 * speed * w - rho * speed**2])
-                    - s.gamma * (w - rho * speed)
-                    + s.D1 * (laplacian(rho * w) + rho * laplacian(w) - w * laplacian(rho)) / 2,
-                ),
-            ]
+        s, t = context, context.t
+        rho, w = s.target.rho, s.target.w
+        speed = LangevinDrivingInteraction._get_target_speed(rho, s)
+        self.laws_: list[BaseComponent] = [
+            RateLaw(rho.diff(t), -divergence([w]) + laplacian(s.D1 * rho**2 / 2)),
+            RateLaw(
+                w.diff(t),
+                -divergence([2 * speed * w - rho * speed**2])
+                - s.gamma * (w - rho * speed)
+                + s.D1 * (laplacian(rho * w) + rho * laplacian(w) - w * laplacian(rho)) / 2,
+            ),
+        ]
 
 
 class LangevinDrivingInteraction(SpeedAdaptationInteraction):

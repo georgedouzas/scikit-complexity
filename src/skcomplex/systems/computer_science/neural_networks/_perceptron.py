@@ -22,7 +22,6 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -180,18 +179,14 @@ class SatisfiabilityInteraction(Interaction):
         self.solver = solver
         self.phase = phase
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _check_arguments(self) -> None:
         """Raise an error for a constraint not a spec, or a bad number revealed per step.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 A constraint is not a spec or the number revealed per step is not positive.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if self.reveal < 1:
             error_msg = f'The satisfiability {self.label!r} has reveal={self.reveal!r}. Reveal at least 1 per step.'
             raise ValidationError(error_msg)
@@ -200,8 +195,16 @@ class SatisfiabilityInteraction(Interaction):
                 error_msg = f'The constraint {constraint!r} of {self.label!r} is no ClauseSpec or CardinalitySpec.'
                 raise ValidationError(error_msg)
             constraint._check()
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = [UpdateLaw(context, self._decide, phase=self.phase)]
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the laws of a binding.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self._decide, phase=self.phase)]
 
     def _add(self, constraint: ClauseSpec | CardinalitySpec, solver: Solver, pool: IDPool) -> None:
         """Add one constraint to the solver.

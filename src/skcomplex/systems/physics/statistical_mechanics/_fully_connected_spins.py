@@ -113,7 +113,7 @@ class GlauberFlipInteraction(Interaction):
             return s.J * (mean(spin) - spin / count()) + s.h
         return s.J * total(spin, weights=np.asarray(self.couplings, dtype=float)) + s.h
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the flips of up spins and of down spins at the Glauber rate.
 
         Args:
@@ -121,10 +121,9 @@ class GlauberFlipInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            spin = context.target.spin
-            rate = 1 / (1 + exp(2 * spin * self._get_field(context) / context.temperature))
-            self.laws_ = [JumpLaw(where(spin > 0, rate, 0), {spin: -2}), JumpLaw(where(spin < 0, rate, 0), {spin: 2})]
+        spin = context.target.spin
+        rate = 1 / (1 + exp(2 * spin * self._get_field(context) / context.temperature))
+        self.laws_ = [JumpLaw(where(spin > 0, rate, 0), {spin: -2}), JumpLaw(where(spin < 0, rate, 0), {spin: 2})]
 
 
 def _get_magnetization() -> Observable:

@@ -9,7 +9,7 @@ from types import SimpleNamespace
 from ....core.components.base import BaseComponent
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
-from ....core.components.spaces import BaseNeighborhood, BaseSpace, RadiusNeighborhood
+from ....core.components.spaces import BaseNeighborhood, RadiusNeighborhood
 from ....core.types import Role
 from ._codes import life
 
@@ -59,10 +59,14 @@ class LifeRuleInteraction(Interaction):
         self.survive = survive
         self.neighborhood = neighborhood
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the local rule of the cells as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the local rule of the cells as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            rule = life(self.born, self.survive)
-            alive = context.target.alive
-            self.laws_: list[BaseComponent] = [UpdateLaw(alive, rule, neighborhood=self.neighborhood, label=self.label)]
+        rule = life(self.born, self.survive)
+        alive = context.target.alive
+        self.laws_: list[BaseComponent] = [UpdateLaw(alive, rule, neighborhood=self.neighborhood, label=self.label)]

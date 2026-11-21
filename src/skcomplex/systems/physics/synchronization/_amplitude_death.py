@@ -21,7 +21,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import count, total
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
@@ -75,7 +74,7 @@ class GlobalCouplingInteraction(Interaction):
         self.state = state
         self.K = K
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the pull of the state of every member towards the mean of the group.
 
         Args:
@@ -83,9 +82,8 @@ class GlobalCouplingInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, other = getattr(context.target, self.state), getattr(context.target.other, self.state)
-            self.laws_ = [RateLaw(x.diff(context.t), total(context.K * (other - x)) / count())]
+        x, other = getattr(context.target, self.state), getattr(context.target.other, self.state)
+        self.laws_ = [RateLaw(x.diff(context.t), total(context.K * (other - x)) / count())]
 
 
 def _get_amplitude(member: SimpleNamespace) -> Expression:

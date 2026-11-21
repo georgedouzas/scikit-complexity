@@ -112,17 +112,21 @@ class NagelSchreckenbergInteraction(Interaction):
             following = np.where(velocity == distance, velocity, following)
         return following
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the acceleration and the movement of the cars as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the acceleration and the movement of the cars as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            velocity = context.target.velocity
-            ahead = LatticeNeighborhood(tuple((distance,) for distance in range(self.vmax + 1)))
-            behind = LatticeNeighborhood(tuple((-distance,) for distance in range(self.vmax + 1)))
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(velocity, self._accelerate, neighborhood=ahead, label='acceleration'),
-                UpdateLaw(velocity, self._move, neighborhood=behind, label='movement'),
-            ]
+        velocity = context.target.velocity
+        ahead = LatticeNeighborhood(tuple((distance,) for distance in range(self.vmax + 1)))
+        behind = LatticeNeighborhood(tuple((-distance,) for distance in range(self.vmax + 1)))
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(velocity, self._accelerate, neighborhood=ahead, label='acceleration'),
+            UpdateLaw(velocity, self._move, neighborhood=behind, label='movement'),
+        ]
 
 
 class NagelSchreckenbergSystem(BaseSystem):

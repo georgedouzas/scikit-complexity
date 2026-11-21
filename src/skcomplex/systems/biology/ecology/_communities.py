@@ -13,7 +13,6 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import RateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -101,7 +100,7 @@ class CompetitionInteraction(Interaction):
         self.alpha12 = alpha12
         self.alpha21 = alpha21
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the logistic rates with the competitor in the crowding term.
 
         Args:
@@ -109,13 +108,12 @@ class CompetitionInteraction(Interaction):
                 The namespace of the bound elements, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            first, second = s.first.x, s.second.x
-            self.laws_ = [
-                RateLaw(first, s.r1 * first * (1 - (first + s.alpha12 * second) / s.K1)),
-                RateLaw(second, s.r2 * second * (1 - (second + s.alpha21 * first) / s.K2)),
-            ]
+        s = context
+        first, second = s.first.x, s.second.x
+        self.laws_ = [
+            RateLaw(first, s.r1 * first * (1 - (first + s.alpha12 * second) / s.K1)),
+            RateLaw(second, s.r2 * second * (1 - (second + s.alpha21 * first) / s.K2)),
+        ]
 
 
 class MutualismInteraction(Interaction):
@@ -170,7 +168,7 @@ class MutualismInteraction(Interaction):
         self.b = b
         self.handling = handling
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the saturating benefits of both species.
 
         They are `a b n1 n2 / (1 + a T n2)` and `a b n1 n2 / (1 + a T n1)`.
@@ -180,14 +178,13 @@ class MutualismInteraction(Interaction):
                 The namespace of the bound elements, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            first, second = s.first.x, s.second.x
-            encounters = s.a * s.b * first * second
-            self.laws_ = [
-                RateLaw(first, encounters / (1 + s.a * s.handling * second)),
-                RateLaw(second, encounters / (1 + s.a * s.handling * first)),
-            ]
+        s = context
+        first, second = s.first.x, s.second.x
+        encounters = s.a * s.b * first * second
+        self.laws_ = [
+            RateLaw(first, encounters / (1 + s.a * s.handling * second)),
+            RateLaw(second, encounters / (1 + s.a * s.handling * first)),
+        ]
 
 
 class CompetitionSystem(BaseSystem):

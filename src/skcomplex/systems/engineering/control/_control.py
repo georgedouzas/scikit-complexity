@@ -16,7 +16,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, ConstraintLaw, EventLaw
 from ....core.components.laws.utils import clip, sign, step, where
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver
 from ....core.systems import BaseSystem, System
@@ -60,12 +59,16 @@ class HeatCapacityInteraction(Interaction):
         self.node = node
         self.C = C
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the heat the capacity stores as a term of the balance of the node."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the heat the capacity stores as a term of the balance of the node.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            T = context.node.T
-            self.laws_: list[BaseComponent] = [ConstraintLaw(-context.C * T.diff(context.t), 0, target=T)]
+        T = context.node.T
+        self.laws_: list[BaseComponent] = [ConstraintLaw(-context.C * T.diff(context.t), 0, target=T)]
 
 
 class ThermalConductorInteraction(Interaction):
@@ -98,13 +101,17 @@ class ThermalConductorInteraction(Interaction):
         self.b = b
         self.G = G
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the heat flow as a term of the balances of both nodes."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the heat flow as a term of the balances of both nodes.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            a, b = context.a.T, context.b.T
-            flow = context.G * (a - b)
-            self.laws_: list[BaseComponent] = [ConstraintLaw(-flow, 0, target=a), ConstraintLaw(flow, 0, target=b)]
+        a, b = context.a.T, context.b.T
+        flow = context.G * (a - b)
+        self.laws_: list[BaseComponent] = [ConstraintLaw(-flow, 0, target=a), ConstraintLaw(flow, 0, target=b)]
 
 
 class ConvectionInteraction(Interaction):
@@ -144,12 +151,16 @@ class ConvectionInteraction(Interaction):
         self.h = h
         self.fluid = fluid
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the heat lost to the fluid as a term of the balance of the node."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the heat lost to the fluid as a term of the balance of the node.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            T = context.node.T
-            self.laws_: list[BaseComponent] = [ConstraintLaw(-context.h * (T - context.fluid), 0, target=T)]
+        T = context.node.T
+        self.laws_: list[BaseComponent] = [ConstraintLaw(-context.h * (T - context.fluid), 0, target=T)]
 
 
 class HeatingResistorInteraction(BranchInteraction):
@@ -259,14 +270,18 @@ class SwitchInteraction(Interaction):
         self.value = value
         self.direction = direction
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the crossing of the threshold and the value of the switch it sets."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the crossing of the threshold and the value of the switch it sets.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            guard = context.sensor.T - context.threshold
-            self.laws_: list[BaseComponent] = [
-                EventLaw(guard, {context.switch.closed: context.value}, direction=self.direction),
-            ]
+        guard = context.sensor.T - context.threshold
+        self.laws_: list[BaseComponent] = [
+            EventLaw(guard, {context.switch.closed: context.value}, direction=self.direction),
+        ]
 
 
 class ThermostatSystem(DynamicalSystem):

@@ -18,7 +18,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import JumpLaw
 from ....core.components.laws.utils import where
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -133,7 +132,7 @@ class LogicalRegulationInteraction(Interaction):
         self.thresholds = thresholds
         self.parameters = parameters
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the steps of the target up and down towards its focal level.
 
         Args:
@@ -141,14 +140,13 @@ class LogicalRegulationInteraction(Interaction):
                 The namespace of the bound elements, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            level = s.target.level
-            focal = self._get_focal(s.regulators)
-            self.laws_ = [
-                JumpLaw(where(focal > level, 1, 0), {level: 1}),
-                JumpLaw(where(focal < level, 1, 0), {level: -1}),
-            ]
+        s = context
+        level = s.target.level
+        focal = self._get_focal(s.regulators)
+        self.laws_ = [
+            JumpLaw(where(focal > level, 1, 0), {level: 1}),
+            JumpLaw(where(focal < level, 1, 0), {level: -1}),
+        ]
 
     def _get_focal(self, regulators: Sequence[SimpleNamespace]) -> Expression:
         """Return the focal level of the target.

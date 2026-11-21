@@ -100,17 +100,21 @@ class InterdependenceInteraction(Interaction):
         self.target = target
         self.layer = layer
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the activity that survives the giant component of the network of the step as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the activity that survives the giant component of the network of the step as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            node = context.target
-            both = node.active * node.other.active
-            first = components(both, reduce='giant')
-            second = components(both, over=AdjacencyNeighborhood(layer=self.layer), reduce='giant')
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(node.active, node.active * where(mod(context.t, 2) < 1, first, second)),
-            ]
+        node = context.target
+        both = node.active * node.other.active
+        first = components(both, reduce='giant')
+        second = components(both, over=AdjacencyNeighborhood(layer=self.layer), reduce='giant')
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(node.active, node.active * where(mod(context.t, 2) < 1, first, second)),
+        ]
 
 
 class EnsembleNodeElement(Element):
@@ -219,16 +223,20 @@ class AttackInteraction(Interaction):
         self.rate = rate
         self.targeted = targeted
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the degrees and the removals as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the degrees and the removals as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            degree = neighbors(1)
-            removal = where(degree - maximum(degree) >= 0, 1, 0) if self.targeted else context.rate
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(context.target.degree, degree),
-                UpdateLaw(TopologyRequestSpec('remove-node'), removal),
-            ]
+        degree = neighbors(1)
+        removal = where(degree - maximum(degree) >= 0, 1, 0) if self.targeted else context.rate
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(context.target.degree, degree),
+            UpdateLaw(TopologyRequestSpec('remove-node'), removal),
+        ]
 
 
 class NetworkAttackSystem(BaseSystem):

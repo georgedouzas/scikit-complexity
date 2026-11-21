@@ -134,11 +134,15 @@ class SafeDistanceInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the speed rule of every car."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the speed rule of every car.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.adjust)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.adjust)]
 
     def adjust(self, agent: MotoristView, system: SystemView) -> None:
         """Brake when the car ahead is too close and accelerate otherwise.
@@ -277,11 +281,15 @@ class RingRoadDrivingInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the driving rule of every driver."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the driving rule of every driver.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.drive)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.drive)]
 
     def drive(self, agent: DriverView, system: SystemView) -> None:
         """Choose the speed from the distance to the car ahead and move along the ring.
@@ -369,11 +377,15 @@ class CarelessBrakingInteraction(Interaction):
         self.probability = probability
         self.gap = gap
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rule of random braking and motion of the whole road."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule of random braking and motion of the whole road.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self.drive)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context, self.drive)]
 
     def drive(self, system: SystemView) -> None:
         """Make a random driver brake, then move every car.

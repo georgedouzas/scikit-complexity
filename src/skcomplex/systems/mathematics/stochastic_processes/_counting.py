@@ -15,7 +15,6 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import JumpLaw, UpdateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, SystemView
@@ -73,11 +72,15 @@ class PoissonEventsInteraction(Interaction):
         self.target = target
         self.rate = rate
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the event that adds one to the count as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the event that adds one to the count as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [JumpLaw(context.rate, {context.target.count: 1})]
+        self.laws_: list[BaseComponent] = [JumpLaw(context.rate, {context.target.count: 1})]
 
 
 class BernoulliTrialView(AgentViewProtocol, Protocol):
@@ -153,11 +156,15 @@ class BernoulliTrialInteraction(Interaction):
         self.target = target
         self.p = p
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the trial of every sequence as the rule."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the trial of every sequence as the rule.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self._run_trial)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self._run_trial)]
 
     def _run_trial(self, agent: BernoulliTrialView, system: SystemView) -> None:
         """Run one trial of a sequence and count its success."""

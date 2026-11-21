@@ -268,11 +268,15 @@ class PlaceVisitsInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rule that counts the visits of every resident."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule that counts the visits of every resident.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context.target, self._count)]
+        self.laws_ = [UpdateLaw(context.target, self._count)]
 
     @staticmethod
     def _count(agent: AgentViewProtocol, system: SystemViewProtocol) -> None:
@@ -324,11 +328,15 @@ class SentimentInteraction(Interaction):
         self.target = target
         self.events = events
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rule that moves the sentiment of every resident."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule that moves the sentiment of every resident.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context.target, self._set_sentiment)]
+        self.laws_ = [UpdateLaw(context.target, self._set_sentiment)]
 
     def _respond_to_events(self, resident: ResidentView, time: int) -> float:
         """Return the sentiment of a resident after the events of a step, by Eq.

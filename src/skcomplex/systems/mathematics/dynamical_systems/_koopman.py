@@ -14,7 +14,6 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -58,16 +57,20 @@ class KoopmanSlowManifoldInteraction(Interaction):
         self.mu = mu
         self.lam = lam
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rate of every state as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate of every state as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x1, x2 = context.target.x1, context.target.x2
-            mu, lam = context.mu, context.lam
-            self.laws_: list[BaseComponent] = [
-                RateLaw(x1, mu * x1),
-                RateLaw(x2, lam * (x2 - x1**2)),
-            ]
+        x1, x2 = context.target.x1, context.target.x2
+        mu, lam = context.mu, context.lam
+        self.laws_: list[BaseComponent] = [
+            RateLaw(x1, mu * x1),
+            RateLaw(x2, lam * (x2 - x1**2)),
+        ]
 
 
 class KoopmanSlowManifoldSystem(BaseSystem):

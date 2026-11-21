@@ -15,7 +15,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import categorical, where
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -132,17 +131,21 @@ class MarkovChainInteraction(Interaction):
         ]
         return categorical(name, weights)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the draw of the next value and, with an emission matrix, of the symbol as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the draw of the next value and, with an emission matrix, of the symbol as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            state = getattr(context.target, self.state)
-            following = self._draw_row(f'{self.label}_{self.state}', self.transition, state)
-            self.laws_: list[BaseComponent] = [UpdateLaw(state, following)]
-            if self.emission is not None:
-                observed = getattr(context.target, self.observed)
-                emitted = self._draw_row(f'{self.label}_{self.observed}', self.emission, following)
-                self.laws_.append(UpdateLaw(observed, emitted))
+        state = getattr(context.target, self.state)
+        following = self._draw_row(f'{self.label}_{self.state}', self.transition, state)
+        self.laws_: list[BaseComponent] = [UpdateLaw(state, following)]
+        if self.emission is not None:
+            observed = getattr(context.target, self.observed)
+            emitted = self._draw_row(f'{self.label}_{self.observed}', self.emission, following)
+            self.laws_.append(UpdateLaw(observed, emitted))
 
 
 class MarkovSourceSystem(BaseSystem):

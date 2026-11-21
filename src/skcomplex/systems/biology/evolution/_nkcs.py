@@ -16,7 +16,6 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, SystemView
@@ -142,7 +141,7 @@ class CoevolutionaryClimbingInteraction(Interaction):
         self.s = s
         self.seed = seed
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the climbing rule.
 
         Args:
@@ -150,8 +149,6 @@ class CoevolutionaryClimbingInteraction(Interaction):
                 The namespace of the symbols the laws can use.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         self.laws_: list[BaseLaw] = [UpdateLaw(context, self.climb)]
 
     def climb(self, system: SystemView) -> None:

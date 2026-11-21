@@ -133,7 +133,7 @@ class DepotPumpingInteraction(Interaction):
         self.d = d
         self.D = D
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the motion, the pumped friction and the noise of the velocity, and the depot balance of the target.
 
         Args:
@@ -141,15 +141,14 @@ class DepotPumpingInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            x, v, e = s.target.x, s.target.v, s.target.e
-            self.laws_ = [
-                RateLaw(x, v),
-                RateLaw(v, (-s.gamma + s.d * e) * v),
-                NoiseLaw(v, sqrt(2 * s.D)),
-                RateLaw(e.diff(s.t), s.q - s.c * e - s.d * e * v.dot_product(v)),
-            ]
+        s = context
+        x, v, e = s.target.x, s.target.v, s.target.e
+        self.laws_ = [
+            RateLaw(x, v),
+            RateLaw(v, (-s.gamma + s.d * e) * v),
+            NoiseLaw(v, sqrt(2 * s.D)),
+            RateLaw(e.diff(s.t), s.q - s.c * e - s.d * e * v.dot_product(v)),
+        ]
 
 
 class InertialActiveParticleElement(Element):
@@ -256,7 +255,7 @@ class InertialPropulsionInteraction(Interaction):
         self.D_t = D_t
         self.D_r = D_r
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the accelerations of the position and the orientation of the target, and their noises.
 
         Args:
@@ -264,16 +263,15 @@ class InertialPropulsionInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, t = context, context.t
-            x, theta = s.target.x, s.target.theta
-            heading = vector(SR, [cos(theta), sin(theta)])
-            self.laws_ = [
-                RateLaw(x.diff(t, 2), (s.speed * heading - x.diff(t)) / s.mass),
-                NoiseLaw(x.diff(t, 2), sqrt(2 * s.D_t) / s.mass),
-                RateLaw(theta.diff(t, 2), -theta.diff(t) / s.moment),
-                NoiseLaw(theta.diff(t, 2), sqrt(2 * s.D_r) / s.moment),
-            ]
+        s, t = context, context.t
+        x, theta = s.target.x, s.target.theta
+        heading = vector(SR, [cos(theta), sin(theta)])
+        self.laws_ = [
+            RateLaw(x.diff(t, 2), (s.speed * heading - x.diff(t)) / s.mass),
+            NoiseLaw(x.diff(t, 2), sqrt(2 * s.D_t) / s.mass),
+            RateLaw(theta.diff(t, 2), -theta.diff(t) / s.moment),
+            NoiseLaw(theta.diff(t, 2), sqrt(2 * s.D_r) / s.moment),
+        ]
 
 
 class OrnsteinUhlenbeckParticleElement(Element):
@@ -363,7 +361,7 @@ class OrnsteinUhlenbeckPropulsionInteraction(Interaction):
         self.D = D
         self.D_t = D_t
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the propulsion of the position, the relaxation and noise of the propulsion, and the position noise.
 
         Args:
@@ -371,15 +369,14 @@ class OrnsteinUhlenbeckPropulsionInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            x, u = s.target.x, s.target.u
-            self.laws_ = [
-                RateLaw(x, u),
-                NoiseLaw(x, sqrt(2 * s.D_t)),
-                RateLaw(u, -u / s.tau),
-                NoiseLaw(u, sqrt(2 * s.D) / s.tau),
-            ]
+        s = context
+        x, u = s.target.x, s.target.u
+        self.laws_ = [
+            RateLaw(x, u),
+            NoiseLaw(x, sqrt(2 * s.D_t)),
+            RateLaw(u, -u / s.tau),
+            NoiseLaw(u, sqrt(2 * s.D) / s.tau),
+        ]
 
 
 class TumblerView(AgentViewProtocol, Protocol):
@@ -493,7 +490,7 @@ class RunAndTumbleInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the run and tumble of every agent as the rule.
 
         Args:
@@ -501,8 +498,7 @@ class RunAndTumbleInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context.target, self._run_and_tumble)]
+        self.laws_ = [UpdateLaw(context.target, self._run_and_tumble)]
 
     def _run_and_tumble(self, agent: TumblerView, system: SystemView) -> None:
         """Run one step along the direction, then tumble at random.

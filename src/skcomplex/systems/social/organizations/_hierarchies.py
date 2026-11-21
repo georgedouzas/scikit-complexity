@@ -127,11 +127,15 @@ class WanderInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the wander and fight of every contender as the rule."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the wander and fight of every contender as the rule.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.wander)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.wander)]
 
     def _fight(self, agent: ContenderView, occupant: ContenderView, system: SystemView) -> None:
         """Fight the occupant of a cell and take its place on a win."""

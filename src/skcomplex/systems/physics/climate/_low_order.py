@@ -14,7 +14,7 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
-from ....core.components.spaces import BaseSpace, ContinuousSpace
+from ....core.components.spaces import ContinuousSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -103,7 +103,7 @@ class Lorenz84Interaction(Interaction):
         self.F = F
         self.G = G
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rates of the jet and of both phases of the eddies.
 
         Args:
@@ -111,14 +111,13 @@ class Lorenz84Interaction(Interaction):
                 The namespace of the atmosphere, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, y, z, t = context.target.x, context.target.y, context.target.z, context.t
-            a, b = context.a, context.b
-            self.laws_ = [
-                RateLaw(x.diff(t), -(y**2) - z**2 - a * x + a * context.F),
-                RateLaw(y.diff(t), x * y - b * x * z - y + context.G),
-                RateLaw(z.diff(t), b * x * y + x * z - z),
-            ]
+        x, y, z, t = context.target.x, context.target.y, context.target.z, context.t
+        a, b = context.a, context.b
+        self.laws_ = [
+            RateLaw(x.diff(t), -(y**2) - z**2 - a * x + a * context.F),
+            RateLaw(y.diff(t), x * y - b * x * z - y + context.G),
+            RateLaw(z.diff(t), b * x * y + x * z - z),
+        ]
 
 
 class Lorenz96Element(Element):
@@ -170,7 +169,7 @@ class Lorenz96Interaction(Interaction):
         self.target = target
         self.F = F
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate of the values of all sites.
 
         Args:
@@ -178,11 +177,10 @@ class Lorenz96Interaction(Interaction):
                 The namespace of the ring, the time `t`, and the forcing.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x = context.target.x
-            n_sites = len(x)
-            rates = [(x[(i + 1) % n_sites] - x[i - 2]) * x[i - 1] - x[i] + context.F for i in range(n_sites)]
-            self.laws_ = [RateLaw(x, vector(SR, rates))]
+        x = context.target.x
+        n_sites = len(x)
+        rates = [(x[(i + 1) % n_sites] - x[i - 2]) * x[i - 1] - x[i] + context.F for i in range(n_sites)]
+        self.laws_ = [RateLaw(x, vector(SR, rates))]
 
 
 class Lorenz84System(BaseSystem):
@@ -394,7 +392,7 @@ class GeodynamoInteraction(Interaction):
         self.nu = nu
         self.Gamma = Gamma
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rates of both fields and of the velocity.
 
         Args:
@@ -402,13 +400,12 @@ class GeodynamoInteraction(Interaction):
                 The namespace of the dynamo, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            Q, D, V, t = context.target.Q, context.target.D, context.target.V, context.t
-            self.laws_ = [
-                RateLaw(Q.diff(t), context.mu * Q - V * D),
-                RateLaw(D.diff(t), -context.nu * D + V * Q),
-                RateLaw(V.diff(t), context.Gamma - V + Q * D),
-            ]
+        Q, D, V, t = context.target.Q, context.target.D, context.target.V, context.t
+        self.laws_ = [
+            RateLaw(Q.diff(t), context.mu * Q - V * D),
+            RateLaw(D.diff(t), -context.nu * D + V * Q),
+            RateLaw(V.diff(t), context.Gamma - V + Q * D),
+        ]
 
 
 class GeodynamoSystem(BaseSystem):

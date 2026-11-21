@@ -21,7 +21,6 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, SystemView
@@ -207,11 +206,15 @@ class KineticCrowdInteraction(Interaction):
         self.panic_stress = panic_stress
         self.band_width = band_width
 
-    def _prepare(self, s: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rule of the decisions and the motion of the walkers."""
+    def _prepare(self, s: SimpleNamespace) -> None:
+        """Set the rule of the decisions and the motion of the walkers.
+
+        Args:
+            s:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(s)
-        if isinstance(s, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(s, self.walk)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(s, self.walk)]
 
     def _get_cells(self, x: Array, y: Array) -> tuple[IntArray, IntArray, tuple[int, int]]:
         """Return the cell indices of positions along and across the street.

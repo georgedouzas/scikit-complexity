@@ -17,7 +17,6 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -84,7 +83,7 @@ class NewtonCoolingInteraction(Interaction):
         self.room = room
         self.k = k
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate of the temperature of the target.
 
         Args:
@@ -92,9 +91,8 @@ class NewtonCoolingInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            T = context.target.T
-            self.laws_ = [RateLaw(T.diff(context.t), -context.k * (T - context.room))]
+        T = context.target.T
+        self.laws_ = [RateLaw(T.diff(context.t), -context.k * (T - context.room))]
 
 
 class CoolingCoffeeSystem(BaseSystem):

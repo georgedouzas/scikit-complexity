@@ -129,7 +129,7 @@ class AutocatalyticGrowthInteraction(Interaction):
         """Return the weight of a candidate catalysed species, 1 for the new species and 0 otherwise."""
         return node.fresh
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the catalytic growth and the replacement of the least populated species at every graph update.
 
         Args:
@@ -137,8 +137,6 @@ class AutocatalyticGrowthInteraction(Interaction):
                 The namespace of the group of species.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         s = context.target
         grown = s.x + s.h * neighbors(s.other.x) + 1e-6
         key = s.x + 1e-9 * s.tie
@@ -311,7 +309,7 @@ class CompetitiveSelectionInteraction(Interaction):
         self.duration = duration
         self.step = step
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the selection, a rule of the whole system.
 
         Args:
@@ -319,8 +317,7 @@ class CompetitiveSelectionInteraction(Interaction):
                 The namespace of the system.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = [UpdateLaw(context, self.select)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self.select)]
 
     def select(self, system: SystemView) -> None:
         """Run the population dynamics, then replace the least populated species.
@@ -394,7 +391,7 @@ class DependencyFieldInteraction(Interaction):
         self.species = species
         self.couplings = couplings
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the field of every species.
 
         Args:
@@ -402,8 +399,7 @@ class DependencyFieldInteraction(Interaction):
                 The namespace with `context.species` and `context.couplings`.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = [UpdateLaw(context.species.h, neighbors(1, weight=context.couplings.w))]
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.species.h, neighbors(1, weight=context.couplings.w))]
 
 
 class SoleManrubiaSystem(BaseSystem):

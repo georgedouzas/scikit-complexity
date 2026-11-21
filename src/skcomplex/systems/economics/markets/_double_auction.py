@@ -19,7 +19,6 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
@@ -239,11 +238,15 @@ class QuotingInteraction(Interaction):
         self.sellers = sellers
         self.phase = phase
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the quotes of every round as the rule of the system."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the quotes of every round as the rule of the system.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self.quote, phase=self.phase)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context, self.quote, phase=self.phase)]
 
     def quote(self, system: SystemView) -> None:
         """Draw the bid of every buyer and then the ask of every seller.

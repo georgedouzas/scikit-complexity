@@ -152,7 +152,7 @@ class CohesiveAlignmentInteraction(Interaction):
         self.r_e = r_e
         self.r_a = r_a
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the update of the heading of the target by alignment, cohesion, and vectorial noise.
 
         Args:
@@ -160,25 +160,24 @@ class CohesiveAlignmentInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, member = context, context.target
-            near, others = RadiusNeighborhood(1.0, center=True), RadiusNeighborhood(1.0)
-            dx, dy = member.other.x[0] - member.x[0], member.other.x[1] - member.x[1]
-            distance = sqrt(dx**2 + dy**2)
-            force = where(distance < s.r_c, -REPULSION, (distance - s.r_e) / (4 * (s.r_a - s.r_e)))
-            count = neighbors(1, over=near)
-            angle = uniform('noise', -math.pi, math.pi)
-            along_x = (
-                s.alpha * neighbors(cos(member.other.theta), over=near)
-                + s.beta * neighbors(force * dx / distance, over=others)
-                + s.eta * count * cos(angle)
-            )
-            along_y = (
-                s.alpha * neighbors(sin(member.other.theta), over=near)
-                + s.beta * neighbors(force * dy / distance, over=others)
-                + s.eta * count * sin(angle)
-            )
-            self.laws_ = [UpdateLaw(member.theta, atan2(along_y, along_x))]
+        s, member = context, context.target
+        near, others = RadiusNeighborhood(1.0, center=True), RadiusNeighborhood(1.0)
+        dx, dy = member.other.x[0] - member.x[0], member.other.x[1] - member.x[1]
+        distance = sqrt(dx**2 + dy**2)
+        force = where(distance < s.r_c, -REPULSION, (distance - s.r_e) / (4 * (s.r_a - s.r_e)))
+        count = neighbors(1, over=near)
+        angle = uniform('noise', -math.pi, math.pi)
+        along_x = (
+            s.alpha * neighbors(cos(member.other.theta), over=near)
+            + s.beta * neighbors(force * dx / distance, over=others)
+            + s.eta * count * cos(angle)
+        )
+        along_y = (
+            s.alpha * neighbors(sin(member.other.theta), over=near)
+            + s.beta * neighbors(force * dy / distance, over=others)
+            + s.eta * count * sin(angle)
+        )
+        self.laws_ = [UpdateLaw(member.theta, atan2(along_y, along_x))]
 
 
 class NematicParticleElement(Element):
@@ -359,7 +358,7 @@ class HeadingAlignmentInteraction(Interaction):
         slope = sum((time - mean_time) * (value - mean_heading) for time, value in zip(times, unwrapped, strict=True))
         return mean_heading + slope / spread * (-self.latency - mean_time)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the heading of every particle to the mean heading of its neighbours plus noise.
 
         Args:
@@ -367,14 +366,13 @@ class HeadingAlignmentInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            member, other = context.target, context.target.other
-            over = RadiusNeighborhood(1.0, center=True) if self.neighborhood is None else self.neighborhood
-            side = where(cos(other.theta - member.theta) >= 0, 1, -1) if self.nematic else None
-            heading = self._get_heading(other.theta, context.t)
-            mean = neighbors(heading, over=over, reduce='circular-mean', weight=side)
-            noise = uniform('noise', -member.eta * math.pi, member.eta * math.pi)
-            self.laws_ = [UpdateLaw(member.theta, mean + noise)]
+        member, other = context.target, context.target.other
+        over = RadiusNeighborhood(1.0, center=True) if self.neighborhood is None else self.neighborhood
+        side = where(cos(other.theta - member.theta) >= 0, 1, -1) if self.nematic else None
+        heading = self._get_heading(other.theta, context.t)
+        mean = neighbors(heading, over=over, reduce='circular-mean', weight=side)
+        noise = uniform('noise', -member.eta * math.pi, member.eta * math.pi)
+        self.laws_ = [UpdateLaw(member.theta, mean + noise)]
 
 
 def _get_orders(group: str) -> list[Observable]:

@@ -7,7 +7,6 @@ from types import SimpleNamespace
 
 from .....core.components.interactions import Interaction
 from .....core.components.laws import RateLaw
-from .....core.components.spaces import BaseSpace
 from .....core.types import Role
 
 
@@ -40,7 +39,7 @@ class PhaseRotationInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate of the phase of the target.
 
         Args:
@@ -48,6 +47,5 @@ class PhaseRotationInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            oscillator = context.target
-            self.laws_ = [RateLaw(oscillator.theta.diff(context.t), oscillator.omega)]
+        oscillator = context.target
+        self.laws_ = [RateLaw(oscillator.theta.diff(context.t), oscillator.omega)]

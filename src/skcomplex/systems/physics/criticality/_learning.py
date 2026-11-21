@@ -21,7 +21,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import total, uniform, where
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -107,7 +106,7 @@ class SKReinforcementInteraction(Interaction):
         self.target = target
         self.couplings = couplings
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the reinforcement of the incentive and the softmax draw of the action.
 
         Args:
@@ -115,14 +114,13 @@ class SKReinforcementInteraction(Interaction):
                 The namespace of the agents and the time `t`.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context.target
-            reward = total(s.sigma, weights=self.couplings)
-            up = 1 / (1 + exp(-2 * s.Q / s.temperature))
-            self.laws_ = [
-                UpdateLaw(s.Q, (1 - s.alpha) * s.Q + s.alpha * reward),
-                UpdateLaw(s.sigma, where(uniform('u') < up, 1, -1)),
-            ]
+        s = context.target
+        reward = total(s.sigma, weights=self.couplings)
+        up = 1 / (1 + exp(-2 * s.Q / s.temperature))
+        self.laws_ = [
+            UpdateLaw(s.Q, (1 - s.alpha) * s.Q + s.alpha * reward),
+            UpdateLaw(s.sigma, where(uniform('u') < up, 1, -1)),
+        ]
 
 
 class SKGameSystem(BaseSystem):

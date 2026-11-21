@@ -16,7 +16,6 @@ from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
 from .....core.components.laws import PartnerSpec, UpdateLaw
 from .....core.components.laws.utils import pairs
-from .....core.components.spaces import BaseSpace
 from .....core.components.types import AgentViewProtocol, SystemViewProtocol
 from .....core.types import Role
 from ._exchange import trade_goods
@@ -86,14 +85,18 @@ class ExchangeInteraction(Interaction):
         self.quantity = quantity
         self.phase = phase
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the barter of every pair of traders and then the report of the trades as rules of the system."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the barter of every pair of traders and then the report of the trades as rules of the system.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(context, self.trade, phase=self.phase),
-                UpdateLaw(context, self.report_trades, phase=self.phase),
-            ]
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(context, self.trade, phase=self.phase),
+            UpdateLaw(context, self.report_trades, phase=self.phase),
+        ]
 
     def trade(self, system: SystemViewProtocol) -> None:
         """Pair the traders and let every pair barter, in random order.

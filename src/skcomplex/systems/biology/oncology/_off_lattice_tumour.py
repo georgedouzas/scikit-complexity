@@ -168,11 +168,14 @@ class TumourGrowthInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rule that every cell runs."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule that every cell runs.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self._act)]
 
     def _act(self, agent: AgentViewProtocol, system: SystemViewProtocol) -> None:

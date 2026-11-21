@@ -17,7 +17,6 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -59,7 +58,7 @@ class ExponentialWellInteraction(Interaction):
         self.target = target
         self.k = k
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the acceleration of the particle, the force `-dU/dx` over its mass.
 
         Args:
@@ -67,10 +66,9 @@ class ExponentialWellInteraction(Interaction):
                 The namespace of the particle, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x = context.target.x
-            force = -context.k * (2 * x - x**2) * exp(-x)
-            self.laws_ = [RateLaw(x.diff(context.t, 2), force / context.target.m)]
+        x = context.target.x
+        force = -context.k * (2 * x - x**2) * exp(-x)
+        self.laws_ = [RateLaw(x.diff(context.t, 2), force / context.target.m)]
 
 
 class ParticleInAWellSystem(BaseSystem):

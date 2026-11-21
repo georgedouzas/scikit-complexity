@@ -196,11 +196,15 @@ class VariantVotingInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the opinion of the agents, one after the other in a new random order, as the rule of the system."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the opinion of the agents, one after the other in a new random order, as the rule of the system.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self._update)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context, self._update)]
 
     def _update(self, system: SystemView) -> None:
         """Set the opinion of the agents one after the other in a new random order."""
@@ -258,11 +262,15 @@ class VoterImitationInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the opinion of the agents, one after the other in a new random order, as the rule of the system."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the opinion of the agents, one after the other in a new random order, as the rule of the system.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self._update)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context, self._update)]
 
     def _update(self, system: SystemView) -> None:
         """Set the opinion of the agents one after the other in a new random order."""
@@ -314,13 +322,17 @@ class MajorityRuleInteraction(Interaction):
         """
         return total >= MAJORITY
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the majority rule of the opinions as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the majority rule of the opinions as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            opinion = context.target.opinion
-            rule = TotalisticSpec(self._is_majority)
-            self.laws_: list[BaseComponent] = [UpdateLaw(opinion, rule, neighborhood=MOORE, label=self.label)]
+        opinion = context.target.opinion
+        rule = TotalisticSpec(self._is_majority)
+        self.laws_: list[BaseComponent] = [UpdateLaw(opinion, rule, neighborhood=MOORE, label=self.label)]
 
 
 class MajorityRuleSystem(BaseSystem):

@@ -193,12 +193,16 @@ class SeparationInteraction(Interaction):
         self.keep = keep
         self.opinion = opinion
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the request to rewire an edge, with the probability of its acting end, as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the request to rewire an edge, with the probability of its acting end, as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            request = TopologyRequestSpec('rewire', toward=self._get_weight, keep=self.keep)
-            self.laws_: list[BaseComponent] = [UpdateLaw(request, self._get_chance(context))]
+        request = TopologyRequestSpec('rewire', toward=self._get_weight, keep=self.keep)
+        self.laws_: list[BaseComponent] = [UpdateLaw(request, self._get_chance(context))]
 
     def _get_weight(self, node: SimpleNamespace) -> object:
         """Return the weight of a candidate node as a new end.

@@ -20,7 +20,6 @@ from ....core.components.elements import Element, Quantity
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import distributed_delay, maximum, minimum, step
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -339,15 +338,19 @@ class EchelonInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the shipping of the backlog and the decay of the expectation as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the shipping of the backlog and the decay of the expectation as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            echelon = context.target
-            self.laws_: list[BaseComponent] = [
-                RateLaw(echelon.backlog, -EchelonElement._get_shipments(echelon)),
-                RateLaw(echelon.expected, -echelon.theta * echelon.expected),
-            ]
+        echelon = context.target
+        self.laws_: list[BaseComponent] = [
+            RateLaw(echelon.backlog, -EchelonElement._get_shipments(echelon)),
+            RateLaw(echelon.expected, -echelon.theta * echelon.expected),
+        ]
 
 
 class BreweryInteraction(Interaction):
@@ -378,19 +381,23 @@ class BreweryInteraction(Interaction):
         super().__init__(label)
         self.factory = factory
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the starts and the completions of the brews as the flows."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the starts and the completions of the brews as the flows.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            factory = context.factory
-            self.laws_: list[BaseComponent] = [
-                RateLaw({factory.in_transit: +1}, BreweryInteraction._get_orders(factory), label='starts'),
-                RateLaw(
-                    {factory.in_transit: -1, factory.inventory: +1},
-                    BreweryInteraction._get_completions(factory),
-                    label='completions',
-                ),
-            ]
+        factory = context.factory
+        self.laws_: list[BaseComponent] = [
+            RateLaw({factory.in_transit: +1}, BreweryInteraction._get_orders(factory), label='starts'),
+            RateLaw(
+                {factory.in_transit: -1, factory.inventory: +1},
+                BreweryInteraction._get_completions(factory),
+                label='completions',
+            ),
+        ]
 
     @staticmethod
     def _get_orders(echelon: SimpleNamespace) -> Expression:
@@ -438,14 +445,18 @@ class RetailDemandInteraction(Interaction):
         super().__init__(label)
         self.retailer = retailer
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the sales out of the inventory of the retailer as the flow."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the sales out of the inventory of the retailer as the flow.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            retailer = context.retailer
-            self.laws_: list[BaseComponent] = [
-                RateLaw({retailer.inventory: -1}, EchelonElement._get_shipments(retailer), label='sales'),
-            ]
+        retailer = context.retailer
+        self.laws_: list[BaseComponent] = [
+            RateLaw({retailer.inventory: -1}, EchelonElement._get_shipments(retailer), label='sales'),
+        ]
 
 
 class SupplyLinkInteraction(Interaction):
@@ -482,23 +493,27 @@ class SupplyLinkInteraction(Interaction):
         self.downstream = downstream
         self.upstream = upstream
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the shipments and their arrivals as the flows."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the shipments and their arrivals as the flows.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            upstream, downstream = context.upstream, context.downstream
-            self.laws_: list[BaseComponent] = [
-                RateLaw(
-                    {upstream.inventory: -1, downstream.in_transit: +1},
-                    EchelonElement._get_shipments(upstream),
-                    label='shipments',
-                ),
-                RateLaw(
-                    {downstream.in_transit: -1, downstream.inventory: +1},
-                    SupplyLinkInteraction._get_arrivals(upstream, downstream),
-                    label='arrivals',
-                ),
-            ]
+        upstream, downstream = context.upstream, context.downstream
+        self.laws_: list[BaseComponent] = [
+            RateLaw(
+                {upstream.inventory: -1, downstream.in_transit: +1},
+                EchelonElement._get_shipments(upstream),
+                label='shipments',
+            ),
+            RateLaw(
+                {downstream.in_transit: -1, downstream.inventory: +1},
+                SupplyLinkInteraction._get_arrivals(upstream, downstream),
+                label='arrivals',
+            ),
+        ]
 
     @staticmethod
     def _get_arrivals(upstream: SimpleNamespace, downstream: SimpleNamespace) -> Expression:

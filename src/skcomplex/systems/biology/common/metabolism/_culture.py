@@ -138,7 +138,7 @@ class GrowthInteraction(Interaction):
         self.biomass = biomass
         self.reaction = reaction
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate of the biomass.
 
         Args:
@@ -146,9 +146,8 @@ class GrowthInteraction(Interaction):
                 The namespace of the cell and the biomass.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            flux = getattr(context.cell, FluxBalanceInteraction.get_flux_name(self.reaction))
-            self.laws_: list[BaseLaw] = [RateLaw(context.biomass.x, flux * context.biomass.x)]
+        flux = getattr(context.cell, FluxBalanceInteraction.get_flux_name(self.reaction))
+        self.laws_: list[BaseLaw] = [RateLaw(context.biomass.x, flux * context.biomass.x)]
 
 
 class ExchangeInteraction(Interaction):
@@ -212,7 +211,7 @@ class ExchangeInteraction(Interaction):
         self.km = km
         self.interval = interval
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the bounds of the uptake and the rate of the medium.
 
         Args:
@@ -220,8 +219,6 @@ class ExchangeInteraction(Interaction):
                 The namespace of the roles and parameters.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         flux = getattr(context.cell, FluxBalanceInteraction.get_flux_name(self.reaction))
         amount, biomass = context.substrate.c, context.biomass.x
         held = where(amount > 0, amount, 0)
@@ -319,7 +316,7 @@ class CommunityInteraction(Interaction):
         terms = [float(share) * getattr(member, name) for share, member in zip(self.abundances, members, strict=True)]
         return sum(terms[1:], terms[0])
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the objective that joins the members through the medium, with its balances.
 
         Args:
@@ -327,8 +324,6 @@ class CommunityInteraction(Interaction):
                 The namespace of the members and the medium.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         targets = []
         laws: list[BaseLaw] = []
         for reaction, floor in (self.exchanges or {}).items():
@@ -383,7 +378,7 @@ class ObjectiveFloorInteraction(Interaction):
         self.weights = weights
         self.floor = floor
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the bound of the objective.
 
         Args:
@@ -391,8 +386,6 @@ class ObjectiveFloorInteraction(Interaction):
                 The namespace of the cell.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         weights = self.weights or {}
         fluxes = [getattr(context.cell, FluxBalanceInteraction.get_flux_name(name)) for name in weights]
         terms = [float(weight) * flux for weight, flux in zip(weights.values(), fluxes, strict=True)]
@@ -434,7 +427,7 @@ class SwitchInteraction(Interaction):
         self.cell = cell
         self.genes = genes
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the update of every switch.
 
         Args:
@@ -442,8 +435,7 @@ class SwitchInteraction(Interaction):
                 The namespace of the node and the cell.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = [
-                UpdateLaw(getattr(context.cell, FluxBalanceInteraction.get_gene_name(gene)), 1 - context.node.x)
-                for gene in self.genes
-            ]
+        self.laws_: list[BaseLaw] = [
+            UpdateLaw(getattr(context.cell, FluxBalanceInteraction.get_gene_name(gene)), 1 - context.node.x)
+            for gene in self.genes
+        ]

@@ -14,7 +14,6 @@ from sage.sets.real_set import RealSet
 from ....core.base import BaseSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.errors import SimulationError, ValidationError
 from ....core.types import Array, Role
@@ -219,19 +218,15 @@ class EvolutionInteraction(Interaction):
                 error_msg = f'The {name} probability of {self.label!r} is {value!r}. Give a value in [0, 1].'
                 raise ValidationError(error_msg)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _check_arguments(self) -> None:
         """Raise an error for an unknown variant, a bad probability, or an invalid count.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The type declares states, a variant is unknown, a probability is outside `[0, 1]`, the mutation is
                 neither a probability nor a function, a count is invalid, or the evaluation is not callable.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         self._check_variant('selection', self.selection, SELECTIONS, (BaseSpec,))
         self._check_variant('replacement', self.replacement, REPLACEMENTS, (BaseSpec,))
         for name, value, variants in (
@@ -247,8 +242,16 @@ class EvolutionInteraction(Interaction):
             raise ValidationError(error_msg)
         self._check_probabilities()
         self._check_counts()
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = self._get_evolution_laws(context)
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the laws of a binding.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = self._get_evolution_laws(context)
 
     def _get_value(self, name: str, system: SystemViewProtocol) -> float:
         """Return a probability.

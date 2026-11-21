@@ -17,7 +17,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import normal, total
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -101,14 +100,18 @@ class HerdingInteraction(Interaction):
         self.target = target
         self.weights = weights
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the update of the choice of every agent as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the update of the choice of every agent as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            agent = context.target
-            herding = total(agent.other.c, over=agent.other, weights=np.asarray(self.weights, dtype=float))
-            choice = herding + agent.gamma * (agent.x + agent.sigma * normal('shock', 0, 1))
-            self.laws_: list[BaseComponent] = [UpdateLaw(agent.c, choice)]
+        agent = context.target
+        herding = total(agent.other.c, over=agent.other, weights=np.asarray(self.weights, dtype=float))
+        choice = herding + agent.gamma * (agent.x + agent.sigma * normal('shock', 0, 1))
+        self.laws_: list[BaseComponent] = [UpdateLaw(agent.c, choice)]
 
 
 class NetworkHerdingSystem(BaseSystem):

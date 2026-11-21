@@ -7,7 +7,6 @@ Traders with money and toys buy the cheapest toy they can see.
 # License: MIT
 
 from collections.abc import Sequence
-from types import SimpleNamespace
 from typing import Annotated, ClassVar, Protocol, cast
 
 import numpy as np
@@ -16,7 +15,6 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element, VisualSpec
-from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, SystemView
@@ -219,18 +217,14 @@ class ToyMarketInteraction(PolicyRuleInteraction[SystemView]):
         self.n_goods = n_goods
         self.fitness = fitness
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _check_arguments(self) -> None:
         """Raise an error for an unknown fitness test or number of goods.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The fitness test or the number of goods is unknown.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if self.fitness not in FITNESS_TESTS:
             error_msg = f'The fitness test of {self.label!r} is {self.fitness!r}. Use one of {FITNESS_TESTS}.'
             raise ValidationError(error_msg)

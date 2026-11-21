@@ -117,14 +117,18 @@ class NoisyRuleInteraction(Interaction):
 
         return noisy
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the noisy local rule of the cells as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the noisy local rule of the cells as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            alive = context.target.alive
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(alive, self._get_function(), neighborhood=ELEMENTARY, label=self.label),
-            ]
+        alive = context.target.alive
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(alive, self._get_function(), neighborhood=ELEMENTARY, label=self.label),
+        ]
 
 
 class DiscreteDiffusionInteraction(Interaction):
@@ -163,14 +167,18 @@ class DiscreteDiffusionInteraction(Interaction):
 
         return diffuse
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the exchange of contents as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the exchange of contents as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            level = context.target.level
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(level, self._get_function(), neighborhood=VON_NEUMANN, label=self.label),
-            ]
+        level = context.target.level
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(level, self._get_function(), neighborhood=VON_NEUMANN, label=self.label),
+        ]
 
 
 class AdditiveRuleInteraction(Interaction):
@@ -200,12 +208,16 @@ class AdditiveRuleInteraction(Interaction):
         """Return the sum of a cell and its left neighbour."""
         return left + center
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the sum with the left neighbour as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the sum with the left neighbour as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            value = context.target.value
-            self.laws_: list[BaseComponent] = [UpdateLaw(value, self._add, neighborhood=PREDECESSORS, label=self.label)]
+        value = context.target.value
+        self.laws_: list[BaseComponent] = [UpdateLaw(value, self._add, neighborhood=PREDECESSORS, label=self.label)]
 
 
 class HighlifeSystem(BaseSystem):

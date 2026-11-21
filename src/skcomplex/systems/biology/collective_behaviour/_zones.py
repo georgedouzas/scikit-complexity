@@ -17,7 +17,6 @@ import numpy.typing as npt
 from ....core.base import BaseSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.errors import ValidationError
 from ....core.types import Array, Role
@@ -204,17 +203,14 @@ class ZoneCouplingInteraction(Interaction):
         self.clamp = clamp
         self.phase = phase
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rule that updates every agent.
-
-        Args:
-            context:
-                The namespace of the group of agents.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The target is not one group, there is no radius, or a radius or the clamp is invalid.
         """
+        super()._check_arguments()
         if not self.radii or not isinstance(self.target, str):
             error_msg = f'The zone coupling {self.label!r} needs one group of agents and at least one radius.'
             raise ValidationError(error_msg)
@@ -222,9 +218,16 @@ class ZoneCouplingInteraction(Interaction):
             spec._check()
         if self.clamp is not None:
             self.clamp._check()
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule that updates every agent.
+
+        Args:
+            context:
+                The namespace of the group of agents.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context.target, self._update_member, phase=self.phase)]
+        self.laws_ = [UpdateLaw(context.target, self._update_member, phase=self.phase)]
 
     @staticmethod
     def _get_bound(agent: AgentViewProtocol, bound: float | str) -> float:

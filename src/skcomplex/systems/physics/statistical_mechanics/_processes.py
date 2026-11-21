@@ -110,7 +110,7 @@ class ContactInfectionInteraction(Interaction):
         recovers = random < -np.expm1(-tau)
         return np.where(infected == 1, np.where(recovers, 0.0, 1.0), np.where(infects, 1.0, 0.0))
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the stochastic infection and recovery of the sites.
 
         Args:
@@ -118,8 +118,7 @@ class ContactInfectionInteraction(Interaction):
                 The namespace of the target and the time `t`.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context.target.infected, self._spread, neighborhood=NEAREST)]
+        self.laws_ = [UpdateLaw(context.target.infected, self._spread, neighborhood=NEAREST)]
 
 
 class ExclusionSiteElement(Element):
@@ -194,7 +193,7 @@ class ParallelHopInteraction(Interaction):
         self.p = p
         self.boundary = boundary
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the flow `hops` of the particles to the next site in one step.
 
         A particle leaves a site when it hops, and enters the next site with the draw of the site it left.
@@ -204,11 +203,10 @@ class ParallelHopInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            occupied = context.target.occupied
-            ahead = shift_member(occupied, 1, boundary=self.boundary)
-            leaves = occupied * (1 - ahead) * bernoulli('hop', context.p)
-            self.laws_ = [UpdateLaw({occupied: -1, ahead: 1}, leaves, increment=True, label=self.label)]
+        occupied = context.target.occupied
+        ahead = shift_member(occupied, 1, boundary=self.boundary)
+        leaves = occupied * (1 - ahead) * bernoulli('hop', context.p)
+        self.laws_ = [UpdateLaw({occupied: -1, ahead: 1}, leaves, increment=True, label=self.label)]
 
 
 class LaneEntryInteraction(Interaction):
@@ -237,7 +235,7 @@ class LaneEntryInteraction(Interaction):
         self.target = target
         self.alpha = alpha
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the occupation of the first site after an entry.
 
         Args:
@@ -245,10 +243,9 @@ class LaneEntryInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            occupied = context.target.occupied
-            enters = (1 - occupied) * bernoulli('entry', context.alpha)
-            self.laws_ = [UpdateLaw({occupied: +1}, enters, increment=True, label=self.label)]
+        occupied = context.target.occupied
+        enters = (1 - occupied) * bernoulli('entry', context.alpha)
+        self.laws_ = [UpdateLaw({occupied: +1}, enters, increment=True, label=self.label)]
 
 
 class LaneExitInteraction(Interaction):
@@ -277,7 +274,7 @@ class LaneExitInteraction(Interaction):
         self.target = target
         self.beta = beta
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the occupation of the last site after an exit.
 
         Args:
@@ -285,10 +282,9 @@ class LaneExitInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            occupied = context.target.occupied
-            leaves = occupied * bernoulli('exit', context.beta)
-            self.laws_ = [UpdateLaw({occupied: -1}, leaves, increment=True, label=self.label)]
+        occupied = context.target.occupied
+        leaves = occupied * bernoulli('exit', context.beta)
+        self.laws_ = [UpdateLaw({occupied: -1}, leaves, increment=True, label=self.label)]
 
 
 class PercolationSiteElement(Element):
@@ -351,7 +347,7 @@ class FireSpreadInteraction(Interaction):
         catches = (cover == 1) & np.any(np.stack(around) == BURNING, axis=0)
         return np.where(cover == BURNING, BURNT, np.where(catches, BURNING, cover))
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the spread and the burning out of the fire.
 
         Args:
@@ -359,8 +355,7 @@ class FireSpreadInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context.target.cover, self._burn, neighborhood=NEAREST, label=self.label)]
+        self.laws_ = [UpdateLaw(context.target.cover, self._burn, neighborhood=NEAREST, label=self.label)]
 
 
 class Q2RSpinElement(Element):
@@ -437,7 +432,7 @@ class Q2RFlipInteraction(Interaction):
         flips = (phase == 1) & (sum(around) == 0)
         return np.where(flips, -spin, spin), 1 - phase
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the flips of the spins and the swap of the phases.
 
         Args:
@@ -445,10 +440,9 @@ class Q2RFlipInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            sites = context.target
-            spin_and_phase = (sites.spin, sites.phase)
-            self.laws_ = [UpdateLaw(spin_and_phase, self._flip_without_cost, neighborhood=NEAREST, label=self.label)]
+        sites = context.target
+        spin_and_phase = (sites.spin, sites.phase)
+        self.laws_ = [UpdateLaw(spin_and_phase, self._flip_without_cost, neighborhood=NEAREST, label=self.label)]
 
 
 @runtime_checkable
@@ -542,7 +536,7 @@ class StickingWalkInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the walk of the walkers.
 
         Args:
@@ -550,8 +544,7 @@ class StickingWalkInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context.target, self.walk)]
+        self.laws_ = [UpdateLaw(context.target, self.walk)]
 
     def walk(self, agent: WalkerView, system: SystemView) -> None:
         """Stick next to the aggregate, or step to a random neighbouring cell.

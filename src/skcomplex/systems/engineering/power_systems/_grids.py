@@ -18,7 +18,6 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -59,11 +58,14 @@ class SwingInteraction(Interaction):
         self.target = target
         self.gamma = gamma
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the swing equation of the phase."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the swing equation of the phase.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         node, t = context.target, context.t
         self.laws_: list[BaseComponent] = [RateLaw(node.phi.diff(t, 2), node.P - context.gamma * node.phi.diff(t))]
 
@@ -107,11 +109,14 @@ class TransmissionLineInteraction(Interaction):
         self.b = b
         self.K = K
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the power flows into both nodes."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the power flows into both nodes.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         first, second, t = context.a.phi, context.b.phi, context.t
         self.laws_: list[BaseComponent] = [
             RateLaw(first.diff(t, 2), context.K * sin(second - first)),

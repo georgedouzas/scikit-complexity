@@ -18,7 +18,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import NoiseLaw, RateLaw, UpdateLaw
 from ....core.components.laws.utils import clip
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver
 from ....core.systems import BaseSystem, System
@@ -91,7 +90,7 @@ class KimuraDriftInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the selection, the drift, and the absorbing boundaries of the frequency.
 
         Args:
@@ -99,14 +98,13 @@ class KimuraDriftInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, Ns = context.target.x, context.target.Ns
-            variance = clip(x * (1 - x), low=0)
-            self.laws_ = [
-                RateLaw(x, Ns * variance),
-                NoiseLaw(x, sqrt(2 * variance)),
-                UpdateLaw(x, clip(x, low=0, high=1)),
-            ]
+        x, Ns = context.target.x, context.target.Ns
+        variance = clip(x * (1 - x), low=0)
+        self.laws_ = [
+            RateLaw(x, Ns * variance),
+            NoiseLaw(x, sqrt(2 * variance)),
+            UpdateLaw(x, clip(x, low=0, high=1)),
+        ]
 
 
 class KimuraDiffusionSystem(BaseSystem):

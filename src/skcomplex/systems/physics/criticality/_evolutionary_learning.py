@@ -20,7 +20,6 @@ from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import both, minimum, mod, total, uniform, where
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -148,7 +147,7 @@ class SKLearningInteraction(Interaction):
         """
         return where(uniform('action') < (1 + tanh(incentive / temperature)) / 2, 1, -1)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the replacement of the least fit agent, the learning, and the action.
 
         Args:
@@ -156,23 +155,22 @@ class SKLearningInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, agents = context, context.target
-            field = total(agents.spin, weights=self.couplings)
-            incentive, temperature = agents.incentive, agents.temperature
-            if self.evolving:
-                least = both(agents.fitness <= minimum(agents.fitness), mod(s.t, self.settling + 1) < 1 / 2)
-                incentive = where(least, 0, agents.incentive)
-                temperature = where(least, uniform('newcomer', 0, s.max_temperature), agents.temperature)
-            learned = (1 - s.memory) * incentive + s.memory * field
-            action = self._get_softmax_action(learned, temperature)
-            self.laws_ = [
-                UpdateLaw(agents.incentive, learned),
-                UpdateLaw(agents.temperature, temperature),
-                UpdateLaw(agents.spin, action),
-                UpdateLaw(agents.fitness, action * learned),
-                UpdateLaw(agents.reward, agents.spin * field),
-            ]
+        s, agents = context, context.target
+        field = total(agents.spin, weights=self.couplings)
+        incentive, temperature = agents.incentive, agents.temperature
+        if self.evolving:
+            least = both(agents.fitness <= minimum(agents.fitness), mod(s.t, self.settling + 1) < 1 / 2)
+            incentive = where(least, 0, agents.incentive)
+            temperature = where(least, uniform('newcomer', 0, s.max_temperature), agents.temperature)
+        learned = (1 - s.memory) * incentive + s.memory * field
+        action = self._get_softmax_action(learned, temperature)
+        self.laws_ = [
+            UpdateLaw(agents.incentive, learned),
+            UpdateLaw(agents.temperature, temperature),
+            UpdateLaw(agents.spin, action),
+            UpdateLaw(agents.fitness, action * learned),
+            UpdateLaw(agents.reward, agents.spin * field),
+        ]
 
 
 class EvolutionarySKGameSystem(BaseSystem):

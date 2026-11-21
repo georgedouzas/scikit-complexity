@@ -18,7 +18,6 @@ from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import EventLaw, RateLaw
 from ....core.components.laws.utils import periodic_guard
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, ScipyODESolver, Yoshida4Solver
 from ....core.errors import ParameterError
@@ -81,7 +80,7 @@ class KickInteraction(Interaction):
         self.period = period
         self.start = start
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the event that kicks the velocity whenever the periodic guard crosses zero.
 
         Args:
@@ -89,10 +88,9 @@ class KickInteraction(Interaction):
                 The namespace of the oscillator, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            velocity = getattr(context.target, self.state).diff(context.t)
-            guard = periodic_guard(context.t, self.period, self.start)
-            self.laws_ = [EventLaw(guard, {velocity: velocity + context.kick}, label=self.label)]
+        velocity = getattr(context.target, self.state).diff(context.t)
+        guard = periodic_guard(context.t, self.period, self.start)
+        self.laws_ = [EventLaw(guard, {velocity: velocity + context.kick}, label=self.label)]
 
 
 class HenonHeilesElement(Element):
@@ -578,7 +576,7 @@ class StuartLandauInteraction(Interaction):
         self.omega = omega
         self.beta = beta
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rates of the real and imaginary parts of the amplitude.
 
         Args:
@@ -586,14 +584,13 @@ class StuartLandauInteraction(Interaction):
                 The namespace of the oscillator, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, y, t = context.target.x, context.target.y, context.t
-            mu, omega, beta = context.mu, context.omega, context.beta
-            saturation = x**2 + y**2
-            self.laws_ = [
-                RateLaw(x.diff(t), mu * x - omega * y - saturation * (x - beta * y)),
-                RateLaw(y.diff(t), mu * y + omega * x - saturation * (y + beta * x)),
-            ]
+        x, y, t = context.target.x, context.target.y, context.t
+        mu, omega, beta = context.mu, context.omega, context.beta
+        saturation = x**2 + y**2
+        self.laws_ = [
+            RateLaw(x.diff(t), mu * x - omega * y - saturation * (x - beta * y)),
+            RateLaw(y.diff(t), mu * y + omega * x - saturation * (y + beta * x)),
+        ]
 
 
 class StuartLandauSystem(BaseSystem):
@@ -716,7 +713,7 @@ class ForcedVanDerPolInteraction(Interaction):
         self.A = A
         self.omega = omega
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the acceleration of the oscillator.
 
         Args:
@@ -724,10 +721,9 @@ class ForcedVanDerPolInteraction(Interaction):
                 The namespace of the oscillator, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, t = context.target.x, context.t
-            damping = context.mu * (1 - x**2) * x.diff(t)
-            self.laws_ = [RateLaw(x.diff(t, 2), damping - x + context.A * cos(context.omega * t))]
+        x, t = context.target.x, context.t
+        damping = context.mu * (1 - x**2) * x.diff(t)
+        self.laws_ = [RateLaw(x.diff(t, 2), damping - x + context.A * cos(context.omega * t))]
 
 
 class ForcedVanDerPolSystem(BaseSystem):
@@ -838,7 +834,7 @@ class AdlerInteraction(Interaction):
         self.detuning = detuning
         self.epsilon = epsilon
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate of the phase difference.
 
         Args:
@@ -846,9 +842,8 @@ class AdlerInteraction(Interaction):
                 The namespace of the phase difference, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            phi = context.target.phi
-            self.laws_ = [RateLaw(phi.diff(context.t), context.detuning + context.epsilon * sin(phi))]
+        phi = context.target.phi
+        self.laws_ = [RateLaw(phi.diff(context.t), context.detuning + context.epsilon * sin(phi))]
 
 
 class AdlerEquationSystem(BaseSystem):
@@ -954,7 +949,7 @@ class QuadrupoleMotionInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rates of the coordinates and the momenta of the nucleus.
 
         Args:
@@ -962,18 +957,17 @@ class QuadrupoleMotionInteraction(Interaction):
                 The namespace of the nucleus and the time `t`.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            nucleus = context.target
-            names = ('q1', 'q2', 'p1', 'p2')
-            values = [getattr(nucleus, name) for name in names]
-            symbols = [SR.symbol(f'_{name}') for name in names]
-            q1, q2, p1, p2 = symbols
-            hamiltonian = _get_quadrupole_energy(SimpleNamespace(q1=q1, q2=q2, p1=p1, p2=p2, B=nucleus.B))
-            back = dict(zip(symbols, values, strict=True))
-            rates = [hamiltonian.diff(p1), hamiltonian.diff(p2), -hamiltonian.diff(q1), -hamiltonian.diff(q2)]
-            self.laws_ = [
-                RateLaw(value.diff(context.t), rate.subs(back)) for value, rate in zip(values, rates, strict=True)
-            ]
+        nucleus = context.target
+        names = ('q1', 'q2', 'p1', 'p2')
+        values = [getattr(nucleus, name) for name in names]
+        symbols = [SR.symbol(f'_{name}') for name in names]
+        q1, q2, p1, p2 = symbols
+        hamiltonian = _get_quadrupole_energy(SimpleNamespace(q1=q1, q2=q2, p1=p1, p2=p2, B=nucleus.B))
+        back = dict(zip(symbols, values, strict=True))
+        rates = [hamiltonian.diff(p1), hamiltonian.diff(p2), -hamiltonian.diff(q1), -hamiltonian.diff(q2)]
+        self.laws_ = [
+            RateLaw(value.diff(context.t), rate.subs(back)) for value, rate in zip(values, rates, strict=True)
+        ]
 
 
 class NuclearQuadrupoleSystem(BaseSystem):
@@ -1100,7 +1094,7 @@ class TodaInteraction(Interaction):
         self.a = a
         self.omega = omega
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the acceleration of the oscillator.
 
         Args:
@@ -1108,10 +1102,9 @@ class TodaInteraction(Interaction):
                 The namespace of the oscillator, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, t = context.target.x, context.t
-            rate = -context.d * x.diff(t) - (exp(x) - 1) + context.a * sin(context.omega * t)
-            self.laws_ = [RateLaw(x.diff(t, 2), rate)]
+        x, t = context.target.x, context.t
+        rate = -context.d * x.diff(t) - (exp(x) - 1) + context.a * sin(context.omega * t)
+        self.laws_ = [RateLaw(x.diff(t, 2), rate)]
 
 
 class ForcedTodaSystem(BaseSystem):
@@ -1237,25 +1230,29 @@ class ImpulsiveSpringInteraction(Interaction):
         self.spring = spring
         self.omega0 = omega0
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the acceleration of the oscillator.
-
-        Args:
-            context:
-                The namespace of the oscillator, the time `t`, and the parameters.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ParameterError:
                 The spring is unknown.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if self.spring not in SPRINGS:
             error_msg = f'Unknown spring {self.spring!r}. Use one of {", ".join(SPRINGS)}.'
             raise ParameterError(error_msg)
-        if isinstance(context, SimpleNamespace):
-            x = context.target.x
-            rate = -tan(x) / cos(x) ** 2 if self.spring == 'tangent' else -(context.omega0**2) * x
-            self.laws_ = [RateLaw(x.diff(context.t, 2), rate)]
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the acceleration of the oscillator.
+
+        Args:
+            context:
+                The namespace of the oscillator, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        x = context.target.x
+        rate = -tan(x) / cos(x) ** 2 if self.spring == 'tangent' else -(context.omega0**2) * x
+        self.laws_ = [RateLaw(x.diff(context.t, 2), rate)]
 
 
 class ImpulsiveOscillatorSystem(BaseSystem):

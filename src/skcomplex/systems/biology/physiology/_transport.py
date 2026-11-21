@@ -119,7 +119,7 @@ class FlowAdaptationInteraction(Interaction):
         self.alpha2 = alpha2
         self.gamma = gamma
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the adaptation of every conductance to the pressure drop.
 
         The pressure drop is that of the current flows.
@@ -129,8 +129,6 @@ class FlowAdaptationInteraction(Interaction):
                 The namespace of the symbols the laws can use.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         s = context
         rate = CallSpec(self._get_adaptation, (s.vessels.C, s.alpha1, s.alpha2, s.gamma), vectorized=True)
         self.laws_: list[BaseLaw] = [RateLaw(s.vessels.C, rate)]

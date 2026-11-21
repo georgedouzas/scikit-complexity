@@ -19,7 +19,7 @@ from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, UpdateLaw
 from .....core.components.laws.utils import relax
-from .....core.components.spaces import BaseNeighborhood, BaseSpace, LatticeNeighborhood, RadiusNeighborhood
+from .....core.components.spaces import BaseNeighborhood, LatticeNeighborhood, RadiusNeighborhood
 from .....core.errors import ValidationError
 from .....core.types import Array, Role
 
@@ -133,20 +133,15 @@ class TopplingInteraction(Interaction):
             )
             raise ValidationError(error_msg)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Raise an error for a mode, drive, neighbourhood, or parcels it cannot take, and set the cascade.
-
-        Args:
-            context:
-                The space the interaction inherits from its system, or the namespace of the target, the time `t`, and
-                the parameters.
+    def _check_arguments(self) -> None:
+        """Raise an error for a mode, drive, neighbourhood, or parcels it cannot take.
 
         Raises:
             ValidationError:
                 The mode is unknown, the drive is not callable, the neighbourhood leaves out the member itself, or the
                 mode `'random'` has no lattice neighbourhood or a threshold that is not a whole number of parcels.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         self._check_variant('mode', self.mode, MODES, (BaseSpec,))
         if self.drive is not None and not callable(self.drive):
             error_msg = f'The drive of the cascade must be callable, but it is {self.drive!r}.'
@@ -158,9 +153,17 @@ class TopplingInteraction(Interaction):
             )
             raise ValidationError(error_msg)
         self._check_random()
-        if isinstance(context, SimpleNamespace):
-            target = self._get_symbolic(self._get_member(context, 'target'), context.t)
-            self.laws_ = self._get_cascade(getattr(target, self.state))
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the cascade.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        target = self._get_symbolic(self._get_member(context, 'target'), context.t)
+        self.laws_ = self._get_cascade(getattr(target, self.state))
 
     def _relax(self, threshold: float, share: float) -> Callable[..., Array]:
         """Return the rule of one relaxation of every member.

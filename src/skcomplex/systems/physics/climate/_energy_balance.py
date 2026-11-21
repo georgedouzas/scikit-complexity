@@ -150,7 +150,7 @@ class LatitudeEnergyBalanceInteraction(Interaction):
         self.T_ice = T_ice
         self.width = width
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the absorbed insolation, the outgoing radiation, and the meridional diffusion of heat.
 
         Args:
@@ -158,16 +158,15 @@ class LatitudeEnergyBalanceInteraction(Interaction):
                 The namespace of the bands, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            T, x = context.target.T, context.target.x
-            legendre = (3 * x**2 - 1) / 2
-            insolation = context.Q * (1 + context.s2 * legendre)
-            free = context.albedo_free + context.albedo_slope * legendre
-            ice = context.albedo_ice
-            albedo = (ice + free) / 2 - (ice - free) / 2 * tanh((T - context.T_ice) / context.width)
-            transport = context.D * ((1 - x**2) * laplacian(T) - 2 * x * gradient(T, 1)[0])
-            balance = (insolation * (1 - albedo) - (context.A + context.B * T) + transport) / context.C
-            self.laws_ = [RateLaw(T.diff(context.t), balance)]
+        T, x = context.target.T, context.target.x
+        legendre = (3 * x**2 - 1) / 2
+        insolation = context.Q * (1 + context.s2 * legendre)
+        free = context.albedo_free + context.albedo_slope * legendre
+        ice = context.albedo_ice
+        albedo = (ice + free) / 2 - (ice - free) / 2 * tanh((T - context.T_ice) / context.width)
+        transport = context.D * ((1 - x**2) * laplacian(T) - 2 * x * gradient(T, 1)[0])
+        balance = (insolation * (1 - albedo) - (context.A + context.B * T) + transport) / context.C
+        self.laws_ = [RateLaw(T.diff(context.t), balance)]
 
 
 class IceAlbedoBalanceInteraction(Interaction):
@@ -235,7 +234,7 @@ class IceAlbedoBalanceInteraction(Interaction):
         self.T_ice = T_ice
         self.width = width
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate of the temperature, the absorbed insolation minus the outgoing radiation.
 
         Args:
@@ -243,11 +242,10 @@ class IceAlbedoBalanceInteraction(Interaction):
                 The namespace of the planet, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            T = context.target.T
-            albedo = context.albedo - context.contrast * tanh((T - context.T_ice) / context.width)
-            radiation = context.sigma * context.epsilon * T**4
-            self.laws_ = [RateLaw(T.diff(context.t), context.s * (1 - albedo) - radiation)]
+        T = context.target.T
+        albedo = context.albedo - context.contrast * tanh((T - context.T_ice) / context.width)
+        radiation = context.sigma * context.epsilon * T**4
+        self.laws_ = [RateLaw(T.diff(context.t), context.s * (1 - albedo) - radiation)]
 
 
 class EnergyBalanceSystem(BaseSystem):

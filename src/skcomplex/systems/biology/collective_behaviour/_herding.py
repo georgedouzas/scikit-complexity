@@ -215,7 +215,7 @@ class ShepherdingInteraction(Interaction):
         self.delta_s = delta_s
         self.graze = graze
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the herding rule.
 
         Args:
@@ -223,8 +223,6 @@ class ShepherdingInteraction(Interaction):
                 The namespace of the symbols the laws can use.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         self.laws_: list[BaseLaw] = [UpdateLaw(context, self.herd)]
 
     def herd(self, system: SystemView) -> None:

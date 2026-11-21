@@ -12,7 +12,6 @@ from sage.all__sagemath_symbolics import SR
 from ....core.components.base import BaseComponent
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.errors import ValidationError
 from ....core.types import Role
 
@@ -76,23 +75,26 @@ class FlowInteraction(Interaction):
         self.enters = enters
         self.amount = amount
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rate law of the flow, which maps its stocks to signs.
-
-        Args:
-            context:
-                The space the interaction inherits from its system, or the namespace of the element.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The flow neither leaves nor enters a stock.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if self.leaves is None and self.enters is None:
             error_msg = f'The flow {self.label!r} neither leaves nor enters a stock. Give `leaves`, `enters`, or both.'
             raise ValidationError(error_msg)
-        if not isinstance(context, SimpleNamespace):
-            return
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate law of the flow, which maps its stocks to signs.
+
+        Args:
+            context:
+                The namespace of the element.
+        """
+        super()._prepare(context)
         amount = SR(self.amount(context) if callable(self.amount) else self.amount)
         signs = {self.leaves: -1, self.enters: 1}
         stocks = {getattr(context.target, name): sign for name, sign in signs.items() if name is not None}

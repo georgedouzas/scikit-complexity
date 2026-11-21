@@ -20,7 +20,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import categorical, where
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
@@ -138,20 +137,14 @@ class ProbabilisticFunctionInteraction(Interaction):
         """Return the value of one truth table of the inputs."""
         return sum((self._get_pattern(inputs, index) for index, entry in enumerate(table) if entry), start=SR(0))
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the map of the target by the drawn table and the record of the drawn index.
-
-        The tables and the probabilities are invalid when they differ in number, or a table has the wrong size.
-
-        Args:
-            context:
-                The namespace of the target and its inputs.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The tables and the probabilities differ in number, or a table does not have one entry per pattern.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if len(self.tables) != len(self.probabilities):
             error_msg = (
                 f'ProbabilisticFunction {self.label} has {len(self.tables)} tables and {len(self.probabilities)} '
@@ -165,11 +158,21 @@ class ProbabilisticFunctionInteraction(Interaction):
                 'patterns, but one of its tables has another number of entries.'
             )
             raise ValidationError(error_msg)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(context.target.x, self._get_drawn_value(context)),
-                UpdateLaw(context.target.function, self._get_draw()),
-            ]
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the map of the target by the drawn table and the record of the drawn index.
+
+        The tables and the probabilities are invalid when they differ in number, or a table has the wrong size.
+
+        Args:
+            context:
+                The namespace of the target and its inputs.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(context.target.x, self._get_drawn_value(context)),
+            UpdateLaw(context.target.function, self._get_draw()),
+        ]
 
     def _get_draw(self) -> Expression:
         """Return the index of the table drawn in a step.

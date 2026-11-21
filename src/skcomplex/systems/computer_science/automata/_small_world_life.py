@@ -17,7 +17,7 @@ from ....core.components.base import BaseComponent
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import both, either, neighbors, where
-from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.components.spaces import NetworkSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ParameterError
@@ -57,14 +57,18 @@ class NetworkLifeInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the next state of every cell, read from its live neighbours, as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the next state of every cell, read from its live neighbours, as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            alive = context.target.alive
-            live = neighbors(context.target.other.alive)
-            born_or_kept = either(live == BIRTH, both(alive == 1, live == SURVIVAL))
-            self.laws_: list[BaseComponent] = [UpdateLaw(alive, where(born_or_kept, 1, 0))]
+        alive = context.target.alive
+        live = neighbors(context.target.other.alive)
+        born_or_kept = either(live == BIRTH, both(alive == 1, live == SURVIVAL))
+        self.laws_: list[BaseComponent] = [UpdateLaw(alive, where(born_or_kept, 1, 0))]
 
 
 class SmallWorldLifeSystem(BaseSystem):

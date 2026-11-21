@@ -22,7 +22,7 @@ from ....core.components import Observable
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
-from ....core.components.spaces import BaseSpace, ContinuousSpace
+from ....core.components.spaces import ContinuousSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver, Yoshida4Solver
 from ....core.errors import ValidationError
@@ -235,7 +235,7 @@ class SitnikovGravityInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the acceleration of the height of the body.
 
         Args:
@@ -243,12 +243,11 @@ class SitnikovGravityInteraction(Interaction):
                 The namespace of the body and the time `t`.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            body, t = context.target, context.t
-            height = SR.symbol('_z')
-            distance = (1 - body.e * cos(t)) / 2
-            potential = -1 / sqrt(height**2 + distance**2)
-            self.laws_ = [RateLaw(body.z.diff(t, 2), -potential.diff(height).subs({height: body.z}))]
+        body, t = context.target, context.t
+        height = SR.symbol('_z')
+        distance = (1 - body.e * cos(t)) / 2
+        potential = -1 / sqrt(height**2 + distance**2)
+        self.laws_ = [RateLaw(body.z.diff(t, 2), -potential.diff(height).subs({height: body.z}))]
 
 
 class GravityInteraction(Interaction):
@@ -292,7 +291,7 @@ class GravityInteraction(Interaction):
         self.second = second
         self.G = G
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the accelerations of the positions `x` of both particles, whose masses are `m`.
 
         Args:
@@ -300,12 +299,11 @@ class GravityInteraction(Interaction):
                 The namespace of the particles, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            first, second = context.first, context.second
-            gap = first.x - second.x
-            pull = context.G * gap / sqrt(gap.dot_product(gap)) ** 3
-            t = context.t
-            self.laws_ = [RateLaw(first.x.diff(t, 2), -second.m * pull), RateLaw(second.x.diff(t, 2), first.m * pull)]
+        first, second = context.first, context.second
+        gap = first.x - second.x
+        pull = context.G * gap / sqrt(gap.dot_product(gap)) ** 3
+        t = context.t
+        self.laws_ = [RateLaw(first.x.diff(t, 2), -second.m * pull), RateLaw(second.x.diff(t, 2), first.m * pull)]
 
 
 def _get_kepler_energy(body: SimpleNamespace) -> Expression:
@@ -554,7 +552,7 @@ class RotatingFrameMotionInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rates of the coordinates and the momenta of the light body.
 
         Args:
@@ -562,17 +560,16 @@ class RotatingFrameMotionInteraction(Interaction):
                 The namespace of the light body and the time `t`.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            body = context.target
-            t = context.t
-            names = ('x', 'y', 'px', 'py')
-            values = [getattr(body, name) for name in names]
-            symbols = [SR.symbol(f'_{name}') for name in names]
-            x, y, px, py = symbols
-            hamiltonian = _get_rotating_frame_energy(SimpleNamespace(x=x, y=y, px=px, py=py, mu=body.mu))
-            back = dict(zip(symbols, values, strict=True))
-            rates = [hamiltonian.diff(px), hamiltonian.diff(py), -hamiltonian.diff(x), -hamiltonian.diff(y)]
-            self.laws_ = [RateLaw(value.diff(t), rate.subs(back)) for value, rate in zip(values, rates, strict=True)]
+        body = context.target
+        t = context.t
+        names = ('x', 'y', 'px', 'py')
+        values = [getattr(body, name) for name in names]
+        symbols = [SR.symbol(f'_{name}') for name in names]
+        x, y, px, py = symbols
+        hamiltonian = _get_rotating_frame_energy(SimpleNamespace(x=x, y=y, px=px, py=py, mu=body.mu))
+        back = dict(zip(symbols, values, strict=True))
+        rates = [hamiltonian.diff(px), hamiltonian.diff(py), -hamiltonian.diff(x), -hamiltonian.diff(y)]
+        self.laws_ = [RateLaw(value.diff(t), rate.subs(back)) for value, rate in zip(values, rates, strict=True)]
 
 
 class RestrictedThreeBodySystem(BaseSystem):

@@ -138,7 +138,7 @@ class NonreciprocalAlignmentInteraction(Interaction):
         self.J_bb = J_bb
         self.radius = radius
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the heading alignment of the target with its species-weighted neighbours, plus noise.
 
         Args:
@@ -146,18 +146,17 @@ class NonreciprocalAlignmentInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            first, second = s.target.species, s.target.other.species
-            coupling = (
-                s.J_aa * (1 - first) * (1 - second)
-                + s.J_ab * (1 - first) * second
-                + s.J_ba * first * (1 - second)
-                + s.J_bb * first * second
-            )
-            over = RadiusNeighborhood(self.radius, center=True)
-            direction = neighbors(s.target.other.theta, over=over, reduce='circular-mean', weight=coupling)
-            self.laws_ = [UpdateLaw(s.target.theta, direction + uniform('noise', -s.eta / 2, s.eta / 2))]
+        s = context
+        first, second = s.target.species, s.target.other.species
+        coupling = (
+            s.J_aa * (1 - first) * (1 - second)
+            + s.J_ab * (1 - first) * second
+            + s.J_ba * first * (1 - second)
+            + s.J_bb * first * second
+        )
+        over = RadiusNeighborhood(self.radius, center=True)
+        direction = neighbors(s.target.other.theta, over=over, reduce='circular-mean', weight=coupling)
+        self.laws_ = [UpdateLaw(s.target.theta, direction + uniform('noise', -s.eta / 2, s.eta / 2))]
 
 
 def _get_heading_a(member: SimpleNamespace) -> Expression:

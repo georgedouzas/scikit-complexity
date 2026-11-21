@@ -14,7 +14,6 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import NoiseLaw, RateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver
 from ....core.systems import BaseSystem, System
@@ -55,16 +54,20 @@ class OUDriveInteraction(Interaction):
         self.tau = tau
         self.rho = rho
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the drive of `y` and the rate and noise of the control as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the drive of `y` and the rate and noise of the control as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            y, eta = context.target.y, context.target.eta
-            self.laws_: list[BaseComponent] = [
-                RateLaw(y, eta),
-                RateLaw(eta, -eta / context.tau),
-                NoiseLaw(eta, context.rho / context.tau),
-            ]
+        y, eta = context.target.y, context.target.eta
+        self.laws_: list[BaseComponent] = [
+            RateLaw(y, eta),
+            RateLaw(eta, -eta / context.tau),
+            NoiseLaw(eta, context.rho / context.tau),
+        ]
 
 
 class OUDrivenRosslerSystem(BaseSystem):

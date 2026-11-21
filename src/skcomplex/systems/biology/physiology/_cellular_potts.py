@@ -340,19 +340,15 @@ class RegionSamplingInteraction(Interaction):
             return {}
         return {name: value for name, value in parameters.items() if name in names}
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Raise an error for a sampling it cannot run, and set the law that samples the labels.
-
-        Args:
-            context:
-                The space the interaction inherits from its system, or the namespace of the target and the parameters.
+    def _check_arguments(self) -> None:
+        """Raise an error for a sampling it cannot run.
 
         Raises:
             ValidationError:
                 The move is not a copy, the rule is unknown, the objective is not a region score, or the cooling is not
                 callable.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if self.move != 'copy':
             error_msg = f"The region sampling {self.label!r} moves labels by the move 'copy', not {self.move!r}."
             raise ValidationError(error_msg)
@@ -366,9 +362,17 @@ class RegionSamplingInteraction(Interaction):
             error_msg = f'The objective of region sampling {self.label!r} must be a RegionScoreSpec.'
             raise ValidationError(error_msg)
         self.objective._check()
-        if isinstance(context, SimpleNamespace):
-            target = getattr(self._get_member(context, 'target'), self.state)
-            self.laws_ = [UpdateLaw(target, self._sample_regions, label=self.label, arrays=True)]
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the law that samples the labels.
+
+        Args:
+            context:
+                The namespace of the target and the parameters.
+        """
+        super()._prepare(context)
+        target = getattr(self._get_member(context, 'target'), self.state)
+        self.laws_ = [UpdateLaw(target, self._sample_regions, label=self.label, arrays=True)]
 
     @staticmethod
     @functools.cache
@@ -630,20 +634,14 @@ class CellAdhesionInteraction(RegionSamplingInteraction):
         del labels
         return perimeter_strength, target_perimeter
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _check_arguments(self) -> None:
         """Raise an error for an invalid adhesion or kind.
-
-        The adhesion must be a symmetric square matrix, and every kind one of its rows.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The adhesion is not a symmetric square matrix, or a kind is not one of its rows.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         adhesion = np.asarray(self.adhesion, dtype=float)
         if (
             adhesion.ndim != MATRIX_AXES

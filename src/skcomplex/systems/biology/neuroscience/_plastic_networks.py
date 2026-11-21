@@ -116,7 +116,7 @@ class RotationInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rotation of the phase of the target.
 
         Args:
@@ -124,8 +124,7 @@ class RotationInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [RateLaw(context.target.theta, context.target.omega)]
+        self.laws_ = [RateLaw(context.target.theta, context.target.omega)]
 
 
 class SynapseElement(Element):
@@ -242,7 +241,7 @@ class SpikeTraceInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the traces of the spikes of the target.
 
         Args:
@@ -250,13 +249,12 @@ class SpikeTraceInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context.target
-            pulse = 2 * (1 - cos(s.theta)) ** 2 / 3
-            self.laws_ = [
-                RateLaw(s.a, pulse - s.a / s.tau_plus),
-                RateLaw(s.b, pulse - s.b / s.tau_minus),
-            ]
+        s = context.target
+        pulse = 2 * (1 - cos(s.theta)) ** 2 / 3
+        self.laws_ = [
+            RateLaw(s.a, pulse - s.a / s.tau_plus),
+            RateLaw(s.b, pulse - s.b / s.tau_minus),
+        ]
 
 
 class DelayAdaptationInteraction(Interaction):
@@ -329,7 +327,7 @@ class DelayAdaptationInteraction(Interaction):
         self.width = width
         self.shortest = shortest
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the delayed coupling of the target and the adaptation of the delay.
 
         Args:
@@ -337,8 +335,6 @@ class DelayAdaptationInteraction(Interaction):
                 The namespace of the units and the axon.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         s, t = context, context.t
         source, target, tau = s.source.theta, s.target.theta, s.axon.tau
         step = (1 + tanh(tau / s.width)) / 2
@@ -414,7 +410,7 @@ class SpikeTimingPlasticityInteraction(Interaction):
         self.A_minus = A_minus
         self.kappa_max = kappa_max
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the pulse current into the postsynaptic neuron and the plasticity of the efficacy.
 
         Args:
@@ -423,8 +419,6 @@ class SpikeTimingPlasticityInteraction(Interaction):
                 `context.edge` of the group on the edges.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         s = context
         pre, post, kappa = s.source, s.target, s.edge.kappa
         pre_pulse = 2 * (1 - cos(pre.theta)) ** 2 / 3

@@ -15,7 +15,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import fractional
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -59,12 +58,16 @@ class FractionalRelaxationInteraction(Interaction):
         self.order = order
         self.lam = lam
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the fractional derivative of the state as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the fractional derivative of the state as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x = context.target.x
-            self.laws_: list[BaseComponent] = [RateLaw(fractional(x, self.order), -context.lam * x)]
+        x = context.target.x
+        self.laws_: list[BaseComponent] = [RateLaw(fractional(x, self.order), -context.lam * x)]
 
 
 class FractionalRelaxationSystem(BaseSystem):
@@ -183,15 +186,19 @@ class FractionalOscillatorInteraction(Interaction):
         self.omega = omega
         self.gamma = gamma
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the fractional derivatives of the displacement and its rate as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the fractional derivatives of the displacement and its rate as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, v = context.target.x, context.target.v
-            self.laws_: list[BaseComponent] = [
-                RateLaw(fractional(x, self.order), v),
-                RateLaw(fractional(v, self.order), -(context.omega**2) * x - 2 * context.gamma * v),
-            ]
+        x, v = context.target.x, context.target.v
+        self.laws_: list[BaseComponent] = [
+            RateLaw(fractional(x, self.order), v),
+            RateLaw(fractional(v, self.order), -(context.omega**2) * x - 2 * context.gamma * v),
+        ]
 
 
 class FractionalOscillatorSystem(BaseSystem):
@@ -316,15 +323,19 @@ class FractionalVanDerPolInteraction(Interaction):
         self.order = order
         self.mu = mu
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the fractional derivatives of the displacement and its rate as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the fractional derivatives of the displacement and its rate as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, y = context.target.x, context.target.y
-            self.laws_: list[BaseComponent] = [
-                RateLaw(fractional(x, self.order), y),
-                RateLaw(fractional(y, self.order), context.mu * (1 - x**2) * y - x),
-            ]
+        x, y = context.target.x, context.target.y
+        self.laws_: list[BaseComponent] = [
+            RateLaw(fractional(x, self.order), y),
+            RateLaw(fractional(y, self.order), context.mu * (1 - x**2) * y - x),
+        ]
 
 
 class FractionalVanDerPolSystem(BaseSystem):
@@ -452,16 +463,20 @@ class FractionalLorenzInteraction(Interaction):
         self.rho = rho
         self.beta = beta
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the fractional derivatives of the three coordinates as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the fractional derivatives of the three coordinates as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, y, z = context.target.x, context.target.y, context.target.z
-            self.laws_: list[BaseComponent] = [
-                RateLaw(fractional(x, self.order), context.sigma * (y - x)),
-                RateLaw(fractional(y, self.order), x * (context.rho - z) - y),
-                RateLaw(fractional(z, self.order), x * y - context.beta * z),
-            ]
+        x, y, z = context.target.x, context.target.y, context.target.z
+        self.laws_: list[BaseComponent] = [
+            RateLaw(fractional(x, self.order), context.sigma * (y - x)),
+            RateLaw(fractional(y, self.order), x * (context.rho - z) - y),
+            RateLaw(fractional(z, self.order), x * y - context.beta * z),
+        ]
 
 
 class FractionalLorenzSystem(BaseSystem):

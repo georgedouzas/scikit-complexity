@@ -454,11 +454,15 @@ class LivingInteraction(Interaction):
         self.target = target
         self.phase = phase
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rule of living of every person."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule of living of every person.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.live, phase=self.phase)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.live, phase=self.phase)]
 
     def _feed_child(self, agent: SettlerView, system: SystemView) -> None:
         """Take food from the living parent and follow it."""
@@ -679,11 +683,15 @@ class ProductionInteraction(Interaction):
         self.target = target
         self.phase = phase
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rule of production of every firm."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule of production of every firm.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.produce, phase=self.phase)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.produce, phase=self.phase)]
 
     def _borrow(self, agent: BusinessView, bank: CentralBankView, amount: float) -> None:
         """Borrow an amount the bank creates as money and records as a loan."""
@@ -792,11 +800,15 @@ class CommonsInteraction(Interaction):
         super().__init__(label)
         self.people = people
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rule of the system in the phase `work`."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule of the system in the phase `work`.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self.harvest, phase='work')]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context, self.harvest, phase='work')]
 
     def harvest(self, system: SystemView) -> None:
         """Harvest every occupied patch and share the food among the people on it.
@@ -882,11 +894,15 @@ class EstateInteraction(Interaction):
         for person in dead:
             self._settle(person, living, system)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rule of the system in the phase `census`."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule of the system in the phase `census`.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self.count, phase='census')]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context, self.count, phase='census')]
 
 
 class FoodMarketInteraction(MatchingInteraction[SystemView]):

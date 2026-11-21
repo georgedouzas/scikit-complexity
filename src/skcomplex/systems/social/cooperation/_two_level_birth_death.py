@@ -19,7 +19,6 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, SystemView
@@ -145,11 +144,15 @@ class TwoLevelBirthDeathInteraction(Interaction):
         self.interaction_cost = interaction_cost
         self.fixed_cost = fixed_cost
 
-    def _prepare(self, s: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the birth-death rule."""
+    def _prepare(self, s: SimpleNamespace) -> None:
+        """Set the birth-death rule.
+
+        Args:
+            s:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(s)
-        if isinstance(s, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(s, self.compete)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(s, self.compete)]
 
     def _get_birth_rates(self, punishers: Array) -> tuple[Array, Array]:
         """Return the rates at which the punishers and the defectors reproduce.

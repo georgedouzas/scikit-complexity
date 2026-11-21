@@ -18,7 +18,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw, UpdateLaw
 from ....core.components.laws.utils import shift_member
-from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, SystemView
@@ -105,7 +104,7 @@ class AssemblyDiscoveryInteraction(Interaction):
         self.target = target
         self.N0 = N0
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the discovery of the objects of every level from the level below.
 
         Args:
@@ -113,10 +112,9 @@ class AssemblyDiscoveryInteraction(Interaction):
                 The namespace of the group of levels.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context.target
-            below = shift_member(s.N, -1, boundary='fixed', fill=self.N0)
-            self.laws_: list[BaseLaw] = [RateLaw(s.N, s.k * below**s.alpha)]
+        s = context.target
+        below = shift_member(s.N, -1, boundary='fixed', fill=self.N0)
+        self.laws_: list[BaseLaw] = [RateLaw(s.N, s.k * below**s.alpha)]
 
 
 class PolymerView(AgentViewProtocol, Protocol):
@@ -202,23 +200,27 @@ class PolymerJoiningInteraction(Interaction):
         self.polymers = polymers
         self.mode = mode
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the joining, a rule of the whole system.
-
-        Args:
-            context:
-                The namespace of the system.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The mode is unknown.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if self.mode not in MODES:
             error_msg = f'The mode must be one of {", ".join(MODES)}, not {self.mode!r}.'
             raise ValidationError(error_msg)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = [UpdateLaw(context, self.join)]
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the joining, a rule of the whole system.
+
+        Args:
+            context:
+                The namespace of the system.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self.join)]
 
     def join(self, system: SystemView) -> None:
         """Join two polymers and add the product to the pool.

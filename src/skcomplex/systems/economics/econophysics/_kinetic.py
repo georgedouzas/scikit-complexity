@@ -19,7 +19,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import PartnerSpec, UpdateLaw
 from ....core.components.laws.utils import pairs, transfer
-from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -113,11 +112,15 @@ class DebtExchangeInteraction(Interaction):
         self.amount = amount
         self.phase = phase
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the trades of every step as the rule of the system."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the trades of every step as the rule of the system.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self.trade, phase=self.phase)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context, self.trade, phase=self.phase)]
 
     def trade(self, system: SystemViewProtocol) -> None:
         """Let every trader pay the amount to a random trader, in random order, while it stays above the limit.
@@ -178,11 +181,15 @@ class SavingExchangeInteraction(Interaction):
         self.saving = saving
         self.phase = phase
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the trades of every step as the rule of the system."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the trades of every step as the rule of the system.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self.trade, phase=self.phase)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context, self.trade, phase=self.phase)]
 
     def trade(self, system: SystemViewProtocol) -> None:
         """Let every trader trade a random share of the pooled wealth with a random trader, in random order.

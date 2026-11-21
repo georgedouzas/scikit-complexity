@@ -17,7 +17,6 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
@@ -118,7 +117,7 @@ class NeuralMassInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the mean-field rate, potential, and synaptic field of the target.
 
         Args:
@@ -126,13 +125,12 @@ class NeuralMassInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            p = context.target
-            self.laws_ = [
-                RateLaw(p.r, p.delta / (p.tau**2 * pi) + 2 * p.r * p.v / p.tau),
-                RateLaw(p.v, (p.v**2 + p.H) / p.tau - p.tau * (pi * p.r) ** 2),
-                RateLaw(p.s, (p.r - p.s) / p.tau_d),
-            ]
+        p = context.target
+        self.laws_ = [
+            RateLaw(p.r, p.delta / (p.tau**2 * pi) + 2 * p.r * p.v / p.tau),
+            RateLaw(p.v, (p.v**2 + p.H) / p.tau - p.tau * (pi * p.r) ** 2),
+            RateLaw(p.s, (p.r - p.s) / p.tau_d),
+        ]
 
 
 class SynapticDriveInteraction(Interaction):
@@ -186,24 +184,28 @@ class SynapticDriveInteraction(Interaction):
         self.J = J
         self.field = field
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Check the field and set the drive of the potential of the target.
-
-        Args:
-            context:
-                The namespace of the target and the source, the time `t`, and the parameters.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The field is unknown.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if self.field not in FIELDS:
             error_msg = f'The field must be one of {", ".join(FIELDS)}, not {self.field!r}.'
             raise ValidationError(error_msg)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [RateLaw(s.target.v, s.J * getattr(s.source, self.field))]
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the drive of the potential of the target.
+
+        Args:
+            context:
+                The namespace of the target and the source, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        s = context
+        self.laws_ = [RateLaw(s.target.v, s.J * getattr(s.source, self.field))]
 
 
 class ThetaForcingInteraction(Interaction):
@@ -248,7 +250,7 @@ class ThetaForcingInteraction(Interaction):
         self.I0 = I0
         self.nu = nu
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the forcing current of the potential.
 
         Args:
@@ -256,10 +258,9 @@ class ThetaForcingInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            current = s.I0 / 2 * (1 - cos(2 * pi * s.nu * s.t / 1000))
-            self.laws_ = [RateLaw(s.target.v, current / s.target.tau)]
+        s = context
+        current = s.I0 / 2 * (1 - cos(2 * pi * s.nu * s.t / 1000))
+        self.laws_ = [RateLaw(s.target.v, current / s.target.tau)]
 
 
 class NextGenerationNeuralMassSystem(BaseSystem):

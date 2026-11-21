@@ -12,7 +12,6 @@ from sage.sets.real_set import RealSet
 from .....core.components.interactions import Interaction
 from .....core.components.laws import JumpLaw
 from .....core.components.laws.utils import where
-from .....core.components.spaces import BaseSpace
 from .....core.types import Role
 
 
@@ -55,7 +54,7 @@ class NeutralBirthInteraction(Interaction):
         self.b0 = b0
         self.b1 = b1
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the births of single individuals.
 
         Args:
@@ -63,9 +62,8 @@ class NeutralBirthInteraction(Interaction):
                 The namespace of the species, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x = context.target.x
-            self.laws_ = [JumpLaw(context.b0 + context.b1 * x, {x: 1})]
+        x = context.target.x
+        self.laws_ = [JumpLaw(context.b0 + context.b1 * x, {x: 1})]
 
 
 class NeutralDeathInteraction(Interaction):
@@ -108,7 +106,7 @@ class NeutralDeathInteraction(Interaction):
         self.d0 = d0
         self.d1 = d1
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the deaths of single individuals.
 
         Args:
@@ -116,6 +114,5 @@ class NeutralDeathInteraction(Interaction):
                 The namespace of the species, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x = context.target.x
-            self.laws_ = [JumpLaw(where(x > 0, context.d0, 0) + context.d1 * x, {x: -1})]
+        x = context.target.x
+        self.laws_ = [JumpLaw(where(x > 0, context.d0, 0) + context.d1 * x, {x: -1})]

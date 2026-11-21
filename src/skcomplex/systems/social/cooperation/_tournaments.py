@@ -20,7 +20,6 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, SystemView
@@ -179,11 +178,15 @@ class TournamentInteraction(Interaction):
         self.rounds = rounds
         self.phase = phase
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the games of every step as the rule of the system."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the games of every step as the rule of the system.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self._play, phase=self.phase)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context, self._play, phase=self.phase)]
 
     def _play(self, system: SystemView) -> None:
         """Play the games of one step, the groups in random order."""

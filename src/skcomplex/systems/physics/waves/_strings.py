@@ -87,7 +87,7 @@ class WaveTensionInteraction(Interaction):
         self.target = target
         self.c = c
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the acceleration of the displacement of the target.
 
         Args:
@@ -95,9 +95,8 @@ class WaveTensionInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            u = context.target.u
-            self.laws_ = [RateLaw(u.diff(context.t, 2), context.c**2 * laplacian(u))]
+        u = context.target.u
+        self.laws_ = [RateLaw(u.diff(context.t, 2), context.c**2 * laplacian(u))]
 
 
 class PotentialEnergyInteraction(GradientInteraction):

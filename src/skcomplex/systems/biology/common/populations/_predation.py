@@ -11,7 +11,6 @@ from sage.sets.real_set import RealSet
 
 from .....core.components.interactions import Interaction
 from .....core.components.laws import RateLaw
-from .....core.components.spaces import BaseSpace
 from .....core.types import Role
 
 
@@ -59,7 +58,7 @@ class PredationInteraction(Interaction):
         self.a = a
         self.b = b
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rates `-a * predator * prey` and `b * predator * prey`.
 
         Args:
@@ -67,7 +66,6 @@ class PredationInteraction(Interaction):
                 The namespace of the bound elements, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            encounters = s.predator.x * s.prey.x
-            self.laws_ = [RateLaw(s.prey.x, -s.a * encounters), RateLaw(s.predator.x, s.b * encounters)]
+        s = context
+        encounters = s.predator.x * s.prey.x
+        self.laws_ = [RateLaw(s.prey.x, -s.a * encounters), RateLaw(s.predator.x, s.b * encounters)]

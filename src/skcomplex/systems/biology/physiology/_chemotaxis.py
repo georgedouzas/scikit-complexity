@@ -140,7 +140,7 @@ class HyperbolicChemotaxisInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the balance laws of the cells and the chemical.
 
         Args:
@@ -148,18 +148,17 @@ class HyperbolicChemotaxisInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context.target
-            pressure = s.s**2 / 2
-            cells, chemical = gradient(s.n), gradient(s.c)
-            self.laws_ = [
-                RateLaw(s.n, -divergence([s.qx, s.qy])),
-                RateLaw(s.qx, -pressure * cells[0] - s.mu1 * s.qx + s.mu2 * s.alpha * s.n * chemical[0]),
-                RateLaw(s.qy, -pressure * cells[1] - s.mu1 * s.qy + s.mu2 * s.alpha * s.n * chemical[1]),
-                RateLaw(s.c, (-divergence([s.jx, s.jy]) + s.n) / s.tau),
-                RateLaw(s.jx, (-pressure * chemical[0] - s.sigma * s.jx) / s.tau),
-                RateLaw(s.jy, (-pressure * chemical[1] - s.sigma * s.jy) / s.tau),
-            ]
+        s = context.target
+        pressure = s.s**2 / 2
+        cells, chemical = gradient(s.n), gradient(s.c)
+        self.laws_ = [
+            RateLaw(s.n, -divergence([s.qx, s.qy])),
+            RateLaw(s.qx, -pressure * cells[0] - s.mu1 * s.qx + s.mu2 * s.alpha * s.n * chemical[0]),
+            RateLaw(s.qy, -pressure * cells[1] - s.mu1 * s.qy + s.mu2 * s.alpha * s.n * chemical[1]),
+            RateLaw(s.c, (-divergence([s.jx, s.jy]) + s.n) / s.tau),
+            RateLaw(s.jx, (-pressure * chemical[0] - s.sigma * s.jx) / s.tau),
+            RateLaw(s.jy, (-pressure * chemical[1] - s.sigma * s.jy) / s.tau),
+        ]
 
 
 class HyperbolicChemotaxisSystem(BaseSystem):

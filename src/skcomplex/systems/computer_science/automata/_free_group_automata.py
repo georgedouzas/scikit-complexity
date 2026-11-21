@@ -111,14 +111,18 @@ class MullerRuleInteraction(Interaction):
 
         return muller
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rule of the pairs as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule of the pairs as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            states = (context.target.first, context.target.second)
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(states, self._get_function(), neighborhood=FREE_GENERATORS, label=self.label),
-            ]
+        states = (context.target.first, context.target.second)
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(states, self._get_function(), neighborhood=FREE_GENERATORS, label=self.label),
+        ]
 
 
 class SurjectiveLinearRuleInteraction(Interaction):
@@ -157,14 +161,18 @@ class SurjectiveLinearRuleInteraction(Interaction):
 
         return linear
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rule of the pairs as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule of the pairs as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            states = (context.target.first, context.target.second)
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(states, self._get_function(), neighborhood=FREE_GENERATORS, label=self.label),
-            ]
+        states = (context.target.first, context.target.second)
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(states, self._get_function(), neighborhood=FREE_GENERATORS, label=self.label),
+        ]
 
 
 class MullerAutomatonSystem(BaseSystem):

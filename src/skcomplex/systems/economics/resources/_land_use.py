@@ -120,18 +120,14 @@ class BidRentInteraction(Interaction):
         self.costs = costs
         self.rates = rates
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _check_arguments(self) -> None:
         """Raise an error for sequences without one value per crop.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The sequences have different lengths.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         lengths = {len(self.yields), len(self.prices), len(self.costs), len(self.rates)}
         if len(lengths) != 1:
             error_msg = (
@@ -139,8 +135,16 @@ class BidRentInteraction(Interaction):
                 'value per crop.'
             )
             raise ValidationError(error_msg)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = [self._get_equation(context)]
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the laws of a binding.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [self._get_equation(context)]
 
     def _get_equation(self, s: SimpleNamespace) -> ConstraintLaw:
         """Return the equation of the crop of highest bid of a cell."""

@@ -14,7 +14,6 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -75,18 +74,22 @@ class SubcriticalHopfFormInteraction(Interaction):
         self.gamma = gamma
         self.s = s
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rates of the real and the imaginary part of the amplitude as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rates of the real and the imaginary part of the amplitude as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, y = context.target.x, context.target.y
-            radius = x**2 + y**2
-            real = context.alpha + radius - context.gamma * radius**2
-            imaginary = context.omega + context.q * radius - context.s * radius**2
-            self.laws_: list[BaseComponent] = [
-                RateLaw(x, real * x - imaginary * y),
-                RateLaw(y, imaginary * x + real * y),
-            ]
+        x, y = context.target.x, context.target.y
+        radius = x**2 + y**2
+        real = context.alpha + radius - context.gamma * radius**2
+        imaginary = context.omega + context.q * radius - context.s * radius**2
+        self.laws_: list[BaseComponent] = [
+            RateLaw(x, real * x - imaginary * y),
+            RateLaw(y, imaginary * x + real * y),
+        ]
 
 
 class SubcriticalHopfFormSystem(BaseSystem):

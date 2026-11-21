@@ -145,15 +145,19 @@ class ThreeBodyConsensusInteraction(Interaction):
         self.reinforcement = reinforcement
         self.period = period
 
-    def _prepare(self, s: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the pull of the two other members of an active triangle."""
+    def _prepare(self, s: SimpleNamespace) -> None:
+        """Set the pull of the two other members of an active triangle.
+
+        Args:
+            s:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(s)
-        if isinstance(s, SimpleNamespace):
-            x = s.member.x
-            first, second = (other.x for other in s.others)
-            active = where(sin(2 * pi * s.t / s.period + s.hyperedge.phase) > 0, 1, 0)
-            pull = exp(s.reinforcement * abs(first - second)) * (first + second - 2 * x)
-            self.laws_: list[BaseComponent] = [RateLaw(x, active * pull)]
+        x = s.member.x
+        first, second = (other.x for other in s.others)
+        active = where(sin(2 * pi * s.t / s.period + s.hyperedge.phase) > 0, 1, 0)
+        pull = exp(s.reinforcement * abs(first - second)) * (first + second - 2 * x)
+        self.laws_: list[BaseComponent] = [RateLaw(x, active * pull)]
 
 
 def _spread(s: SimpleNamespace) -> object:

@@ -17,7 +17,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.laws.utils import shift_member
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -166,11 +165,14 @@ class CellCycleInvasionInteraction(Interaction):
         self.target = target
         self.offsets = offsets
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the jumps of the cell cycle, the divisions, and the moves of every site."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the jumps of the cell cycle, the divisions, and the moves of every site.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         namespace = context
         s = namespace.target
         cells = (s.g1, s.es, s.sg2m)

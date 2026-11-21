@@ -196,11 +196,15 @@ class LimitOrderInteraction(Interaction):
         self.target = target
         self.phase = phase
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the quote of every trader as its rule."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the quote of every trader as its rule.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.quote, phase=self.phase)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.quote, phase=self.phase)]
 
     @staticmethod
     def get_prices(agent: StockTraderView, system: SystemView) -> tuple[float, float]:
@@ -278,11 +282,15 @@ class AccountingInteraction(Interaction):
         self.target = target
         self.phase = phase
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the accounts of every step as the rule of the system."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the accounts of every step as the rule of the system.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self.account, phase=self.phase)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context, self.account, phase=self.phase)]
 
     def account(self, system: SystemView) -> None:
         """Set the gain of every trader, and then its wealth at the last price.

@@ -20,7 +20,6 @@ from ....core.components.elements import Element, Quantity
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import clip, distributed_delay, minimum, series, step
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -93,7 +92,7 @@ class ReliefPipelineInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the flows of the stocks of the target.
 
         Args:
@@ -101,9 +100,8 @@ class ReliefPipelineInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = SimpleNamespace(t=context.t, **vars(context.target))
-            self.laws_: list[BaseComponent] = ReliefPipelineInteraction._get_relief_laws(s)
+        s = SimpleNamespace(t=context.t, **vars(context.target))
+        self.laws_: list[BaseComponent] = ReliefPipelineInteraction._get_relief_laws(s)
 
     @staticmethod
     def _need(s: SimpleNamespace) -> Expression:
@@ -216,7 +214,7 @@ class RiceMillInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the flows of the stocks of the target.
 
         Args:
@@ -224,9 +222,8 @@ class RiceMillInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = SimpleNamespace(t=context.t, **vars(context.target))
-            self.laws_: list[BaseComponent] = RiceMillInteraction._get_rice_mill_laws(s)
+        s = SimpleNamespace(t=context.t, **vars(context.target))
+        self.laws_: list[BaseComponent] = RiceMillInteraction._get_rice_mill_laws(s)
 
     @staticmethod
     def _get_season(mean: Expression, amplitude: Expression, t: Expression, period: float) -> Expression:
@@ -354,7 +351,7 @@ class IrrigationSchemeInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the flows of the stocks of the target.
 
         Args:
@@ -362,9 +359,8 @@ class IrrigationSchemeInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = SimpleNamespace(t=context.t, **vars(context.target))
-            self.laws_: list[BaseComponent] = IrrigationSchemeInteraction._get_irrigation_laws(s)
+        s = SimpleNamespace(t=context.t, **vars(context.target))
+        self.laws_: list[BaseComponent] = IrrigationSchemeInteraction._get_irrigation_laws(s)
 
     @staticmethod
     def _get_demand(s: SimpleNamespace) -> Expression:
@@ -493,7 +489,7 @@ class WasteSystemInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the flows of the stocks of the target.
 
         Args:
@@ -501,9 +497,8 @@ class WasteSystemInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = SimpleNamespace(t=context.t, **vars(context.target))
-            self.laws_: list[BaseComponent] = WasteSystemInteraction._get_waste_laws(s)
+        s = SimpleNamespace(t=context.t, **vars(context.target))
+        self.laws_: list[BaseComponent] = WasteSystemInteraction._get_waste_laws(s)
 
     @staticmethod
     def _get_generation(s: SimpleNamespace) -> Expression:

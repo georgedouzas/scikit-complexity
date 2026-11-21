@@ -18,7 +18,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import JumpLaw
 from ....core.components.laws.utils import where
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -102,7 +101,7 @@ class BranchingAnnihilationInteraction(Interaction):
         self.volume = volume
         self.epsilon = epsilon
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the creation and the removal of one particle.
 
         Args:
@@ -110,12 +109,11 @@ class BranchingAnnihilationInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, n = context, context.target.n
-            self.laws_ = [
-                JumpLaw(s.kappa * n + s.epsilon * where(n < 1, 1, 0), {n: 1}),
-                JumpLaw(s.nu * n + s.lam * n * (n - 1) / s.volume, {n: -1}),
-            ]
+        s, n = context, context.target.n
+        self.laws_ = [
+            JumpLaw(s.kappa * n + s.epsilon * where(n < 1, 1, 0), {n: 1}),
+            JumpLaw(s.nu * n + s.lam * n * (n - 1) / s.volume, {n: -1}),
+        ]
 
 
 class AbsorbingBirthDeathSystem(BaseSystem):

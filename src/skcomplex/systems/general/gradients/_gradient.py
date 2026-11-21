@@ -17,7 +17,6 @@ from ....core.components.base import BaseComponent
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import distribute_operators, laplacian, partial
-from ....core.components.spaces import BaseSpace
 from ....core.components.types import Target
 from ....core.errors import ValidationError
 from ....core.types import Role
@@ -110,18 +109,14 @@ class GradientInteraction(Interaction):
         """Return the names of the states the interaction moves."""
         return (self.states,) if isinstance(self.states, str) else tuple(self.states)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _check_arguments(self) -> None:
         """Raise an error for a state that is not a name, or a bad potential.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 A state is not a name, or the potential is not callable.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         names = self._get_names()
         if not names or not all(isinstance(name, str) and name.isidentifier() for name in names):
             error_msg = f'{type(self).__name__} {self.label!r} moves the states {self.states!r}. Give names of states.'
@@ -129,10 +124,18 @@ class GradientInteraction(Interaction):
         if self.potential is not None and not callable(self.potential):
             error_msg = f'The potential of {self.label!r} is {self.potential!r}. Give a function of the namespace.'
             raise ValidationError(error_msg)
-        if isinstance(context, SimpleNamespace):
-            time = getattr(context, 't', SR.var('t'))
-            namespace = self._get_symbolic(context, time)
-            self.laws_: list[BaseComponent] = self._get_gradient_laws(namespace, context, time)
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the laws of a binding.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        time = getattr(context, 't', SR.var('t'))
+        namespace = self._get_symbolic(context, time)
+        self.laws_: list[BaseComponent] = self._get_gradient_laws(namespace, context, time)
 
     def _get_potential(self, namespace: SimpleNamespace) -> object:
         """Return the potential.

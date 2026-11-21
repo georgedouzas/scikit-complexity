@@ -20,7 +20,6 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, SystemView
@@ -205,11 +204,15 @@ class HarvestInteraction(Interaction):
         self.chat = chat
         self.adjustment = adjustment
 
-    def _prepare(self, s: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rule of the working day."""
+    def _prepare(self, s: SimpleNamespace) -> None:
+        """Set the rule of the working day.
+
+        Args:
+            s:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(s)
-        if isinstance(s, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(s, self.work)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(s, self.work)]
 
     def _hire(self, farmers: list[FarmerView], harvesters: list[HarvesterView], rng: np.random.Generator) -> None:
         """Let the workers ask the employers of their area for work.

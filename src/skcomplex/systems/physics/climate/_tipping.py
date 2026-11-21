@@ -103,7 +103,7 @@ class TippingCascadeInteraction(Interaction):
         self.target = target
         self.d = d
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the fold of every element and the pushes of its neighbours.
 
         Args:
@@ -111,10 +111,9 @@ class TippingCascadeInteraction(Interaction):
                 The namespace of the elements, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, c = context.target.x, context.target.c
-            push = neighbors(context.d * (context.target.other.x + 1))
-            self.laws_ = [RateLaw(x.diff(context.t), -(x**3) + x + FOLD * c + push)]
+        x, c = context.target.x, context.target.c
+        push = neighbors(context.d * (context.target.other.x + 1))
+        self.laws_ = [RateLaw(x.diff(context.t), -(x**3) + x + FOLD * c + push)]
 
 
 class TippingCascadeNetworkSystem(BaseSystem):

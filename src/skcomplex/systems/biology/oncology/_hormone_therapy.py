@@ -15,7 +15,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import BaseLaw, EventLaw, RateLaw
 from ....core.components.laws.utils import hill, pulse_train
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, ScipyODESolver
 from ....core.errors import ValidationError
@@ -811,7 +810,7 @@ class PiecewiseLinearAndrogenInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the linear growth and transitions of each mode.
 
         Args:
@@ -819,8 +818,6 @@ class PiecewiseLinearAndrogenInteraction(Interaction):
                 The namespace of the target.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         s = context.target
         on, off = s.u, 1 - s.u
         self.laws_: list[BaseLaw] = [
@@ -1051,28 +1048,32 @@ class TherapySwitchInteraction(Interaction):
         self.state = state
         self.direction = direction
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the switch, an event when the signal crosses the threshold in the direction.
-
-        Args:
-            context:
-                The namespace of the tumour.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The direction is not -1, 0, or 1, or the signal is not a function.
         """
+        super()._check_arguments()
         if self.direction not in (-1, 0, 1):
             error_msg = f'The direction of crossing {self.label!r} is {self.direction!r}. Use -1, 0, or 1.'
             raise ValidationError(error_msg)
         if not callable(self.signal):
             error_msg = f'The signal of {self.label!r} is {self.signal!r}. Give a function of the namespace.'
             raise ValidationError(error_msg)
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the switch, an event when the signal crosses the threshold in the direction.
+
+        Args:
+            context:
+                The namespace of the tumour.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            guard = SR(self.signal(context) - context.threshold)
-            reset = {getattr(context.target, self.state): SR(self.value)}
-            self.laws_: list[BaseLaw] = [EventLaw(guard, reset, self.direction, False, label=self.label)]
+        guard = SR(self.signal(context) - context.threshold)
+        reset = {getattr(context.target, self.state): SR(self.value)}
+        self.laws_: list[BaseLaw] = [EventLaw(guard, reset, self.direction, False, label=self.label)]
 
 
 class ContinuousAndrogenSuppressionSystem(BaseSystem):

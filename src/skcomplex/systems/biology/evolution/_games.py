@@ -220,14 +220,18 @@ class CyclicInvasionInteraction(Interaction):
         beaten = neighbor == np.mod(strategy + 1, STRATEGIES)
         return np.where(beaten, neighbor, strategy)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the invasion of the sites as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the invasion of the sites as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            strategy = context.target.strategy
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(strategy, self._invade, neighborhood=NEAREST, schedule='random-sequential', label=self.label),
-            ]
+        strategy = context.target.strategy
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(strategy, self._invade, neighborhood=NEAREST, schedule='random-sequential', label=self.label),
+        ]
 
 
 class RockPaperScissorsSystem(BaseSystem):

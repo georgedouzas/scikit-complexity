@@ -15,7 +15,6 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, Quantity
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw, UpdateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, EulerSolver
 from ....core.systems import BaseSystem, System
@@ -190,25 +189,29 @@ class CircuitInteraction(Interaction):
         self.firms = firms
         self.bank = bank
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the flows of a period between the deposits of the sectors as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the flows of a period between the deposits of the sectors as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            households, firms, bank = context.households, context.firms, context.bank
-            flows = [
-                (
-                    {households.deposits: -1, firms.deposits: +1},
-                    self._get_consumption(households, firms),
-                    'consumption',
-                ),
-                ({firms.deposits: -1, households.deposits: +1}, firms.wage_share * firms.sales, 'wages'),
-                ({firms.deposits: -1, bank.deposits: +1}, bank.interest * firms.loans, 'interest'),
-                ({bank.deposits: -1, households.deposits: +1}, bank.payout * bank.deposits, 'dividends'),
-                ({firms.deposits: -1, households.deposits: +1}, firms.distribution * firms.deposits, 'profits'),
-                ({firms.deposits: +1}, self._get_lending(firms, bank), 'lending'),
-                ({firms.deposits: -1}, firms.repayment * firms.loans, 'repayments'),
-            ]
-            self.laws_: list[BaseComponent] = [RateLaw(target, amount, label=flow) for target, amount, flow in flows]
+        households, firms, bank = context.households, context.firms, context.bank
+        flows = [
+            (
+                {households.deposits: -1, firms.deposits: +1},
+                self._get_consumption(households, firms),
+                'consumption',
+            ),
+            ({firms.deposits: -1, households.deposits: +1}, firms.wage_share * firms.sales, 'wages'),
+            ({firms.deposits: -1, bank.deposits: +1}, bank.interest * firms.loans, 'interest'),
+            ({bank.deposits: -1, households.deposits: +1}, bank.payout * bank.deposits, 'dividends'),
+            ({firms.deposits: -1, households.deposits: +1}, firms.distribution * firms.deposits, 'profits'),
+            ({firms.deposits: +1}, self._get_lending(firms, bank), 'lending'),
+            ({firms.deposits: -1}, firms.repayment * firms.loans, 'repayments'),
+        ]
+        self.laws_: list[BaseComponent] = [RateLaw(target, amount, label=flow) for target, amount, flow in flows]
 
     @staticmethod
     def _get_consumption(households: SimpleNamespace, firms: SimpleNamespace) -> Expression:

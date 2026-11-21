@@ -16,7 +16,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import clip
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -112,7 +111,7 @@ class PioneerGrowthInteraction(Interaction):
         self.w_intermediate = w_intermediate
         self.w_climax = w_climax
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate of the `volume` of the target.
 
         Args:
@@ -120,8 +119,7 @@ class PioneerGrowthInteraction(Interaction):
                 The namespace of the bound elements, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [RateLaw(context.target.volume, self._get_rate(context))]
+        self.laws_ = [RateLaw(context.target.volume, self._get_rate(context))]
 
     def _get_rate(self, namespace: SimpleNamespace) -> Expression:
         """Return the regrowth with the suppressed input from seeds.
@@ -219,7 +217,7 @@ class SuccessionalGrowthInteraction(Interaction):
         self.w_second = w_second
         self.seedlings = seedlings
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate of the `volume` of the target.
 
         Args:
@@ -227,8 +225,7 @@ class SuccessionalGrowthInteraction(Interaction):
                 The namespace of the bound elements, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [RateLaw(context.target.volume, self._get_rate(context))]
+        self.laws_ = [RateLaw(context.target.volume, self._get_rate(context))]
 
     def _get_rate(self, namespace: SimpleNamespace) -> Expression:
         """Return the crowded logistic growth with the seedling input.

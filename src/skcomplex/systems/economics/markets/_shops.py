@@ -127,18 +127,14 @@ class PriceAdjustmentInteraction(Interaction):
         self.phase = phase
         self.schedule = schedule
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the step of the state, or the rule of the agents, as the laws.
-
-        Args:
-            context:
-                The space the interaction inherits from its system, or the namespace of the target.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The stepping or the schedule is unknown, or the signal is not callable.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if self.schedule not in SCHEDULES:
             error_msg = f'The schedule of {self.label!r} is {self.schedule!r}. Use one of {SCHEDULES}.'
             raise ValidationError(error_msg)
@@ -148,8 +144,15 @@ class PriceAdjustmentInteraction(Interaction):
         if not callable(self.signal):
             error_msg = f'The signal of {self.label!r} must be callable, but it is {self.signal!r}.'
             raise ValidationError(error_msg)
-        if not isinstance(context, SimpleNamespace):
-            return
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the step of the state, or the rule of the agents, as the laws.
+
+        Args:
+            context:
+                The namespace of the target.
+        """
+        super()._prepare(context)
         if self.schedule == 'member':
             self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self._step_member, phase=self.phase)]
         elif self.schedule is not None:

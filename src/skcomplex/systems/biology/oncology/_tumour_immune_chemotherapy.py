@@ -15,7 +15,6 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.types import Role
 
 
@@ -176,7 +175,7 @@ class TumourImmuneChemotherapyInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the balances of the immune, tumour, and normal cells and of the drug.
 
         Args:
@@ -184,8 +183,6 @@ class TumourImmuneChemotherapyInteraction(Interaction):
                 The namespace of the target.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         s = context.target
         E, A, N, U = s.E, s.A, s.N, s.U
         kill = 1 - exp(-U)

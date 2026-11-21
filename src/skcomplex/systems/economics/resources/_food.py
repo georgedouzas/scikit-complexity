@@ -20,7 +20,6 @@ from ....core.components.elements import Element, Quantity
 from ....core.components.interactions import Interaction
 from ....core.components.laws import NoiseLaw, RateLaw
 from ....core.components.laws.utils import series
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
@@ -275,21 +274,24 @@ class PartialAdjustmentInteraction(Interaction):
         self.time = time
         self.noise = noise
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the relaxation of the state and its noise as the laws.
-
-        Args:
-            context:
-                The space the interaction inherits from its system, or the namespace of the target.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The state is not a name, or a function is neither callable nor a number.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         self._check_functions()
-        if not isinstance(context, SimpleNamespace):
-            return
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the relaxation of the state and its noise as the laws.
+
+        Args:
+            context:
+                The namespace of the target.
+        """
+        super()._prepare(context)
         state = getattr(context.target, self.state)
         laws: list[BaseComponent] = [RateLaw(state, self._broadcast(self._get_rate(context), state))]
         if self.noise is not None:

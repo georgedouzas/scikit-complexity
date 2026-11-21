@@ -119,14 +119,18 @@ class HyperedgeGoodsInteraction(Interaction):
         self.target = target
         self.phase = phase
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the payoff, the shares of the pots of the hyperedges of a player minus its contributions, as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the payoff, the shares of the pots of the hyperedges of a player minus its contributions, as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            member = context.target
-            pot = member.synergy * total(member.members.strategy, over=member.members)
-            share = pot / count(over=member.members) - member.strategy
-            self.laws_: list[BaseComponent] = [UpdateLaw(member.payoff, hyperedges(share), phase=self.phase)]
+        member = context.target
+        pot = member.synergy * total(member.members.strategy, over=member.members)
+        share = pot / count(over=member.members) - member.strategy
+        self.laws_: list[BaseComponent] = [UpdateLaw(member.payoff, hyperedges(share), phase=self.phase)]
 
 
 class SimplicialDilemmaInteraction(Interaction):
@@ -198,15 +202,19 @@ class SimplicialDilemmaInteraction(Interaction):
         self.temptation_opposed = temptation_opposed
         self.phase = phase
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the payoff, the games over the triangles of a player divided by twice their number, as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the payoff, the games over the triangles of a player divided by twice their number, as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            member = context.target
-            games = hyperedges(self._get_games(context, member))
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(member.payoff, games / (PAIR * member.triangles), phase=self.phase),
-            ]
+        member = context.target
+        games = hyperedges(self._get_games(context, member))
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(member.payoff, games / (PAIR * member.triangles), phase=self.phase),
+        ]
 
     @staticmethod
     def _get_games(s: SimpleNamespace, member: SimpleNamespace) -> Expression:

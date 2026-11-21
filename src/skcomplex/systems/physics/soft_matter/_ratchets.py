@@ -20,7 +20,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import mod, series, where
-from ....core.components.spaces import BaseSpace, ContinuousSpace
+from ....core.components.spaces import ContinuousSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver
 from ....core.systems import BaseSystem, System
@@ -83,7 +83,7 @@ class FlashingSawtoothInteraction(Interaction):
         self.asymmetry = asymmetry
         self.switches = switches
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the drift of the positions of the target by the force of the sawtooth while it is on.
 
         Args:
@@ -91,13 +91,12 @@ class FlashingSawtoothInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, x = context, context.target.x
-            times = (0.0, *self.switches)
-            on = series(s.t, times, [float(index % 2 == 0) for index in range(len(times))], 'previous')
-            rise = s.asymmetry * s.L
-            force = on * where(mod(x[0], s.L) < rise, -s.barrier / rise, s.barrier / (s.L - rise))
-            self.laws_ = [RateLaw(x, vector(SR, [force / s.target.gamma]))]
+        s, x = context, context.target.x
+        times = (0.0, *self.switches)
+        on = series(s.t, times, [float(index % 2 == 0) for index in range(len(times))], 'previous')
+        rise = s.asymmetry * s.L
+        force = on * where(mod(x[0], s.L) < rise, -s.barrier / rise, s.barrier / (s.L - rise))
+        self.laws_ = [RateLaw(x, vector(SR, [force / s.target.gamma]))]
 
 
 class TiltedWashboardInteraction(Interaction):
@@ -146,7 +145,7 @@ class TiltedWashboardInteraction(Interaction):
         self.L = L
         self.f = f
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the drift of the positions of the target down the tilted potential `U0 cos(2 pi x / L) - f x`.
 
         Args:
@@ -154,10 +153,9 @@ class TiltedWashboardInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, x = context, context.target.x
-            force = 2 * math.pi * s.U0 / s.L * sin(2 * math.pi * x[0] / s.L) + s.f
-            self.laws_ = [RateLaw(x, vector(SR, [force / s.target.gamma]))]
+        s, x = context, context.target.x
+        force = 2 * math.pi * s.U0 / s.L * sin(2 * math.pi * x[0] / s.L) + s.f
+        self.laws_ = [RateLaw(x, vector(SR, [force / s.target.gamma]))]
 
 
 class TiltedPeriodicPotentialSystem(BaseSystem):

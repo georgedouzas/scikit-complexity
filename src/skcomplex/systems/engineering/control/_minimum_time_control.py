@@ -19,7 +19,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import sign, where
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ParameterError
@@ -108,7 +107,7 @@ class BangBangPlantInteraction(Interaction):
         self.target = target
         self.a = a
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the motion of the plant under the held control.
 
         Args:
@@ -116,9 +115,8 @@ class BangBangPlantInteraction(Interaction):
                 The namespace of the plant, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            plant, t = context.target, context.t
-            self.laws_: list[BaseComponent] = [RateLaw(plant.x.diff(t, 2), context.a * plant.x + plant.u)]
+        plant, t = context.target, context.t
+        self.laws_: list[BaseComponent] = [RateLaw(plant.x.diff(t, 2), context.a * plant.x + plant.u)]
 
     @staticmethod
     def _get_switching_curve(plant: str, x: Expression) -> Expression:

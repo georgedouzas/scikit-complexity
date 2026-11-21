@@ -97,13 +97,17 @@ class InverseJuliaInteraction(Interaction):
         self.omega = omega
         self.p = p
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the move to the square root drawn in the step as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the move to the square root drawn in the step as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            z = context.target.z
-            root = sqrt(z - context.omega)
-            self.laws_: list[BaseComponent] = [UpdateLaw(z, (2 * bernoulli('branch', context.p) - 1) * root)]
+        z = context.target.z
+        root = sqrt(z - context.omega)
+        self.laws_: list[BaseComponent] = [UpdateLaw(z, (2 * bernoulli('branch', context.p) - 1) * root)]
 
 
 class QuadraticMapElement(Element):
@@ -178,16 +182,20 @@ class QuadraticMapInteraction(Interaction):
         self.target = target
         self.radius = radius
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the next point and the next count as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the next point and the next count as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            z, n, c = context.target.z, context.target.n, context.target.c
-            inside = abs(z) <= context.radius
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(z, where(inside, z**2 + c, z)),
-                UpdateLaw(n, n + where(inside, 1, 0)),
-            ]
+        z, n, c = context.target.z, context.target.n, context.target.c
+        inside = abs(z) <= context.radius
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(z, where(inside, z**2 + c, z)),
+            UpdateLaw(n, n + where(inside, 1, 0)),
+        ]
 
 
 class MandelbrotSystem(BaseSystem):

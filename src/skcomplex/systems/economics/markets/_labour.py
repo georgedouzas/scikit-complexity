@@ -19,7 +19,6 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, Member
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
@@ -239,11 +238,15 @@ class JobOffersInteraction(Interaction):
         self.workers = workers
         self.phase = phase
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the offers of every step as the rule of the system."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the offers of every step as the rule of the system.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self.offer, phase=self.phase)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context, self.offer, phase=self.phase)]
 
     def offer(self, system: SystemView) -> None:
         """Post the vacancies of the firms, then set the search, the separations, and the spells of the workers.

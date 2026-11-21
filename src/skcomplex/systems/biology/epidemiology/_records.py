@@ -19,7 +19,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import uniform, where
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -76,7 +75,7 @@ class StrainDrawInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the strength of the next season, a uniform draw.
 
         Args:
@@ -84,8 +83,7 @@ class StrainDrawInteraction(Interaction):
                 The namespace of the pathogen.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = [UpdateLaw(context.target.eta, uniform('eta'))]
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target.eta, uniform('eta'))]
 
 
 class ResidentElement(Element):
@@ -161,7 +159,7 @@ class ResistanceInfectionInteraction(Interaction):
         self.residents = residents
         self.pathogen = pathogen
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the infection and the immunity of the residents whose resistance is below the strength of the strain.
 
         Args:
@@ -169,8 +167,6 @@ class ResistanceInfectionInteraction(Interaction):
                 The namespace of the residents and the pathogen.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         resident, strength = context.residents, context.pathogen.eta
         susceptible = strength > resident.R
         self.laws_: list[BaseLaw] = [

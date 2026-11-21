@@ -18,7 +18,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import JumpLaw
 from ....core.components.laws.utils import where
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -88,15 +87,19 @@ class ServiceInteraction(Interaction):
         self.arrival_rate = arrival_rate
         self.service_rate = service_rate
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the arrival and the departure of a customer as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the arrival and the departure of a customer as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            n = context.target.n
-            self.laws_: list[BaseComponent] = [
-                JumpLaw(context.arrival_rate, {n: 1}),
-                JumpLaw(where(n > 0, context.service_rate, 0), {n: -1}),
-            ]
+        n = context.target.n
+        self.laws_: list[BaseComponent] = [
+            JumpLaw(context.arrival_rate, {n: 1}),
+            JumpLaw(where(n > 0, context.service_rate, 0), {n: -1}),
+        ]
 
 
 class BirthDeathQueueSystem(BaseSystem):

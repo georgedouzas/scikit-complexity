@@ -225,14 +225,18 @@ class DailyMovementsInteraction(Interaction):
         self.phase = phase
         self.victims_phase = victims_phase
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rules of the free women and of the victims as rules of the system, in their phases."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rules of the free women and of the victims as rules of the system, in their phases.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(context, self.move_free, phase=self.phase),
-                UpdateLaw(context, self.move_victims, phase=self.victims_phase),
-            ]
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(context, self.move_free, phase=self.phase),
+            UpdateLaw(context, self.move_victims, phase=self.victims_phase),
+        ]
 
     def _get_city(self, location: object, width: int) -> int:
         """Return the city of a cell of a grid of a given width."""

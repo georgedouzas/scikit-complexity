@@ -15,7 +15,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import mod, where
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -50,12 +49,16 @@ class LogisticMapInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the next value of the state as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the next value of the state as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, r = context.target.x, context.target.r
-            self.laws_: list[BaseComponent] = [UpdateLaw(x, r * x * (1 - x))]
+        x, r = context.target.x, context.target.r
+        self.laws_: list[BaseComponent] = [UpdateLaw(x, r * x * (1 - x))]
 
 
 class LogisticMapSystem(BaseSystem):
@@ -153,16 +156,20 @@ class HenonMapInteraction(Interaction):
         self.a = a
         self.b = b
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the next value of every state as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the next value of every state as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, y = context.target.x, context.target.y
-            a, b = context.a, context.b
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(x, 1 - a * x**2 + y),
-                UpdateLaw(y, b * x),
-            ]
+        x, y = context.target.x, context.target.y
+        a, b = context.a, context.b
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(x, 1 - a * x**2 + y),
+            UpdateLaw(y, b * x),
+        ]
 
 
 class HenonMapSystem(BaseSystem):
@@ -261,13 +268,17 @@ class StandardMapInteraction(Interaction):
         self.target = target
         self.K = K
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the kick of the momentum and the rotation of the angle as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the kick of the momentum and the rotation of the angle as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            theta, p = context.target.theta, context.target.p
-            kicked = p + context.K * sin(theta)
-            self.laws_: list[BaseComponent] = [UpdateLaw(p, kicked), UpdateLaw(theta, mod(theta + kicked, 2 * pi))]
+        theta, p = context.target.theta, context.target.p
+        kicked = p + context.K * sin(theta)
+        self.laws_: list[BaseComponent] = [UpdateLaw(p, kicked), UpdateLaw(theta, mod(theta + kicked, 2 * pi))]
 
 
 class StandardMapSystem(BaseSystem):
@@ -527,30 +538,34 @@ class BakerMapInteraction(Interaction):
         self.lambda_a = lambda_a
         self.lambda_b = lambda_b
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the next value of every state as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the next value of every state as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, y = context.target.x, context.target.y
-            alpha, lambda_a, lambda_b = context.alpha, context.lambda_a, context.lambda_b
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(
-                    x,
-                    where(
-                        x < alpha,
-                        x / alpha,
-                        (x - alpha) / (1 - alpha),
-                    ),
+        x, y = context.target.x, context.target.y
+        alpha, lambda_a, lambda_b = context.alpha, context.lambda_a, context.lambda_b
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(
+                x,
+                where(
+                    x < alpha,
+                    x / alpha,
+                    (x - alpha) / (1 - alpha),
                 ),
-                UpdateLaw(
-                    y,
-                    where(
-                        x < alpha,
-                        lambda_a * y,
-                        1 - lambda_b + lambda_b * y,
-                    ),
+            ),
+            UpdateLaw(
+                y,
+                where(
+                    x < alpha,
+                    lambda_a * y,
+                    1 - lambda_b + lambda_b * y,
                 ),
-            ]
+            ),
+        ]
 
 
 class BakerMapSystem(BaseSystem):
@@ -674,17 +689,21 @@ class TowelMapInteraction(Interaction):
         self.a = a
         self.b = b
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the next value of every state as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the next value of every state as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, y, z = context.target.x, context.target.y, context.target.z
-            a, b = context.a, context.b
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(x, a * x * (1 - x) - 0.05 * (y + 0.35) * (1 - 2 * z)),
-                UpdateLaw(y, 0.1 * ((y + 0.35) * (1 - 2 * z) - 1) * (1 - 1.9 * x)),
-                UpdateLaw(z, b * z * (1 - z) + 0.2 * y),
-            ]
+        x, y, z = context.target.x, context.target.y, context.target.z
+        a, b = context.a, context.b
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(x, a * x * (1 - x) - 0.05 * (y + 0.35) * (1 - 2 * z)),
+            UpdateLaw(y, 0.1 * ((y + 0.35) * (1 - 2 * z) - 1) * (1 - 1.9 * x)),
+            UpdateLaw(z, b * z * (1 - z) + 0.2 * y),
+        ]
 
 
 class TowelMapSystem(BaseSystem):
@@ -793,15 +812,19 @@ class IntermittencyMapInteraction(Interaction):
         self.target = target
         self.z = z
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the next value of every state as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the next value of every state as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x = context.target.x
-            z = context.z
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(x, mod(x + x**z, 1)),
-            ]
+        x = context.target.x
+        z = context.z
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(x, mod(x + x**z, 1)),
+        ]
 
 
 class IntermittencyMapSystem(BaseSystem):
@@ -889,15 +912,19 @@ class NewtonRaphsonMapInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the next value of every state as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the next value of every state as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, y = context.target.x, context.target.y
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(x, 2 * x / 3 + (x**2 - y**2) / (3 * (x**2 + y**2) ** 2)),
-                UpdateLaw(y, 2 * y / 3 - 2 * x * y / (3 * (x**2 + y**2) ** 2)),
-            ]
+        x, y = context.target.x, context.target.y
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(x, 2 * x / 3 + (x**2 - y**2) / (3 * (x**2 + y**2) ** 2)),
+            UpdateLaw(y, 2 * y / 3 - 2 * x * y / (3 * (x**2 + y**2) ** 2)),
+        ]
 
 
 class NewtonRaphsonMapSystem(BaseSystem):
@@ -986,15 +1013,19 @@ class CatMapInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the next value of every state as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the next value of every state as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, y = context.target.x, context.target.y
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(x, mod(2 * x + y, 1)),
-                UpdateLaw(y, mod(x + y, 1)),
-            ]
+        x, y = context.target.x, context.target.y
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(x, mod(2 * x + y, 1)),
+            UpdateLaw(y, mod(x + y, 1)),
+        ]
 
 
 class CatMapSystem(BaseSystem):
@@ -1092,16 +1123,20 @@ class LoziMapInteraction(Interaction):
         self.a = a
         self.b = b
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the next value of every state as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the next value of every state as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, y = context.target.x, context.target.y
-            a, b = context.a, context.b
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(x, 1 + y - a * abs_symbolic(x)),
-                UpdateLaw(y, b * x),
-            ]
+        x, y = context.target.x, context.target.y
+        a, b = context.a, context.b
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(x, 1 + y - a * abs_symbolic(x)),
+            UpdateLaw(y, b * x),
+        ]
 
 
 class LoziMapSystem(BaseSystem):
@@ -1205,16 +1240,20 @@ class ConservativeHenonMapInteraction(Interaction):
         self.target = target
         self.nu = nu
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the next value of every state as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the next value of every state as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, y = context.target.x, context.target.y
-            nu = context.nu
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(x, cos(2 * pi * nu) * x + sin(2 * pi * nu) * (y + x**2)),
-                UpdateLaw(y, -sin(2 * pi * nu) * x + cos(2 * pi * nu) * (y + x**2)),
-            ]
+        x, y = context.target.x, context.target.y
+        nu = context.nu
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(x, cos(2 * pi * nu) * x + sin(2 * pi * nu) * (y + x**2)),
+            UpdateLaw(y, -sin(2 * pi * nu) * x + cos(2 * pi * nu) * (y + x**2)),
+        ]
 
 
 class ConservativeHenonMapSystem(BaseSystem):
@@ -1316,22 +1355,26 @@ class FermiUlamMapInteraction(Interaction):
         self.target = target
         self.epsilon = epsilon
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the next value of every state as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the next value of every state as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            u, theta = context.target.u, context.target.theta
-            epsilon = context.epsilon
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(u, abs_symbolic(u + epsilon * sin(theta))),
-                UpdateLaw(
-                    theta,
-                    mod(
-                        theta + 2 * pi / abs_symbolic(u + epsilon * sin(theta)),
-                        2 * pi,
-                    ),
+        u, theta = context.target.u, context.target.theta
+        epsilon = context.epsilon
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(u, abs_symbolic(u + epsilon * sin(theta))),
+            UpdateLaw(
+                theta,
+                mod(
+                    theta + 2 * pi / abs_symbolic(u + epsilon * sin(theta)),
+                    2 * pi,
                 ),
-            ]
+            ),
+        ]
 
 
 class FermiUlamMapSystem(BaseSystem):

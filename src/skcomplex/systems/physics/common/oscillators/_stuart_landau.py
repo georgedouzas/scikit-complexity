@@ -10,7 +10,6 @@ from types import SimpleNamespace
 
 from .....core.components.interactions import Interaction
 from .....core.components.laws import RateLaw
-from .....core.components.spaces import BaseSpace
 from .....core.types import Role
 
 
@@ -49,7 +48,7 @@ class StuartLandauInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rates of the real and imaginary parts of `z`.
 
         Args:
@@ -57,10 +56,9 @@ class StuartLandauInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, t = context.target, context.t
-            saturation = s.kappa * (s.x**2 + s.y**2)
-            self.laws_ = [
-                RateLaw(s.x.diff(t), s.tau * (s.mu * s.x - s.omega * s.y - saturation * (s.x - s.beta * s.y))),
-                RateLaw(s.y.diff(t), s.tau * (s.mu * s.y + s.omega * s.x - saturation * (s.y + s.beta * s.x))),
-            ]
+        s, t = context.target, context.t
+        saturation = s.kappa * (s.x**2 + s.y**2)
+        self.laws_ = [
+            RateLaw(s.x.diff(t), s.tau * (s.mu * s.x - s.omega * s.y - saturation * (s.x - s.beta * s.y))),
+            RateLaw(s.y.diff(t), s.tau * (s.mu * s.y + s.omega * s.x - saturation * (s.y + s.beta * s.x))),
+        ]

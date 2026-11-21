@@ -11,7 +11,6 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -50,15 +49,19 @@ class SaddleNodeFormInteraction(Interaction):
         self.target = target
         self.mu = mu
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rate of every state as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate of every state as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x = context.target.x
-            mu = context.mu
-            self.laws_: list[BaseComponent] = [
-                RateLaw(x, mu - x**2),
-            ]
+        x = context.target.x
+        mu = context.mu
+        self.laws_: list[BaseComponent] = [
+            RateLaw(x, mu - x**2),
+        ]
 
 
 class SaddleNodeFormSystem(BaseSystem):
@@ -161,16 +164,20 @@ class HopfFormInteraction(Interaction):
         self.omega = omega
         self.a = a
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rate of every state as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate of every state as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, y = context.target.x, context.target.y
-            mu, omega, a = context.mu, context.omega, context.a
-            self.laws_: list[BaseComponent] = [
-                RateLaw(x, mu * x - omega * y + a * x * (x**2 + y**2)),
-                RateLaw(y, omega * x + mu * y + a * y * (x**2 + y**2)),
-            ]
+        x, y = context.target.x, context.target.y
+        mu, omega, a = context.mu, context.omega, context.a
+        self.laws_: list[BaseComponent] = [
+            RateLaw(x, mu * x - omega * y + a * x * (x**2 + y**2)),
+            RateLaw(y, omega * x + mu * y + a * y * (x**2 + y**2)),
+        ]
 
 
 class HopfFormSystem(BaseSystem):
@@ -289,16 +296,20 @@ class TakensBogdanovFormInteraction(Interaction):
         self.beta2 = beta2
         self.sign = sign
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rate of every state as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate of every state as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, y = context.target.x, context.target.y
-            beta1, beta2, sign = context.beta1, context.beta2, context.sign
-            self.laws_: list[BaseComponent] = [
-                RateLaw(x, y),
-                RateLaw(y, beta1 + beta2 * x + x**2 + sign * x * y),
-            ]
+        x, y = context.target.x, context.target.y
+        beta1, beta2, sign = context.beta1, context.beta2, context.sign
+        self.laws_: list[BaseComponent] = [
+            RateLaw(x, y),
+            RateLaw(y, beta1 + beta2 * x + x**2 + sign * x * y),
+        ]
 
 
 class TakensBogdanovFormSystem(BaseSystem):
@@ -419,15 +430,19 @@ class CuspFormInteraction(Interaction):
         self.beta1 = beta1
         self.beta2 = beta2
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rate of every state as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate of every state as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x = context.target.x
-            beta1, beta2 = context.beta1, context.beta2
-            self.laws_: list[BaseComponent] = [
-                RateLaw(x, beta1 + beta2 * x - x**3),
-            ]
+        x = context.target.x
+        beta1, beta2 = context.beta1, context.beta2
+        self.laws_: list[BaseComponent] = [
+            RateLaw(x, beta1 + beta2 * x - x**3),
+        ]
 
 
 class CuspFormSystem(BaseSystem):

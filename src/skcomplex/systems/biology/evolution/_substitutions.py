@@ -144,7 +144,7 @@ class SubstitutionInteraction(Interaction):
             couplings,
         )
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the substitutions of the allele of every locus, from `-1` to `1` and back.
 
         Args:
@@ -152,8 +152,6 @@ class SubstitutionInteraction(Interaction):
                 The namespace of the genome, with `context.target`.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         s = context
         alleles = getattr(s.target, self.state)
         local, fitness = self._get_fitness(s)

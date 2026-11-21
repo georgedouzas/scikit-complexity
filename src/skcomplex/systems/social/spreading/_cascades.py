@@ -18,7 +18,7 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
-from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.components.spaces import NetworkSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, SystemView
@@ -63,11 +63,15 @@ class ThresholdActivationInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the activation of the nodes, one after the other in a random order, as the rule of the system."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the activation of the nodes, one after the other in a random order, as the rule of the system.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self._activate)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context, self._activate)]
 
     def _activate(self, system: SystemView) -> None:
         """Activate the nodes one after the other in a new random order."""

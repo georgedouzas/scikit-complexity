@@ -167,15 +167,19 @@ class ConfidenceCouplingInteraction(Interaction):
         self.target = target
         self.state = state
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the next opinion, the mean of the trusted opinions of the agent and its neighbours, as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the next opinion, the mean of the trusted opinions of the agent and its neighbours, as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            member = context.target
-            opinion, other = getattr(member, self.state), getattr(member.other, self.state)
-            trust = where(abs(other - opinion) < member.confidence, 1, 0)
-            mean = neighbors(other, over=AdjacencyNeighborhood(center=True), reduce='normalized-mean', weight=trust)
-            self.laws_: list[BaseComponent] = [UpdateLaw(opinion, mean)]
+        member = context.target
+        opinion, other = getattr(member, self.state), getattr(member.other, self.state)
+        trust = where(abs(other - opinion) < member.confidence, 1, 0)
+        mean = neighbors(other, over=AdjacencyNeighborhood(center=True), reduce='normalized-mean', weight=trust)
+        self.laws_: list[BaseComponent] = [UpdateLaw(opinion, mean)]
 
 
 class EncountersInteraction(RandomPairsInteraction):

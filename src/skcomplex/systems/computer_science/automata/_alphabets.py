@@ -176,14 +176,18 @@ class SelfIndexedShiftInteraction(Interaction):
         """Return the value read at the product of a site and its own value, `x(g · x(g))`."""
         return value
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the read at the product of every site and its value as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the read at the product of every site and its value as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            value = context.target.value
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(value, self._translate, neighborhood=StateTranslationNeighborhood(), label=self.label),
-            ]
+        value = context.target.value
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(value, self._translate, neighborhood=StateTranslationNeighborhood(), label=self.label),
+        ]
 
 
 class PowerSeriesDifferenceInteraction(Interaction):
@@ -224,14 +228,18 @@ class PowerSeriesDifferenceInteraction(Interaction):
 
         return difference
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the difference with the cell to the right as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the difference with the cell to the right as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            value = context.target.value
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(value, self._get_function(), neighborhood=FORWARD, label=self.label),
-            ]
+        value = context.target.value
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(value, self._get_function(), neighborhood=FORWARD, label=self.label),
+        ]
 
 
 class SubtractionRuleInteraction(Interaction):
@@ -259,12 +267,16 @@ class SubtractionRuleInteraction(Interaction):
         """Return the truncated difference `max(0, x(n) - x(n + 1))` of the naturals."""
         return np.maximum(0.0, here - right)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the truncated difference with the cell to the right as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the truncated difference with the cell to the right as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            value = context.target.value
-            self.laws_: list[BaseComponent] = [UpdateLaw(value, self._subtract, neighborhood=FORWARD, label=self.label)]
+        value = context.target.value
+        self.laws_: list[BaseComponent] = [UpdateLaw(value, self._subtract, neighborhood=FORWARD, label=self.label)]
 
 
 class QuadraticRuleInteraction(Interaction):
@@ -292,14 +304,18 @@ class QuadraticRuleInteraction(Interaction):
         """Return `x(n + 1) - x(n)^2`."""
         return right - here**2
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rule on a cell and the cell to its right as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule on a cell and the cell to its right as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            value = context.target.value
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(value, self._get_quadratic, neighborhood=FORWARD, label=self.label),
-            ]
+        value = context.target.value
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(value, self._get_quadratic, neighborhood=FORWARD, label=self.label),
+        ]
 
 
 class GroupDifferenceInteraction(Interaction):
@@ -339,14 +355,18 @@ class GroupDifferenceInteraction(Interaction):
 
         return difference
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the difference with the cell to the right as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the difference with the cell to the right as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            value = context.target.value
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(value, self._get_function(), neighborhood=FORWARD, label=self.label),
-            ]
+        value = context.target.value
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(value, self._get_function(), neighborhood=FORWARD, label=self.label),
+        ]
 
 
 class SelfIndexedShiftSystem(BaseSystem):

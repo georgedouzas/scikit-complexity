@@ -15,7 +15,6 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -87,7 +86,7 @@ class IzhikevichInteraction(Interaction):
         self.b = b
         self.I = I
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the quadratic potential and the linear recovery.
 
         Args:
@@ -95,10 +94,9 @@ class IzhikevichInteraction(Interaction):
                 The namespace of the neuron, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            v, u = s.target.v, s.target.u
-            self.laws_ = [RateLaw(v, 0.04 * v**2 + 5 * v + 140 - u + s.I), RateLaw(u, s.a * (s.b * v - u))]
+        s = context
+        v, u = s.target.v, s.target.u
+        self.laws_ = [RateLaw(v, 0.04 * v**2 + 5 * v + 140 - u + s.I), RateLaw(u, s.a * (s.b * v - u))]
 
 
 class LeakyIntegrateAndFireElement(Element):
@@ -172,7 +170,7 @@ class LeakyIntegrateAndFireInteraction(Interaction):
         self.tau = tau
         self.I = I
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the leaky integration of the input current.
 
         Args:
@@ -180,10 +178,9 @@ class LeakyIntegrateAndFireInteraction(Interaction):
                 The namespace of the neuron, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            v = s.target.v
-            self.laws_ = [RateLaw(v, (-(v - s.rest) + s.resistance * s.I) / s.tau)]
+        s = context
+        v = s.target.v
+        self.laws_ = [RateLaw(v, (-(v - s.rest) + s.resistance * s.I) / s.tau)]
 
 
 class IntegrateAndFireSystem(BaseSystem):

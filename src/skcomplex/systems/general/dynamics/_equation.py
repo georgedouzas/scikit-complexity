@@ -11,7 +11,6 @@ from ....core.components import Tags
 from ....core.components.base import BaseComponent
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw, UpdateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.types import Role
 
 
@@ -90,16 +89,14 @@ class EquationInteraction(Interaction):
         classes = (RateLaw,) if self.equation is not None else ()
         return self._get_variant_tags((*classes, NoiseLaw) if self.noise is not None else classes)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate and the noise, or the next value, of the state.
 
         Args:
             context:
-                The space the interaction inherits from its system, or the namespace of the element.
+                The namespace of the element.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         name = self.state.rstrip("'")
         order = len(self.state) - len(name)
         state = getattr(context.target, name)

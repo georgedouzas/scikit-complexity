@@ -155,7 +155,7 @@ class MetabolismInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the metabolism of the substance.
 
         Args:
@@ -163,9 +163,8 @@ class MetabolismInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context.target
-            self.laws_ = [RateLaw(s.x, -s.alpha * hill(s.x, s.beta))]
+        s = context.target
+        self.laws_ = [RateLaw(s.x, -s.alpha * hill(s.x, s.beta))]
 
 
 class ContourUptakeInteraction(Interaction):
@@ -200,7 +199,7 @@ class ContourUptakeInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the logistic map of every cell mixed with the power uptake from the next cell.
 
         Args:
@@ -208,11 +207,10 @@ class ContourUptakeInteraction(Interaction):
                 The namespace of the group of cells.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            member = context.target
-            uptake = shift_member(member.x, 1) ** member.p * SR(1)
-            mixed = (1 - member.c) * member.r * member.x * (1 - member.x) + member.c * uptake
-            self.laws_: list[BaseLaw] = [UpdateLaw(member.x, mixed)]
+        member = context.target
+        uptake = shift_member(member.x, 1) ** member.p * SR(1)
+        mixed = (1 - member.c) * member.r * member.x * (1 - member.x) + member.c * uptake
+        self.laws_: list[BaseLaw] = [UpdateLaw(member.x, mixed)]
 
 
 class ClosedContourCellExchangeSystem(BaseSystem):

@@ -14,7 +14,6 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import ConstraintLaw
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -115,7 +114,7 @@ class LinearQuadraticSurvivalInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the equations of the Lea-Catcheside factor, the survival, and the biologically effective dose.
 
         Args:
@@ -123,21 +122,20 @@ class LinearQuadraticSurvivalInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context.target
-            repaired = s.repair_rate * s.delivery_time
-            protraction = 2 * (repaired - 1 + exp(-repaired)) / (s.fractions * repaired**2)
-            self.laws_ = [
-                ConstraintLaw(s.protraction == protraction, target=s.protraction),
-                ConstraintLaw(
-                    s.survival == exp(-s.alpha * s.dose - s.beta * protraction * s.dose**2),
-                    target=s.survival,
-                ),
-                ConstraintLaw(
-                    s.effective_dose == s.dose * (1 + protraction * s.dose * s.beta / s.alpha),
-                    target=s.effective_dose,
-                ),
-            ]
+        s = context.target
+        repaired = s.repair_rate * s.delivery_time
+        protraction = 2 * (repaired - 1 + exp(-repaired)) / (s.fractions * repaired**2)
+        self.laws_ = [
+            ConstraintLaw(s.protraction == protraction, target=s.protraction),
+            ConstraintLaw(
+                s.survival == exp(-s.alpha * s.dose - s.beta * protraction * s.dose**2),
+                target=s.survival,
+            ),
+            ConstraintLaw(
+                s.effective_dose == s.dose * (1 + protraction * s.dose * s.beta / s.alpha),
+                target=s.effective_dose,
+            ),
+        ]
 
 
 class LQCellSurvivalSystem(BaseSystem):

@@ -13,7 +13,6 @@ from .....core.components import Tags
 from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
 from .....core.components.laws import NoiseLaw, RateLaw
-from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
 from .....core.types import Role
 
@@ -90,25 +89,28 @@ class SpeedAdaptationInteraction(Interaction):
         noisy = self.noise is not None or type(self)._get_noise is not SpeedAdaptationInteraction._get_noise
         return self._get_variant_tags((RateLaw, NoiseLaw) if noisy else (RateLaw,))
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the relaxation of the value of the target and its noise.
-
-        Args:
-            context:
-                The namespace of the target, the time `t`, and the parameters.
+    def _check_arguments(self) -> None:
+        """Raise an error for a goal, a time, or a noise that is neither callable nor a number.
 
         Raises:
             ValidationError:
                 A goal, a time, or a noise is neither callable nor a number.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         for name in ('goal', 'time', 'noise'):
             value = getattr(self, name)
             if not (callable(value) or isinstance(value, int | float) or (name == 'noise' and value is None)):
                 error_msg = f'The {name} of {self.label!r} is {value!r}. Give a function of the namespace or a number.'
                 raise ValidationError(error_msg)
-        if not isinstance(context, SimpleNamespace):
-            return
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the relaxation of the value of the target and its noise.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
         s, t = context, context.t
         position = getattr(s.target, self.state.rstrip("'"))
         order = len(self.state) - len(self.state.rstrip("'"))

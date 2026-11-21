@@ -154,7 +154,7 @@ class PastureRegrowthInteraction(Interaction):
         super().__init__(label)
         self.pasture = pasture
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the regrowth rule of every patch.
 
         Args:
@@ -162,8 +162,7 @@ class PastureRegrowthInteraction(Interaction):
                 The namespace of the group of patches.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = [UpdateLaw(context.pasture, self.regrow)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.pasture, self.regrow)]
 
     @staticmethod
     def regrow(agent: PastureView, system: SystemView) -> None:
@@ -209,7 +208,7 @@ class GrazingInteraction(Interaction):
         self.cows = cows
         self.pasture = pasture
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the meal, a rule of the whole system.
 
         Args:
@@ -217,8 +216,7 @@ class GrazingInteraction(Interaction):
                 The namespace of the system.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = [UpdateLaw(context, self.feed)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self.feed)]
 
     def feed(self, system: SystemViewProtocol) -> None:
         """Let every cow eat its bite of the grass of the patch in its cell, or what grass is left.

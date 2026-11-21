@@ -145,7 +145,7 @@ class ColocationInteraction(Interaction):
         self.gamma = gamma
         self.closed = closed
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rule of a half day.
 
         Args:
@@ -153,8 +153,6 @@ class ColocationInteraction(Interaction):
                 The namespace of the symbols the laws can use.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         self.laws_: list[BaseLaw] = [UpdateLaw(context, self.visit)]
 
     def visit(self, system: SystemView) -> None:

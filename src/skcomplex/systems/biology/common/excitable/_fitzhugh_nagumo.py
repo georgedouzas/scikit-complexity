@@ -14,7 +14,6 @@ from sage.sets.real_set import RealSet
 
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, RateLaw
-from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
 from .....core.types import Role
 
@@ -91,25 +90,29 @@ class FitzHughNagumoInteraction(Interaction):
         self.epsilon = epsilon
         self.I = I
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the cubic fast kinetics and the slow linear recovery.
-
-        Args:
-            context:
-                The namespace of the target.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 A state name is not a name, or the fast and the slow state are the same.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         names = (self.fast, self.slow)
         if not all(isinstance(name, str) and name.isidentifier() for name in names) or self.fast == self.slow:
             error_msg = f'{self.label!r} reads the states {names!r}. Give two different names of states.'
             raise ValidationError(error_msg)
-        if isinstance(context, SimpleNamespace):
-            v, w, t = getattr(context.target, self.fast), getattr(context.target, self.slow), context.t
-            self.laws_: list[BaseLaw] = [
-                RateLaw(v.diff(t), v - v**3 / 3 - w + context.I),
-                RateLaw(w.diff(t), context.epsilon * (v + context.a - context.b * w)),
-            ]
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the cubic fast kinetics and the slow linear recovery.
+
+        Args:
+            context:
+                The namespace of the target.
+        """
+        super()._prepare(context)
+        v, w, t = getattr(context.target, self.fast), getattr(context.target, self.slow), context.t
+        self.laws_: list[BaseLaw] = [
+            RateLaw(v.diff(t), v - v**3 / 3 - w + context.I),
+            RateLaw(w.diff(t), context.epsilon * (v + context.a - context.b * w)),
+        ]

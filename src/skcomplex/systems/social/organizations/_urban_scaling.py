@@ -108,13 +108,17 @@ class GravityContactInteraction(Interaction):
         self.reach = reach
         self.gamma = gamma
 
-    def _prepare(self, s: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the equation of the contacts of a resident."""
+    def _prepare(self, s: SimpleNamespace) -> None:
+        """Set the equation of the contacts of a resident.
+
+        Args:
+            s:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(s)
-        if isinstance(s, SimpleNamespace):
-            dx, dy = s.target.other.x - s.target.x, s.target.other.y - s.target.y
-            contacts = neighbors((dx**2 + dy**2) ** (-s.gamma / 2), over=RadiusNeighborhood(self.reach))
-            self.laws_: list[BaseComponent] = [ConstraintLaw(s.target.contacts == contacts, target=s.target.contacts)]
+        dx, dy = s.target.other.x - s.target.x, s.target.other.y - s.target.y
+        contacts = neighbors((dx**2 + dy**2) ** (-s.gamma / 2), over=RadiusNeighborhood(self.reach))
+        self.laws_: list[BaseComponent] = [ConstraintLaw(s.target.contacts == contacts, target=s.target.contacts)]
 
 
 class GravityUrbanScalingSystem(BaseSystem):

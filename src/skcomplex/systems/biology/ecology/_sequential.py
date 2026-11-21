@@ -121,7 +121,7 @@ class LinearGrowthInteraction(Interaction):
         self.influences = influences
         self.rate = rate
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the linear growth and the normalisation of the abundances.
 
         Args:
@@ -129,8 +129,6 @@ class LinearGrowthInteraction(Interaction):
                 The namespace with `context.species` and `context.influences`.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         species = context.species
         grown = species.x + context.rate * neighbors(species.other.x, weight=context.influences.w)
         kept = where(grown > 0, grown, 0)

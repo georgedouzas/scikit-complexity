@@ -108,11 +108,15 @@ class HopfieldUpdateInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the update of every neuron, which the agent solver runs in a new random order every step."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the update of every neuron, which the agent solver runs in a new random order every step.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.update)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.update)]
 
     def update(self, agent: NeuronView, system: SystemViewProtocol) -> None:
         """Set a neuron to the sign of its weighted input from the other neurons, or keep it for a zero input.

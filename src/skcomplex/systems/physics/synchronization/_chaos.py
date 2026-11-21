@@ -19,7 +19,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw, UpdateLaw
 from ....core.components.laws.utils import mod
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
@@ -142,7 +141,7 @@ class RosslerFlowInteraction(Interaction):
         self.c = c
         self.p = p
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rates of the three variables of the target.
 
         Args:
@@ -150,14 +149,13 @@ class RosslerFlowInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, t = context, context.t
-            x1, x2, x3 = s.target.x1, s.target.x2, s.target.x3
-            self.laws_ = [
-                RateLaw(x1.diff(t), (-s.omega * x2 - x3) / s.p),
-                RateLaw(x2.diff(t), (s.omega * x1 + s.a * x2) / s.p),
-                RateLaw(x3.diff(t), (s.b + x3 * (x1 - s.c)) / s.p),
-            ]
+        s, t = context, context.t
+        x1, x2, x3 = s.target.x1, s.target.x2, s.target.x3
+        self.laws_ = [
+            RateLaw(x1.diff(t), (-s.omega * x2 - x3) / s.p),
+            RateLaw(x2.diff(t), (s.omega * x1 + s.a * x2) / s.p),
+            RateLaw(x3.diff(t), (s.b + x3 * (x1 - s.c)) / s.p),
+        ]
 
 
 class LorenzFlowInteraction(Interaction):
@@ -205,7 +203,7 @@ class LorenzFlowInteraction(Interaction):
         self.rho = rho
         self.beta = beta
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rates of the three values of the target.
 
         Args:
@@ -213,14 +211,13 @@ class LorenzFlowInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, t = context, context.t
-            x, y, z = s.target.x, s.target.y, s.target.z
-            self.laws_ = [
-                RateLaw(x.diff(t), s.sigma * (y - x)),
-                RateLaw(y.diff(t), x * (s.rho - z) - y),
-                RateLaw(z.diff(t), x * y - s.beta * z),
-            ]
+        s, t = context, context.t
+        x, y, z = s.target.x, s.target.y, s.target.z
+        self.laws_ = [
+            RateLaw(x.diff(t), s.sigma * (y - x)),
+            RateLaw(y.diff(t), x * (s.rho - z) - y),
+            RateLaw(z.diff(t), x * y - s.beta * z),
+        ]
 
 
 class AggregateAveragingInteraction(Interaction):
@@ -284,32 +281,36 @@ class AggregateAveragingInteraction(Interaction):
         self.kind = kind
         self.delay = delay
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the map of the aggregate `a = (1 - kappa) x_t + kappa x_s(t - delay)`.
-
-        Args:
-            context:
-                The namespace of the source, the target, the time `t`, and the parameters.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The map is unknown, or the delay is not a nonnegative integer.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if self.kind not in MAPS:
             error_msg = f'Unknown map {self.kind!r}. Use one of {", ".join(MAPS)}.'
             raise ValidationError(error_msg)
         if isinstance(self.delay, bool) or not isinstance(self.delay, int) or self.delay < 0:
             error_msg = f'The delay of {self.label!r} is {self.delay!r}. Give a nonnegative integer.'
             raise ValidationError(error_msg)
-        if isinstance(context, SimpleNamespace):
-            x, t = context.target.x, context.t
-            source = context.source.x(t=t - self.delay) if self.delay else context.source.x
-            aggregate = (1 - context.kappa) * x + context.kappa * source
-            if self.kind == 'bernoulli':
-                self.laws_ = [UpdateLaw(x, mod(context.r * aggregate, 1))]
-                return
-            self.laws_ = [UpdateLaw(x, context.r * aggregate * (1 - aggregate))]
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the map of the aggregate `a = (1 - kappa) x_t + kappa x_s(t - delay)`.
+
+        Args:
+            context:
+                The namespace of the source, the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        x, t = context.target.x, context.t
+        source = context.source.x(t=t - self.delay) if self.delay else context.source.x
+        aggregate = (1 - context.kappa) * x + context.kappa * source
+        if self.kind == 'bernoulli':
+            self.laws_ = [UpdateLaw(x, mod(context.r * aggregate, 1))]
+            return
+        self.laws_ = [UpdateLaw(x, context.r * aggregate * (1 - aggregate))]
 
 
 class DiffusiveCouplingInteraction(Interaction):
@@ -356,7 +357,7 @@ class DiffusiveCouplingInteraction(Interaction):
         self.state = state
         self.k = k
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate `k (x_s - x_t)` of the state of the target.
 
         Args:
@@ -364,9 +365,8 @@ class DiffusiveCouplingInteraction(Interaction):
                 The namespace of the source, the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x = getattr(context.target, self.state)
-            self.laws_ = [RateLaw(x.diff(context.t), context.k * (getattr(context.source, self.state) - x))]
+        x = getattr(context.target, self.state)
+        self.laws_ = [RateLaw(x.diff(context.t), context.k * (getattr(context.source, self.state) - x))]
 
 
 class DriveInteraction(Interaction):
@@ -416,7 +416,7 @@ class DriveInteraction(Interaction):
         self.write = write
         self.k = k
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate `k x_s` of the state of the target.
 
         Args:
@@ -424,9 +424,8 @@ class DriveInteraction(Interaction):
                 The namespace of the source, the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x = getattr(context.target, self.write)
-            self.laws_ = [RateLaw(x.diff(context.t), context.k * getattr(context.source, self.read))]
+        x = getattr(context.target, self.write)
+        self.laws_ = [RateLaw(x.diff(context.t), context.k * getattr(context.source, self.read))]
 
 
 class CoupledRosslerSystem(BaseSystem):

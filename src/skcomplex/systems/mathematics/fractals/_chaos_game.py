@@ -16,7 +16,7 @@ from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import categorical, where
-from ....core.components.spaces import BaseSpace, ContinuousSpace
+from ....core.components.spaces import ContinuousSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
@@ -126,29 +126,33 @@ class RandomAffineMapInteraction(Interaction):
         self.maps = maps
         self.weights = weights
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the image of the position by the drawn map as the law.
-
-        The weights must match the maps, and every map must have six coefficients.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The number of weights differs from the number of maps, or a map does not have six coefficients.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if len(self.maps) != len(self.weights) or any(len(item) != AFFINE_COEFFICIENTS for item in self.maps):
             error_msg = (
                 f'The random affine map {self.label!r} takes one weight per map and six coefficients per map, but got '
                 f'{len(self.maps)} maps and {len(self.weights)} weights.'
             )
             raise ValidationError(error_msg)
-        if isinstance(context, SimpleNamespace):
-            position = getattr(context.target, self.state)
-            self.laws_: list[BaseComponent] = [UpdateLaw(position, self._get_image(context))]
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the image of the position by the drawn map as the law.
+
+        The weights must match the maps, and every map must have six coefficients.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        position = getattr(context.target, self.state)
+        self.laws_: list[BaseComponent] = [UpdateLaw(position, self._get_image(context))]
 
     def _get_image(self, namespace: SimpleNamespace) -> FreeModuleElement:
         """Return the image of the position by the map drawn among the maps."""

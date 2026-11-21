@@ -146,7 +146,7 @@ class LightSensitivityInteraction(Interaction):
         self.R = R
         self.delay = delay
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the motion at the light-dependent speed, the rotational noise, and the reflecting wall.
 
         Args:
@@ -154,8 +154,6 @@ class LightSensitivityInteraction(Interaction):
                 The namespace of the robots, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         s, t = context, context.t
         x, y, phi = s.target.x, s.target.y, s.target.phi
         sensed = (
@@ -327,11 +325,15 @@ class SwarmtaxisInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the swarmtaxis rule of every robot."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the swarmtaxis rule of every robot.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.move)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.move)]
 
     def _is_shadowed(self, agent: SwarmRobotView, neighbors: Sequence[AgentViewProtocol]) -> bool:
         """Return whether a neighbour lies in the cone from the robot towards the beacon."""

@@ -19,7 +19,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import JumpLaw, RateLaw
 from ....core.components.laws.utils import draw
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver
 from ....core.systems import BaseSystem, System
@@ -95,16 +94,20 @@ class ObservedGrowthInteraction(Interaction):
         self.mu = mu
         self.lam = lam
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the growth and the restart at the observation times as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the growth and the restart at the observation times as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x = context.target.x
-            waiting = draw('wait', 'expon', scale=1 / context.lam)
-            self.laws_: list[BaseComponent] = [
-                RateLaw(x, context.mu * x),
-                JumpLaw(waiting=waiting, reset={x: context.x0}, label='observations'),
-            ]
+        x = context.target.x
+        waiting = draw('wait', 'expon', scale=1 / context.lam)
+        self.laws_: list[BaseComponent] = [
+            RateLaw(x, context.mu * x),
+            JumpLaw(waiting=waiting, reset={x: context.x0}, label='observations'),
+        ]
 
 
 class ExponentialGrowthAtRandomTimesSystem(BaseSystem):

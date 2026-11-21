@@ -138,11 +138,15 @@ class AdoptionInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the growth of the incomes and the adoption of phones as the rules of the system."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the growth of the incomes and the adoption of phones as the rules of the system.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self._grow), UpdateLaw(context, self._adopt)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context, self._grow), UpdateLaw(context, self._adopt)]
 
     def _grow(self, system: SystemView) -> None:
         """Grow the income of every household by a year."""

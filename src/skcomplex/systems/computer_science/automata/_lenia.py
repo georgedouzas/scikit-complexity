@@ -160,19 +160,23 @@ class LeniaUpdateInteraction(Interaction):
         self.T = T
         self.n_dim = n_dim
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the update of the channel by the growths of the kernels as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the update of the channel by the growths of the kernels as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            distance = sqrt(sum(displacement(axis) ** 2 for axis in range(self.n_dim)))
-            total = sum(kernel[2] for kernel in self.kernels)
-            growth: Expression = 0
-            for source, radius, weight, peaks, mu, sigma in self.kernels:
-                kernel = self._get_shell(distance / radius, peaks) / self._get_norm(radius, peaks)
-                potential = convolve(getattr(context.target, source), kernel, math.ceil(radius))
-                growth += weight / total * (2 * exp(-((potential - mu) ** 2) / (2 * sigma**2)) - 1)
-            value = getattr(context.target, self.channel)
-            self.laws_: list[BaseComponent] = [UpdateLaw(value, clip(value + growth / self.T, 0, 1))]
+        distance = sqrt(sum(displacement(axis) ** 2 for axis in range(self.n_dim)))
+        total = sum(kernel[2] for kernel in self.kernels)
+        growth: Expression = 0
+        for source, radius, weight, peaks, mu, sigma in self.kernels:
+            kernel = self._get_shell(distance / radius, peaks) / self._get_norm(radius, peaks)
+            potential = convolve(getattr(context.target, source), kernel, math.ceil(radius))
+            growth += weight / total * (2 * exp(-((potential - mu) ** 2) / (2 * sigma**2)) - 1)
+        value = getattr(context.target, self.channel)
+        self.laws_: list[BaseComponent] = [UpdateLaw(value, clip(value + growth / self.T, 0, 1))]
 
     @staticmethod
     def _get_shell(q: Expression, peaks: Sequence[float]) -> Expression:

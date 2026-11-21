@@ -17,7 +17,7 @@ from ....core.components import Tags
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, JumpLaw, UpdateLaw
 from ....core.components.laws.utils import categorical, neighbors, uniform, where
-from ....core.components.spaces import AdjacencyNeighborhood, BaseSpace
+from ....core.components.spaces import AdjacencyNeighborhood
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.enums import ScheduleKind
 from ....core.errors import ValidationError
@@ -177,19 +177,15 @@ class ImitationInteraction(Interaction):
             )
             raise ValidationError(error_msg)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _check_arguments(self) -> None:
         """Raise an error for unknown rule, schedule, or ties, or repeated options.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The rule, the schedule, or the ties are unknown, the rule `'better'` or ties other than `'first'` are
                 given without a schedule, or the options are not distinct.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         self._check_variant('rule', self.rule, RULES, (BaseSpec,))
         if self.rule == 'better' and self.schedule is None:
             error_msg = f'The rule of imitation {self.rule!r} runs with a schedule only, such as `"synchronous"`.'
@@ -198,8 +194,16 @@ class ImitationInteraction(Interaction):
         if len(set(self.options)) < max(len(self.options), 2):
             error_msg = f'The options of imitation are {self.options!r}. Give at least two distinct values.'
             raise ValidationError(error_msg)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = self._get_imitation_laws(context)
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the laws of a binding.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = self._get_imitation_laws(context)
 
     def _get_neighborhood(self) -> AdjacencyNeighborhood | None:
         """Return the neighbourhood of the layer.

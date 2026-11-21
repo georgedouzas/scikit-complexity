@@ -128,7 +128,7 @@ class TargetSpeedInteraction(Interaction):
         self.v0 = v0
         self.eta = eta
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the propulsion and the random force on the velocity of the agents.
 
         Args:
@@ -136,15 +136,14 @@ class TargetSpeedInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, t = context, context.t
-            x = s.target.x
-            velocity = x.diff(t)
-            speed = sqrt(velocity.dot_product(velocity) + SOFTENING)
-            self.laws_ = [
-                RateLaw(x.diff(t, 2), velocity * (s.mu * (s.target.active * s.v0 - speed) / speed)),
-                NoiseLaw(x.diff(t, 2), s.target.active * s.eta),
-            ]
+        s, t = context, context.t
+        x = s.target.x
+        velocity = x.diff(t)
+        speed = sqrt(velocity.dot_product(velocity) + SOFTENING)
+        self.laws_ = [
+            RateLaw(x.diff(t, 2), velocity * (s.mu * (s.target.active * s.v0 - speed) / speed)),
+            NoiseLaw(x.diff(t, 2), s.target.active * s.eta),
+        ]
 
 
 class VelocityFlockingInteraction(Interaction):
@@ -180,7 +179,7 @@ class VelocityFlockingInteraction(Interaction):
         self.alpha = alpha
         self.reach = reach
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the flocking force on the velocity of the agents.
 
         Args:
@@ -188,12 +187,11 @@ class VelocityFlockingInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, t = context, context.t
-            x = s.target.x
-            summed = neighbors(s.target.other.x.diff(t), over=RadiusNeighborhood(self.reach))
-            force = summed * (s.target.active * s.alpha / sqrt(summed.dot_product(summed) + SOFTENING))
-            self.laws_ = [RateLaw(x.diff(t, 2), force)]
+        s, t = context, context.t
+        x = s.target.x
+        summed = neighbors(s.target.other.x.diff(t), over=RadiusNeighborhood(self.reach))
+        force = summed * (s.target.active * s.alpha / sqrt(summed.dot_product(summed) + SOFTENING))
+        self.laws_ = [RateLaw(x.diff(t, 2), force)]
 
 
 class ActivePassiveFlockingSystem(BaseSystem):

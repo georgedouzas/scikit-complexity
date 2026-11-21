@@ -136,7 +136,7 @@ class TonerTuInteraction(Interaction):
         self.D = D
         self.noise = noise
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the continuity equation and a Toner-Tu equation per velocity component of the target.
 
         Args:
@@ -144,21 +144,20 @@ class TonerTuInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            rho, vx, vy = s.target.rho, s.target.vx, s.target.vy
-            velocity = [vx, vy]
-            pressure = gradient(s.sigma * rho, 2)
-            speed_squared = vx**2 + vy**2
-            laws: list[BaseLaw] = [RateLaw(rho.diff(s.t), -divergence([rho * vx, rho * vy]))]
-            for axis, component in enumerate(velocity):
-                transport = advection(component, [s.lam * item for item in velocity])
-                growth = (s.a * (rho - s.rho_c) - s.beta * speed_squared) * component
-                laws += [
-                    RateLaw(component.diff(s.t), -transport + growth - pressure[axis] + s.D * laplacian(component)),
-                    NoiseLaw(component, sqrt(2 * s.noise)),
-                ]
-            self.laws_ = laws
+        s = context
+        rho, vx, vy = s.target.rho, s.target.vx, s.target.vy
+        velocity = [vx, vy]
+        pressure = gradient(s.sigma * rho, 2)
+        speed_squared = vx**2 + vy**2
+        laws: list[BaseLaw] = [RateLaw(rho.diff(s.t), -divergence([rho * vx, rho * vy]))]
+        for axis, component in enumerate(velocity):
+            transport = advection(component, [s.lam * item for item in velocity])
+            growth = (s.a * (rho - s.rho_c) - s.beta * speed_squared) * component
+            laws += [
+                RateLaw(component.diff(s.t), -transport + growth - pressure[axis] + s.D * laplacian(component)),
+                NoiseLaw(component, sqrt(2 * s.noise)),
+            ]
+        self.laws_ = laws
 
 
 class SoftSphereInteraction(Interaction):
@@ -207,7 +206,7 @@ class SoftSphereInteraction(Interaction):
         self.k = k
         self.inertia = inertia
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the push of the overlapping neighbours on every sphere.
 
         Args:
@@ -215,18 +214,17 @@ class SoftSphereInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, x = context, context.target.x
-            separation = x - s.target.other.x
-            r = sqrt(separation.dot_product(separation))
-            distance = SR.var('r', domain='positive')
-            slope = (s.k * (s.cutoff - distance) ** 2 / 2).diff(distance).subs({distance: r})
-            push = neighbors(-slope * separation / r, RadiusNeighborhood(self.cutoff))
-            if self.inertia:
-                mass = getattr(s.target, 'm', None)
-                self.laws_ = [RateLaw(x.diff(s.t, 2), push if mass is None else push / mass)]
-            else:
-                self.laws_ = [RateLaw(x.diff(s.t), push)]
+        s, x = context, context.target.x
+        separation = x - s.target.other.x
+        r = sqrt(separation.dot_product(separation))
+        distance = SR.var('r', domain='positive')
+        slope = (s.k * (s.cutoff - distance) ** 2 / 2).diff(distance).subs({distance: r})
+        push = neighbors(-slope * separation / r, RadiusNeighborhood(self.cutoff))
+        if self.inertia:
+            mass = getattr(s.target, 'm', None)
+            self.laws_ = [RateLaw(x.diff(s.t, 2), push if mass is None else push / mass)]
+        else:
+            self.laws_ = [RateLaw(x.diff(s.t), push)]
 
 
 class CuckerSmaleAlignmentInteraction(Interaction):
@@ -279,7 +277,7 @@ class CuckerSmaleAlignmentInteraction(Interaction):
         self.beta = beta
         self.n_agents = n_agents
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the pull of the velocity of every agent towards those of the others.
 
         Args:
@@ -287,12 +285,11 @@ class CuckerSmaleAlignmentInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, t = context.target, context.t
-            separation = s.x - s.other.x
-            weight = (1 + separation.dot_product(separation)) ** (-context.beta)
-            pull = neighbors(weight * (s.other.x.diff(t) - s.x.diff(t)), over=RadiusNeighborhood(self.cutoff))
-            self.laws_ = [RateLaw(s.x.diff(t, 2), context.K / self.n_agents * pull)]
+        s, t = context.target, context.t
+        separation = s.x - s.other.x
+        weight = (1 + separation.dot_product(separation)) ** (-context.beta)
+        pull = neighbors(weight * (s.other.x.diff(t) - s.x.diff(t)), over=RadiusNeighborhood(self.cutoff))
+        self.laws_ = [RateLaw(s.x.diff(t, 2), context.K / self.n_agents * pull)]
 
 
 class PhoreticAttractionInteraction(Interaction):
@@ -340,7 +337,7 @@ class PhoreticAttractionInteraction(Interaction):
         self.R = R
         self.cutoff = cutoff
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the drift of every colloid of the target towards its neighbours within the cutoff.
 
         Args:
@@ -348,13 +345,12 @@ class PhoreticAttractionInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            x = s.target.x
-            separation = x - s.target.other.x
-            r = sqrt(separation.dot_product(separation))
-            drift = -s.v0 * s.R**2 / r**2 * separation / r
-            self.laws_ = [RateLaw(x, neighbors(drift, RadiusNeighborhood(self.cutoff)))]
+        s = context
+        x = s.target.x
+        separation = x - s.target.other.x
+        r = sqrt(separation.dot_product(separation))
+        drift = -s.v0 * s.R**2 / r**2 * separation / r
+        self.laws_ = [RateLaw(x, neighbors(drift, RadiusNeighborhood(self.cutoff)))]
 
 
 class MotilityInducedPhaseSeparationSystem(BaseSystem):

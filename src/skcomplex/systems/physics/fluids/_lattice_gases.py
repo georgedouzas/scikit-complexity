@@ -242,29 +242,33 @@ class LatticeGasCollisionInteraction(Interaction):
         following = COLLISIONS[codes, (random < TURN_PROBABILITY).astype(np.intp)]
         return tuple(((following >> direction) & 1).astype(float) for direction in range(DIRECTIONS))
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the collision rule of the channels of the target.
-
-        Args:
-            context:
-                The namespace of the target, the time `t`, and the parameters.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The geometry is not `'square'` or `'triangular'`.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if self.geometry not in GEOMETRIES:
             error_msg = f'Unknown lattice gas geometry {self.geometry!r}. Use one of {", ".join(GEOMETRIES)}.'
             raise ValidationError(error_msg)
-        if isinstance(context, SimpleNamespace):
-            if self.geometry == 'square':
-                channels = tuple(getattr(context.target, name) for name in SQUARE_CHANNELS)
-                self.laws_ = [UpdateLaw(channels, self._collide_square, neighborhood=SITE, label=self.label)]
-            else:
-                channels = tuple(getattr(context.target, name) for name in CHANNELS)
-                law = UpdateLaw(channels, self._collide_triangular, neighborhood=SITE, label=self.label)
-                self.laws_ = [law]
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the collision rule of the channels of the target.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if self.geometry == 'square':
+            channels = tuple(getattr(context.target, name) for name in SQUARE_CHANNELS)
+            self.laws_ = [UpdateLaw(channels, self._collide_square, neighborhood=SITE, label=self.label)]
+        else:
+            channels = tuple(getattr(context.target, name) for name in CHANNELS)
+            law = UpdateLaw(channels, self._collide_triangular, neighborhood=SITE, label=self.label)
+            self.laws_ = [law]
 
 
 class LatticeGasPropagationInteraction(Interaction):
@@ -310,30 +314,34 @@ class LatticeGasPropagationInteraction(Interaction):
         """Return the channels after every particle moves one site along its direction."""
         return tuple(columns[DIRECTIONS * direction + (direction + 3) % DIRECTIONS] for direction in range(DIRECTIONS))
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the propagation rule of the channels of the target.
-
-        Args:
-            context:
-                The namespace of the target, the time `t`, and the parameters.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The geometry is not `'square'` or `'triangular'`.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if self.geometry not in GEOMETRIES:
             error_msg = f'Unknown lattice gas geometry {self.geometry!r}. Use one of {", ".join(GEOMETRIES)}.'
             raise ValidationError(error_msg)
-        if isinstance(context, SimpleNamespace):
-            if self.geometry == 'square':
-                channels = tuple(getattr(context.target, name) for name in SQUARE_CHANNELS)
-                self.laws_ = [UpdateLaw(channels, self._propagate_square, neighborhood=ARRIVALS, label=self.label)]
-            else:
-                channels = tuple(getattr(context.target, name) for name in CHANNELS)
-                self.laws_ = [
-                    UpdateLaw(channels, self._propagate_triangular, neighborhood=TRIANGULAR, label=self.label),
-                ]
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the propagation rule of the channels of the target.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        if self.geometry == 'square':
+            channels = tuple(getattr(context.target, name) for name in SQUARE_CHANNELS)
+            self.laws_ = [UpdateLaw(channels, self._propagate_square, neighborhood=ARRIVALS, label=self.label)]
+        else:
+            channels = tuple(getattr(context.target, name) for name in CHANNELS)
+            self.laws_ = [
+                UpdateLaw(channels, self._propagate_triangular, neighborhood=TRIANGULAR, label=self.label),
+            ]
 
 
 class ParticleCountInteraction(Interaction):
@@ -367,7 +375,7 @@ class ParticleCountInteraction(Interaction):
         """Return the number of particles at every site."""
         return np.sum(channels, axis=0)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the count of the particles of the target.
 
         Args:
@@ -375,10 +383,9 @@ class ParticleCountInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            reads = tuple(getattr(context.target, name) for name in self.channels)
-            law = UpdateLaw(context.target.density, self._count, neighborhood=SITE, reads=reads, label=self.label)
-            self.laws_ = [law]
+        reads = tuple(getattr(context.target, name) for name in self.channels)
+        law = UpdateLaw(context.target.density, self._count, neighborhood=SITE, reads=reads, label=self.label)
+        self.laws_ = [law]
 
 
 class FHPLatticeGasSystem(BaseSystem):

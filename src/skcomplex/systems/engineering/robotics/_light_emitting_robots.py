@@ -164,11 +164,15 @@ class SensoryDelayInteraction(Interaction):
         self.step = step
         self.side = side
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rule of the motion of the robots, once per step for the whole arena."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule of the motion of the robots, once per step for the whole arena.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self._move)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context, self._move)]
 
     def _move(self, system: SystemView) -> None:
         """Measure the light of the others, set the speeds, and move the robots.

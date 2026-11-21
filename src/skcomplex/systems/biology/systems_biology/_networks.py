@@ -16,7 +16,6 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
@@ -120,7 +119,7 @@ class GlycolysisInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rates of the metabolites, the reactions of glycolysis and the exchange with the feed.
 
         Args:
@@ -128,8 +127,6 @@ class GlycolysisInteraction(Interaction):
                 The namespace of the cell extract.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         s = context.target
         v1 = s.V1 * s.ATP * s.GLC / ((s.K1GLC + s.GLC) * (s.K1ATP + s.ATP))
         inhibition = s.K2 * (1 + s.k2 * (s.ATP / s.AMP) ** 2)
@@ -368,27 +365,31 @@ class GeneralizedMassActionInteraction(Interaction):
         """
         return self.stoichiometry
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the sum of the power-law fluxes of every species.
-
-        Args:
-            context:
-                The namespace of the bound elements, the time `t`, and the parameters.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The matrices do not have one row per flux or species and one entry per species or flux.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         self._check_matrices()
-        if isinstance(context, SimpleNamespace):
-            s = context
-            values = [item.x for item in s.species]
-            fluxes = self._get_fluxes(s, values)
-            self.laws_ = [
-                RateLaw(value, sum((c * flux for c, flux in zip(row, fluxes, strict=True) if c), start=SR(0)))
-                for value, row in zip(values, self._get_stoichiometry(), strict=True)
-            ]
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the sum of the power-law fluxes of every species.
+
+        Args:
+            context:
+                The namespace of the bound elements, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        s = context
+        values = [item.x for item in s.species]
+        fluxes = self._get_fluxes(s, values)
+        self.laws_ = [
+            RateLaw(value, sum((c * flux for c, flux in zip(row, fluxes, strict=True) if c), start=SR(0)))
+            for value, row in zip(values, self._get_stoichiometry(), strict=True)
+        ]
 
 
 class SSystemInteraction(GeneralizedMassActionInteraction):

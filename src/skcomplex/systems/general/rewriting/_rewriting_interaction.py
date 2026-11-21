@@ -10,7 +10,6 @@ from typing import ClassVar
 from ....core.components.base import BaseComponent
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw
-from ....core.components.spaces import BaseSpace
 from ....core.errors import RewritingError
 from ....core.types import Role
 from ._production import ProductionLaw
@@ -64,22 +63,29 @@ class RewritingInteraction(Interaction):
         self.target = target
         self.laws = laws
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Raise an error for a law that rewrites nothing, and set the laws of a binding.
-
-        Args:
-            context:
-                The space the interaction inherits from its system, or the namespace of the word or patch it binds.
+    def _check_arguments(self) -> None:
+        """Raise an error for a law that rewrites nothing.
 
         Raises:
             RewritingError:
                 A law is neither a production nor a substitution.
         """
-        super()._prepare(context)
-        laws = list(self.laws) if isinstance(self.laws, list | tuple) else []
-        wrong = [law for law in laws if not isinstance(law, ProductionLaw | SubstitutionLaw)]
+        super()._check_arguments()
+        wrong = [law for law in self._get_laws() if not isinstance(law, ProductionLaw | SubstitutionLaw)]
         if wrong:
             error_msg = f'{self.label!r} rewrites by {wrong[0]!r}. Give ProductionLaw or SubstitutionLaw laws.'
             raise RewritingError(error_msg)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = laws
+
+    def _get_laws(self) -> list[BaseComponent]:
+        """Return the laws as a list, empty when they are no list or tuple."""
+        return list(self.laws) if isinstance(self.laws, list | tuple) else []
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the laws of a binding.
+
+        Args:
+            context:
+                The namespace of the word or patch it binds.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseComponent] = self._get_laws()

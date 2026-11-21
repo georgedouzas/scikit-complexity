@@ -15,7 +15,6 @@ from sage.modules.free_module_element import FreeModuleElement
 from ....core.components import Tags
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.errors import ValidationError
 from ....core.types import Role
 
@@ -86,17 +85,14 @@ class LeakyIntegrationInteraction(Interaction):
         """Return the tags of the rate, and of the noise when there is one."""
         return self._get_variant_tags((RateLaw,) if self.noise is None else (RateLaw, NoiseLaw))
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the relaxation `(goal - x) / time` of the state, and its noise.
-
-        Args:
-            context:
-                The namespace of the target.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The state is not a name, or a function is neither callable nor a number.
         """
+        super()._check_arguments()
         if not isinstance(self.state, str) or not self.state.isidentifier():
             error_msg = f'The state of {self.label!r} is {self.state!r}. Give the name of a state.'
             raise ValidationError(error_msg)
@@ -105,9 +101,15 @@ class LeakyIntegrationInteraction(Interaction):
             if not (callable(value) or isinstance(value, int | float) or (name == 'noise' and value is None)):
                 error_msg = f'The {name} of {self.label!r} is {value!r}. Give a function of the namespace or a number.'
                 raise ValidationError(error_msg)
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the relaxation `(goal - x) / time` of the state, and its noise.
+
+        Args:
+            context:
+                The namespace of the target.
+        """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         state = getattr(context.target, self.state)
         goal = self._broadcast(self._evaluate('goal', context), state)
         laws: list[BaseLaw] = [RateLaw(state, (goal - state) / self._evaluate('time', context))]

@@ -23,7 +23,6 @@ from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import EventLaw, RateLaw
 from ....core.components.laws.utils import where
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
@@ -282,7 +281,7 @@ class FreeFlightInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rates of the position of the particle.
 
         Args:
@@ -290,9 +289,8 @@ class FreeFlightInteraction(Interaction):
                 The namespace of the particle and the time `t`.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            p, t = context.target, context.t
-            self.laws_ = [RateLaw(p.x.diff(t), p.vx), RateLaw(p.y.diff(t), p.vy)]
+        p, t = context.target, context.t
+        self.laws_ = [RateLaw(p.x.diff(t), p.vx), RateLaw(p.y.diff(t), p.vy)]
 
 
 class BilliardWallInteraction(Interaction):
@@ -371,36 +369,40 @@ class BilliardWallInteraction(Interaction):
         }
         return regions[self.wall]() if self.wall in regions else None
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the event that reflects the velocity about the normal of the wall.
-
-        Args:
-            context:
-                The namespace of the particle and the time `t`.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The wall is unknown.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         known = [name for walls in WALLS.values() for name, _ in walls]
         if self.wall not in known:
             error_msg = f'Unknown billiard wall {self.wall!r}. Use one of {", ".join(known)}.'
             raise ValidationError(error_msg)
-        if isinstance(context, SimpleNamespace):
-            p = context.target
-            x, y = SR.symbol('_x'), SR.symbol('_y')
-            guard = self._get_guard(p)
-            flat = guard.subs({p.x: x, p.y: y})
-            normal = [SR(flat.diff(x)).subs({x: p.x, y: p.y}), SR(flat.diff(y)).subs({x: p.x, y: p.y})]
-            velocities = [p.vx, p.vy]
-            speed = sum((v * n for v, n in zip(velocities, normal, strict=True)), SR(0))
-            scale = 2 * speed / sum((n**2 for n in normal), SR(0))
-            reset = {v: v - scale * n for v, n in zip(velocities, normal, strict=True)}
-            region = self._get_region(p)
-            if region is not None:
-                reset = {v: where(region, value, v) for v, value in reset.items()}
-            self.laws_ = [EventLaw(guard, reset, self.direction, label=self.label)]
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the event that reflects the velocity about the normal of the wall.
+
+        Args:
+            context:
+                The namespace of the particle and the time `t`.
+        """
+        super()._prepare(context)
+        p = context.target
+        x, y = SR.symbol('_x'), SR.symbol('_y')
+        guard = self._get_guard(p)
+        flat = guard.subs({p.x: x, p.y: y})
+        normal = [SR(flat.diff(x)).subs({x: p.x, y: p.y}), SR(flat.diff(y)).subs({x: p.x, y: p.y})]
+        velocities = [p.vx, p.vy]
+        speed = sum((v * n for v, n in zip(velocities, normal, strict=True)), SR(0))
+        scale = 2 * speed / sum((n**2 for n in normal), SR(0))
+        reset = {v: v - scale * n for v, n in zip(velocities, normal, strict=True)}
+        region = self._get_region(p)
+        if region is not None:
+            reset = {v: where(region, value, v) for v, value in reset.items()}
+        self.laws_ = [EventLaw(guard, reset, self.direction, label=self.label)]
 
 
 class BilliardsSystem(BaseSystem):

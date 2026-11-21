@@ -13,7 +13,6 @@ from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, EventLaw
 from .....core.components.laws.utils import periodic_guard
-from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
 from .....core.types import Role
 
@@ -117,22 +116,25 @@ class PulseInteraction(Interaction):
         order = len(name) - len(base)
         return state.diff(context.t, order) if order else state
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Check the pulses, and set one event law per given time and one for the periodic pulses.
-
-        Args:
-            context:
-                The space the interaction inherits from its system, or the namespace of the target and the time.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The pulses set no state, a new value is not a function, the pulses have no time, the period is not
                 positive, or the count is not a positive integer.
         """
+        super()._check_arguments()
         self._check_pulses()
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set one event law per given time and one for the periodic pulses.
+
+        Args:
+            context:
+                The namespace of the target and the time.
+        """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         reset = {self._get_reset_state(context, name): SR(f(context)) for name, f in self.reset.items()}
         laws: list[BaseComponent] = [EventLaw(context.t - time, reset, 1, label=self.label) for time in self.times]
         if self.period is not None:

@@ -113,16 +113,20 @@ class EmploymentTakeoverInteraction(Interaction):
         following = np.where(count >= TAKEOVER, 1.0, np.where(count == KEEP, colours[0], 0.0))
         return np.where(employers[0] > 0, following, colours[0])
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the workers following their employers, then the employers following their workers, as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the workers following their employers, then the employers following their workers, as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            colour, employer = context.target.colour, context.target.employer
-            reads = (colour, employer)
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(colour, self._follow_employer, neighborhood=NEIGHBORS, reads=reads, label='workers'),
-                UpdateLaw(colour, self._follow_workers, neighborhood=NEIGHBORS, reads=reads, label='employers'),
-            ]
+        colour, employer = context.target.colour, context.target.employer
+        reads = (colour, employer)
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(colour, self._follow_employer, neighborhood=NEIGHBORS, reads=reads, label='workers'),
+            UpdateLaw(colour, self._follow_workers, neighborhood=NEIGHBORS, reads=reads, label='employers'),
+        ]
 
 
 class EmploymentTakeoverSystem(BaseSystem):

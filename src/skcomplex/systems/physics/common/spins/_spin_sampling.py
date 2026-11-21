@@ -12,7 +12,6 @@ from types import SimpleNamespace
 from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
 from .....core.components.laws import ObjectiveLaw
-from .....core.components.spaces import BaseSpace
 from .....core.types import Role
 
 
@@ -59,7 +58,7 @@ class SpinSamplingInteraction(Interaction):
         self.state = state
         self.energy = energy
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the objective of every spin, its local energy over its temperature.
 
         Args:
@@ -67,7 +66,6 @@ class SpinSamplingInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            spins = self._get_member(context, 'target')
-            objective = self.energy(context) / spins.temperature
-            self.laws_: list[BaseComponent] = [ObjectiveLaw(objective, getattr(spins, self.state))]
+        spins = self._get_member(context, 'target')
+        objective = self.energy(context) / spins.temperature
+        self.laws_: list[BaseComponent] = [ObjectiveLaw(objective, getattr(spins, self.state))]

@@ -18,7 +18,6 @@ from ....core.components.base import BaseComponent
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import categorical, uniform, where
-from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.enums import ScheduleKind
 from ....core.errors import ValidationError
@@ -171,19 +170,15 @@ class ChoiceInteraction(Interaction):
                 error_msg = f'Unknown {name} {value!r} of {self.label!r}. Use one of {variants}.'
                 raise ValidationError(error_msg)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _check_arguments(self) -> None:
         """Raise an error for an unknown variant, fewer than two options, or a bad utility.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The type declares states, the rule, the schedule, the proposal, or the ties are unknown, there are fewer
                 than two options, or the utility is not callable.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         self._check_variants()
         if len(self.options) < MIN_OPTIONS:
             error_msg = f'{self.label!r} chooses among {list(self.options)}. Give at least {MIN_OPTIONS} options.'
@@ -191,8 +186,16 @@ class ChoiceInteraction(Interaction):
         if not callable(self.utility):
             error_msg = f'The utility of {self.label!r} must be callable, but it is {self.utility!r}.'
             raise ValidationError(error_msg)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = self._get_choice_laws(context)
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the laws of a binding.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseComponent] = self._get_choice_laws(context)
 
     @staticmethod
     def _get_draw_name(state: Expression, kind: str) -> str:

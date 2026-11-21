@@ -60,13 +60,17 @@ class TransportedCouplingInteraction(Interaction):
         super().__init__(label, among=among, along=along)
         self.K = K
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rates of both ends of an edge, reading the connection along and against its direction."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rates of both ends of an edge, reading the connection along and against its direction.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            source, target = context.source, context.target
-            flow = context.K * sin(target.theta - source.theta - context.edge.A)
-            self.laws_: list[BaseComponent] = [RateLaw(source.theta, flow), RateLaw(target.theta, -flow)]
+        source, target = context.source, context.target
+        flow = context.K * sin(target.theta - source.theta - context.edge.A)
+        self.laws_: list[BaseComponent] = [RateLaw(source.theta, flow), RateLaw(target.theta, -flow)]
 
 
 class PhaseAgentElement(Element):

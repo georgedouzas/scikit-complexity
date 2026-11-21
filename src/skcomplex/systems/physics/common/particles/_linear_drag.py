@@ -15,7 +15,6 @@ from sage.sets.real_set import RealSet
 
 from .....core.components.interactions import Interaction
 from .....core.components.laws import RateLaw
-from .....core.components.spaces import BaseSpace
 from .....core.types import Role
 
 
@@ -64,7 +63,7 @@ class LinearDragInteraction(Interaction):
         self.gamma = gamma
         self.coordinates = coordinates
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the acceleration of every coordinate of the target.
 
         Args:
@@ -72,7 +71,6 @@ class LinearDragInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            t, target = context.t, context.target
-            positions = [getattr(target, name) for name in self.coordinates]
-            self.laws_ = [RateLaw(x.diff(t, 2), -context.gamma * x.diff(t) / target.m) for x in positions]
+        t, target = context.t, context.target
+        positions = [getattr(target, name) for name in self.coordinates]
+        self.laws_ = [RateLaw(x.diff(t, 2), -context.gamma * x.diff(t) / target.m) for x in positions]

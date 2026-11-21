@@ -190,11 +190,15 @@ class CabDrivingInteraction(Interaction):
         self.block_fare = block_fare
         self.phase = phase
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the driving rule of every cab."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the driving rule of every cab.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.drive, phase=self.phase)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.drive, phase=self.phase)]
 
     def _pick_up(self, agent: CabView, system: SystemView) -> None:
         """Collect the fare of the rider, take it on board, and head for its destination."""

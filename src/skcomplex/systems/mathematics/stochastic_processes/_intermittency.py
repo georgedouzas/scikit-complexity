@@ -18,7 +18,6 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import NoiseLaw, RateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, HeunSolver
 from ....core.systems import BaseSystem, System
@@ -87,15 +86,19 @@ class IntermittencyInteraction(Interaction):
         self.epsilon = epsilon
         self.D = D
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the drift and the multiplicative noise of the variable as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the drift and the multiplicative noise of the variable as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x = context.target.x
-            self.laws_: list[BaseComponent] = [
-                RateLaw(x, context.epsilon * x - x**3),
-                NoiseLaw(x, sqrt(2 * context.D) * x, convention='stratonovich'),
-            ]
+        x = context.target.x
+        self.laws_: list[BaseComponent] = [
+            RateLaw(x, context.epsilon * x - x**3),
+            NoiseLaw(x, sqrt(2 * context.D) * x, convention='stratonovich'),
+        ]
 
 
 class OnOffIntermittencySystem(BaseSystem):

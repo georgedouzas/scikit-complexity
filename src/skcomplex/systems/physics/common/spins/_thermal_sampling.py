@@ -16,7 +16,6 @@ from sage.sets.real_set import RealSet
 from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
 from .....core.components.laws import ObjectiveLaw
-from .....core.components.spaces import BaseSpace
 from .....core.types import Role
 
 
@@ -73,7 +72,7 @@ class ThermalSamplingInteraction(Interaction):
         """Return the temperature the energy is divided by, the parameter `temperature`."""
         return namespace.temperature
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the objective of every member, its local energy over the temperature.
 
         Args:
@@ -81,7 +80,6 @@ class ThermalSamplingInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            state = getattr(self._get_member(context, 'target'), self.state)
-            objective = SR(self.energy(context)) / SR(self._get_temperature(context))
-            self.laws_: list[BaseComponent] = [ObjectiveLaw(objective, state)]
+        state = getattr(self._get_member(context, 'target'), self.state)
+        objective = SR(self.energy(context)) / SR(self._get_temperature(context))
+        self.laws_: list[BaseComponent] = [ObjectiveLaw(objective, state)]

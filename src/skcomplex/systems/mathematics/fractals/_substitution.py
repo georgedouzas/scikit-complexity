@@ -17,7 +17,6 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.base import BaseComponent
 from ....core.components.interactions import Interaction
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
@@ -72,15 +71,19 @@ class CantorInteraction(Interaction):
         self.target = target
         self.ratio = ratio
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the substitution of every interval by its two outer parts."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the substitution of every interval by its two outer parts.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            pieces = [
-                ('interval', AffineSpec(scale=context.ratio)),
-                ('interval', AffineSpec(scale=context.ratio, translation=(1 - context.ratio, 0))),
-            ]
-            self.laws_: list[BaseComponent] = [SubstitutionLaw('interval', pieces)]
+        pieces = [
+            ('interval', AffineSpec(scale=context.ratio)),
+            ('interval', AffineSpec(scale=context.ratio, translation=(1 - context.ratio, 0))),
+        ]
+        self.laws_: list[BaseComponent] = [SubstitutionLaw('interval', pieces)]
 
 
 class SierpinskiInteraction(Interaction):
@@ -113,17 +116,26 @@ class SierpinskiInteraction(Interaction):
         self.target = target
         self.shape = shape
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the substitution of every polygon by its scaled copies.
+    def _check_arguments(self) -> None:
+        """Raise an error for an unknown shape.
 
         Raises:
             ValidationError:
                 The shape is unknown.
         """
+        super()._check_arguments()
+        self._get_sierpinski_tiles(self.shape)
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the substitution of every polygon by its scaled copies.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
         prototile, pieces = self._get_sierpinski_tiles(self.shape)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [SubstitutionLaw(prototile.name, pieces)]
+        self.laws_: list[BaseComponent] = [SubstitutionLaw(prototile.name, pieces)]
 
     @staticmethod
     def _get_sierpinski_tiles(shape: str) -> tuple[PrototileSpec, list[tuple[str, AffineSpec]]]:

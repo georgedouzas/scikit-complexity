@@ -104,18 +104,22 @@ class CovariantDiffusionInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the covariant diffusion of the density as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the covariant diffusion of the density as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            market = context.target
-            connection = market.A_x + market.E * context.t
-            rate = (
-                market.D * laplacian(market.rho)
-                - advection(market.rho, [2 * market.D * connection])
-                + (market.D * connection**2 + market.A_t) * market.rho
-            )
-            self.laws_: list[BaseComponent] = [RateLaw(market.rho, rate)]
+        market = context.target
+        connection = market.A_x + market.E * context.t
+        rate = (
+            market.D * laplacian(market.rho)
+            - advection(market.rho, [2 * market.D * connection])
+            + (market.D * connection**2 + market.A_t) * market.rho
+        )
+        self.laws_: list[BaseComponent] = [RateLaw(market.rho, rate)]
 
 
 class ArbitrageTradersSystem(BaseSystem):

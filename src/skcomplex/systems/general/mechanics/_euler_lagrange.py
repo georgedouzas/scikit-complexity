@@ -13,7 +13,6 @@ from sage.modules.free_module_element import FreeModuleElement
 from ....core.components.base import BaseComponent
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, ConstraintLaw
-from ....core.components.spaces import BaseSpace
 from ....core.errors import ValidationError
 from ....core.types import Role
 
@@ -103,19 +102,14 @@ class EulerLagrangeInteraction(Interaction):
         """Return the names of the states that are coordinates."""
         return (self.states,) if isinstance(self.states, str) else tuple(self.states)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _check_arguments(self) -> None:
         """Raise an error for a state that is not a name, or an uncallable function.
-
-        Args:
-            context:
-                The space the interaction inherits from its system, or the namespace of the elements it binds, whose
-                Euler-Lagrange equations it sets in `laws_`.
 
         Raises:
             ValidationError:
                 The type declares states, a state is not a name, or a function is not callable.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         names = self._get_names()
         if not names or not all(isinstance(name, str) and name.isidentifier() for name in names):
             error_msg = f'{type(self).__name__} {self.label!r} reads the states {self.states!r}. Give names of states.'
@@ -125,8 +119,16 @@ class EulerLagrangeInteraction(Interaction):
             if value is not None and not callable(value):
                 error_msg = f'The {name} of {self.label!r} is {value!r}. Give a function of the namespace.'
                 raise ValidationError(error_msg)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = self._get_equations(context)
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the laws of a binding.
+
+        Args:
+            context:
+                The namespace of the elements it binds, whose Euler-Lagrange equations it sets in `laws_`.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseComponent] = self._get_equations(context)
 
     def _get_lagrangian(self, namespace: SimpleNamespace) -> object:
         """Return the Lagrangian.

@@ -16,7 +16,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import bernoulli
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -85,13 +84,17 @@ class RandomBranchMapInteraction(Interaction):
         self.p1 = p1
         self.mu = mu
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the update of the value by the branch drawn in the step as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the update of the value by the branch drawn in the step as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x = context.target.x
-            first = bernoulli('branch', context.p1)
-            self.laws_: list[BaseComponent] = [UpdateLaw(x, first * (1 + x) / 2 + (1 - first) * context.mu * x**2)]
+        x = context.target.x
+        first = bernoulli('branch', context.p1)
+        self.laws_: list[BaseComponent] = [UpdateLaw(x, first * (1 + x) / 2 + (1 - first) * context.mu * x**2)]
 
 
 class RandomBranchMapSystem(BaseSystem):

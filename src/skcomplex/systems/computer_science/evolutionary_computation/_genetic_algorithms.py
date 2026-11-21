@@ -18,7 +18,6 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, SystemView
@@ -146,11 +145,15 @@ class RoomCleaningInteraction(Interaction):
         for agent, score in zip(agents, self.score(strategies, system.rng), strict=True):
             agent.score = float(score)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rule that scores the strategies, once per step for the whole population."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule that scores the strategies, once per step for the whole population.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self._score_agents, phase=self.phase)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context, self._score_agents, phase=self.phase)]
 
     def score(self, strategies: IntArray, rng: np.random.Generator) -> Array:
         """Return the mean score of strategies in random rooms.
@@ -330,11 +333,15 @@ class CircumstanceInteraction(Interaction):
         self.mutation = mutation
         self.switch = switch
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rule of the deaths and births of a generation, once per step for the whole population."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule of the deaths and births of a generation, once per step for the whole population.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self._advance_generation)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context, self._advance_generation)]
 
     def _advance_generation(self, system: SystemView) -> None:
         """Age the strategies and replace the old and starving ones.

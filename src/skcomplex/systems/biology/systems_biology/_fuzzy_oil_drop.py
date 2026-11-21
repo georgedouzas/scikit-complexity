@@ -244,11 +244,14 @@ class EnsembleReplayInteraction(Interaction):
         """Return the member of the time of a step."""
         return self.ensemble[min(int(time), len(self.ensemble) - 1)].reshape(values.shape)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the drive of the state."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the drive of the state.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         self.laws_: Sequence[BaseLaw] = [UpdateLaw(getattr(context.target, self.state), self._read_member, arrays=True)]
 
 

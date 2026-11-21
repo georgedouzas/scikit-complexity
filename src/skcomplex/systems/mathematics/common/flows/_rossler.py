@@ -8,7 +8,6 @@ from types import SimpleNamespace
 from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
 from .....core.components.laws import RateLaw
-from .....core.components.spaces import BaseSpace
 from .....core.types import Role
 
 
@@ -54,13 +53,17 @@ class RosslerInteraction(Interaction):
         self.b = b
         self.c = c
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rates of the three coordinates as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rates of the three coordinates as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, y, z = context.target.x, context.target.y, context.target.z
-            self.laws_: list[BaseComponent] = [
-                RateLaw(x, -y - z),
-                RateLaw(y, x + context.a * y),
-                RateLaw(z, context.b + z * (x - context.c)),
-            ]
+        x, y, z = context.target.x, context.target.y, context.target.z
+        self.laws_: list[BaseComponent] = [
+            RateLaw(x, -y - z),
+            RateLaw(y, x + context.a * y),
+            RateLaw(z, context.b + z * (x - context.c)),
+        ]

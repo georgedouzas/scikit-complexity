@@ -15,7 +15,6 @@ from sage.sets.real_set import RealSet
 
 from .....core.components.interactions import Interaction
 from .....core.components.laws import UpdateLaw
-from .....core.components.spaces import BaseSpace
 from .....core.types import Role
 
 
@@ -67,18 +66,16 @@ class PropulsionStepInteraction(Interaction):
         self.state = state
         self.heading = heading
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the step of the position along the heading.
 
         Args:
             context:
-                The space the interaction inherits from its system, or the namespace of the target, the time `t`,
-                and the parameters.
+                The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            position = getattr(context.target, self.state)
-            self.laws_ = [UpdateLaw(position, position + self._step(context), increment=True)]
+        position = getattr(context.target, self.state)
+        self.laws_ = [UpdateLaw(position, position + self._step(context), increment=True)]
 
     def _step(self, namespace: SimpleNamespace) -> FreeModuleElement:
         """Return the step `speed (cos theta, sin theta)`."""

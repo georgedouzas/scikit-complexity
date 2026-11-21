@@ -140,7 +140,7 @@ class SchrodingerInteraction(Interaction):
         self.target = target
         self.D = D
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rates of the real and imaginary parts of the wave function of the target.
 
         Args:
@@ -148,13 +148,12 @@ class SchrodingerInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, t = context, context.t
-            u, w, V = s.target.u, s.target.w, s.target.V
-            self.laws_ = [
-                RateLaw(u.diff(t), -s.D * laplacian(w) + V * w),
-                RateLaw(w.diff(t), s.D * laplacian(u) - V * u),
-            ]
+        s, t = context, context.t
+        u, w, V = s.target.u, s.target.w, s.target.V
+        self.laws_ = [
+            RateLaw(u.diff(t), -s.D * laplacian(w) + V * w),
+            RateLaw(w.diff(t), s.D * laplacian(u) - V * u),
+        ]
 
 
 class LatticeHamiltonianInteraction(Interaction):
@@ -187,7 +186,7 @@ class LatticeHamiltonianInteraction(Interaction):
         self.target = target
         self.D = D
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the Hamiltonian of the particle.
 
         Args:
@@ -195,11 +194,10 @@ class LatticeHamiltonianInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            psi = context.target.psi
-            self.laws_ = [
-                GeneratorLaw(-context.D * local_operator(psi, 'laplacian') + local_operator(psi, 'potential')),
-            ]
+        psi = context.target.psi
+        self.laws_ = [
+            GeneratorLaw(-context.D * local_operator(psi, 'laplacian') + local_operator(psi, 'potential')),
+        ]
 
 
 class PositionDephasingInteraction(Interaction):
@@ -239,7 +237,7 @@ class PositionDephasingInteraction(Interaction):
         self.gamma = gamma
         self.n_sites = n_sites
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the dissipators of the site projectors.
 
         Args:
@@ -247,11 +245,8 @@ class PositionDephasingInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            psi = context.target.psi
-            self.laws_ = [
-                DissipatorLaw(local_operator(psi, f'site_{site}'), context.gamma) for site in range(self.n_sites)
-            ]
+        psi = context.target.psi
+        self.laws_ = [DissipatorLaw(local_operator(psi, f'site_{site}'), context.gamma) for site in range(self.n_sites)]
 
 
 class SchrodingerSystem(BaseSystem):

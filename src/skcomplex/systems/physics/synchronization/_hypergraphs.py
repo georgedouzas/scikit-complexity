@@ -21,7 +21,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import hyperedges
-from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.components.spaces import NetworkSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -66,7 +66,7 @@ class SimplexCouplingInteraction(Interaction):
         self.K1 = K1
         self.K2 = K2
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the coupling of every oscillator to the rest of its links and triangles.
 
         Args:
@@ -74,11 +74,10 @@ class SimplexCouplingInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            theta, others = context.target.theta, context.target.others
-            links = hyperedges(context.K1 * sin(others[0].theta - theta), size=PAIR)
-            triangles = hyperedges(context.K2 * sin(others[0].theta + others[1].theta - 2 * theta), size=TRIANGLE)
-            self.laws_ = [RateLaw(theta.diff(context.t), links + triangles)]
+        theta, others = context.target.theta, context.target.others
+        links = hyperedges(context.K1 * sin(others[0].theta - theta), size=PAIR)
+        triangles = hyperedges(context.K2 * sin(others[0].theta + others[1].theta - 2 * theta), size=TRIANGLE)
+        self.laws_ = [RateLaw(theta.diff(context.t), links + triangles)]
 
 
 class HypergraphKuramotoSystem(BaseSystem):

@@ -153,7 +153,7 @@ class BinaryCollisionsInteraction(Interaction):
         self.d0 = d0
         self.substeps = substeps
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rule of the whole system that moves the particles for one unit of time.
 
         Args:
@@ -161,8 +161,7 @@ class BinaryCollisionsInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context, self.fly)]
+        self.laws_ = [UpdateLaw(context, self.fly)]
 
     def fly(self, system: SystemView) -> None:
         """Move the particles for one unit of time.

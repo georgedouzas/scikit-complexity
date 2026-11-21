@@ -138,7 +138,7 @@ class ShakenFrictionInteraction(Interaction):
         self.relax_time = relax_time
         self.v_stick = v_stick
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rates of the positions and the velocities of the blocks, and the shaking of the velocities.
 
         Args:
@@ -146,19 +146,18 @@ class ShakenFrictionInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, t = context, context.t
-            x, v, m = s.target.x, s.target.v, s.target.m
-            force = s.k * laplacian(x) - s.anchor * x
-            moving = abs(v) > s.v_stick
-            direction = where(moving, where(v > 0, 1, -1), where(force > 0, 1, -1))
-            stuck = both(abs(v) <= s.v_stick, abs(force) < s.mu_s)
-            shaking = pulse_train(t, s.shake_time + s.relax_time, s.shake_time)
-            self.laws_ = [
-                RateLaw(x.diff(t), where(moving, v, 0)),
-                RateLaw(v.diff(t), where(stuck, 0, (force - s.mu_d * direction) / m)),
-                NoiseLaw(v, s.amplitude * shaking / m),
-            ]
+        s, t = context, context.t
+        x, v, m = s.target.x, s.target.v, s.target.m
+        force = s.k * laplacian(x) - s.anchor * x
+        moving = abs(v) > s.v_stick
+        direction = where(moving, where(v > 0, 1, -1), where(force > 0, 1, -1))
+        stuck = both(abs(v) <= s.v_stick, abs(force) < s.mu_s)
+        shaking = pulse_train(t, s.shake_time + s.relax_time, s.shake_time)
+        self.laws_ = [
+            RateLaw(x.diff(t), where(moving, v, 0)),
+            RateLaw(v.diff(t), where(stuck, 0, (force - s.mu_d * direction) / m)),
+            NoiseLaw(v, s.amplitude * shaking / m),
+        ]
 
 
 class ShakenSpringBlockSystem(BaseSystem):

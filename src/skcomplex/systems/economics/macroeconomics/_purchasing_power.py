@@ -19,7 +19,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import step
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -161,11 +160,14 @@ class PurchasingPowerInteraction(Interaction):
         gaps = [y[i] - sum(C[i, k] * z[k] for k in range(SECTORS)) for i in range(SECTORS)]
         return [sum(inverse[i, k] * gaps[k] for k in range(SECTORS)) for i in range(SECTORS)]
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rates of the economy and, with feedback, of the decoupled systems as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rates of the economy and, with feedback, of the decoupled systems as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         s = SimpleNamespace(t=context.t, **vars(context.target))
         A, B = np.asarray(self.A), np.asarray(self.B)
         z, u = [getattr(s, f'z{i}') for i in range(1, SECTORS + 1)], self.get_inputs(s)

@@ -18,7 +18,6 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, ScipyODESolver
 from ....core.systems import BaseSystem, System
@@ -129,16 +128,14 @@ class MemristiveDynamicsInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rates of the voltages, the current, and the flux of the circuit.
 
         Args:
             context:
-                The space the interaction inherits from its system, or the namespace of the circuit.
+                The namespace of the circuit.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         c, t = context.target, context.t
         self.laws_: list[BaseComponent] = [
             RateLaw(c.x.diff(t), -(c.y + (c.a + 3 * c.b * c.w**2) * c.x) / c.epsilon),

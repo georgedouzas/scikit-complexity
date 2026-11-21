@@ -20,7 +20,7 @@ from ....core.components.elements import VisualSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import coordinate, divergence, integral_transform, integration_variable
-from ....core.components.spaces import AxisSpec, BaseSpace, FiniteVolumeSpec, LatticeSpace, PhaseSpace
+from ....core.components.spaces import AxisSpec, FiniteVolumeSpec, LatticeSpace, PhaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver
 from ....core.errors import ValidationError
@@ -215,31 +215,35 @@ class SelectionDriftInteraction(Interaction):
         self.drift = drift
         self.source = source
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rate of the divergence of the flux and of the source, after checking the functions.
-
-        Args:
-            context:
-                The space the interaction inherits from its system, or the namespace of the field.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The state is not a name, or the drift or the source is not callable.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if not isinstance(self.state, str):
             error_msg = f'The state of {self.label!r} is {self.state!r}. Give the name of a state of the field.'
             raise ValidationError(error_msg)
         if not callable(self.drift) or (self.source is not None and not callable(self.source)):
             error_msg = f'The drift and the source of {self.label!r} are functions of the namespace.'
             raise ValidationError(error_msg)
-        if isinstance(context, SimpleNamespace):
-            state = getattr(context.target, self.state)
-            flux = self._get_flux(context)
-            components = list(flux) if isinstance(flux, list) else [flux]
-            self.laws_ = [RateLaw(state, -divergence(components))]
-            if self.source is not None:
-                self.laws_.append(RateLaw(state, self.source(context)))
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate of the divergence of the flux and of the source, after checking the functions.
+
+        Args:
+            context:
+                The namespace of the field.
+        """
+        super()._prepare(context)
+        state = getattr(context.target, self.state)
+        flux = self._get_flux(context)
+        components = list(flux) if isinstance(flux, list) else [flux]
+        self.laws_ = [RateLaw(state, -divergence(components))]
+        if self.source is not None:
+            self.laws_.append(RateLaw(state, self.source(context)))
 
     def _get_flux(self, namespace: SimpleNamespace) -> object:
         """Return the flux `a u`, one component per component of the drift.

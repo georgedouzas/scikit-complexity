@@ -103,7 +103,7 @@ class ExtinctionInteraction(Interaction):
         self.target = target
         self.neighbors = neighbors
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the update that renews the least fit species and its neighbours.
 
         Args:
@@ -111,11 +111,10 @@ class ExtinctionInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            fitness = context.target.fitness
-            around = neighbors(context.target.other.fitness, over=SPECIES_NEIGHBORHOODS[self.neighbors], reduce='min')
-            renewed = minimum(fitness, around) == minimum(fitness)
-            self.laws_ = [UpdateLaw(fitness, where(renewed, uniform('fitness'), fitness), label='extinction')]
+        fitness = context.target.fitness
+        around = neighbors(context.target.other.fitness, over=SPECIES_NEIGHBORHOODS[self.neighbors], reduce='min')
+        renewed = minimum(fitness, around) == minimum(fitness)
+        self.laws_ = [UpdateLaw(fitness, where(renewed, uniform('fitness'), fitness), label='extinction')]
 
 
 class BakSneppenSystem(BaseSystem):

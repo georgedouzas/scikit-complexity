@@ -106,12 +106,16 @@ class GiantComponentInteraction(Interaction):
         self.links = links
         self.phase = phase
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the membership of the giant component of the active links."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the membership of the giant component of the active links.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            giant = components(context.links.active, reduce='giant')
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.nodes.active, giant, phase=self.phase)]
+        giant = components(context.links.active, reduce='giant')
+        self.laws_: list[BaseComponent] = [UpdateLaw(context.nodes.active, giant, phase=self.phase)]
 
 
 class TriadicRegulationInteraction(Interaction):
@@ -162,15 +166,19 @@ class TriadicRegulationInteraction(Interaction):
         self.p = p
         self.phase = phase
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the activity of the link from its regulating node, the third member of the hyperedge."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the activity of the link from its regulating node, the third member of the hyperedge.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            regulator = s.others[1].active
-            allowed = where(s.edge.sign > 0, regulator, 1 - regulator)
-            retained = bernoulli('retained', s.p) * allowed
-            self.laws_: list[BaseComponent] = [UpdateLaw(s.edge.active, retained, phase=self.phase)]
+        s = context
+        regulator = s.others[1].active
+        allowed = where(s.edge.sign > 0, regulator, 1 - regulator)
+        retained = bernoulli('retained', s.p) * allowed
+        self.laws_: list[BaseComponent] = [UpdateLaw(s.edge.active, retained, phase=self.phase)]
 
 
 class TriadicPercolationSystem(BaseSystem):

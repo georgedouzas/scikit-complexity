@@ -15,7 +15,6 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import JumpLaw
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -98,19 +97,23 @@ class RumourContactsInteraction(Interaction):
         self.spread = spread
         self.stifle = stifle
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the telling and stifling jumps as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the telling and stifling jumps as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            ignorants, spreaders, stiflers = context.ignorants.n, context.spreaders.n, context.stiflers.n
-            total = ignorants + spreaders + stiflers
-            self.laws_: list[BaseComponent] = [
-                JumpLaw(context.spread * ignorants * spreaders / total, {ignorants: -1, spreaders: 1}),
-                JumpLaw(
-                    context.stifle * spreaders * (spreaders - 1 + stiflers) / total,
-                    {spreaders: -1, stiflers: 1},
-                ),
-            ]
+        ignorants, spreaders, stiflers = context.ignorants.n, context.spreaders.n, context.stiflers.n
+        total = ignorants + spreaders + stiflers
+        self.laws_: list[BaseComponent] = [
+            JumpLaw(context.spread * ignorants * spreaders / total, {ignorants: -1, spreaders: 1}),
+            JumpLaw(
+                context.stifle * spreaders * (spreaders - 1 + stiflers) / total,
+                {spreaders: -1, stiflers: 1},
+            ),
+        ]
 
 
 class MakiThompsonSystem(BaseSystem):

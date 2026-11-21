@@ -16,7 +16,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import contraction
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -68,7 +67,7 @@ class TripletInteraction(Interaction):
         self.a = a
         self.state = state
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the growth of every species from the pairs of other species.
 
         Args:
@@ -76,9 +75,8 @@ class TripletInteraction(Interaction):
                 The namespace of the species, the time `t`, and the tensor.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            abundance = getattr(context.target, self.state)
-            self.laws_ = [RateLaw(abundance, abundance * contraction(context.a, abundance, abundance) / 2)]
+        abundance = getattr(context.target, self.state)
+        self.laws_ = [RateLaw(abundance, abundance * contraction(context.a, abundance, abundance) / 2)]
 
 
 class HigherOrderRandomLotkaVolterraSystem(BaseSystem):

@@ -16,7 +16,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import hill
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -121,7 +120,7 @@ class SaltzmanMaaschInteraction(Interaction):
         self.nu = nu
         self.t0 = t0
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rates of the three anomalies.
 
         Args:
@@ -129,14 +128,13 @@ class SaltzmanMaaschInteraction(Interaction):
                 The namespace of the climate, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, y, z, t = context.target.x, context.target.y, context.target.z, context.t
-            forcing = cos(2 * pi * context.t0 * t / 22.1) - cos(2 * pi * context.t0 * t / 44.1)
-            self.laws_ = [
-                RateLaw(x.diff(t), -x - y - context.u * z - context.nu * forcing),
-                RateLaw(y.diff(t), -context.p * z + context.r * y - context.s * y**2 - y**3),
-                RateLaw(z.diff(t), -context.q * (x + z)),
-            ]
+        x, y, z, t = context.target.x, context.target.y, context.target.z, context.t
+        forcing = cos(2 * pi * context.t0 * t / 22.1) - cos(2 * pi * context.t0 * t / 44.1)
+        self.laws_ = [
+            RateLaw(x.diff(t), -x - y - context.u * z - context.nu * forcing),
+            RateLaw(y.diff(t), -context.p * z + context.r * y - context.s * y**2 - y**3),
+            RateLaw(z.diff(t), -context.q * (x + z)),
+        ]
 
 
 class SaltzmanGlaciationSystem(BaseSystem):
@@ -338,7 +336,7 @@ class CarbonCycleInteraction(Interaction):
         self.c_f = c_f
         self.beta = beta
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rates of the carbonate ion and the dissolved inorganic carbon.
 
         Args:
@@ -346,18 +344,17 @@ class CarbonCycleInteraction(Interaction):
                 The namespace of the ocean, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            c, w, t = context.target.c, context.target.w, context.t
-            burial = context.b * hill(c, context.c_p, context.gamma)
-            respiration = context.theta * (1 - hill(c, context.c_x, context.gamma))
-            buffer = context.f0 * hill(c, context.c_f, context.beta)
-            self.laws_ = [
-                RateLaw(
-                    c.diff(t),
-                    buffer * (context.mu * (1 - burial - respiration - context.nu) + w - context.w0),
-                ),
-                RateLaw(w.diff(t), context.mu * (1 - burial + respiration + context.nu) - w + context.w0),
-            ]
+        c, w, t = context.target.c, context.target.w, context.t
+        burial = context.b * hill(c, context.c_p, context.gamma)
+        respiration = context.theta * (1 - hill(c, context.c_x, context.gamma))
+        buffer = context.f0 * hill(c, context.c_f, context.beta)
+        self.laws_ = [
+            RateLaw(
+                c.diff(t),
+                buffer * (context.mu * (1 - burial - respiration - context.nu) + w - context.w0),
+            ),
+            RateLaw(w.diff(t), context.mu * (1 - burial + respiration + context.nu) - w + context.w0),
+        ]
 
 
 class CarbonCycleSystem(BaseSystem):
@@ -489,7 +486,7 @@ class VanDerPolIceAgesInteraction(Interaction):
         self.gamma = gamma
         self.tau = tau
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rates of the slow ice volume and the fast climate.
 
         Args:
@@ -497,13 +494,12 @@ class VanDerPolIceAgesInteraction(Interaction):
                 The namespace of the climate, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, y, t = context.target.x, context.target.y, context.t
-            forcing = cos(2 * pi * t / 23) + cos(2 * pi * t / 41)
-            self.laws_ = [
-                RateLaw(x.diff(t), -(y + context.beta + context.gamma * forcing) / context.tau),
-                RateLaw(y.diff(t), -context.alpha * (y**3 / 3 - y - x) / context.tau),
-            ]
+        x, y, t = context.target.x, context.target.y, context.t
+        forcing = cos(2 * pi * t / 23) + cos(2 * pi * t / 41)
+        self.laws_ = [
+            RateLaw(x.diff(t), -(y + context.beta + context.gamma * forcing) / context.tau),
+            RateLaw(y.diff(t), -context.alpha * (y**3 / 3 - y - x) / context.tau),
+        ]
 
 
 class VanDerPolIceAgesSystem(BaseSystem):

@@ -128,7 +128,7 @@ class VesselSizingInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the radius, the length, the volume, and the capillary flag of the vessel.
 
         Args:
@@ -136,15 +136,14 @@ class VesselSizingInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context.target
-            height = s.depth - s.level
-            self.laws_ = [
-                ConstraintLaw(s.r == s.r_c * s.n ** (height / 2), target=s.r),
-                ConstraintLaw(s.l == s.l_c * s.n ** (height / 3), target=s.l),
-                ConstraintLaw(s.volume == pi * s.r**2 * s.l, target=s.volume),
-                ConstraintLaw(s.terminal == where(s.level > s.depth - 1 / 2, 1, 0), target=s.terminal),
-            ]
+        s = context.target
+        height = s.depth - s.level
+        self.laws_ = [
+            ConstraintLaw(s.r == s.r_c * s.n ** (height / 2), target=s.r),
+            ConstraintLaw(s.l == s.l_c * s.n ** (height / 3), target=s.l),
+            ConstraintLaw(s.volume == pi * s.r**2 * s.l, target=s.volume),
+            ConstraintLaw(s.terminal == where(s.level > s.depth - 1 / 2, 1, 0), target=s.terminal),
+        ]
 
 
 class WestBrownEnquistSystem(BaseSystem):

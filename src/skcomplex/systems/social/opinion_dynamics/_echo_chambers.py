@@ -19,7 +19,6 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, SystemView
@@ -146,11 +145,15 @@ class RadicalizationInteraction(Interaction):
         self.dt = dt
         self.substeps = substeps
 
-    def _prepare(self, s: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the opinion rule."""
+    def _prepare(self, s: SimpleNamespace) -> None:
+        """Set the opinion rule.
+
+        Args:
+            s:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(s)
-        if isinstance(s, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(s, self.influence)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(s, self.influence)]
 
     def _get_inputs(self, opinions: Array, activities: Array, rng: np.random.Generator) -> Array:
         """Return the summed influence `sum_j A_ij tanh(alpha x_j)` on every agent.

@@ -16,7 +16,6 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, MesaSolver, SystemView
@@ -150,11 +149,15 @@ class InvestmentInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the period of every firm as its rule."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the period of every firm as its rule.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.invest)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.invest)]
 
     def invest(self, agent: InvestingFirmView, system: SystemView) -> None:
         """Run one period of a firm, and replace it by an entrant when its net worth turns negative.

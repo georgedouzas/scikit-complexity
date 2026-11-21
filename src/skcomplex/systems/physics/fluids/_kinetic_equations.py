@@ -21,7 +21,7 @@ from ....core.components.elements import VisualSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import NoiseLaw, RateLaw
 from ....core.components.laws.utils import coordinate, gradient, inverse_helmholtz, maximum_entropy, moment
-from ....core.components.spaces import AxisSpec, BaseSpace, LatticeSpace, PhaseSpace
+from ....core.components.spaces import AxisSpec, LatticeSpace, PhaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver, SemiLagrangianSolver, SSPRKSolver, StrangSplittingSolver
 from ....core.errors import ValidationError
@@ -138,33 +138,37 @@ class RelaxationTimeInteraction(Interaction):
         """Return the amplitude of the noise, or `None` for none."""
         return None if self.noise is None else self._evaluate('noise', context)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the relaxation of the state of the target and its noise.
-
-        Args:
-            context:
-                The namespace of the target, the time `t`, and the parameters.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 A goal, a time, or a noise is neither callable nor a number.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         for name in ('goal', 'time', 'noise'):
             value = getattr(self, name)
             if not (callable(value) or isinstance(value, int | float) or (name == 'noise' and value is None)):
                 error_msg = f'The {name} of {self.label!r} is {value!r}. Give a function of the namespace or a number.'
                 raise ValidationError(error_msg)
-        if isinstance(context, SimpleNamespace):
-            x = getattr(context.target, self.state)
-            goal = self._get_goal(context)
-            if isinstance(x, FreeModuleElement) and not isinstance(goal, FreeModuleElement):
-                goal = vector(SR, [goal] * len(x))
-            laws: list[BaseComponent] = [RateLaw(x.diff(context.t), (goal - x) / self._get_time(context))]
-            noise = self._get_noise(context)
-            if noise is not None:
-                laws.append(NoiseLaw(x, noise))
-            self.laws_ = laws
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the relaxation of the state of the target and its noise.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        x = getattr(context.target, self.state)
+        goal = self._get_goal(context)
+        if isinstance(x, FreeModuleElement) and not isinstance(goal, FreeModuleElement):
+            goal = vector(SR, [goal] * len(x))
+        laws: list[BaseComponent] = [RateLaw(x.diff(context.t), (goal - x) / self._get_time(context))]
+        noise = self._get_noise(context)
+        if noise is not None:
+            laws.append(NoiseLaw(x, noise))
+        self.laws_ = laws
 
 
 class BhatnagarGrossKrookInteraction(RelaxationTimeInteraction):

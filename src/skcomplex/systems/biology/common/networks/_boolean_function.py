@@ -11,7 +11,6 @@ from sage.all__sagemath_symbolics import SR, Expression
 
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, UpdateLaw
-from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
 from .....core.types import Role
 
@@ -69,25 +68,29 @@ class BooleanFunctionInteraction(Interaction):
         bits = [(index >> (len(inputs) - 1 - position)) & 1 for position in range(len(inputs))]
         return prod((value if bit else 1 - value for value, bit in zip(inputs, bits, strict=True)), start=SR(1))
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the next value of the target by the truth table.
-
-        Args:
-            context:
-                The namespace of the target and the inputs.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The table does not have one entry per pattern of the inputs.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if len(self.table) != 2 ** len(self.inputs):
             error_msg = (
                 f'BooleanFunction {self.label} reads {len(self.inputs)} inputs, which take {2 ** len(self.inputs)} '
                 f'patterns, but its table has {len(self.table)} entries.'
             )
             raise ValidationError(error_msg)
-        if isinstance(context, SimpleNamespace):
-            inputs = [item.x for item in context.inputs]
-            terms = [self._get_pattern(inputs, index) for index, entry in enumerate(self.table) if entry]
-            self.laws_: list[BaseLaw] = [UpdateLaw(context.target.x, sum(terms, start=SR(0)))]
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the next value of the target by the truth table.
+
+        Args:
+            context:
+                The namespace of the target and the inputs.
+        """
+        super()._prepare(context)
+        inputs = [item.x for item in context.inputs]
+        terms = [self._get_pattern(inputs, index) for index, entry in enumerate(self.table) if entry]
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target.x, sum(terms, start=SR(0)))]

@@ -117,7 +117,7 @@ class WindStressInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate of the vorticity of the basin to the curl of the wind stress.
 
         Args:
@@ -125,9 +125,8 @@ class WindStressInteraction(Interaction):
                 The namespace of the basin and the time `t`.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            zeta = context.target.zeta
-            self.laws_ = [RateLaw(zeta.diff(context.t), context.target.curl)]
+        zeta = context.target.zeta
+        self.laws_ = [RateLaw(zeta.diff(context.t), context.target.curl)]
 
 
 def _get_sites(values: np.ndarray) -> np.ndarray:

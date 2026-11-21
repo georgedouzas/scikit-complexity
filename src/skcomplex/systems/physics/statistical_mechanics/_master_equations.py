@@ -129,7 +129,7 @@ class GlauberMasterInteraction(Interaction):
         ) * center
         return center + gain - loss
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the master equation step of the probabilities of the target.
 
         Args:
@@ -137,9 +137,8 @@ class GlauberMasterInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context.target
-            self.laws_ = [UpdateLaw(s.P, self._get_master_step, neighborhood=RING, reads=(s.P, s.U), label=self.label)]
+        s = context.target
+        self.laws_ = [UpdateLaw(s.P, self._get_master_step, neighborhood=RING, reads=(s.P, s.U), label=self.label)]
 
 
 class ZoneElement(Element):
@@ -211,7 +210,7 @@ class ZoneExchangeInteraction(Interaction):
         self.p = p
         self.k = k
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the entries into and exits from the zone.
 
         Args:
@@ -219,12 +218,11 @@ class ZoneExchangeInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, N = context, context.target.N
-            self.laws_ = [
-                JumpLaw(s.k * s.p * (s.Na - N), {N: 1}),
-                JumpLaw(s.k * (1 - s.p) * N, {N: -1}),
-            ]
+        s, N = context, context.target.N
+        self.laws_ = [
+            JumpLaw(s.k * s.p * (s.Na - N), {N: 1}),
+            JumpLaw(s.k * (1 - s.p) * N, {N: -1}),
+        ]
 
 
 class LandauRelaxationInteraction(Interaction):
@@ -286,7 +284,7 @@ class LandauRelaxationInteraction(Interaction):
         self.h = h
         self.Gamma = Gamma
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the relaxation of the order parameter of the target.
 
         Args:
@@ -294,10 +292,9 @@ class LandauRelaxationInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, phi = context, context.target.phi
-            force = s.a * (s.T - s.Tc) * phi + s.b * phi**3 - s.h
-            self.laws_ = [RateLaw(phi.diff(s.t), -s.Gamma * force)]
+        s, phi = context, context.target.phi
+        force = s.a * (s.T - s.Tc) * phi + s.b * phi**3 - s.h
+        self.laws_ = [RateLaw(phi.diff(s.t), -s.Gamma * force)]
 
 
 class DiscreteMasterEquationSystem(BaseSystem):

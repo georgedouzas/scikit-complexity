@@ -16,7 +16,6 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -84,18 +83,22 @@ class LangfordInteraction(Interaction):
         self.e = e
         self.f = f
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rates of the three coordinates as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rates of the three coordinates as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, y, z = context.target.x, context.target.y, context.target.z
-            a, b, c, d, e, f = context.a, context.b, context.c, context.d, context.e, context.f
-            radius = x**2 + y**2
-            self.laws_: list[BaseComponent] = [
-                RateLaw(x, (z - b) * x - d * y),
-                RateLaw(y, d * x + (z - b) * y),
-                RateLaw(z, c + a * z - z**3 / 3 - radius * (1 + e * z) + f * z * x**3),
-            ]
+        x, y, z = context.target.x, context.target.y, context.target.z
+        a, b, c, d, e, f = context.a, context.b, context.c, context.d, context.e, context.f
+        radius = x**2 + y**2
+        self.laws_: list[BaseComponent] = [
+            RateLaw(x, (z - b) * x - d * y),
+            RateLaw(y, d * x + (z - b) * y),
+            RateLaw(z, c + a * z - z**3 / 3 - radius * (1 + e * z) + f * z * x**3),
+        ]
 
 
 class MixedFlowInteraction(Interaction):
@@ -122,16 +125,20 @@ class MixedFlowInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rates of the three coordinates as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rates of the three coordinates as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, y, z = context.target.x, context.target.y, context.target.z
-            self.laws_: list[BaseComponent] = [
-                RateLaw(x, y + 2 * x * y + x * z),
-                RateLaw(y, 1 - 2 * x**2 + y * z),
-                RateLaw(z, x - x**2 - y**2),
-            ]
+        x, y, z = context.target.x, context.target.y, context.target.z
+        self.laws_: list[BaseComponent] = [
+            RateLaw(x, y + 2 * x * y + x * z),
+            RateLaw(y, 1 - 2 * x**2 + y * z),
+            RateLaw(z, x - x**2 - y**2),
+        ]
 
 
 class NoseHooverInteraction(Interaction):
@@ -158,12 +165,16 @@ class NoseHooverInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rates of the position, the momentum, and the friction as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rates of the position, the momentum, and the friction as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, y, z = context.target.x, context.target.y, context.target.z
-            self.laws_: list[BaseComponent] = [RateLaw(x, y), RateLaw(y, y * z - x), RateLaw(z, 1 - y**2)]
+        x, y, z = context.target.x, context.target.y, context.target.z
+        self.laws_: list[BaseComponent] = [RateLaw(x, y), RateLaw(y, y * z - x), RateLaw(z, 1 - y**2)]
 
 
 class LorenzElement(Element):
@@ -249,16 +260,20 @@ class LorenzInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rates of the three modes as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rates of the three modes as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context.target
-            self.laws_: list[BaseComponent] = [
-                RateLaw(s.x, s.sigma * (s.y - s.x)),
-                RateLaw(s.y, s.x * (s.rho - s.z) - s.y),
-                RateLaw(s.z, s.x * s.y - s.beta * s.z),
-            ]
+        s = context.target
+        self.laws_: list[BaseComponent] = [
+            RateLaw(s.x, s.sigma * (s.y - s.x)),
+            RateLaw(s.y, s.x * (s.rho - s.z) - s.y),
+            RateLaw(s.z, s.x * s.y - s.beta * s.z),
+        ]
 
 
 class LorenzSystem(BaseSystem):
@@ -440,13 +455,17 @@ class SprottJerkInteraction(Interaction):
         self.target = target
         self.A = A
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the third derivative of the position as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the third derivative of the position as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, t = context.target.x, context.t
-            jerk = -context.A * x.diff(t, 2) - x.diff(t) + abs_symbolic(x) - 1
-            self.laws_: list[BaseComponent] = [RateLaw(x.diff(t, 3), jerk)]
+        x, t = context.target.x, context.t
+        jerk = -context.A * x.diff(t, 2) - x.diff(t) + abs_symbolic(x) - 1
+        self.laws_: list[BaseComponent] = [RateLaw(x.diff(t, 3), jerk)]
 
 
 class SprottJerkSystem(BaseSystem):
@@ -552,15 +571,19 @@ class FiniteTimeBlowUpInteraction(Interaction):
         self.a = a
         self.p = p
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rate of every state as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate of every state as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x = context.target.x
-            a, p = context.a, context.p
-            self.laws_: list[BaseComponent] = [
-                RateLaw(x, a * x**p),
-            ]
+        x = context.target.x
+        a, p = context.a, context.p
+        self.laws_: list[BaseComponent] = [
+            RateLaw(x, a * x**p),
+        ]
 
 
 class FiniteTimeBlowUpSystem(BaseSystem):
@@ -673,18 +696,22 @@ class HyperchaoticRosslerInteraction(Interaction):
         self.c = c
         self.d = d
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rate of every state as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate of every state as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, y, z, w = context.target.x, context.target.y, context.target.z, context.target.w
-            a, b, c, d = context.a, context.b, context.c, context.d
-            self.laws_: list[BaseComponent] = [
-                RateLaw(x, -(y + z)),
-                RateLaw(y, x + a * y + w),
-                RateLaw(z, b + x * z),
-                RateLaw(w, c * w - d * z),
-            ]
+        x, y, z, w = context.target.x, context.target.y, context.target.z, context.target.w
+        a, b, c, d = context.a, context.b, context.c, context.d
+        self.laws_: list[BaseComponent] = [
+            RateLaw(x, -(y + z)),
+            RateLaw(y, x + a * y + w),
+            RateLaw(z, b + x * z),
+            RateLaw(w, c * w - d * z),
+        ]
 
 
 class HyperchaoticRosslerSystem(BaseSystem):
@@ -1060,17 +1087,21 @@ class ThomasInteraction(Interaction):
         self.target = target
         self.a = a
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rate of every state as the laws."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate of every state as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, y, z = context.target.x, context.target.y, context.target.z
-            a = context.a
-            self.laws_: list[BaseComponent] = [
-                RateLaw(x, -a * x + sin(y)),
-                RateLaw(y, -a * y + sin(z)),
-                RateLaw(z, -a * z + sin(x)),
-            ]
+        x, y, z = context.target.x, context.target.y, context.target.z
+        a = context.a
+        self.laws_: list[BaseComponent] = [
+            RateLaw(x, -a * x + sin(y)),
+            RateLaw(y, -a * y + sin(z)),
+            RateLaw(z, -a * z + sin(x)),
+        ]
 
 
 class ThomasSystem(BaseSystem):
@@ -1180,12 +1211,16 @@ class IkedaInteraction(Interaction):
         self.a = a
         self.tau = tau
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the delayed feedback of the value as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the delayed feedback of the value as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, t = context.target.x, context.t
-            self.laws_: list[BaseComponent] = [RateLaw(x, context.a * sin(x(t=t - context.tau)))]
+        x, t = context.target.x, context.t
+        self.laws_: list[BaseComponent] = [RateLaw(x, context.a * sin(x(t=t - context.tau)))]
 
 
 class IkedaSystem(BaseSystem):

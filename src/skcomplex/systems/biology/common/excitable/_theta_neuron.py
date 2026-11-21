@@ -84,7 +84,7 @@ class ThetaNeuronInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the phase dynamics of the target.
 
         Args:
@@ -92,6 +92,5 @@ class ThetaNeuronInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            theta, eta = context.target.theta, context.target.eta
-            self.laws_ = [RateLaw(theta, 1 - cos(theta) + (1 + cos(theta)) * eta)]
+        theta, eta = context.target.theta, context.target.eta
+        self.laws_ = [RateLaw(theta, 1 - cos(theta) + (1 + cos(theta)) * eta)]

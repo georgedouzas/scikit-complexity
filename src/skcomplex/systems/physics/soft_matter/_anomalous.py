@@ -19,7 +19,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.components.laws.utils import draw, normal
-from ....core.components.spaces import BaseSpace, ContinuousSpace
+from ....core.components.spaces import ContinuousSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver, FractionalEulerMaruyamaSolver, RK4Solver
 from ....core.systems import BaseSystem, System
@@ -96,7 +96,7 @@ class WaitingJumpInteraction(Interaction):
         self.tau0 = tau0
         self.sigma = sigma
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the jumps of the positions of the target after the waiting times.
 
         Args:
@@ -104,11 +104,10 @@ class WaitingJumpInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            waiting = draw('wait', 'pareto', b=s.alpha, scale=s.tau0)
-            reset = {item: item + normal(f'jump{index}', 0, s.sigma) for index, item in enumerate(s.target.x)}
-            self.laws_ = [JumpLaw(waiting=waiting, reset=reset, label=self.label)]
+        s = context
+        waiting = draw('wait', 'pareto', b=s.alpha, scale=s.tau0)
+        reset = {item: item + normal(f'jump{index}', 0, s.sigma) for index, item in enumerate(s.target.x)}
+        self.laws_ = [JumpLaw(waiting=waiting, reset=reset, label=self.label)]
 
 
 class FractionalWalkerElement(Element):
@@ -175,7 +174,7 @@ class FractionalNoiseInteraction(Interaction):
         self.D = D
         self.H = H
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the fractional noise of the positions of the target.
 
         Args:
@@ -183,8 +182,7 @@ class FractionalNoiseInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [NoiseLaw(context.target.x, sqrt(2 * context.D), hurst=context.H)]
+        self.laws_ = [NoiseLaw(context.target.x, sqrt(2 * context.D), hurst=context.H)]
 
 
 class LevyFlierElement(Element):
@@ -258,7 +256,7 @@ class LevyJumpInteraction(Interaction):
         length = sqrt(sum(component**2 for component in components))
         return [component / length for component in components]
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the position after a jump in a random direction.
 
         Args:
@@ -266,11 +264,10 @@ class LevyJumpInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x = context.target.x
-            length = draw('length', 'pareto', b=context.mu, scale=context.l0)
-            steps = self._get_direction(len(list(x)))
-            self.laws_ = [UpdateLaw(x, vector(SR, [item + length * step for item, step in zip(x, steps, strict=True)]))]
+        x = context.target.x
+        length = draw('length', 'pareto', b=context.mu, scale=context.l0)
+        steps = self._get_direction(len(list(x)))
+        self.laws_ = [UpdateLaw(x, vector(SR, [item + length * step for item, step in zip(x, steps, strict=True)]))]
 
 
 class LevyWalkerElement(Element):
@@ -353,7 +350,7 @@ class LevyFlightTimeInteraction(Interaction):
         length = sqrt(sum(component**2 for component in components))
         return [component / length for component in components]
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the flight of the positions and the turns of the velocities of the target.
 
         Args:
@@ -361,13 +358,12 @@ class LevyFlightTimeInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            x, v = s.target.x, s.target.v
-            waiting = draw('flight', 'pareto', b=s.sigma, scale=s.tau0)
-            directions = self._get_direction(len(list(v)))
-            reset = {item: s.speed * direction for item, direction in zip(v, directions, strict=True)}
-            self.laws_ = [RateLaw(x, v), JumpLaw(waiting=waiting, reset=reset, label=self.label)]
+        s = context
+        x, v = s.target.x, s.target.v
+        waiting = draw('flight', 'pareto', b=s.sigma, scale=s.tau0)
+        directions = self._get_direction(len(list(v)))
+        reset = {item: s.speed * direction for item, direction in zip(v, directions, strict=True)}
+        self.laws_ = [RateLaw(x, v), JumpLaw(waiting=waiting, reset=reset, label=self.label)]
 
 
 class TransientWalkerElement(Element):
@@ -440,7 +436,7 @@ class TransientDiffusionInteraction(Interaction):
         self.sigma = sigma
         self.gamma = gamma
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the noise of the positions of the target and the changes of their diffusion coefficients.
 
         Args:
@@ -448,12 +444,11 @@ class TransientDiffusionInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            x, D = s.target.x, s.target.D
-            waiting = draw('wait', 'expon', scale=D ** (-s.gamma))
-            reset = {D: draw('coefficient', 'beta', a=s.sigma, b=1)}
-            self.laws_ = [NoiseLaw(x, sqrt(2 * D)), JumpLaw(waiting=waiting, reset=reset, label=self.label)]
+        s = context
+        x, D = s.target.x, s.target.D
+        waiting = draw('wait', 'expon', scale=D ** (-s.gamma))
+        reset = {D: draw('coefficient', 'beta', a=s.sigma, b=1)}
+        self.laws_ = [NoiseLaw(x, sqrt(2 * D)), JumpLaw(waiting=waiting, reset=reset, label=self.label)]
 
 
 class ContinuousTimeRandomWalkSystem(BaseSystem):

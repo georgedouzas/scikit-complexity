@@ -763,21 +763,15 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         """
         self._check_partners(self.rule, space)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _check_arguments(self) -> None:
         """Raise an error for a bad declaration, an unsigned transfer, or a bad rule.
-
-        A bad declaration is one the matching cannot take.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 A transfer has a sign other than `-1` or `1`, the rule is neither a matching spec nor a function, or
                 it is invalid.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         for state, sign in self.transfers:
             if sign not in SIGNS:
                 error_msg = f'The transfer of {state!r} has the sign {sign!r}. Use one of {SIGNS}.'
@@ -785,8 +779,16 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         self._check_variant('rule', self.rule, (), RULES, functions=True)
         if isinstance(self.rule, RULES):
             self.rule._check()
-        if isinstance(context, SimpleNamespace):
-            self.laws_: Sequence[BaseComponent] = self._get_matching_laws(context)
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the laws of a binding.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        self.laws_: Sequence[BaseComponent] = self._get_matching_laws(context)
 
     def _get_matching_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
         """Return the rule that matches the members in the matching's phase.

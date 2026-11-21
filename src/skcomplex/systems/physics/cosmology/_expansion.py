@@ -18,7 +18,6 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
@@ -103,7 +102,7 @@ class FriedmannAccelerationInteraction(Interaction):
         self.omega_matter = omega_matter
         self.omega_lambda = omega_lambda
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the acceleration of the scale factor.
 
         Args:
@@ -111,10 +110,9 @@ class FriedmannAccelerationInteraction(Interaction):
                 The namespace of the universe, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            a = context.target.a
-            acceleration = -context.omega_matter * context.H0**2 / (2 * a**2) + context.omega_lambda * context.H0**2 * a
-            self.laws_ = [RateLaw(a.diff(context.t, 2), acceleration)]
+        a = context.target.a
+        acceleration = -context.omega_matter * context.H0**2 / (2 * a**2) + context.omega_lambda * context.H0**2 * a
+        self.laws_ = [RateLaw(a.diff(context.t, 2), acceleration)]
 
 
 class FriedmannExpansionSystem(BaseSystem):

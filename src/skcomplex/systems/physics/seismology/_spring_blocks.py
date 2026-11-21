@@ -116,7 +116,7 @@ class StickSlipInteraction(Interaction):
         self.F0 = F0
         self.v_c = v_c
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the sliding of the blocks under their springs and the stick-slip friction.
 
         Args:
@@ -124,16 +124,15 @@ class StickSlipInteraction(Interaction):
                 The namespace of the blocks, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, v, t = context.target.x, context.target.v, context.t
-            sliding = where(v > 0, v, 0)
-            force = context.k_c * laplacian(x) + context.k_p * (context.velocity * t - x)
-            friction = context.F0 / (1 + sliding / context.v_c)
-            stuck = both(v <= 0, force < context.F0)
-            self.laws_ = [
-                RateLaw(x.diff(t), sliding),
-                RateLaw(v.diff(t), where(stuck, 0, (force - friction) / context.m)),
-            ]
+        x, v, t = context.target.x, context.target.v, context.t
+        sliding = where(v > 0, v, 0)
+        force = context.k_c * laplacian(x) + context.k_p * (context.velocity * t - x)
+        friction = context.F0 / (1 + sliding / context.v_c)
+        stuck = both(v <= 0, force < context.F0)
+        self.laws_ = [
+            RateLaw(x.diff(t), sliding),
+            RateLaw(v.diff(t), where(stuck, 0, (force - friction) / context.m)),
+        ]
 
 
 class BurridgeKnopoffSystem(BaseSystem):

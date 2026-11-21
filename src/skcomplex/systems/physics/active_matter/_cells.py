@@ -157,7 +157,7 @@ class CellMotilityInteraction(Interaction):
         )
         return vector([cos(cell.theta), sin(cell.theta)]) * s.v0 + force * s.mu
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the motion of the cells of the target, and the turning and the noise of their headings.
 
         Args:
@@ -165,17 +165,16 @@ class CellMotilityInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            theta = s.target.theta
-            velocity = self._get_velocity(s)
-            speed = sqrt(velocity[0] ** 2 + velocity[1] ** 2 + SOFTENING)
-            cross = (cos(theta) * velocity[1] - sin(theta) * velocity[0]) / speed
-            self.laws_ = [
-                RateLaw(s.target.x, velocity),
-                RateLaw(theta.diff(s.t), arcsin(clip(cross, -1, 1)) / s.tau),
-                NoiseLaw(theta, s.eta / sqrt(12)),
-            ]
+        s = context
+        theta = s.target.theta
+        velocity = self._get_velocity(s)
+        speed = sqrt(velocity[0] ** 2 + velocity[1] ** 2 + SOFTENING)
+        cross = (cos(theta) * velocity[1] - sin(theta) * velocity[0]) / speed
+        self.laws_ = [
+            RateLaw(s.target.x, velocity),
+            RateLaw(theta.diff(s.t), arcsin(clip(cross, -1, 1)) / s.tau),
+            NoiseLaw(theta, s.eta / sqrt(12)),
+        ]
 
 
 def _get_heading(member: SimpleNamespace) -> Expression:

@@ -118,7 +118,7 @@ class AdaptiveCouplingInteraction(Interaction):
         self.beta = beta
         self.epsilon = epsilon
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the coupling of every link's target and the adaptation of its weight.
 
         Args:
@@ -126,13 +126,12 @@ class AdaptiveCouplingInteraction(Interaction):
                 The namespace of the ends `source` and `target`, the link `edge`, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            difference = s.target.theta - s.source.theta
-            self.laws_ = [
-                RateLaw(s.target.theta.diff(s.t), -s.K * s.edge.kappa * sin(difference + s.alpha)),
-                RateLaw(s.edge.kappa.diff(s.t), -s.epsilon * (s.edge.kappa + sin(difference + s.beta))),
-            ]
+        s = context
+        difference = s.target.theta - s.source.theta
+        self.laws_ = [
+            RateLaw(s.target.theta.diff(s.t), -s.K * s.edge.kappa * sin(difference + s.alpha)),
+            RateLaw(s.edge.kappa.diff(s.t), -s.epsilon * (s.edge.kappa + sin(difference + s.beta))),
+        ]
 
 
 class NodeOscillatorElement(PhaseOscillatorElement):

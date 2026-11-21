@@ -15,7 +15,6 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -77,11 +76,14 @@ class RoadInteraction(Interaction):
         self.A = A
         self.omega = omega
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the acceleration of the unsprung mass by the tyre on the road."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the acceleration of the unsprung mass by the tyre on the road.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         y1, t = getattr(context.target, self.state), context.t
         force = -context.k1 * (y1 - context.A * sin(context.omega * t))
         self.laws_: list[BaseComponent] = [RateLaw(y1.diff(t, 2), force / getattr(context.target, self.mass))]

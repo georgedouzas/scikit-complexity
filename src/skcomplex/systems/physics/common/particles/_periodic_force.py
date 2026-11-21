@@ -15,7 +15,6 @@ from sage.sets.real_set import RealSet
 
 from .....core.components.interactions import Interaction
 from .....core.components.laws import RateLaw
-from .....core.components.spaces import BaseSpace
 from .....core.types import Role
 
 
@@ -69,7 +68,7 @@ class PeriodicForceInteraction(Interaction):
         self.omega = omega
         self.coordinates = coordinates
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the acceleration of every coordinate of the target.
 
         Args:
@@ -77,7 +76,6 @@ class PeriodicForceInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            t, target = context.t, context.target
-            force = context.F * cos(context.omega * t)
-            self.laws_ = [RateLaw(getattr(target, name).diff(t, 2), force / target.m) for name in self.coordinates]
+        t, target = context.t, context.target
+        force = context.F * cos(context.omega * t)
+        self.laws_ = [RateLaw(getattr(target, name).diff(t, 2), force / target.m) for name in self.coordinates]

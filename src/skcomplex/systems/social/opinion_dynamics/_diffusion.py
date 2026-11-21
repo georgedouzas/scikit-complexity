@@ -208,23 +208,27 @@ class AdoptionInteraction(Interaction):
         self.target = target
         self.mode = mode
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the adoptions of every step as the rule of the system.
-
-        Args:
-            context:
-                The space the interaction inherits from its system, or the namespace of the adopters.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The mode is unknown.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if self.mode not in MODES:
             error_msg = f'Unknown adoption mode {self.mode!r}. Use one of {", ".join(MODES)}.'
             raise ValidationError(error_msg)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self.adopt)]
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the adoptions of every step as the rule of the system.
+
+        Args:
+            context:
+                The namespace of the adopters.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseComponent] = [UpdateLaw(context, self.adopt)]
 
     def adopt(self, system: SystemViewProtocol) -> None:
         """Let every agent that has not adopted adopt, from the adoptions at the start of the step.

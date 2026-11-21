@@ -16,7 +16,7 @@ from sage.symbolic.expression import Expression
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, JumpLaw
 from .....core.components.laws.utils import neighbors, where
-from .....core.components.spaces import AdjacencyNeighborhood, BaseSpace
+from .....core.components.spaces import AdjacencyNeighborhood
 from .....core.errors import ValidationError
 from .....core.types import Role
 
@@ -109,19 +109,14 @@ class SpreadingInteraction(Interaction):
         self.form = form
         self.layer = layer
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the spreading, the recovery, and the return of every member.
-
-        The spreading comes from the active neighbours.
-
-        Args:
-            context:
-                The namespace of the group, with `context.target`.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The form is unknown, or the values of the state are not distinct.
         """
+        super()._check_arguments()
         if self.form not in FORMS:
             error_msg = f'The form of spreading is {self.form!r}. Use one of {", ".join(FORMS)}.'
             raise ValidationError(error_msg)
@@ -131,9 +126,17 @@ class SpreadingInteraction(Interaction):
                 f'The inactive, active, and removed values of spreading are {values}. Give each a distinct value.'
             )
             raise ValidationError(error_msg)
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the spreading, the recovery, and the return of every member.
+
+        The spreading comes from the active neighbours.
+
+        Args:
+            context:
+                The namespace of the group, with `context.target`.
+        """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         member = context.target
         value = getattr(member, self.state)
         over = None if self.layer is None else AdjacencyNeighborhood(layer=self.layer)

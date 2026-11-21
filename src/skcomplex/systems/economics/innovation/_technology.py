@@ -20,7 +20,6 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, SystemView
@@ -164,11 +163,15 @@ class InventionInteraction(Interaction):
             cost += int(part.cost)
         return n_inputs, signals[-1], cost
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rule of the system."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule of the system.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self.invent)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context, self.invent)]
 
     def invent(self, system: SystemView) -> None:
         """Wire a random circuit and add it to the pool if it is better.
@@ -246,11 +249,15 @@ class RedesignInteraction(Interaction):
         self.components = components
         self.dependencies = dependencies
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rule of the system."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule of the system.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self.redesign)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context, self.redesign)]
 
     def redesign(self, system: SystemView) -> None:
         """Propose new costs for a random component and its dependents.

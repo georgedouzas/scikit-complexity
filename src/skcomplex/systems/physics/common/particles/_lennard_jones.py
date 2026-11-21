@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 from .....core.components.interactions import Interaction
 from .....core.components.laws import RateLaw
 from .....core.components.laws.utils import neighbors
-from .....core.components.spaces import BaseSpace, RadiusNeighborhood
+from .....core.components.spaces import RadiusNeighborhood
 from .....core.types import Role
 
 
@@ -62,7 +62,7 @@ class LennardJonesInteraction(Interaction):
         self.epsilon = epsilon
         self.sigma = sigma
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the force of the neighbours within the cutoff on every particle.
 
         Args:
@@ -70,12 +70,11 @@ class LennardJonesInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, x = context, context.target.x
-            separation = x - s.target.other.x
-            r = sqrt(separation.dot_product(separation))
-            distance = SR.var('r', domain='positive')
-            energy = 4 * s.epsilon * ((s.sigma / distance) ** 12 - (s.sigma / distance) ** 6)
-            slope = energy.diff(distance).subs({distance: r})
-            force = neighbors(-slope * separation / r, RadiusNeighborhood(self.cutoff))
-            self.laws_ = [RateLaw(x.diff(s.t, 2), force / s.target.m)]
+        s, x = context, context.target.x
+        separation = x - s.target.other.x
+        r = sqrt(separation.dot_product(separation))
+        distance = SR.var('r', domain='positive')
+        energy = 4 * s.epsilon * ((s.sigma / distance) ** 12 - (s.sigma / distance) ** 6)
+        slope = energy.diff(distance).subs({distance: r})
+        force = neighbors(-slope * separation / r, RadiusNeighborhood(self.cutoff))
+        self.laws_ = [RateLaw(x.diff(s.t, 2), force / s.target.m)]

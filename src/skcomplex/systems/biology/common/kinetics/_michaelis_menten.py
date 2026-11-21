@@ -11,7 +11,6 @@ from types import SimpleNamespace
 
 from sage.all__sagemath_symbolics import SR, Expression
 
-from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
 from ....general.reactions import ReactionInteraction
 from ....general.reactions.types import Stoichiometry
@@ -93,19 +92,15 @@ class MichaelisMentenInteraction(ReactionInteraction):
         self.vmax = vmax
         self.km = km
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _check_arguments(self) -> None:
         """Raise an error for a substrate or rates the reaction cannot take.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The substrate is neither a name nor a function, a rate is neither a function nor a number, or the
                 reaction cannot take its species or mode.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if not (callable(self.substrate) or (isinstance(self.substrate, str) and self.substrate.isidentifier())):
             error_msg = (
                 f'The substrate of {self.label!r} is {self.substrate!r}. Give the name of a state of the target or a '

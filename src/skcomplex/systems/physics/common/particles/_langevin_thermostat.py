@@ -14,7 +14,6 @@ from sage.sets.real_set import RealSet
 
 from .....core.components.interactions import Interaction
 from .....core.components.laws import NoiseLaw, RateLaw
-from .....core.components.spaces import BaseSpace
 from .....core.types import Role
 
 
@@ -66,7 +65,7 @@ class LangevinThermostatInteraction(Interaction):
         self.gamma = gamma
         self.state = state
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the drag and the random force on the velocity of the particles.
 
         Args:
@@ -74,10 +73,9 @@ class LangevinThermostatInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, t = context, context.t
-            x, m = getattr(s.target, self.state), s.target.m
-            self.laws_ = [
-                RateLaw(x.diff(t, 2), -x.diff(t) / (1 / s.gamma) / m),
-                NoiseLaw(x.diff(t, 2), sqrt(2 * s.gamma * s.temperature) / m),
-            ]
+        s, t = context, context.t
+        x, m = getattr(s.target, self.state), s.target.m
+        self.laws_ = [
+            RateLaw(x.diff(t, 2), -x.diff(t) / (1 / s.gamma) / m),
+            NoiseLaw(x.diff(t, 2), sqrt(2 * s.gamma * s.temperature) / m),
+        ]

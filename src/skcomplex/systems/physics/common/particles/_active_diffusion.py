@@ -14,7 +14,6 @@ from sage.sets.real_set import RealSet
 
 from .....core.components.interactions import Interaction
 from .....core.components.laws import NoiseLaw, RateLaw
-from .....core.components.spaces import BaseSpace
 from .....core.types import Role
 
 
@@ -73,7 +72,7 @@ class ActiveDiffusionInteraction(Interaction):
         self.D_r = D_r
         self.omega = omega
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the noise of the position, and the turning and the noise of the orientation of the target.
 
         Args:
@@ -81,11 +80,10 @@ class ActiveDiffusionInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            theta = s.target.theta
-            self.laws_ = [
-                NoiseLaw(s.target.x, sqrt(2 * s.D_t)),
-                RateLaw(theta.diff(s.t), s.omega),
-                NoiseLaw(theta, sqrt(2 * s.D_r)),
-            ]
+        s = context
+        theta = s.target.theta
+        self.laws_ = [
+            NoiseLaw(s.target.x, sqrt(2 * s.D_t)),
+            RateLaw(theta.diff(s.t), s.omega),
+            NoiseLaw(theta, sqrt(2 * s.D_r)),
+        ]

@@ -106,7 +106,7 @@ class ChemotaxisInteraction(Interaction):
         self.Dc = Dc
         self.k = k
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the drift and diffusion of the cells and the balance of the chemical of the target.
 
         Args:
@@ -114,13 +114,12 @@ class ChemotaxisInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, t = context, context.t
-            rho, c = s.target.rho, s.target.c
-            self.laws_ = [
-                RateLaw(rho.diff(t), s.D * laplacian(rho) - s.chi * divergence(rho * gradient(c))),
-                RateLaw(c.diff(t), s.Dc * laplacian(c) + rho - s.k * c),
-            ]
+        s, t = context, context.t
+        rho, c = s.target.rho, s.target.c
+        self.laws_ = [
+            RateLaw(rho.diff(t), s.D * laplacian(rho) - s.chi * divergence(rho * gradient(c))),
+            RateLaw(c.diff(t), s.Dc * laplacian(c) + rho - s.k * c),
+        ]
 
 
 class KellerSegelSystem(BaseSystem):

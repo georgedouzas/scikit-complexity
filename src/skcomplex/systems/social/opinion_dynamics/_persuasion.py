@@ -231,12 +231,16 @@ class DiscussionsInteraction(Interaction):
     def __init__(self, label: str, *, among: Role, along: RandomPartition = TRIPLES) -> None:
         super().__init__(label, among=among, along=along)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the opinion of every citizen to 1 when most members of its group hold 1, and to 0 otherwise."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the opinion of every citizen to 1 when most members of its group hold 1, and to 0 otherwise.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            majority = where(mean(context.members.opinion, over=context.members) > 1 / 2, 1, 0)
-            self.laws_ = [UpdateLaw(context.member.opinion, majority)]
+        majority = where(mean(context.members.opinion, over=context.members) > 1 / 2, 1, 0)
+        self.laws_ = [UpdateLaw(context.member.opinion, majority)]
 
 
 class SocialImpactInteraction(Interaction):
@@ -268,11 +272,15 @@ class SocialImpactInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the update of every opinion, from the opinions at the start of the step, as the rule of the system."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the update of every opinion, from the opinions at the start of the step, as the rule of the system.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self._update)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context, self._update)]
 
     def _update(self, system: SystemView) -> None:
         """Set the opinion of every agent from the opinions at the start of the step."""

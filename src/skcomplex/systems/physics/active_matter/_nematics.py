@@ -113,7 +113,7 @@ class CurvatureAlignmentInteraction(Interaction):
         self.target = target
         self.beta = beta
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate of the tensor from the curvature of the density.
 
         Args:
@@ -121,11 +121,10 @@ class CurvatureAlignmentInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            field = context.target
-            curvature = symmetric_part(vector_gradient(gradient(field.rho)))
-            traceless = curvature - curvature.trace() / 2 * identity_matrix(SR, 2)
-            self.laws_ = [RateLaw(field.Q, context.beta * traceless)]
+        field = context.target
+        curvature = symmetric_part(vector_gradient(gradient(field.rho)))
+        traceless = curvature - curvature.trace() / 2 * identity_matrix(SR, 2)
+        self.laws_ = [RateLaw(field.Q, context.beta * traceless)]
 
 
 class ActiveCurrentInteraction(Interaction):
@@ -166,7 +165,7 @@ class ActiveCurrentInteraction(Interaction):
         self.D = D
         self.current = current
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate of the density, the divergence of its current.
 
         Args:
@@ -174,13 +173,10 @@ class ActiveCurrentInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            field = context.target
-            active = tensor_divergence(field.Q)
-            flux = [
-                -self.D * item - self.current * other for item, other in zip(gradient(field.rho), active, strict=True)
-            ]
-            self.laws_ = [RateLaw(field.rho, -divergence(flux))]
+        field = context.target
+        active = tensor_divergence(field.Q)
+        flux = [-self.D * item - self.current * other for item, other in zip(gradient(field.rho), active, strict=True)]
+        self.laws_ = [RateLaw(field.rho, -divergence(flux))]
 
 
 class PolarGelSiteElement(Element):
@@ -347,7 +343,7 @@ class PolarGelFlowInteraction(Interaction):
         stretching = 2 * SR(xi) * (tensor * gradients).trace() * shifted_tensor
         return advected_tensor - aligned + stretching
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate of the polarisation, its transport in the flow and its relaxation.
 
         Args:
@@ -355,10 +351,9 @@ class PolarGelFlowInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context.target
-            transport = self._get_corotational_transport(s.p, self._get_velocity(s), s.xi)
-            self.laws_ = [RateLaw(s.p, -transport + self._get_molecular_field(s) / s.gamma)]
+        s = context.target
+        transport = self._get_corotational_transport(s.p, self._get_velocity(s), s.xi)
+        self.laws_ = [RateLaw(s.p, -transport + self._get_molecular_field(s) / s.gamma)]
 
 
 class NematicGelSiteElement(Element):
@@ -460,7 +455,7 @@ class NematicGelFlowInteraction(Interaction):
         force = tensor_divergence(stress)
         return leray_projection(force.apply_map(lambda item: inverse_helmholtz(-item / s.eta)))
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate of the tensor, its transport in the flow and its relaxation.
 
         Args:
@@ -468,11 +463,10 @@ class NematicGelFlowInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context.target
-            field = LandauDeGennesEnergyInteraction._get_molecular_field(s.Q, s.a, s.c, s.K)
-            transport = PolarGelFlowInteraction._get_corotational_transport(s.Q, self._get_velocity(s), s.xi)
-            self.laws_ = [RateLaw(s.Q, -transport + field / s.gamma)]
+        s = context.target
+        field = LandauDeGennesEnergyInteraction._get_molecular_field(s.Q, s.a, s.c, s.K)
+        transport = PolarGelFlowInteraction._get_corotational_transport(s.Q, self._get_velocity(s), s.xi)
+        self.laws_ = [RateLaw(s.Q, -transport + field / s.gamma)]
 
 
 class LandauDeGennesEnergyInteraction(GradientInteraction):

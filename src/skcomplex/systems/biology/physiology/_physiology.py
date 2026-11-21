@@ -16,7 +16,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import hill
-from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.components.spaces import LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver
 from ....core.systems import BaseSystem, System
@@ -95,7 +95,7 @@ class MackeyGlassInteraction(Interaction):
         self.n = n
         self.tau = tau
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the delayed production and the loss of the cells.
 
         Args:
@@ -103,11 +103,10 @@ class MackeyGlassInteraction(Interaction):
                 The namespace of the cells, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            x = s.target.x
-            history = x(t=s.t - s.tau)
-            self.laws_ = [RateLaw(x, s.beta * history * (1 - hill(history, 1, s.n)) - s.gamma * x)]
+        s = context
+        x = s.target.x
+        history = x(t=s.t - s.tau)
+        self.laws_ = [RateLaw(x, s.beta * history * (1 - hill(history, 1, s.n)) - s.gamma * x)]
 
 
 class FitzhughNagumoSystem(ReactionDiffusionSystem):

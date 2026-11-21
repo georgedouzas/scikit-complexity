@@ -12,7 +12,6 @@ from types import SimpleNamespace
 from .....core.components.interactions import Interaction
 from .....core.components.laws import RateLaw
 from .....core.components.laws.utils import laplacian
-from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
 from .....core.types import Role
 
@@ -69,26 +68,29 @@ class DiffusivityInteraction(Interaction):
         self.state = state
         self.coefficient = coefficient
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rate `D laplacian(u)` of the state.
-
-        Args:
-            context:
-                The space the interaction inherits from its system, or the namespace of the field, the time `t`, and
-                the parameters.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The state is not a name, or the coefficient is neither callable nor a number.
         """
+        super()._check_arguments()
         if not isinstance(self.state, str) or not self.state.isidentifier():
             error_msg = f'{type(self).__name__} {self.label!r} diffuses the state {self.state!r}, which is no name.'
             raise ValidationError(error_msg)
         if not (callable(self.coefficient) or isinstance(self.coefficient, int | float)):
             error_msg = f'The coefficient of {self.label!r} is {self.coefficient!r}. Give a function or a number.'
             raise ValidationError(error_msg)
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate `D laplacian(u)` of the state.
+
+        Args:
+            context:
+                The namespace of the field, the time `t`, and the parameters.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            u = getattr(context.target, self.state)
-            coefficient = self.coefficient(context) if callable(self.coefficient) else self.coefficient
-            self.laws_ = [RateLaw(u, coefficient * laplacian(u))]
+        u = getattr(context.target, self.state)
+        coefficient = self.coefficient(context) if callable(self.coefficient) else self.coefficient
+        self.laws_ = [RateLaw(u, coefficient * laplacian(u))]

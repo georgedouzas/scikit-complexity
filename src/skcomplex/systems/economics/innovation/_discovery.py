@@ -204,14 +204,18 @@ class TriggeringInteraction(Interaction):
         self.target = target
         self.balls = balls
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the draw and the growth of every urn, each in its phase."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the draw and the growth of every urn, each in its phase.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(context.target, self.draw, phase=DRAW),
-                UpdateLaw(context.target, self.grow, phase=GROW),
-            ]
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(context.target, self.draw, phase=DRAW),
+            UpdateLaw(context.target, self.grow, phase=GROW),
+        ]
 
     @staticmethod
     def draw(agent: UrnView, system: SystemView) -> None:

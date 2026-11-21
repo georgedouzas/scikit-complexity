@@ -18,7 +18,6 @@ from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, UpdateLaw
 from .....core.components.laws.utils import where
-from .....core.components.spaces import BaseSpace
 from .....core.components.types import AgentViewProtocol, SystemViewProtocol
 from .....core.errors import ValidationError
 from .....core.types import Array, Role
@@ -128,21 +127,25 @@ class PayoffLearningInteraction(Interaction):
         self.phase = phase
         self.schedule = schedule
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the update of the scores, or the rule of the agents, as the laws.
-
-        Args:
-            context:
-                The space the interaction inherits from its system, or the namespace of the members it binds.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The rule or the schedule is unknown, there are no scores, or the payoff is not callable.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         self._check()
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = self._get_learning_laws(context)
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the update of the scores, or the rule of the agents, as the laws.
+
+        Args:
+            context:
+                The namespace of the members it binds.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseComponent] = self._get_learning_laws(context)
 
     def _check(self) -> None:
         """Raise an error for an unknown variant, no scores, or an uncallable payoff."""

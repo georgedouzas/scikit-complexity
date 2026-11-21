@@ -16,7 +16,6 @@ from ....core.components.base import BaseComponent
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.components.laws.utils import where
-from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.enums import ScheduleKind
 from ....core.errors import ValidationError
@@ -470,23 +469,26 @@ class ReactionInteraction(Interaction):
         """
         self._update_agents(system, self.schedule or 'synchronous', self._get_agent_step, self._apply_agent_step)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Check the reaction, and set its laws or its agent rule for a binding.
-
-        Args:
-            context:
-                The space the interaction inherits from its system, or the namespace of the target, the reactants, the
-                products, and the modifiers.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The mode or the schedule is unknown, the reaction has neither reactants nor products, or an entry or a
                 coefficient is not valid.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         self._check_jump()
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = self._get_reaction_laws(context)
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set its laws or its agent rule for a binding.
+
+        Args:
+            context:
+                The namespace of the target, the reactants, the products, and the modifiers.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseComponent] = self._get_reaction_laws(context)
 
     def _get_reaction_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
         """Return the laws of the reaction in its mode, or the rule of its schedule.

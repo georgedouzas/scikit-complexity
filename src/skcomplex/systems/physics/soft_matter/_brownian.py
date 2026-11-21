@@ -17,7 +17,6 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import NoiseLaw, RateLaw, UpdateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -98,7 +97,7 @@ class WallMobilityInteraction(Interaction):
         self.drift = drift
         self.convention = convention
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the drift, the noise, and the reflection of the distance of the target.
 
         Args:
@@ -106,14 +105,13 @@ class WallMobilityInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, t = context, context.t
-            z = s.target.z
-            self.laws_ = [
-                RateLaw(z.diff(t), -s.drift * z * abs(z) / (z**2 + s.a**2)),
-                NoiseLaw(z, sqrt(2 * s.D0) * z / sqrt(z**2 + s.a**2), convention=self.convention),
-                UpdateLaw(z, abs(z)),
-            ]
+        s, t = context, context.t
+        z = s.target.z
+        self.laws_ = [
+            RateLaw(z.diff(t), -s.drift * z * abs(z) / (z**2 + s.a**2)),
+            NoiseLaw(z, sqrt(2 * s.D0) * z / sqrt(z**2 + s.a**2), convention=self.convention),
+            UpdateLaw(z, abs(z)),
+        ]
 
 
 class StochasticResonanceSystem(BaseSystem):

@@ -7,7 +7,6 @@ It runs under a Covid shock and policies.
 # License: MIT
 
 from collections.abc import Sequence
-from types import SimpleNamespace
 from typing import Annotated, ClassVar, Protocol, cast
 
 import numpy as np
@@ -16,7 +15,6 @@ from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, SystemView
@@ -264,18 +262,14 @@ class Mark0EconomyInteraction(PolicyRuleInteraction[SystemView]):
         self.offset = offset
         self.credit = credit
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _check_arguments(self) -> None:
         """Raise an error for an unknown credit policy.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The credit policy is unknown.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if self.credit not in CREDIT_POLICIES:
             error_msg = f'The credit policy of {self.label!r} is {self.credit!r}. Use one of {CREDIT_POLICIES}.'
             raise ValidationError(error_msg)

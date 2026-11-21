@@ -330,14 +330,18 @@ class DietInteraction(Interaction):
         self.day_phase = day_phase
         self.week_phase = week_phase
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the counting of the days and the change of the weight as the rules of every person."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the counting of the days and the change of the weight as the rules of every person.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(context.target, self.count_day, phase=self.day_phase),
-                UpdateLaw(context.target, self.gain_weight, phase=self.week_phase),
-            ]
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(context.target, self.count_day, phase=self.day_phase),
+            UpdateLaw(context.target, self.gain_weight, phase=self.week_phase),
+        ]
 
     def count_day(self, agent: EaterView, system: SystemView) -> None:
         """Count one more day lived in the system.

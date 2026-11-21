@@ -8,6 +8,7 @@ Advection carries a state of a field by a drift, the conservation law whose flux
 
 from collections.abc import Callable
 from types import SimpleNamespace
+from typing import cast
 
 from sage.all__sagemath_symbolics import SR
 from sage.modules.free_module_element import FreeModuleElement
@@ -15,7 +16,6 @@ from sage.modules.free_module_element import FreeModuleElement
 from .....core.components.interactions import Interaction
 from .....core.components.laws import RateLaw
 from .....core.components.laws.utils import divergence
-from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
 from .....core.types import Role
 
@@ -81,18 +81,14 @@ class AdvectionInteraction(Interaction):
         self.drift = drift
         self.source = source
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rate of the divergence of the flux `a u` and the rate of the source.
-
-        Args:
-            context:
-                The space the interaction inherits from its system, or the namespace of the field, the time `t`, and
-                the parameters.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The state is not a name, the drift is not callable, or the source is neither callable nor `None`.
         """
+        super()._check_arguments()
         if not isinstance(self.state, str) or not self.state.isidentifier():
             error_msg = f'{type(self).__name__} {self.label!r} carries the state {self.state!r}, which is no name.'
             raise ValidationError(error_msg)
@@ -102,11 +98,18 @@ class AdvectionInteraction(Interaction):
         if self.source is not None and not callable(self.source):
             error_msg = f'The source of {self.label!r} is {self.source!r}. Give a function of the namespace.'
             raise ValidationError(error_msg)
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate of the divergence of the flux `a u` and the rate of the source.
+
+        Args:
+            context:
+                The namespace of the field, the time `t`, and the parameters.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            u = getattr(context.target, self.state)
-            drift = self.drift(context)
-            components = drift if isinstance(drift, FreeModuleElement | list | tuple) else [drift]
-            self.laws_ = [RateLaw(u, -divergence([SR(component) * u for component in components]))]
-            if self.source is not None:
-                self.laws_.append(RateLaw(u, self.source(context)))
+        u = getattr(context.target, self.state)
+        drift = cast('Callable[[SimpleNamespace], object]', self.drift)(context)
+        components = drift if isinstance(drift, FreeModuleElement | list | tuple) else [drift]
+        self.laws_ = [RateLaw(u, -divergence([SR(component) * u for component in components]))]
+        if self.source is not None:
+            self.laws_.append(RateLaw(u, self.source(context)))

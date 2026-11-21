@@ -15,7 +15,6 @@ from sage.sets.real_set import RealSet
 from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, ConstraintLaw
-from .....core.components.spaces import BaseSpace
 from .....core.types import Role
 
 POSITIVE = RealSet.open(0, oo)
@@ -62,16 +61,15 @@ class BranchInteraction(Interaction):
         current = self._get_current(s)
         return [ConstraintLaw(-current, 0, target=s.a.v), ConstraintLaw(current, 0, target=s.b.v)]
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the laws of the component.
 
         Args:
             context:
-                The space the interaction inherits from its system, or the namespace of the nodes it joins.
+                The namespace of the nodes it joins.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = self._get_branch_laws(context)
+        self.laws_: list[BaseComponent] = self._get_branch_laws(context)
 
 
 class ResistorInteraction(BranchInteraction):
@@ -321,20 +319,19 @@ class GroundInteraction(Interaction):
         self.node = node
         self.branch = branch
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the zero potential as the equation of the current, and the current into the balance of the node.
 
         Args:
             context:
-                The space the interaction inherits from its system, or the namespace of the node and the branch.
+                The namespace of the node and the branch.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            i = context.branch.i
-            self.laws_: list[BaseComponent] = [
-                ConstraintLaw(context.node.v, 0, target=i),
-                ConstraintLaw(i, 0, target=context.node.v),
-            ]
+        i = context.branch.i
+        self.laws_: list[BaseComponent] = [
+            ConstraintLaw(context.node.v, 0, target=i),
+            ConstraintLaw(i, 0, target=context.node.v),
+        ]
 
 
 class DiodeInteraction(BranchInteraction):
@@ -458,17 +455,16 @@ class OperationalAmplifierInteraction(Interaction):
         self.out = out
         self.branch = branch
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the equal potentials of the inputs as the equation of the output current, which feeds the output node.
 
         Args:
             context:
-                The space the interaction inherits from its system, or the namespace of the nodes it joins.
+                The namespace of the nodes it joins.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            i = context.branch.i
-            self.laws_: list[BaseComponent] = [
-                ConstraintLaw(context.p.v, context.n.v, target=i),
-                ConstraintLaw(i, 0, target=context.out.v),
-            ]
+        i = context.branch.i
+        self.laws_: list[BaseComponent] = [
+            ConstraintLaw(context.p.v, context.n.v, target=i),
+            ConstraintLaw(i, 0, target=context.out.v),
+        ]

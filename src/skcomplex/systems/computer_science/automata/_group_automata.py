@@ -135,14 +135,18 @@ class MajorityRuleInteraction(Interaction):
         count = degree + 1
         return np.where(2 * total > count, 1.0, np.where(2 * total < count, 0.0, center))
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the majority of every cell and its neighbours as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the majority of every cell and its neighbours as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            alive = context.target.alive
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(alive, self._get_majority, neighborhood=self.neighborhood, label=self.label),
-            ]
+        alive = context.target.alive
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(alive, self._get_majority, neighborhood=self.neighborhood, label=self.label),
+        ]
 
 
 class ParityRuleInteraction(Interaction):
@@ -179,15 +183,19 @@ class ParityRuleInteraction(Interaction):
         self.target = target
         self.neighborhood = neighborhood
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the parity of every cell and its neighbours as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the parity of every cell and its neighbours as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            parity = TotalisticSpec({total: total % 2 for total in range(len(self.neighborhood.elements) + 1)})
-            alive = context.target.alive
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(alive, parity, neighborhood=self.neighborhood, label=self.label),
-            ]
+        parity = TotalisticSpec({total: total % 2 for total in range(len(self.neighborhood.elements) + 1)})
+        alive = context.target.alive
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(alive, parity, neighborhood=self.neighborhood, label=self.label),
+        ]
 
 
 class LaplacianRuleInteraction(Interaction):
@@ -223,14 +231,18 @@ class LaplacianRuleInteraction(Interaction):
 
         return laplacian
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the Laplacian of every cell and its two neighbours as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the Laplacian of every cell and its two neighbours as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            value = context.target.value
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(value, self._get_function(), neighborhood=THREE_CELLS, label=self.label),
-            ]
+        value = context.target.value
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(value, self._get_function(), neighborhood=THREE_CELLS, label=self.label),
+        ]
 
 
 class GoldenMeanMoveInteraction(Interaction):
@@ -263,20 +275,24 @@ class GoldenMeanMoveInteraction(Interaction):
         blocked = (flipped == 1) & ((left == 1) | (right == 1))
         return np.where(blocked, center, flipped)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the flips, one cell after the other, as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the flips, one cell after the other, as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            alive = context.target.alive
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(
-                    alive,
-                    self._get_move,
-                    neighborhood=THREE_CELLS,
-                    schedule='random-sequential',
-                    label=self.label,
-                ),
-            ]
+        alive = context.target.alive
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(
+                alive,
+                self._get_move,
+                neighborhood=THREE_CELLS,
+                schedule='random-sequential',
+                label=self.label,
+            ),
+        ]
 
 
 class FreeGroupAutomatonSystem(BaseSystem):

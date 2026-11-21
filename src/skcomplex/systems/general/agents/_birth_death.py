@@ -233,19 +233,15 @@ class BirthDeathInteraction(Interaction):
         if self.placement == 'neighbor':
             self._check_grid('placement', self.placement, space, "placement='here', or a placement function")
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _check_arguments(self) -> None:
         """Raise an error for an unknown placement, a doubled birth, or a bad function.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The placement, the schedule, or the pick is unknown, both a birth probability and a rate are given,
                 a value is neither a number nor a function, or the schedule `'member'` has arrivals.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         self._check_variants()
         if self.birth is not None and self.rate is not None:
             error_msg = f'{self.label!r} gives births by a probability and by a rate. Give one of them.'
@@ -260,8 +256,16 @@ class BirthDeathInteraction(Interaction):
             if value is not None and not callable(value):
                 error_msg = f'The {name} of {self.label!r} is {value!r}. Give a function, or None.'
                 raise ValidationError(error_msg)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = self._get_birth_death_laws(context)
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the laws of a binding.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = self._get_birth_death_laws(context)
 
     @staticmethod
     def _evaluate(value: Chance | Count, agent: AgentViewProtocol, system: SystemViewProtocol) -> float:

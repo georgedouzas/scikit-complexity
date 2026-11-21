@@ -127,7 +127,7 @@ class ActivePercolationInteraction(Interaction):
         self.f = f
         self.g = g
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rates, the noise, and the bounds of the activity and the field.
 
         Args:
@@ -135,16 +135,15 @@ class ActivePercolationInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, t = context, context.t
-            rho, nu = s.target.rho, s.target.nu
-            self.laws_ = [
-                RateLaw(rho.diff(t), (s.a + s.b * nu) * rho - s.c * rho**2 + s.d * laplacian(rho)),
-                NoiseLaw(rho, s.e * sqrt(rho)),
-                RateLaw(nu.diff(t), laplacian(nu) + s.f - s.g * rho),
-                UpdateLaw(rho, (rho + abs(rho)) / 2),
-                UpdateLaw(nu, (nu + abs(nu)) / 2),
-            ]
+        s, t = context, context.t
+        rho, nu = s.target.rho, s.target.nu
+        self.laws_ = [
+            RateLaw(rho.diff(t), (s.a + s.b * nu) * rho - s.c * rho**2 + s.d * laplacian(rho)),
+            NoiseLaw(rho, s.e * sqrt(rho)),
+            RateLaw(nu.diff(t), laplacian(nu) + s.f - s.g * rho),
+            UpdateLaw(rho, (rho + abs(rho)) / 2),
+            UpdateLaw(nu, (nu + abs(nu)) / 2),
+        ]
 
 
 class DirectedPercolationLangevinSystem(BaseSystem):

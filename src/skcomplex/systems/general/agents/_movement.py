@@ -188,19 +188,15 @@ class MovementInteraction(Interaction):
         if isinstance(self.step, str) and self.step in GRID_STEPS:
             self._check_grid('step', self.step, space, "step='gaussian' or step='levy', or a step function")
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _check_arguments(self) -> None:
         """Raise an error for an unknown step, a rate not positive, or a bad function.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The step, the schedule, or the ties are unknown, the rate is not positive, a function is not callable,
                 or the step `'best'` has no score.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         self._check_variant('step', self.step, STEPS, functions=True)
         if self.rate is not None and (isinstance(self.rate, bool) or not self.rate > 0):
             error_msg = f'The rate of {self.label!r} is {self.rate!r}. Give a positive number, or None.'
@@ -217,8 +213,16 @@ class MovementInteraction(Interaction):
             error_msg = f'The step `best` of {self.label!r} maximizes a score. Pass `score(agent, cell, system)`.'
             raise ValidationError(error_msg)
         self._check_functions()
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = self._get_movement_laws(context)
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the laws of a binding.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = self._get_movement_laws(context)
 
     def _count_attempts(self, system: SystemViewProtocol) -> int:
         """Return the number of steps an agent attempts in one step of time."""

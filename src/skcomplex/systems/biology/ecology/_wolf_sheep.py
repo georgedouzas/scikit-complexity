@@ -115,7 +115,7 @@ class GrassRegrowthInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the regrowth rule of every patch.
 
         Args:
@@ -123,8 +123,7 @@ class GrassRegrowthInteraction(Interaction):
                 The namespace of the patches.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.regrow)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.regrow)]
 
     def regrow(self, agent: GrassView, system: SystemView) -> None:
         """Count down eaten grass and grow it back when the countdown ends.

@@ -20,7 +20,7 @@ from sage.symbolic.operators import FDerivativeOperator
 from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, RateLaw
-from .....core.components.spaces import BaseSpace, ContinuousSpace
+from .....core.components.spaces import ContinuousSpace
 from .....core.errors import SpaceError, ValidationError
 from .....core.types import Role
 from ...._extras import import_extra
@@ -361,14 +361,8 @@ class GeodesicInteraction(Interaction):
         self.state = state
         self.space = space
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set `space_`, the prepared pseudo-Riemannian space, and the law of a binding.
-
-        It first raises an error for a state that is not a name.
-
-        Args:
-            context:
-                The space the interaction inherits from its system, or the namespace of the target and the time `t`.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             SpaceError:
@@ -377,7 +371,7 @@ class GeodesicInteraction(Interaction):
                 The type declares states, the state is not a name, or the position has not one component per
                 coordinate of the space.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if not isinstance(self.state, str) or not self.state.isidentifier():
             error_msg = (
                 f'{type(self).__name__} {self.label!r} moves the state {self.state!r}. Give the name of a state.'
@@ -390,8 +384,18 @@ class GeodesicInteraction(Interaction):
             )
             raise SpaceError(error_msg)
         self.space_ = self.space.prepare()
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = self._get_geodesic_laws(context)
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set `space_`, the prepared pseudo-Riemannian space, and the law of a binding.
+
+        It first raises an error for a state that is not a name.
+
+        Args:
+            context:
+                The namespace of the target and the time `t`.
+        """
+        super()._prepare(context)
+        self.laws_ = self._get_geodesic_laws(context)
 
     def _get_geodesic_laws(self, context: SimpleNamespace) -> list[BaseComponent]:
         """Return the rate law of the second derivative of the position.

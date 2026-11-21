@@ -20,7 +20,6 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, SystemView
@@ -174,7 +173,7 @@ class ColonySearchInteraction(Interaction):
         self.Q = Q
         self.cut = cut
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rule of a round.
 
         Args:
@@ -182,8 +181,6 @@ class ColonySearchInteraction(Interaction):
                 The namespace of the symbols the laws can use.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         self.laws_: list[BaseLaw] = [UpdateLaw(context, self.search)]
 
     def search(self, system: SystemView) -> None:

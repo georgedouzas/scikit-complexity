@@ -110,7 +110,7 @@ class ModulatedNoiseInteraction(Interaction):
         self.L = L
         self.convention = convention
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the noise of the position of the target and its reflection at the walls.
 
         Args:
@@ -118,13 +118,12 @@ class ModulatedNoiseInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            x = s.target.x
-            self.laws_ = [
-                NoiseLaw(x, s.s0 + s.ds * (x / s.L - 0.5), convention=self.convention),
-                UpdateLaw(x, where(x < 0, -x, where(x > s.L, 2 * s.L - x, x))),
-            ]
+        s = context
+        x = s.target.x
+        self.laws_ = [
+            NoiseLaw(x, s.s0 + s.ds * (x / s.L - 0.5), convention=self.convention),
+            UpdateLaw(x, where(x < 0, -x, where(x > s.L, 2 * s.L - x, x))),
+        ]
 
 
 class ScaledWalkerElement(Element):
@@ -196,7 +195,7 @@ class ScaledNoiseInteraction(Interaction):
         self.alpha = alpha
         self.t0 = t0
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the noise of the position of the target.
 
         Args:
@@ -204,9 +203,8 @@ class ScaledNoiseInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [NoiseLaw(s.target.x, sqrt(2 * s.K * s.alpha * (s.t + s.t0) ** (s.alpha - 1)))]
+        s = context
+        self.laws_ = [NoiseLaw(s.target.x, sqrt(2 * s.K * s.alpha * (s.t + s.t0) ** (s.alpha - 1)))]
 
 
 class OpticalTrapInteraction(Interaction):
@@ -267,7 +265,7 @@ class OpticalTrapInteraction(Interaction):
         self.blink_period = blink_period
         self.duty = duty
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the drift of the positions of the target towards the center of the trap.
 
         Args:
@@ -275,16 +273,15 @@ class OpticalTrapInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, t = context, context.t
-            x = s.target.x
-            wave = sin(2 * math.pi * s.frequency * t)
-            on = 1 if self.blink_period is None else pulse_train(t, self.blink_period, self.duty * self.blink_period)
-            rates = [
-                -on * stiffness * (item - shift * wave) / s.target.gamma
-                for stiffness, item, shift in zip(self.k, x, self.amplitude, strict=True)
-            ]
-            self.laws_ = [RateLaw(x, vector(SR, rates))]
+        s, t = context, context.t
+        x = s.target.x
+        wave = sin(2 * math.pi * s.frequency * t)
+        on = 1 if self.blink_period is None else pulse_train(t, self.blink_period, self.duty * self.blink_period)
+        rates = [
+            -on * stiffness * (item - shift * wave) / s.target.gamma
+            for stiffness, item, shift in zip(self.k, x, self.amplitude, strict=True)
+        ]
+        self.laws_ = [RateLaw(x, vector(SR, rates))]
 
 
 class SpeckleFieldInteraction(Interaction):
@@ -341,7 +338,7 @@ class SpeckleFieldInteraction(Interaction):
         self.intensities = intensities
         self.lengths = lengths
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the drift of the positions of the target up the gradient of the intensity.
 
         Args:
@@ -349,13 +346,12 @@ class SpeckleFieldInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x = context.target.x
-            gradient = vector(SR, [0] * len(x))
-            for center, height, length in zip(self.centers, self.intensities, self.lengths, strict=True):
-                offset = x - vector(SR, center)
-                gradient += -2 * height * exp(-offset.dot_product(offset) / length**2) * offset / length**2
-            self.laws_ = [RateLaw(x, context.strength * gradient)]
+        x = context.target.x
+        gradient = vector(SR, [0] * len(x))
+        for center, height, length in zip(self.centers, self.intensities, self.lengths, strict=True):
+            offset = x - vector(SR, center)
+            gradient += -2 * height * exp(-offset.dot_product(offset) / length**2) * offset / length**2
+        self.laws_ = [RateLaw(x, context.strength * gradient)]
 
 
 class BeadElement(MassPointElement):
@@ -448,7 +444,7 @@ class ThermalNoiseInteraction(Interaction):
         self.target = target
         self.state = state
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the noise of the position of the target.
 
         Args:
@@ -456,10 +452,9 @@ class ThermalNoiseInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            target = context.target
-            amplitude = sqrt(2 * target.gamma * target.temperature) / target.gamma
-            self.laws_ = [NoiseLaw(getattr(target, self.state), amplitude)]
+        target = context.target
+        amplitude = sqrt(2 * target.gamma * target.temperature) / target.gamma
+        self.laws_ = [NoiseLaw(getattr(target, self.state), amplitude)]
 
 
 class BrownianMotionSystem(BaseSystem):

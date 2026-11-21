@@ -14,7 +14,6 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.components.interactions import Interaction
 from ....core.components.laws import NoiseLaw, RateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.errors import ValidationError
 from ....core.types import Role
 
@@ -79,18 +78,14 @@ class MassExchangeInteraction(Interaction):
         self.time = time
         self.noise = noise
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the relaxation `(goal - x) / time` of the state and its noise.
-
-        Args:
-            context:
-                The space the interaction inherits from its system, or the namespace of the target, the time `t`,
-                and the parameters.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The state is not a name, or a function is neither callable nor a number.
         """
+        super()._check_arguments()
         if not isinstance(self.state, str) or not self.state.isidentifier():
             error_msg = f'{type(self).__name__} {self.label!r} relaxes the state {self.state!r}, which is no name.'
             raise ValidationError(error_msg)
@@ -99,17 +94,24 @@ class MassExchangeInteraction(Interaction):
             if not (callable(value) or isinstance(value, int | float) or (name == 'noise' and value is None)):
                 error_msg = f'The {name} of {self.label!r} is {value!r}. Give a function of the namespace or a number.'
                 raise ValidationError(error_msg)
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the relaxation `(goal - x) / time` of the state and its noise.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x = getattr(context.target, self.state)
-            goal = self._evaluate(self.goal, context)
-            if isinstance(goal, list | tuple):
-                goal = vector(SR, goal)
-            elif isinstance(x, FreeModuleElement) and not isinstance(goal, FreeModuleElement):
-                goal = vector(SR, [goal] * len(x))
-            self.laws_ = [RateLaw(x, (goal - x) / self._evaluate(self.time, context))]
-            if self.noise is not None:
-                self.laws_.append(NoiseLaw(x, self._evaluate(self.noise, context)))
+        x = getattr(context.target, self.state)
+        goal = self._evaluate(self.goal, context)
+        if isinstance(goal, list | tuple):
+            goal = vector(SR, goal)
+        elif isinstance(x, FreeModuleElement) and not isinstance(goal, FreeModuleElement):
+            goal = vector(SR, [goal] * len(x))
+        self.laws_ = [RateLaw(x, (goal - x) / self._evaluate(self.time, context))]
+        if self.noise is not None:
+            self.laws_.append(NoiseLaw(x, self._evaluate(self.noise, context)))
 
     @staticmethod
     def _evaluate(value: Callable[[SimpleNamespace], object] | float, context: SimpleNamespace) -> object:

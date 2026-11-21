@@ -16,7 +16,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import minimum, pulse_train
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -101,7 +100,7 @@ class ExponentialLinearGrowthInteraction(Interaction):
         self.r0 = r0
         self.r = r
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate of the `x` of the target.
 
         Args:
@@ -109,8 +108,7 @@ class ExponentialLinearGrowthInteraction(Interaction):
                 The namespace of the bound elements, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [RateLaw(context.target.x, self._get_rate(context))]
+        self.laws_ = [RateLaw(context.target.x, self._get_rate(context))]
 
     def _get_rate(self, s: SimpleNamespace) -> Expression:
         """Return the rate `min(r0 x, r)`.
@@ -184,7 +182,7 @@ class LogKillInteraction(Interaction):
         self.width = width
         self.start = start
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate of the `x` of the target.
 
         Args:
@@ -192,8 +190,7 @@ class LogKillInteraction(Interaction):
                 The namespace of the bound elements, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [RateLaw(context.target.x, self._get_rate(context))]
+        self.laws_ = [RateLaw(context.target.x, self._get_rate(context))]
 
     def _get_rate(self, s: SimpleNamespace) -> Expression:
         """Return the rate `-a x U(t)`.
@@ -256,7 +253,7 @@ class VascularSupportInteraction(Interaction):
         self.r = r
         self.d = d
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the Gompertz growth of the tumour and the growth of the capacity.
 
         Args:
@@ -264,10 +261,9 @@ class VascularSupportInteraction(Interaction):
                 The namespace of the bound elements, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            n, K = s.tumour.x, s.vasculature.K
-            self.laws_ = [RateLaw(n, s.r * n * log(K / n)), RateLaw(K, s.d * n ** (2 / 3))]
+        s = context
+        n, K = s.tumour.x, s.vasculature.K
+        self.laws_ = [RateLaw(n, s.r * n * log(K / n)), RateLaw(K, s.d * n ** (2 / 3))]
 
 
 class GompertzGrowthInteraction(GrowthInteraction):

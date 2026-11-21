@@ -110,7 +110,7 @@ class NonreciprocalCahnHilliardInteraction(Interaction):
         self.D = D
         self.kappa = kappa
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the conserved rates of both fields of the target.
 
         Args:
@@ -118,14 +118,13 @@ class NonreciprocalCahnHilliardInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, t = context, context.t
-            phi, psi = s.target.phi, s.target.psi
-            potential = -phi + phi**3 - s.kappa * laplacian(phi) + (s.chi + s.alpha) * psi
-            self.laws_ = [
-                RateLaw(phi.diff(t), laplacian(potential)),
-                RateLaw(psi.diff(t), laplacian(s.D * psi + (s.chi - s.alpha) * phi)),
-            ]
+        s, t = context, context.t
+        phi, psi = s.target.phi, s.target.psi
+        potential = -phi + phi**3 - s.kappa * laplacian(phi) + (s.chi + s.alpha) * psi
+        self.laws_ = [
+            RateLaw(phi.diff(t), laplacian(potential)),
+            RateLaw(psi.diff(t), laplacian(s.D * psi + (s.chi - s.alpha) * phi)),
+        ]
 
 
 class NonreciprocalCahnHilliardSystem(BaseSystem):

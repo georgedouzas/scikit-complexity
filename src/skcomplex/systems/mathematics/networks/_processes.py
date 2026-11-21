@@ -99,13 +99,17 @@ class PagerankInteraction(Interaction):
         self.damping = damping
         self.n_nodes = n_nodes
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the next rank, summed over the links of every page, as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the next rank, summed over the links of every page, as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            page, other, damping = context.target, context.target.other, context.damping
-            term = damping * other.rank / other.degree + (1 - damping) / (context.n_nodes * page.degree)
-            self.laws_: list[BaseComponent] = [UpdateLaw(page.rank, neighbors(term))]
+        page, other, damping = context.target, context.target.other, context.damping
+        term = damping * other.rank / other.degree + (1 - damping) / (context.n_nodes * page.degree)
+        self.laws_: list[BaseComponent] = [UpdateLaw(page.rank, neighbors(term))]
 
 
 class NetworkWalkerView(AgentViewProtocol, Protocol):
@@ -171,11 +175,15 @@ class NetworkStepInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the step of every walker as the rule."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the step of every walker as the rule.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self._step)]
+        self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self._step)]
 
     def _step(self, agent: NetworkWalkerView, system: SystemView) -> None:
         """Move a walker to a random neighbouring node and count the step."""

@@ -87,7 +87,7 @@ class StockGrowthInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the logistic growth of the stock.
 
         Args:
@@ -95,9 +95,8 @@ class StockGrowthInteraction(Interaction):
                 The namespace of the stock.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            stock = context.target
-            self.laws_: list[BaseLaw] = [RateLaw(stock.n, stock.r * stock.n * (1 - stock.n / stock.K))]
+        stock = context.target
+        self.laws_: list[BaseLaw] = [RateLaw(stock.n, stock.r * stock.n * (1 - stock.n / stock.K))]
 
 
 class FarmerView(AgentViewProtocol, Protocol):
@@ -183,7 +182,7 @@ class CatchInteraction(Interaction):
         self.resource = resource
         self.effort = effort
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the catch rule of every farmer.
 
         Args:
@@ -191,8 +190,7 @@ class CatchInteraction(Interaction):
                 The namespace of the farmers.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.catch)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.catch)]
 
     def catch(self, agent: FarmerView, system: SystemView) -> None:
         """Add the effort times the resource stock to the wealth.
@@ -258,7 +256,7 @@ class HarvestInteraction(Interaction):
         self.effort = effort
         self.state = state
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the harvest `-effort * N * n` of the stock.
 
         Args:
@@ -266,9 +264,8 @@ class HarvestInteraction(Interaction):
                 The namespace of the stock, the harvesters, and the effort.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            stock = getattr(context.target, self.state)
-            self.laws_: list[BaseLaw] = [RateLaw(stock, -context.effort * count(context.harvesters) * stock)]
+        stock = getattr(context.target, self.state)
+        self.laws_: list[BaseLaw] = [RateLaw(stock, -context.effort * count(context.harvesters) * stock)]
 
 
 class HarvestingSystem(BaseSystem):

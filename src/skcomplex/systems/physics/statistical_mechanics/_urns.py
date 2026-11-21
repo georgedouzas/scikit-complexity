@@ -18,7 +18,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import bernoulli
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -53,7 +52,7 @@ class EhrenfestMoveInteraction(Interaction):
         self.target = target
         self.N = N
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the move of one ball, out of the first box with probability `n / N` and into it otherwise.
 
         Args:
@@ -61,9 +60,8 @@ class EhrenfestMoveInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            n = context.target.n
-            self.laws_ = [UpdateLaw(n, n + 1 - 2 * bernoulli('pick', n / context.N))]
+        n = context.target.n
+        self.laws_ = [UpdateLaw(n, n + 1 - 2 * bernoulli('pick', n / context.N))]
 
 
 class EhrenfestUrnSystem(BaseSystem):

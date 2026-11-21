@@ -19,7 +19,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import ConstraintLaw, RateLaw
 from ....core.components.laws.utils import step
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -127,11 +126,14 @@ class TireInteraction(Interaction):
         self.height = height
         self.at = at
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the acceleration of the wheel by the tire."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the acceleration of the wheel by the tire.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         wheel, t = getattr(context.target, self.state), context.t
         force = context.kt * (step(t, context.at, context.height) - wheel)
         self.laws_: list[BaseComponent] = [RateLaw(wheel.diff(t, 2), force / getattr(context.target, self.mass))]

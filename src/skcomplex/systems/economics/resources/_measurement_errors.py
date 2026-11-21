@@ -19,7 +19,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import both, normal, where
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -124,7 +123,7 @@ class QuotaHarvestInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the Euler-Maruyama step of the stock and the quota of the step.
 
         Args:
@@ -132,19 +131,18 @@ class QuotaHarvestInteraction(Interaction):
                 The namespace of the fishery.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            fishery = context.target
-            quota = self._get_quota(fishery)
-            growth = fishery.x * (1 - fishery.x / fishery.K)
-            noisy = (
-                fishery.x
-                + (fishery.r0 * growth - quota) * fishery.step
-                + fishery.sigma_r * growth * sqrt(fishery.step) * normal('growth', 0, 1)
-            )
-            self.laws_: list[BaseLaw] = [
-                UpdateLaw(fishery.x, where(both(fishery.x > 0, noisy > 0), noisy, 0)),
-                UpdateLaw(fishery.catch, quota),
-            ]
+        fishery = context.target
+        quota = self._get_quota(fishery)
+        growth = fishery.x * (1 - fishery.x / fishery.K)
+        noisy = (
+            fishery.x
+            + (fishery.r0 * growth - quota) * fishery.step
+            + fishery.sigma_r * growth * sqrt(fishery.step) * normal('growth', 0, 1)
+        )
+        self.laws_: list[BaseLaw] = [
+            UpdateLaw(fishery.x, where(both(fishery.x > 0, noisy > 0), noisy, 0)),
+            UpdateLaw(fishery.catch, quota),
+        ]
 
     @staticmethod
     def _get_quota(fishery: SimpleNamespace) -> Expression:

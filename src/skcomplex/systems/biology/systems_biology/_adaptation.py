@@ -16,7 +16,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import step
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
@@ -115,24 +114,28 @@ class EnzymeRegulationInteraction(Interaction):
         self.k = k
         self.K = K
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the conversion of the target by the source.
-
-        Args:
-            context:
-                The namespace of the bound elements, the time `t`, and the parameters.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The sign is neither 1 nor -1.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if self.sign not in {1, -1}:
             error_msg = f'The sign of a regulation must be 1 or -1, not {self.sign}.'
             raise ValidationError(error_msg)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [RateLaw(s.target.X, self._get_conversion(s.source.X, s.target.X, s.k, s.K))]
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the conversion of the target by the source.
+
+        Args:
+            context:
+                The namespace of the bound elements, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        s = context
+        self.laws_ = [RateLaw(s.target.X, self._get_conversion(s.source.X, s.target.X, s.k, s.K))]
 
     def _get_conversion(self, regulator: Expression, X: Expression, k: Expression, K: Expression) -> Expression:
         """Return the Michaelis-Menten conversion of the target by a regulator.
@@ -207,7 +210,7 @@ class EnzymeStimulusInteraction(Interaction):
         self.change = change
         self.at = at
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the conversion of the target by the stimulus.
 
         Args:
@@ -215,10 +218,9 @@ class EnzymeStimulusInteraction(Interaction):
                 The namespace of the bound elements, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            regulator = s.level + step(s.t, self.at, self.change)
-            self.laws_ = [RateLaw(s.target.X, self._get_conversion(regulator, s.target.X, s.k, s.K))]
+        s = context
+        regulator = s.level + step(s.t, self.at, self.change)
+        self.laws_ = [RateLaw(s.target.X, self._get_conversion(regulator, s.target.X, s.k, s.K))]
 
     def _get_conversion(self, regulator: Expression, X: Expression, k: Expression, K: Expression) -> Expression:
         """Return the Michaelis-Menten conversion of the target by the stimulus.

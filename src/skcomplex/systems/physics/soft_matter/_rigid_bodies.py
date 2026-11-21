@@ -23,7 +23,7 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, Period
 from ....core.components.interactions import Interaction
 from ....core.components.laws import NoiseLaw, RateLaw, UpdateLaw
-from ....core.components.spaces import BaseSpace, ContinuousSpace
+from ....core.components.spaces import ContinuousSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver
 from ....core.errors import ParameterError
@@ -154,7 +154,7 @@ class AnisotropicDiffusionInteraction(Interaction):
         self.D_spin = D_spin
         self.D_c = D_c
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the translation and the rotation with their correlated noises, and the boundary of the axis.
 
         Args:
@@ -162,25 +162,24 @@ class AnisotropicDiffusionInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, t = context, context.t
-            axis = [getattr(s.target, name) for name in DIRECTIONS]
-            position = [getattr(s.target, name) for name in AXES]
-            length = sqrt(sum(component**2 for component in axis))
-            laws: list[BaseComponent] = []
-            for i, (coordinate, component) in enumerate(zip(position, axis, strict=True)):
-                laws.append(RateLaw(component.diff(t), -2 * s.D_r * component))
-                for j, other in enumerate(axis):
-                    projector = (1 if i == j else 0) - component * other
-                    laws.append(NoiseLaw(coordinate, sqrt(2 * s.D_perp) * projector, process=f'translation_{j}'))
-                    laws.append(NoiseLaw(coordinate, sqrt(2 * s.D_par) * component * other, process=f'translation_{j}'))
-                    laws.append(NoiseLaw(component, sqrt(2 * s.D_r) * projector, process=f'rotation_{j}'))
-                laws.append(UpdateLaw(component, component / length))
-            coupling = s.D_c / sqrt(s.D_par)
+        s, t = context, context.t
+        axis = [getattr(s.target, name) for name in DIRECTIONS]
+        position = [getattr(s.target, name) for name in AXES]
+        length = sqrt(sum(component**2 for component in axis))
+        laws: list[BaseComponent] = []
+        for i, (coordinate, component) in enumerate(zip(position, axis, strict=True)):
+            laws.append(RateLaw(component.diff(t), -2 * s.D_r * component))
             for j, other in enumerate(axis):
-                laws.append(NoiseLaw(s.target.psi, sqrt(2) * coupling * other, process=f'translation_{j}'))
-            laws.append(NoiseLaw(s.target.psi, sqrt(2 * (s.D_spin - coupling**2)), process='spin'))
-            self.laws_ = laws
+                projector = (1 if i == j else 0) - component * other
+                laws.append(NoiseLaw(coordinate, sqrt(2 * s.D_perp) * projector, process=f'translation_{j}'))
+                laws.append(NoiseLaw(coordinate, sqrt(2 * s.D_par) * component * other, process=f'translation_{j}'))
+                laws.append(NoiseLaw(component, sqrt(2 * s.D_r) * projector, process=f'rotation_{j}'))
+            laws.append(UpdateLaw(component, component / length))
+        coupling = s.D_c / sqrt(s.D_par)
+        for j, other in enumerate(axis):
+            laws.append(NoiseLaw(s.target.psi, sqrt(2) * coupling * other, process=f'translation_{j}'))
+        laws.append(NoiseLaw(s.target.psi, sqrt(2 * (s.D_spin - coupling**2)), process='spin'))
+        self.laws_ = laws
 
 
 class DimerElement(Element):
@@ -285,7 +284,7 @@ class RigidRodInteraction(Interaction):
         self.D_t = D_t
         self.D_r = D_r
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the motion of the centre, the turning of the rod, and the diffusion of the orientations.
 
         Args:
@@ -293,20 +292,19 @@ class RigidRodInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, t = context, context.t
-            c, phi, theta1, theta2 = s.target.c, s.target.phi, s.target.theta1, s.target.theta2
-            first = vector(SR, [cos(theta1), sin(theta1)])
-            second = vector(SR, [cos(theta2), sin(theta2)])
-            across = vector(SR, [-sin(phi), cos(phi)])
-            self.laws_ = [
-                RateLaw(c, s.v0 * (first + second) / 2),
-                NoiseLaw(c, sqrt(s.D_t)),
-                RateLaw(phi.diff(t), s.v0 * (first - second).dot_product(across) / s.L),
-                NoiseLaw(phi, 2 * sqrt(s.D_t) / s.L),
-                NoiseLaw(theta1, sqrt(2 * s.D_r)),
-                NoiseLaw(theta2, sqrt(2 * s.D_r)),
-            ]
+        s, t = context, context.t
+        c, phi, theta1, theta2 = s.target.c, s.target.phi, s.target.theta1, s.target.theta2
+        first = vector(SR, [cos(theta1), sin(theta1)])
+        second = vector(SR, [cos(theta2), sin(theta2)])
+        across = vector(SR, [-sin(phi), cos(phi)])
+        self.laws_ = [
+            RateLaw(c, s.v0 * (first + second) / 2),
+            NoiseLaw(c, sqrt(s.D_t)),
+            RateLaw(phi.diff(t), s.v0 * (first - second).dot_product(across) / s.L),
+            NoiseLaw(phi, 2 * sqrt(s.D_t) / s.L),
+            NoiseLaw(theta1, sqrt(2 * s.D_r)),
+            NoiseLaw(theta2, sqrt(2 * s.D_r)),
+        ]
 
 
 class AnisotropicBrownianParticlesSystem(BaseSystem):

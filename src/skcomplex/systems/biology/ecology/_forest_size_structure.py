@@ -8,6 +8,7 @@ The density changes by shading, competition, and dispersal.
 
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
+from typing import cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, exp
@@ -25,7 +26,7 @@ from ....core.components.laws.utils import (
     reduce_axes,
     where,
 )
-from ....core.components.spaces import AxisSpec, BaseSpace, FiniteVolumeSpec, LatticeSpace, PhaseSpace
+from ....core.components.spaces import AxisSpec, FiniteVolumeSpec, LatticeSpace, PhaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver
 from ....core.errors import ValidationError
@@ -107,18 +108,14 @@ class SizeGrowthInteraction(Interaction):
         self.source = source
         self.sources = sources
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Check the state and the functions, and set the rate of the divergence of the flux and of the source.
-
-        Args:
-            context:
-                The namespace of the target and the sources, the time `t`, and the parameters.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The state is not a name, or a function is not callable.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if not isinstance(self.state, str) or not self.state.isidentifier():
             error_msg = f'{type(self).__name__} {self.label!r} carries the state {self.state!r}, which is no name.'
             raise ValidationError(error_msg)
@@ -128,13 +125,21 @@ class SizeGrowthInteraction(Interaction):
         if self.source is not None and not callable(self.source):
             error_msg = f'The source of {self.label!r} is {self.source!r}. Give a function of the namespace.'
             raise ValidationError(error_msg)
-        if isinstance(context, SimpleNamespace):
-            state = getattr(context.target, self.state)
-            drift = self.drift(context)
-            components = drift if isinstance(drift, FreeModuleElement | list | tuple) else [drift]
-            self.laws_ = [RateLaw(state, -divergence([SR(component) * state for component in components]))]
-            if self.source is not None:
-                self.laws_.append(RateLaw(state, self.source(context)))
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate of the divergence of the flux and of the source.
+
+        Args:
+            context:
+                The namespace of the target and the sources, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        state = getattr(context.target, self.state)
+        drift = cast('Callable[[SimpleNamespace], object]', self.drift)(context)
+        components = drift if isinstance(drift, FreeModuleElement | list | tuple) else [drift]
+        self.laws_ = [RateLaw(state, -divergence([SR(component) * state for component in components]))]
+        if self.source is not None:
+            self.laws_.append(RateLaw(state, self.source(context)))
 
 
 class ForestSizeStructureSystem(BaseSystem):

@@ -145,14 +145,18 @@ class TuringMachineInteraction(Interaction):
 
         return rule
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the step of the machine on three cells as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the step of the machine on three cells as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            states = (context.target.symbol, context.target.head)
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(states, self._get_function(), neighborhood=THREE_CELLS, label=self.label),
-            ]
+        states = (context.target.symbol, context.target.head)
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(states, self._get_function(), neighborhood=THREE_CELLS, label=self.label),
+        ]
 
 
 class TuringMachineSystem(BaseSystem):

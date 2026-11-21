@@ -16,7 +16,7 @@ from ....core.components import Observable
 from ....core.components.base import BaseComponent
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
-from ....core.components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace
+from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ParameterError
@@ -66,13 +66,17 @@ class NilpotentRuleInteraction(Interaction):
         killed = np.all(window == 1, axis=0) | ((left == 0) & (center == 1))
         return np.where(killed, 0.0, center)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rule on the window of offsets `-1, 0, ..., n - 1` as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule on the window of offsets `-1, 0, ..., n - 1` as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            window = LatticeNeighborhood(tuple((offset,) for offset in range(-1, self.n)))
-            alive = context.target.alive
-            self.laws_: list[BaseComponent] = [UpdateLaw(alive, self._get_next, neighborhood=window, label=self.label)]
+        window = LatticeNeighborhood(tuple((offset,) for offset in range(-1, self.n)))
+        alive = context.target.alive
+        self.laws_: list[BaseComponent] = [UpdateLaw(alive, self._get_next, neighborhood=window, label=self.label)]
 
 
 class InvolutiveRuleInteraction(Interaction):
@@ -116,13 +120,17 @@ class InvolutiveRuleInteraction(Interaction):
         center = window[1]
         return np.where(np.all(window == alpha, axis=0), 0.0, np.where(np.all(window == beta, axis=0), 1.0, center))
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rule on the window of offsets `-1, 0, ..., n` as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule on the window of offsets `-1, 0, ..., n` as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            window = LatticeNeighborhood(tuple((offset,) for offset in range(-1, self.n + 1)))
-            alive = context.target.alive
-            self.laws_: list[BaseComponent] = [UpdateLaw(alive, self._get_next, neighborhood=window, label=self.label)]
+        window = LatticeNeighborhood(tuple((offset,) for offset in range(-1, self.n + 1)))
+        alive = context.target.alive
+        self.laws_: list[BaseComponent] = [UpdateLaw(alive, self._get_next, neighborhood=window, label=self.label)]
 
 
 class NilpotentAutomatonSystem(BaseSystem):

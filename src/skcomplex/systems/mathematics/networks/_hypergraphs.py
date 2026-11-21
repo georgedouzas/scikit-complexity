@@ -129,12 +129,16 @@ class SimplexAgeingInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the ageing of every triangle."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the ageing of every triangle.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            triangles = context.target
-            self.laws_: list[BaseComponent] = [UpdateLaw(triangles.age, triangles.age + 1)]
+        triangles = context.target
+        self.laws_: list[BaseComponent] = [UpdateLaw(triangles.age, triangles.age + 1)]
 
 
 class SizeBiasedMoveInteraction(Interaction):
@@ -167,11 +171,14 @@ class SizeBiasedMoveInteraction(Interaction):
     def __init__(self, label: str, *, among: Role = 'nodes', along: str = 'hyperedges') -> None:
         super().__init__(label, among=among, along=along)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the flow into and out of the focal member across one hyperedge."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the flow into and out of the focal member across one hyperedge.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         s = context
         weight = len(s.others)
         member = s.member

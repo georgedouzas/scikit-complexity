@@ -183,12 +183,16 @@ class IteratedDilemmaInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the play, the revision, and the mutation of the strategies as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the play, the revision, and the mutation of the strategies as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            strategy = context.target.strategy
-            self.laws_: list[BaseComponent] = [UpdateLaw(strategy, self._play, neighborhood=DIAMOND, label=self.label)]
+        strategy = context.target.strategy
+        self.laws_: list[BaseComponent] = [UpdateLaw(strategy, self._play, neighborhood=DIAMOND, label=self.label)]
 
     @staticmethod
     def get_years(
@@ -331,24 +335,28 @@ class PrisonersDilemmaInteraction(Interaction):
         self.target = target
         self.imitation = imitation
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Raise an error for an unknown imitation, and set the play and the imitation as the law.
-
-        Args:
-            context:
-                The space the interaction inherits from its system, or the namespace of the players.
+    def _check_arguments(self) -> None:
+        """Raise an error for an unknown imitation.
 
         Raises:
             ValidationError:
                 The imitation is unknown.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if self.imitation not in IMITATIONS:
             error_msg = f'Unknown imitation {self.imitation!r}. Use one of {", ".join(IMITATIONS)}.'
             raise ValidationError(error_msg)
-        if isinstance(context, SimpleNamespace):
-            strategy = context.target.strategy
-            self.laws_: list[BaseComponent] = [UpdateLaw(strategy, self._play, neighborhood=SQUARE, label=self.label)]
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the play and the imitation as the law.
+
+        Args:
+            context:
+                The namespace of the players.
+        """
+        super()._prepare(context)
+        strategy = context.target.strategy
+        self.laws_: list[BaseComponent] = [UpdateLaw(strategy, self._play, neighborhood=SQUARE, label=self.label)]
 
     def _play(self, *values: Array, temptation: float | Array, noise: float | Array, random: Array) -> Array:
         """Return the strategies after the play and the imitation.
@@ -446,13 +454,17 @@ class PublicGoodsInteraction(Interaction):
         super().__init__(label, among=among, along=along)
         self.phase = phase
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the payoff of every player to its share of the pot of a group, less its contribution."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the payoff of every player to its share of the pot of a group, less its contribution.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            pot = context.member.synergy * total(context.members.strategy, over=context.members)
-            share = pot / count(over=context.members) - context.member.strategy
-            self.laws_ = [UpdateLaw(context.member.payoff, share, phase=self.phase)]
+        pot = context.member.synergy * total(context.members.strategy, over=context.members)
+        share = pot / count(over=context.members) - context.member.strategy
+        self.laws_ = [UpdateLaw(context.member.payoff, share, phase=self.phase)]
 
 
 class SpatialPrisonersDilemmaSystem(BaseSystem):

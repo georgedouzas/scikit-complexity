@@ -112,7 +112,7 @@ class AlievPanfilovInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the excited potential and its state-dependent recovery.
 
         Args:
@@ -120,13 +120,12 @@ class AlievPanfilovInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context.target
-            recovery_rate = s.epsilon0 + s.mu1 * s.v / (s.u + s.mu2)
-            self.laws_ = [
-                RateLaw(s.u, -s.k * s.u * (s.u - s.a) * (s.u - 1) - s.u * s.v),
-                RateLaw(s.v, recovery_rate * (-s.v - s.k * s.u * (s.u - s.a - 1))),
-            ]
+        s = context.target
+        recovery_rate = s.epsilon0 + s.mu1 * s.v / (s.u + s.mu2)
+        self.laws_ = [
+            RateLaw(s.u, -s.k * s.u * (s.u - s.a) * (s.u - 1) - s.u * s.v),
+            RateLaw(s.v, recovery_rate * (-s.v - s.k * s.u * (s.u - s.a - 1))),
+        ]
 
 
 class AlievPanfilovSystem(BaseSystem):

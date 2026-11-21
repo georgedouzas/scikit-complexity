@@ -14,7 +14,6 @@ from sage.all__sagemath_symbolics import Expression
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, RateLaw
 from .....core.components.laws.utils import total
-from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
 from .....core.types import Role
 
@@ -84,21 +83,25 @@ class ReplicatorInteraction(Interaction):
             error_msg = f'The fitness of {self.label!r} is {self.fitness!r}. Give a function of the namespace.'
             raise ValidationError(error_msg)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _check_arguments(self) -> None:
         """Raise an error for a state, functions, or a fitness the interaction cannot take.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The state is not a name, or the fitness is not callable.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         self._check_fitness()
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = [RateLaw(getattr(context.target, self.state), self._get_rate(context))]
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the laws of a binding.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [RateLaw(getattr(context.target, self.state), self._get_rate(context))]
 
     def _get_fitness(self, namespace: SimpleNamespace) -> Expression:
         """Return the fitness of a member.

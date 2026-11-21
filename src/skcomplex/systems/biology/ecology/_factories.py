@@ -14,7 +14,6 @@ from ....core.components import Observable
 from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import series
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -79,7 +78,7 @@ class RickerGrowthInteraction(Interaction):
         self.target = target
         self.r = r
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the next generation `r x exp(-x)`.
 
         Args:
@@ -87,10 +86,9 @@ class RickerGrowthInteraction(Interaction):
                 The namespace of the bound elements, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            n = s.target.x
-            self.laws_ = [UpdateLaw(n, s.r * n * exp(-n))]
+        s = context
+        n = s.target.x
+        self.laws_ = [UpdateLaw(n, s.r * n * exp(-n))]
 
 
 class SeasonalLogisticGrowthInteraction(LogisticGrowthInteraction):

@@ -228,7 +228,7 @@ class ClimbingInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the climbing rule of every climber.
 
         Args:
@@ -236,8 +236,7 @@ class ClimbingInteraction(Interaction):
                 The namespace of the climbers.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.climb)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.climb)]
 
     def climb(self, agent: ClimberView, system: SystemView) -> None:
         """Flip a random bit, and keep the flip when it raises the fitness.

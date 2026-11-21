@@ -16,7 +16,6 @@ from sage.sets.real_set import RealSet
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, UpdateLaw
 from .....core.components.laws.utils import normal, uniform, where
-from .....core.components.spaces import BaseSpace
 from .....core.types import Role
 
 
@@ -80,7 +79,7 @@ class EdgeDrawInteraction(Interaction):
         """Return the name of a random draw of the interaction."""
         return re.sub(r'\W', '_', f'{draw}_{self.label}')
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the draw or the drift of the weight of an edge, and the removal of the mark of the edge.
 
         Args:
@@ -88,8 +87,6 @@ class EdgeDrawInteraction(Interaction):
                 The namespace of an edge, with the member `context.edge` of the group on the edges.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         edge = context.edge
         weight = getattr(edge, self.state)
         drawn = uniform(self._get_name('draw'), self.low, self.high)

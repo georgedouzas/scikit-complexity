@@ -13,7 +13,6 @@ from sage.sets.real_set import RealSet
 from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, RateLaw
-from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
 from .....core.types import Role
 
@@ -92,17 +91,24 @@ class SpringDamperInteraction(Interaction):
                 error_msg = f'{self.label!r} has the {name} {value!r}. Give two names, such as ("y1", "y2").'
                 raise ValidationError(error_msg)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the accelerations of both coordinates by the spring and by the damper.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The states or the masses are not two names.
         """
+        super()._check_arguments()
         self._check_names()
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the accelerations of both coordinates by the spring and by the damper.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         member, t = context.target, context.t
         first, second = (getattr(member, name) for name in self.states)
         spring = -context.k * (first - second)

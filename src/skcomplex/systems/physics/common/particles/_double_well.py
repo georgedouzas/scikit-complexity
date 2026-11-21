@@ -16,7 +16,6 @@ from sage.sets.real_set import RealSet
 from .....core.components.elements import Element
 from .....core.components.interactions import Interaction
 from .....core.components.laws import NoiseLaw, RateLaw
-from .....core.components.spaces import BaseSpace
 from .....core.types import Role
 
 
@@ -92,7 +91,7 @@ class DoubleWellInteraction(Interaction):
         self.frequency = frequency
         self.D = D
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the drift and the noise of the position of the target.
 
         Args:
@@ -100,8 +99,7 @@ class DoubleWellInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, t = context, context.t
-            x = s.target.x
-            drive = s.amplitude * cos(2 * math.pi * s.frequency * t)
-            self.laws_ = [RateLaw(x.diff(t), x - x**3 + drive), NoiseLaw(x, sqrt(2 * s.D))]
+        s, t = context, context.t
+        x = s.target.x
+        drive = s.amplitude * cos(2 * math.pi * s.frequency * t)
+        self.laws_ = [RateLaw(x.diff(t), x - x**3 + drive), NoiseLaw(x, sqrt(2 * s.D))]

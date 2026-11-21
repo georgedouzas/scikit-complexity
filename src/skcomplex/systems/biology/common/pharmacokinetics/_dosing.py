@@ -14,7 +14,6 @@ from sage.all__sagemath_symbolics import Expression
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, RateLaw
 from .....core.components.laws.utils import pulse_train
-from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
 from .....core.types import Role
 
@@ -91,18 +90,14 @@ class DosingInteraction(Interaction):
         self.start = start
         self.count = count
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _check_arguments(self) -> None:
         """Raise an error for a state, a dose, or a schedule the input cannot take.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The state is not a name, the dose is neither a function nor a number, or the schedule is not positive.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if not (callable(self.dose) or isinstance(self.dose, int | float)):
             error_msg = f'The dose of {self.label!r} is {self.dose!r}. Give a function of the namespace or a number.'
             raise ValidationError(error_msg)
@@ -112,8 +107,16 @@ class DosingInteraction(Interaction):
                 'both above 0.'
             )
             raise ValidationError(error_msg)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = [RateLaw(getattr(context.target, self.state), self._get_rate(context))]
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the laws of a binding.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [RateLaw(getattr(context.target, self.state), self._get_rate(context))]
 
     def _get_rate(self, namespace: SimpleNamespace) -> Expression:
         """Return the dose, times the schedule of infusions when the input has a period.

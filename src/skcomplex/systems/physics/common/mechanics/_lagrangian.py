@@ -13,7 +13,6 @@ from sage.all__sagemath_symbolics import SR, Expression, matrix, vector
 
 from .....core.components.interactions import Interaction
 from .....core.components.laws import RateLaw
-from .....core.components.spaces import BaseSpace
 
 
 class LagrangianInteraction(Interaction):
@@ -154,7 +153,7 @@ class LagrangianInteraction(Interaction):
                     frozen[value] = SR.symbol(f'_frozen_{len(frozen)}')
         return frozen
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the acceleration of every coordinate from the Euler-Lagrange equations.
 
         Args:
@@ -162,33 +161,32 @@ class LagrangianInteraction(Interaction):
                 The namespace of the roles, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            t = context.t
-            coordinates = self._get_coordinates(context)
-            count = len(coordinates)
-            positions = [SR.symbol(f'_position_{index}') for index in range(count)]
-            velocities = [SR.symbol(f'_velocity_{index}') for index in range(count)]
-            accelerations = [SR.symbol(f'_acceleration_{index}') for index in range(count)]
-            frozen = self._get_frozen(context)
-            lagrangian = SR(self._get_lagrangian(context, positions, velocities)).subs(frozen)
-            dissipation = SR(self._get_dissipation(context, positions, velocities)).subs(frozen)
-            forces = [SR(force).subs(frozen) for force in self._get_forces(context, positions, velocities)]
-            equations = []
-            for position, velocity, force in zip(positions, velocities, forces, strict=True):
-                momentum = lagrangian.diff(velocity)
-                change = momentum.diff(t) + sum(
-                    momentum.diff(other) * speed + momentum.diff(speed) * acceleration
-                    for other, speed, acceleration in zip(positions, velocities, accelerations, strict=True)
-                )
-                equations.append(change - lagrangian.diff(position) + dissipation.diff(velocity) - force)
-            inertia = matrix(SR, [[equation.diff(item) for item in accelerations] for equation in equations])
-            rest = vector(SR, [equation.subs(dict.fromkeys(accelerations, 0)) for equation in equations])
-            solution = inertia.solve_right(-rest)
-            back = {
-                **{symbol: value for value, symbol in frozen.items()},
-                **dict(zip(positions, coordinates, strict=True)),
-                **{velocity: item.diff(t) for velocity, item in zip(velocities, coordinates, strict=True)},
-            }
-            self.laws_ = [
-                RateLaw(item.diff(t, 2), value.subs(back)) for item, value in zip(coordinates, solution, strict=True)
-            ]
+        t = context.t
+        coordinates = self._get_coordinates(context)
+        count = len(coordinates)
+        positions = [SR.symbol(f'_position_{index}') for index in range(count)]
+        velocities = [SR.symbol(f'_velocity_{index}') for index in range(count)]
+        accelerations = [SR.symbol(f'_acceleration_{index}') for index in range(count)]
+        frozen = self._get_frozen(context)
+        lagrangian = SR(self._get_lagrangian(context, positions, velocities)).subs(frozen)
+        dissipation = SR(self._get_dissipation(context, positions, velocities)).subs(frozen)
+        forces = [SR(force).subs(frozen) for force in self._get_forces(context, positions, velocities)]
+        equations = []
+        for position, velocity, force in zip(positions, velocities, forces, strict=True):
+            momentum = lagrangian.diff(velocity)
+            change = momentum.diff(t) + sum(
+                momentum.diff(other) * speed + momentum.diff(speed) * acceleration
+                for other, speed, acceleration in zip(positions, velocities, accelerations, strict=True)
+            )
+            equations.append(change - lagrangian.diff(position) + dissipation.diff(velocity) - force)
+        inertia = matrix(SR, [[equation.diff(item) for item in accelerations] for equation in equations])
+        rest = vector(SR, [equation.subs(dict.fromkeys(accelerations, 0)) for equation in equations])
+        solution = inertia.solve_right(-rest)
+        back = {
+            **{symbol: value for value, symbol in frozen.items()},
+            **dict(zip(positions, coordinates, strict=True)),
+            **{velocity: item.diff(t) for velocity, item in zip(velocities, coordinates, strict=True)},
+        }
+        self.laws_ = [
+            RateLaw(item.diff(t, 2), value.subs(back)) for item, value in zip(coordinates, solution, strict=True)
+        ]

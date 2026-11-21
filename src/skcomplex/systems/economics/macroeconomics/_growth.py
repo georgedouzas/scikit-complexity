@@ -15,7 +15,6 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -94,12 +93,16 @@ class SolowGrowthInteraction(Interaction):
         self.alpha = alpha
         self.delta = delta
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rate `s * k**alpha - delta * k` of the capital per worker as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate `s * k**alpha - delta * k` of the capital per worker as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            k = context.target.k
-            self.laws_: list[BaseComponent] = [RateLaw(k, context.s * k**context.alpha - context.delta * k)]
+        k = context.target.k
+        self.laws_: list[BaseComponent] = [RateLaw(k, context.s * k**context.alpha - context.delta * k)]
 
 
 class SolowSystem(BaseSystem):

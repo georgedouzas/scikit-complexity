@@ -15,7 +15,6 @@ from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import ConstraintLaw
 from ....core.components.laws.utils import log_sum_exp
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -115,16 +114,20 @@ class LeastEffortInteraction(Interaction):
         self.target = target
         self.words = words
 
-    def _prepare(self, s: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the equations of the exponent and of the probabilities."""
+    def _prepare(self, s: SimpleNamespace) -> None:
+        """Set the equations of the exponent and of the probabilities.
+
+        Args:
+            s:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(s)
-        if isinstance(s, SimpleNamespace):
-            weight = -s.target.exponent * s.words.cost
-            log_partition = log_sum_exp(weight, over=s.words)
-            self.laws_: list[BaseComponent] = [
-                ConstraintLaw(log_partition == 0, target=s.target.exponent),
-                ConstraintLaw(s.words.probability == exp(weight - log_partition), target=s.words.probability),
-            ]
+        weight = -s.target.exponent * s.words.cost
+        log_partition = log_sum_exp(weight, over=s.words)
+        self.laws_: list[BaseComponent] = [
+            ConstraintLaw(log_partition == 0, target=s.target.exponent),
+            ConstraintLaw(s.words.probability == exp(weight - log_partition), target=s.words.probability),
+        ]
 
 
 class MandelbrotLeastEffortSystem(BaseSystem):

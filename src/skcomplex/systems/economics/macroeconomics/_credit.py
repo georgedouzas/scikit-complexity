@@ -20,7 +20,6 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, Member
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
@@ -261,14 +260,18 @@ class BalanceSheetsInteraction(Interaction):
         self.firms = firms
         self.banks = banks
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the plan and the settlement of every step as the rules of the system, in the phases of their names."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the plan and the settlement of every step as the rules of the system, in the phases of their names.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(context, self.plan, phase='plan'),
-                UpdateLaw(context, self.settle, phase='settle'),
-            ]
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(context, self.plan, phase='plan'),
+            UpdateLaw(context, self.settle, phase='settle'),
+        ]
 
     @staticmethod
     def _get_worth(firm: FirmView) -> float:

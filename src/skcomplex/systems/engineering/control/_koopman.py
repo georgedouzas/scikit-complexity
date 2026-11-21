@@ -26,7 +26,6 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import CallSpec, RateLaw, UpdateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.runtime import Trajectory
 from ....core.engine.solvers import BaseSolver
@@ -222,19 +221,26 @@ class PlantInteraction(Interaction):
         self.control = control
         self.kind = kind
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rates of the two variables of the plant.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The kind of plant is unknown.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if self.kind not in PLANTS:
             error_msg = f'The plant {self.kind!r} is unknown. Use one of {", ".join(PLANTS)}.'
             raise ValidationError(error_msg)
-        if not isinstance(context, SimpleNamespace):
-            return
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rates of the two variables of the plant.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
         case, plant, t = PLANTS[self.kind], context.plant, context.t
         rates = case.rates(plant, case.limit * context.control.u, t, case.step)
         self.laws_: list[BaseComponent] = [RateLaw(plant.x.diff(t), rates[0]), RateLaw(plant.y.diff(t), rates[1])]
@@ -353,11 +359,14 @@ class PredictiveControlInteraction(Interaction):
         self.plant = plant
         self.policy = policy
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the update of the control input."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the update of the control input.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         plant = context.plant
         value = 0.0 if self.policy is None else CallSpec(self.policy, (plant.x, plant.y))
         self.laws_: list[BaseComponent] = [UpdateLaw(context.control.u, value)]

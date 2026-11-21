@@ -101,14 +101,18 @@ class ElementaryRuleInteraction(Interaction):
         self.target = target
         self.rule = rule
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the local rule of the cells as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the local rule of the cells as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            alive = context.target.alive
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(alive, Wolfram(self.rule), neighborhood=ELEMENTARY, label=self.label),
-            ]
+        alive = context.target.alive
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(alive, Wolfram(self.rule), neighborhood=ELEMENTARY, label=self.label),
+        ]
 
 
 class LangtonsAntInteraction(Interaction):
@@ -146,14 +150,18 @@ class LangtonsAntInteraction(Interaction):
             ant = np.where((ants[column] >= 0) & (turned == heading), turned, ant)
         return color, ant
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the move of the ant as the law."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the move of the ant as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            states = (context.target.color, context.target.ant)
-            self.laws_: list[BaseComponent] = [
-                UpdateLaw(states, self._get_next, neighborhood=VON_NEUMANN, label=self.label),
-            ]
+        states = (context.target.color, context.target.ant)
+        self.laws_: list[BaseComponent] = [
+            UpdateLaw(states, self._get_next, neighborhood=VON_NEUMANN, label=self.label),
+        ]
 
 
 class ElementaryAutomatonSystem(BaseSystem):

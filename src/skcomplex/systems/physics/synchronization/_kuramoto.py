@@ -20,7 +20,7 @@ from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import count, neighbors, total
-from ....core.components.spaces import BaseNeighborhood, BaseSpace, ContinuousSpace, RadiusNeighborhood
+from ....core.components.spaces import BaseNeighborhood, ContinuousSpace, RadiusNeighborhood
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
@@ -124,26 +124,30 @@ class KuramotoCouplingInteraction(Interaction):
             return summed - sin(context.alpha), terms + 1
         return summed, terms
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the rate of the phases from the lagged sines of the other phases.
-
-        Args:
-            context:
-                The namespace of the target, the time `t`, and the parameters.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The reduction is neither `'sum'` nor `'mean'`.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if self.reduce not in REDUCTIONS:
             error_msg = f'Unknown reduction {self.reduce!r}. Use one of {", ".join(REDUCTIONS)}.'
             raise ValidationError(error_msg)
-        if isinstance(context, SimpleNamespace):
-            get_sum = self._get_group_sum if self.neighborhood is None else self._get_neighbour_sum
-            summed, terms = get_sum(context)
-            rate = context.K * summed if self.reduce == 'sum' else context.K * summed / terms
-            self.laws_ = [RateLaw(context.target.theta.diff(context.t), rate)]
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate of the phases from the lagged sines of the other phases.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        get_sum = self._get_group_sum if self.neighborhood is None else self._get_neighbour_sum
+        summed, terms = get_sum(context)
+        rate = context.K * summed if self.reduce == 'sum' else context.K * summed / terms
+        self.laws_ = [RateLaw(context.target.theta.diff(context.t), rate)]
 
 
 class DelayedCouplingInteraction(Interaction):
@@ -193,7 +197,7 @@ class DelayedCouplingInteraction(Interaction):
         self.K = K
         self.tau = tau
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate `K sin(theta_s(t - tau) - theta_t)` of the phase of the target.
 
         Args:
@@ -201,10 +205,9 @@ class DelayedCouplingInteraction(Interaction):
                 The namespace of the source, the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            theta, t = context.target.theta, context.t
-            delayed = context.source.theta(t=t - context.tau)
-            self.laws_ = [RateLaw(theta.diff(t), context.K * sin(delayed - theta))]
+        theta, t = context.target.theta, context.t
+        delayed = context.source.theta(t=t - context.tau)
+        self.laws_ = [RateLaw(theta.diff(t), context.K * sin(delayed - theta))]
 
 
 class DelayedKuramotoSystem(BaseSystem):
@@ -440,7 +443,7 @@ class PopulationCouplingInteraction(Interaction):
         self.K = K
         self.alpha = alpha
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate of the phases of the target from the sums of the source.
 
         Args:
@@ -448,12 +451,11 @@ class PopulationCouplingInteraction(Interaction):
                 The namespace of the target, the source, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            theta, phases = context.target.theta, context.source.theta
-            shifted = theta + context.alpha
-            sines, cosines = total(sin(phases)), total(cos(phases))
-            rate = context.K * (sines * cos(shifted) - cosines * sin(shifted)) / count()
-            self.laws_ = [RateLaw(theta.diff(context.t), rate)]
+        theta, phases = context.target.theta, context.source.theta
+        shifted = theta + context.alpha
+        sines, cosines = total(sin(phases)), total(cos(phases))
+        rate = context.K * (sines * cos(shifted) - cosines * sin(shifted)) / count()
+        self.laws_ = [RateLaw(theta.diff(context.t), rate)]
 
 
 class KuramotoSakaguchiChimeraSystem(BaseSystem):

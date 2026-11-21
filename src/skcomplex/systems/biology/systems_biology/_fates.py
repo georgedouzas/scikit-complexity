@@ -16,7 +16,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import total
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -110,7 +109,7 @@ class EllipticUmbilicInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the gradient descent of the potential under the drifting signals.
 
         Args:
@@ -118,13 +117,12 @@ class EllipticUmbilicInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context.target
-            theta1, theta2 = s.theta1 + s.v1 * context.t, s.theta2 + s.v2 * context.t
-            self.laws_ = [
-                RateLaw(s.x, -(4 * s.x**3 + 3 * s.x**2 - 2 * s.y**2 + 2 * s.a * s.x + theta1)),
-                RateLaw(s.y, -(4 * s.y**3 - 4 * s.x * s.y + 2 * s.a * s.y + theta2)),
-            ]
+        s = context.target
+        theta1, theta2 = s.theta1 + s.v1 * context.t, s.theta2 + s.v2 * context.t
+        self.laws_ = [
+            RateLaw(s.x, -(4 * s.x**3 + 3 * s.x**2 - 2 * s.y**2 + 2 * s.a * s.x + theta1)),
+            RateLaw(s.y, -(4 * s.y**3 - 4 * s.x * s.y + 2 * s.a * s.y + theta2)),
+        ]
 
 
 class ProneuralCellElement(Element):
@@ -205,7 +203,7 @@ class LateralInhibitionInteraction(Interaction):
         self.cells = cells
         self.kernel = kernel
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the relaxation of every cell towards the fate its inhibition allows.
 
         Args:
@@ -213,8 +211,6 @@ class LateralInhibitionInteraction(Interaction):
                 The namespace of the symbols the laws can use.
         """
         super()._prepare(context)
-        if not isinstance(context, SimpleNamespace):
-            return
         s = context
         cell = s.cells
         inhibition = total(self._get_sigmoid(cell.a - 1 / 2, cell.width), weights=np.asarray(self.kernel, dtype=float))

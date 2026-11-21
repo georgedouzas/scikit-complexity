@@ -17,7 +17,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import total
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
@@ -189,18 +188,14 @@ class ConsumptionInteraction(Interaction):
         self.kind = kind
         self.n = n
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Check the kind and the exponent.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The kind is unknown, or the exponent of essential resources is not below -1.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if self.kind not in KINDS:
             error_msg = f'The kind must be one of {", ".join(KINDS)}, not {self.kind!r}.'
             raise ValidationError(error_msg)
@@ -250,7 +245,7 @@ class ConsumerGrowthInteraction(ConsumptionInteraction):
 
     law_classes = (RateLaw,)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the growth of the consumers.
 
         Args:
@@ -258,15 +253,14 @@ class ConsumerGrowthInteraction(ConsumptionInteraction):
                 The namespace of the bound elements, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            consumers, resources = s.consumers, s.resources
-            if self.kind == 'essential':
-                growth = self._get_essential_growth(resources.R) - consumers.m
-            else:
-                intake = total(resources.w * resources.R, weights=np.asarray(self.c, dtype=float))
-                growth = consumers.e * (intake - consumers.m)
-            self.laws_ = [RateLaw(consumers.N, consumers.N * growth)]
+        s = context
+        consumers, resources = s.consumers, s.resources
+        if self.kind == 'essential':
+            growth = self._get_essential_growth(resources.R) - consumers.m
+        else:
+            intake = total(resources.w * resources.R, weights=np.asarray(self.c, dtype=float))
+            growth = consumers.e * (intake - consumers.m)
+        self.laws_ = [RateLaw(consumers.N, consumers.N * growth)]
 
 
 class ResourceTurnoverInteraction(ConsumptionInteraction):
@@ -331,35 +325,39 @@ class ResourceTurnoverInteraction(ConsumptionInteraction):
         self.supply = supply
         self.v = v
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the supply and the depletion of the resources, checking the supply, the kind, and the exponent.
-
-        Args:
-            context:
-                The namespace of the bound elements, the time `t`, and the parameters.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The supply or the kind is unknown, or the exponent of essential resources is not below -1.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if self.supply not in SUPPLIES:
             error_msg = f'The supply must be one of {", ".join(SUPPLIES)}, not {self.supply!r}.'
             raise ValidationError(error_msg)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            consumers, resources = s.consumers, s.resources
-            R = resources.R
-            if self.supply == 'logistic':
-                renewal = resources.r * R * (resources.K - R) / resources.K
-            else:
-                renewal = resources.kappa - resources.omega * R
-            if self.kind == 'essential':
-                stoichiometry = np.asarray(self.c if self.v is None else self.v, dtype=float)
-                depletion = total(consumers.N * self._get_essential_growth(R), weights=stoichiometry.T)
-            else:
-                depletion = R * total(consumers.N, weights=np.asarray(self.c, dtype=float).T)
-            self.laws_ = [RateLaw(R, renewal - depletion)]
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the supply and the depletion of the resources, checking the supply, the kind, and the exponent.
+
+        Args:
+            context:
+                The namespace of the bound elements, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        s = context
+        consumers, resources = s.consumers, s.resources
+        R = resources.R
+        if self.supply == 'logistic':
+            renewal = resources.r * R * (resources.K - R) / resources.K
+        else:
+            renewal = resources.kappa - resources.omega * R
+        if self.kind == 'essential':
+            stoichiometry = np.asarray(self.c if self.v is None else self.v, dtype=float)
+            depletion = total(consumers.N * self._get_essential_growth(R), weights=stoichiometry.T)
+        else:
+            depletion = R * total(consumers.N, weights=np.asarray(self.c, dtype=float).T)
+        self.laws_ = [RateLaw(R, renewal - depletion)]
 
 
 class ConsumerResourceSystem(BaseSystem):

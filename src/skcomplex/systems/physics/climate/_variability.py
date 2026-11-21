@@ -17,7 +17,6 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import NoiseLaw, RateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver
 from ....core.systems import BaseSystem, System
@@ -87,7 +86,7 @@ class ClimateFeedbackInteraction(Interaction):
         self.lam = lam
         self.sigma = sigma
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the relaxation of the anomaly and its weather noise.
 
         Args:
@@ -95,9 +94,8 @@ class ClimateFeedbackInteraction(Interaction):
                 The namespace of the anomaly, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            T = context.target.T
-            self.laws_ = [RateLaw(T.diff(context.t), (0.0 - T) / (1 / context.lam)), NoiseLaw(T, context.sigma)]
+        T = context.target.T
+        self.laws_ = [RateLaw(T.diff(context.t), (0.0 - T) / (1 / context.lam)), NoiseLaw(T, context.sigma)]
 
 
 class HasselmannSystem(BaseSystem):
@@ -204,7 +202,7 @@ class DelayedOscillatorInteraction(Interaction):
         self.alpha = alpha
         self.delta = delta
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate of the anomaly with its delayed feedback.
 
         Args:
@@ -212,9 +210,8 @@ class DelayedOscillatorInteraction(Interaction):
                 The namespace of the anomaly, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            T, t = context.target.T, context.t
-            self.laws_ = [RateLaw(T.diff(t), T - T**3 - context.alpha * T(t=t - context.delta))]
+        T, t = context.target.T, context.t
+        self.laws_ = [RateLaw(T.diff(t), T - T**3 - context.alpha * T(t=t - context.delta))]
 
 
 class ENSOSystem(BaseSystem):

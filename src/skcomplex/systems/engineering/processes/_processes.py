@@ -19,7 +19,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import step, where
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -83,11 +82,15 @@ class FeedInteraction(Interaction):
         self.target = target
         self.feed = feed
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the constant feed of the stage."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the constant feed of the stage.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [RateLaw(context.target.m.diff(context.t), context.feed)]
+        self.laws_: list[BaseComponent] = [RateLaw(context.target.m.diff(context.t), context.feed)]
 
 
 class StageSplitInteraction(Interaction):
@@ -134,16 +137,20 @@ class StageSplitInteraction(Interaction):
         self.below = below
         self.k = k
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Set the flows up and down out of the stage."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the flows up and down out of the stage.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            m = s.target.m
-            self.laws_: list[BaseComponent] = [
-                RateLaw({m: -1, s.above.m: +1}, s.k * m, label='up'),
-                RateLaw({m: -1, s.below.m: +1}, (1 - s.k) * m, label='down'),
-            ]
+        s = context
+        m = s.target.m
+        self.laws_: list[BaseComponent] = [
+            RateLaw({m: -1, s.above.m: +1}, s.k * m, label='up'),
+            RateLaw({m: -1, s.below.m: +1}, (1 - s.k) * m, label='down'),
+        ]
 
 
 class BathtubSystem(StockFlowSystem):

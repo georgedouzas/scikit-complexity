@@ -20,7 +20,6 @@ from ....core.components import Observable
 from ....core.components.elements import Element, Period, VisualSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import EventLaw, RateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
@@ -600,7 +599,7 @@ class MagnetInteraction(Interaction):
         self.gamma = gamma
         self.d = d
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the acceleration of the bob towards the magnet.
 
         Args:
@@ -608,11 +607,10 @@ class MagnetInteraction(Interaction):
                 The namespace of the bob, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            t, bob = context.t, context.target
-            dx, dy = bob.x - context.x0, bob.y - context.y0
-            pull = -context.gamma / (dx**2 + dy**2 + context.d**2) ** (3 / 2) / bob.m
-            self.laws_ = [RateLaw(bob.x.diff(t, 2), pull * dx), RateLaw(bob.y.diff(t, 2), pull * dy)]
+        t, bob = context.t, context.target
+        dx, dy = bob.x - context.x0, bob.y - context.y0
+        pull = -context.gamma / (dx**2 + dy**2 + context.d**2) ** (3 / 2) / bob.m
+        self.laws_ = [RateLaw(bob.x.diff(t, 2), pull * dx), RateLaw(bob.y.diff(t, 2), pull * dy)]
 
 
 class ParametricPendulumInteraction(LagrangianInteraction):
@@ -673,21 +671,17 @@ class ParametricPendulumInteraction(LagrangianInteraction):
         self.c = c
         self.direction = direction
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Raise an error for an unknown direction of the suspension point, then set the law of the angle.
-
-        Args:
-            context:
-                The namespace of the pendulum, the time `t`, and the parameters.
+    def _check_arguments(self) -> None:
+        """Raise an error for an unknown direction of the suspension point.
 
         Raises:
             ValidationError:
                 The direction is unknown.
         """
+        super()._check_arguments()
         if self.direction not in DIRECTIONS:
             error_msg = f'Unknown direction {self.direction!r}. Use one of {", ".join(DIRECTIONS)}.'
             raise ValidationError(error_msg)
-        super()._prepare(context)
 
     def _get_coordinates(self, context: SimpleNamespace) -> list[Expression]:
         """Return the angle of the pendulum."""
@@ -775,7 +769,7 @@ class PendulumSpringInteraction(Interaction):
         self.second = second
         self.k = k
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the angular accelerations that the spring gives the two pendulums.
 
         Args:
@@ -783,19 +777,18 @@ class PendulumSpringInteraction(Interaction):
                 The namespace of the two pendulums, the time `t`, and the stiffness.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            first, second, t = context.first, context.second, context.t
-            stretch = second.l * sin(second.theta) - first.l * sin(first.theta)
-            self.laws_ = [
-                RateLaw(
-                    first.theta.diff(t, 2),
-                    context.k * stretch * first.l * cos(first.theta) / (first.m * first.l**2),
-                ),
-                RateLaw(
-                    second.theta.diff(t, 2),
-                    -context.k * stretch * second.l * cos(second.theta) / (second.m * second.l**2),
-                ),
-            ]
+        first, second, t = context.first, context.second, context.t
+        stretch = second.l * sin(second.theta) - first.l * sin(first.theta)
+        self.laws_ = [
+            RateLaw(
+                first.theta.diff(t, 2),
+                context.k * stretch * first.l * cos(first.theta) / (first.m * first.l**2),
+            ),
+            RateLaw(
+                second.theta.diff(t, 2),
+                -context.k * stretch * second.l * cos(second.theta) / (second.m * second.l**2),
+            ),
+        ]
 
 
 class SupportSpringInteraction(Interaction):
@@ -840,7 +833,7 @@ class SupportSpringInteraction(Interaction):
         self.second = second
         self.k = k
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the accelerations that the spring gives the supports and the pendulums of the two clocks.
 
         Args:
@@ -848,18 +841,17 @@ class SupportSpringInteraction(Interaction):
                 The namespace of the two clocks, the time `t`, and the stiffness.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            first, second, t = context.first, context.second, context.t
-            pull = context.k * (second.x - first.x)
-            laws = []
-            for clock, force in ((first, pull), (second, -pull)):
-                coupling = clock.m * clock.l * cos(clock.theta)
-                determinant = clock.m * clock.l**2 * (clock.M + clock.m) - coupling**2
-                laws += [
-                    RateLaw(clock.theta.diff(t, 2), -coupling * force / determinant),
-                    RateLaw(clock.x.diff(t, 2), clock.m * clock.l**2 * force / determinant),
-                ]
-            self.laws_ = laws
+        first, second, t = context.first, context.second, context.t
+        pull = context.k * (second.x - first.x)
+        laws = []
+        for clock, force in ((first, pull), (second, -pull)):
+            coupling = clock.m * clock.l * cos(clock.theta)
+            determinant = clock.m * clock.l**2 * (clock.M + clock.m) - coupling**2
+            laws += [
+                RateLaw(clock.theta.diff(t, 2), -coupling * force / determinant),
+                RateLaw(clock.x.diff(t, 2), clock.m * clock.l**2 * force / determinant),
+            ]
+        self.laws_ = laws
 
 
 class DoublePendulumSystem(systems.BaseSystem):
@@ -1452,7 +1444,7 @@ class BulletImpactInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the free flight of the bullet and the event of the impact.
 
         Args:
@@ -1460,11 +1452,10 @@ class BulletImpactInteraction(Interaction):
                 The namespace of the bullet and pendulum and the time `t`.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            t, p = context.t, context.target
-            velocity = p.x.diff(t)
-            reset = {velocity: 0, p.theta.diff(t): p.m * velocity / ((p.m + p.M) * p.l)}
-            self.laws_ = [RateLaw(p.x.diff(t, 2), 0), EventLaw(p.x, reset, direction=1)]
+        t, p = context.t, context.target
+        velocity = p.x.diff(t)
+        reset = {velocity: 0, p.theta.diff(t): p.m * velocity / ((p.m + p.M) * p.l)}
+        self.laws_ = [RateLaw(p.x.diff(t, 2), 0), EventLaw(p.x, reset, direction=1)]
 
 
 class BallisticPendulumSystem(systems.BaseSystem):

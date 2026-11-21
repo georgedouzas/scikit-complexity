@@ -17,7 +17,6 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import total
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
@@ -87,7 +86,7 @@ class MicrobialGrowthInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the growth of the abundance of every species.
 
         Args:
@@ -95,8 +94,7 @@ class MicrobialGrowthInteraction(Interaction):
                 The namespace of the species, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [RateLaw(context.target.x, context.target.b * context.target.x)]
+        self.laws_ = [RateLaw(context.target.x, context.target.b * context.target.x)]
 
 
 class GeneralizedLotkaVolterraInteraction(Interaction):
@@ -144,7 +142,7 @@ class GeneralizedLotkaVolterraInteraction(Interaction):
         self.a = a
         self.state = state
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the coupling of the abundance of every species to the abundances of the group.
 
         Args:
@@ -152,9 +150,8 @@ class GeneralizedLotkaVolterraInteraction(Interaction):
                 The namespace of the species, the time `t`, and the matrix.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            abundance = getattr(context.target, self.state)
-            self.laws_ = [RateLaw(abundance, abundance * total(abundance, weights=context.a))]
+        abundance = getattr(context.target, self.state)
+        self.laws_ = [RateLaw(abundance, abundance * total(abundance, weights=context.a))]
 
 
 class GeneralizedLotkaVolterraSystem(BaseSystem):

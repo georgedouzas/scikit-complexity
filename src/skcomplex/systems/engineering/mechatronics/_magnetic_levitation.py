@@ -19,7 +19,6 @@ from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -84,17 +83,16 @@ class DampingInteraction(Interaction):
         self.target = target
         self.b = b
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the relaxation of the velocity.
 
         Args:
             context:
-                The space the interaction inherits from its system, or the namespace of the target.
+                The namespace of the target.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            v = context.target.v
-            self.laws_: list[BaseComponent] = [RateLaw(v.diff(context.t), -context.b * v)]
+        v = context.target.v
+        self.laws_: list[BaseComponent] = [RateLaw(v.diff(context.t), -context.b * v)]
 
 
 class MagneticLevitationSystem(BaseSystem):

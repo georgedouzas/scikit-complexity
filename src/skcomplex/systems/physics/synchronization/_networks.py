@@ -121,7 +121,7 @@ class EdgeCouplingInteraction(Interaction):
         self.K = K
         self.alpha = alpha
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the turn of the phases at both ends of an edge towards each other.
 
         Args:
@@ -129,14 +129,13 @@ class EdgeCouplingInteraction(Interaction):
                 The namespace of the ends `source` and `target`, the edge `edge`, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            first, second = s.source.theta, s.target.theta
-            weight = s.K * s.edge.w
-            self.laws_ = [
-                RateLaw(second.diff(s.t), weight * sin(first - second - s.alpha)),
-                RateLaw(first.diff(s.t), weight * sin(second - first - s.alpha)),
-            ]
+        s = context
+        first, second = s.source.theta, s.target.theta
+        weight = s.K * s.edge.w
+        self.laws_ = [
+            RateLaw(second.diff(s.t), weight * sin(first - second - s.alpha)),
+            RateLaw(first.diff(s.t), weight * sin(second - first - s.alpha)),
+        ]
 
 
 class LogisticCouplingInteraction(Interaction):
@@ -176,7 +175,7 @@ class LogisticCouplingInteraction(Interaction):
         self.target = target
         self.state = state
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the map of every node mixed with the mean map of its neighbours.
 
         Args:
@@ -184,11 +183,10 @@ class LogisticCouplingInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            node = context.target
-            x, other = getattr(node, self.state), getattr(node.other, self.state)
-            neighbours = neighbors(node.r * other * (1 - other), reduce='mean')
-            self.laws_ = [UpdateLaw(x, (1 - node.epsilon) * (node.r * x * (1 - x)) + node.epsilon * neighbours)]
+        node = context.target
+        x, other = getattr(node, self.state), getattr(node.other, self.state)
+        neighbours = neighbors(node.r * other * (1 - other), reduce='mean')
+        self.laws_ = [UpdateLaw(x, (1 - node.epsilon) * (node.r * x * (1 - x)) + node.epsilon * neighbours)]
 
 
 class NodeOscillatorElement(PhaseOscillatorElement):

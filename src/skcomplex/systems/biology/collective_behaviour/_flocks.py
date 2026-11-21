@@ -392,7 +392,7 @@ class HeadingInteraction(Interaction):
         self.target = target
         self.phase = phase
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the steering rule of every boid.
 
         Args:
@@ -400,8 +400,7 @@ class HeadingInteraction(Interaction):
                 The namespace of the boids.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context.target, self.steer, phase=self.phase)]
+        self.laws_ = [UpdateLaw(context.target, self.steer, phase=self.phase)]
 
     @staticmethod
     def _get_velocity(boid: SpatialBoidView) -> Array:
@@ -497,7 +496,7 @@ class MorsePotentialInteraction(Interaction):
         self.C_r = C_r
         self.l_r = l_r
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the force of the members within the cutoff on every member.
 
         Args:
@@ -505,15 +504,14 @@ class MorsePotentialInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, x = context, context.target.x
-            separation = x - s.target.other.x
-            r = sqrt(separation.dot_product(separation))
-            distance = SR.var('r', domain='positive')
-            energy = s.C_r * exp(-distance / s.l_r) - s.C_a * exp(-distance / s.l_a)
-            slope = energy.diff(distance).subs({distance: r})
-            force = neighbors(-slope * separation / r, RadiusNeighborhood(self.cutoff))
-            self.laws_ = [RateLaw(x.diff(s.t, 2), force)]
+        s, x = context, context.target.x
+        separation = x - s.target.other.x
+        r = sqrt(separation.dot_product(separation))
+        distance = SR.var('r', domain='positive')
+        energy = s.C_r * exp(-distance / s.l_r) - s.C_a * exp(-distance / s.l_a)
+        slope = energy.diff(distance).subs({distance: r})
+        force = neighbors(-slope * separation / r, RadiusNeighborhood(self.cutoff))
+        self.laws_ = [RateLaw(x.diff(s.t, 2), force)]
 
 
 class SelfPropulsionInteraction(Interaction):
@@ -553,7 +551,7 @@ class SelfPropulsionInteraction(Interaction):
         self.alpha = alpha
         self.beta = beta
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the propulsion of the velocity of the target.
 
         Args:
@@ -561,11 +559,10 @@ class SelfPropulsionInteraction(Interaction):
                 The namespace of the target, the time `t`, and the parameters.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, t = context, context.t
-            x = s.target.x
-            velocity = x.diff(t)
-            self.laws_ = [RateLaw(x.diff(t, 2), (s.alpha - s.beta * velocity.dot_product(velocity)) * velocity)]
+        s, t = context, context.t
+        x = s.target.x
+        velocity = x.diff(t)
+        self.laws_ = [RateLaw(x.diff(t, 2), (s.alpha - s.beta * velocity.dot_product(velocity)) * velocity)]
 
 
 class SpatialFlightInteraction(MovementInteraction):

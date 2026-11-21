@@ -18,7 +18,6 @@ from ....core.components import Observable
 from ....core.components.elements import Element, Period
 from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
-from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -252,7 +251,7 @@ class RotationInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate of the angle of the ball.
 
         Args:
@@ -260,9 +259,8 @@ class RotationInteraction(Interaction):
                 The namespace of the ball and the time `t`.
         """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            ball = context.target
-            self.laws_ = [RateLaw(ball.theta.diff(context.t), ball.H / (ball.m * ball.r**2 * sin(ball.beta) ** 2))]
+        ball = context.target
+        self.laws_ = [RateLaw(ball.theta.diff(context.t), ball.H / (ball.m * ball.r**2 * sin(ball.beta) ** 2))]
 
 
 class GyroscopeInteraction(LagrangianInteraction):
