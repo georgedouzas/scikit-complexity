@@ -24,6 +24,8 @@ from skcomplex.core.components.laws.utils import (
     mean,
     minimum,
     neighbors,
+    reduction,
+    shift_member,
     total,
     uniform,
     variance,
@@ -1053,3 +1055,40 @@ def test_log_sum_exp_random_energy_system_entropy() -> None:
     assert entropies[0] == pytest.approx(math.log(2) - 1 / 4, abs=0.02)
     assert entropies[1] == pytest.approx(math.log(2) - 1 / 16, abs=0.02)
     assert entropies[2] < 0.1
+
+
+def test_reduction_by_a_function_is_found_with_its_function():
+    """Test that a reduction by a Python function is found as a reduction of the kind `function`."""
+    (found,) = reductions_in(reduction(np.median, var('x')))
+    assert (found.kind, found.function) == ('function', np.median)
+
+
+def test_reductions_print_their_condition_and_key():
+    """Test that a condition prints as `where` and a key as a condition on the members that share its value."""
+    x = var('x')
+    members = SimpleNamespace(cell=var('cell'), other=SimpleNamespace(cell=var('cell_other')))
+    assert str(total(x, where=x > 0.5)) == 'total(x, where=x > 0.5)'
+    assert str(count(over=members, by='cell')) == 'count(over=cell, where=cell_other == cell)'
+
+
+def test_minimum_and_maximum_of_two_expressions_print_as_choices():
+    """Test that the minimum and maximum of two expressions are choices, and of one expression reductions."""
+    x, y = var('x y')
+    assert (str(maximum(x)), str(maximum(x, y))) == ('maximum(x)', 'where(y > x, y, x)')
+    assert (str(minimum(x)), str(minimum(x, y))) == ('minimum(x)', 'where(y < x, y, x)')
+
+
+def test_neighbors_print_their_weight_and_hyperedges_their_neighbourhood():
+    """Test that an argmax over neighbours prints its weight and a hyperedge reduction its neighbourhood."""
+    first, second = var('first second')
+    argmax = neighbors(var('strategy_other'), reduce='argmax', weight=var('payoff_other'))
+    assert str(argmax) == "neighbors(strategy_other, reduce='argmax', weight=payoff_other)"
+    assert str(hyperedges(var('x'), reduce='mean')) == "hyperedges(x, reduce='mean')"
+    assert str(hyperedges(first * second, size=3, over=RadiusNeighborhood(1.5))) == (
+        "hyperedges(first*second, reduce='sum', size=3, over=RadiusNeighborhood(radius=1.5))"
+    )
+
+
+def test_shift_member_by_zero_is_the_expression():
+    """Test that reading a member zero places along the group gives the expression itself."""
+    assert str(shift_member(var('x'), 0)) == 'x'
