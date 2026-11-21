@@ -5,9 +5,6 @@
 
 from typing import ClassVar
 
-import numpy as np
-import numpy.typing as npt
-
 from ...errors import ValidationError
 from ._base import _BaseTime
 from ._schedule_spec import ScheduleSpec
@@ -60,6 +57,3 @@ class _DiscreteTime(_BaseTime):
             raise ValidationError(error_msg)
         self.schedule_ = self.schedule
 
-    def _get_frames(self, until: float) -> npt.NDArray[np.float64]:
-        """Return every step from 0 to a time."""
-        return np.arange(int(np.floor(until)) + 1, dtype=float)

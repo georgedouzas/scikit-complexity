@@ -351,8 +351,7 @@ class BaseSpace(BaseComponent[None]):
 class _BaseTime(BaseComponent[None]):
     """An abstract time, which decides the kind of laws a system may hold.
 
-    A time stores its arguments in its `__init__`, `prepare` checks them and sets its schedule, and `_get_frames`
-    returns the times of the frames of a run up to a time.
+    A time stores its arguments in its `__init__`, and `prepare` checks them and sets its schedule.
 
     Unlike `BaseSpace`, which says where members are, it says how the states advance. Choose it when a system advances
     in a new way, and choose `_ContinuousTime`, `_DiscreteTime`, or `_StaticTime` otherwise.
@@ -375,17 +374,3 @@ class _BaseTime(BaseComponent[None]):
         """Return the tags of the time: the time tag of its class, and no laws."""
         return Tags(time=frozenset({self.time_tag} - {''}))
 
-    def _get_frames(self, until: float) -> npt.NDArray[np.float64]:
-        """Return the times of the frames of a run up to a time.
-
-        By default they are its start and its end.
-
-        Args:
-            until:
-                The end of the run.
-
-        Returns:
-            times:
-                The times of the frames.
-        """
-        return np.array([0.0, float(until)])

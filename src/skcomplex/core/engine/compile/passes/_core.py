@@ -36,7 +36,6 @@ from ._layout import LayoutPass
 from ._linear_programs import LinearProgramsPass
 from ._lower_fields import LowerFieldsPass
 from ._lower_flows import LowerFlowsPass
-from ._markov import MarkovPass
 from ._mask_requests import MaskRequestsPass
 from ._members import MemberShiftPass
 from ._noise import NoisePass
@@ -68,7 +67,6 @@ PASSES: tuple[type[BasePass], ...] = (
     CollectPass,
     ConservationLawsPass,
     LowerComplexPass,
-    MarkovPass,
     RowsPass,
     ResidencesPass,
     OrdersPass,

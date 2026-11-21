@@ -10,7 +10,6 @@ import numpy as np
 
 from ...components.laws import ConstraintLaw, RateLaw
 from ...components.laws._boundary import _BoundaryLaw
-from ...components.laws._transfer import _TransferLaw
 from ...components.spaces import BaseSpace
 from ...components.spaces._continuous_time import _ContinuousTime
 from ...enums import FormKind, OrderKind
@@ -39,7 +38,7 @@ class CaputoSolver(Solver):
         return SupportSpec(
             time={_ContinuousTime},
             space={None, BaseSpace},
-            laws={RateLaw, ConstraintLaw, _BoundaryLaw, _TransferLaw},
+            laws={RateLaw, ConstraintLaw, _BoundaryLaw},
             orders=frozenset(OrderKind),
         )
 

@@ -34,7 +34,6 @@ from ..problems._jacobian_kernel import JacobianKernel
 from ..problems._kernel_spec import KernelSpec
 from ..problems._linear_term_spec import LinearTermSpec
 from ..problems._lowered_kernels_spec import LoweredKernelsSpec
-from ..problems._markov_kernel import MarkovKernel
 from ..problems._node_spec import _NodeSpec
 from ..problems._output_spec import OutputSpec
 from ..problems._problem_functions_spec import _ProblemFunctionsSpec
@@ -45,7 +44,6 @@ from ..problems._transfer_network_spec import TransferNetworkSpec
 from ..problems._transfer_state_spec import TransferStateSpec
 from ._bound_renewal_spec import BoundRenewalSpec
 from ._census_spec import _CensusSpec
-from ._matrix_law_spec import _MatrixLawSpec
 from ._plan_spec import _PlanSpec
 
 TIME_FUNCTIONS = ('derivative', 'lag', 'delayed')
@@ -105,13 +103,7 @@ class Compilation:
             The linear program laws of every kernel spec, which never reach a kernel of their spec.
 
         lowered:
-            The laws of every kernel spec with complex states split and Markov laws taken out.
-
-        markov:
-            The Markov laws of every kernel spec.
-
-        matrices:
-            The Markov matrices, checked at the initial parameters.
+            The laws of every kernel spec with complex states split.
 
         ordered:
             The laws with derivatives and lags read through companion states and equations solved.
@@ -229,15 +221,13 @@ class Compilation:
     apart: Laws | None = None
     programs: Laws | None = None
     lowered: BlockLaws | None = None
-    markov: list[tuple[KernelSpec, _MatrixLawSpec]] | None = None
-    matrices: tuple[MarkovKernel, ...] | None = None
     ordered: Laws | None = None
     delayed: Laws | None = None
     corrected: Laws | None = None
     shifted: Laws | None = None
     drawn: Laws | None = None
     drawn_apart: Laws | None = None
-    kinds: dict[str, set[type]] | None = None
+    kinds: dict[str, set[type[BaseLaw]]] | None = None
     draws: DrawKernel | None = None
     form: FormKind | None = None
     reduced: Laws | None = None
@@ -296,7 +286,6 @@ class Compilation:
         if not replaced:
             return
         self._replace_in(self.specs or [], replaced)
-        self._replace_in(self.markov or [], replaced)
         self._replace_in(self.events or [], replaced)
         self._replace_in(self.rules or [], replaced)
         for block_laws in (self.collected, self.lowered):

@@ -168,22 +168,20 @@ class RewritingCompiler(BaseCompiler):
 
     @staticmethod
     def _get_parameters(
-        components: Mapping[str, object],
+        interactions: Mapping[str, BaseInteraction],
     ) -> tuple[list[EntrySpec], list[float], dict[str, SimpleNamespace], dict[str, Expression]]:
-        """Return the parameter entries and values of the words, patches, and interactions.
+        """Return the parameter entries and values of the interactions.
 
-        Their namespaces and symbols are also returned. The parameters of an element are those it declares, and those
-        of an interaction its numeric arguments, in the order of its constructor, with the allowed values `Annotated`
-        gives them.
+        Their namespaces and symbols are also returned. The parameters of an interaction are its numeric arguments, in
+        the order of its constructor, with the allowed values `Annotated` gives them.
         """
         entries: list[EntrySpec] = []
         values: list[float] = []
         namespaces: dict[str, SimpleNamespace] = {}
         symbols: dict[str, Expression] = {}
-        for path, component in components.items():
-            declared = RewritingCompiler._get_arguments_of(component) if isinstance(component, BaseInteraction) else {}
+        for path, interaction in interactions.items():
             names = {}
-            for name, (domain, value) in declared.items():
+            for name, (domain, value) in RewritingCompiler._get_arguments_of(interaction).items():
                 number = np.asarray(value)
                 if number.ndim or not EntrySpec._contains(domain, value):
                     error_msg = f'{path}.{name} = {value!r} is not a number in the {domain} domain.'
@@ -333,11 +331,10 @@ class RewritingCompiler(BaseCompiler):
             for path, (scope, interaction) in interactions.items()
         }
         elements = {path: node.component for path, node in rewritten.items() if isinstance(node.component, Element)}
-        components = {
-            **{path: node.component for path, node in rewritten.items()},
-            **{path: interaction for path, (_, interaction) in interactions.items()},
-        }
-        entries, values, namespaces, symbols = RewritingCompiler._get_parameters(components)
+        entries, values, namespaces, symbols = RewritingCompiler._get_parameters(
+            {path: interaction for path, (_, interaction) in interactions.items()},
+        )
+        namespaces.update({path: SimpleNamespace(t=RewritingCompiler._get_symbol('t')) for path in rewritten})
         parameters = _ParametersSpec(tuple(symbols.values()), RewritingCompiler._get_symbol('t'))
         initial_parameters = np.asarray(values, dtype=float)
         productions: dict[str, list[Production]] = {path: [] for path in elements}
@@ -360,7 +357,7 @@ class RewritingCompiler(BaseCompiler):
                     path=item.path,
                     element=component,
                     states={name: f'{item.path}.{name}' for name in names},
-                    parameters={name: f'{item.path}.{name}' for name in vars(namespaces[item.path]) if name != 't'},
+                    parameters={},
                     visual=RewritingCompiler._get_visual_of(elements[item.path], rewritten[item.path].space),
                 ),
             )

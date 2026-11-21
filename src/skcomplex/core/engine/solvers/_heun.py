@@ -9,7 +9,6 @@ import numpy as np
 from ...components.laws import ConstraintLaw, EventLaw, NoiseLaw, RateLaw
 from ...components.laws._boundary import _BoundaryLaw
 from ...components.laws._linear_program import _LinearProgramLaw
-from ...components.laws._transfer import _TransferLaw
 from ...components.spaces import BaseSpace
 from ...components.spaces._continuous_time import _ContinuousTime
 from ...enums import NoiseKind, OrderKind
@@ -49,7 +48,7 @@ class HeunSolver(SDESolver):
         return SupportSpec(
             time={_ContinuousTime},
             space={None, BaseSpace},
-            laws={_LinearProgramLaw, RateLaw, ConstraintLaw, EventLaw, _BoundaryLaw, _TransferLaw, NoiseLaw},
+            laws={_LinearProgramLaw, RateLaw, ConstraintLaw, EventLaw, _BoundaryLaw, NoiseLaw},
             noise=frozenset(NoiseKind) - {NoiseKind.FRACTIONAL},
             orders=frozenset({OrderKind.INTEGER}),
         )

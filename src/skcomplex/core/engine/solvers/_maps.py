@@ -11,8 +11,6 @@ import numpy as np
 from ...components.laws import UpdateLaw
 from ...components.laws._boundary import _BoundaryLaw
 from ...components.laws._linear_program import _LinearProgramLaw
-from ...components.laws._transfer import _TransferLaw
-from ...components.laws._transition import _TransitionLaw
 from ...components.spaces import BaseSpace
 from ...components.spaces._discrete_time import _DiscreteTime
 from ...enums import FormKind, OrderKind
@@ -75,7 +73,7 @@ class IterationSolver(Solver):
         return SupportSpec(
             time={_DiscreteTime},
             space={None, BaseSpace},
-            laws={UpdateLaw, _TransitionLaw, _LinearProgramLaw, _BoundaryLaw, _TransferLaw},
+            laws={UpdateLaw, _LinearProgramLaw, _BoundaryLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 

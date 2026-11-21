@@ -24,7 +24,6 @@ from ...components.elements import BaseElement
 from ...components.laws import BaseLaw, DrawSpec
 from ...components.laws._boundary import _BoundaryLaw
 from ...components.laws._rule import _RuleLaw
-from ...components.laws._transfer import _TransferLaw
 from ...components.spaces import BaseSpace, ContinuousSpace, DelaunayNeighborhood, LatticeSpace, NetworkSpace
 from ...components.spaces._discrete_time import _DiscreteTime
 from ...enums import ActivationKind, FormKind, OrderKind, VariableKind
@@ -1168,7 +1167,7 @@ class MesaSolver(ExternalSolver):
         return SupportSpec(
             time={_DiscreteTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace},
-            laws={_RuleLaw, _BoundaryLaw, _TransferLaw},
+            laws={_RuleLaw, _BoundaryLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 

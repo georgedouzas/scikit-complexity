@@ -9,7 +9,6 @@ import numpy as np
 
 from ...components.laws import EventLaw, RateLaw
 from ...components.laws._boundary import _BoundaryLaw
-from ...components.laws._transfer import _TransferLaw
 from ...components.spaces._continuous_time import _ContinuousTime
 from ...enums import FormKind, OrderKind
 from ...errors import SolverError
@@ -63,7 +62,7 @@ class EulerSolver(Solver):
         return SupportSpec(
             time={_ContinuousTime},
             space={None},
-            laws={RateLaw, EventLaw, _BoundaryLaw, _TransferLaw},
+            laws={RateLaw, EventLaw, _BoundaryLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 

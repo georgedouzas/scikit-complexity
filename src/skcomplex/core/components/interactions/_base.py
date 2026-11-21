@@ -486,7 +486,7 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace]):
             state, order = found
             if not isinstance(law, RateLaw) or not state.is_symbol():
                 error_msg = (
-                    f'A {type(law).__name__} targets a fractional derivative, but only a RateLaw of a state takes one, '
+                    f'A {law._get_name()} targets a fractional derivative, but only a RateLaw of a state takes one, '
                     'such as `RateLaw(fractional(s.target.x, 0.5), -s.k * s.target.x)`.'
                 )
                 raise ValidationError(error_msg)
@@ -1080,11 +1080,6 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace]):
         if origin is Union or origin is UnionType:
             return any(cls._is_state_names(arg) for arg in args)
         return origin is tuple and args == (str, Ellipsis)
-        if origin in (tuple, Mapping, dict) and args:
-            first = args[0]
-            keys = get_args(first) if get_origin(first) in (Union, UnionType) else (first,)
-            return str in keys
-        return False
 
     def _get_state_names(self, names: Sequence[str]) -> tuple[str, ...]:
         """Return the states that declared names mean.

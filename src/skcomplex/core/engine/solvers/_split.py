@@ -14,7 +14,6 @@ from scipy.sparse.linalg import SuperLU, splu
 from ...components.laws import RateLaw
 from ...components.laws._boundary import _BoundaryLaw
 from ...components.laws._linear_program import _LinearProgramLaw
-from ...components.laws._transfer import _TransferLaw
 from ...components.spaces import BaseSpace, CellComplexSpace, LatticeNeighborhood, LatticeSpace, NetworkSpace
 from ...components.spaces._continuous_time import _ContinuousTime
 from ...enums import FormKind, OrderKind
@@ -67,7 +66,7 @@ class SplitSolver(Solver):
         return SupportSpec(
             time={_ContinuousTime},
             space={None, BaseSpace},
-            laws={_LinearProgramLaw, RateLaw, _BoundaryLaw, _TransferLaw},
+            laws={_LinearProgramLaw, RateLaw, _BoundaryLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 

@@ -26,7 +26,7 @@ from ..backends import BaseBackend
 from ..compile import BaseCompiler
 from ..compile._observables import ObservableEvaluator
 from ..compile._pass_compiler import PassCompiler
-from ..problems import BaseProblemSpec, FrameSpec, LayoutSpec, ProblemSpec, RunStateSpec
+from ..problems import BaseProblemSpec, FrameSpec, LayoutSpec, ProblemSpec
 from ..problems._composite_system import _CompositeSystem
 from ..problems._draw_recorder import DrawRecorder
 from ..problems._group_element import _GroupElement
@@ -514,7 +514,6 @@ class Simulation(BaseConfig[None, float]):
                 error_msg = f'No parameter named {name!r} to schedule. Available names are: {names}.'
                 raise ParameterError(error_msg) from error
             changes.append((name, indices, self._check_value(name, entry, function(self.time_))))
-        self._check_matrices(changes)
         for _, indices, value in changes:
             self.parameters_[indices] = value
 
@@ -548,28 +547,6 @@ class Simulation(BaseConfig[None, float]):
             f'or of a shape that broadcasts to it, in the domain {entry.domain}. The given value has shape '
             f'{np.shape(value)}.'
         )
-
-    def _check_matrices(self, changes: list[tuple[str, slice, Array]]) -> None:
-        """Raise an error for scheduled values that break a transition or emission matrix."""
-        problems = (self.problem_, *self._partition_problems(self.problem_))
-        matrices = [matrix for problem in problems for matrix in problem.matrices]
-        if not matrices:
-            return
-        candidate = self.parameters_.copy()
-        positions = np.arange(candidate.size)
-        changed: dict[int, str] = {}
-        for name, indices, value in changes:
-            candidate[indices] = value
-            changed.update(dict.fromkeys(positions[indices].tolist(), name))
-        for matrix in matrices:
-            names = sorted({changed[index] for index in matrix.reads if index in changed})
-            violation = matrix.run(RunStateSpec(self.time_, self.state_, candidate)).values_ if names else None
-            if violation is not None:
-                error_msg = (
-                    f'At t = {self.time_}, the schedule sets {", ".join(names)}, which would make {violation}. '
-                    'Schedule values that keep every entry nonnegative and every row summing to 1.'
-                )
-                raise ParameterError(error_msg)
 
     def _check_prepared(self) -> None:
         """Raise an error when the simulation has not been run."""

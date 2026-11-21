@@ -24,8 +24,3 @@ def test_discrete_time_checks_its_schedule():
         time.prepare()
     with pytest.raises(ValidationError, match='repeat a name'):
         _DiscreteTime(PhasesScheduleSpec((PhaseSpec('trade'), PhaseSpec('trade')))).prepare()
-
-
-def test_discrete_time_steps_by_one():
-    """Test that the frames of discrete time are the whole steps up to the end of the run."""
-    assert _DiscreteTime().prepare()._get_frames(2.5).tolist() == [0.0, 1.0, 2.0]

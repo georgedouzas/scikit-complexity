@@ -15,8 +15,6 @@ from ..components._state_spec import _StateSpec
 from ..components.elements import BaseElement, Element
 from ..components.laws import ConstraintLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ..components.laws._boundary import _BoundaryLaw
-from ..components.laws._transfer import _TransferLaw
-from ..components.laws._transition import _TransitionLaw
 from ..engine._utils import declared_variables, probe_laws
 from ..engine.problems import BaseProblemSpec
 from ..engine.problems._composite_system import _CompositeSystem
@@ -38,8 +36,6 @@ PLAIN_LAWS = (
     UpdateLaw,
     _BoundaryLaw,
     EventLaw,
-    _TransitionLaw,
-    _TransferLaw,
     ConstraintLaw,
 )
 

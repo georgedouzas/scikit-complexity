@@ -17,13 +17,11 @@ import numpy as np
 from numba.core.dispatcher import Dispatcher
 
 from ...components import EntrySpec
-from ...components.laws import ConstraintLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ...components.laws import BaseLaw, ConstraintLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ...components.laws._boundary import _BoundaryLaw
 from ...components.laws._local_rule import _LocalRuleLaw
 from ...components.laws._rule import _RuleLaw
 from ...components.laws._sample import _SampleLaw
-from ...components.laws._transfer import _TransferLaw
-from ...components.laws._transition import _TransitionLaw
 from ...components.spaces import BaseSpace
 from ...components.spaces._continuous_time import _ContinuousTime
 from ...components.spaces._discrete_time import _DiscreteTime
@@ -133,8 +131,6 @@ class NumbaBackend(BaseBackend):
                 RateLaw,
                 _RuleLaw,
                 _SampleLaw,
-                _TransferLaw,
-                _TransitionLaw,
                 UpdateLaw,
             },
             noise=frozenset(NoiseKind),
@@ -167,7 +163,7 @@ class NumbaBackend(BaseBackend):
             error_msg = 'A backend runs on the kernels of a problem of one form. Pass a `LoweredKernelsSpec` to `run`.'
             raise ValidationError(error_msg)
         form, size, kernels, draws = inputs.form, inputs.size, inputs.kernels, inputs.draws
-        used: dict[type, list[LawKernel]] = {
+        used: dict[type[BaseLaw], list[LawKernel]] = {
             _BoundaryLaw: kernels.get(_BoundaryLaw, []),
             RateLaw: kernels.get(RateLaw, []) if form in RATE_FORMS else [],
             NoiseLaw: kernels.get(NoiseLaw, []) if form == FormKind.SDE else [],
@@ -177,7 +173,7 @@ class NumbaBackend(BaseBackend):
         reductions = inputs.reductions or ReductionScheduleSpec()
         reduced = bool(reductions.steps)
         fused = self._get_reductions_compile(reductions)
-        compiled: dict[type, bool] = {
+        compiled: dict[type[BaseLaw], bool] = {
             kind: fused and all(self._is_compilable(kernel) for kernel in items) for kind, items in used.items()
         }
         if JumpLaw in compiled and any(
@@ -244,8 +240,8 @@ class NumbaBackend(BaseBackend):
         form: FormKind,
         needed: list[type],
         *,
-        used: Mapping[type, list[LawKernel]],
-        compiled: Mapping[type, bool],
+        used: Mapping[type[BaseLaw], list[LawKernel]],
+        compiled: Mapping[type[BaseLaw], bool],
         changes: Mapping[int, list[tuple[ReferenceSpec, object]]],
         size: int,
         module: ModuleType,
@@ -389,7 +385,7 @@ class NumbaBackend(BaseBackend):
 
     @staticmethod
     def _get_layout_entries(
-        used: Mapping[type, list[LawKernel]],
+        used: Mapping[type[BaseLaw], list[LawKernel]],
         reductions: ReductionScheduleSpec,
     ) -> dict[str, EntrySpec]:
         """Return every entry the kernels and the reductions of a problem read, by name."""
@@ -530,8 +526,8 @@ class NumbaBackend(BaseBackend):
     @staticmethod
     def _report_fallbacks(
         name: str,
-        used: Mapping[type, list[LawKernel]],
-        compiled: Mapping[type, bool],
+        used: Mapping[type[BaseLaw], list[LawKernel]],
+        compiled: Mapping[type[BaseLaw], bool],
         reductions: ReductionScheduleSpec,
     ) -> dict[str, str]:
         """Warn once about the kinds run in Python, and return the runners.
@@ -556,7 +552,7 @@ class NumbaBackend(BaseBackend):
                 The backend name for every law kind with kernels, `'python'` for those that run in Python.
         """
         kinds = [kind for kind, items in used.items() if items]
-        fallen = [kind.__name__ for kind in kinds if not compiled[kind]]
+        fallen = sorted({kind._get_name() for kind in kinds if not compiled[kind]})
         if fallen:
             unprinted = NumbaBackend._get_unprinted_reduction(reductions)
             reason = (

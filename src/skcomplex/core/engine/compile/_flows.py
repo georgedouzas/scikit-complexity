@@ -15,12 +15,10 @@ from ...components import EntrySpec
 from ...components.laws import BaseLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ...components.laws._boundary import _BoundaryLaw
 from ...components.laws._flow_term import FlowTermLaw
-from ...components.laws._transfer import _Sink, _Source, _TransferLaw
-from ...components.laws.utils import shift_member
 from ...components.laws.utils._delays import delay_parts
 from ...components.laws.utils._draws import draws_in
 from ...components.spaces._discrete_time import _DiscreteTime
-from ...enums import FormKind, VariableKind
+from ...enums import VariableKind
 from ...errors import ConservationError, LabelError, ValidationError
 from ...types import Array
 from .._utils import declarations_of, symbol, symbols_of
@@ -40,10 +38,8 @@ from ..problems._transfer_network_spec import TransferNetworkSpec
 from ..problems._transfer_state_spec import TransferStateSpec
 from ._base import BaseLowering, BasePass
 from ._compilation import Compilation
-from ._members import MemberLowering
 
 BOUNDARY_PREFIX = '__boundary'
-SHIFT = 'shift_member'
 ENVIRONMENT = 'environment'
 FLOW_TERMS = 2
 
@@ -193,27 +189,6 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         return name, self.quantities_.get(name)
 
     @staticmethod
-    def _get_offset_of(holder: object) -> tuple[Expression, int, str, float] | None:
-        """Return the symbol, offset, boundary, and fill of a holder read at an offset.
-
-        The symbol is that of the state of the holder. The offset is a member offset.
-        """
-        if not isinstance(holder, Expression) or getattr(holder.operator(), 'name', lambda: '')() != SHIFT:
-            return None
-        return MemberLowering._shift_arguments(holder)
-
-    @staticmethod
-    def _get_presence(offset: tuple[Expression, int, str, float] | None) -> Expression:
-        """Return 1 where the member at the offset of a holder exists, and 0 otherwise.
-
-        The member is missing past the ends of a fixed boundary.
-        """
-        if offset is None or offset[2] != 'fixed':
-            return SR(1)
-        state, step = offset[0], offset[1]
-        return 1 + shift_member(state, step, boundary='fixed') - shift_member(state, step, boundary='fixed', fill=1.0)
-
-    @staticmethod
     def _get_expected(amount: Expression) -> Expression:
         """Return an amount with every draw replaced by its mean.
 
@@ -246,66 +221,6 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
             found = draws_in(amount)
         return amount
 
-    def _get_rate_law(self, holder: Expression, change: Expression, presence: Expression) -> RateLaw:
-        """Return the rate law of a holder.
-
-        A holder read at an offset takes the rate law from the member behind it.
-        """
-        offset = self._get_offset_of(holder)
-        if offset is None:
-            return RateLaw(holder, change * presence)
-        state, step, boundary, _ = offset
-        return RateLaw(state, shift_member(change, -step, boundary=boundary))
-
-    def _is_ode_limit(self) -> bool:
-        """Return whether the solver solves ODEs, so flows at a rate move their mean."""
-        solver = self.compilation_.solver
-        get_form = getattr(type(solver), '_get_form', None)
-        return callable(get_form) and get_form() == FormKind.ODE
-
-    def _expand_flow(
-        self,
-        spec: KernelSpec,
-        flow: _TransferLaw,
-        label: str,
-    ) -> list[BaseLaw]:
-        """Return the rate or jump laws of a flow, after recording it.
-
-        A flow with a holder read at a member offset moves the amount of every member to the member at the offset, so
-        the holder at the offset takes the amount of the member behind it, and past the ends of a fixed boundary no
-        member moves anything.
-        """
-        source, source_label = self._get_holder(flow.source, spec.references, spec.owner)
-        sink, sink_label = self._get_holder(flow.sink, spec.references, spec.owner)
-        tags = {self.quantities_.get(name) for name in (source, sink) if name is not None}
-        if len(tags) > 1:
-            error_msg = (
-                f'The flow {self._get_owner_of(flow, spec)}.{label} moves a quantity from {source_label} to '
-                f'{sink_label}, '
-                f'which hold different quantities {sorted(map(str, tags))}. A flow connects holders of one quantity.'
-            )
-            raise ConservationError(error_msg)
-        path = f'{self._get_owner_of(flow, spec)}.{label}'
-        compiled = _CompiledFlowSpec(path, source, sink, source_label, sink_label, next(iter(tags)))
-        holders = [(item, sign) for item, sign in ((flow.source, -1), (flow.sink, 1)) if isinstance(item, Expression)]
-        presence = self._get_presence(next(filter(None, map(self._get_offset_of, (flow.source, flow.sink))), None))
-        if flow.rate is not None and not self._is_ode_limit():
-            amount = SR(flow.amount)
-            laws: list[BaseLaw] = [
-                JumpLaw(SR(flow.rate) * presence, {item: sign * amount for item, sign in holders}),
-            ]
-        else:
-            flux = SR(flow.amount) if flow.rate is None else SR(flow.amount) * SR(flow.rate)
-            laws = [self._get_rate_law(item, sign * flux, presence) for item, sign in holders]
-            amount = flux * presence
-        sign = 1 if source is None else -1 if sink is None else 0
-        born = _BornSpec(spec, compiled, amount, sign)
-        self.flows_.append(born)
-        self.born_.update({id(law): born for law in laws})
-        self.records_.append(_RecordSpec(path, self._get_expected(amount), spec))
-        self.terms_.append(_FlowTermSpec(spec, 'flow', path, amount, source, sink))
-        return laws
-
     def _expand(self, spec: KernelSpec, laws: list[BaseLaw]) -> list[BaseLaw]:
         """Return the laws of a component with flows expanded into laws of the other kinds.
 
@@ -329,12 +244,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         """
         expanded: list[BaseLaw] = []
         labelled: dict[str, list[FlowTermLaw]] = defaultdict(list)
-        for index, law in enumerate(laws):
-            if isinstance(law, _TransferLaw):
-                label = law.label or f'flow_{index}'
-                self._claim_label(self._get_owner_of(law, spec), label, spec.set_index)
-                expanded.extend(self._expand_flow(spec, law, label))
-                continue
+        for law in laws:
             if isinstance(law, FlowTermLaw):
                 self._check_flow_term(law, spec)
                 labelled[law.label].append(law)
@@ -486,7 +396,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
                 host_spec = next(spec for spec, laws in specs if laws is host)
                 found = host[index]
                 if not isinstance(found, UpdateLaw):
-                    error_msg = f'The law that updates {key[0]} is a {type(found).__name__}, not an UpdateLaw.'
+                    error_msg = f'The law that updates {key[0]} is a {found._get_name()}, not an UpdateLaw.'
                     raise TypeError(error_msg)
                 target, value = SR(found._get_targets()[0]), SR(found.value)
             for spec, _, increment in items:
@@ -531,14 +441,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         return declarations, names
 
     def _add_boundary(self, laws: list[BaseLaw], born: _BornSpec, accumulator: Expression) -> None:
-        """Add the inflow of a boundary flow to the accumulator of its quantity.
-
-        The inflow is a rate or a jump increment.
-        """
-        for index, law in enumerate(laws):
-            if isinstance(law, JumpLaw) and self.born_.get(id(law)) is born:
-                laws[index] = JumpLaw(law.rate, {**(law.changes or {}), accumulator: born.sign * born.amount})
-                return
+        """Add the inflow of a boundary flow to the accumulator of its quantity as a rate."""
         laws.append(RateLaw(accumulator, born.sign * born.amount))
 
     def _expand_delays(
@@ -721,27 +624,6 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         return [RateLaw(stage, (item - stage) / each) for stage, item in zip(stages, inputs, strict=True)]
 
     @staticmethod
-    def _get_holder(
-        holder: object,
-        references: Mapping[Expression, ReferenceSpec],
-        owner: str,
-    ) -> tuple[str | None, str]:
-        """Return the state name of a holder and its name in flow matrices.
-
-        The state name is `None` for the environment.
-        """
-        if isinstance(holder, _Source | _Sink):
-            return None, holder.label
-        offset = TransferLowering._get_offset_of(holder)
-        reference = references.get(holder if offset is None else offset[0])
-        if reference is None or not reference.is_state:
-            error_msg = (
-                f'A flow of {owner} moves a quantity to or from {holder}, which is not a state of its namespace `s`.'
-            )
-            raise ValidationError(error_msg)
-        return reference.entry.name, reference.entry.name
-
-    @staticmethod
     def _update_of(
         key: tuple[object, ...],
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
@@ -781,17 +663,6 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
                 )
                 raise ValidationError(error_msg)
             self._add_reference(host, item, reference)
-
-    @staticmethod
-    def _get_owner_of(flow: _TransferLaw, spec: KernelSpec) -> str:
-        """Return the path a flow is reported under.
-
-        It is its owner in the system of the declaring component, or that component.
-        """
-        if not flow.owner:
-            return spec.owner
-        scope = spec.owner.rpartition('/')[0]
-        return f'{scope}/{flow.owner}' if scope else flow.owner
 
     def _claim_label(self, owner: str, label: str, set_index: int) -> None:
         """Add the label of a flow reported under a component.

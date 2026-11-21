@@ -21,7 +21,6 @@ from ._compiled_element_spec import CompiledElementSpec
 from ._compiled_interaction_spec import _CompiledInteractionSpec
 from ._composite_system import _CompositeSystem
 from ._layout_spec import LayoutSpec
-from ._markov_kernel import MarkovKernel
 from ._renewal_kernel import RenewalKernel
 from ._topology_kernel import TopologyKernel
 from ._transfer_network_spec import TransferNetworkSpec
@@ -81,8 +80,6 @@ class BaseProblemSpec(BaseSpec):
         renewals:
             The renewal laws, whose members renew on their own clocks.
 
-        matrices:
-            The transition and emission matrices of the Markov laws, checked when their parameters change.
 
         transfer_network:
             The quantities, flows, objectives, and feedback terms of the system, or `None` without them.
@@ -121,7 +118,6 @@ class BaseProblemSpec(BaseSpec):
     agent_space: BaseSpace | None = None
     companions: Mapping[str, tuple[str, str, int]] = field(default_factory=dict)
     renewals: tuple[RenewalKernel, ...] = field(default=(), repr=False)
-    matrices: tuple[MarkovKernel, ...] = field(default=(), repr=False)
     transfer_network: TransferNetworkSpec | None = field(default=None, repr=False)
     topology: TopologyKernel | None = field(default=None, repr=False)
     observables: tuple[tuple[str, Observable], ...] = field(default=(), repr=False)

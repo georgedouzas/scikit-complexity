@@ -8,7 +8,6 @@ import numpy as np
 
 from ...components.laws import JumpLaw
 from ...components.laws._boundary import _BoundaryLaw
-from ...components.laws._transfer import _TransferLaw
 from ...components.spaces import BaseSpace
 from ...components.spaces._continuous_time import _ContinuousTime
 from ...enums import FormKind, OrderKind
@@ -53,7 +52,7 @@ class GillespieSolver(Solver):
         return SupportSpec(
             time={_ContinuousTime},
             space={None, BaseSpace},
-            laws={JumpLaw, _BoundaryLaw, _TransferLaw},
+            laws={JumpLaw, _BoundaryLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 

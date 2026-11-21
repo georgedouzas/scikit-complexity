@@ -15,7 +15,6 @@ from scipy.integrate import BDF, DOP853, LSODA, RK23, RK45, OdeSolver, Radau
 from ...components.laws import ConstraintLaw, EventLaw, RateLaw
 from ...components.laws._boundary import _BoundaryLaw
 from ...components.laws._linear_program import _LinearProgramLaw
-from ...components.laws._transfer import _TransferLaw
 from ...components.spaces import BaseSpace
 from ...components.spaces._continuous_time import _ContinuousTime
 from ...enums import FormKind, OrderKind
@@ -136,7 +135,6 @@ class ScipyODESolver(Solver):
                 ConstraintLaw,
                 EventLaw,
                 _BoundaryLaw,
-                _TransferLaw,
                 BilinearLaw,
             },
             orders=frozenset({OrderKind.INTEGER}),

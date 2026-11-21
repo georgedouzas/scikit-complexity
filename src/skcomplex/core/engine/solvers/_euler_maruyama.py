@@ -9,7 +9,6 @@ import numpy as np
 
 from ...components.laws import ConstraintLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw
 from ...components.laws._boundary import _BoundaryLaw
-from ...components.laws._transfer import _TransferLaw
 from ...components.spaces import BaseSpace
 from ...components.spaces._continuous_time import _ContinuousTime
 from ...enums import NoiseKind, OrderKind
@@ -61,7 +60,6 @@ class EulerMaruyamaSolver(SDESolver):
                 ConstraintLaw,
                 EventLaw,
                 _BoundaryLaw,
-                _TransferLaw,
                 NoiseLaw,
             },
             noise=frozenset(NoiseKind) - {NoiseKind.FRACTIONAL},

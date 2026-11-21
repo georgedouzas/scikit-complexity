@@ -119,12 +119,11 @@ def test_neighbourhood_contributes_no_laws():
     assert not hasattr(SidesNeighborhood().prepare(), 'laws_')
 
 
-def test_base_time_has_no_laws_and_frames_its_ends():
-    """Test that the base time contributes no laws and frames the start and the end of a run."""
+def test_base_time_has_no_laws():
+    """Test that the base time contributes no laws and no schedule."""
     time = TickTime().prepare()
     assert time.schedule_ is None
     assert not hasattr(time, 'laws_')
-    assert time._get_frames(2.0).tolist() == [0.0, 2.0]
 
 
 def test_spaces_and_times_give_their_tags():

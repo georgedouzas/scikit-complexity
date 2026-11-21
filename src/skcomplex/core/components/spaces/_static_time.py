@@ -5,9 +5,6 @@
 
 from typing import ClassVar
 
-import numpy as np
-import numpy.typing as npt
-
 from ._base import _BaseTime
 
 
@@ -37,6 +34,3 @@ class _StaticTime(_BaseTime):
         super()._prepare(context)
         self.schedule_ = None
 
-    def _get_frames(self, until: float) -> npt.NDArray[np.float64]:
-        """Return the one frame of the solution."""
-        return np.zeros(1)

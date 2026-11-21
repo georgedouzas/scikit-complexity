@@ -17,8 +17,6 @@ from ...components.laws._linear_program import _LinearProgramLaw
 from ...components.laws._local_rule import _LocalRuleLaw
 from ...components.laws._rule import _RuleLaw
 from ...components.laws._sample import _SampleLaw
-from ...components.laws._transfer import _TransferLaw
-from ...components.laws._transition import _TransitionLaw
 from ...components.spaces import BaseSpace
 from ...components.spaces._continuous_time import _ContinuousTime
 from ...components.spaces._discrete_time import _DiscreteTime
@@ -122,11 +120,9 @@ class CoSimulationSolver(Solver):
                 _LinearProgramLaw,
                 EventLaw,
                 UpdateLaw,
-                _TransitionLaw,
                 _RuleLaw,
                 _LocalRuleLaw,
                 _SampleLaw,
-                _TransferLaw,
                 _BoundaryLaw,
             },
             noise=frozenset(NoiseKind) - {NoiseKind.FRACTIONAL},

@@ -39,7 +39,6 @@ from ....components.laws._local_rule import _LocalRuleLaw
 from ....components.laws._ordered_rate import _OrderedRateLaw
 from ....components.laws._rule import _RuleLaw
 from ....components.laws._sample import _SampleLaw
-from ....components.laws._transfer import _TransferLaw
 from ....components.laws.utils import laplacian, shifted
 from ....components.laws.utils._history import derivative
 from ....components.laws.utils._operators import _OperatorFunction
@@ -483,7 +482,7 @@ class CensusPass(BasePass):
         owner = CensusPass._get_special_owner(spec, law, agents)
         if owner is not None:
             return owner
-        if isinstance(law, _TransferLaw | ConstraintLaw | EventLaw) or (
+        if isinstance(law, ConstraintLaw | EventLaw) or (
             isinstance(law, RelaxationLaw) and not law._get_targets()
         ):
             return spec.owner

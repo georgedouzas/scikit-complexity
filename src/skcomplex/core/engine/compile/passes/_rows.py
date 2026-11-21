@@ -27,8 +27,9 @@ from ...problems._neighbor_read_spec import _NeighborReadSpec
 from .._base import BasePass
 from .._compilation import Compilation
 from .._draw_lowering import DrawLowering
-from .._matrix_law_spec import RANDOM_FIELDS
 from .._renewal_law import RenewalLaw
+
+RANDOM_FIELDS = ('value', 'rate', 'changes', 'lhs', 'rhs', 'guard', 'reset', 'waiting')
 
 
 class RowsPass(BasePass):
