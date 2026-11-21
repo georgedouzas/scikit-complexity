@@ -466,15 +466,16 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace]):
         A rate law on the fractional derivative `fractional(x, alpha)` becomes a rate law on `x` of the order `alpha`,
         and a law on the derivatives of the components of a vector, such as `x.diff(t, 2)` for a position in the
         plane, becomes a law on the vector of the order of its derivatives. A law on a state itself has order 1. Laws
-        of other classes, such as the terms of a flow, are kept as they are.
+        of other classes, such as the terms of a flow, are kept as they are. A subclass of `RateLaw` or `NoiseLaw` is
+        normalized as its base is.
 
         Raises:
             ValidationError:
                 A fractional derivative is the target of a law other than a rate law, or of no state.
         """
-        stated = type(law) in (RateLaw, NoiseLaw)
+        ordered = isinstance(law, _OrderedRateLaw | _OrderedNoiseLaw)
         if (
-            not stated
+            ordered
             or not isinstance(law, RateLaw | NoiseLaw)
             or not isinstance(law.target, Expression | FreeModuleElement)
         ):

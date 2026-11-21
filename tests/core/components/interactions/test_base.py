@@ -778,6 +778,26 @@ def test_second_derivative_of_a_complex_state_gives_it_a_second_order():
     assert _get_rotated(lambda s: s.point.z.diff(s.t, 2)) == pytest.approx(np.cosh(np.sqrt(1j)), rel=1e-5)
 
 
+class HarvestLaw(RateLaw):
+    """A rate law of a harvest, a subclass that adds nothing to `RateLaw`."""
+
+
+def test_subclass_of_a_rate_law_on_a_derivative_moves_the_state():
+    """Test that a subclass of `RateLaw` on `x.diff(t)` decays the state as `RateLaw` does."""
+
+    def run(law):
+        harvest = Interaction(
+            'harvest',
+            roles={'target': 'hares'},
+            laws=lambda s: [law(s.target.x.diff(s.t), -s.target.x)],
+        )
+        system = System(elements=[Element('hares', values={'x': 1.0})], interactions=[harvest]).prepare()
+        return system.simulate(until=1.0, dt=0.5).get_values('hares.x')
+
+    np.testing.assert_allclose(run(HarvestLaw), run(RateLaw))
+    assert run(HarvestLaw)[-1] == pytest.approx(np.exp(-1.0), rel=1e-4)
+
+
 class Contraction(Interaction):
     """Decay `x' = -a[0, 0, 0] x` of one element at a rate read from a tensor."""
 
