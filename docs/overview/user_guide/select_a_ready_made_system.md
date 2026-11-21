@@ -135,10 +135,11 @@ the core interface and no other, so the page of every field under [Systems](../.
 system what a builder needs to copy:
 
 - its class, with its parameters and tags,
-- its element and interaction types, with their states, parameters, and laws as written,
-- for differential equations and maps, its equations as `symbolic(system).equations` returns them.
+- its element and interaction classes, with the values of the elements and the parameters and laws of the
+  interactions as written,
+- its equations, one per state, as `equations_` of the prepared system shows them.
 
-A system of your own follows the same steps. Declare the element and interaction types, and write a class that builds
+A system of your own follows the same steps. Write the element and interaction classes, and a class that builds
 the system from its parameters, as the page [System classes](system_classes.md) shows. The tutorial
 [Check a system](check.md#what-an-interaction-needs) shows how to find which components fit together, and the
 [contributing guide](../../development/contributing.md#adding-a-system-to-the-catalog) covers adding a system to the
