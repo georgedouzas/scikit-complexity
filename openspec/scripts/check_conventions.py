@@ -143,7 +143,6 @@ SUFFIXES = (
 KINDS = {suffix: suffix.lower() for suffix in SUFFIXES} | {'Neighborhood': 'neighbourhood'}
 FAMILIES = (
     *(f'skcomplex.core.components.{family}' for family in ('elements', 'interactions', 'laws', 'spaces')),
-    'skcomplex.core.systems',
     'skcomplex.systems.general',
 )
 COMPONENT_PACKAGES = (
