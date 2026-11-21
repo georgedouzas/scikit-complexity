@@ -283,19 +283,23 @@ class PassCompiler(BaseCompiler):
 
         The tree is flattened once, and the elements that the probe and then the inference declare take the place of
         the plain elements in its nodes, which go to `nodes_`. The failures of the probe are kept in `probed_` by path.
-        A tree that cannot be flattened is left for the compilation to report.
+        A tree that cannot be flattened raises its error when it holds plain elements, whose states cannot be inferred,
+        and is left for the compilation to report otherwise, as is a space that cannot be prepared.
         """
         self.probed_ = {}
-        try:
-            flat = FlattenPass._flatten_system(system)
-        except SkcomplexError:
-            self.nodes_ = None
-            return system
 
         def census(tree: _CompositeSystem, declared: Mapping[str, list[BaseElement]]) -> Compilation:
             return self._get_census_of(tree, FlattenPass._get_declared_nodes(flat, tree, declared))
 
         inference = _StateInference(census)
+        plain = inference._has_plain(system)
+        try:
+            flat = FlattenPass._flatten_system(system)
+        except SkcomplexError as error:
+            if plain and not isinstance(error, SpaceError):
+                raise
+            self.nodes_ = None
+            return system
         tree, declared = inference.get_declared(system)
         self.probed_ = dict(inference.errors_)
         try:
