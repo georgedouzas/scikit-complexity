@@ -25,31 +25,29 @@ from ._requirement_spec import RequirementSpec
 
 @dataclass(frozen=True)
 class BaseLaw(BaseSpec, ABC):
-    """An abstract law, one equation or rule by which states change.
+    """An abstract law, one equation or rule that changes the values of elements.
 
-    A law is a frozen value compared by its fields, such as the state it targets and the expression of its rate. An
-    interaction returns laws in `laws_` when it is prepared, and the compiler checks them with `_check` and lowers them
-    to a problem that a solver runs. A subclass returns the states it changes from `_get_targets`, what it needs of a
-    system, such as continuous or discrete time, from `_get_requirements`, and its value for given values of the
-    symbols it reads from `_get_value`. A law is changed with `dataclasses.replace`.
+    A law says how a value changes, such as `RateLaw(s.ball.x.diff(s.t, 2), -s.g)` inside the interaction of a falling
+    ball, which gives the height `x` the acceleration `-g`. It is a frozen value, equal to any law of its class with the
+    same fields, and it is not added to a system on its own. An interaction returns its laws in `laws_` when it is
+    prepared, and the compiler checks them and turns them into a problem that a solver runs. A subclass says which
+    values it changes, whether it needs continuous or discrete time, and its value at given values of the symbols it
+    reads. Its subclasses give the spread of an epidemic, the next generation of a cellular automaton, a chemical
+    reaction one molecule at a time, and the currents of a circuit.
 
-    Unlike `BaseComponent`, it has no parameters or `prepare`, and it is not added to a system on its own. Its `label`,
-    when it takes one, is a field like any other, the name a trajectory records it under, such as the name of a flow.
-    Choose it when a new kind of dynamics needs a lowering of its own, and choose an existing law, such as `RateLaw` or
-    `UpdateLaw`, otherwise.
+    Read more in the user guide, under Laws.
 
-    It appears in every field through its subclasses, such as the rate of an epidemic, the next value of a cellular
-    automaton, a chemical reaction as a random jump, and Kirchhoff's laws as equations.
+    See Also:
+        RateLaw: Adds a rate to a derivative of a value.
+        UpdateLaw: Gives the next value after one step of discrete time.
+        Interaction: Returns the laws of the elements its roles bind.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws import RateLaw
-        >>> x, k = var('x'), var('k')
-        >>> law = RateLaw(x, -k * x)
-        >>> law.target, law.value
-        (x, -k*x)
-        >>> law == RateLaw(x, -k * x)
-        True
+        >>> from skcomplex.core.components.laws import BaseLaw, RateLaw
+        >>> n, r = var('n r')
+        >>> isinstance(RateLaw(n, r * n), BaseLaw), RateLaw(n, r * n) == RateLaw(n, r * n)
+        (True, True)
     """
 
     law_tag: ClassVar[str] = ''
