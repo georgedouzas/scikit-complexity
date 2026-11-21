@@ -135,6 +135,8 @@ LAYOUT_PACKAGES = (
             '_spectrum',
             '_stability',
             '_surrogates',
+            '_symbolic',
+            '_utils',
             'types',
         )
     ),
