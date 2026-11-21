@@ -117,7 +117,7 @@ Each task rewrites the systems of its fields on the new API: elements as data wi
 ## 7. Documentation
 
 - [x] 7.1 Rewrite every docstring of the core in the scikit-learn layout of `design.md`, with no jargon: say explicitly what a thing does in plain words and show it with a short example, such as `Element('ball', values={'x': 10.0, 'm': 1.0})` in place of "an element known only as data". Apply the same rule to the guide, the README, error messages, and replies, and replace the test of the "Unlike" template by tests of the layout and of short examples. Verify with the docstring tests and the doctests.
-- [ ] 7.2 Rewrite the README, the user guide, and the case studies on the new API, with the falling particle, the reaction network with two solvers, the heat equation, and the Ising model as the running examples. Verify with the documents test group and a strict documentation build.
+- [x] 7.2 Rewrite the README, the user guide, and the case studies on the new API, with the falling particle, the reaction network with two solvers, the heat equation, and the Ising model as the running examples. Verify with the documents test group and a strict documentation build.
 - [x] 7.3 Restate the placement rule in `openspec/constitution.md`, `CONTRIBUTING.md`, and the extension page of the user guide, and rewrite the scenarios of the main specs that call `simulate(` in the method form. Verify that the three texts state the same rule and that `rg "simulate\(" openspec/specs` finds only method calls.
 
 ## 8. Checks
