@@ -1079,10 +1079,8 @@ class CensusPass(BasePass):
             raise ValidationError(error_msg)
         laws = [CensusPass._get_sampled(spec, law, solver, scope) for law in laws]
         laws = [item for law in laws for item in CensusPass._get_mean_jumps(law, solver)]
-        for law in laws:
-            if isinstance(law, ConstraintLaw | ObjectiveLaw):
-                law._check()
-        lowered = [BilinearLaw._get_lowered(law) for law in CensusPass._get_programs(laws, spec.owner)]
+        programs = CensusPass._get_programs([CensusPass._get_checked_sides(law) for law in laws], spec.owner)
+        lowered = [BilinearLaw._get_lowered(law) for law in programs]
         split = [item for law in lowered for item in CensusPass._get_component_rates(spec, law)]
         declared = [BasePass._get_checked_law(CensusPass._get_relaxation(law)) for law in split]
         if spec.hyperedge is not None:
@@ -1138,6 +1136,16 @@ class CensusPass(BasePass):
                 error_msg = f'{law._get_name()} of {spec.owner}: {error}'
                 raise ValidationError(error_msg) from error
         return [*rules, *checked]
+
+    @staticmethod
+    def _get_checked_sides(law: BaseLaw) -> BaseLaw:
+        """Return a law, checking it first when it is an equation or an objective.
+
+        Linear programs read the sides of both before the other checks run.
+        """
+        if isinstance(law, ConstraintLaw | ObjectiveLaw):
+            law._check()
+        return law
 
     @staticmethod
     def _get_programs(laws: Sequence[BaseLaw], owner: str) -> list[BaseLaw]:

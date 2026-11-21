@@ -28,8 +28,8 @@ def test_lowered_law_runs_into_its_signed_rate_and_outcomes():
 
 def test_lowered_law_targets_the_first_density_and_the_target():
     """Test that the lowered law targets the first density, and a target other than it."""
-    assert lower(F, bilinear(0.5, None, F, G)).targets_ == (F,)
-    assert lower(H, bilinear(0.5, np.ones((1, 1, 1)), F, G)).targets_ == (F, H)
+    assert lower(F, bilinear(0.5, None, F, G))._get_targets() == (F,)
+    assert lower(H, bilinear(0.5, np.ones((1, 1, 1)), F, G))._get_targets() == (F, H)
 
 
 def test_lowered_law_evaluates_parameter_tables():
