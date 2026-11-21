@@ -41,8 +41,6 @@ class _SampleLaw(BaseLaw):
             The name of the law, or the empty string for a law without one.
     """
 
-    stated_as: ClassVar[str] = 'ObjectiveLaw'
-
     law_tag: ClassVar[str] = 'sampling'
 
     def __init__(
@@ -57,6 +55,11 @@ class _SampleLaw(BaseLaw):
         self.objective = objective
         self.move = move
         self.sampler = sampler
+
+    @classmethod
+    def _get_name(cls) -> str:
+        """Return the name of the law in messages, the class users write it with."""
+        return 'ObjectiveLaw'
 
     def _get_targets(self) -> tuple[object, ...]:
         """Return the lattice state the moves change."""

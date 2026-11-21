@@ -77,9 +77,10 @@ class BaseLaw(BaseComponent[str]):
         An example is continuous or discrete time.
         """
 
-    def _get_name(self) -> str:
+    @classmethod
+    def _get_name(cls) -> str:
         """Return the name of the law in messages, the class users write it with."""
-        return type(self).__name__
+        return cls.__name__
 
     def _get_law_requirements(self) -> RequirementSpec:
         """Return what this law requires of a system.
@@ -192,7 +193,7 @@ class BaseLaw(BaseComponent[str]):
         """
         if isinstance(getattr(self, name), np.ndarray):
             error_msg = (
-                f'The {name} of {type(self).__name__} is a NumPy array, which NumPy builds when a NumPy scalar '
+                f'The {name} of {self._get_name()} is a NumPy array, which NumPy builds when a NumPy scalar '
                 'multiplies a symbolic vector. Convert the NumPy scalar with `float(...)` first.'
             )
             raise ValidationError(error_msg)
@@ -207,7 +208,7 @@ class BaseLaw(BaseComponent[str]):
         widths = {len(row) for row in rows}
         if not rows or len(widths) != 1 or 0 in widths:
             error_msg = (
-                f'The {name} of {type(self).__name__} must be a nonempty sequence of rows of equal length, but got '
+                f'The {name} of {self._get_name()} must be a nonempty sequence of rows of equal length, but got '
                 f'{matrix!r}.'
             )
             raise ValidationError(error_msg)

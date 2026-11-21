@@ -39,8 +39,6 @@ class _FluxLaw(BaseLaw):
             The name of the rate law the flux comes from.
     """
 
-    stated_as: ClassVar[str] = 'RateLaw'
-
     law_tag: ClassVar[str] = 'rate'
 
     def __init__(
@@ -59,6 +57,11 @@ class _FluxLaw(BaseLaw):
         self.limiter = limiter
         self.riemann = riemann
         self.speed = speed
+
+    @classmethod
+    def _get_name(cls) -> str:
+        """Return the name of the law in messages, the class users write it with."""
+        return 'RateLaw'
 
     def _get_targets(self) -> tuple[object, ...]:
         """Return the conserved state."""

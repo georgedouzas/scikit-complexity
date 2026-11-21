@@ -5,6 +5,7 @@
 
 from collections.abc import Iterable
 
+from ....components.laws import BaseLaw
 from ....enums import FormKind
 from ....errors import IncompatibleLawsError
 from .._base import BasePass
@@ -31,7 +32,7 @@ class FormPass(BasePass):
         compilation.form = FormKind.STATIC if compilation.is_static() else self._infer_form(kinds)
 
     @staticmethod
-    def _infer_form(owners: Iterable[set[type]]) -> FormKind:
+    def _infer_form(owners: Iterable[set[type[BaseLaw]]]) -> FormKind:
         """Return the form that the law classes of the components of a system determine.
 
         A combined class, such as a renewal, drops out of the classes when the rest are its companions and no
@@ -51,16 +52,16 @@ class FormPass(BasePass):
         """
         kinds = FormPass._get_form_kinds(owners)
         if kinds not in FORMS:
-            found = ', '.join(sorted(kind.__name__ for kind in kinds))
+            found = ', '.join(sorted({kind._get_name() for kind in kinds}))
             supported = '; '.join(
-                ', '.join(sorted(kind.__name__ for kind in combination)) for combination in FORMS if combination
+                ', '.join(sorted({kind._get_name() for kind in combination})) for combination in FORMS if combination
             )
             error_msg = f'The system mixes the law kinds {found}. Supported combinations are: {supported}.'
             raise IncompatibleLawsError(error_msg)
         return FORMS[kinds]
 
     @staticmethod
-    def _get_form_kinds(owners: Iterable[set[type]]) -> frozenset[type]:
+    def _get_form_kinds(owners: Iterable[set[type[BaseLaw]]]) -> frozenset[type[BaseLaw]]:
         """Return the law classes that decide the form of components.
 
         They are the components with their own law classes. A combined class, such as a renewal, drops out of the
@@ -69,7 +70,7 @@ class FormPass(BasePass):
         partitions.
         """
         owned = [{kind for kind in kinds if not issubclass(kind, FORMLESS_LAWS)} for kinds in owners]
-        kinds: set[type] = set().union(*owned)
+        kinds: set[type[BaseLaw]] = set().union(*owned)
         for kind, companions in COMBINED.items():
             rest = kinds - {kind}
             if kind not in kinds or not rest:

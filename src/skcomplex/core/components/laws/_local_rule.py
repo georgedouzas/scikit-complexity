@@ -77,8 +77,6 @@ class _LocalRuleLaw(BaseLaw):
             The schedule or the rule spec is invalid, or a run lacks the space or a read state.
     """
 
-    stated_as: ClassVar[str] = 'UpdateLaw'
-
     law_tag: ClassVar[str] = 'update'
 
     def __init__(
@@ -99,6 +97,11 @@ class _LocalRuleLaw(BaseLaw):
         self.reads = reads
         self.schedule = schedule
         self.stochastic = stochastic
+
+    @classmethod
+    def _get_name(cls) -> str:
+        """Return the name of the law in messages, the class users write it with."""
+        return 'UpdateLaw'
 
     def _get_targets(self) -> tuple[object, ...]:
         """Return the lattice states the rule updates."""

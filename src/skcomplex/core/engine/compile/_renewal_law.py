@@ -44,6 +44,11 @@ class RenewalLaw(BaseLaw):
         self.waiting = waiting
         self.reset = reset
 
+    @classmethod
+    def _get_name(cls) -> str:
+        """Return the name of the law in messages, the class users write it with."""
+        return 'JumpLaw'
+
     def _get_targets(self) -> tuple[object, ...]:
         """Return the states the renewal resets."""
         return tuple(self.reset or {})

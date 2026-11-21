@@ -11,6 +11,7 @@ from dataclasses import dataclass
 
 from ...base import BaseSpec
 from ...components import Tags
+from ...components.laws import BaseLaw
 from ...enums import NoiseKind, OrderKind
 
 
@@ -62,6 +63,13 @@ class SupportSpec(BaseSpec):
             return any(isinstance(item, type) and issubclass(term, item) for item in supported)
         return term in supported
 
+    @staticmethod
+    def _get_name_of(term: object) -> str:
+        """Return the name of a term in messages, the class users write for a law."""
+        if isinstance(term, type) and issubclass(term, BaseLaw):
+            return term._get_name()
+        return getattr(term, '__name__', str(term))
+
     def get_missing(self, category: str, terms: Iterable[object]) -> list[str]:
         """Return the names of the terms of a category that are not supported, sorted.
 
@@ -76,7 +84,7 @@ class SupportSpec(BaseSpec):
             missing:
                 The names of the unsupported terms.
         """
-        found = {getattr(term, '__name__', str(term)) for term in terms if not self._supports(category, term)}
+        found = {self._get_name_of(term) for term in terms if not self._supports(category, term)}
         return sorted(found)
 
     @staticmethod

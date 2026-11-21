@@ -104,7 +104,7 @@ class OwnersPass(BasePass):
         ]
 
     @staticmethod
-    def _set_program_steps(kinds: dict[str, set[type]], times: dict[str, type | None]) -> None:
+    def _set_program_steps(kinds: dict[str, set[type[BaseLaw]]], times: dict[str, type | None]) -> None:
         """Count a linear program as an update where it is solved once per step.
 
         It is solved once per step under discrete time or in a nested system of programs.
@@ -132,9 +132,12 @@ class OwnersPass(BasePass):
                 classes.add(UpdateLaw)
 
     @staticmethod
-    def _get_law_kinds(specs: list[tuple[KernelSpec, list[BaseLaw]]], agents: set[str]) -> dict[str, set[type]]:
+    def _get_law_kinds(
+        specs: list[tuple[KernelSpec, list[BaseLaw]]],
+        agents: set[str],
+    ) -> dict[str, set[type[BaseLaw]]]:
         """Return the kinds of the laws of every component."""
-        kinds: dict[str, set[type]] = defaultdict(set)
+        kinds: dict[str, set[type[BaseLaw]]] = defaultdict(set)
         for spec, laws in specs:
             for law in laws:
                 kinds[CensusPass._get_law_owner(spec, law, agents)].add(KernelsPass._get_kind_of(law))

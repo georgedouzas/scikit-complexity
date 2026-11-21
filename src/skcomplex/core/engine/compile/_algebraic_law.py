@@ -29,3 +29,8 @@ class AlgebraicLaw(_BoundaryLaw):
         >>> sorted(map(str, AlgebraicLaw(v, 2 * r).prepare().reads_))
         ['r', 'v']
     """
+
+    @classmethod
+    def _get_name(cls) -> str:
+        """Return the name of the law in messages, the class users write it with."""
+        return 'ConstraintLaw'

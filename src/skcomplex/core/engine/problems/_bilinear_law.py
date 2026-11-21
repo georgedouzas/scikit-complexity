@@ -74,6 +74,11 @@ class BilinearLaw(BaseLaw):
         self.outcomes = outcomes
         self.conserved = conserved
 
+    @classmethod
+    def _get_name(cls) -> str:
+        """Return the name of the law in messages, the class users write it with."""
+        return 'RateLaw'
+
     def _get_targets(self) -> tuple[object, ...]:
         """Return the densities the encounter changes, the first density and the target."""
         return (self.first,) if self.target is self.first else (self.first, self.target)

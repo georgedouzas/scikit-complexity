@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Mapping
-from typing import ClassVar
 
 from sage.all__sagemath_symbolics import Expression
 from sage.structure.element import Matrix
@@ -34,8 +33,6 @@ class _OrderedRateLaw(RateLaw):
             The name of the rate in messages, or the empty string for none.
     """
 
-    stated_as: ClassVar[str] = 'RateLaw'
-
     def __init__(
         self,
         target: Target | Matrix | Mapping[Expression, int],
@@ -47,9 +44,10 @@ class _OrderedRateLaw(RateLaw):
         super().__init__(target, value, label=label)
         self.order = order
 
-    def _get_name(self) -> str:
+    @classmethod
+    def _get_name(cls) -> str:
         """Return the name of the law in messages, the class users write it with."""
-        return self.stated_as
+        return 'RateLaw'
 
     def _get_order(self) -> float | None:
         """Return the order of the derivative the rate gives."""

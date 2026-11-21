@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
 
 from ..types import Process, Target
 from ._noise import NoiseLaw
@@ -41,8 +40,6 @@ class _OrderedNoiseLaw(NoiseLaw):
             The name of the law, or the empty string for a law without one.
     """
 
-    stated_as: ClassVar[str] = 'NoiseLaw'
-
     def __init__(
         self,
         target: Target,
@@ -66,9 +63,10 @@ class _OrderedNoiseLaw(NoiseLaw):
         )
         self.order = order
 
-    def _get_name(self) -> str:
+    @classmethod
+    def _get_name(cls) -> str:
         """Return the name of the law in messages, the class users write it with."""
-        return self.stated_as
+        return 'NoiseLaw'
 
     def _get_order(self) -> float | None:
         """Return the order of the derivative the noise drives."""

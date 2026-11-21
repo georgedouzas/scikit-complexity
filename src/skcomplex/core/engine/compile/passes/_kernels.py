@@ -357,7 +357,7 @@ class KernelsPass(BasePass):
         return _NoiseProcessSpec(owner, int(item), wiener.dimension, factor)
 
     @staticmethod
-    def _get_kind_of(law: BaseLaw) -> type:
+    def _get_kind_of(law: BaseLaw) -> type[BaseLaw]:
         """Return the class of a law that decides its form.
 
         Every noise law counts as a noise law, every rate law and the term of a flow as a rate law, and the increment

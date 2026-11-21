@@ -55,6 +55,11 @@ class ArrayUpdateLaw(BaseLaw):
         self.function = function
         self.score = score
 
+    @classmethod
+    def _get_name(cls) -> str:
+        """Return the name of the law in messages, the class users write it with."""
+        return 'UpdateLaw'
+
     def _get_targets(self) -> tuple[object, ...]:
         """Return the lattice state the update changes, or the symbols of its components."""
         return tuple(self.target) if isinstance(self.target, FreeModuleElement) else (self.target,)

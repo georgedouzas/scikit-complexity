@@ -41,8 +41,6 @@ class _RuleLaw(BaseLaw):
             The name of the law, or the empty string for a law without one.
     """
 
-    stated_as: ClassVar[str] = 'UpdateLaw'
-
     law_tag: ClassVar[str] = 'update'
 
     def __init__(
@@ -57,6 +55,11 @@ class _RuleLaw(BaseLaw):
         self.function = function
         self.phase = phase
         self.members = members
+
+    @classmethod
+    def _get_name(cls) -> str:
+        """Return the name of the law in messages, the class users write it with."""
+        return 'UpdateLaw'
 
     def _get_targets(self) -> tuple[object, ...]:
         """Return no states, since a rule changes the agents it receives in place."""

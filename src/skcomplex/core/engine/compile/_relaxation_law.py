@@ -70,6 +70,11 @@ class RelaxationLaw(BaseLaw):
         self.max_iterations = max_iterations
         self.activity = activity
 
+    @classmethod
+    def _get_name(cls) -> str:
+        """Return the name of the law in messages, the class users write it with."""
+        return 'UpdateLaw'
+
     def _get_targets(self) -> tuple[object, ...]:
         """Return the lattice states the laws that relax the lattice update, each once."""
         return tuple(dict.fromkeys(target for law in self.relax for target in law._get_targets()))

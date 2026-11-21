@@ -66,8 +66,6 @@ class _LinearProgramLaw(BaseLaw):
             raised by `prepare`.
     """
 
-    stated_as: ClassVar[str] = 'ObjectiveLaw'
-
     law_tag: ClassVar[str] = 'equation'
 
     def __init__(
@@ -88,6 +86,11 @@ class _LinearProgramLaw(BaseLaw):
         self.active = active
         self.infeasible = infeasible
         self.duals = duals
+
+    @classmethod
+    def _get_name(cls) -> str:
+        """Return the name of the law in messages, the class users write it with."""
+        return 'ObjectiveLaw'
 
     def _get_targets(self) -> tuple[object, ...]:
         """Return the algebraic states the program sets."""

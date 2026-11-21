@@ -6,6 +6,7 @@
 from dataclasses import dataclass
 
 from ...base import BaseSpec
+from ...components.laws import BaseLaw
 
 
 @dataclass(frozen=True)
@@ -15,11 +16,16 @@ class _OwnersSpec(BaseSpec):
     The kinds are as declared and the classes as lowered.
     """
 
-    declared: dict[str, set[type]]
-    lowered: dict[str, set[type]]
+    declared: dict[str, set[type[BaseLaw]]]
+    lowered: dict[str, set[type[BaseLaw]]]
     solvers: list[type]
 
-    def get_under(self, scope: str, *, nested: bool) -> tuple[dict[str, set[type]], dict[str, set[type]]]:
+    def get_under(
+        self,
+        scope: str,
+        *,
+        nested: bool,
+    ) -> tuple[dict[str, set[type[BaseLaw]]], dict[str, set[type[BaseLaw]]]]:
         """Return the declared kinds and lowered classes of the owners of a scope.
 
         With its own components alone, it returns those of the scope's own components.

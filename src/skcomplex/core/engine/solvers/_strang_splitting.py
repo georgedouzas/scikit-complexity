@@ -9,7 +9,7 @@ from dataclasses import replace
 import numpy as np
 from sklearn.base import clone
 
-from ...components.laws import RateLaw
+from ...components.laws import BaseLaw, RateLaw
 from ...components.spaces import LatticeSpace, PhaseSpace
 from ...components.spaces._continuous_time import _ContinuousTime
 from ...enums import FormKind, OrderKind
@@ -131,14 +131,14 @@ class StrangSplittingSolver(Solver):
             rates = rates + np.asarray(volume.run(RunStateSpec(t, x, p)).values_, dtype=float)
         return rates
 
-    def _get_inner(self, solver: Solver | None, law: type, dt: float, problem: ProblemSpec) -> Solver:
+    def _get_inner(self, solver: Solver | None, law: type[BaseLaw], dt: float, problem: ProblemSpec) -> Solver:
         """Return an inner solver prepared on a part of the problem.
 
         An error is raised for a law it does not advance.
         """
         inner = RK4Solver(dt=dt) if solver is None else clone(solver)
         if inner._get_support().get_missing('laws', {law}):
-            error_msg = f'StrangSplittingSolver advances {law.__name__} with {type(inner).__name__}, which lacks it.'
+            error_msg = f'StrangSplittingSolver advances {law._get_name()} with {type(inner).__name__}, which lacks it.'
             raise SolverError(error_msg)
         return inner.prepare(problem)
 
