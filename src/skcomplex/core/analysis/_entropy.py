@@ -63,7 +63,11 @@ KIND_TAGS = {
 class EntropyResult:
     """A result of `entropy`, the entropy of series or of the frames of a field.
 
-    It covers every series and every frame.
+    It holds the values read and one entropy per series or frame, with the divergence from a reference law for an
+    ensemble, such as 1 bit for a series that takes two values equally often. It reports the disorder of a heart rate,
+    a written text, and the configurations of a lattice.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         values:
@@ -84,6 +88,14 @@ class EntropyResult:
             The expected divergence of a sample of the reference law of the ensemble's size, `(k - 1) / (2 n ln 2)`
             for `k` outcomes and `n` runs, below which a divergence is sampling noise, or `None` for kinds other than
             `'ensemble'`.
+
+    See Also:
+        entropy: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import entropy
+        >>> entropy([0, 0, 1, 1] * 100, kind='excess', dimension=4).entropy.round(3).tolist()
+        [2.0]
     """
 
     values: npt.NDArray[np.int64] | Array
@@ -114,27 +126,11 @@ def entropy(
 ) -> EntropyResult:
     """Return the entropy of every series of a source, or of every frame of a field.
 
-    The entropy is of one kind.
+    Entropy measures how unpredictable values are, in bits, such as 1 bit for a series that takes two values equally
+    often and 0 for a constant one. The kinds read symbols, patterns, or real values. It measures the disorder of a
+    heart rate, a written text, and the configurations of a lattice.
 
-    The kinds read symbols, patterns, or real values:
-
-    - `'shannon'`, `'renyi'`, and `'tsallis'`: the entropy of the distribution of the symbols, or of a probability
-      vector with `probabilities=True`, the Rényi order and the Tsallis index given by `order`.
-    - `'block'`, `'rate'`, and `'excess'`: the block entropies `S_0` to `S_m`, the entropy rate, and the excess
-      entropy of the blocks of up to `dimension` symbols, or of square patches of a field.
-    - `'lempel-ziv'`: the number of new phrases of the LZ76 parsing.
-    - `'permutation'`: the entropy of the ordinal patterns of length `dimension`, or of the windows
-      `(columns, rows)` of a field, measured with `measure`.
-    - `'sample'` and `'approximate'`: the regularity of patterns of length `dimension`, close within `tolerance`
-      standard deviations.
-    - `'multiscale'`: the sample entropy of the means of non-overlapping windows of every scale of `scales`.
-    - `'spectral'`: the Shannon entropy of the normalized periodogram.
-    - `'ensemble'`: the Shannon entropy in bits of the outcomes of an ensemble at every frame, and their
-      Kullback-Leibler divergence from the `reference` law, as in the H-theorem. The ensemble has one row per run and
-      one column per frame of integer outcomes, such as `ExperimentResult.get_ensemble` returns.
-
-    It appears in many fields. It measures the disorder of a heart rate, of a written text, and of the configurations of
-    a lattice.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
@@ -142,7 +138,18 @@ def entropy(
             outcomes of an ensemble.
 
         kind:
-            The entropy to compute, one of the kinds above.
+            What to return. `'shannon'`, `'renyi'`, and `'tsallis'` give the entropy of the distribution of the
+            symbols, or of a probability vector with `probabilities=True`, the Rényi order and the Tsallis index given
+            by `order`. `'block'`, `'rate'`, and `'excess'` give the block entropies `S_0` to `S_m`, the entropy rate,
+            and the excess entropy of the blocks of up to `dimension` symbols, or of square patches of a field.
+            `'lempel-ziv'` gives the number of new phrases of the LZ76 parsing. `'permutation'` gives the entropy of the
+            ordinal patterns of length `dimension`, or of the windows `(columns, rows)` of a field, measured with
+            `measure`. `'sample'` and `'approximate'` give the regularity of patterns of length `dimension`, close
+            within `tolerance` standard deviations. `'multiscale'` gives the sample entropy of the means of windows
+            that do not overlap, of every scale of `scales`. `'spectral'` gives the Shannon entropy of the normalized
+            periodogram. `'ensemble'` gives the Shannon entropy in bits of the outcomes of an ensemble at every frame,
+            and their Kullback-Leibler divergence from the `reference` law, as in the H theorem. The ensemble has one
+            row per run and one column per frame of integer outcomes, such as `ExperimentResult.get_ensemble` returns.
 
         variables:
             The variables of a trajectory to read, or `None` for every scalar series, or the first field for a field.
@@ -195,13 +202,14 @@ def entropy(
             A choice is unknown, a setting the kind does not read is changed, a setting is out of range, or the
             outcomes of an ensemble lie outside the reference law.
 
+    See Also:
+        information: Gives the information among series.
+        complexity: Places series on the complexity and entropy plane of Rosso.
+
     Examples:
-        >>> import numpy as np
         >>> from skcomplex.core.analysis import entropy
         >>> entropy([0, 1, 0, 1]).entropy.tolist()
         [1.0]
-        >>> entropy([0, 0, 1, 1] * 100, kind='excess', dimension=4).entropy.round(3).tolist()
-        [2.0]
     """
     _check_choice('entropy', 'kind', kind, KINDS)
     _check_choice('entropy', 'measure', measure, MEASURES)

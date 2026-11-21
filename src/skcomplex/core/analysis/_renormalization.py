@@ -41,7 +41,11 @@ TAGS = AnalysisTags(DataKind.NETWORK, space=frozenset({'network'}))
 class RenormalizationResult:
     """A result of `renormalization`, the network at every scale.
 
-    The graph of a trajectory is that of its last frame.
+    It holds the network it read, the network after every merge of nodes into supernodes, and the degrees, the degree
+    exponent, and the clustering at every scale, such as two dense groups joined by one link that merge into two linked
+    supernodes. It reports the structure of the internet, the brain, and transport networks across scales.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         graph:
@@ -59,6 +63,17 @@ class RenormalizationResult:
 
         clustering:
             The average clustering at every scale.
+
+    See Also:
+        renormalization: Returns this result.
+
+    Examples:
+        >>> import networkx as nx
+        >>> from skcomplex.core.analysis import renormalization
+        >>> ring = nx.cycle_graph(8)
+        >>> nx.set_node_attributes(ring, {node: float(node) for node in ring}, 'angle')
+        >>> [graph.number_of_nodes() for graph in renormalization(ring, kind='geometric', steps=2).graphs]
+        [8, 4, 2]
     """
 
     graph: nx.Graph
@@ -80,30 +95,26 @@ def renormalization(
 ) -> RenormalizationResult:
     """Return the network at every scale of a coarse-graining of a graph or trajectory.
 
-    The graph of a trajectory is that of its last frame.
+    Every step merges nodes into supernodes, and two supernodes link when any of their nodes link, such as two dense
+    groups joined by one link that become two linked supernodes. A trajectory gives the network of its last frame, with
+    the values of the states and parameters of the group on its nodes as node attributes. It coarse-grains the
+    internet, the brain, and transport networks to find their structure across scales.
 
-    The kinds merge nodes into supernodes, and two supernodes link when any of their nodes link:
-
-    - `'laplacian'`: the diffusion operator `K = exp(-time L)` joins two nodes whose entry is at least the smaller of
-      their diagonal entries, and every connected component of these joins is a supernode. It runs at `time`, or else at
-      the smallest local peak of the specific heat `C = -dS / d log(time)`, of the entropy of the operator normalized by
-      its trace, at which at least one pair of nodes joins, and a network with no such peak stays as it is.
-    - `'geometric'`: every `block` consecutive nodes in the order of their `angle` form a supernode, and the last block
-      holds the nodes left over. The supernode sits at the mean angle of its nodes weighted by `z = k^max(1, beta)`,
-      with the degree `k` of a node, which is proportional to its hidden degree in the geometric system.
-
-    A trajectory gives the network of its last frame, with the values of the states and parameters of the group on its
-    nodes as node attributes.
-
-    It appears in many fields. It coarse-grains the internet, the brain, and transport networks to find their structure
-    across scales.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
             The trajectory, a graph, or a network snapshot.
 
         kind:
-            The coarse-graining, one of the kinds above.
+            How to merge. `'laplacian'` joins two nodes whose entry of the diffusion operator `K = exp(-time L)` is at
+            least the smaller of their diagonal entries, and every connected component of these joins is a supernode.
+            It runs at `time`, or else at the smallest local peak of the specific heat `C = -dS / d log(time)`, of the
+            entropy of the operator normalized by its trace, at which at least one pair of nodes joins, and a network
+            with no such peak stays as it is. `'geometric'` makes every `block` consecutive nodes in the order of their
+            `angle` a supernode, with the last block holding the nodes left over. The supernode sits at the mean angle
+            of its nodes weighted by `z = k^max(1, beta)`, with the degree `k` of a node, which is proportional to its
+            hidden degree in the geometric system.
 
         steps:
             The number of times the network is coarse-grained.
@@ -133,6 +144,10 @@ def renormalization(
         TagError:
             The system of a trajectory has no network space.
 
+    See Also:
+        clusters: Finds the clusters of a grid, a graph, or points.
+        network_measures: Gives measures of a graph or of the network of every frame.
+
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.core.analysis import renormalization
@@ -140,10 +155,6 @@ def renormalization(
         >>> blocks.add_edge(0, 20)
         >>> sorted(renormalization(blocks, steps=1).graphs[1].degree())
         [(0, 1), (1, 1)]
-        >>> ring = nx.cycle_graph(8)
-        >>> nx.set_node_attributes(ring, {node: float(node) for node in ring}, 'angle')
-        >>> [graph.number_of_nodes() for graph in renormalization(ring, kind='geometric', steps=2).graphs]
-        [8, 4, 2]
     """
     _check_choice('renormalization', 'kind', kind, KINDS)
     _check_tags(renormalization, source, kind)

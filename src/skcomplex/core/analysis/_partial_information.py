@@ -34,6 +34,12 @@ TAGS = AnalysisTags(DataKind.SERIES)
 class PartialInformationResult:
     """A result of `partial_information`, the parts of the information of two sources.
 
+    It holds the symbols and the four parts of what two sources tell about a target, the shared, the two unique, and
+    the synergistic part, with their sum, such as 1 bit unique to the first source when the target copies it. It
+    reports what two genes tell about a trait, two neurons about a stimulus, or two indicators about a market.
+
+    Read more in the user guide, under Analyse.
+
     Args:
         values:
             The symbols of the two sources and the target, one per column.
@@ -55,6 +61,15 @@ class PartialInformationResult:
 
         total:
             The mutual information of the two sources together with the target, the sum of the four parts.
+
+    See Also:
+        partial_information: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import partial_information
+        >>> copy = [[0, 0, 0], [0, 1, 0], [1, 0, 1], [1, 1, 1]]
+        >>> round(partial_information(copy).unique_first, 6)
+        1.0
     """
 
     values: Array
@@ -77,10 +92,11 @@ def partial_information(
 
     The source holds three series: the first source, the second source, and the target. The mutual information of the
     two sources together with the target splits into the information both give, the information only one of them
-    gives, and the information only the two together give, with a redundancy measure of `dit`.
+    gives, and the information only the two together give, with a redundancy measure of `dit`, such as 1 bit of synergy
+    for a target that is the exclusive or of the sources. It splits what two genes tell about a trait, or two neurons
+    about a stimulus, into unique, shared, and synergistic parts.
 
-    It appears in many fields. It splits what two genes tell about a trait, or two neurons about a stimulus, into
-    unique, shared, and synergistic parts.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
@@ -103,6 +119,10 @@ def partial_information(
     Raises:
         AnalysisError:
             The redundancy measure is unknown, the base is not positive, or the source does not hold three series.
+
+    See Also:
+        information: Gives the information among series, such as the O-information of many series.
+        local_information: Gives the information at every time step.
 
     Examples:
         >>> from skcomplex.core.analysis import partial_information

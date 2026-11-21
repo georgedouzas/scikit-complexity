@@ -50,7 +50,11 @@ TAGS = AnalysisTags(DataKind.SYSTEM)
 class StabilityResult:
     """A result of `stability`, the linear stability of a system.
 
-    It is its fixed points and their classes, or its dispersion relation.
+    It holds the Jacobian, the nullclines, and the fixed points with their classes, or the growth rate of every wave of
+    a field, such as a stable node at the carrying capacity of logistic growth. It reports whether a steady state of an
+    epidemic, a chemical reactor, or a power grid returns after a small push.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         problem:
@@ -102,6 +106,15 @@ class StabilityResult:
 
         band:
             The lengths of the wave vectors whose modes grow, set for `'dispersion'`.
+
+    See Also:
+        stability: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import stability
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+        >>> stability(LogisticGrowthSystem(), points=[{'population.x': 100.0}]).classifications
+        ['stable node']
     """
 
     problem: ProblemSpec | None = None
@@ -269,21 +282,12 @@ def stability(
 ) -> StabilityResult:
     """Return the linear stability of a system, of one kind.
 
-    - `'fixed-points'`: the fixed points of a flow or a map, their linear stability, and the Jacobian, nullclines, and
-      divergence.
-    - `'dispersion'`: the growth rate of every Fourier mode of a system of one field, a site group on a periodic
-      lattice whose laws are rate laws. The laws are linearised symbolically around a uniform state, and every
-      Laplacian, nested ones included, becomes its eigenvalue on a Fourier mode of the lattice,
-      `Σ (2 cos(k h) - 2) / h²` for finite differences and `-|k|²` for a spectral field. Without `at`, the uniform
-      state is the fixed point of the laws nearest the mean initial values.
+    A fixed point is a state that does not change, where every rate is 0 for a flow or every state equals its next
+    value for a map, and it is stable when a small push dies out, such as the carrying capacity of logistic growth.
+    The stability of every point comes from the eigenvalues of the Jacobian there, evaluated at the parameter values.
+    It decides whether a steady state of an epidemic, a chemical reactor, or a power grid returns after a small push.
 
-    The fixed points of a flow are where every rate is 0, and those of a map where every state equals its next value.
-    Sage solves the equations symbolically, and when it finds no closed form, roots are searched numerically from a
-    grid of starting points with the parameters at their values. The stability of every point comes from the
-    eigenvalues of the Jacobian there, evaluated at the parameter values.
-
-    It appears in many fields. It decides whether a steady state of an epidemic, of a chemical reactor, or of a power
-    grid returns after a small push.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
@@ -291,7 +295,14 @@ def stability(
             `'dispersion'`.
 
         kind:
-            The stability to derive, one of the kinds above.
+            What to return. `'fixed-points'` gives the fixed points of a flow or a map, their linear stability, and the
+            Jacobian, nullclines, and divergence. Sage solves the equations symbolically, and when it finds no closed
+            form, roots are searched numerically from a grid of starting points with the parameters at their values.
+            `'dispersion'` gives the growth rate of every Fourier mode of a system of one field, a site group on a
+            periodic lattice whose laws are rate laws. The laws are linearised symbolically around a uniform state,
+            and every Laplacian, nested ones included, becomes its eigenvalue on a Fourier mode of the lattice,
+            `Σ (2 cos(k h) - 2) / h²` for finite differences and `-|k|²` for a spectral field. Without `at`, the
+            uniform state is the fixed point of the laws nearest the mean initial values.
 
         parameters:
             Values of parameters by dotted path that replace the system's values. They are substituted before solving,
@@ -312,18 +323,16 @@ def stability(
         AnalysisError:
             The kind is unknown, a setting the kind does not read is changed, or the system has no form of the kind.
 
+    See Also:
+        linearization: Gives the linear state space system of a system near an operating point.
+        lyapunov: Gives the rates at which nearby runs of a system separate.
+
     Examples:
         >>> from skcomplex.core.analysis import stability
         >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
         >>> result = stability(LogisticGrowthSystem())
         >>> sorted(str(point['population.x']) for point in result.fixed_points)
         ['0', 'K_growth']
-        >>> stability(LogisticGrowthSystem(), points=[{'population.x': 100.0}]).classifications
-        ['stable node']
-        >>> from skcomplex.systems.chemistry.pattern_formation import BrusselatorSystem
-        >>> relation = stability(BrusselatorSystem((64,), b=1.9, Dv=8.0), kind='dispersion')
-        >>> bool(relation.growth_rates.max() > 0), bool(relation.growth_rates[0] < 0)
-        (True, True)
     """
     system = _get_system(source)
     source = _composite(system)

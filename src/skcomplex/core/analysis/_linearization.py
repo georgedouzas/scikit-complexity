@@ -28,7 +28,11 @@ TAGS = AnalysisTags(DataKind.SYSTEM)
 class LinearizationResult:
     """A result of `linearization`, a linear state-space system.
 
-    It comes with its ranks and optimal gain.
+    It holds the matrices of `x' = A x + B u` and `y = C x + D u`, the ranks that tell whether the controls reach every
+    state and the outputs reveal every state, and the gain of the regulator, such as `A = [[0, 1], [-1, 0]]` for a unit
+    spring. It gives the linear model of an aircraft near trim, a power grid, or an economy near its steady state.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         problem:
@@ -64,6 +68,15 @@ class LinearizationResult:
 
         gain:
             The gain of the regulator, one row per control and one column per state, or `None` without weights.
+
+    See Also:
+        linearization: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import linearization
+        >>> from skcomplex.systems.physics.mechanics import HarmonicOscillatorSystem
+        >>> linearization(HarmonicOscillatorSystem()).A.tolist()
+        [[0.0, 1.0], [-1.0, 0.0]]
     """
 
     problem: ProblemSpec
@@ -93,13 +106,13 @@ def linearization(
     The system is `x' = A x + B u`, `y = C x + D u`. The matrices are the Jacobians of the rates and of the outputs,
     derived symbolically and evaluated at the operating point. The controls are parameters or adaptive parameters,
     named by their dotted names, such as the force `'cart.force'` that no law of the plant changes, and the outputs are
-    states or controls. The system is controllable when the rank of `[B, AB, ...,
-    A^(n-1) B]` equals the number of states, and observable when the rank of `[C; CA; ...; C A^(n-1)]` does. With
-    weights of the states and the controls, the gain `K` of the linear-quadratic regulator `u = -K x` minimises `∫ (x' Q
-    x + u' R u) dt` over an infinite horizon, from the continuous algebraic Riccati equation that SciPy solves.
+    states or controls. The system is controllable when the rank of `[B, AB, ..., A^(n-1) B]` equals the number of
+    states, and observable when the rank of `[C; CA; ...; C A^(n-1)]` does. With weights of the states and the
+    controls, the gain `K` of the linear quadratic regulator `u = -K x` makes `∫ (x' Q x + u' R u) dt` smallest. It
+    gives the linear model of an aircraft near trim, a power grid near its operating point, or an economy near its
+    steady state, for control.
 
-    It appears in many fields. It gives the linear model of an aircraft near trim, of a power grid near its operating
-    point, and of an economy near its steady state, for control.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
@@ -134,26 +147,16 @@ def linearization(
         ValidationError:
             The system does not run in continuous time.
 
+    See Also:
+        stability: Finds the fixed points of a system and whether they are stable.
+        sparse_identification: Finds the equations of a system from its data.
+
     Examples:
-        >>> from typing import Annotated
-        >>> from sage.all__sagemath_symbolics import RealSet
         >>> from skcomplex.core.analysis import linearization
-        >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.interactions import Interaction
-        >>> from skcomplex.core.components.laws import RateLaw
-        >>> from skcomplex.core.systems import System
-        >>> class CartElement(Element):
-        ...     def __init__(self, label, x=0.0, force: Annotated[float, RealSet.closed(-1, 1)] = 0.0):
-        ...         super().__init__(label)
-        ...         self.x = x
-        ...         self.force = force
-        >>> def push(s):
-        ...     return [RateLaw(s.target.x.diff(s.t, 2), s.target.force)]
-        >>> pushing = Interaction('push', roles={'target': 'cart'}, laws=push)
-        >>> system = System(elements=[CartElement('cart')], interactions=[pushing])
-        >>> result = linearization(system, controls=['cart.force'])
+        >>> from skcomplex.systems.physics.mechanics import HarmonicOscillatorSystem
+        >>> result = linearization(HarmonicOscillatorSystem(), controls=['spring.k'])
         >>> result.B.tolist(), result.controllability
-        ([[0.0], [1.0]], 2)
+        ([[0.0], [-1.0]], 2)
     """
     source = _composite(source)
     if (state_weights is None) != (control_weights is None):

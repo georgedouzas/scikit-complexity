@@ -39,6 +39,12 @@ TAGS = AnalysisTags(DataKind.NETWORK, space=frozenset({'network'}))
 class NetworkMeasuresResult:
     """A result of `network_measures`, measures of a network at every frame.
 
+    It holds the graph of every frame and what the kind measures: the degrees, how alike linked nodes are, how central
+    each node is, the communities, or a summary of size, clustering, and paths, such as the mean degree 2 of a ring.
+    It reports the hubs of the internet, the clustering of a social network, and the paths of a power grid.
+
+    Read more in the user guide, under Analyse.
+
     Args:
         graphs:
             The graph of every frame.
@@ -93,6 +99,15 @@ class NetworkMeasuresResult:
 
         components:
             The sizes of the connected components of every frame, largest first, for `'summary'`.
+
+    See Also:
+        network_measures: Returns this result.
+
+    Examples:
+        >>> import networkx as nx
+        >>> from skcomplex.core.analysis import network_measures
+        >>> network_measures(nx.star_graph(3), kind='degrees').moments.tolist()
+        [[1.5, 3.0]]
     """
 
     graphs: list[nx.Graph]
@@ -129,31 +144,27 @@ def network_measures(
 ) -> NetworkMeasuresResult:
     """Return measures of a graph or of the network of every frame of a trajectory.
 
-    The measures are of one kind.
+    A network is a set of nodes joined by links, and the measures describe how many links each node has, how they
+    cluster, and how far apart nodes are, such as the mean degree 2, clustering 0, and diameter 5 of a ring of 10
+    nodes. The kinds read the graph of every frame. It measures the hubs of the internet, the clustering of a social
+    network, and the paths of a power grid.
 
-    The kinds read the graph of every frame:
-
-    - `'degrees'`: the degree of every node, the moments `<k^n>` of the degree distribution for every order of
-      `orders`, and the fitted exponent of a heavy-tailed degree distribution, `nan` below 50 nodes or for a narrow
-      one.
-    - `'assortativity'`: the assortativity by degree, or by a node attribute, positive when linked nodes are alike.
-    - `'centrality'`: the degree, betweenness, closeness, eigenvector, or PageRank centrality of every node.
-    - `'communities'`: the communities by Louvain modularity maximization or label propagation, their modularity, and
-      their agreement with a reference partition.
-    - `'neighbor-degree'`: the mean degree of the neighbours of nodes against their degree, rising in assortative
-      networks.
-    - `'summary'`: the size, mean degree, clustering, path length, diameter, and components, with the path measures on
-      the largest component.
-
-    It appears in many fields. It measures the hubs of the internet, the clustering of a social network, and the paths
-    of a power grid.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
             The trajectory, a graph, or a network snapshot.
 
         kind:
-            The measure to compute, one of the kinds above.
+            What to return. `'degrees'` gives the degree of every node, the moments `<k^n>` of the degree distribution
+            for every order of `orders`, and the fitted exponent of a heavy tailed degree distribution, `nan` below 50
+            nodes or for a narrow one. `'assortativity'` gives the assortativity by degree, or by a node attribute,
+            positive when linked nodes are alike. `'centrality'` gives the degree, betweenness, closeness, eigenvector,
+            or PageRank centrality of every node. `'communities'` gives the communities by Louvain modularity
+            maximization or label propagation, their modularity, and their agreement with a reference partition.
+            `'neighbor-degree'` gives the mean degree of the neighbours of nodes against their degree, rising in
+            assortative networks. `'summary'` gives the size, mean degree, clustering, path length, diameter, and
+            components, with the path measures on the largest component.
 
         orders:
             The orders `n` of the degree moments.
@@ -188,16 +199,16 @@ def network_measures(
         TagError:
             The system of a trajectory has no network space.
 
+    See Also:
+        motifs: Counts the small patterns of links of a network.
+        neighbors: Gives the neighbours of agents, grid cells, or network nodes.
+
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.core.analysis import network_measures
         >>> summary = network_measures(nx.cycle_graph(10))
         >>> summary.mean_degree.tolist(), summary.clustering.tolist(), summary.diameter.tolist()
         ([2.0], [0.0], [5])
-        >>> network_measures(nx.star_graph(3), kind='degrees').moments.tolist()
-        [[1.5, 3.0]]
-        >>> network_measures(nx.star_graph(3), kind='centrality', measure='betweenness').centrality[0][0]
-        1.0
     """
     _check_choice('network_measures', 'kind', kind, KINDS)
     _check_tags(network_measures, source, kind)

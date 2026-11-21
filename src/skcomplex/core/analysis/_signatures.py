@@ -35,7 +35,11 @@ TAGS = AnalysisTags(DataKind.SYSTEM)
 class SignaturesResult:
     """A result of `signatures`, one default analysis per kind of data.
 
-    It comes with its curves, axis labels, title, and values.
+    It holds the kinds of data of the trajectory, the data read for each, and one figure per kind with its curves,
+    axis labels, title, and values, such as the power spectrum of the series of a Lotka-Volterra run. It gives the
+    first look at the series of an ecosystem, the jumps of a market, or the field of a chemical pattern.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         kinds:
@@ -65,6 +69,16 @@ class SignaturesResult:
 
         series:
             The scalar series, for the series kind.
+
+    See Also:
+        signatures: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import signatures
+        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+        >>> trajectory = LotkaVolterraSystem().prepare().simulate(until=20.0, random_state=0)
+        >>> [kind.value for kind in signatures(trajectory).kinds]
+        ['series']
     """
 
     kinds: list[DataKind]
@@ -81,13 +95,14 @@ class SignaturesResult:
 def signatures(source: DataSource) -> SignaturesResult:
     """Return the default analysis of every kind of data of a trajectory.
 
-    It comes with its curves, axis labels, and values. A series gives its power spectrum with the autocorrelation time,
-    or its return map for a map. A jump path gives the survival function of its waiting times with the dispersion index
-    of jumps per frame. A field gives the structure factor of its last frame with the peak wavelength or the correlation
-    length. Agents give their polar and milling orders over time, or their nearest-neighbour distances against the
-    Poisson law. A network gives its degree distribution.
+    Every kind of data gets one figure with its curves, axis labels, and values. A series gives its power spectrum with
+    the autocorrelation time, or its return map for a map, a jump path the survival function of its waiting times with
+    the dispersion index of jumps per frame, and a field the structure factor of its last frame with the peak
+    wavelength or the correlation length. Agents give their polar and milling orders over time, or their nearest
+    neighbour distances against the Poisson law, and a network its degree distribution. It gives the first look at a
+    run of an ecosystem, a market, or a chemical pattern.
 
-    It appears in every study that starts from a run and wants one overview per kind of data.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
@@ -100,6 +115,10 @@ def signatures(source: DataSource) -> SignaturesResult:
     Raises:
         AnalysisError:
             The source is not a trajectory.
+
+    See Also:
+        spectrum: Gives the spectrum of every series of a source, or of a field.
+        network_measures: Gives measures of a graph or of the network of every frame.
 
     Examples:
         >>> from skcomplex.core.analysis import signatures

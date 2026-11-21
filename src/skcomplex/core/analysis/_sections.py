@@ -34,9 +34,13 @@ TAGS = AnalysisTags(DataKind.SYSTEM, time=frozenset({'continuous'}))
 
 @dataclass(frozen=True)
 class SectionResult:
-    """A result of `section`, a section of a system.
+    """A result of `section`, the states of a flow at a crossing or at each period.
 
-    It holds the states where a flow crosses a value, or at multiples of a period.
+    It holds the time and the state of every point of the section and the values of the read states there, such as a
+    unit spring that crosses `x = 0` upward every `2 pi` with the speed 1. It reports the crossings of the orbit of a
+    planet, a forced pendulum, and a heart rhythm.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         problem:
@@ -51,6 +55,15 @@ class SectionResult:
         values:
             A mapping from the name of every read state to its values at the points of a section, one row per point
             for a vector state. A derivative is named with a prime, such as `mass.x'`, as in trajectories.
+
+    See Also:
+        section: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import section
+        >>> from skcomplex.systems.physics.mechanics import HarmonicOscillatorSystem
+        >>> section(HarmonicOscillatorSystem(), state='mass.x', until=20.0).values["mass.x'"].round(3).tolist()
+        [1.0, 1.0, 1.0]
     """
 
     problem: ProblemSpec
@@ -74,24 +87,23 @@ def section(
     solver: Solver | None = None,
     random_state: int | None = None,
 ) -> SectionResult:
-    """Return the section of a system.
+    """Return the states of a flow where it crosses a value or at each period.
 
-    It holds the states where a flow crosses a value, or at multiples of a period.
+    A section turns a flow into a map, by keeping only the states where one state crosses a value in one direction, or
+    the states at every period of a forcing, such as a unit spring that crosses `x = 0` upward every `2 pi`. It runs
+    the system. It turns a flow into a map of its crossings, as for the orbit of a planet, a forced pendulum, and a
+    heart rhythm.
 
-    The kinds run the system:
-
-    - `'poincare'`: the states where the scalar state `state` crosses `value` in a direction, located like an event.
-    - `'stroboscopic'`: the states of a periodically forced flow at multiples of the forcing period.
-
-    It appears in many fields. It turns a flow into a map of its crossings, as for the orbit of a planet, a forced
-    pendulum, and a heart rhythm.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
             The system, its compiled problem, or a trajectory of it.
 
         kind:
-            The section to take, one of the kinds above.
+            What to return. `'poincare'` gives the states where the scalar state `state` crosses `value` in a
+            direction, located like an event. `'stroboscopic'` gives the states of a periodically forced flow at
+            multiples of the forcing period.
 
         variables:
             The dotted names of the states whose values to read at the points of a section, or `None` for every state.
@@ -135,6 +147,10 @@ def section(
 
         TagError:
             The system does not run in continuous time.
+
+    See Also:
+        lyapunov: Gives the rates at which nearby runs of a system separate.
+        recurrence: Finds which states of a run come close to each other.
 
     Examples:
         >>> from skcomplex.core.analysis import section

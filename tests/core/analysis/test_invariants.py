@@ -6,6 +6,8 @@ from sage.all__sagemath_symbolics import SR, sqrt
 from skcomplex.core.analysis import invariants
 from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.systems import System
 from skcomplex.systems.general.mechanics import EulerLagrangeInteraction
@@ -83,3 +85,21 @@ def test_run_rejects_an_expression_of_no_system():
     """Test that an expression that is not an observable of the system raises an error."""
     with pytest.raises(AnalysisError, match='not an expression of the system'):
         invariants(HenonHeilesSystem().prepare().system_, expressions=['x'])
+
+
+def _swing(s):
+    """Return the rate laws of a unit spring in the position and the momentum."""
+    return [RateLaw(s.target.q, s.target.p), RateLaw(s.target.p, -s.target.q)]
+
+
+def test_run_reports_the_energy_of_a_one_off_spring_conserved_and_its_position_moving():
+    """Test that a spring written as a one-off interaction conserves its energy and moves its position at rate p."""
+    spring = Interaction('spring', roles={'target': 'mass'}, laws=_swing)
+    system = System(elements=[Element('mass', values={'q': 1.0, 'p': 0.0})], interactions=[spring])
+    expressions = [
+        Observable('energy', lambda s: s.mass.q**2 + s.mass.p**2),
+        Observable('position', lambda s: s.mass.q),
+    ]
+    result = invariants(system, expressions=expressions)
+    assert result.conserved == {'energy': True, 'position': False}
+    assert str(result.rates['position']) == 'p_mass'

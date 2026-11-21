@@ -39,7 +39,12 @@ KIND_TAGS = {
 class PassageResult:
     """A result of `passage`, the first passages of paths to a level or a set.
 
-    The set is a set of states.
+    It holds the paths, the series, or the matrix it read and what the kind measures: when every path first reaches a
+    level or a set of states, where it ends, how long it takes to come back, or the chance of reaching one set before
+    another, such as the time 2 of a path that climbs one step at a time to the level 2. It reports the time until a
+    population dies out, a price hits a barrier, or a protein folds.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         values:
@@ -66,6 +71,15 @@ class PassageResult:
 
         mean_first_passage_time:
             The mean first-passage time, of `'mean-first-passage'`.
+
+    See Also:
+        passage: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import passage
+        >>> walk = [[0.5, 0.5, 0.0], [0.25, 0.5, 0.25], [0.0, 0.5, 0.5]]
+        >>> passage(walk, kind='committor', origin=[0], target=[2]).committor.tolist()
+        [0.0, 0.5, 1.0]
     """
 
     values: Array | None = None
@@ -93,23 +107,12 @@ def passage(
 ) -> PassageResult:
     """Return the passages of paths to a level or a set, or of a Markov chain.
 
-    The set is a set of states, the passages of a Markov chain are between two sets, and they are of one kind.
+    A first passage is the first time a path reaches a level or enters a set of states, such as the time 2 of a path
+    that climbs one step at a time to the level 2, and a path that never gets there has `nan`. The kinds read paths,
+    one row per path on common times, or a transition matrix, which the matrix kinds estimate at `lag` from the jump
+    path of a trajectory. It finds the time until a population dies out, a price hits a barrier, or a protein folds.
 
-    The kinds read paths, one row per path on common times, or a transition matrix:
-
-    - `'first-passage'`: the first time every path reaches `threshold`, from below for `direction='up'` and from
-      above for `'down'`, or enters the `target` states.
-    - `'hitting'`: the share of paths that reach each of the absorbing `target` states before the others.
-    - `'return-times'`: the times between successive returns of a series to `level`, by visit or by crossing.
-    - `'committor'`: the forward committor of a transition matrix, the probability that the chain reaches the
-      `target` states before the `origin` states.
-    - `'mean-first-passage'`: the mean first-passage time of a transition matrix at `lag` from the `origin` states,
-      started in their stationary weights, to the `target` states.
-
-    The matrix kinds estimate the transition matrix at `lag` of the jump path of a trajectory.
-
-    It appears in many fields. It finds the time until a population dies out, until a price hits a barrier, and until a
-    protein folds.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
@@ -117,7 +120,13 @@ def passage(
             matrix for the matrix kinds.
 
         kind:
-            The passage to measure, one of the kinds above.
+            What to return. `'first-passage'` gives the first time every path reaches `threshold`, from below for
+            `direction='up'` and from above for `'down'`, or enters the `target` states. `'hitting'` gives the share of
+            paths that reach each of the absorbing `target` states before the others. `'return-times'` gives the times
+            between successive returns of a series to `level`, by visit or by crossing. `'committor'` gives the forward
+            committor of a transition matrix, the probability that the chain reaches the `target` states before the
+            `origin` states. `'mean-first-passage'` gives the mean first passage time of a transition matrix at `lag`
+            from the `origin` states, started in their stationary weights, to the `target` states.
 
         variables:
             The discrete state of a trajectory to read, or the series for `'return-times'`, or `None` for the first.
@@ -152,15 +161,16 @@ def passage(
             A choice is unknown, a setting the kind does not read is changed, the sets the kind needs are missing, a
             setting is not positive, or the matrix is reducible.
 
+    See Also:
+        markov: Estimates the Markov chain of a discrete path.
+        events: Finds the runs of a series above a threshold.
+
     Examples:
         >>> from skcomplex.core.analysis import passage
         >>> passage([[0, 1, 2, 3], [0, 0, 0, 0]], threshold=2).passage_times.tolist()
         [2.0, nan]
         >>> passage([0, 1, 0, -1, -2, -1, 0], kind='return-times').return_times.tolist()
         [2.0, 4.0]
-        >>> walk = [[0.5, 0.5, 0.0], [0.25, 0.5, 0.25], [0.0, 0.5, 0.5]]
-        >>> passage(walk, kind='committor', origin=[0], target=[2]).committor.tolist()
-        [0.0, 0.5, 1.0]
     """
     _check_choice('passage', 'kind', kind, KINDS)
     _check_choice('passage', 'direction', direction, DIRECTIONS)

@@ -61,6 +61,12 @@ TAGS = AnalysisTags(DataKind.SERIES)
 class InformationResult:
     """A result of `information`, the information among series.
 
+    It holds the series, the symbols it read them as, and the measure of the kind, a matrix for pairs, a value per
+    series, or one value for all series, such as the 1 bit a copied coin flip passes to its copy. It reports the flow
+    of information between regions of the brain, between markets, and between the members of a flock.
+
+    Read more in the user guide, under Analyse.
+
     Args:
         values:
             The series, one per column.
@@ -76,6 +82,15 @@ class InformationResult:
             `'transfer'`, and `'kl-divergence'`, `nan` from a series to itself for `'transfer'`. One value per series,
             with one column per delay or block length for `'auto-mutual'` and `'correlation-information'`. One value
             per series for `'o-information-gradients'`. A single value for the other kinds of all series together.
+
+    See Also:
+        information: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import information
+        >>> xor = [[0, 0, 0], [0, 1, 1], [1, 0, 1], [1, 1, 0]]
+        >>> round(information(xor, kind='o-information').information, 6)
+        -1.0
     """
 
     values: Array
@@ -103,41 +118,38 @@ def information(
 ) -> InformationResult:
     """Return the information among the series of a source, of one kind.
 
-    The kinds measure pairs of series, every series, or all series together:
+    Information counts in bits how much knowing one series tells about another, about its own future, or how much all
+    series share, such as the 1 bit that a coin flip passes to a copy of it one step later. Every kind but
+    `'kl-divergence'` reads the series as symbols, or first turns them into symbols with `symbols`. It measures the
+    flow of information between regions of the brain, between markets, and between the members of a flock.
 
-    - `'mutual'`: the mutual information `H(X) + H(Y) - H(X, Y)` of every pair of series, by plug-in counts.
-    - `'transfer'`: the transfer entropy `H(Y_t | Y_past) - H(Y_t | Y_past, X_{t-lag})` from every series to every
-      series, the target conditioned on `history` past values, by plug-in counts or by the Kraskov-Stögbauer-Grassberger
-      nearest-neighbour estimate of `k` neighbours.
-    - `'kl-divergence'`: the Kullback-Leibler divergence of every series, a probability vector, from every series.
-    - `'auto-mutual'`: the mutual information of every series with itself delayed by 0 to `max_delay` steps.
-    - `'active-storage'`: the information the past `history` values of every series hold about its next value.
-    - `'correlation-information'`: Lindgren's correlation information `k_m = ΔS_{m-1} - ΔS_m` of every series for
-      block lengths 2 to `dimension`.
-    - `'total-correlation'`, `'dual-total-correlation'`, `'o-information'`: the information all series share at any
-      order, the information two or more of them share, and their difference, positive for redundancy and negative for
-      synergy, by plug-in counts with `dit`, the closed form of a fitted Gaussian, or chains of neighbour estimates.
-    - `'o-information-gradients'`: the O-information every series adds to the others.
-
-    Every kind but `'kl-divergence'` reads the series as symbols, or first turns them into symbols with `symbols`:
-    `'bins'` for `bins` bins of equal width, `'quantiles'` for `bins` equally populated bins, or `'ordinal'` for the
-    rank pattern of every `order` values spaced by `delay` steps.
-
-    It appears in many fields. It measures the flow of information between regions of the brain, between markets, and
-    between the members of a flock.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
             The trajectory, or an array with one row per time and one column per series.
 
         kind:
-            The information to compute, one of the kinds above.
+            What to return. `'mutual'` gives the mutual information `H(X) + H(Y) - H(X, Y)` of every pair of series, by
+            counts of symbols. `'transfer'` gives the transfer entropy `H(Y_t | Y_past) - H(Y_t | Y_past, X_{t-lag})`
+            from every series to every series, the target conditioned on `history` past values, by counts or by the
+            Kraskov, Stögbauer, and Grassberger estimate of `k` neighbours. `'kl-divergence'` gives the Kullback-Leibler
+            divergence of every series, a probability vector, from every series. `'auto-mutual'` gives the mutual
+            information of every series with itself delayed by 0 to `max_delay` steps. `'active-storage'` gives the
+            information the past `history` values of every series hold about its next value.
+            `'correlation-information'` gives the correlation information of Lindgren, `k_m = ΔS_{m-1} - ΔS_m`, of
+            every series for block lengths 2 to `dimension`. `'total-correlation'` gives the information all series
+            share at any order, `'dual-total-correlation'` the information two or more of them share, and
+            `'o-information'` their difference, positive for redundancy and negative for synergy, by counts with
+            `dit`, the closed form of a fitted Gaussian, or chains of neighbour estimates. `'o-information-gradients'`
+            gives the O-information every series adds to the others.
 
         variables:
             The variables of a trajectory to read, or `None` for every scalar series.
 
         symbols:
-            `None` to read the series as symbols, or `'bins'`, `'quantiles'`, or `'ordinal'` to symbolize them.
+            `None` to read the series as symbols, `'bins'` for `bins` bins of equal width, `'quantiles'` for `bins`
+            equally populated bins, or `'ordinal'` for the rank pattern of every `order` values spaced by `delay` steps.
 
         bins:
             The number of symbols of bins and quantiles.
@@ -177,6 +189,11 @@ def information(
         AnalysisError:
             A choice is unknown, a setting the kind does not read is changed, or a setting is out of range.
 
+    See Also:
+        partial_information: Splits the information of two sources into unique, shared, and synergistic parts.
+        local_information: Gives the information at every time step.
+        entropy: Measures how unpredictable a series is.
+
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.analysis import information
@@ -184,9 +201,6 @@ def information(
         >>> transfer = information(np.column_stack([x, np.roll(x, 1)]), kind='transfer')
         >>> transfer.information.round(1).tolist()
         [[nan, 1.0], [0.0, nan]]
-        >>> xor = [[0, 0, 0], [0, 1, 1], [1, 0, 1], [1, 1, 0]]
-        >>> round(information(xor, kind='o-information').information, 6)
-        -1.0
     """
     _check_choice('information', 'kind', kind, KINDS)
     _check_choice('information', 'symbols', symbols, (None, *SYMBOLS))

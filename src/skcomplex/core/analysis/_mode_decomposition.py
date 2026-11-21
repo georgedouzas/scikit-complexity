@@ -39,6 +39,12 @@ TAGS = AnalysisTags(DataKind.SERIES)
 class ModeDecompositionResult:
     """A result of `mode_decomposition`, a linear system fitted to series.
 
+    It holds the fitted `System`, its matrices, its modes with their growth rates and frequencies, the errors of the
+    fit, and the forecast, such as the frequencies 1 and -1 of a point that turns on the unit circle. It reports the
+    patterns of a fluid flow, brain activity, and traffic in a city.
+
+    Read more in the user guide, under Analyse.
+
     Args:
         samples:
             The series of every run, the names of the variables, and the step.
@@ -94,6 +100,17 @@ class ModeDecompositionResult:
 
         forecast:
             The states at the `horizon` samples after the last one, one row per sample.
+
+    See Also:
+        mode_decomposition: Returns this result.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.analysis import mode_decomposition
+        >>> times = np.arange(0.0, 10.0, 0.1)
+        >>> result = mode_decomposition(np.column_stack([np.cos(times), np.sin(times)]), horizon=5, dt=0.1)
+        >>> result.forecast.shape
+        (5, 2)
     """
 
     samples: _SamplesSpec
@@ -130,20 +147,14 @@ def mode_decomposition(
 ) -> ModeDecompositionResult:
     """Return the linear system fitted to series by dynamic mode decomposition.
 
-    It is computed with PyDMD. The decomposition fits the exact DMD of the one-sample map `g(t + dt) = A g(t)` to the
-    pairs of consecutive samples of every run. With a dictionary, `g` holds the observables the dictionary computes from
-    the variables, which is extended DMD, and the dictionary should keep the variables among its observables. The fitted
-    `System` follows the rate law `dg/dt = L g` with `L = Phi diag(ln(mu) / dt) Phi^+` and starts at the first sample of
-    the first run, so `result.system.prepare().simulate(until=...)` runs it. The forecast iterates the map from the last
-    sample of the last run.
+    It fits the matrix `A` of `g(t + dt) = A g(t)` to the pairs of consecutive samples of every run by the exact DMD of
+    PyDMD, and returns a `System` that follows `dg/dt = L g` with `L = Phi diag(ln(mu) / dt) Phi^+`, starting at the
+    first sample of the first run, such as the frequencies 1 and -1 of a point that turns on the unit circle. With a
+    dictionary, `g` holds the observables it computes from the variables, and with inputs the fit is
+    `g(t + dt) = A g(t) + B u(t)` and the system follows `dg/dt = L g + M u`. It finds the patterns of a fluid flow,
+    brain activity, and traffic in a city, and forecasts them.
 
-    With inputs, the decomposition is dynamic mode decomposition with control, `g(t + dt) = A g(t) + B u(t)`, where `g`
-    holds the variables that are not inputs or their observables. The fitted system follows `dg/dt = L g + M u`, where
-    `M` gives the same one-sample map under an input held over the sample. Every input is a parameter of the surrogate
-    element whose allowed values are its range in the samples, and the forecast holds the inputs at their last values.
-
-    It appears in many fields. It finds the coherent patterns of a fluid flow, of brain activity, and of traffic in a
-    city.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
@@ -159,16 +170,19 @@ def mode_decomposition(
 
         dictionary:
             A scikit-learn transformer that computes the observables, such as `PolynomialFeatures(2)`, or `None` for
-            the variables themselves.
+            the variables themselves. This is extended DMD, and the dictionary should keep the variables among its
+            observables.
 
         inputs:
-            The names of the variables that are control inputs, or `None` for none.
+            The names of the variables that are control inputs, or `None` for none. Every input is a parameter of the
+            surrogate element whose allowed values are its range in the samples, `M` gives the same one-sample map
+            under an input held over the sample, and the forecast holds the inputs at their last values.
 
         validation:
             The share of the samples of every run held out at its end to measure the validation error.
 
         horizon:
-            The number of samples to forecast after the last sample of the last run.
+            The number of samples to forecast after the last sample of the last run, by iterating the map.
 
         dt:
             The time between the rows of an array.
@@ -185,23 +199,17 @@ def mode_decomposition(
             The validation share lies outside `[0, 1)`, the horizon is negative, an input is not a variable, or the
             runs differ in variables or step.
 
+    See Also:
+        sparse_identification: Finds nonlinear equations of series from a library of terms.
+        reservoir: Fits a reservoir computer that forecasts series.
+
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.analysis import mode_decomposition
         >>> times = np.arange(0.0, 10.0, 0.1)
-        >>> values = np.column_stack([np.cos(times), np.sin(times)])
-        >>> result = mode_decomposition(values, variables=['x', 'y'], horizon=5, dt=0.1)
+        >>> result = mode_decomposition(np.column_stack([np.cos(times), np.sin(times)]), dt=0.1)
         >>> np.sort(result.eigenvalues.imag).round(6).tolist()
         [-1.0, 1.0]
-        >>> bool(np.allclose(result.forecast[:, 0], np.cos(times[-1] + 0.1 * np.arange(1, 6))))
-        True
-        >>> u = np.random.default_rng(0).uniform(-1.0, 1.0, 100)
-        >>> x = np.zeros(100)
-        >>> for k in range(99):
-        ...     x[k + 1] = 0.9 * x[k] + 0.5 * u[k]
-        >>> result = mode_decomposition(np.column_stack([x, u]), variables=['x', 'u'], inputs=['u'], validation=0.0)
-        >>> result.operator.round(6).tolist(), result.input_matrix.round(6).tolist()
-        ([[0.9]], [[0.5]])
     """
     _check_validation(validation)
     _check_horizon(horizon)

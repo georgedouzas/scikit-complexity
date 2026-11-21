@@ -61,7 +61,11 @@ class _SurrogateElement(Element):
 class SparseIdentificationResult:
     """A result of `sparse_identification`, a sparse symbolic system.
 
-    SINDy is the sparse identification of nonlinear dynamics.
+    It holds the fitted `System`, the candidate terms and the coefficient of each in the rate of every state, the
+    errors of the fit, and the forecast, such as the rate `x' = -2 x` found from a decaying exponential. It reports
+    the equations of a fluid flow, a chemical reaction, and a predator and prey cycle.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         samples:
@@ -98,6 +102,16 @@ class SparseIdentificationResult:
 
         forecast:
             The variables at the `horizon` samples after the last one, one row per sample.
+
+    See Also:
+        sparse_identification: Returns this result.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.analysis import sparse_identification
+        >>> times = np.arange(0.0, 2.0, 0.001)
+        >>> sparse_identification(np.exp(-2 * times), variables=['x'], degree=1, dt=0.001).features
+        ['1', 'x']
     """
 
     samples: _SamplesSpec
@@ -127,14 +141,14 @@ def sparse_identification(
 ) -> SparseIdentificationResult:
     """Return the sparse symbolic system fitted to series by SINDy, with PySINDy.
 
-    SINDy is the sparse identification of nonlinear dynamics. SINDy writes the derivative of every variable as a sparse
-    sum of the monomials of the variables up to a degree. It estimates the derivatives by centred finite differences and
-    selects the terms by sequentially thresholded least squares. The fitted `System` holds one rate law per variable and
-    starts at the first sample of the first run, so `result.system.prepare().simulate(until=...)` runs it, and the
-    forecast simulates it from the last sample of the last run.
+    SINDy, the sparse identification of nonlinear dynamics, writes the derivative of every variable as a sum of few
+    monomials of the variables up to a degree, such as `x' = -2 x` for a decaying exponential. It estimates the
+    derivatives by centred finite differences and keeps the terms by least squares that drop small coefficients in
+    turn. The fitted `System` holds one rate law per variable and starts at the first sample of the first run, so
+    `result.system.prepare().simulate(until=...)` runs it. It finds the equations of a fluid flow, a chemical reaction,
+    and a predator and prey cycle from their series.
 
-    It appears in many fields. It finds the equations of a fluid flow, of a chemical reaction, and of a predator and
-    prey cycle from their series.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
@@ -156,7 +170,7 @@ def sparse_identification(
             The share of the samples of every run held out at its end to measure the validation error.
 
         horizon:
-            The number of samples to forecast after the last sample of the last run.
+            The number of samples to forecast after the last sample of the last run, by simulating the fitted system.
 
         dt:
             The time between the rows of an array.
@@ -172,6 +186,10 @@ def sparse_identification(
         AnalysisError:
             The validation share lies outside `[0, 1)`, the horizon is negative, or the runs differ in variables or
             step.
+
+    See Also:
+        mode_decomposition: Fits a linear system to series.
+        kramers_moyal: Gives the drift and the diffusion of one series.
 
     Examples:
         >>> import numpy as np

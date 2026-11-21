@@ -16,6 +16,12 @@ from ..types import Array
 class SignatureSpec(BaseSpec):
     """A spec of the default analysis of one kind of data, ready to plot.
 
+    It holds the title, the labels and scales of the axes, the curves, and the values worth stating of one figure,
+    such as the power spectrum of the prey and the predators of a Lotka-Volterra run on log axes. It gives the first
+    look at the series of an ecosystem, the jumps of a market, or the field of a chemical pattern.
+
+    Read more in the user guide, under Analyse.
+
     Args:
         kind:
             The kind of data analysed.
@@ -43,6 +49,16 @@ class SignatureSpec(BaseSpec):
 
         points:
             Whether the curves are drawn as points rather than lines.
+
+    See Also:
+        signatures: Returns one spec per kind of data of a trajectory.
+
+    Examples:
+        >>> from skcomplex.core.analysis import signatures
+        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+        >>> trajectory = LotkaVolterraSystem().prepare().simulate(until=20.0, random_state=0)
+        >>> signatures(trajectory).signatures[0].xlabel
+        'frequency'
     """
 
     kind: DataKind

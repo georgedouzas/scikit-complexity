@@ -74,31 +74,7 @@ LAYOUT_PACKAGES = (
     'skcomplex.core.enums.',
     'skcomplex.core.errors.',
     'skcomplex.core.types.',
-    *(
-        f'skcomplex.core.analysis.{module}.'
-        for module in (
-            '_alignment',
-            '_analysis_tags',
-            '_autocatalytic',
-            '_automata',
-            '_base',
-            '_cell_complex',
-            '_clusters',
-            '_coarse_grain',
-            '_collapse',
-            '_complexity',
-            '_computational_mechanics',
-            '_correlation',
-            '_defects',
-            '_discovery',
-            '_displacement',
-            '_distribution',
-            '_domains',
-            '_elementary_modes',
-            '_embedding',
-            '_emergence',
-        )
-    ),
+    'skcomplex.core.analysis.',
 )
 LAYOUT_HEAD = ('summary', 'paragraph', 'user guide')
 LAYOUT_SECTIONS = ('Args:', 'Attributes:', 'Returns:', 'Raises:', 'Warns:', 'See Also:', 'Examples:')

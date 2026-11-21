@@ -37,6 +37,12 @@ KIND_TAGS = {
 class NeighborsResult:
     """A result of `neighbors`, the neighbours of agents, cells, or nodes.
 
+    It holds the positions or the states it read and the statistic of the kind for every frame, such as a distance of
+    1 between two points at 0.5 and 9.5 in a periodic box of side 10. It reports how close birds sit in a flock, how
+    cells pack in a tissue, and how far households live from others like them.
+
+    Read more in the user guide, under Analyse.
+
     Args:
         positions:
             The positions, frames by agents by dimensions, for the agent kinds.
@@ -61,6 +67,14 @@ class NeighborsResult:
 
         share:
             One like share per frame, for `'like-share'`.
+
+    See Also:
+        neighbors: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import neighbors
+        >>> neighbors([[1, 1, 2, 2]] * 4, kind='like-share', diagonal=False).share.tolist()
+        [0.75]
     """
 
     positions: Array | None = None
@@ -88,31 +102,25 @@ def neighbors(
 ) -> NeighborsResult:
     """Return the neighbours of agents in space, of grid cells, or of network nodes.
 
-    The neighbours are of one kind.
+    An array of positions holds one snapshot, one row per agent, or one snapshot per frame along its first axis, such
+    as a distance of 1 between two points at 0.5 and 9.5 in a periodic box of side 10. A trajectory gives the positions
+    of an agent group with the sides of its periodic space as the box, or its lattice frames for `'like-share'`. A grid
+    array is one frame of states, and a graph carries the states on its nodes. It counts the neighbours of birds in a
+    flock, of cells in a tissue, of particles in a liquid, and of households in a city.
 
-    The kinds read positions, or states on grids and networks:
-
-    - `'distances'`: the distance from every agent to its nearest neighbour, across periodic edges in a box.
-    - `'clark-evans'`: the mean nearest-neighbour distance over its value for uniform random points in a periodic box,
-      1 for random points, below 1 for clustered ones, and up to 2.15 for a triangular lattice in a plane.
-    - `'radial-distribution'`: the radial distribution function `g(r)` in a periodic box, averaged over frames, 1 for
-      an ideal gas.
-    - `'like-share'`: the mean share of an agent's occupied neighbours that share its state, on a periodic grid or
-      along the edges of a network, near 1 when segregated.
-
-    An array of positions holds one snapshot, one row per agent, or one snapshot per frame along its first axis. A
-    trajectory gives the positions of an agent group with the sides of its periodic space as the box, or its lattice
-    frames for `'like-share'`. A grid array is one frame of states, and a graph carries the states on its nodes.
-
-    It appears in many fields. It counts the neighbours of birds in a flock, of cells in a tissue, and of particles in a
-    liquid.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
             The trajectory, an array of positions or of states, or a graph.
 
         kind:
-            The neighbour statistic to compute, one of the kinds above.
+            What to return. `'distances'` gives the distance from every agent to its nearest neighbour, across periodic
+            edges in a box. `'clark-evans'` gives the mean nearest neighbour distance over its value for uniform random
+            points in a periodic box, 1 for random points, below 1 for clustered ones, and up to 2.15 for a triangular
+            lattice in a plane. `'radial-distribution'` gives the radial distribution function `g(r)` in a periodic box,
+            averaged over frames, 1 for an ideal gas. `'like-share'` gives the mean share of the occupied neighbours of
+            an agent that share its state, on a periodic grid or along the edges of a network, near 1 when segregated.
 
         group:
             The path of the agent group of a trajectory, or `None` for the first one.
@@ -147,16 +155,14 @@ def neighbors(
             The kind is unknown, a setting the kind does not read is changed, the number of bins is below 1, the agents
             have no positions, or a kind that needs a periodic box has none.
 
+    See Also:
+        clusters: Finds the clusters of a grid, a graph, or points.
+        motifs: Counts the small patterns of links of a network.
+
     Examples:
-        >>> import numpy as np
         >>> from skcomplex.core.analysis import neighbors
         >>> neighbors([[0.5, 0.0], [9.5, 0.0]], box=[10.0, 10.0]).distances.tolist()
         [[1.0, 1.0]]
-        >>> points = np.random.default_rng(0).random((5000, 2))
-        >>> neighbors(points, kind='clark-evans', box=[1.0, 1.0]).ratio.round(1).tolist()
-        [1.0]
-        >>> neighbors([[1, 1, 2, 2]] * 4, kind='like-share', diagonal=False).share.tolist()
-        [0.75]
     """
     if kind not in KINDS:
         error_msg = f'neighbors has kind={kind!r}. Use one of {", ".join(KINDS)}.'

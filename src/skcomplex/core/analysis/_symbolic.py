@@ -240,7 +240,11 @@ MITTAG_LEFFLER = _MittagLefflerFunction('mittag_leffler', nargs=3)
 class SymbolicResult:
     """A result of `symbolic`, the symbolic form of a system.
 
-    It is its equations, their exact solution, its Hamiltonian, or its boundary flows.
+    It holds the compiled problem and what the kind derives: the equations, their exact solution, the Hamiltonian, or
+    the flows across the boundary, such as `x' = r x` for exponential growth. It reports the equations of an epidemic,
+    a circuit, and a mechanical system, and their exact solutions where they exist.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         problem:
@@ -259,6 +263,15 @@ class SymbolicResult:
         inflows:
             The symbolic rate, or amount per step, at which each quantity enters the system from the environment, set
             for `'conservation'`.
+
+    See Also:
+        symbolic: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import symbolic
+        >>> from skcomplex.systems.biology.ecology import ExponentialGrowthSystem
+        >>> symbolic(ExponentialGrowthSystem(), kind='solve', use_initial_state=True).solutions['population.x']
+        x_population(t) == 10*e^(r_growth*t)
     """
 
     problem: ProblemSpec | OperatorProblemSpec
@@ -271,38 +284,34 @@ class SymbolicResult:
 def symbolic(source: DataSource, *, kind: str = 'equations', use_initial_state: bool = False) -> SymbolicResult:
     """Return the symbolic form of a system.
 
-    It is its equations, their solution, its Hamiltonian, or its boundary flows.
+    Each state component is a function of time `t`, and the equations say how it changes, such as `x' = r x` for
+    exponential growth, which Maxima solves to `x(t) = x(0) e^(r t)`. The equations of a group hold for every member
+    and are named with the member index `i`, and components driven by a callable law or by a sum over members or pairs
+    are left out. It writes the equations of an epidemic, a circuit, and a mechanical system, and solves them exactly
+    where it can.
 
-    The kinds read the equations of a system:
-
-    - `'equations'`: one equation per state component, a Sage relation. Each state component is a function of time
-      `t`. Continuous forms give its time derivative, the drift for stochastic systems, and discrete maps give its
-      value at `t + 1`. States of higher order give their highest derivative, `diff(x(t), t, k)`, with their
-      companions written as derivatives, and lagged states read their past values as `x(t - j)`. The equations of a
-      group hold for every member and are named with the member index `i`. Components driven by a callable law or by
-      a sum over members or pairs are left out.
-    - `'solve'`: the exact solution of the equations of an ODE system as functions of time, with Maxima through Sage.
-      One equation of order 1 or 2 is solved with `desolve`, one of higher order with `desolve_laplace`, and several
-      with `desolve_system` after reduction to first order, which solves linear systems with constant coefficients.
-      A result that still contains unevaluated transforms, integrals, or the unknown functions is not a solution, and
-      raises the error. Parameters give Maxima their sign from their domain, or from their value when their domain is
-      real. One linear fractional relaxation `D^alpha x = c x` has the solution `x(0) E_alpha(c t^alpha)`, written
-      with the symbolic function `mittag_leffler(alpha, beta, z)`.
-    - `'hamiltonian'`: the Hamiltonian of an operator system, the sum of the operators of its generator laws, whose
-      subsystems are the symbols of the states of the elements, named `<state>_<path>`, and whose parameters are
-      named `<parameter>_<path>`.
-    - `'conservation'`: the net inflow from the environment of every quantity of a system with a transfer network, after
-      checking that its internal flows cancel, so the total changes only through the boundary.
-
-    It appears in many fields. It writes the equations of an epidemic, of a circuit, and of a mechanical system, and
-    solves them exactly where it can.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
             The system, its compiled problem, or a trajectory of it.
 
         kind:
-            The symbolic form to derive, one of the kinds above.
+            What to return. `'equations'` gives one equation per state component, a Sage relation. Continuous forms give
+            its time derivative, the drift for stochastic systems, and discrete maps give its value at `t + 1`. States
+            of higher order give their highest derivative, `diff(x(t), t, k)`, with their companions written as
+            derivatives, and lagged states read their past values as `x(t - j)`. `'solve'` gives the exact solution of
+            the equations of an ODE system as functions of time, with Maxima through Sage. One equation of order 1 or 2
+            is solved with `desolve`, one of higher order with `desolve_laplace`, and several with `desolve_system`
+            after reduction to first order, which solves linear systems with constant coefficients. A result that
+            still holds unevaluated transforms, integrals, or the unknown functions is not a solution and raises the
+            error. Parameters give Maxima their sign from their domain, or from their value when their domain is real.
+            One linear fractional relaxation `D^alpha x = c x` has the solution `x(0) E_alpha(c t^alpha)`, written with
+            the symbolic function `mittag_leffler(alpha, beta, z)`. `'hamiltonian'` gives the Hamiltonian of an
+            operator system, the sum of the operators of its generator laws, whose subsystems are the symbols of the
+            states of the elements, named `<state>_<path>`, and whose parameters are named `<parameter>_<path>`.
+            `'conservation'` gives the net inflow from the environment of every quantity of a system with a transfer
+            network, after checking that its internal flows cancel, so the total changes only through the boundary.
 
         use_initial_state:
             Whether `'solve'` uses the initial state of the system, with the initial values of every derivative of
@@ -321,18 +330,15 @@ def symbolic(source: DataSource, *, kind: str = 'equations', use_initial_state: 
         ConservationError:
             The internal flows of a quantity do not cancel.
 
+    See Also:
+        invariants: Gives the rates of expressions of a system and whether they are conserved.
+        stability: Finds the fixed points of a system and whether they are stable.
+
     Examples:
         >>> from skcomplex.core.analysis import symbolic
-        >>> from skcomplex.core.systems import System
-        >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
-        >>> system = System(
-        ...     elements=[PopulationElement('a', x=2)],
-        ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=0.5)],
-        ... )
-        >>> symbolic(system).equations['a.x']
-        diff(x_a(t), t) == r_g*x_a(t)
-        >>> symbolic(system, kind='solve', use_initial_state=True).solutions['a.x']
-        x_a(t) == 2*e^(r_g*t)
+        >>> from skcomplex.systems.biology.ecology import ExponentialGrowthSystem
+        >>> symbolic(ExponentialGrowthSystem()).equations['population.x']
+        diff(x_population(t), t) == r_growth*x_population(t)
     """
     source = _composite(source)
     _check_choice('symbolic', 'kind', kind, KINDS)
