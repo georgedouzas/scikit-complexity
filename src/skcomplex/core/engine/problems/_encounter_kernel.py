@@ -29,9 +29,15 @@ def _fused_gain(entries: Indices, weights: Array, f: Array, g: Array, size: int)
 
 
 class EncounterKernel(BaseKernel):
-    """A kernel of encounter laws as sparse contractions of distributions.
+    """A kernel of encounters between the classes of densities, as sparse sums.
 
-    The densities are the candidate, field, and test densities.
+    When members of one class meet members of another at a rate and may leave in a new class, such as two agents of
+    opinions `h` and `k` who meet and one of them takes opinion `i`, the change of every density is a sum over the pairs
+    of classes weighted by the rates and the outcome probabilities. The kernel computes these sums over the nonzero
+    outcomes only, which particle solvers also sample. It moves opinions in a population, wealth between traders, and
+    the speeds of particles in a gas.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         owner:
@@ -67,6 +73,16 @@ class EncounterKernel(BaseKernel):
     Attributes:
         values_:
             The contribution of the encounter to the rate of every state at the last run.
+
+    See Also:
+        BilinearLaw: The law an encounter comes from.
+        KineticProblemSpec: A problem that holds encounters.
+
+    Examples:
+        >>> from skcomplex.systems.social.opinion_dynamics import KineticOpinionSystem
+        >>> kernel = KineticOpinionSystem().prepare().simulate(until=0).problem.encounters[0]
+        >>> type(kernel).__name__, kernel.kind
+        ('EncounterKernel', 'transition')
     """
 
     values_: Array

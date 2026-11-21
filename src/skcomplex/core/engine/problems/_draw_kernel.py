@@ -21,9 +21,14 @@ from ._sampled_draw_spec import _SampledDrawSpec
 
 
 class DrawKernel(BaseKernel):
-    """A kernel of the random values a stochastic map draws at every step.
+    """A kernel of the random numbers that update laws draw at each step.
 
-    They are stored after the parameters of an extended vector.
+    Before every step it draws every uniform or normal number, every value of a `scipy.stats` distribution, and every
+    random order of members the laws need, such as a random turn for every bird, and stores them after the parameters,
+    so the compiled laws read them like any other value. Runs record and replay these draws by name. It draws the turns
+    of a flock, the shocks of a market, and the mutations of a population.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         offset:
@@ -34,15 +39,24 @@ class DrawKernel(BaseKernel):
             `[0, 1)`, in the order the draws are taken, by component path, draw name, and member index.
 
         sampled:
-            The draws from `scipy.stats` distributions, stored after the uniform and normal values and taken after
-            them.
+            The draws from `scipy.stats` distributions, stored after the uniform and normal values and taken after them.
 
         orders:
-            The orders of the members that gather tables read through, each drawn again in place as a random
-            permutation after the other draws.
+            The orders of the members that gather tables read through, each drawn again in place as a random permutation
+            after the other draws.
 
         named:
             Every draw by name, as runs record and replay them, in the order of the extended vector.
+
+    See Also:
+        DrawRecorder: Records and replays the draws of a run.
+        RandomStream: The random generator the draws come from.
+
+    Examples:
+        >>> from skcomplex.systems.physics.active_matter import VicsekSystem
+        >>> kernel = VicsekSystem().prepare().simulate(until=0).problem.draws
+        >>> type(kernel).__name__, kernel.sampled
+        ('DrawKernel', ())
     """
 
     values_: None

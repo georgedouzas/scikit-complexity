@@ -13,11 +13,14 @@ from ._run_state_spec import RunStateSpec
 
 
 class EdgeSearch(BaseSearch):
-    """A search of the edges of a layer that an interaction over neighbours runs on.
+    """A search of the edges of a network that the laws of an interaction run along.
 
-    There is one evaluation index per edge. The edges are fixed node index arrays, or on a network whose topology
-    changes, hidden parameters of its variable edge group that topology requests rewrite, read as node indices at every
-    evaluation.
+    An interaction with `along` runs its laws once for every edge, and this search gives the source and target node of
+    every edge, such as the two people of a contact that may pass on an infection. The edges are fixed arrays, or on a
+    network that rewires, values of its edge group that are read again at every evaluation. It runs the contacts of an
+    epidemic, the couplings of oscillators, and the trades along a supply network.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         sources:
@@ -35,6 +38,17 @@ class EdgeSearch(BaseSearch):
     Attributes:
         pairs_:
             The source and target node of every edge of the last run.
+
+    See Also:
+        StaticSearch: The neighbours of every member of a fixed network.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.engine.problems import RunStateSpec
+        >>> from skcomplex.core.engine.problems._edge_search import EdgeSearch
+        >>> state = RunStateSpec(0.0, np.zeros(0), np.zeros(0))
+        >>> [ends.tolist() for ends in EdgeSearch(np.array([0, 1]), np.array([1, 2])).prepare().run(state).pairs_]
+        [[0, 1], [1, 2]]
     """
 
     pairs_: tuple[Indices, Indices]

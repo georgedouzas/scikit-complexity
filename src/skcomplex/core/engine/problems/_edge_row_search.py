@@ -13,9 +13,14 @@ from ._run_state_spec import RunStateSpec
 
 
 class EdgeRowSearch(BaseSearch):
-    """A search of the neighbours of the nodes of a layer whose edges change.
+    """A search of the neighbours of every node of a network whose edges change.
 
-    They are read from the rows of its variable edge group.
+    When a network grows or rewires, its edges live as rows of a group with the source, target, and activity of every
+    edge, and this search reads those rows at every evaluation to find the neighbours of every node, such as the nodes a
+    new node joined. It finds the contacts of a changing social network, the links of a growing web, and the roads of a
+    growing city.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         source:
@@ -39,6 +44,17 @@ class EdgeRowSearch(BaseSearch):
     Attributes:
         pairs_:
             The row starts, the neighbours, and the edge rows of every node of the last run.
+
+    See Also:
+        StaticSearch: Neighbours that do not change.
+        TopologyKernel: Changes the edges of a network.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.networks import BarabasiAlbertSystem
+        >>> problem = BarabasiAlbertSystem().prepare().simulate(until=0).problem
+        >>> search = problem.topology.reductions.neighbourhoods[0].search
+        >>> type(search).__name__, search.directed
+        ('EdgeRowSearch', False)
     """
 
     pairs_: EdgesFound

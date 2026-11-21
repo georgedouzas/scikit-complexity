@@ -36,19 +36,14 @@ PATTERN_LIMIT = 4_000_000
 
 
 class JacobianKernel(BaseKernel):
-    """A kernel of the Jacobian of the drift of a problem, with its sparsity.
+    """A kernel of the Jacobian of the rates of a system, exact and sparse.
 
-    It is derived from the symbolic laws of the problem. `pattern` states every entry the laws can make nonzero: member
-    and shared reads, the neighbour tables of fields, the sparse matrices of finite element operators, the
-    reconstruction stencils of finite volumes, the rank-one blocks of reductions, and dense blocks where couplings are
-    known only at run time, such as pairs, spectral operators, and callables. `prepare(problem)` checks that every law
-    has a symbolic form and compiles its derivatives, and `run(state)` evaluates the Jacobian exactly into `values_` by
-    differentiating the laws, with the chain rule through neighbour reads, finite element operators, and reductions.
+    The Jacobian holds how the rate of every state changes with every other state, `dF_i/dx_j`, which implicit solvers
+    and stability analyses need. The kernel derives it from the symbolic laws, with the chain rule through neighbours,
+    finite element operators, and reductions such as a mean over a group, and knows ahead which entries can be nonzero,
+    so solvers store only those. It serves stiff chemistry, the stability of an ecosystem, and the control of a grid.
 
-    Every reading member depends on every member a reduction reads, so the Jacobian has the rank-one block
-    `dF_i/dR dR/dx_j` of every reduction `R`, with `dR/dx_j` the derivative of the reduced member's argument, divided by
-    the count for a mean, weighted by `W_ij` with weights, at the first extreme member for a maximum or a minimum, by
-    the softmax of the arguments for a log-sum-exp, and 0 for a count.
+    Read more in the user guide, under Solvers.
 
     Args:
         kernels:
@@ -75,6 +70,16 @@ class JacobianKernel(BaseKernel):
     Attributes:
         values_:
             The Jacobian of the drift at the state of the last run, the sparse matrix of `dF_i/dx_j`.
+
+    See Also:
+        LawKernel: The kernels whose rates it differentiates.
+        PartialsSpec: The partial derivatives it compiles.
+
+    Examples:
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+        >>> kernel = LogisticGrowthSystem().prepare().simulate(until=0).problem.jacobian
+        >>> type(kernel).__name__, kernel.size
+        ('JacobianKernel', 1)
     """
 
     values_: Sparse

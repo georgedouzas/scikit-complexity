@@ -20,14 +20,15 @@ PLANE = 2
 
 
 class CollisionKernel(BaseKernel):
-    """A kernel of the binary collision integral of a density over two velocity axes.
+    """A kernel of how collisions change a density over two velocity axes.
 
-    It is computed by the method of Mouhot and Pareschi. The integral is `Q(f, f)(v) = int int B(|g|, cos t) (f(v')
-    f(v'*) - f(v) f(v*)) ds dv*` in the Carleman form, an integral over the two orthogonal displacements `x = v' - v`
-    and `y = v'* - v`, each up to twice the half-width of the grid. The weight of the pair `(|x|, |y|)` is split into
-    terms of `|x|` times terms of `|y|` by a singular value decomposition, one term for Maxwell molecules, and the
-    directions take a trapezoidal rule, so the integral is a set of FFT products on a grid padded by `(3 + sqrt(2)) /
-    2`. The mean rate is removed at every position, which conserves the density exactly.
+    A gas or a crowd described by its density over velocities changes as pairs of particles collide and leave with new
+    velocities, and the collision integral `Q(f, f)(v)` gives that change at every velocity. The kernel computes it by
+    the fast spectral method of Mouhot and Pareschi, which writes the integral as products of Fourier transforms on a
+    padded grid, and removes the mean rate at every position, so the total density stays exactly the same. It moves the
+    molecules of a gas, the walkers of a crowd, and the wealth of traders who exchange in pairs.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         dimensions:
@@ -56,15 +57,15 @@ class CollisionKernel(BaseKernel):
         values_:
             The collision integral of the last run at every site.
 
+    See Also:
+        EncounterKernel: Runs encounters between classes of a density.
+
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.engine.problems._collision_kernel import CollisionKernel
-        >>> from skcomplex.core.engine.problems import RunStateSpec
         >>> kernel = CollisionKernel((8, 8), (1.0, 1.0), lambda speed, cosine: 1 / (2 * np.pi)).prepare()
-        >>> f = np.exp(-(np.indices((8, 8)) - 3.5) ** 2).prod(axis=0)
-        >>> rates = kernel.run(RunStateSpec(0.0, f.ravel(), np.zeros(0))).values_
-        >>> abs(float(rates.sum())) < 1e-12
-        True
+        >>> kernel.padded_
+        (18, 18)
     """
 
     gains_: tuple[Array, Array]

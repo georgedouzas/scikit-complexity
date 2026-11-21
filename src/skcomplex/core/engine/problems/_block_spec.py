@@ -17,9 +17,14 @@ from ._reference_spec import ReferenceSpec
 
 @dataclass(frozen=True)
 class BlockSpec(BaseSpec):
-    """A spec of the variables of a component with the symbols of one member.
+    """A spec of the values of one component and the symbols that stand for them.
 
-    The variables hold the components the symbols stand for.
+    While it compiles, the engine gives every value of an element, group, or interaction a symbol for one member, such
+    as `x_population` for the size of a population, and the entry where the value sits in the vectors of the run. Laws
+    are written in these symbols and read back through this spec. It holds the symbols of a population, a reactor, and a
+    market.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         node:
@@ -36,6 +41,16 @@ class BlockSpec(BaseSpec):
 
         per:
             The names of the parameters with one value per entry of a variadic role.
+
+    See Also:
+        DeclarationsSpec: Holds the block of every component.
+        ReferenceSpec: Says which value a symbol stands for.
+
+    Examples:
+        >>> from dataclasses import fields
+        >>> from skcomplex.core.engine.problems._block_spec import BlockSpec
+        >>> [field.name for field in fields(BlockSpec)]
+        ['node', 'symbols', 'entries', 'references', 'per']
     """
 
     node: _NodeSpec

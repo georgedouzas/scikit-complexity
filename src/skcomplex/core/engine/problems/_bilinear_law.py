@@ -20,9 +20,13 @@ from ...errors import ValidationError
 class BilinearLaw(BaseLaw):
     """A law where members of two densities meet and change class.
 
-    The compiler runs it for a `RateLaw` whose whole rate is a `bilinear` form, so the encounters lower to sparse
-    contractions instead of an expression per class. It reads the densities, the tables, and the conservation of the
-    form, and it changes the target of the rate law and, for a conserved form, the first density.
+    The engine turns a `RateLaw` whose whole rate is a `bilinear` form into this law, so encounters between two
+    densities, such as the meeting of agents of two opinions, run as sparse sums over the pairs of classes instead of
+    one expression per class. It changes the density of its target, and for a conserved form it also takes the matching
+    loss from the first density. It moves opinions in a population, wealth between traders, and particles between energy
+    levels.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         target:
@@ -38,14 +42,18 @@ class BilinearLaw(BaseLaw):
             The signed rate, a number or a parameter expression, or an array `r[h, k]` of them.
 
         outcomes:
-            The array `B[h, k, i]` of the probabilities of the class in the target, or `None` for the class of the
-            first density.
+            The array `B[h, k, i]` of the probabilities of the class in the target, or `None` for the class of the first
+            density.
 
         conserved:
             Whether the law also takes the matching loss from the first density.
 
         label:
             The name of the law, or the empty string for a law without one.
+
+    See Also:
+        EncounterKernel: Runs the encounters of a bilinear law.
+        RateLaw: The law a bilinear rate comes from.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var

@@ -22,7 +22,14 @@ STENCIL = 2
 
 
 class FiniteVolumeKernel(BaseKernel):
-    """A kernel of the conservation laws of the states of one finite-volume field.
+    """A kernel of the conservation laws of a field, solved by finite volumes.
+
+    A conserved quantity on a grid, such as the density of cars on a road, changes only by what flows through the faces
+    of each cell, `du/dt + df(u)/dx = 0`. The kernel rebuilds the values at the faces with a slope limiter, computes the
+    flux through every face with a Rusanov or Godunov solver, and returns the rate of every cell, so shocks stay sharp
+    and nothing is lost or created. It moves cars on a road, water in a channel, and gas in a pipe.
+
+    Read more in the user guide, under Solvers.
 
     Args:
         owner:
@@ -56,42 +63,50 @@ class FiniteVolumeKernel(BaseKernel):
             `'rusanov'` or `'godunov'`.
 
         reads:
-            One function of the time and the vectors per value of `parameters` held by no vector, such as a moment
-            over class axes or a field solved from it, and `None` for a value of a vector. An empty tuple reads the
-            vectors.
+            One function of the time and the vectors per value of `parameters` held by no vector, such as a moment over
+            class axes or a field solved from it, and `None` for a value of a vector. An empty tuple reads the vectors.
 
         edges:
             The edges of every axis of a phase space, `'periodic'` or `'reflecting'` for a class axis, whose flux
-            through the two ends of an interval is zero, and `None` for a position axis, which keeps the boundary of
-            its states. An empty tuple gives every axis the boundary of its states.
+            through the two ends of an interval is zero, and `None` for a position axis, which keeps the boundary of its
+            states. An empty tuple gives every axis the boundary of its states.
 
         drifts:
             One function per dimension of the states and the parameters that returns the coefficient `a` of the flux
             `a u` of every state, or none when a flux is not such a linear drift.
 
         critical:
-            For Godunov fluxes, one function per dimension of the parameters that returns the states where the flux
-            has a minimum or maximum.
+            For Godunov fluxes, one function per dimension of the parameters that returns the states where the flux has
+            a minimum or maximum.
 
         expressions:
             The flux of every state, one column per dimension, in the symbols of the conserved states followed by the
             symbols of the parameters.
 
         speeds:
-            One function per dimension of the states and the parameters that returns the closed-form eigenvalues of
-            the flux Jacobian, or none when the Jacobian has no closed form.
+            One function per dimension of the states and the parameters that returns the closed-form eigenvalues of the
+            flux Jacobian, or none when the Jacobian has no closed form.
 
         volumes:
-            The fraction of the volume of every cell inside the domain, broadcast over the lattice shape, or `None`
-            for whole cells. A cell of no volume has no rate.
+            The fraction of the volume of every cell inside the domain, broadcast over the lattice shape, or `None` for
+            whole cells. A cell of no volume has no rate.
 
         apertures:
-            The fraction of the area of every face inside the domain along every axis, broadcast over the faces, or
-            an empty tuple for whole faces.
+            The fraction of the area of every face inside the domain along every axis, broadcast over the faces, or an
+            empty tuple for whole faces.
 
     Attributes:
         values_:
             The rates of the conserved states of the last run, as a full vector.
+
+    See Also:
+        LinearTermSpec: A fixed linear operator in the rate of a field.
+
+    Examples:
+        >>> from skcomplex.systems.physics.fluids import BurgersSystem
+        >>> kernel = BurgersSystem().prepare().simulate(until=0).problem.volumes[0]
+        >>> kernel.riemann, kernel.limiter
+        ('rusanov', 'minmod')
     """
 
     values_: Array

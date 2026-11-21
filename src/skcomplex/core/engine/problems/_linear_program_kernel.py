@@ -25,12 +25,15 @@ INFEASIBLE_STATUSES = (highspy.HighsModelStatus.kInfeasible, highspy.HighsModelS
 
 
 class LinearProgramKernel(BaseKernel):
-    """A kernel of a linear program lowered for a problem.
+    """A kernel that solves a linear program for every member during a run.
 
-    It is solved with one warm-started HiGHS system per member. `prepare(state)` evaluates the bounds and coefficients
-    at a state without solving. `run(state)` keeps in `values_` a copy of the state vector with the variables, objective
-    values, and duals of every member set. The solve of a time and of the values the program reads runs once, so another
-    run at them only copies its values.
+    A linear program finds the values that maximise or minimise a linear objective under linear constraints, such as the
+    fluxes of a cell that maximise its growth while every metabolite stays balanced. The kernel solves it with HiGHS,
+    one warm-started program per member, at every time the run asks, and writes the variables, objective values, and
+    duals into the state. A second run at the same time and values copies the last solution. It balances the metabolism
+    of a cell, the flows of a supply chain, and the dispatch of a power grid.
+
+    Read more in the user guide, under Solvers.
 
     Args:
         program:
@@ -66,31 +69,14 @@ class LinearProgramKernel(BaseKernel):
         SolverError:
             A program is unbounded, or HiGHS fails, raised by `run`.
 
+    See Also:
+        LinearProgramSpec: The program the kernel solves.
+
     Examples:
-        >>> import numpy as np
-        >>> from scipy import sparse
-        >>> from skcomplex.core.engine.problems._linear_program_kernel import LinearProgramKernel
-        >>> from skcomplex.core.engine.problems._linear_program_spec import LinearProgramSpec
-        >>> from skcomplex.core.engine.problems import RunStateSpec
-        >>> program = LinearProgramSpec(
-        ...     path='flows',
-        ...     names=('flows.v',),
-        ...     variables=(np.array([0]),),
-        ...     constraints=(),
-        ...     relations=('v <= 3',),
-        ...     matrix=sparse.csr_array((0, 1)),
-        ...     lower=np.array([0.0]),
-        ...     upper=np.array([3.0]),
-        ...     row_lower=np.zeros(0),
-        ...     row_upper=np.zeros(0),
-        ...     costs=np.array([[-1.0]]),
-        ...     signs=(-1.0,),
-        ...     offsets=(0.0,),
-        ...     objectives=(np.array([1]),),
-        ... )
-        >>> kernel = LinearProgramKernel(program).prepare()
-        >>> kernel.run(RunStateSpec(0.0, np.zeros(2), np.zeros(0))).values_.tolist()
-        [3.0, 3.0]
+        >>> from skcomplex.systems.biology.systems_biology import FluxBalanceSystem
+        >>> kernel = FluxBalanceSystem().prepare().simulate(until=0).problem.programs[0]
+        >>> kernel.program.path, kernel.solves_
+        ('cell', 1)
     """
 
     values_: Array

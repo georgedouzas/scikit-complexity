@@ -18,9 +18,14 @@ from ._reference_spec import ReferenceSpec
 
 @dataclass(frozen=True, eq=False)
 class LinearTermSpec(BaseSpec):
-    """A spec of a term of the rate of a field that applies operators to a state.
+    """A spec of a term of the rate of a field that applies fixed linear operators.
 
-    The term is multiplied by a constant coefficient.
+    A rate on a grid often holds a term such as `D * laplacian(u)` for diffusion, a coefficient times a chain of fixed
+    linear operators applied to a state. The engine keeps such terms apart, so a solver can treat them implicitly or in
+    Fourier space, where they are cheap and stable. It spreads heat in a plate, a chemical in a gel, and a species over
+    a landscape.
+
+    Read more in the user guide, under Solvers.
 
     Args:
         target:
@@ -40,6 +45,15 @@ class LinearTermSpec(BaseSpec):
 
         references:
             The references of the coefficient's symbols.
+
+    See Also:
+        LinearOperatorKind: The kinds of operator in a chain.
+
+    Examples:
+        >>> from skcomplex.systems.physics.heat import HeatDiffusionSystem
+        >>> term = HeatDiffusionSystem().prepare().simulate(until=0).problem.linear[0]
+        >>> term.chain, str(term.coefficient)
+        ((('laplacian', 0),), 'D_plate')
     """
 
     target: ReferenceSpec

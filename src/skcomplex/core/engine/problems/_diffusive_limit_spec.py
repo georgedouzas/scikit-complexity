@@ -17,9 +17,14 @@ from ._reference_spec import ReferenceSpec
 
 @dataclass(frozen=True, eq=False)
 class DiffusiveLimitSpec(BaseSpec):
-    """A spec of the stability limit of explicit steps of diffusion on a field.
+    """A spec of the largest stable time step of explicit diffusion on a grid.
 
-    The limit holds at the current parameters.
+    An explicit step of diffusion blows up when it is longer than `1 / (stiffness * D)`, where `D` is the diffusion
+    coefficient and the stiffness `sum(2 / h^2)` over the axes grows as the cells shrink. The spec computes that step at
+    the current parameters, so a solver keeps below it. It limits the steps of heat in a plate, a chemical in a gel, and
+    a population that spreads over a landscape.
+
+    Read more in the user guide, under Solvers.
 
     Args:
         coefficient:
@@ -30,6 +35,15 @@ class DiffusiveLimitSpec(BaseSpec):
 
         stiffness:
             The largest eigenvalue magnitude of the unit Laplacian, `sum(2 / h^2)` over the axes.
+
+    See Also:
+        LinearTermSpec: A term of a field rate such as diffusion.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.engine.problems._diffusive_limit_spec import DiffusiveLimitSpec
+        >>> DiffusiveLimitSpec(lambda t, *parameters: [0.5], (), 4.0).step(np.zeros(0))
+        0.5
     """
 
     coefficient: Callable[..., object]

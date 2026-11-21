@@ -19,7 +19,14 @@ from ._run_state_spec import RunStateSpec
 
 
 class CascadeKernel(BaseKernel):
-    """A kernel of a cascade of a lattice, with its drive and its relax laws.
+    """A kernel of a cascade on a lattice: a drive, then relaxing until stable.
+
+    At every step it applies the drive laws once, such as dropping one grain of sand on a random site, then applies the
+    relax laws again and again until the stability condition holds everywhere, such as no site holding four grains or
+    more. It records the size and length of the cascade as an event. It runs the avalanches of a sandpile, the fires of
+    a forest, and the failures of a power grid.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         label:
@@ -46,6 +53,16 @@ class CascadeKernel(BaseKernel):
     Attributes:
         values_:
             The record of the cascade of the last run, or `None` when the lattice did not change.
+
+    See Also:
+        DriveKernel: Runs one drive of a lattice state.
+        RuleKernel: Runs a local rule of a lattice.
+
+    Examples:
+        >>> from skcomplex.systems.physics.criticality import SandpileSystem
+        >>> kernel = SandpileSystem().prepare().simulate(until=0).problem.lattice[0]
+        >>> type(kernel).__name__, kernel.label
+        ('CascadeKernel', 'avalanche')
     """
 
     values_: _CascadeRecordSpec | None

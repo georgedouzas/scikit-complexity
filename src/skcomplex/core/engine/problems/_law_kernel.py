@@ -33,7 +33,14 @@ LATTICE_BOUNDARIES = {'periodic': 'periodic', 'zero-flux': 'reflecting', 'fixed'
 
 
 class LawKernel(BaseKernel):
-    """A kernel of the laws of one component and one law kind, over members or pairs.
+    """A kernel of the laws of one kind of a component, run for every member at once.
+
+    It compiles the laws of a component, such as the rate laws of the growth of a population, into one function and runs
+    it over every member of a group, every pair of a neighbourhood, or every edge of a network, as arrays. It gathers
+    the values every symbol stands for, calls the Python functions that some laws hold, and gives the values of every
+    law. It computes the growth of a population, the forces between particles, and the trades between firms.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         owner:
@@ -71,6 +78,16 @@ class LawKernel(BaseKernel):
         values_:
             The number of evaluation indices, the pairs in pair mode, and one array of values per output, of the last
             run.
+
+    See Also:
+        KernelSpec: What the laws read while they compile.
+        OutputSpec: One value the kernel gives.
+
+    Examples:
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+        >>> kernel = LogisticGrowthSystem().prepare().simulate(until=0).problem.jacobian.kernels[0]
+        >>> kernel.owner, kernel.names['target.x']
+        ('growth', 'population.x')
     """
 
     values_: tuple[int, OptionalPairs, list[Array]]

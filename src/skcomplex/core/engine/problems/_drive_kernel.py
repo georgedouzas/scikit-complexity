@@ -17,9 +17,14 @@ NO_ARGUMENTS = _ArgumentsSpec()
 
 
 class DriveKernel(BaseKernel):
-    """A kernel of a drive compiled for a lattice state.
+    """A kernel of a Python function that changes a whole state on a lattice at once.
 
-    The components of every member lie on a last axis when the state has several.
+    The function receives the array of the state in the shape of the lattice, with the components of a member on a last
+    axis, and may also receive the time, the random generator, and the space, such as a function that drops one grain of
+    sand on a random site. It runs between the steps of a cascade or of a local rule. It drops grains on a sandpile,
+    lights fires in a forest, and plants seeds on a field.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         owner:
@@ -45,6 +50,15 @@ class DriveKernel(BaseKernel):
 
         spaced:
             Whether the function receives the space of the state by the keyword `space`.
+
+    See Also:
+        CascadeKernel: Runs a drive, then relaxes the lattice.
+
+    Examples:
+        >>> from skcomplex.systems.physics.criticality import SandpileSystem
+        >>> kernel = SandpileSystem().prepare().simulate(until=0).problem.lattice[0].drive[0]
+        >>> type(kernel).__name__, kernel.drawing
+        ('DriveKernel', True)
     """
 
     values_: None

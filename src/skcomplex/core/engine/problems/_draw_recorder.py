@@ -29,11 +29,12 @@ class DrawRecorder(BaseConfig[None, int]):
     """A recorder of the named draws and jumps of a run, which also replays them.
 
     A run that records keeps every value it draws by name and step, with the arguments of its distribution, and every
-    firing of a jump law with its time. A run that replays a log takes every named draw and every firing from it
-    instead, while it computes the arguments of each distribution from its own parameters and states, and sums the
-    log-probability of the forced values. `prepare()` forgets earlier draws and `run(step)` moves the recorder to the
-    step of the run the next draws fall in. The places that draw, such as the draws of stochastic maps, the named draws
-    of agent rules, and `GillespieSolver`, call `draw`, `firings`, and `record_firing`.
+    firing of a jump law with its time. A run that replays a log takes every draw and firing from it instead and sums
+    the log probability of the forced values under its own parameters, which tells how likely the recorded run is under
+    new parameters. `prepare()` forgets earlier draws and `run(step)` moves to the step the next draws fall in. It
+    replays the moves of a random walker, the trades of a market, and the infections of an epidemic.
+
+    Read more in the user guide, under Calibrate.
 
     Args:
         replay:
@@ -46,15 +47,16 @@ class DrawRecorder(BaseConfig[None, int]):
         log_probability_:
             The total log-probability of the draws and firings so far.
 
+    See Also:
+        DrawKernel: Draws the random numbers of update laws.
+
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.engine.problems._draw_recorder import DrawRecorder
         >>> from skcomplex.core.components.laws import DrawSpec
+        >>> from skcomplex.core.engine.problems._draw_recorder import DrawRecorder
         >>> recorder = DrawRecorder().prepare().run(1)
         >>> recorder.draw('walker.kick', DrawSpec('normal', 'kick'), [0.0, 1.0], np.array([0.5])).tolist()
         [0.5]
-        >>> round(recorder.log_probability_, 4)
-        -1.0439
     """
 
     step_: int

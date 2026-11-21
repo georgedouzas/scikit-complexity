@@ -11,7 +11,14 @@ from ._run_state_spec import RunStateSpec
 
 
 class EventKernel(BaseKernel):
-    """A kernel of an event, compiled into a guard and a reset of the state vector.
+    """A kernel of an event: a condition whose crossing of zero changes the state.
+
+    A guard function of the time and the state crosses zero when the event happens, such as the height of a ball that
+    reaches the floor, and a reset function returns the state after it, such as the ball with its speed reversed. An
+    event may also end the run, or happen for each member of a group on its own. It bounces a ball, fires a neuron, and
+    triggers a margin call.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         label:
@@ -22,8 +29,8 @@ class EventKernel(BaseKernel):
             group, whose value for every member triggers the event of that member.
 
         reset:
-            The function `r(t, x, p)` that returns the state vector after the event, or for an event of the members of
-            a group, `r(t, x, p, member)` that returns it after the event of one member, or `None` to keep it.
+            The function `r(t, x, p)` that returns the state vector after the event, or for an event of the members of a
+            group, `r(t, x, p, member)` that returns it after the event of one member, or `None` to keep it.
 
         direction:
             `1`, `-1`, or `0` for crossings upwards, downwards, or both.
@@ -41,6 +48,15 @@ class EventKernel(BaseKernel):
     Attributes:
         values_:
             The state vector after the event at the state of the last run.
+
+    See Also:
+        RenewalKernel: Events that happen at random waiting times.
+
+    Examples:
+        >>> from skcomplex.systems.physics.mechanics import BouncingBallSystem
+        >>> kernel = BouncingBallSystem().prepare().simulate(until=0).problem.events[0]
+        >>> kernel.label, kernel.direction
+        ('impact', -1)
     """
 
     values_: Array
