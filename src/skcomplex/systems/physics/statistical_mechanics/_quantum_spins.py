@@ -8,7 +8,7 @@ The module holds the quantum Heisenberg XXZ chain with a field and dephasing.
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 import qutip
 from sage.all__sagemath_symbolics import CC, Expression, oo
@@ -17,6 +17,7 @@ from sage.sets.real_set import RealSet
 from ....core.components import Observable
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import BaseInteraction, Interaction
+from ....core.components.laws import BaseLaw
 from ....core.components.laws.utils import local_operator
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
@@ -170,6 +171,8 @@ class XXZExchangeInteraction(Interaction):
         0.5
     """
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (GeneratorLaw,)
+
     def __init__(
         self,
         label: str,
@@ -218,6 +221,8 @@ class ZeemanFieldInteraction(Interaction):
         >>> ZeemanFieldInteraction('field', target='chain', h=0.2).h
         0.2
     """
+
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (GeneratorLaw,)
 
     def __init__(self, label: str, *, target: Role, h: float = 0.0) -> None:
         super().__init__(label)

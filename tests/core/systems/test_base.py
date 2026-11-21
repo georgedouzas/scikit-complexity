@@ -18,6 +18,7 @@ from skcomplex.core.errors import NotPreparedError
 from skcomplex.core.systems import BaseSystem, System
 from skcomplex.core.types import Role
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+from skcomplex.systems.computer_science.neural_networks import ElmanNetworkSystem
 
 
 class MeadowSystem(BaseSystem):
@@ -174,6 +175,11 @@ def test_get_tags_reads_the_laws_of_a_one_off_interaction_from_the_census() -> N
     assert flip.get_tags().laws is None
     assert (tags.laws, tags.time) == ({'update'}, {'discrete'})
 
+
+
+def test_get_tags_of_a_system_that_trains_reads_the_laws_of_the_trained_system() -> None:
+    """The tags of a system that trains a nested network name the kinds of laws of that network."""
+    assert ElmanNetworkSystem().get_tags().laws == {'update'}
 
 def test_simulate_a_static_system_needs_no_end_time():
     """Test that a system that only minimises an objective simulates with no `until` to its one frame."""

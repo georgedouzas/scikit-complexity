@@ -18,6 +18,7 @@ from ..components import Observable, Tags
 from ..components.base import BaseComponent
 from ..engine.backends import BaseBackend
 from ..engine.compile import OperatorCompiler
+from ..engine.compile._learning_compiler import _LearningCompiler
 from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import BaseProblemSpec
 from ..engine.problems._composite_system import _CompositeSystem
@@ -127,10 +128,14 @@ class BaseSystem(BaseComponent[Sequence[Observable]]):
         that interactions learn only when they are prepared, such as those of `Interaction('flip', laws=...)`, follow
         from the census of the laws of the system, and so does their randomness when their kinds draw, such as noise.
         A system of operators takes no census, since `OperatorCompiler` reads its laws, so only its declarations give
-        its tags.
+        its tags. A system that trains a nested system, such as a recurrent network fitted to data, takes the census of
+        the nested system, since that is the system its runs compile.
         """
         compiler = PassCompiler()
-        declared = compiler._get_declared_system(self._get_composite())
+        composite = self._get_composite()
+        training = _LearningCompiler._find_training(composite)
+        trained = _LearningCompiler._find_system(composite, training.system) if training is not None else None
+        declared = compiler._get_declared_system(trained or composite)
         tags = declared._get_tags()
         if tags.laws is not None or OperatorCompiler._contains_operator(declared):
             return tags
