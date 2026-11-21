@@ -26,6 +26,12 @@ TAGS = AnalysisTags(DataKind.SERIES)
 class RollingResult:
     """A result of `rolling`, a statistic in rolling windows and its trend.
 
+    It holds the series, the statistic of every window set at its last sample, and the trend of the statistic, such as
+    a trend of 1 for a variance that grows in every window. It reports the early warnings of a lake that turns turbid,
+    a market that crashes, or a climate that shifts.
+
+    Read more in the user guide, under Analyse.
+
     Args:
         values:
             The series, one per column.
@@ -38,6 +44,14 @@ class RollingResult:
 
         trend:
             Kendall's tau of the statistic of every series against time, positive when it rises.
+
+    See Also:
+        rolling: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import rolling
+        >>> rolling([0, 1, 0, 2, 0, 3], window=3).statistic.round(2).tolist()
+        [[nan, nan, 0.22, 0.67, 0.89, 1.56]]
     """
 
     values: Array
@@ -56,23 +70,20 @@ def rolling(
 ) -> RollingResult:
     """Return the statistic of every series in rolling windows, and its trend.
 
-    The statistic is of one kind, for every series of a source. Every window holds the `window` values that end at a
-    sample, possibly with a linear trend removed first, and the statistic of the window is set at that sample. The trend
-    of the statistic is Kendall's tau against time.
+    Every window holds the `window` values that end at a sample, possibly with a linear trend removed first, and the
+    statistic of the window is set at that sample. The trend of the statistic is the tau of Kendall against time, such
+    as 1 for the variance of `[0, 1, 0, 2, 0, 3]`, whose swings grow. It finds the early warnings of a tipping point,
+    such as a rising variance before a lake turns turbid, a market crashes, or a climate shifts.
 
-    - `'variance'`: the variance of the window.
-    - `'autocorrelation'`: the lag-one autocorrelation of the window.
-    - `'skewness'`: the skewness of the window.
-
-    It appears in many fields. It finds the early warnings of a tipping point, such as a rising variance before a lake
-    turns turbid, a market crashes, or a climate shifts.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
             The trajectory, or an array with one row per time and one column per series.
 
         kind:
-            The statistic to compute, one of the kinds above.
+            What to return. `'variance'` gives the variance of every window, `'autocorrelation'` the correlation of
+            every window with itself one step later, and `'skewness'` the skewness of every window.
 
         variables:
             The variables of a trajectory to read, or `None` for every scalar series.
@@ -91,16 +102,14 @@ def rolling(
         AnalysisError:
             The kind is unknown, or the window is missing or does not fit the series.
 
+    See Also:
+        correlation: Gives the correlation of series, of an ensemble, or of a field.
+        events: Finds the runs of a series above a threshold.
+
     Examples:
-        >>> import numpy as np
         >>> from skcomplex.core.analysis import rolling
-        >>> rng = np.random.default_rng(0)
-        >>> x = np.zeros(2000)
-        >>> for t in range(1, 2000):
-        ...     x[t] = (0.2 + 0.79 * t / 2000) * x[t - 1] + rng.standard_normal()
-        >>> result = rolling(x, kind='autocorrelation', window=200, detrend=True)
-        >>> bool(result.trend[0] > 0.5)
-        True
+        >>> rolling([0, 1, 0, 2, 0, 3], window=3).trend.tolist()
+        [1.0]
     """
     _check_choice('rolling', 'kind', kind, KINDS)
     if window is None or window < MIN_WINDOW:

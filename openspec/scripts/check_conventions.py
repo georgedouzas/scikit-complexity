@@ -121,6 +121,10 @@ LAYOUT_PACKAGES = (
             '_passage',
             '_recurrence',
             '_renormalization',
+            '_reservoirs',
+            '_rolling',
+            '_samples_spec',
+            'types',
         )
     ),
 )
