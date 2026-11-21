@@ -344,8 +344,8 @@ class ObservableEvaluator:
         """Return the getter of the scores of the rows of a lattice state."""
 
         def get(t: float, x: Array, p: Array, done: Mapping[str, object]) -> object:
-            del t, done
-            return drive.read_score(x, p)
+            del done
+            return drive.read_score(t, x, p)
 
         return get
 

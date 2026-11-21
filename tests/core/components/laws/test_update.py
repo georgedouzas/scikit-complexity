@@ -171,7 +171,7 @@ def test_update_order_reads_the_values_set_before(order, initial, expected):
     assert _counters(laws, initial)[-1].tolist() == expected
 
 
-def _shift(values, random):
+def _shift(values, **kwargs):
     """Return the values shifted by one cell when they are an array, and 2 for a scalar state."""
     return np.roll(values, 1) if isinstance(values, np.ndarray) else 2.0
 
@@ -191,7 +191,7 @@ def test_update_without_arrays_calls_a_function_of_two_arguments_with_time_and_v
     def step(t, values):
         """Return the shift of the values and record what it receives."""
         received.append((t, dict(values)))
-        return _shift(values, None)
+        return _shift(values)
 
     trajectory = _run('counter', {'x': 1.0}, lambda s: [UpdateLaw(s.target.x, step)], 1)
     assert trajectory.get_values('counter.x').tolist() == [1.0, 2.0]
@@ -230,7 +230,7 @@ def test_update_check_rejects_an_increment_with_a_source():
     [
         (TotalisticSpec(lambda total: total % 2), [0, 1, 1, 1, 0]),
         (OuterTotalisticSpec({(0, 1): 1}), [0, 1, 0, 1, 0]),
-        (lambda center, left, right: left, [0, 0, 0, 1, 0]),
+        (lambda center, left, right, **kwargs: left, [0, 0, 0, 1, 0]),
     ],
 )
 def test_update_with_a_neighborhood_runs_a_local_rule(rule, expected):
@@ -241,14 +241,22 @@ def test_update_with_a_neighborhood_runs_a_local_rule(rule, expected):
 
 
 def test_update_with_a_neighborhood_becomes_a_local_rule():
-    """Test that a local rule keeps its neighbourhood, reads, schedule, and label, and draws when it names `random`."""
+    """Test that a local rule keeps the settings of its law, `stochastic` among them."""
     a, b = var('a b')
 
-    def flip(*values, random):
+    def flip(*values, random, **kwargs):
         """Return the first value flipped."""
         return 1 - values[0]
 
-    law = UpdateLaw((a, b), flip, neighborhood=AROUND, reads=[b], schedule='checkerboard', label='flip')
+    law = UpdateLaw(
+        (a, b),
+        flip,
+        neighborhood=AROUND,
+        reads=[b],
+        schedule='checkerboard',
+        label='flip',
+        stochastic=True,
+    )
     rule = law._get_local_rule()
     assert (rule.targets, rule.over, rule.rule, rule.reads, rule.schedule, rule.stochastic, rule.label) == (
         (a, b),
@@ -260,7 +268,94 @@ def test_update_with_a_neighborhood_becomes_a_local_rule():
         'flip',
     )
     assert law._get_targets() == (a, b)
-    assert not UpdateLaw(a, TotalisticSpec({1: 1}), neighborhood=AROUND)._get_local_rule().stochastic
+    assert not UpdateLaw(a, flip, neighborhood=AROUND)._get_local_rule().stochastic
+
+
+def _record(stochastic, settings):
+    """Return the keywords a rule of a row receives first, and the tags of its system."""
+    received = []
+
+    def rule(values, *around, **kwargs):
+        """Return the values unchanged and record the keywords."""
+        received.append(kwargs)
+        return values
+
+    row = Element('row', values={'x': np.zeros(5), 'k': 2.0}, space=ROW)
+    law = Interaction(
+        'rule',
+        roles={'target': 'row'},
+        laws=lambda s: [UpdateLaw(s.target.x, rule, stochastic=stochastic, **settings)],
+    )
+    system = System(elements=[row], interactions=[law])
+    tags = system.get_tags()
+    system.prepare().simulate(until=1, random_state=0)
+    return received[0], tags
+
+
+@pytest.mark.parametrize('settings', [{'neighborhood': AROUND}, {'arrays': True}])
+def test_update_rule_receives_every_keyword(settings):
+    """Test that a local rule and an update of a whole array get the fixed keywords."""
+    keywords, _ = _record(False, settings)
+    assert set(keywords) == {'k', 'time', 'space', 'degree', 'random'}
+    assert isinstance(keywords['time'], float)
+    assert (keywords['space'], keywords['random']) == (ROW, None)
+    assert np.all(np.asarray(keywords['k']) == 2.0)
+    if settings.get('arrays'):
+        assert keywords['degree'] is None
+    else:
+        assert keywords['degree'].tolist() == [2.0] * 5
+
+
+def test_update_rule_with_kwargs_ignores_the_keywords_it_does_not_name():
+    """Test that a rule naming none of the keywords runs, as `**kwargs` takes them."""
+    rule = Interaction(
+        'shift',
+        roles={'target': 'row'},
+        laws=lambda s: [UpdateLaw(s.target.x, lambda x, left, right, **kwargs: left, neighborhood=AROUND)],
+    )
+    row = Element('row', values={'x': [0.0, 1.0, 2.0, 3.0, 4.0]}, space=ROW)
+    trajectory = System(elements=[row], interactions=[rule]).prepare().simulate(until=1)
+    assert trajectory.get_values('row.x')[-1].tolist() == [4.0, 0.0, 1.0, 2.0, 3.0]
+
+
+@pytest.mark.parametrize(
+    ('settings', 'drawn'),
+    [({'neighborhood': AROUND}, np.ndarray), ({'arrays': True}, np.random.Generator)],
+)
+def test_update_stochastic_rule_receives_random_and_keeps_the_tags(settings, drawn):
+    """Test that `stochastic=True` gives `random` and leaves the tags as they are."""
+    keywords, tags = _record(True, settings)
+    _, deterministic = _record(False, settings)
+    assert isinstance(keywords['random'], drawn)
+    assert tags == deterministic
+    if drawn is np.ndarray:
+        assert keywords['random'].shape == (5,)
+        assert np.all((keywords['random'] >= 0) & (keywords['random'] < 1))
+
+
+def test_update_rule_naming_random_without_stochastic_receives_none():
+    """Test that a rule naming `random` on a law not stochastic receives `None`."""
+    received = []
+
+    def draw(values, *, random, **kwargs):
+        """Return the values and record what `random` is."""
+        received.append(random)
+        return values
+
+    row = Element('row', values={'x': np.zeros(5)}, space=ROW)
+    law = Interaction('draw', roles={'target': 'row'}, laws=lambda s: [UpdateLaw(s.target.x, draw, arrays=True)])
+    System(elements=[row], interactions=[law]).prepare().simulate(until=1)
+    assert received == [None]
+
+
+@pytest.mark.parametrize(
+    ('value', 'settings'),
+    [(var('x') + 1, {}), (_shift, {}), (TotalisticSpec({1: 1}), {'neighborhood': AROUND})],
+)
+def test_update_check_rejects_stochastic_without_a_function_of_cells_or_arrays(value, settings):
+    """Test that `stochastic=True` needs a function of cells or of a whole array."""
+    with pytest.raises(ValidationError, match='is stochastic'):
+        UpdateLaw(var('x'), value, stochastic=True, **settings)._check()
 
 
 @pytest.mark.parametrize(

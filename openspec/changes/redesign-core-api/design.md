@@ -484,6 +484,23 @@ Every function of an `UpdateLaw` receives the same keywords, such as `random`, `
 for those it ignores. `UpdateLaw(..., stochastic=True)` says that the rule draws numbers. The engine never reads the
 signature of a rule.
 
+- The functions that take keywords are the function of a local rule, `f(*neighbours, **kwargs)`, the function of an
+  update of a whole array, `f(values, **kwargs)`, and its score, `score(values, **kwargs)`. They all receive:
+  - every parameter of the element that the component reads, by its name,
+  - `time`, the time of the step,
+  - `space`, the space of the state,
+  - `degree`, the number of neighbours of every cell of a local rule, and `None` for an update of a whole array, a
+    score, or a memory that moves with the values of a state,
+  - `random`, which is `None` unless the law is stochastic. A stochastic local rule receives a uniform number per
+    cell and a stochastic update of a whole array the random generator of the run. A score never draws.
+- `stochastic=True` takes only a function of a local rule or of a whole array, else the law raises a
+  `ValidationError`. A rule that names `random` on a law that is not stochastic receives `None`, so it fails where it
+  draws, and its law must say `stochastic=True`.
+- A function `f(t, values)` of one state and the rules `rule(agent, system)` and `rule(system)` take positional
+  arguments only. An agent rule draws from `system.rng`. The engine checks that such a rule is callable and leaves its
+  arguments to the call.
+- The tags of a system do not change: an interaction says that its laws draw by `draws` or its law kinds, as before.
+
 ### Laws are values
 
 A law is a frozen value with its fields, not a component. It has no `prepare`, component label, or cloning, and private

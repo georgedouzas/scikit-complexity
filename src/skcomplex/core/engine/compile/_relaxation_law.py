@@ -48,7 +48,7 @@ class RelaxationLaw(BaseLaw):
         >>> from skcomplex.core.engine.compile._relaxation_law import RelaxationLaw
         >>> height = var('height')
         >>> cross = RadiusNeighborhood(1, metric='manhattan', center=True)
-        >>> topple = UpdateLaw(height, lambda z, *n: z - 4 * (z >= 4), neighborhood=cross)
+        >>> topple = UpdateLaw(height, lambda z, *n, **kwargs: z - 4 * (z >= 4), neighborhood=cross)
         >>> RelaxationLaw([], [topple], lambda z: bool((z < 4).all())).relax[0] is topple
         True
     """

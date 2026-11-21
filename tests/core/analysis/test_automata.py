@@ -105,7 +105,7 @@ def _law(system):
     """Return the local rule that the one interaction of a system sets on the cells."""
     namespace = SimpleNamespace(target=SimpleNamespace(alive=var('alive')), t=var('t'))
     law = clone(system.interactions[0]).prepare(namespace).laws_[0]
-    return law._get_local_rule().prepare()
+    return law._get_local_rule()
 
 
 def _step(system, configuration):

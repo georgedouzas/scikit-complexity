@@ -82,7 +82,7 @@ class RuleKernel(BaseKernel):
             The update schedule.
 
         stochastic:
-            Whether the rule receives uniform random numbers.
+            Whether a function rule draws numbers, so that it receives a uniform number per site as `random`.
 
         arguments:
             The parameters a function rule receives by keyword.
@@ -91,7 +91,8 @@ class RuleKernel(BaseKernel):
             Whether a synchronous lookup rule runs as one compiled loop.
 
         degrees:
-            The number of real neighbours of every site, for a function rule that reads them, or `None`.
+            The number of real neighbours of every site, which a function rule receives as `degree`, or `None` for a
+            memory translated by the values of a state.
 
         classes:
             The sites of every class of the colored or checkerboard schedule.
@@ -180,10 +181,10 @@ class RuleKernel(BaseKernel):
             padded[:, column, 0] if state.components == 1 else padded[:, column] for column in range(table.shape[1])
         ]
 
-    def _get_next(self, x: Array, p: Array, sites: Indices | None, rng: np.random.Generator) -> list[Array]:
+    def _get_next(self, t: float, x: Array, p: Array, sites: Indices | None, rng: np.random.Generator) -> list[Array]:
         """Return the next values of the targets at some sites.
 
-        They are read from the current state.
+        They are read from the current state. A function rule receives the keywords of every rule of an `UpdateLaw`.
         """
         space = self.space
         table = self._get_table_of(x, sites)
@@ -214,11 +215,13 @@ class RuleKernel(BaseKernel):
             centers = x[self.targets[0].sites].astype(np.intp)
             return [lookup.values[(centers if sites is None else centers[sites]) * lookup.columns + totals]]
         columns = [column for state in self.reads for column in self._gather(x, state, table)]
-        keywords = self.arguments.get_values(x, p, sites)
-        if self.degrees is not None:
-            keywords['degree'] = self.degrees if sites is None else self.degrees[sites]
-        if self.stochastic:
-            keywords['random'] = rng.random(table.shape[0])
+        keywords: dict[str, object] = {
+            **self.arguments.get_values(x, p, sites),
+            'time': t,
+            'space': space,
+            'degree': self.degrees if self.degrees is None or sites is None else self.degrees[sites],
+            'random': rng.random(table.shape[0]) if self.stochastic else None,
+        }
         if self.rule is None:
             error_msg = f'The local rule of {self.owner} has neither a function nor a lookup.'
             raise ValidationError(error_msg)
@@ -260,7 +263,7 @@ class RuleKernel(BaseKernel):
         readers = active | (self.reading @ active.astype(np.float64) > 0)
         sites = np.flatnonzero(readers)
         if sites.size:
-            self._assign(x, self._get_next(x, p, sites, rng), sites)
+            self._assign(x, self._get_next(inputs.t, x, p, sites, rng), sites)
 
     def _run(self, inputs: RunStateSpec | None) -> None:
         """Update the state vector of the state in place by one application of the rule.
@@ -272,13 +275,13 @@ class RuleKernel(BaseKernel):
         x, p, rng = state.x, state.p, self._get_generator_of(state)
         size = self.targets[0].size
         if self.schedule == 'synchronous':
-            self._assign(x, self._get_next(x, p, None, rng), None)
+            self._assign(x, self._get_next(state.t, x, p, None, rng), None)
             return
         if self.schedule in {'checkerboard', 'colored'}:
             for sites in self.classes:
-                self._assign(x, self._get_next(x, p, sites, rng), sites)
+                self._assign(x, self._get_next(state.t, x, p, sites, rng), sites)
             return
         order = rng.permutation(size) if self.schedule == 'random-sequential' else rng.integers(size, size=size)
         for site in order:
             sites = np.asarray([site])
-            self._assign(x, self._get_next(x, p, sites, rng), sites)
+            self._assign(x, self._get_next(state.t, x, p, sites, rng), sites)

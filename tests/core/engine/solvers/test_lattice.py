@@ -42,7 +42,14 @@ def _symbolic(s):
 
 def _copy(s, schedule=None):
     """Return the rule that copies the value of the left neighbour."""
-    return [UpdateLaw(s.target.value, lambda left: left, neighborhood=LatticeNeighborhood(((-1,),)), schedule=schedule)]
+    return [
+        UpdateLaw(
+            s.target.value,
+            lambda left, **kwargs: left,
+            neighborhood=LatticeNeighborhood(((-1,),)),
+            schedule=schedule,
+        ),
+    ]
 
 
 def _shift(schedule):
@@ -175,7 +182,9 @@ def test_checkerboard_needs_bipartite_neighbourhood():
 
     def laws(s):
         """Return a rule that keeps the first neighbour, on a checkerboard."""
-        return [UpdateLaw(s.target.alive, lambda *values: values[0], neighborhood=moore, schedule='checkerboard')]
+        return [
+            UpdateLaw(s.target.alive, lambda *values, **kwargs: values[0], neighborhood=moore, schedule='checkerboard'),
+        ]
 
     system = _cells(LatticeSpace((4, 4)), laws, alive=0.0)
     with pytest.raises(ValidationError, match='random-sequential'):
@@ -187,7 +196,7 @@ def test_unknown_schedule_is_rejected():
     with pytest.raises(ValidationError, match='synchronous'):
         UpdateLaw(
             var('x'),
-            lambda *values: values[0],
+            lambda *values, **kwargs: values[0],
             neighborhood=LatticeNeighborhood(((-1,), (0,), (1,))),
             schedule='parallel',
         )._check()
@@ -208,7 +217,11 @@ def test_rule_reads_parameters_by_keyword():
     def grow(s):
         """Return the rule that adds the rate to the value."""
         return [
-            UpdateLaw(s.target.value, lambda value, *, rate: value + rate, neighborhood=LatticeNeighborhood(((0,),))),
+            UpdateLaw(
+                s.target.value,
+                lambda value, *, rate, **kwargs: value + rate,
+                neighborhood=LatticeNeighborhood(((0,),)),
+            ),
         ]
 
     trajectory = (
@@ -231,10 +244,10 @@ def test_relaxation_records_avalanches():
         height = _symbolic(s).height
         topple = UpdateLaw(
             height,
-            lambda left, height, right: height - 2 * (height >= 2) + (left >= 2) + (right >= 2),
+            lambda left, height, right, **kwargs: height - 2 * (height >= 2) + (left >= 2) + (right >= 2),
             neighborhood=three,
         )
-        drop = UpdateLaw(height, lambda z, *, random: z + (np.arange(z.size) == 2), arrays=True)
+        drop = UpdateLaw(height, lambda z, **kwargs: z + (np.arange(z.size) == 2), arrays=True)
         value = relax(
             height,
             topple,
@@ -258,7 +271,7 @@ def test_relaxation_without_end_raises():
     def laws(s):
         """Return a relaxation that grows every value and is never stable."""
         value = _symbolic(s).value
-        grow = UpdateLaw(value, lambda value: value + 1, neighborhood=LatticeNeighborhood(((0,),)))
+        grow = UpdateLaw(value, lambda value, **kwargs: value + 1, neighborhood=LatticeNeighborhood(((0,),)))
         return [UpdateLaw(value, relax(value, grow, lambda _: False, max_iterations=10))]
 
     with pytest.raises(SolverError, match='not stable after 10 iterations'):
@@ -349,11 +362,11 @@ def test_monte_carlo_wraps_angles_after_every_sweep():
 def _pile(activity, evaluated):
     """Return a 32 x 32 sandpile whose relaxation declares an activity or none, counting the sites it topples."""
 
-    def topple(height, *around):
+    def topple(height, *around, **kwargs):
         evaluated.append(np.size(height))
         return height - 4 * (height >= 4) + sum(item >= 4 for item in around)
 
-    def drop(heights, *, random):
+    def drop(heights, *, random, **kwargs):
         following = heights.copy()
         following[tuple(random.integers(size) for size in heights.shape)] += 1
         return following
@@ -363,7 +376,7 @@ def _pile(activity, evaluated):
         height = _symbolic(s).height
         cross = RadiusNeighborhood(1, metric='manhattan', center=True)
         rules = UpdateLaw(height, topple, neighborhood=cross)
-        drive = UpdateLaw(height, drop, arrays=True)
+        drive = UpdateLaw(height, drop, arrays=True, stochastic=True)
         value = relax(height, rules, lambda heights: bool((heights < 4).all()), drive=drive, activity=activity)
         return [UpdateLaw(height, value, label='avalanche')]
 

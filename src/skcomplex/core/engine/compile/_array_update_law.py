@@ -21,25 +21,30 @@ class ArrayUpdateLaw(BaseLaw):
     """A law that replaces a whole array state by the output of a function.
 
     The compiler runs it for an `UpdateLaw` with `arrays=True`, whose value is a NumPy function of the whole array,
-    such as `UpdateLaw(s.target.height, drop, arrays=True)` with `def drop(values, *, random): ...`. At every step the
-    function receives the state of every member as one array, shaped like the lattice or with one row per member of a
-    group on the edges or hyperedges of a network. A state of several components per member has its components on a
-    last axis. The function may also receive the parameters of the element, and `random`, `time`, and `space` when it
-    names them.
+    such as `UpdateLaw(s.target.height, drop, arrays=True, stochastic=True)` with
+    `def drop(values, *, random, **kwargs): ...`. At every step the function receives the state of every member as one
+    array, shaped like the lattice or with one row per member of a group on the edges or hyperedges of a network. A
+    state of several components per member has its components on a last axis. The function also receives the keywords
+    of every rule of an `UpdateLaw`: the parameters of the element, `time`, `space`, `degree`, which is `None`, and
+    `random`, the generator when the law is stochastic and `None` otherwise.
 
     Args:
         target:
             The symbol of a lattice state, or the vector of the symbols of its components.
 
         function:
-            The function `f(values, *, random, **parameters)`, which may also name `time` and `space`.
+            The function `f(values, **kwargs)` of the array and the keywords of a rule.
 
         label:
             The name of the law, or the empty string for a law without one.
 
         score:
-            The function `score(values, **parameters)` of the array of a state on a `LatticeSpace`, which returns one
-            number per row, and which a run records at every frame as `<owner>.score`, or `None` for no record.
+            The function `score(values, **kwargs)` of the array of a state on a `LatticeSpace` and the keywords of a
+            rule, with `random` set to `None`, which returns one number per row, and which a run records at every
+            frame as `<owner>.score`, or `None` for no record.
+
+        stochastic:
+            Whether the function draws numbers, so that it receives the random generator as `random`.
     """
 
     law_tag: ClassVar[str] = 'update'
@@ -49,6 +54,7 @@ class ArrayUpdateLaw(BaseLaw):
     _: KW_ONLY
     label: str = ''
     score: Callable[..., object] | None = None
+    stochastic: bool = False
 
     @classmethod
     def _get_name(cls) -> str:

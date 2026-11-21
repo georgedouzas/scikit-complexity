@@ -904,7 +904,7 @@ class CensusPass(BasePass):
         function = law.value if isinstance(law, UpdateLaw) else None
         if not isinstance(law, UpdateLaw) or not law.arrays or not callable(function):
             return law
-        return ArrayUpdateLaw(law.target, function, label=law.label, score=law.score)
+        return ArrayUpdateLaw(law.target, function, label=law.label, score=law.score, stochastic=law.stochastic)
 
     @staticmethod
     def _get_relaxation(law: BaseLaw) -> BaseLaw:

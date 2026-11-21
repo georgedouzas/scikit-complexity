@@ -675,7 +675,7 @@ class BaseInteraction(BaseComponent[SimpleNamespace]):
             return None
         if law.target is system:
             rule = law.value
-            if not callable(rule) or not self._is_rule(rule, 1):
+            if not callable(rule):
                 error_msg = (
                     f'The update law of {self.label!r} on the whole system has the value {rule!r}. A rule of the '
                     'system is a function of the system, such as def brake(system): ...'
@@ -690,25 +690,13 @@ class BaseInteraction(BaseComponent[SimpleNamespace]):
             )
             raise ValidationError(error_msg)
         rule = law.value
-        if not callable(rule) or not self._is_rule(rule):
+        if not callable(rule):
             error_msg = (
                 f'The update law of {self.label!r} on the group of {role!r} has the value {rule!r}. A rule is a '
                 'function of one agent and the system, such as def move(agent, system): agent.x += 1.'
             )
             raise ValidationError(error_msg)
         return _RuleLaw(rule, law.phase, members=role, label=law.label)
-
-    @staticmethod
-    def _is_rule(rule: Callable[..., object], arguments: int = 2) -> bool:
-        """Return whether a function takes a number of arguments, two by default.
-
-        The two are the agent and the system.
-        """
-        try:
-            inspect.signature(rule).bind(*[None] * arguments)
-        except (TypeError, ValueError):
-            return False
-        return True
 
     def prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> Self:
         """Check the interaction, and set its laws in `laws_` on a namespace.

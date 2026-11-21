@@ -547,9 +547,9 @@ def test_update_of_a_group_with_a_function_is_an_agent_rule():
     assert [(law.function, law.members, law.phase) for law in laws] == [(_shift, 'target', 'move')]
 
 
-@pytest.mark.parametrize('rule', [3.0, lambda agent: None, lambda agent, system, extra: None])
+@pytest.mark.parametrize('rule', [3.0, 'move'])
 def test_rule_that_is_no_function_of_an_agent_and_the_system_raises(rule):
-    """Test that the value of an update law of a group must be a function of one agent and the system."""
+    """Test that the value of an update law of a group must be a function, whose signature goes unread."""
     interaction = RuleInteraction('shift', target='walkers', rule=rule)
     with pytest.raises(ValidationError, match='A rule is a function of one agent and the system'):
         interaction._get_laws_of(SimpleNamespace(target=SimpleNamespace(x=var('x'))))
