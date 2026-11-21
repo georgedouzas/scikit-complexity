@@ -525,19 +525,30 @@ here a lattice of ten by ten with 6400 sites, or a higher `limit` when the memor
 ## UnregisteredLawError
 
 Each kind of law compiles to a mathematical form, such as an ordinary differential equation for `RateLaw`. A law of a
-class the engine has no form for raises this error, even a subclass of a core law. Here a growth law subclasses
-`RateLaw`.
+new class that derives from `BaseLaw` has no form the engine knows, so it raises this error. A subclass of a core law,
+such as of `RateLaw`, compiles as that law. Here a growth law derives from `BaseLaw` and gives only its target.
 
 ```python
+from dataclasses import dataclass
+
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws import BaseLaw, RequirementSpec
 from skcomplex.core.errors import UnregisteredLawError
 from skcomplex.core.systems import System
 
 
-class GrowthLaw(RateLaw):
-    pass
+@dataclass(frozen=True)
+class GrowthLaw(BaseLaw):
+    target: object
+    value: object
+
+    def _get_targets(self):
+        return (self.target,)
+
+    @classmethod
+    def _get_requirements(cls):
+        return RequirementSpec()
 
 
 hares = Element('hares', values={'x': 30.0})
