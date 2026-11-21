@@ -1,7 +1,7 @@
 """Define the components of a system and the values they read.
 
-An element holds states, an interaction reads them through roles and returns laws, a law is one equation or rule for one
-state, a space places the members of a group, and a system composes them.
+An element holds values, an interaction reads them through roles and sets its laws in `laws_` when it is prepared, a
+law is one equation or rule for one state, a space places the members of a group, and a system composes them.
 """
 
 from ._entry_spec import EntrySpec
