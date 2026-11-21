@@ -447,8 +447,8 @@ class SolverError(SkcomplexError):
 
     A solver runs some kinds of problem only, and it may fail on a stiff problem whose values change at very different
     speeds, as a map solver given rate laws does. Choose a solver that accepts the problem, or a smaller step or a
-    solver for stiff problems. It catches a stiff chemical network, a pendulum with too large a step, and an epidemic sent to
-    the wrong solver.
+    solver for stiff problems. It catches a stiff chemical network, a pendulum with too large a step, and an epidemic
+    sent to the wrong solver.
 
     Read more in the user guide, under Troubleshooting.
 
