@@ -13,12 +13,14 @@ from ._base import BaseObserver
 
 
 class ConservationObserver(BaseObserver):
-    """An observer that checks the conservation of every quantity at every frame.
+    """An observer that checks at every frame that each conserved quantity holds.
 
-    Each quantity may change only by its flows with the environment. The total of a quantity is the sum of the states
-    that hold it. The monitor compares its change since the first frame with the accumulated net inflow from the
-    environment, which the compiler integrates as a hidden state, and raises an error when they differ by more than the
-    tolerance, such as after a boundary law clips a state.
+    The total of a quantity is the sum of the values that hold it, such as the water in the tanks of a plant, and it may
+    change only by its flows to and from the outside. The observer compares the change of each total since the first
+    frame with the net inflow from the outside, and raises an error when they differ by more than the tolerance, such as
+    after a law clips a value. It checks the money of an economy, the people of an epidemic, and the water of a bathtub.
+
+    Read more in the user guide, under Observe.
 
     Args:
         rtol:
@@ -32,23 +34,27 @@ class ConservationObserver(BaseObserver):
             The compiled problem of the run.
 
         transfer_network_:
-            The quantities of the problem, with the states that hold them and their flows with the environment.
+            The quantities of the problem, with the values that hold them and their flows to and from the outside.
 
         totals_:
             The total of every quantity at the latest frame.
 
         initial_:
-            The total of every quantity minus its inflow from the environment at the first frame, or `None`.
+            The total of every quantity minus its inflow from the outside at the first frame, or `None`.
 
         scale_:
             The largest absolute total of every quantity seen so far.
 
+    See Also:
+        Quantity: Marks a value that holds a conserved quantity.
+        InvariantObserver: Checks that observables stay near their first value.
+
     Examples:
         >>> from skcomplex.core.engine.runtime import ConservationObserver
         >>> from skcomplex.systems.engineering.processes import BathtubSystem
-        >>> monitor = ConservationObserver()
-        >>> _ = BathtubSystem().prepare().simulate(until=10, dt=1, observers=[monitor])
-        >>> round(monitor.totals_['water'], 6)
+        >>> observer = ConservationObserver()
+        >>> _ = BathtubSystem().prepare().simulate(until=10, dt=1, observers=[observer])
+        >>> round(observer.totals_['water'], 6)
         25.0
     """
 
