@@ -124,6 +124,9 @@ LAYOUT_PACKAGES = (
             '_reservoirs',
             '_rolling',
             '_samples_spec',
+            '_scaling',
+            '_sections',
+            '_series_spec',
             'types',
         )
     ),
