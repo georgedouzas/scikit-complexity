@@ -15,12 +15,16 @@ HODGE_STAR = _OperatorFunction('hodge_star', nargs=1, latex_name=r'\star')
 
 
 def exterior_derivative(expression: object) -> Expression:
-    """Return the exterior derivative of a state on the cells of a cell complex.
+    """Return the differences of a state of a cell complex, one degree up.
 
-    It lives on the next degree. The degree of the expression is the part its group lives on, 0 for sites, 1 for edges,
-    and 2 for hyperedges. On a site state it is the difference of the values at the ends of every edge, on an edge state
-    the oriented sum around every face. Applied twice it is exactly 0. Inside a reduction over `CofaceNeighborhood` it
-    is the oriented sum around the one coface.
+    The degree of a state is where its group lives, 0 on sites, 1 on edges, and 2 on faces, which a group holds as
+    hyperedges. On a state of the sites it gives every edge the value at its head minus the value at its tail, and on a
+    state of the edges it gives every face the sum around it, each edge signed by its direction, so applying it twice
+    gives exactly 0. Inside a reduction over `CofaceNeighborhood` it is the signed sum around the one face, such as
+    `exterior_derivative(sin(theta))` for the differences of phases along every edge. It gives the voltage across the
+    wires of a circuit, the pressure drop along a pipe network, and the gradient of a field on a mesh.
+
+    Read more in the user guide, under Laws.
 
     Args:
         expression:
@@ -29,6 +33,10 @@ def exterior_derivative(expression: object) -> Expression:
     Returns:
         derivative:
             The call `exterior_derivative(expression)`.
+
+    See Also:
+        codifferential: Goes one degree down.
+        hodge_star: Scales a state by the sizes of its cells.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import sin, var
@@ -40,21 +48,28 @@ def exterior_derivative(expression: object) -> Expression:
 
 
 def codifferential(expression: object) -> Expression:
-    """Return the codifferential `(-1)^k star^-1 d^T star` of a state of degree `k`.
+    """Return the net flow of a state of a cell complex, one degree down.
 
-    It lives on the degree below. Here `d^T` is the transpose of the incidence of the degrees `k - 1` and `k`, so on a
-    lattice with unit spacings the codifferential of an edge state is its divergence, the outflow minus the inflow at
-    every site, and the codifferential of a face state is its curl on every edge. Applied twice it is 0 up to roundoff.
-    With this sign the codifferential of the exterior derivative of a site state is the graph Laplacian, and that of an
-    edge state the curl of its curl.
+    It is `(-1)^k star^-1 d^T star` for a state of degree `k`, where `d^T` turns the differences of
+    `exterior_derivative` around. On a lattice with unit spacings it gives every site the outflow minus the inflow of a
+    state of the edges, such as `codifferential(flow)`, and every edge the circulation of a state of the faces. Applied
+    twice it gives 0 up to rounding, and applied to the differences of a state of the sites it gives the graph
+    Laplacian. It gives the net current into the nodes of a circuit, the net trade of every country, and the divergence
+    of a flow on a mesh.
+
+    Read more in the user guide, under Laws.
 
     Args:
         expression:
-            An expression of the states and parameters of a group on the edges or hyperedges of a cell complex.
+            An expression of the states and parameters of a group on the edges or faces of a cell complex.
 
     Returns:
         codifferential:
             The call `codifferential(expression)`.
+
+    See Also:
+        exterior_derivative: Goes one degree up.
+        hodge_star: Scales a state by the sizes of its cells.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
@@ -66,11 +81,15 @@ def codifferential(expression: object) -> Expression:
 
 
 def hodge_star(expression: object) -> Expression:
-    """Return the Hodge star of a state on the cells of a cell complex.
+    """Return a state of a cell complex scaled cell by cell, the Hodge star.
 
-    It is a diagonal factor of every cell. On a lattice complex the factor is the ratio of dual to primal cell volumes
-    from the spacings. On a network complex it is the parameter `weight` of the elements of the group on the part of the
-    cell, as the group holds it when the system compiles, and 1 for a part whose group declares no such parameter.
+    It multiplies the value of every cell by a factor of that cell, such as `hodge_star(flow)` for the currents that the
+    voltages of the edges drive. On a lattice the factor is the size of the dual cell over the size of the cell, from
+    the spacings. On a network it is the parameter `weight` of the elements of the group on those cells, as the system
+    holds it when it compiles, or 1 for a group without that parameter. It gives the conductance of the wires of a
+    circuit, the capacity of the pipes of a network, and the areas of the cells of a mesh.
+
+    Read more in the user guide, under Laws.
 
     Args:
         expression:
@@ -79,6 +98,10 @@ def hodge_star(expression: object) -> Expression:
     Returns:
         star:
             The call `hodge_star(expression)`.
+
+    See Also:
+        exterior_derivative: Takes the differences of a state, one degree up.
+        codifferential: Takes the net flow of a state, one degree down.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
@@ -90,9 +113,13 @@ def hodge_star(expression: object) -> Expression:
 
 
 def cell_operations_in(expression: object) -> list[Expression]:
-    """Return the outermost calls of the exterior calculus in an expression.
+    """Return the calls of the operations of a cell complex in an expression.
 
-    Each is listed once.
+    The compiler reads them to build a matrix for every call of `exterior_derivative`, `codifferential`, and
+    `hodge_star`, each listed once, such as the outer call in `1 + codifferential(exterior_derivative(flow))`. A call
+    inside another call is left for the outer one. It finds the operations of circuits, pipe networks, and meshes.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         expression:
@@ -101,6 +128,9 @@ def cell_operations_in(expression: object) -> list[Expression]:
     Returns:
         calls:
             The calls of `exterior_derivative`, `codifferential`, and `hodge_star`.
+
+    See Also:
+        exterior_derivative: Builds one of the calls it finds.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var

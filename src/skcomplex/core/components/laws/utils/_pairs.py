@@ -92,7 +92,7 @@ def _choose(
     if spec.choice == 'nearest':
         return [min(free, key=agent.get_distance_to)]
     if spec.score is None:
-        error_msg = 'The choice `score` of partners has no score. Give a function of the agent and the candidate.'
+        error_msg = "A PartnerSpec with choice='score' needs a score. Give a function of the agent and the candidate."
         raise ValidationError(error_msg)
     scores = np.asarray([float(spec.score(agent, target)) for target in free], dtype=float)
     best = np.flatnonzero(scores == scores.max())
@@ -200,13 +200,13 @@ def pairs(
 ) -> Iterator[tuple[AgentViewProtocol, AgentViewProtocol]]:
     """Pair the agents of one or two groups, inside a rule.
 
-    Workers meet firms in a labour market, buyers meet sellers in a bazaar, birds pair up to mate, and players meet
-    opponents in a tournament. By default the members pair uniformly at random. A `PartnerSpec` picks partners within
-    reach, by score, or among neighbours, and any other pairing, such as a stable matching or an auction, is a function
-    `pairing(left, right, rng, capacity)` that returns the pairs.
+    By default the agents pair uniformly at random, such as 2 pairs for 3 buyers and 2 sellers. A `PartnerSpec` picks
+    partners within reach, by score, or among neighbours, and any other pairing, such as a stable matching or an
+    auction, is a function `pairing(left, right, rng, capacity)` that returns the pairs. With `feasible`, the pairs come
+    one at a time in a random order of agents, so a rule can settle each pair before the next one is checked. It matches
+    workers with firms, buyers with sellers, birds with mates, and players with opponents.
 
-    With `feasible`, the pairs come one at a time, so a rule can settle each before the next, and the agents act in
-    random order, since the first to act take what the feasibility reads.
+    Read more in the user guide, under Agents.
 
     Args:
         left:
@@ -234,29 +234,28 @@ def pairs(
 
     Raises:
         ValidationError:
-            The capacity is not a positive integer, the selection of partners is invalid or names a state the agents
-            do not have, or a feasibility comes without a `PartnerSpec`.
+            The capacity is not a positive whole number, the selection of partners is invalid or names a state the
+            agents do not have, or `feasible` comes without a `PartnerSpec`.
+
+    See Also:
+        PartnerSpec: Says how agents pick their partners.
+        transfer: Moves a quantity between the two agents of a pair.
 
     Examples:
         >>> import numpy as np
         >>> from types import SimpleNamespace
         >>> from skcomplex.core.components.laws.utils import pairs
-        >>> rng = np.random.default_rng(0)
-        >>> buyers = [SimpleNamespace(id=index) for index in range(3)]
-        >>> sellers = [SimpleNamespace(id=index) for index in range(3, 5)]
-        >>> len(list(pairs(buyers, sellers, rng)))
+        >>> buyers, sellers = [SimpleNamespace(id=k) for k in range(3)], [SimpleNamespace(id=k) for k in range(3, 5)]
+        >>> len(list(pairs(buyers, sellers, np.random.default_rng(0))))
         2
-        >>> birds = [SimpleNamespace(id=index) for index in range(6)]
-        >>> len(list(pairs(birds, None, rng)))
-        3
     """
     if isinstance(capacity, bool) or not isinstance(capacity, int) or capacity < 1:
-        error_msg = f'The pairs have capacity {capacity!r}. Give a positive integer.'
+        error_msg = f'The capacity of pairs must be a positive whole number, but it is {capacity!r}.'
         raise ValidationError(error_msg)
     right = left if right is None else right
     if feasible is not None:
         if not isinstance(pairing, PartnerSpec):
-            error_msg = f'Pairs under a feasibility need a `PartnerSpec`, not {pairing!r}.'
+            error_msg = f'Pairs with `feasible` need a `PartnerSpec` as their pairing, but it is {pairing!r}.'
             raise ValidationError(error_msg)
         pairing._check()
         return _get_partners(pairing, left, right, rng, feasible)

@@ -43,7 +43,7 @@ def _members(size):
 @pytest.mark.parametrize('capacity', [0, 1.5, True])
 def test_pairs_need_a_positive_whole_capacity(capacity):
     """Test that pairs reject a capacity that is not a positive integer."""
-    with pytest.raises(ValidationError, match='Give a positive integer'):
+    with pytest.raises(ValidationError, match='positive whole number'):
         pairs(_members(2), None, np.random.default_rng(0), capacity=capacity)
 
 

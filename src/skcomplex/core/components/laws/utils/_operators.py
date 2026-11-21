@@ -23,9 +23,9 @@ class _OperatorFunction(BuiltinFunction):
     """Operator kept unevaluated in expressions until the compiler lowers it.
 
     The name, the number of operands, 0 for any number, and the LaTeX name are those of Sage's `BuiltinFunction`. Sage
-    pickles a `BuiltinFunction` by calling its class with no argument, so every operator class registers with
-    `copyreg` a reduction that rebuilds it from the arguments it was built with, which lets expressions that hold it
-    reach other processes.
+    pickles a `BuiltinFunction` by calling its class with no argument, so every operator class registers with `copyreg`
+    a reduction that rebuilds it from the arguments it was built with, which lets expressions that hold it reach other
+    processes.
     """
 
     @staticmethod
@@ -49,9 +49,13 @@ SHIFTED = _OperatorFunction('shifted')
 
 
 def gradient(expression: object, n_dim: int = 2) -> FreeModuleElement:
-    """Return the gradient of a field expression.
+    """Return the gradient of a field, its derivative along every axis of a lattice.
 
-    It is the derivative along every dimension of a lattice.
+    It gives one `partial(expression, axis)` per axis, such as `(partial(u, 0), partial(u, 1))` for a field `u` in a
+    plane, which the compiler turns into differences between neighbouring sites. It gives the slope of a landscape, the
+    pull of a chemical on cells that follow it, and the force of a pressure on a fluid.
+
+    Read more in the user guide, under Laws.
 
     Args:
         expression:
@@ -64,6 +68,10 @@ def gradient(expression: object, n_dim: int = 2) -> FreeModuleElement:
         gradient:
             One derivative per dimension.
 
+    See Also:
+        divergence: Sums the derivatives of a vector field.
+        laplacian: Gives the divergence of the gradient.
+
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws.utils import gradient
@@ -74,9 +82,13 @@ def gradient(expression: object, n_dim: int = 2) -> FreeModuleElement:
 
 
 def divergence(components: Sequence[object] | FreeModuleElement) -> Expression:
-    """Return the divergence of a vector of field expressions.
+    """Return the divergence of a vector field, the net outflow at every site.
 
-    It is the sum of the derivative of each along its dimension.
+    It sums the derivative of entry `i` along axis `i`, such as `partial(u, 0) + partial(2*u, 1)` for `[u, 2 * u]`. The
+    rate of a density is minus the divergence of its flux, so what leaves a site arrives at its neighbours. It moves
+    heat through a plate, nutrients through a tissue, and traffic along a road.
+
+    Read more in the user guide, under Laws.
 
     Args:
         components:
@@ -85,6 +97,10 @@ def divergence(components: Sequence[object] | FreeModuleElement) -> Expression:
     Returns:
         divergence:
             The divergence.
+
+    See Also:
+        gradient: Gives the derivative along every axis.
+        advection: Moves a field with a velocity.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
@@ -97,20 +113,29 @@ def divergence(components: Sequence[object] | FreeModuleElement) -> Expression:
 
 
 def advection(expression: object, velocity: Sequence[object] | FreeModuleElement) -> Expression:
-    """Return the advection of a field expression by a velocity.
+    """Return the rate at which a velocity carries a field along, for one site.
 
-    It is its rate of transport, with upwind differences.
+    It sums `upwind(u, axis, v)` over the axes, the velocity times the slope of the field taken on the side the flow
+    comes from, which keeps a moving front from rippling, such as `upwind(u, 0, 1.0) + upwind(u, 1, 2.0)` for a flow
+    `(1, 2)`. A rate law subtracts it from the rate of the field. It carries a pollutant down a river, heat with the
+    wind, and cars along a road.
+
+    Read more in the user guide, under Laws.
 
     Args:
         expression:
             An expression of the states and parameters of a field.
 
         velocity:
-            One velocity component per dimension, numbers or expressions.
+            One entry of the velocity per dimension, numbers or expressions.
 
     Returns:
         advection:
             The advection term, to subtract from the rate of the field.
+
+    See Also:
+        divergence: Gives the net outflow of a flux.
+        shifted: Reads a field at a distance from every site.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
@@ -122,17 +147,21 @@ def advection(expression: object, velocity: Sequence[object] | FreeModuleElement
 
 
 def inverse_helmholtz(expression: object, screening: object = 0, boundary: object = None) -> Expression:
-    """Return the solution `psi` of a modified-Helmholtz equation.
+    """Return the field `psi` with `(laplacian - screening**2) psi = expression`.
 
-    The equation is `(laplacian - screening**2) psi = expression`. Without screening it is the Poisson equation
-    `laplacian(psi) = expression`, the inverse Laplacian.
+    The compiler solves the equation over the whole lattice at every step, so a law reads a potential that its sources
+    set at once, such as `inverse_helmholtz(q, 2)` for the potential of the charge `q` screened over a distance of one
+    half. Without screening it solves the Poisson equation `laplacian(psi) = expression`. It gives the electric
+    potential of charges, the gravity of a mass, and the signal that cells emit and that decays as it spreads.
+
+    Read more in the user guide, under Laws.
 
     Args:
         expression:
             An expression of the states and parameters of a field.
 
         screening:
-            The screening, a non-negative expression of the parameters, or 0 for the Poisson equation.
+            The screening, an expression of the parameters of 0 or more, or 0 for the Poisson equation.
 
         boundary:
             The boundary condition of the solution, `'periodic'`, `'zero-flux'`, or `('fixed', value)`, or `None` for
@@ -147,22 +176,23 @@ def inverse_helmholtz(expression: object, screening: object = 0, boundary: objec
         ValidationError:
             The boundary is not one of `INVERSION_BOUNDARIES` or a fixed boundary with its value.
 
+    See Also:
+        laplacian: Gives the operator it inverts.
+        leray_projection: Removes the outflow of a vector field with it.
+
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws.utils import inverse_helmholtz
         >>> inverse_helmholtz(var('q'), 2)
         inverse_helmholtz(q, 2)
-        >>> inverse_helmholtz(var('q'))
-        inverse_helmholtz(q, 0)
-        >>> inverse_helmholtz(var('q'), 2, ('fixed', 0.5))
-        inverse_helmholtz(q, 2, 2, 0.5)
     """
     if boundary is None:
         return INVERSE_HELMHOLTZ(SR(expression), SR(screening))
     kind, *values = boundary if isinstance(boundary, tuple) else (boundary,)
     if kind not in INVERSION_BOUNDARIES or (kind == 'fixed') != bool(values) or len(values) > 1:
         error_msg = (
-            f"The boundary of the inversion is {boundary!r}. Use 'periodic', 'zero-flux', or ('fixed', value), or None."
+            f"The boundary of inverse_helmholtz must be 'periodic', 'zero-flux', ('fixed', value), or None, but it is "
+            f'{boundary!r}.'
         )
         raise ValidationError(error_msg)
     code = SR(INVERSION_BOUNDARIES.index(kind))
@@ -170,13 +200,16 @@ def inverse_helmholtz(expression: object, screening: object = 0, boundary: objec
 
 
 def collision_integral(density: object, kernel: Callable[[Expression, Expression], object]) -> Expression:
-    """Return the binary collision integral of a density with a collision kernel.
+    """Return the rate at which collisions between pairs change a density of speeds.
 
-    The integral is `Q(f, f)(v) = int int B(|g|, cos t) (f(v') f(v'*) - f(v) f(v*)) ds dv*` over the two velocity
-    axes of the phase space of the density, with the relative speed `|g|` and the cosine `cos t` of the deflection
-    angle. The kernel is called once with two real symbols for the speed and the cosine, and the call keeps its
-    expression, so a rate law that reads the integral needs no other argument. The kernel returns an expression of the
-    speed, the cosine, and numbers, written with Sage functions rather than NumPy functions.
+    It is the Boltzmann integral `Q(f, f)(v) = ∫∫ B(|g|, cos t) (f(v') f(v'*) - f(v) f(v*)) ds dv*` over the two
+    velocity axes of the phase space of the density, with the relative speed `|g|` and the cosine `cos t` of the angle
+    the collision turns by. The kernel `B` is called once with two real symbols for the speed and the cosine and must
+    use Sage functions, such as `lambda speed, cosine: 1 / (2 * pi)` for Maxwell molecules, and the call keeps its
+    expression. It relaxes a gas toward equilibrium, mixes the speeds of granular matter, and spreads the opinions of
+    agents who meet in pairs.
+
+    Read more in the user guide, under Laws.
 
     Args:
         density:
@@ -188,7 +221,10 @@ def collision_integral(density: object, kernel: Callable[[Expression, Expression
 
     Returns:
         integral:
-            The unevaluated call of the integral, which the compiler lowers to the fast spectral method.
+            The unevaluated call of the integral, which the compiler computes with the fast spectral method.
+
+    See Also:
+        bilinear: Gives the rate of meetings between classes of two densities.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import pi, var
@@ -200,9 +236,12 @@ def collision_integral(density: object, kernel: Callable[[Expression, Expression
 
 
 def displacement(axis: int) -> Expression:
-    """Return the symbol of the displacement along an axis.
+    """Return the symbol of the distance along an axis, for a convolution kernel.
 
-    It is the variable a convolution kernel is written in.
+    A kernel of `convolve` is written in these symbols, such as `exp(-displacement(0) ** 2)` for a bell curve of the
+    distance along axis 0. It shapes how far seeds disperse, how far neurons reach, and how a blur spreads a pixel.
+
+    Read more in the user guide, under Laws.
 
     Args:
         axis:
@@ -211,6 +250,9 @@ def displacement(axis: int) -> Expression:
     Returns:
         displacement:
             The real symbol `displacement_<axis>`.
+
+    See Also:
+        convolve: Sums a field against a kernel of these symbols.
 
     Examples:
         >>> from skcomplex.core.components.laws.utils import displacement
@@ -221,9 +263,13 @@ def displacement(axis: int) -> Expression:
 
 
 def convolve(expression: object, kernel: object, radius: object = None) -> Expression:
-    """Return the convolution of a field expression with a kernel of the displacement.
+    """Return the sum of a field around every site, weighted by a kernel of distance.
 
-    It is the sum over sites times volume.
+    At every site it sums the field at every other site times the kernel at their distance and the volume of a cell,
+    such as `convolve(u, exp(-displacement(0) ** 2), 3)` for a bell curve that ends at distance 3. It gives the seeds
+    that land around a plant, the input a neuron gets from its neighbours, and the blur of an image.
+
+    Read more in the user guide, under Laws.
 
     Args:
         expression:
@@ -239,6 +285,10 @@ def convolve(expression: object, kernel: object, radius: object = None) -> Expre
         convolution:
             The call `convolve(expression, kernel, radius)`.
 
+    See Also:
+        displacement: Gives the symbols the kernel is written in.
+        integral_transform: Integrates against a kernel of two points.
+
     Examples:
         >>> from sage.all__sagemath_symbolics import var, exp
         >>> from skcomplex.core.components.laws.utils import convolve, displacement
@@ -249,9 +299,14 @@ def convolve(expression: object, kernel: object, radius: object = None) -> Expre
 
 
 def shifted(expression: object, offset: Sequence[object], order: int = 1) -> Expression:
-    """Return a field expression read at a physical displacement from every site.
+    """Return a field read at a given distance from every site.
 
-    The displacement has one component per axis.
+    It reads the field at the point `offset` away from every site, with one distance per axis, and fills in between
+    sites with a straight line or a cubic curve, such as `shifted(u, [v, 1])` for the field at `v` along the first axis
+    and 1 along the second. It moves a field back along a flow, reads the past position of a moving front, and shifts a
+    population along an axis of age.
+
+    Read more in the user guide, under Laws.
 
     Args:
         expression:
@@ -271,13 +326,14 @@ def shifted(expression: object, offset: Sequence[object], order: int = 1) -> Exp
         ValidationError:
             The order is not 1 or 3.
 
+    See Also:
+        advection: Carries a field along with a velocity.
+
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws.utils import shifted
         >>> shifted(var('u'), [var('v'), 1])
         shifted(u, v, 1)
-        >>> shifted(var('u'), [var('v'), 1], order=3)
-        shifted(u, v, 1, 3)
     """
     if order not in ORDERS:
         error_msg = f'The order of a shifted read is {order!r}. Use 1 for linear or 3 for cubic interpolation.'

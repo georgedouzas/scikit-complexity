@@ -96,3 +96,10 @@ def test_stop_gradient_stops_gradients_on_jax():
     function = ExpressionPrinter._get_function_of(printer.run([x * stop_gradient(x**2)]).code_)
     value, gradient = jax.value_and_grad(lambda y: function(0.0, y)[0])(3.0)
     assert (float(value), float(gradient)) == (27.0, 9.0)
+
+
+def test_stop_gradient_differentiates_to_zero_symbolically():
+    """Test that Sage differentiates through `stop_gradient` as through a constant."""
+    x = var('x')
+    assert str(stop_gradient(x**2)) == 'stop_gradient(x^2)'
+    assert str((x * stop_gradient(x)).diff(x)) == 'stop_gradient(x)'

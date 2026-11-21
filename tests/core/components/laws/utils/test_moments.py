@@ -13,6 +13,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import bilinear, moment
+from skcomplex.core.components.laws.utils._reductions import reductions_in
 from skcomplex.core.components.spaces import BaseSpace, LatticeSpace
 from skcomplex.core.engine.backends import NumpyBackend
 from skcomplex.core.errors import ValidationError
@@ -194,3 +195,14 @@ def test_moment_inside_a_group_law_is_shared():
     problem = system.prepare()._problem
     rates = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     np.testing.assert_allclose(rates, np.full(CLASSES, PROFILE @ ACTIVITIES))
+
+
+def test_normalised_moment_divides_a_weighted_total_by_the_total():
+    """Test that a normalised moment holds one weighted and one plain total."""
+    found = reductions_in(moment(var('f'), 1, [0.0, 1.0, 2.0], normalized=True))
+    assert sorted(item.weights is None for item in found) == [False, True]
+
+
+def test_moment_over_an_axis_sums_the_powers_of_its_coordinate():
+    """Test that a moment over one axis of a phase space sums the field times the power of the coordinate."""
+    assert str(moment(var('f'), 2, axes=('v',))) == 'reduce_axes(_coordinate_v^2*f, _coordinate_v)'

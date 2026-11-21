@@ -77,3 +77,10 @@ def test_stock_and_flow_delays_follow_their_step_responses(name, backend):
 def test_stock_and_flow_delays_are_distributed_delays(order, conserved, expected):
     """Test that the stock-and-flow delays are distributed delays of their order and kind."""
     assert str(distributed_delay(var('x'), 4, order, conserved=conserved)) == expected
+
+
+@pytest.mark.parametrize(('order', 'time', 'message'), [(0, 4, 'positive whole number'), (1, -1, 'must be positive')])
+def test_distributed_delay_rejects_a_bad_order_or_time(order, time, message):
+    """Test that an order below 1 or a delay time that is not positive raises an error in plain words."""
+    with pytest.raises(ValueError, match=message):
+        distributed_delay(var('x'), time, order)

@@ -24,21 +24,18 @@ def bilinear(
     *,
     conserved: bool = False,
 ) -> Expression:
-    """Return the bilinear form of two densities that meet and change class.
+    """Return the rate at which two densities meet and move between classes.
 
-    A density is a group of elements, one per class of a trait, that holds how much of a population sits in each class.
-    When an amount of the first density `f` in class `h` meets an amount of the second density `g` in class `k`, at the
-    rate `rate[h, k]`, it adds to class `i` with the probability `outcomes[h, k, i]`. The form is
-    `sum_hk rate[h, k] outcomes[h, k, i] f_h g_k` at class `i` of the state a `RateLaw` changes. A positive rate gives
-    a gain that leaves the first density in place, and a negative rate on the first density gives a loss.
+    A density is a group with one element per class of a trait, holding how much of a population is in each class. When
+    the first density `f` in class `h` meets the second density `g` in class `k` at the rate `rate[h, k]`, the meeting
+    adds to class `i` with the probability `outcomes[h, k, i]`, so class `i` gains
+    `Σ_hk rate[h, k] outcomes[h, k, i] f_h g_k`, such as `bilinear(-0.5, None, f, g)` for a loss of `f` at half the rate
+    of meetings. With `conserved=True` the first density also loses what moves out of class `h`, so its total stays the
+    same, and without a second density the form moves amounts between classes at a fixed rate. A `RateLaw` whose whole
+    rate is the form runs as meetings, which an ODE solver integrates and `KineticSolver` samples. Traders exchange
+    wealth when they meet, people shift their opinion after a talk, and particles stick together when they collide.
 
-    A conserved form also takes the matching amount from class `h` of the first density, so the total stays the same:
-    `df_i/dt = sum_hk rate[h, k] outcomes[h, k, i] f_h g_k - f_i sum_k rate[i, k] g_k`. A second density that no law
-    changes is a fixed input, and a conserved form without one is a linear redistribution between classes.
-
-    Traders exchange wealth when they meet, people shift their opinion after a conversation, and particles coagulate
-    when they collide. A `RateLaw` whose whole rate is the form runs as encounters, which an ODE solver integrates and
-    `KineticSolver` samples.
+    Read more in the user guide, under Laws.
 
     Args:
         rate:
@@ -56,19 +53,23 @@ def bilinear(
             The symbol of the second density, or `None` for a linear redistribution of a conserved form.
 
         conserved:
-            Whether the form also takes the matching loss from the first density, which is then the target.
+            Whether the form also takes the matching loss from the first density, which is then the target, so
+            `df_i/dt = Σ_hk rate[h, k] outcomes[h, k, i] f_h g_k - f_i Σ_k rate[i, k] g_k`.
 
     Returns:
         form:
-            The unevaluated form, which the compiler lowers to sparse contractions of the densities.
+            The unevaluated form, which the compiler turns into sums over the classes of the densities.
 
     Raises:
         ValidationError:
             A conserved form has no outcome table, a form without a second density is not conserved, or a table has the
             wrong dimensions or a shape that disagrees with the other.
 
+    See Also:
+        RateLaw: Takes the form as its rate.
+        contraction: Sums a coupling tensor times the values of the members of a group.
+
     Examples:
-        >>> import numpy as np
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws.utils import bilinear
         >>> f, g = var('f g')
@@ -91,8 +92,8 @@ def bilinear(
     table = None if outcomes is None else _get_table('outcomes', outcomes, OUTCOME_DIMENSIONS)
     if table is not None and rates.ndim and rates.shape != table.shape[:2]:
         error_msg = (
-            f'The rate of the bilinear form has the shape {rates.shape}, but its outcomes have {table.shape[:2]} '
-            'candidate and field classes.'
+            f'The rate of the bilinear form has the shape {rates.shape}, but its outcomes have the shape '
+            f'{table.shape[:2]} over the classes of the first and the second density.'
         )
         raise ValidationError(error_msg)
     operands = [SR(first), SR(second is not None), SR(first if second is None else second), SR(conserved)]
@@ -103,7 +104,13 @@ def bilinear(
 
 
 def bilinears_in(expression: object) -> list[Expression]:
-    """Return the outermost bilinear forms of an expression.
+    """Return the calls of `bilinear` in an expression, outermost first.
+
+    The compiler reads them to turn every form into sums over the classes of its densities, each call listed once, such
+    as one call in `2 * bilinear(1.0, None, f, g)`. A call inside another call is left for the outer one. It finds the
+    meetings of traders, of people who talk, and of particles that collide.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         expression:
@@ -112,6 +119,9 @@ def bilinears_in(expression: object) -> list[Expression]:
     Returns:
         forms:
             The bilinear calls, each listed once.
+
+    See Also:
+        unpack_bilinear: Reads the densities and tables of a call.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
@@ -129,14 +139,23 @@ def unpack_bilinear(
 ) -> tuple[Expression, Expression | None, object, npt.NDArray[np.object_] | None, bool]:
     """Return the densities, the tables, and the conservation of a bilinear form.
 
+    It reads back the arguments that `bilinear` packed into one call, such as `(f, g, -0.5, None, False)` for
+    `bilinear(-0.5, None, f, g)`, so the compiler can build the sums of the form. It opens the forms of traders,
+    conversations, and colliding particles.
+
+    Read more in the user guide, under Extend the library.
+
     Args:
         form:
             The bilinear call.
 
     Returns:
-        parts:
+        arguments:
             The first density, the second density or `None`, the rate as a number, an expression, or an array, the
             outcome array or `None`, and whether the form is conserved.
+
+    See Also:
+        bilinear: Builds the calls it reads.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var

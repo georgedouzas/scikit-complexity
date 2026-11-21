@@ -8,11 +8,15 @@ from ....errors import ValidationError
 
 
 def transfer(source: object, sink: object, amount: float, state: str, sink_state: str | None = None) -> None:
-    """Move an amount of a quantity from one agent to another at once, inside a rule.
+    """Move an amount of a quantity from one agent to another inside a rule.
 
-    It is the imperative form of a flow between holdings, such as `RateLaw({s.source.cash: -1, s.target.cash: +1}, f,
-    label='pay')`, for agent rules. Both holdings change together, so the total of the quantity over all agents is
-    unchanged, and a negative holding is an amount the agent owes.
+    It subtracts `amount` from the value `state` of `source` and adds it to the value of `sink`, so the total over all
+    agents stays the same, such as 4 units moving from a holding of 10 to a holding of 0. It is what a rule of an
+    `UpdateLaw` calls for a flow that `RateLaw({s.source.cash: -1, s.target.cash: +1}, f)` states for a whole group. A
+    negative holding is an amount the agent owes. It pays a seller, hands food from one ant to another, and moves charge
+    between two cells.
+
+    Read more in the user guide, under Agents.
 
     Args:
         source:
@@ -33,6 +37,9 @@ def transfer(source: object, sink: object, amount: float, state: str, sink_state
     Raises:
         ValidationError:
             An agent has no such state.
+
+    See Also:
+        UpdateLaw: Runs the rule that calls it.
 
     Examples:
         >>> from types import SimpleNamespace
