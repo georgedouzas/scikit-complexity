@@ -434,7 +434,7 @@ The message reads "The direction of a crossing is -1, 0, or 1, but got 2." The f
 **A field realization.** The neuron above is a realization of neuroscience, and a thermostat of engineering switches a
 heater with the same law when the temperature crosses a set point.
 
-See its [fact sheet](../../../components/laws.md#crossinglaw)
+See its [fact sheet](../../../components/laws.md#eventlaw)
 and its [API entry][skcomplex.core.components.laws.EventLaw].
 
 ## ConstraintLaw
@@ -508,7 +508,7 @@ the highest derivative with the function as its value.
 **A field realization.** The circuit above is a realization of electrical engineering, and the pendulum one of
 mechanics. A robot arm writes one equation per joint in the same way.
 
-See its [fact sheet](../../../components/laws.md#equationlaw)
+See its [fact sheet](../../../components/laws.md#constraintlaw)
 and its [API entry][skcomplex.core.components.laws.ConstraintLaw].
 
 ## ObjectiveLaw
