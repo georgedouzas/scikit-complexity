@@ -545,12 +545,6 @@ class MorseSubshiftSystem(BaseSystem):
         backend:
             The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
 
-        solver:
-            The solver of the problem, or `'auto'` for the one the system chooses.
-
-        backend:
-            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
-
     Examples:
         >>> from skcomplex.systems.computer_science.automata import MorseSubshiftSystem
         >>> MorseSubshiftSystem().prepare().simulate(until=3).get_values('morse.size').tolist()

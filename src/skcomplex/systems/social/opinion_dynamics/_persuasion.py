@@ -167,9 +167,6 @@ class InfluenceeElement(Element):
         space:
             The lattice the agents live on, whose axes `x` and `y` make `x` and `y` their cell, or `None`.
 
-        size:
-            The number of members, or `None` for one.
-
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import InfluenceeElement
         >>> group = InfluenceeElement('people', opinion=-1.0, size=4)

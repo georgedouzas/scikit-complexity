@@ -82,6 +82,9 @@ class PhaseAgentElement(Element):
         theta:
             The initial phase.
 
+        space:
+            The network whose nodes hold one agent each, or `None` for one agent.
+
     Attributes:
         default_visual_:
             How the agent is drawn by default, the `visual` of its class.
@@ -112,6 +115,12 @@ class ConnectionElement(Element):
 
         A:
             The connection along the direction of the edge.
+
+        space:
+            The network whose edges hold the connections, or `None` for one edge.
+
+        on:
+            `'edges'` for one connection per edge of a network space, or `None` for one per site.
 
     Attributes:
         default_visual_:

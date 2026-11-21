@@ -60,9 +60,6 @@ class StrategistElement(Element):
         size:
             The number of agents, or `None` for one.
 
-        size:
-            The number of members, or `None` for one.
-
     Examples:
         >>> from skcomplex.systems.social.cooperation import StrategistElement
         >>> group = StrategistElement('agents', genome=[1.0] * 7, size=10)

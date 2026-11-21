@@ -116,6 +116,9 @@ class ClubMemberElement(Element):
         rewiring:
             The probability that a reconsidered acquaintance across the club boundary dissolves and reforms.
 
+        space:
+            The network whose nodes hold one agent each, or `None` for one agent.
+
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import ClubMemberElement
         >>> ClubMemberElement('agents', beta=2.0).beta

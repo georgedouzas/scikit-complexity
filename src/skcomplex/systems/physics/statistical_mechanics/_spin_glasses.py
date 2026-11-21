@@ -63,6 +63,9 @@ class BondSpinElement(Element):
         temperature:
             The temperature.
 
+        space:
+            The lattice of the spins, or `None` for one spin.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import BondSpinElement
         >>> BondSpinElement('spin', J_left=-1.0).J_left
@@ -126,6 +129,9 @@ class MattisSpinElement(BondSpinElement):
 
         pattern:
             The quenched pattern `xi`, 1 or -1.
+
+        space:
+            The lattice of the spins, or `None` for one spin.
 
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import MattisSpinElement

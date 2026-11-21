@@ -57,14 +57,14 @@ class ContenderElement(Element):
         relaxation:
             The fraction of its strength an agent loses every step.
 
-        size:
-            The number of members, or `None` for one.
-
         x:
             The column of the cell of the contender on a lattice, one per contender or shared.
 
         y:
             The row of the cell of the contender on a lattice, one per contender or shared.
+
+        size:
+            The number of members, or `None` for one.
 
         space:
             The lattice the contenders live on, whose axes `x` and `y` make `x` and `y` their cell, or `None`.
