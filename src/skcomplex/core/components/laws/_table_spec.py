@@ -11,24 +11,35 @@ from ...base import BaseSpec
 
 @dataclass(frozen=True)
 class TableSpec(BaseSpec):
-    """A spec of a rule given by the next value of every neighbourhood pattern.
+    """A spec of a local rule given by the next value of every pattern of neighbours.
 
-    The states are `0` to `states - 1`.
+    It lists the next value of a cell for every pattern of the values of its neighbours, in the order of the
+    neighbourhood, such as rule 30, `TableSpec({(1, 0, 0): 1, (0, 1, 1): 1, (0, 1, 0): 1, (0, 0, 1): 1})`, where a cell
+    reads its left neighbour, itself, and its right neighbour. Patterns the mapping leaves out take `default`, and the
+    values run from `0` to `states - 1`. It runs the elementary automata, draws the patterns of seashells, and makes
+    the random numbers of rule 30.
+
+    Read more in the user guide, under Laws.
 
     Args:
         mapping:
-            A mapping from pattern, a tuple of values in neighbourhood order, to the next value.
+            A mapping from a pattern, a tuple of values in the order of the neighbourhood, to the next value.
 
         default:
             The next value of patterns the mapping leaves out.
 
         states:
-            The number of state values, or `None` for one more than the largest value in the patterns.
+            The number of values of a cell, or `None` for one more than the largest value in the patterns.
+
+    See Also:
+        TotalisticSpec: A local rule of the sum of the neighbours.
+        UpdateLaw: Takes the spec as the value of a local rule.
 
     Examples:
         >>> from skcomplex.core.components.laws import TableSpec
-        >>> TableSpec({(1, 1): 1}).n_states
-        2
+        >>> rule30 = TableSpec({(1, 0, 0): 1, (0, 1, 1): 1, (0, 1, 0): 1, (0, 0, 1): 1})
+        >>> rule30.n_states, rule30.default
+        (2, 0.0)
     """
 
     mapping: Mapping[tuple[int, ...], float]

@@ -13,20 +13,26 @@ from ...errors import ValidationError
 
 @dataclass(frozen=True)
 class MoveSpec(BaseSpec):
-    """A spec of the proposed change of the value of a lattice site.
+    """A spec of the change a Monte Carlo sweep proposes for the value of a site.
 
-    The change is proposed in a Monte Carlo sweep.
+    A `MetropolisSolver` with moves builds it for the value of every site of a lattice, such as
+    `MoveSpec(s.magnet.spin, 'flip')`, which proposes to turn a spin from 1 to -1, and its `SamplerSpec` keeps or
+    rejects the change. A move flips a value, draws one of a list of values, adds a uniform or a normal number, calls a
+    function, or flips a whole cluster at once. It flips the spins of a magnet, changes the opinions of voters, and
+    turns the letters of a sequence of DNA.
+
+    Read more in the user guide, under Laws.
 
     Args:
         target:
-            The symbol of the lattice state the move changes.
+            The symbol of the value of a lattice that the move changes.
 
         kind:
-            `'flip'` for the negative value, the spin flip of Ising systems, `'random-value'` for a value drawn from
-            `values`, as in Potts systems, `'rotate'` for the value plus a uniform number in `[-width, width]`, as in
-            XY systems, `'gaussian'` for the value plus a normal number of standard deviation `width`, `'function'`
-            for the values `function` proposes, or `'cluster'` for the flip of a cluster grown by the Wolff bonds of the
-            energy.
+            `'flip'` for the negative value, such as a spin of -1 for 1, `'random-value'` for a value drawn from
+            `values`, `'rotate'` for the value plus a uniform number in `[-width, width]`, such as the angle of a
+            compass needle, `'gaussian'` for the value plus a normal number of standard deviation `width`,
+            `'function'` for the values `function` proposes, or `'cluster'` for the flip of a whole cluster of like
+            neighbours, grown at random from the change of the cost.
 
         values:
             The values a random-value move draws from.
@@ -42,6 +48,10 @@ class MoveSpec(BaseSpec):
         ValidationError:
             The kind of move is unknown, or a function move has no callable function.
 
+    See Also:
+        SamplerSpec: Keeps or rejects the moves of a sweep.
+        ObjectiveSpec: The cost of one site that a move changes.
+
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws import MoveSpec
@@ -56,9 +66,7 @@ class MoveSpec(BaseSpec):
     function: Callable[..., object] | None = None
 
     def _check(self) -> None:
-        """Raise an error for an unknown kind of move, or a function move without function.
-
-        The function of a function move must be callable.
+        """Raise an error for an unknown move, or a function move without a function.
 
         Raises:
             ValidationError:

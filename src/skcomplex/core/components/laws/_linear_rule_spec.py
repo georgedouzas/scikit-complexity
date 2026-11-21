@@ -15,10 +15,15 @@ from ...errors import ValidationError
 
 @dataclass(frozen=True)
 class LinearRuleSpec(BaseSpec):
-    """A spec of a rule that sums the neighbourhood values with coefficients.
+    """A spec of a local rule that adds the values of the neighbours with coefficients.
 
-    The combination is `sum_s a_s x(g s)`. Over the group ring `K[G]` the rule is the element `sum_s a_s s`, for every
-    element `s` of the neighbourhood with its coefficient `a_s`.
+    It gives the next value of a cell as `sum_s a_s x(g s)` over its neighbours `s` with the coefficients `a_s`,
+    counted in a finite field or in the rationals, such as `LinearRuleSpec((1, 1))` with the left and right neighbours
+    of a cell for rule 90, where every cell becomes the sum modulo 2 of its two neighbours. Over the group ring `K[G]`
+    the rule is the element `sum_s a_s s`, so the algebra of the ring describes the patterns it makes. Rule 90 draws a
+    Sierpinski triangle, linear codes spread errors, and additive automata draw the stripes of seashells.
+
+    Read more in the user guide, under Laws.
 
     Args:
         coefficients:
@@ -26,6 +31,10 @@ class LinearRuleSpec(BaseSpec):
 
         field:
             `'GF(p)'` for the field of a prime number `p` of elements, or `'QQ'` for the rationals.
+
+    See Also:
+        TotalisticSpec: A local rule given by the sum of the neighbours.
+        UpdateLaw: Takes the spec as the value of a local rule.
 
     Examples:
         >>> from skcomplex.core.components.laws import LinearRuleSpec

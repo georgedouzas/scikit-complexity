@@ -11,12 +11,16 @@ from ...errors import ValidationError
 
 @dataclass(frozen=True)
 class CallSpec(BaseSpec):
-    """A spec of a law value computed by a function of time and scalar arguments.
+    """A spec of a law value that a Python function computes.
 
-    The function is called once per member or pair. The Numba backend calls a Numba-compiled function inside its
-    compiled kernels, and the NumPy backend calls any function from Python. The function returns a number for a scalar
-    target, or one number per component for a vector target. A law that sets `relative`, `random`, or `vectorized` runs
-    in Python on every backend.
+    It hands the value of a law to a function, such as `RateLaw(s.cell.n, CallSpec(growth, (s.cell.n,)))` inside an
+    interaction, which calls `growth(t, n)` for the rate of every cell. The function runs once per member or pair and
+    returns a number for a scalar target, or one number per entry for a vector target. The Numba backend calls a
+    function that Numba compiles inside its own compiled loops, and the NumPy backend calls any function. A law that
+    sets `relative`, `random`, or `vectorized` runs in Python on every backend. It reads a measured input from a table,
+    asks a weather model for the rain on a crop, and runs a trained network for the force on a robot.
+
+    Read more in the user guide, under Laws.
 
     Args:
         function:
@@ -24,29 +28,31 @@ class CallSpec(BaseSpec):
 
         arguments:
             The symbolic expressions whose values are passed to the function, or `None` to pass the mapping from the
-            dotted name of every state and parameter to its value.
+            dotted name of every value and parameter to its value.
 
         relative:
-            Whether to pass the mapping with the names of the component of the law, such as `x` for a state of the
-            element itself and `target.x` for a state of the element bound to the role `target`. Those names do not
+            Whether to pass the mapping with the names of the component of the law, such as `x` for a value of the
+            element itself and `target.x` for a value of the element bound to the role `target`. Those names do not
             depend on the label of the component or the system that holds it. It takes no `arguments`.
 
         random:
-            Whether to pass the random stream of the simulation as the keyword argument `rng`, so that one seed repeats
+            Whether to pass the random generator of the run as the keyword argument `rng`, so that one seed repeats
             the run.
 
         vectorized:
             Whether to call the function once per evaluation with one array per argument, instead of once per member
             or pair. It returns one value, or one value per member or pair.
 
+    See Also:
+        RateLaw: Takes a call as its rate.
+        EventLaw: Takes a call as the expression it watches.
+
     Examples:
         >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws import CallSpec
+        >>> from skcomplex.core.components.laws import CallSpec, RateLaw
         >>> n = var('n')
-        >>> CallSpec(lambda t, n: 2 * n, (n,)).arguments
+        >>> RateLaw(n, CallSpec(lambda t, n: 2 * n, (n,))).value.arguments
         (n,)
-        >>> CallSpec(lambda t, values: values['n'], relative=True).relative
-        True
     """
 
     function: object
@@ -56,10 +62,7 @@ class CallSpec(BaseSpec):
     vectorized: bool = False
 
     def _check(self) -> None:
-        """Raise an error for relative names next to arguments.
-
-        They are two ways to read values.
-        """
+        """Raise an error for a relative call with arguments, two ways to read values."""
         if self.relative and self.arguments:
             error_msg = (
                 f'A CallSpec of {self.function!r} is relative and has the arguments {self.arguments!r}. A relative '

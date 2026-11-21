@@ -12,9 +12,15 @@ from ...errors import ValidationError
 
 @dataclass(frozen=True)
 class SamplerSpec(BaseSpec):
-    """A spec of the acceptance of Monte Carlo moves at an intensity.
+    """A spec of the rule that keeps or rejects the moves of a Monte Carlo sweep.
 
-    It makes one sweep of the lattice per unit of time.
+    It decides whether a proposed move of a site is kept, from the change `d` of the cost of the site at an intensity,
+    such as `SamplerSpec('metropolis', s.beta)` for a magnet at the inverse temperature `beta`, which always keeps a
+    move that lowers the energy and keeps one that raises it with probability `exp(-beta d)`. It sweeps the lattice
+    once per unit of time, in the order of `schedule`. It samples the spins of a magnet, the letters of a sequence of
+    DNA, and the opinions of a population at a level of noise.
+
+    Read more in the user guide, under Laws.
 
     Args:
         kind:
@@ -26,9 +32,12 @@ class SamplerSpec(BaseSpec):
             The intensity, usually a parameter symbol so that it changes live.
 
         schedule:
-            `'checkerboard'` to update the two sublattices of a square lattice in turn, `'colored'` to update the
-            classes of a proper coloring of the neighbour graph in turn, or `'random-sequential'` to visit the sites one
-            at a time in a random order.
+            `'checkerboard'` to update the two halves of a square lattice in turn, like the squares of a chessboard,
+            `'colored'` to update groups of sites with no neighbours in common in turn, or `'random-sequential'` to
+            visit the sites one at a time in a random order.
+
+    See Also:
+        MoveSpec: The change of a site that a sweep proposes.
 
     Examples:
         >>> from skcomplex.core.components.laws import SamplerSpec

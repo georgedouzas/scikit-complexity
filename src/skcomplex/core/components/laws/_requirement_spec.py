@@ -10,29 +10,35 @@ from ...base import BaseSpec
 
 @dataclass(frozen=True)
 class RequirementSpec(BaseSpec):
-    """A spec of what a component requires of the system it is part of.
+    """A spec of the time and the space that a law needs of a system.
 
-    It holds the classes of time and of space it runs in. An empty field accepts any class. A component that reads
-    sites may also accept any other space with sites, such as the Cayley graph of a group that a system package
-    defines.
+    It names the classes of time and of space a law runs in, such as the continuous time of `RateLaw.get_requirements()`
+    or the discrete time of an `UpdateLaw`, and an empty field accepts any class. A law class returns it before any law
+    exists, so a system can say which laws fit its time and its space. With `sites`, a law that reads sites also runs
+    on any other space with sites, such as the graph of a group that a system package defines. A chemical reaction
+    needs continuous time, a cellular automaton a lattice, and a voter model any space of sites.
+
+    Read more in the user guide, under Laws.
 
     Args:
         time:
-            The time classes the component runs in, such as continuous time alone.
+            The classes of time the law runs in, such as continuous time alone.
 
         space:
-            The space classes the component runs in, such as `(LatticeSpace,)`.
+            The classes of space the law runs in, such as `(LatticeSpace,)`.
 
         sites:
-            Whether the component also runs on any other space with sites, one whose `_has_sites` is true.
+            Whether the law also runs on any other space with sites.
+
+    See Also:
+        BaseLaw: Returns the spec of its class from `get_requirements`.
 
     Examples:
-        >>> from skcomplex.core.components.spaces import LatticeSpace
         >>> from skcomplex.core.components.laws import RequirementSpec
-        >>> RequirementSpec(space=(LatticeSpace,)).space
-        (<class 'skcomplex.core.components.spaces._lattice.LatticeSpace'>,)
-        >>> RequirementSpec(space=(LatticeSpace,), sites=True).sites
-        True
+        >>> from skcomplex.core.components.spaces import LatticeSpace
+        >>> needs = RequirementSpec(space=(LatticeSpace,), sites=True)
+        >>> needs.sites, needs.time
+        (True, ())
     """
 
     time: tuple[type, ...] = ()
