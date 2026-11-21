@@ -153,8 +153,8 @@ once, as a model is fitted, and it is simulated many times, as a fitted model pr
 Analyses and experiments are functions. An analysis measures a run, as `sklearn.metrics` scores a model, and an
 experiment runs many copies of a system, as the model selection functions do.
 
-You can start in two ways. Select a ready-made system from the catalog, or build a system of your own from the classes
-of `skcomplex.core`.
+You can start in two ways. Select a ready-made system from the catalog, or build a custom system from the classes of
+`skcomplex.core`.
 
 ### Select a ready-made system
 
@@ -201,7 +201,7 @@ With a prey growth rate of 1.5, the prey peak at 49. Each run can also stream to
 The [catalog](https://georgedouzas.github.io/scikit-complexity/systems/catalog/) lists every system by field and topic,
 and the page of each system shows the classes it is built from.
 
-### Build a system of your own
+### Build a custom system
 
 A system of your own has three kinds of part:
 
@@ -254,15 +254,16 @@ class Gravity(Interaction):
 
 ball = Element('ball', values={'x': 10.0, 'm': 1.0})
 system = System(elements=[ball], interactions=[Gravity('gravity', target='ball')]).prepare()
+earth = system.simulate(until=1.4, dt=0.7)
 system.states_, system.parameters_, system.equations_
 ```
 
 The states are the height `ball.x` and its velocity `ball.x'`, the parameters are `ball.m` and `gravity.g`, and the
-equations say that the height changes at the velocity and the velocity at `-gravity.g`. One prepared system runs many
-times, here from rest and thrown up at 3 metres per second, and `set_params` moves it to the Moon.
+equations say that the height changes at the velocity and the velocity at `-gravity.g`. The run above starts the ball
+at rest. One prepared system runs many times, here also thrown up at 3 metres per second, and `set_params` moves it to
+the Moon.
 
 ```python continuation
-earth = system.simulate(until=1.4, dt=0.7)
 thrown = system.simulate(until=1.4, dt=0.7, initial_state={"ball.x'": 3.0})
 moon = system.set_params(gravity__g=1.62).prepare().simulate(until=1.4, dt=0.7)
 earth.get_values('ball.x').round(2), thrown.get_values('ball.x').round(2), moon.get_values('ball.x').round(2)
