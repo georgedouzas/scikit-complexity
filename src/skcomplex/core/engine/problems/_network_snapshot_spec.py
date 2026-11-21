@@ -14,7 +14,13 @@ from ...base import BaseSpec
 
 @dataclass(frozen=True)
 class NetworkSnapshotSpec(BaseSpec):
-    """A spec of the nodes, edges, and hyperedges of a layer at one frame.
+    """A spec of the nodes, links, and hyperedges of a network at one frame.
+
+    It holds the nodes, the sources and targets of the links, the links themselves, and the hyperedges of a network
+    whose links change, such as the 50 links added to 100 nodes by explosive percolation. `Trajectory.get_network`
+    returns one, for a growing web, a changing friendship network, and a power grid that fails.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         nodes:
@@ -32,6 +38,15 @@ class NetworkSnapshotSpec(BaseSpec):
         hyperedges:
             The member nodes of every hyperedge present, one row per hyperedge, or `None` for a network whose
             hyperedges do not change.
+
+    See Also:
+        Trajectory: Returns it from `get_network`.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.networks import ExplosivePercolationSystem
+        >>> trajectory = ExplosivePercolationSystem(100).prepare().simulate(until=50, random_state=0)
+        >>> len(trajectory.get_network(-1).sources)
+        50
     """
 
     nodes: npt.NDArray[np.intp]

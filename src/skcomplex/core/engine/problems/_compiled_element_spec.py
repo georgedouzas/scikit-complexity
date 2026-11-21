@@ -16,7 +16,13 @@ from ._variable_spec import _VariableSpec
 
 @dataclass(frozen=True)
 class CompiledElementSpec(BaseSpec):
-    """A spec of an element or group of a compiled problem, with its variable names.
+    """A spec of an element of a compiled problem, with the names of its values.
+
+    It holds the path of the element, the element, and the names its states and parameters take in the flat vectors,
+    such as `{'x': 'population.x'}`, with its members, adaptive values, lattice shape, and roles. Observers and visuals
+    read it to find the values of an element, for a population, a magnet, and a flock.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         path:
@@ -43,6 +49,15 @@ class CompiledElementSpec(BaseSpec):
 
         roles:
             The roles of the states that declare one, by state name.
+
+    See Also:
+        ProblemSpec: Holds one per element.
+
+    Examples:
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+        >>> element = LogisticGrowthSystem().prepare().simulate(until=0).problem.elements[0]
+        >>> element.path, element.states
+        ('population', {'x': 'population.x'})
     """
 
     path: str

@@ -14,9 +14,13 @@ from ...types import Array
 
 @dataclass(frozen=True)
 class RunStateSpec(BaseSpec):
-    """A spec of the state of a run at one time.
+    """A spec of the state of a run at one time, which kernels and searches act at.
 
-    Kernels and searches act at it.
+    It holds the time `t`, the state `x`, the parameters `p`, the random generator, and the source of outside data, such
+    as the size 10 of a population at time 0. Kernels and searches read it in `run`. It carries the state of a
+    population, a magnet, and a market alike.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         t:
@@ -33,6 +37,9 @@ class RunStateSpec(BaseSpec):
 
         source:
             The values of the node a topology request starts from by dotted name, or `None` for a kernel of no request.
+
+    See Also:
+        BaseKernel: Acts at a run state.
 
     Examples:
         >>> import numpy as np

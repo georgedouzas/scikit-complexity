@@ -53,6 +53,7 @@ class SoftSphereInteraction(Interaction):
 
 
 def test_a_free_ball_moves_at_its_constant_speed():
+    """A ball without forces keeps its speed."""
     ball = Element('ball', values={'x': [0.0], "x'": [2.0]}, space=ContinuousSpace(n_dim=1))
     problem = System(elements=[ball]).prepare().simulate(until=0).problem
     stepper = VelocityVerletSolver(dt=0.1, random_state=0).prepare(problem)

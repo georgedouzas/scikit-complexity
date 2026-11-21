@@ -40,17 +40,16 @@ IMPORTS = {
 
 
 class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]]):
-    """A printer of Sage expressions as code of a target language.
+    """A printer of Sage expressions as code of NumPy, Numba, or LAMMPS.
 
-    The targets are NumPy, scalar Python for Numba, and LAMMPS Lepton. `prepare(symbols)` takes the symbols the code
-    reads, in order, and `run(expressions)` keeps in `code_` the assignments of the repeated compound subexpressions,
-    bound to numbered names, and the code of every expression. Sage orders the operands of sums and products differently
-    in every process, so the printer orders them by their canonical form, and a law prints the same code in every
-    process, which lets the Numba backend reuse the kernels it cached by their source. A compiled printer keeps instead
-    the NumPy or JAX function `f(t, *symbols)` of the expressions. A NumPy function runs in a NumPy error state that
-    ignores division, invalid, and overflow warnings when the expressions hold conditions.
+    `prepare(symbols)` takes the symbols the code reads, in order, and `run(expressions)` keeps in `code_` the parts
+    that repeat, bound to numbered names, and the code of every expression, such as `'3*_cse0'` for `3 * (x + 1) ** 2`.
+    It orders the terms of sums and products the same way in every process, so the Numba backend reuses the code it
+    cached. A compiled printer keeps instead the NumPy or JAX function `f(t, *symbols)` of the expressions. Lepton has
+    neither comparisons nor remainders, so conditions become `step` and `select` and remainders `floor`. It prints the
+    laws of a reaction, of a gas, and of a pair energy for LAMMPS.
 
-    Lepton has neither comparisons nor a remainder, so conditions become `step` and `select` and remainders `floor`.
+    Read more in the user guide, under Extend the library.
 
     Args:
         dialect:
@@ -77,16 +76,15 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
             The assignments of the repeated subexpressions and the code of every expression of the last run, or the
             NumPy function `f(t, *symbols)` of the expressions for a compiled printer.
 
+    See Also:
+        BasePrinter: The base of every printer.
+
     Examples:
-        >>> import numpy as np
-        >>> from skcomplex.core.engine.problems._expression_printer import ExpressionPrinter
         >>> from skcomplex.core.engine._utils import symbol
-        >>> t, x = symbol('t'), symbol('x')
+        >>> from skcomplex.core.engine.problems import ExpressionPrinter
+        >>> x = symbol('x')
         >>> ExpressionPrinter().prepare().run([(x + 1) ** 2, 3 * (x + 1) ** 2]).code_
         ([('_cse0', '(x + 1)**2')], ['_cse0', '3*_cse0'])
-        >>> printer = ExpressionPrinter(time=t, compiled=True).prepare([x])
-        >>> printer.run([t * x, x**2]).code_(2.0, np.array([1.0, 3.0]))
-        [array([2., 6.]), array([1., 9.])]
     """
 
     code_: tuple[list[tuple[str, str]], list[str]] | Callable[..., list[npt.ArrayLike]]

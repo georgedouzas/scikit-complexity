@@ -18,7 +18,11 @@ from ._run_state_spec import RunStateSpec
 class OperatorKernel(BaseKernel):
     """A kernel of a sparse matrix on the whole Hilbert space, with a coefficient.
 
-    It holds the lowered function of the coefficient.
+    It holds the matrix of an operator on all subsystems, such as the coupling of two qubits, and the compiled function
+    of its coefficient, which may change with the parameters and the time. A solver of operator problems multiplies the
+    state by the sum of these kernels. It moves qubits, spin chains, and atoms in a cavity.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         matrix:
@@ -33,6 +37,17 @@ class OperatorKernel(BaseKernel):
     Attributes:
         values_:
             The coefficient at the time and the parameters of the state of the last run.
+
+    See Also:
+        BaseKernel: The base of every kernel.
+
+    Examples:
+        >>> from skcomplex.core.engine.problems import OperatorKernel
+        >>> from skcomplex.core.systems import System
+        >>> from skcomplex.systems.physics.common.quantum import QubitElement
+        >>> problem = System(elements=[QubitElement('a')]).prepare().simulate(until=0).problem
+        >>> isinstance(problem.generator[0], OperatorKernel)
+        True
     """
 
     values_: complex

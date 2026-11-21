@@ -42,11 +42,14 @@ from ._wiener_block_spec import _WienerBlockSpec
 
 @dataclass(frozen=True)
 class ProblemSpec(BaseProblemSpec):
-    """A spec of a system compiled to one form, with flat state and parameter vectors.
+    """A spec of a system compiled by the general compiler, with flat value vectors.
 
-    Only the functions of the problem's form are set. `drift`, `diffusion`, and `noise_rows` belong to the ODE and SDE
-    forms, `propensities` and `jumps` to the jump process form, and `update` to the discrete map form. `boundary`
-    belongs to any form whose system has boundary laws.
+    It holds the states and parameters of a system in two flat vectors, such as the one state `'population.x'` of a
+    logistic growth, and the functions of its form. `drift`, `diffusion`, and `noise_rows` belong to differential
+    equations with or without noise, `propensities` and `jumps` to jump processes, `update` to discrete maps, and
+    `boundary` to any form with boundary laws. It is the problem of a population, a reaction network, and a flock.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         form:
@@ -246,6 +249,17 @@ class ProblemSpec(BaseProblemSpec):
         topology:
             The topology requests of the laws and the networks they change, which the stepper applies between steps,
             or `None` for a problem without them.
+
+    See Also:
+        BaseProblemSpec: The base of every problem.
+        LayoutSpec: The names of the values of a flat vector.
+
+    Examples:
+        >>> from skcomplex.core.engine.problems import ProblemSpec
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+        >>> problem = LogisticGrowthSystem().prepare().simulate(until=0).problem
+        >>> isinstance(problem, ProblemSpec), problem.initial_state.tolist()
+        (True, [10.0])
     """
 
     equations: Mapping[str, Expression]

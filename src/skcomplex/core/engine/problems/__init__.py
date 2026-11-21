@@ -1,8 +1,8 @@
-"""Define what a system compiles to: a problem, its kernels, and run frames.
+"""Define what a system compiles to: a problem, its kernels, and the frames of a run.
 
-The bases, the problems of the shared compiler and of operator systems, and the frames stay public for observers,
-analyses, and system packages that bring a form of their own. The other problems of the forms of the library are
-private.
+A problem holds the values of a system in flat vectors and the compiled functions of its laws, such as the one state
+`'population.x'` of a logistic growth. The bases, the problems of the general compiler and of operator systems, and the
+frames stay public for observers, analyses, and system packages that bring a form of their own.
 """
 
 from ._agent_snapshot_spec import AgentSnapshotSpec

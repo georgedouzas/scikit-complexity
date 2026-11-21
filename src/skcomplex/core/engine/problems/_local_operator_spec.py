@@ -17,9 +17,13 @@ ADJOINT_SUFFIX = '.dag'
 
 @dataclass(frozen=True)
 class LocalOperatorSpec(BaseSpec):
-    """A spec of an operator that acts on the space of one subsystem.
+    """A spec of a named operator that acts on the space of one subsystem.
 
-    It is identified by its name.
+    It holds the name and the matrix of an operator of one subsystem, such as the raising operator `'plus'` of a qubit,
+    and gives its adjoint, the lowering operator `'minus'`. Products of them make the operators of the whole system, for
+    qubits, spins, and the modes of light.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         name:
@@ -30,6 +34,9 @@ class LocalOperatorSpec(BaseSpec):
 
         hermitian:
             Whether the operator equals its adjoint.
+
+    See Also:
+        OperatorSpec: A sum of products of local operators.
 
     Examples:
         >>> import qutip
