@@ -99,6 +99,45 @@ def test_element_clones_and_pickles_with_its_values():
     assert clone(DecayingElement('a', n=3.0)).n == 3.0
 
 
+def test_element_lists_each_identifier_value_as_a_parameter():
+    """Test that deep parameters list each value named by an identifier, not primed or past values."""
+    params = Element('ball', values={'x': 10.0, "x'": 3.0, 'y[-1]': 0.5}).get_params()
+    assert params['x'] == 10.0
+    assert "x'" not in params
+    assert 'y[-1]' not in params
+    assert 'x' not in Element('ball', values={'x': 10.0}).get_params(deep=False)
+
+
+def test_element_lists_an_argument_value_once():
+    """Test that a value an element takes as an argument is listed once, by its argument."""
+    assert DecayingElement('stock', n=3.0).get_params() == {'label': 'stock', 'n': 3.0, 'k': 0.2}
+    element = Element('ball', values={'label': 'other', 'x': 1.0})
+    assert element.get_params()['label'] == 'ball'
+
+
+def test_element_sets_a_value_without_changing_the_given_values():
+    """Test that setting a value replaces the mapping of values and leaves the one given unchanged."""
+    values = {'x': 10.0, "x'": 3.0}
+    element = Element('ball', values=values).set_params(x=2.0)
+    assert element.values == {'x': 2.0, "x'": 3.0}
+    assert values == {'x': 10.0, "x'": 3.0}
+
+
+def test_element_rejects_a_value_it_does_not_hold():
+    """Test that setting a value the element does not hold raises an error."""
+    with pytest.raises(ValueError, match="'z'"):
+        Element('ball', values={'x': 10.0}).set_params(z=1.0)
+
+
+def test_element_takes_its_own_deep_parameters():
+    """Test that the deep parameters of an element set back give the same element, with `values` set first."""
+    element = Element('ball', values={'x': 10.0, "x'": 3.0})
+    params = element.get_params()
+    params['x'] = 2.0
+    assert element.set_params(**params).values == {'x': 2.0, "x'": 3.0}
+    assert clone(element).get_params() == element.get_params()
+
+
 def test_validation_reports_an_element_with_an_invalid_label_by_its_path():
     """Test that validating a system reports a nested element whose label is not a string."""
     system = System(systems=[System('meadow', elements=[TallyElement(1)])])

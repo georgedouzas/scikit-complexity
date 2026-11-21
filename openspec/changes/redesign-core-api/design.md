@@ -494,6 +494,17 @@ give its targets and requirements. Interactions return laws in `laws_`.
 `get_params` lists each value of an element as `<element>__<name>`, so `set_params(ball__x=2.0)`, grid searches, and
 sweeps reach single values.
 
+- Only an entry of `values` whose name is a Python identifier is listed. A primed or past value, such as `"x'"` or
+  `'x[-1]'`, has no name a keyword can carry, so it stays inside `values` and `initial_state`, where it is set with
+  the whole mapping.
+- An Element subclass takes its values as arguments of `__init__`, which are parameters already. An entry of `values`
+  that has the name of an argument is not listed again, so every value has one name.
+- `set_params(ball__x=2.0)` puts the new value in a new mapping and leaves the mapping the user passed unchanged, as
+  `clone` of scikit-learn leaves the arguments of an estimator unchanged. A new `values` given in the same call is set
+  first, so the output of `get_params(deep=True)` is accepted as it is and `clone(system)` keeps every value.
+- The entries are listed only by `get_params(deep=True)`. `get_params(deep=False)` keeps the arguments of the
+  constructor, which `clone` reads.
+
 ### Pair energies
 
 A pair interaction with `within=` may give its energy as `ObjectiveLaw(V(r))` in place of its forces. The engine
