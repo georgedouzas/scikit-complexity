@@ -234,7 +234,7 @@ def _is_named(value: object) -> bool:
 def _weights_symbol(weights: object) -> Expression:
     """Return the symbol that stands for a constant weight matrix, or 0 for none.
 
-    It is the symbol of a shaped parameter for one.
+    It is the symbol of an array parameter for one.
     """
     if weights is None:
         return SR(0)
@@ -248,8 +248,8 @@ def _weights_symbol(weights: object) -> Expression:
         parts = [np.asarray(matrix.shape), np.ascontiguousarray(matrix)]
     if matrix.ndim not in {1, 2}:
         error_msg = (
-            'The weights of a reduction are a matrix with one row per reading member, or one row that every reading '
-            f'member shares, not of shape {matrix.shape}.'
+            'The weights of a reduction must be a matrix with one row per member that reads it, or one row they all '
+            f'share, but they have the shape {matrix.shape}.'
         )
         raise ValidationError(error_msg)
     name = f'_weights_{hashlib.sha256(b"".join(np.asarray(part).tobytes() for part in parts)).hexdigest()[:16]}'
@@ -745,7 +745,7 @@ def _neighborhood_symbol(over: object) -> Expression:
     if isinstance(over, LayerSpec):
         over = AdjacencyNeighborhood(layer=over.label)
     if not isinstance(over, BaseNeighborhood):
-        error_msg = f'A neighbourhood reduction reduces over None, a neighbourhood, or a LayerSpec, not {over!r}.'
+        error_msg = f'A reduction over neighbours takes None, a neighbourhood, or a LayerSpec as `over`, not {over!r}.'
         raise ValidationError(error_msg)
     name = f'_over_{hashlib.sha256(repr(over).encode()).hexdigest()[:16]}'
     NEIGHBORHOODS[name] = over

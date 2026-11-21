@@ -89,6 +89,7 @@ LAYOUT_PACKAGES = (
     'skcomplex.core.engine.enums.',
     'skcomplex.core.engine.types.',
     'skcomplex.core.engine._utils.',
+    'skcomplex.core.components.laws.utils.',
 )
 LAYOUT_HEAD = ('summary', 'paragraph', 'user guide')
 LAYOUT_SECTIONS = ('Args:', 'Attributes:', 'Returns:', 'Raises:', 'Warns:', 'See Also:', 'Examples:')
