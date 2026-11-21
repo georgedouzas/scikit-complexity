@@ -112,6 +112,9 @@ LAYOUT_PACKAGES = (
             '_loop_spec',
             '_loops',
             '_lyapunov',
+            '_markov',
+            '_mode_decomposition',
+            '_motifs',
         )
     ),
 )

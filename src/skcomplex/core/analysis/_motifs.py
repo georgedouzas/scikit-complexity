@@ -45,7 +45,11 @@ TAGS = AnalysisTags(DataKind.NETWORK, space=frozenset({'network'}))
 class MotifsResult:
     """A result of `motifs`, the counts and scores of small subgraphs.
 
-    The networks are those of a trajectory.
+    It holds the graph of every frame, the count of every motif, and for z-scores how far each count lies from those
+    of random graphs with the same degrees, such as the four triangles of four nodes all joined. It reports the
+    feedforward loops of a gene network, the triangles of a social network, and the circuits of a food web.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         graphs:
@@ -62,6 +66,15 @@ class MotifsResult:
 
         z_scores:
             The z-score of every motif of every frame, for `'z-scores'`.
+
+    See Also:
+        motifs: Returns this result.
+
+    Examples:
+        >>> import networkx as nx
+        >>> from skcomplex.core.analysis import motifs
+        >>> motifs(nx.complete_graph(4), size=4).counts
+        [{'clique': 1}]
     """
 
     graphs: list[nx.Graph]
@@ -80,27 +93,24 @@ def motifs(
     samples: int = 100,
     random_state: int | None = None,
 ) -> MotifsResult:
-    """Return the motifs of three or four nodes of a graph or of every frame's network.
+    """Return the motifs of three or four nodes of a graph or of every network of a trajectory.
 
-    The networks are those of a trajectory.
+    A motif is a small connected pattern of links, such as a triangle or a path, counted wherever its nodes are linked
+    in that pattern and in no other way, such as the four triangles of four nodes all joined. Directed triads carry the
+    names of the triadic census, such as `'030T'` for the feedforward loop, undirected motifs the name of their shape,
+    and directed motifs of four nodes their smallest adjacency code. It counts the feedforward loops of a gene network,
+    the triangles of a social network, and the circuits of a food web.
 
-    The kinds count or score motifs:
-
-    - `'counts'`: the number of connected induced subgraphs of every kind. Directed triads carry the names of the
-      triadic census, such as `'030T'` for the feed-forward loop. Undirected motifs are named by their shape, and
-      directed motifs of four nodes by their smallest adjacency code.
-    - `'z-scores'`: the counts against random graphs that keep the degrees, `(count - null_mean) / null_std` of every
-      motif, `nan` where the null count never varies.
-
-    It appears in many fields. It counts the feedforward loops of a gene network, the triangles of a social network, and
-    the circuits of a food web.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
             The trajectory, a graph, or a network snapshot.
 
         kind:
-            `'counts'` or `'z-scores'`.
+            What to return. `'counts'` gives the number of connected induced subgraphs of every kind. `'z-scores'` gives
+            the counts against random graphs that keep the degrees, `(count - null_mean) / null_std` of every motif,
+            `nan` where the null count never varies.
 
         size:
             The number of nodes of the motifs, 3 or 4.
@@ -127,16 +137,15 @@ def motifs(
         TagError:
             The system of a trajectory has no network space.
 
+    See Also:
+        network_measures: Gives measures of a graph or of the network of every frame.
+        neighbors: Gives the neighbours of agents, grid cells, or network nodes.
+
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.core.analysis import motifs
         >>> motifs(nx.complete_graph(4)).counts
         [{'path': 0, 'triangle': 4}]
-        >>> motifs(nx.complete_graph(4), size=4).counts
-        [{'clique': 1}]
-        >>> graph = nx.gnm_random_graph(30, 60, seed=0)
-        >>> sorted(motifs(graph, kind='z-scores', samples=10, random_state=0).z_scores[0])
-        ['path', 'triangle']
     """
     _check_choice('motifs', 'kind', kind, KINDS)
     _check_tags(motifs, source, kind)
