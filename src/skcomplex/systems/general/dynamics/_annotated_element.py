@@ -49,7 +49,8 @@ class AnnotatedElement(Element):
         ...     System(elements=[tank]).prepare()
         ... except ValidationError as error:
         ...     print(error)
-        tank.level = -1.0 is not in its domain [0, +oo).
+        The system is not valid, with 1 error(s):
+        - tank: tank.level = -1.0 is not in its domain [0, +oo). Correct the component as the message describes. [value]
     """
 
     def __init__(

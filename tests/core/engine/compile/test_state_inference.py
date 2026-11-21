@@ -1741,3 +1741,10 @@ def test_get_declared_keeps_an_element_without_space_single_beside_a_fixed_netwo
     declared = PassCompiler()._get_declared_system(_nodes_on_a_network([])._get_composite())
     nodes = next(element for element in declared.elements if element.label == 'nodes')
     assert nodes.space is None
+
+
+def test_a_region_on_a_lattice_is_an_ordinary_value():
+    """Test that a value named `region` on the cells of a lattice is a value of every cell, not a start region."""
+    cells = Element('cells', values={'region': np.arange(4.0)}, space=LatticeSpace((2, 2)))
+    trajectory = System(elements=[cells]).prepare().simulate(until=1)
+    assert trajectory.get_values('cells.region')[0].tolist() == [0.0, 1.0, 2.0, 3.0]

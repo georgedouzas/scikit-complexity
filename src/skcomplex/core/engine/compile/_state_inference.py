@@ -1173,20 +1173,21 @@ class _StateInference:
         region: object,
         count: int | None,
         agents: bool,
-        space: BaseSpace | None = None,
-    ) -> list[Polygon]:
+        space: BaseSpace | None,
+    ) -> list[Polygon] | None:
         """Return the region of its continuous space that every member starts in.
 
         The value `region` names one region of the space for every member, or one region for all of them, such as
         `Element('residents', values={'region': 'tract_1'}, size=100, space=space)`. The run draws the starting point
-        of every member inside its region.
+        of every member inside its region. On any other space `region` is an ordinary value, such as the region labels
+        of the cells of a lattice.
 
         Args:
             element:
                 The element.
 
             region:
-                The name of a region, or one name per member.
+                The name of a region, one name per member, or `None` for no region.
 
             count:
                 The number of members, or `None` for a single element.
@@ -1195,19 +1196,19 @@ class _StateInference:
                 Whether the members run agent rules.
 
             space:
-                The space of the system, which an element without a space of its own lives in.
+                The space the members live in.
 
         Returns:
             regions:
-                The polygon every member starts in.
+                The polygon every member starts in, or `None` without a region or a continuous space.
 
         Raises:
             ValidationError:
-                The element is not on a continuous space, its members run no agent rules, or a name is not one of the
-                regions of the space.
+                The members run no agent rules, or a name is not one of the regions of the space.
         """
-        space = element.space if element.space is not None else space
-        if not isinstance(space, ContinuousSpace) or not agents:
+        if region is None or not isinstance(space, ContinuousSpace):
+            return None
+        if not agents:
             error_msg = (
                 f'Element {element.label!r} starts in a region, which members that run agent rules on a continuous '
                 "space do, such as Element('residents', values={'region': 'tract_1'}, size=100, space=space)."
@@ -1297,7 +1298,8 @@ class _StateInference:
         drawing of agents for members that run no agent rules, and the view of its agents.
         """
         values = self._get_values(element)
-        region = values.pop(REGION, None)
+        home = element.space if element.space is not None else space
+        region = values.pop(REGION, None) if isinstance(home, ContinuousSpace) else None
         values = {name: self._get_probed(value) for name, value in values.items()} if probing else values
         histories = self._get_histories(element, delays)
         derivatives = self._get_rule_derivatives(element) if agents else {}
@@ -1305,7 +1307,7 @@ class _StateInference:
         starting = {} if probing else self._get_starting(element, values, skipped)
         count = self._get_count(element)
         count = 1 if count is None and agents else count
-        regions = None if region is None or probing else self._get_start_regions(element, region, count, agents, space)
+        regions = None if probing else self._get_start_regions(element, region, count, agents, home)
         link = self._get_link(element)
         network = bool(kinds) and isinstance(element.space, NetworkSpace) and link is None
         growing = network and bool(kinds & MEMBERSHIP)
