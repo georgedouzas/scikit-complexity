@@ -29,35 +29,32 @@ MIN_HYPEREDGE = 2
 
 @dataclass(frozen=True, eq=False)
 class TopologyRequestSpec(BaseSpec):
-    """A spec of a change of the topology of a network that a law requests.
+    """A spec of a change of a network, such as a new edge, that a law requests.
 
-    The law requests it for every member or edge it runs for. A request is the target of an `UpdateLaw`, whose value is
-    the probability that it fires at every step for the member or edge the law runs for, or of a `JumpLaw`, as
-    `JumpLaw(rate, {request: 1})`, which fires it at the rate. The stepper applies the requests that fire after the
-    step, in the order of the members and edges. A request on edges, `'add-edge'`, `'remove-edge'`, or `'rewire'`, adds
-    or removes members of the variable group on the edges of its layer, and a request on nodes, `'add-node'` or
-    `'remove-node'`, adds or removes members of every variable group on the nodes of the network. A request on
-    hyperedges adds or removes members of the variable group on the hyperedges: `'add-hyperedge'` runs for a node, which
-    forms a new hyperedge with `hyperedge - 1` other nodes drawn by `toward`, and `'remove-hyperedge'` runs for every
-    hyperedge present and removes it. New ends are drawn among the nodes present that are not yet joined to the node,
-    with probability proportional to `toward`, or with `independent` every such node becomes an end on its own with the
-    probability `toward`, so the number of new ends is random.
+    It is the target of a law that changes a network as it runs, such as `UpdateLaw(TopologyRequestSpec('rewire'),
+    0.1)` inside an interaction on the edges of a network, which moves one end of every edge with probability 0.1 at
+    every step. The value of an `UpdateLaw` is the chance that the request fires at every step for the member or edge
+    the law runs for, and `JumpLaw(rate, {request: 1})` fires it at a rate. The requests that fire apply after the
+    step, in the order of the members and edges, and add or remove the members of the groups on the nodes, the edges,
+    or the hyperedges of the network. New ends are drawn among the nodes present that are not yet joined to the node,
+    with weights `toward`. Friends make and drop ties, a web page draws links in proportion to the links it has, and a
+    gene is copied in the network of the proteins of a cell.
 
-    Further requests run for a node. `'replace-node'` removes it and adds a new node that joins new ends like
-    `'add-node'`. `'close-triangle'` joins two of its neighbours that are not yet joined, drawn uniformly among such
-    pairs, or, for a node without such a pair, joins it to `edges` nodes like `'add-edge'`.
-    `'contract-edge'` draws a neighbour by `toward` and merges it into the node, which keeps the union of their links
-    on every layer, while the neighbour leaves. `'duplicate-node'` adds a copy of the node with its values, which
-    inherits each of its links with probability `inherit`, joins it with probability `parent`, and joins new ends
-    among the nodes joined to neither like a new node. An `'add-edge'` with `candidates` draws that many candidate ends
-    for every new edge and adds the one of the smallest `score`. Without a target it runs once per step, and every
-    candidate joins two distinct nodes not yet joined, drawn uniformly. With `one`, a request runs at every step for
-    one member drawn uniformly among the members present, in place of every member.
+    Read more in the user guide, under Laws.
 
     Args:
         kind:
-            `'add-edge'`, `'remove-edge'`, `'rewire'`, `'add-node'`, `'remove-node'`, `'add-hyperedge'`,
-            `'remove-hyperedge'`, `'replace-node'`, `'close-triangle'`, `'contract-edge'`, or `'duplicate-node'`.
+            `'add-edge'`, `'remove-edge'`, or `'rewire'` to change the edges of its layer, `'add-node'`,
+            `'remove-node'`, or `'replace-node'` to change the nodes, `'add-hyperedge'` or `'remove-hyperedge'` to
+            change the hyperedges, `'close-triangle'` to join two neighbours of a node, `'contract-edge'` to merge a
+            neighbour into a node, or `'duplicate-node'` to copy a node. `'replace-node'` removes the node and adds a
+            new node that joins new ends like `'add-node'`. `'add-hyperedge'` runs for a node, which forms a new
+            hyperedge with `hyperedge - 1` other nodes drawn by `toward`, and `'remove-hyperedge'` runs for every
+            hyperedge and removes it. `'close-triangle'` joins two neighbours of the node that are not yet joined,
+            drawn uniformly, or for a node without such a pair joins it to `edges` nodes like `'add-edge'`.
+            `'contract-edge'` draws a neighbour by `toward` and merges it into the node, which keeps the links of both
+            on every layer. `'duplicate-node'` adds a copy of the node with its values, which joins new ends among the
+            nodes joined to neither like a new node.
 
         edges:
             The number of edges a new node or a node adding edges joins to other nodes.
@@ -74,9 +71,8 @@ class TopologyRequestSpec(BaseSpec):
             The layer whose edges the request changes, or `None` for the graph of the network.
 
         values:
-            The initial states of a new node or edge as pairs of a state name and a value, or a function of the
-            random number generator that draws the value for every new node or edge, which default to the defaults of
-            the element type.
+            The initial values of a new node or edge as pairs of a name and a value, or a function of the random
+            generator that draws the value for every new node or edge, or nothing for the defaults of its element.
 
         hyperedge:
             The size of the hyperedge a new node or the node of `'add-hyperedge'` forms with existing nodes, or `None`
@@ -93,7 +89,9 @@ class TopologyRequestSpec(BaseSpec):
             `'both'` for an edge each way, drawn apart with `independent` ends.
 
         candidates:
-            The number of candidate edges an `'add-edge'` request draws for every edge it adds.
+            The number of candidate edges an `'add-edge'` request draws for every edge it adds, keeping the one of the
+            smallest `score`. A request without a target runs once per step, and each of its candidates joins two
+            nodes not yet joined, drawn uniformly.
 
         score:
             A function of the namespace of a candidate end that returns the score of its edge, which reads the other
@@ -110,9 +108,12 @@ class TopologyRequestSpec(BaseSpec):
         parent:
             The probability that the copy of `'duplicate-node'` joins the node.
 
+    See Also:
+        UpdateLaw: Fires the request with a chance at every step.
+        JumpLaw: Fires the request at a rate.
+
     Examples:
-        >>> from skcomplex.core.components.laws import UpdateLaw
-        >>> from skcomplex.core.components.laws import TopologyRequestSpec
+        >>> from skcomplex.core.components.laws import TopologyRequestSpec, UpdateLaw
         >>> UpdateLaw(TopologyRequestSpec('rewire', keep='target'), 0.1).target.keep
         'target'
     """
@@ -133,9 +134,7 @@ class TopologyRequestSpec(BaseSpec):
     parent: float = 0.0
 
     def _check(self) -> None:
-        """Raise an error for an unknown kind or kept end, or a bad number of edges.
-
-        The number of edges must be a whole number.
+        """Raise an error for an unknown kind, end, or direction, or a bad number.
 
         Raises:
             ValidationError:
@@ -175,9 +174,7 @@ class TopologyRequestSpec(BaseSpec):
             raise ValidationError(error_msg)
 
     def _check_choice(self) -> None:
-        """Raise an error for candidates or a score outside a choice among new edges.
-
-        They must belong to a choice among new edges.
+        """Raise an error for candidates or a score outside an `'add-edge'` request.
 
         Raises:
             ValidationError:

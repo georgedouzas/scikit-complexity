@@ -17,12 +17,16 @@ MIN_DIMENSIONS = 2
 
 @dataclass(frozen=True)
 class DatasetSpec(BaseSpec):
-    """A spec of sequences of parameter values of a system, with step weights.
+    """A spec of sequences of parameter values that a training run steps through.
 
-    There is one value per sequence and inner step. Every array has the shape `(sequences, steps)` followed by the shape
-    of its parameter. At inner step `k` of sequence `i` every parameter takes its value at `[i, k]` before the laws of
-    the step are evaluated, as a schedule sets a parameter in a simulation, and the loss reads the states the step
-    gives. Every sequence starts from the initial states of the system.
+    It gives the inputs a nested system reads at every step of its training, such as `DatasetSpec({'inputs.x': x})`
+    with `x` of shape `(sequences, steps, 1)` for a recurrent network that reads one number per step. At step `k` of
+    sequence `i` every parameter takes its value at `[i, k]` before the laws of the step run, as a schedule sets a
+    parameter in a simulation, and the loss reads the values the step gives. Every sequence starts from the initial
+    values of the system. It holds the words of sentences for a language model, the daily prices for a forecast, and
+    the stimuli of a neural circuit.
+
+    Read more in the user guide, under Laws.
 
     Args:
         values:
@@ -40,6 +44,9 @@ class DatasetSpec(BaseSpec):
     Raises:
         ValidationError:
             The values are empty, a path is not a string, or an array has fewer than two dimensions.
+
+    See Also:
+        TrainingInteraction: Trains the parameters of a nested system on the spec.
 
     Examples:
         >>> import numpy as np

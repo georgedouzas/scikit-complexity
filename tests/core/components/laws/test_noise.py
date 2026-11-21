@@ -29,7 +29,7 @@ def test_noise_takes_a_label_labels_or_no_process(process):
     [
         ({'process': 3}, 'Give a label'),
         ({'process': ()}, 'Give a label'),
-        ({'conserved': True, 'process': 'market'}, 'one process per link'),
+        ({'conserved': True, 'process': 'market'}, 'random steps on every link'),
         ({'convention': 'ito-stratonovich'}, 'Unknown noise convention'),
     ],
 )
@@ -52,7 +52,7 @@ def test_noise_takes_a_hurst_index(hurst):
         ({'hurst': 1.0}, r'Give a number in \(0, 1\)'),
         ({'hurst': 0}, r'Give a number in \(0, 1\)'),
         ({'hurst': 0.7, 'process': 'shared'}, r'n .*Remove the process'),
-        ({'hurst': 0.7, 'conserved': True}, r'n .*a conserved noise is Brownian'),
+        ({'hurst': 0.7, 'conserved': True}, r'n .*a conserved noise draws independent steps'),
     ],
 )
 def test_noise_rejects_invalid_hurst_indices(arguments, message):

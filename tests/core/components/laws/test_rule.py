@@ -31,5 +31,5 @@ def test_rule_needs_a_callable_function():
 @pytest.mark.parametrize('members', ['', 3])
 def test_rule_members_name_a_role(members):
     """Test that the members of a rule must name a role."""
-    with pytest.raises(ValidationError, match='name a role'):
+    with pytest.raises(ValidationError, match='the name of a role'):
         _RuleLaw(lambda agent, system: None, members=members)._check()

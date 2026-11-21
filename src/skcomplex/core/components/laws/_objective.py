@@ -18,32 +18,17 @@ from ._requirement_spec import RequirementSpec
 
 @dataclass(frozen=True)
 class ObjectiveLaw(BaseLaw):
-    """A law that gives a scalar function of states, which a system minimises.
+    """A law that gives a cost of values, which the system makes least.
 
-    The value `U(x)` is a symbolic expression, and the targets are the states the minimum is sought over. The
-    objectives of several laws add up into one, and the constraint laws of the system hold at the minimum.
-
-    With `controls`, the law chooses values over time instead, as optimal control does: it names the values of the
-    elements that it steers, such as `ObjectiveLaw(s.plant.x**2 + s.plant.u**2, controls=[s.plant.u])`, and the
-    run minimises the integral of the value over the run plus the terminal cost at its end, while the rate laws of the
-    system move the states. The bounds of a control are the allowed values of its element, such as
-    `u: Annotated[float, RealSet.closed(0, 1)] = 0.0`. A cost to maximise, such as a profit, is minimised with its sign
-    changed.
-
-    A value linear in the targets is minimised as a linear program, with the constraint laws that read the targets,
-    equalities and inequalities alike, such as the fluxes of a metabolic network at its greatest growth,
-    `ObjectiveLaw(-v_growth, fluxes)` with a `ConstraintLaw(v <= upper)` per flux, or the dispatch of power plants at
-    least cost. The targets are then set at every time of a run, so the law also fits a system that changes in time.
-    A sum of absolute values of the targets counts as linear, and a sequence of values is minimised in order, each
-    minimum held while the next one is sought, such as the smallest total flux at the greatest growth,
-    `ObjectiveLaw([-v_growth, sum(abs(v) for v in fluxes)], fluxes)`.
-
-    Unlike `ConstraintLaw`, which states a relation that holds, it gives a cost that the system makes least. Choose it
-    when the answer is the best state rather than a path in time.
-
-    It appears in many fields. A loaded structure rests at its least potential energy, a household allocates a budget
-    to its greatest utility, a model takes the weights of its least loss, and a health authority times a vaccination
-    campaign to the least cost of an epidemic.
+    It gives a cost that the system makes least, such as `ObjectiveLaw(s.k * s.spring.x**2 / 2 - s.f * s.spring.x,
+    s.spring.x)` inside the interaction of a loaded spring, which finds the stretch `x = f / k` of least energy. The
+    costs of several laws add up, and the constraint laws of the system hold at the minimum. A cost linear in its
+    targets is solved as a linear program with the constraint laws that read them, at every time of a run, and a
+    sequence of costs is made least in order, each minimum held while the next is sought. With `controls`, the law
+    steers values over a run instead, and makes least the integral of the cost plus the cost at the end, while the
+    rate laws move the values. A cost to make greatest, such as a profit, is made least with its sign changed. A loaded
+    structure rests at its least energy, a cell routes its fluxes to its greatest growth, a model takes the weights of
+    its least loss, and a health authority times a vaccination campaign at the least cost.
 
     Read more in the user guide, under Laws.
 
@@ -53,11 +38,12 @@ class ObjectiveLaw(BaseLaw):
             order.
 
         targets:
-            The symbol of a state, or the symbols of the states, that the minimum is sought over, or `None` with
+            The symbol of a value, or the symbols of the values, that the minimum is sought over, or `None` with
             controls.
 
         controls:
-            The symbols of the values the law steers over a run, or `None` for a static minimum over `targets`.
+            The symbols of the values the law steers over a run, or `None` for a minimum over `targets`. The allowed
+            values of a control are those of its element, such as `u: Annotated[float, RealSet.closed(0, 1)] = 0.0`.
 
         terminal:
             With controls, the cost at the end of the run, a symbolic expression or a number.
@@ -67,32 +53,28 @@ class ObjectiveLaw(BaseLaw):
             always. Where it is false the targets are zero.
 
         infeasible:
-            For a linear value, what a run does when the constraints cannot all hold: `'raise'` to raise an error,
+            For a linear value, what a run does when the constraints cannot all hold, `'raise'` to raise an error,
             `'zero'` to set the targets to zero, or `'hold'` to keep their last values, as a culture that stops
             growing when its medium runs out.
 
         duals:
-            For a linear value, whether a run records the dual value of each constraint of the program, under
-            `<path>.dual_<k>` in the order of the constraints. The dual value of a constraint is the change of the
-            first value with the right side of the constraint, such as the shadow price of a metabolite in flux balance
-            analysis.
+            For a linear value, whether a run records the dual value of each constraint, under `<path>.dual_<k>` in
+            the order of the constraints. The dual value of a constraint is how much the first value changes when the
+            right side of the constraint grows by one, such as the price of one more unit of a nutrient of a cell.
 
         label:
             The name of the law, or the empty string for a law without one.
 
     See Also:
-        ConstraintLaw: A relation that holds at the minimum.
-        UpdateLaw: The next value of a state, such as one step of a descent.
+        ConstraintLaw: States an equation or a bound that holds at the minimum.
+        UpdateLaw: Gives the next value after one step, such as one step of a descent.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws import ObjectiveLaw
-        >>> x = var('x')
-        >>> ObjectiveLaw((x - 2) ** 2, x).value
-        (x - 2)^2
-        >>> u = var('u')
-        >>> ObjectiveLaw(x**2 + u**2, controls=[u]).controls
-        [u]
+        >>> x, k, f = var('x k f')
+        >>> ObjectiveLaw(k * x**2 / 2 - f * x, x).targets
+        x
     """
 
     law_tag: ClassVar[str] = 'objective'

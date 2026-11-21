@@ -15,13 +15,16 @@ FALLBACKS = (None, 'nearest')
 
 @dataclass(frozen=True)
 class PartnerSpec(BaseSpec):
-    """A spec of how members choose partners, by reach, score, and fallback.
+    """A spec of how agents choose partners, by reach, choice, fallback, and capacity.
 
-    It holds the candidates of every agent, a choice among them, a fallback, and a capacity. Every agent of one side
-    considers its candidates among the agents of the other side and picks among those that still have room. With a
-    capacity the agents act in random order, since the first to act take the room. Without one they act in their order.
-    A capacity of 1 with every agent as a candidate and a uniform choice draws disjoint random pairs from one random
-    order per side.
+    It says whom every agent of one side pairs with among the agents of the other side, such as
+    `PartnerSpec('reach', fallback='nearest')` for people who eat at a restaurant within their reach, or at the
+    nearest one when none is. Every agent picks among its candidates that still have room. With a capacity the agents
+    act in random order, since the first to act take the room, and without one they act in their order. A capacity of
+    1 with every agent as a candidate and a uniform choice draws random pairs with no agent in two of them. It matches
+    workers to firms, buyers to sellers, and people to restaurants.
+
+    Read more in the user guide, under Laws.
 
     Args:
         candidates:
@@ -42,13 +45,16 @@ class PartnerSpec(BaseSpec):
             it, or `None` for no limit.
 
         score:
-            The function `score(agent, candidate)` of their agent views the choice `'score'` reads, higher for preferred
-            candidates, or `None`.
+            The function `score(agent, candidate)` that the choice `'score'` reads, higher for preferred candidates,
+            or `None`.
 
     Raises:
         ValidationError:
             The choice or the fallback is unknown, the distance or the capacity is not positive, or the
             score does not fit the choice, raised when its owner checks it.
+
+    See Also:
+        pairs: Returns the pairs of two groups that the spec chooses.
 
     Examples:
         >>> from skcomplex.core.components.laws import PartnerSpec
@@ -63,9 +69,7 @@ class PartnerSpec(BaseSpec):
     score: Preference | None = None
 
     def _check(self) -> None:
-        """Raise an error for an unknown or invalid setting of the selection.
-
-        The setting is an unknown choice or fallback, a bad distance or capacity, or a bad score.
+        """Raise an error for an unknown choice or fallback, or a bad reach or score.
 
         Raises:
             ValidationError:

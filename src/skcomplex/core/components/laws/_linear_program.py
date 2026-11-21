@@ -118,6 +118,7 @@ class _LinearProgramLaw(BaseLaw):
             objective._check()
         if self.infeasible not in INFEASIBLE_POLICIES:
             error_msg = (
-                f'Unknown infeasibility policy {self.infeasible!r}. Use one of {", ".join(INFEASIBLE_POLICIES)}.'
+                f'Unknown choice {self.infeasible!r} for constraints that cannot all hold. Use one of '
+                f'{", ".join(INFEASIBLE_POLICIES)}.'
             )
             raise ValidationError(error_msg)

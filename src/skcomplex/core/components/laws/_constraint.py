@@ -17,20 +17,18 @@ from ._requirement_spec import RequirementSpec
 
 @dataclass(frozen=True)
 class ConstraintLaw(BaseLaw):
-    """A law that states an implicit relation between the derivatives of states.
+    """A law that states an equation the compiler solves for derivatives of values.
 
-    The relation `lhs == rhs` holds the highest time derivatives of its states linearly, as Newton's second law holds
-    the acceleration. The states are Sage functions of time, such as `function('theta')(t)`, and their derivatives are
-    Sage derivatives, such as `theta.diff(t, 2)`. The compiler solves all the equations of a system together for the
-    highest derivatives and adds the rate laws on the same states to the solution. The equations of one `target`, from
-    any component, add into one before the solve, so a term may hold no highest derivative, such as the term a coupling
-    adds to the equation of a coordinate.
+    It gives an equation in place of a rate, such as `ConstraintLaw(s.l * s.theta.diff(s.t, 2), -s.g * sin(s.theta))`
+    inside the interaction of a pendulum, which the compiler solves for the acceleration of the angle `theta`. The
+    equation holds the highest derivatives of its values linearly, as Newton's second law holds an acceleration, and
+    the compiler solves all the equations of a system together and adds the rate laws on the same values to the
+    solution. The values are functions of time, such as `function('theta')(t)`. The equations of one `target` add into
+    one before the solve, so a component may add a term without a highest derivative, such as a coupling. In static
+    time it holds at the minimum of an `ObjectiveLaw`, where an inequality such as `v <= upper` bounds a value. The
+    swings of a double pendulum, the currents of a circuit, and the joints of a robot arm follow such equations.
 
-    Unlike `RateLaw`, which gives a derivative explicitly, it gives a relation that the compiler solves for the
-    derivatives. Choose it when the derivatives are coupled through a mass matrix, as in linked bodies.
-
-    It appears in many fields. The equations of a double pendulum, the coupled currents of an electric circuit, and the
-    joints of a robot arm are implicit in their accelerations.
+    Read more in the user guide, under Laws.
 
     Args:
         lhs:
@@ -40,11 +38,15 @@ class ConstraintLaw(BaseLaw):
             The right side, or `None` when `lhs` is a relation.
 
         target:
-            The state whose equation this is, so that the equations of one target add, or `None` for an equation of
+            The value whose equation this is, so that the equations of one target add, or `None` for an equation of
             its own.
 
         label:
             The name of the law, or the empty string for a law without one.
+
+    See Also:
+        RateLaw: Gives a derivative of a value directly.
+        ObjectiveLaw: Gives a cost to make least, under the equations of the system.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import function, sin, var

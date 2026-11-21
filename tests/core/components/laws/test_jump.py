@@ -33,8 +33,8 @@ def test_jump_at_a_rate_takes_the_label_of_its_channel():
     [
         ({}, 'exactly one of them'),
         ({'rate': 1.0, 'waiting': 1.0}, 'exactly one of them'),
-        ({'waiting': draw('wait', 'expon'), 'changes': {N: 1}}, 'changes belong to the exponential clock'),
-        ({'rate': 1.0, 'changes': {N: 1}, 'reset': {N: 0}}, 'resets to the waiting'),
+        ({'waiting': draw('wait', 'expon'), 'changes': {N: 1}}, 'after a waiting time takes `changes`'),
+        ({'rate': 1.0, 'changes': {N: 1}, 'reset': {N: 0}}, 'at a rate takes a `reset`'),
         ({'rate': 1.0, 'changes': {N: K}}, 'holds a symbol'),
     ],
 )

@@ -18,47 +18,46 @@ from ._requirement_spec import RequirementSpec
 
 @dataclass(frozen=True)
 class RateLaw(BaseLaw):
-    """A law that adds a rate to the highest time derivative of a state.
+    """A law that adds a rate to a time derivative of a value.
 
-    A rate on a state is its first derivative, and a rate on the derivative `x.diff(t, k)` adds to the `k`th derivative.
-    Rates on the same state add up, so separate mechanisms superpose, and a system with only rate laws is a system of
-    ordinary differential equations.
+    It says how fast a value changes in continuous time, such as `RateLaw(s.ball.x.diff(s.t, 2), -s.g)` inside the
+    interaction of a falling ball, which gives the height `x` the acceleration `-g`. A rate on `x` is its first
+    derivative, and a rate on `x.diff(t, k)` is its derivative of order `k`. Rates on the same value add up, so each
+    cause of a change writes its own law, and a system of rate laws alone is a system of ordinary differential
+    equations. A flow moves an amount between two stocks and maps each stock to the sign of its change, such as
+    `RateLaw({s.alive: -1, s.dead: +1}, f, label='deaths')`, where `f` leaves the living and enters the dead. Infected
+    people recover at a rate, a balance grows by interest, a reactant is used up by a reaction, and a pendulum swings
+    under gravity.
 
-    A flow moves an amount between stocks, such as people from the living to the dead. Its target maps each stock to
-    the sign of its change, `RateLaw({s.alive: -1, s.dead: +1}, f, label='deaths')`, so the amount `f` leaves the
-    first stock and enters the second, and the trajectory records `f` under the label. A flow from outside the system
-    names only the stock it enters, `RateLaw({s.water: +1}, f, label='tap')`, and a flow out of it only the stock it
-    leaves.
-
-    Unlike `UpdateLaw`, which gives the next value in discrete time, it gives a derivative in continuous time. Choose it
-    when a state flows, and add a `NoiseLaw` for a random part.
-
-    It appears in many fields. Infected people recover at a rate, a balance grows by interest, a reactant is consumed by
-    mass action, and a pendulum accelerates under gravity.
+    Read more in the user guide, under Laws.
 
     Args:
         target:
-            The symbol of a scalar state, a derivative of it such as `x.diff(t, 2)`, the column of symbols of a vector
-            state, the matrix of a tensor state, or, for a flow, a mapping from the symbol of each stock to the sign of
-            its change, `-1` or `+1`.
+            The symbol of a scalar value, a derivative of it such as `x.diff(t, 2)`, the column of symbols of a vector
+            value, the matrix of a tensor value, or, for a flow, a mapping from the symbol of each stock to the sign of
+            its change, `-1` or `+1`. A flow from outside the system names only the stock it enters, such as
+            `{s.water: +1}`.
 
         value:
-            A symbolic expression, a matrix of the shape of a tensor state, a `Call`, or a callable `f(t, values)` where
-            `values` maps dotted state and parameter names to their current values.
+            A symbolic expression, a matrix of the shape of a tensor value, a `CallSpec`, or a function
+            `f(t, values)`, where `values` maps the dotted name of every value and parameter to its current value.
 
         label:
             The name of a flow, which the trajectory records under the element of its stocks, such as
-            `population.deaths`, or the name of the rate in messages, or the empty string for none.
+            `population.deaths`, the name of the rate in messages, or the empty string for none.
+
+    See Also:
+        NoiseLaw: Adds a random change to a derivative of a value.
+        UpdateLaw: Gives the next value after one step of discrete time.
+        ConstraintLaw: States an equation that the compiler solves for the derivatives.
 
     Examples:
-        >>> from sage.all__sagemath_symbolics import var
+        >>> from sage.all__sagemath_symbolics import function, var
         >>> from skcomplex.core.components.laws import RateLaw
-        >>> n = var('n')
-        >>> RateLaw(n, 2 * n).target
-        n
-        >>> alive, dead = var('alive dead')
-        >>> RateLaw({alive: -1, dead: +1}, 0.1 * alive, label='deaths').target
-        {alive: -1, dead: 1}
+        >>> t, g = var('t g')
+        >>> x = function('x')(t)
+        >>> RateLaw(x.diff(t, 2), -g).value
+        -g
     """
 
     law_tag: ClassVar[str] = 'rate'

@@ -137,7 +137,10 @@ class _LocalRuleLaw(BaseLaw):
             return centered
         offsets = self.over._get_offsets(space.n_dim_)
         if offsets is None and outer:
-            error_msg = f'A run reads an outer totalistic rule on offsets or a memory set, not on {self.over!r}.'
+            error_msg = (
+                f'An outer totalistic rule reads a cell and its neighbours at fixed places, but {self.over!r} gives no '
+                'fixed places. Give a neighbourhood of a lattice, such as RadiusNeighborhood(1).'
+            )
             raise ValidationError(error_msg)
         if offsets is None:
             return self.over
@@ -249,7 +252,7 @@ class _LocalRuleLaw(BaseLaw):
         names = [str(symbol) for symbol in (self.reads or self._get_targets())]
         missing = [name for name in names if name not in keywords]
         if not isinstance(space, BaseSpace) or missing:
-            error_msg = f'A local rule runs on a mapping with `space` and its states {names}, but got {inputs!r}.'
+            error_msg = f'A local rule reads a mapping with `space` and its values {names}, but got {inputs!r}.'
             raise ValidationError(error_msg)
         if not hasattr(space, 'size_'):
             space.prepare()

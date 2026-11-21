@@ -18,55 +18,49 @@ from ._requirement_spec import RequirementSpec
 
 @dataclass(frozen=True)
 class JumpLaw(BaseLaw):
-    """A law of a random event that changes states.
+    """A law of a random event that changes values by whole amounts.
 
-    The event fires on one of two clocks:
+    It fires at random times and changes values at once, such as `JumpLaw(s.beta * s.S * s.I, {s.S: -1, s.I: +1})`
+    inside an interaction of an epidemic, where one person at a time moves from the susceptible `S` to the infected `I`
+    at the rate `beta S I`. With `rate`, the event fires at that rate, with exponential times between firings, and adds
+    `changes` to the values. With `waiting`, it fires after a waiting time drawn anew at every firing, sets the values
+    of `reset`, and the trajectory counts the firings of each member in `<label>.renewals`. Rate and noise laws move
+    the values between firings. Molecules react one at a time in a cell, people are born and die in a small
+    population, customers arrive at a queue, and a walker jumps between sites.
 
-    - `rate`: at the times of a Poisson process of that propensity, and it adds the fixed `changes` to the states, as in
-      a Markov chain of continuous time.
-    - `waiting`: after a waiting time drawn anew at every firing, and it applies `reset`, as in a renewal process. Each
-      member of a group fires on its own clock, and the trajectory records every firing and counts them in
-      `<label>.renewals`.
-
-    Rate and noise laws move the states between firings.
-
-    Unlike `RateLaw`, which changes states continuously, it changes them at random instants by whole amounts. Choose it
-    when the units are few and their randomness matters.
-
-    It appears in many fields. Molecules react one at a time in a cell, individuals are born and die in a small
-    population, customers arrive at a queue, and a random walker jumps between sites.
+    Read more in the user guide, under Laws.
 
     Args:
         rate:
-            The propensity of the event, a symbolic expression, a `Call`, or a callable `f(t, values)`, or `None` with a
-            waiting time.
+            How often the event fires per unit of time, a symbolic expression, a `CallSpec`, or a function
+            `f(t, values)`, or `None` with a waiting time.
 
         changes:
-            A mapping from the symbol of a scalar state to its increment when the event fires. In a law of a group, a
-            target may also be a member offset read `shift_member(namespace.n, k)`.
+            A mapping from the symbol of a scalar value to the number it adds when the event fires. In a law of a
+            group, a key may also be the value of the member at an offset, `shift_member(s.n, k)`.
 
         waiting:
-            The waiting time until the next firing, usually a draw from a distribution with nonnegative support, such
-            as `draw('wait', 'pareto', b=alpha)`, or `None` for the exponential clock of `rate`.
+            The time until the next firing, usually a draw from a distribution of positive numbers, such as
+            `draw('wait', 'pareto', b=alpha)`, or `None` for a jump at a rate.
 
         reset:
-            With a waiting time, a mapping from state symbol to its new value, which may hold draws, or `None`.
+            With a waiting time, a mapping from the symbol of a value to its new value, which may hold draws, or
+            `None`.
 
         label:
-            The name of the jump channel, such as `'infection'`, or the empty string for a law without one. With a
-            waiting time, it names the firings in the trajectory, and the empty string names them by the path of the
-            element.
+            The name of the event, such as `'infection'`, or the empty string for a law without one. With a waiting
+            time, it names the firings in the trajectory, and the empty string names them by the path of the element.
+
+    See Also:
+        RateLaw: Changes a value smoothly at a rate.
+        EventLaw: Sets values when an expression crosses zero.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws import JumpLaw
-        >>> from skcomplex.core.components.laws.utils import draw
-        >>> s, i = var('s'), var('i')
-        >>> JumpLaw(0.1 * s * i, {s: -1, i: 1}).changes
-        {s: -1, i: 1}
-        >>> n = var('n')
-        >>> JumpLaw(waiting=draw('wait', 'expon'), reset={n: 0}).reset
-        {n: 0}
+        >>> S, I, beta = var('S I beta')
+        >>> JumpLaw(beta * S * I, {S: -1, I: 1}, label='infection').changes
+        {S: -1, I: 1}
     """
 
     law_tag: ClassVar[str] = 'jump'
@@ -91,39 +85,35 @@ class JumpLaw(BaseLaw):
         return RequirementSpec(time=(_ContinuousTime,))
 
     def _check_clock(self) -> None:
-        """Raise an error for a jump with both or neither clock, or an unused clock option.
+        """Raise an error for a jump with both or neither of a rate and a waiting time.
 
-        The unused option is an option of the clock it does not use.
+        It also raises it for `changes` after a waiting time or a `reset` at a rate.
         """
         if (self.rate is None) == (self.waiting is None):
             error_msg = 'A jump fires at a rate or after a waiting time. Give exactly one of them.'
             raise ValidationError(error_msg)
         if self.waiting is not None and self.changes:
-            given, fix = 'changes', 'Give the new values of the states as `reset`.'
+            given, fix = 'after a waiting time takes `changes`', 'Give the new values as `reset`.'
         elif self.waiting is None and self.reset is not None:
-            given = 'a reset'
-            fix = 'Give the increments of the states as `changes`, or a waiting time instead of the rate.'
+            given = 'at a rate takes a `reset`'
+            fix = 'Give the numbers it adds as `changes`, or a waiting time in place of the rate.'
         else:
             return
-        clock = 'a waiting-time clock' if self.waiting is not None else 'an exponential clock'
         error_msg = (
-            f'A jump on {clock} takes {given}, but changes belong to the exponential clock of a rate, and resets to '
-            f'the waiting-time clock. {fix}'
+            f'A jump that fires {given}, but a jump at a rate adds `changes` and a jump after a waiting time sets '
+            f'`reset`. {fix}'
         )
         raise ValidationError(error_msg)
 
     def _check_reset(self) -> None:
-        """Raise an error for a function in the reset of a renewal.
-
-        The values of the reset lower with its symbolic draws.
-        """
+        """Raise an error for a `CallSpec` as the waiting time or a function in the reset."""
         if isinstance(self.waiting, CallSpec):
             error_msg = 'The waiting time of a jump takes a function `f(rng, size=, t=, **values)`, not a `CallSpec`.'
             raise ValidationError(error_msg)
         if any(self._is_function(value) for value in (self.reset or {}).values()):
             error_msg = (
-                'The reset of a jump on a waiting-time clock takes symbolic values, because they share draws with the '
-                'waiting time. Give symbols, or a function as the `waiting` time.'
+                'The reset of a jump after a waiting time takes symbolic values, because they may read the draws of '
+                'the waiting time. Give symbolic values, or a function as the `waiting` time.'
             )
             raise ValidationError(error_msg)
 
@@ -138,10 +128,7 @@ class JumpLaw(BaseLaw):
                 raise ValidationError(error_msg)
 
     def _check(self) -> None:
-        """Raise an error for an invalid clock, an array rate, or a symbolic increment.
-
-        The array rate is a rate that is a NumPy array.
-        """
+        """Raise an error for bad timing, a NumPy array, or a symbolic increment."""
         super()._check()
         self._check_clock()
         self._check_reset()

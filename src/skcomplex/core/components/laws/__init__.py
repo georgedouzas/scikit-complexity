@@ -1,7 +1,8 @@
-"""Define laws, the rules by which states change.
+"""Define laws, the equations and rules that change the values of elements.
 
-A law is one equation or rule for the states it targets, such as a rate, the next value at a step, a random jump, or an
-algebraic equation. Elements, interactions, and systems return laws, and the compiler lowers them to a problem.
+A law says how one value changes, such as `RateLaw(s.ball.x.diff(s.t, 2), -s.g)` for a falling ball, the next value
+after a step, a random jump, or an equation the compiler solves. Interactions return laws in `laws_`, and the compiler
+turns them into a problem that a solver runs. The specs here hold the settings that laws and their rules read.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>

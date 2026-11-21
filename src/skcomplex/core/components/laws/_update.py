@@ -24,138 +24,106 @@ from ._topology_request_spec import TopologyRequestSpec
 
 @dataclass(frozen=True)
 class UpdateLaw(BaseLaw):
-    """A law that gives the next value of a state after one discrete time step.
+    """A law that gives what a value becomes after one step of discrete time.
 
-    A state takes one update law, unless each of its update laws says how it combines with the others. An `increment`
-    law gives the state plus a change, and a law with a `source` changes only a state that holds the source value. Such
-    laws of one state add their changes, `x + sum_k (f_k - x)`, all computed from the states at the start of the step.
-    Two laws with the same source, or a law that declares neither, are an error.
+    It says what a value becomes at the next step, such as `UpdateLaw(s.insects.x, s.insects.r * s.insects.x * (1 -
+    s.insects.x))` inside the interaction of a logistic map, where a population of insects grows and crowds itself out
+    from year to year. Every update reads the values at the start of the step, so the order of the laws does not
+    matter. A value takes one update law, unless each of its laws says how it combines with the others, by `increment`
+    or by `source`. With `neighborhood`, the law is a local rule that reads the neighbours of every cell of a lattice or
+    node of a network, such as the Game of Life, and with `arrays`, a function of the whole array changes every member
+    at once. Its target may also be a group, whose members each run a rule `rule(agent, system)` that may add and
+    remove members, or a `TopologyRequestSpec`, whose value is the chance that the network changes. A population breeds
+    from year to year, a cellular automaton steps its cells, an account earns interest every month, and a player
+    revises a strategy every round.
 
-    With `order`, the members of a group update one after the other, in increasing order of `order`, and each reads the
-    values set before it. Without it every member updates at once. With `phase`, the law runs in that phase of the step,
-    which a `PhasesScheduleSpec` of the discrete time orders, and each phase reads the states the phases before it set.
-
-    An update law whose target is a group bound to a role and whose value is a function `rule(agent, system)` is an
-    agent rule, such as `UpdateLaw(s.target, move)` with `def move(agent, system): agent.x += system.rng.normal()`.
-    Every member of the group runs the rule at each step, and the rule may add and remove members.
-
-    With `neighborhood`, the law is a local rule of the cells of a lattice or the nodes of a network. Its value reads
-    the ordered values of the neighbours of every cell, such as `UpdateLaw(s.target.alive, life(), neighborhood=MOORE)`
-    for the Game of Life. The value is then a `TableSpec`, a `TotalisticSpec`, an `OuterTotalisticSpec`, a
-    `LinearRuleSpec`, an object whose `get_table()` returns a `TableSpec`, or a function. A function receives one array
-    per neighbour of every read state, in neighbourhood order. It returns the next values of the target, or one array
-    per state when the target is a tuple of states.
-
-    With `arrays=True`, the value is a NumPy function of the whole array that replaces the state of every member at
-    once, such as `UpdateLaw(s.target.height, drop, arrays=True, stochastic=True)` with
-    `def drop(values, *, random, **kwargs): ...` adding a grain at one random site of a sandpile. The function receives
-    the array, shaped like the lattice or with one row per member. Without it, a function value is `f(t, values)` and
-    gives the next value of one state.
-
-    The function of a local rule or of a whole array, and its score, receive the same keywords: the parameters of the
-    element by name, `time`, the time of the step, `space`, the space of the state, `degree`, the number of neighbours
-    of every cell of a local rule, and `random`. With `stochastic=True`, `random` is a uniform number per cell of a
-    local rule or the random generator of an update of a whole array, and it is `None` otherwise, as `degree` is for an
-    update of a whole array, a score, or a memory that moves with the values of a state. A function takes `**kwargs`
-    for the keywords it ignores, since the engine never reads its signature.
-
-    Unlike `RateLaw`, which gives a derivative in continuous time, it gives the next value in discrete time. Choose it
-    when the model steps, such as a map, a generation, or a round.
-
-    It appears in many fields. The logistic map follows a population from year to year, a cellular automaton steps its
-    cells, and an account compounds interest monthly.
+    Read more in the user guide, under Laws.
 
     Args:
         target:
-            The symbol of a scalar state, the column of symbols of a vector state, a `TopologyRequestSpec`, whose
-            value is the probability that the request fires, the group of a role, whose members run a rule, or a tuple
-            of states that a local rule sets together.
+            The symbol of a scalar value, the column of symbols of a vector value, a `TopologyRequestSpec`, whose
+            value is the chance that the request fires, the group of a role, whose members run a rule, or a tuple of
+            values that a local rule sets together.
 
         value:
-            A symbolic expression, a `Call`, or a callable `f(t, values)` that gives the next value, the rule
+            A symbolic expression, a `CallSpec`, or a function `f(t, values)` that gives the next value, the rule
             `rule(agent, system)` of the members of a group, the rule of the cells of a local rule, or with `arrays`
-            a NumPy function `f(values, **kwargs)` of the whole array of the state.
+            a NumPy function `f(values, **kwargs)` of the whole array of the value. The function of a local rule or of
+            a whole array, and its score, receive the same keywords: every parameter of the element by name, `time`,
+            the time of the step, `space`, the space of the value, `degree`, the number of neighbours of every cell of
+            a local rule and `None` otherwise, and `random`. They take `**kwargs` for the keywords they ignore.
 
         label:
             The name of the law, or the empty string for a law without one.
 
         increment:
-            Whether the value is the state plus a change that adds to the changes of the other update laws of the
-            state.
+            Whether the value is the value plus a change, such as `x + 1`, whose change adds to the changes of the
+            other update laws of the same value.
 
         source:
-            The value the law moves the state from, keeping every other value, or `None`.
+            The value the law moves members from, such as `0.0` for the healthy people of an epidemic, keeping every
+            other value as it is, or `None`. Laws of one value with different sources add their changes.
 
         order:
-            A symbolic expression of the states, parameters, and draws of a member, whose values order the members
-            that update one after the other, or `None` for members that update at once.
+            A symbolic expression of the values, parameters, and draws of a member, such as a random number, whose
+            values order the members that update one after the other, each reading the values set before it, or
+            `None` for members that update at once.
 
         phase:
-            The name of the phase of the step the law runs in, or `None` for the default phase.
+            The name of the phase of the step the law runs in, which a `PhasesScheduleSpec` of the discrete time
+            orders, so each phase reads the values the phases before it set, or `None` for the default phase.
 
         neighborhood:
             The ordered neighbours of every cell that a local rule reads, such as
-            `RadiusNeighborhood(1, metric='chebyshev')`, or `None` for a law of one member.
+            `RadiusNeighborhood(1, metric='chebyshev')`, or `None` for a law of one member. The value is then a
+            `TableSpec`, a `TotalisticSpec`, an `OuterTotalisticSpec`, a `LinearRuleSpec`, an object whose
+            `get_table()` returns a `TableSpec`, or a function `f(*neighbours, **kwargs)`. A function receives one
+            array per neighbour of every value it reads, in the order of the neighbourhood, and returns the next
+            values of the target, or one array per value when the target is a tuple of values.
 
         reads:
-            The states whose neighbours a local rule reads, or `None` for its targets.
+            The values whose neighbours a local rule reads, or `None` for its targets.
 
         schedule:
             The order in which a local rule updates the cells, or `None` for all at once. `'synchronous'` updates
             every cell from the previous values, `'random-sequential'` one cell at a time in a random order,
-            `'random-site'` as many cells chosen at random, `'checkerboard'` the two sublattices of a square lattice in
-            turn, and `'colored'` the classes of a proper coloring of the neighbour graph in turn.
+            `'random-site'` as many cells chosen at random, `'checkerboard'` the two halves of a square lattice in
+            turn, like the squares of a chessboard, and `'colored'` groups of cells with no neighbours in common, in
+            turn.
 
         score:
-            A function `score(values, **parameters)` of the whole array of a lattice state, which returns one number
-            per row and which a run records at every frame as `<owner>.score`, or `None`. Only an update of the
-            whole array takes it.
+            A function `score(values, **kwargs)` of the whole array of a lattice value, which returns one number per
+            row and which a run records at every frame as `<owner>.score`, or `None`. Only an update of the whole
+            array takes it, and it never draws numbers.
 
         arrays:
-            Whether the value is a NumPy function of the whole array of the state, which replaces the state of every
-            member at once.
+            Whether the value is a NumPy function of the whole array of the value, shaped like the lattice or with
+            one row per member, which replaces the value of every member at once.
 
         stochastic:
-            Whether the function of a local rule or of a whole array draws numbers, so that it receives `random`.
+            Whether the function of a local rule or of a whole array draws numbers. Its keyword `random` is then a
+            uniform number per cell of a local rule, or the random generator of the run for a whole array, and `None`
+            otherwise.
 
     Raises:
         ValidationError:
             The value is a NumPy array, an increment law has a source, a local rule has a neighbourhood that is no
             neighbourhood, an unknown schedule, or a setting of a law of one member, a law has a score but no function
-            of the whole array, `arrays` is given with a value that is no function or a target that is no state, or
+            of the whole array, `arrays` is given with a value that is no function or a target that is no value, or
             `stochastic` is given with a value that is no function of a local rule or of a whole array.
+
+    See Also:
+        RateLaw: Adds a rate to a derivative of a value in continuous time.
+        TopologyRequestSpec: A change of a network that an update law may request.
+        TotalisticSpec: A local rule given by the sum of the neighbours.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws import UpdateLaw
-        >>> x = var('x')
-        >>> UpdateLaw(x, 4 * x * (1 - x)).target
-        x
-        >>> UpdateLaw(x, x + 1, increment=True).increment
-        True
-        >>> UpdateLaw(x, x + 1, phase='imitate').phase
-        'imitate'
-
-        A local rule reads the ordered neighbours of every cell:
-
-        >>> from skcomplex.core.components.laws import TotalisticSpec
-        >>> from skcomplex.core.components.spaces import RadiusNeighborhood
-        >>> around = RadiusNeighborhood(1, center=True)
-        >>> parity = UpdateLaw(x, TotalisticSpec(lambda total: total % 2), neighborhood=around)
-        >>> parity.neighborhood.radius
-        1
-
-        A function of the whole array changes every member at once:
-
-        >>> UpdateLaw(x, lambda values, **kwargs: values + 1, arrays=True).arrays
-        True
-
-        A function that draws numbers says so and receives the random generator:
-
-        >>> def shake(values, *, random, **kwargs):
-        ...     return values + random.random()
-        >>> UpdateLaw(x, shake, arrays=True, stochastic=True).stochastic
-        True
+        >>> x, r = var('x r')
+        >>> law = UpdateLaw(x, r * x * (1 - x))
+        >>> float(law.value.subs(x=0.5, r=3))
+        0.75
     """
 
     law_tag: ClassVar[str] = 'update'
@@ -222,7 +190,10 @@ class UpdateLaw(BaseLaw):
                 raise ValidationError(error_msg)
             return
         if not isinstance(self.neighborhood, BaseNeighborhood):
-            error_msg = f'The neighbourhood of the update law {self.label!r} is {self.neighborhood!r}. Give one.'
+            error_msg = (
+                f'The neighbourhood of the update law {self.label!r} is {self.neighborhood!r}. Give a neighbourhood, '
+                'such as RadiusNeighborhood(1).'
+            )
             raise ValidationError(error_msg)
         if self.schedule is not None and self.schedule not in SCHEDULES:
             error_msg = f'Unknown schedule {self.schedule!r}. Use one of {", ".join(SCHEDULES)}.'
@@ -277,7 +248,7 @@ class UpdateLaw(BaseLaw):
         if not state or not function or self.neighborhood is not None:
             error_msg = (
                 f'The update law {self.label!r} has `arrays=True`, which takes a function of the whole array of a '
-                f'state and no neighbourhood, but its target is {self.target!r} and its value {self.value!r}. Give '
+                f'value and no neighbourhood, but its target is {self.target!r} and its value {self.value!r}. Give '
                 'one, such as UpdateLaw(s.target.height, drop, arrays=True) with def drop(values, **kwargs): ...'
             )
             raise ValidationError(error_msg)
