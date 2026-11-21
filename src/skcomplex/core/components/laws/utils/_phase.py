@@ -1,4 +1,4 @@
-"""Define the coordinates and reductions over the class axes of a phase space."""
+"""Define the coordinates of a phase space and the sums over its axes."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,13 +17,17 @@ MAXIMUM_ENTROPY = _OperatorFunction('maximum_entropy')
 
 
 def coordinate(name: str) -> Expression:
-    """Return the coordinate of the point a law updates along a named class axis.
+    """Return the coordinate along a named axis of the point a law updates.
 
-    The axis is a class axis of a phase space.
+    A phase space adds axes beyond position, such as speed, size, or age, and a law of a field on it reads the
+    coordinate of its point along such an axis, such as `coordinate('v') ** 2` for the square of the speed. It weighs
+    the energy of particles by speed, the growth of cells by size, and the death rate of people by age.
+
+    Read more in the user guide, under Laws.
 
     Args:
         name:
-            The name of the class axis.
+            The name of the axis.
 
     Returns:
         coordinate:
@@ -31,7 +35,11 @@ def coordinate(name: str) -> Expression:
 
     Raises:
         ValidationError:
-            The name is no identifier.
+            The name is not a valid Python name.
+
+    See Also:
+        reduce_axes: Integrates over some axes at every position.
+        integration_variable: Gives the point an integral runs over.
 
     Examples:
         >>> from skcomplex.core.components.laws.utils import coordinate
@@ -39,17 +47,23 @@ def coordinate(name: str) -> Expression:
         _coordinate_v^2
     """
     if not isinstance(name, str) or not name.isidentifier():
-        error_msg = f'A class axis is named by an identifier, but it was given {name!r}.'
+        error_msg = f'The name of an axis must be a valid Python name, such as `v`, but it is {name!r}.'
         raise ValidationError(error_msg)
     return SR.var(f'{COORDINATE_PREFIX}{name}', domain='real')
 
 
 def coordinates_of(axes: Sequence[str]) -> list[Expression]:
-    """Return the coordinates of named class axes.
+    """Return the coordinates of several named axes of a phase space.
+
+    It gives `coordinate(name)` for every name, such as the coordinates of `v` and `w` for `('v', 'w')`, and checks that
+    the names come as a sequence, not as a single string. The integrals and moments over axes read it. It gives the
+    speeds of particles along two directions, the size and age of cells, and the income and wealth of households.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         axes:
-            The names of the class axes.
+            The names of the axes.
 
     Returns:
         coordinates:
@@ -57,7 +71,10 @@ def coordinates_of(axes: Sequence[str]) -> list[Expression]:
 
     Raises:
         ValidationError:
-            No axis is named, or an axis is named by a value that is no identifier.
+            No axis is named, or a name is not a valid Python name.
+
+    See Also:
+        coordinate: Gives the coordinate of one axis.
 
     Examples:
         >>> from skcomplex.core.components.laws.utils._phase import coordinates_of
@@ -65,26 +82,35 @@ def coordinates_of(axes: Sequence[str]) -> list[Expression]:
         [_coordinate_v, _coordinate_w]
     """
     if isinstance(axes, str) or not axes:
-        error_msg = f'Name the class axes by a sequence of names, such as `axes=("v",)`, not {axes!r}.'
+        error_msg = f'Name the axes by a sequence of names, such as `axes=("v",)`, not {axes!r}.'
         raise ValidationError(error_msg)
     return [coordinate(name) for name in axes]
 
 
 def reduce_axes(expression: object, axes: Sequence[str]) -> Expression:
-    """Return the integral of an expression over named class axes.
+    """Return the integral of an expression over some axes of a phase space.
 
-    It is taken at every position of a phase space.
+    At every position it sums the expression over the cells of the named axes, each weighted by its width, such as
+    `reduce_axes(f, ('v',))` for the density of particles of any speed. Laws read the result as the same value at every
+    point of the summed axes. It gives the density of a gas from its speeds, the number of cells of all sizes, and the
+    population of all ages.
+
+    Read more in the user guide, under Laws.
 
     Args:
         expression:
             An expression of the states of a field on a phase space and the coordinates.
 
         axes:
-            The names of the class axes to integrate over, each cell weighted by its width.
+            The names of the axes to integrate over, each cell weighted by its width.
 
     Returns:
         integral:
-            The call `reduce_axes(expression, *coordinates)`, which laws read broadcast along the reduced axes.
+            The call `reduce_axes(expression, *coordinates)`, which laws read as the same value along the summed axes.
+
+    See Also:
+        moment: Integrates a power of the coordinates.
+        integral_transform: Integrates against a kernel of two points.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
@@ -96,18 +122,23 @@ def reduce_axes(expression: object, axes: Sequence[str]) -> Expression:
 
 
 def maximum_entropy(expression: object, axes: Sequence[str], order: int = 2) -> Expression:
-    """Return the density of largest entropy with moments up to an order of another.
+    """Return the smoothest density with the same low moments as an expression.
 
-    Its moments up to an order equal those of an expression. The density is `exp(a + b c)` for the order 1 and `exp(a +
-    b c + d |c|^2)` for the order 2, with `c` the coordinates of the named axes, and its parameters are found at every
-    position so that its discrete moments equal those of the expression to round-off.
+    It is the density of largest entropy whose moments up to `order` equal those of the expression, `exp(a + b c)` for
+    the order 1 and `exp(a + b c + d |c|^2)` for the order 2, with `c` the coordinates of the named axes, such as
+    `maximum_entropy(f, ('v',))` for the bell curve of speeds with the density, mean, and spread of `f`. Its parameters
+    are found at every position so that its moments equal those of the expression up to rounding. It relaxes a gas
+    toward equilibrium, closes the equations of a crowd, and fills in a distribution of incomes from its mean and
+    variance.
+
+    Read more in the user guide, under Laws.
 
     Args:
         expression:
             An expression of the states of a field on a phase space and the coordinates.
 
         axes:
-            The names of the class axes of the density.
+            The names of the axes of the density.
 
         order:
             The highest order of the moments that are kept, 0, 1, or 2.
@@ -120,6 +151,9 @@ def maximum_entropy(expression: object, axes: Sequence[str], order: int = 2) -> 
         ValidationError:
             The order is not 0, 1, or 2.
 
+    See Also:
+        moment: Gives a moment of a density.
+
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws.utils import maximum_entropy
@@ -127,15 +161,19 @@ def maximum_entropy(expression: object, axes: Sequence[str], order: int = 2) -> 
         maximum_entropy(f, 2, _coordinate_v)
     """
     if order not in {0, 1, 2}:
-        error_msg = f'The order of a maximum-entropy density is 0, 1, or 2, not {order!r}.'
+        error_msg = f'The order of a maximum entropy density must be 0, 1, or 2, but it is {order!r}.'
         raise ValidationError(error_msg)
     return MAXIMUM_ENTROPY(SR(expression), SR(order), *coordinates_of(axes))
 
 
 def axis_reductions_in(expression: object) -> list[Expression]:
-    """Return the outermost integrals over class axes in an expression.
+    """Return the calls of `reduce_axes` in an expression, outermost first.
 
-    Each is listed once.
+    The compiler reads them to sum a field over axes of a phase space, each call listed once, such as the call in
+    `1 + reduce_axes(f, ('v',))`. A call inside another call is left for the outer one. It finds the densities of gases,
+    cell populations, and age structures.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         expression:
@@ -143,7 +181,10 @@ def axis_reductions_in(expression: object) -> list[Expression]:
 
     Returns:
         calls:
-            The calls of `reduce_axes`, such as those a moment over class axes builds.
+            The calls of `reduce_axes`, such as those a moment over axes builds.
+
+    See Also:
+        reduce_axes: Builds the calls it finds.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var

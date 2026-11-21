@@ -79,7 +79,7 @@ def _vlasov(namespace: SimpleNamespace) -> list[RateLaw]:
 
 def test_coordinate_rejects_a_name_that_is_no_identifier() -> None:
     """Raise a named error for an axis name that is no identifier."""
-    with pytest.raises(ValidationError, match='identifier'):
+    with pytest.raises(ValidationError, match='valid Python name'):
         coordinate('not a name')
     with pytest.raises(ValidationError, match='sequence of names'):
         coordinates_of('v')

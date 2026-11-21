@@ -25,7 +25,7 @@ def _raw(expression: object, order: int, coordinates: np.ndarray, over: object) 
 
 
 def _raw_over_axes(expression: object, order: int, axes: Sequence[str]) -> Expression:
-    """Return the integral of an expression times a power of the coordinate over some axes.
+    """Return the integral of an expression times a coordinate power over some axes.
 
     The power is the length of the coordinates to an order.
     """

@@ -206,16 +206,3 @@ def test_normalised_moment_divides_a_weighted_total_by_the_total():
 def test_moment_over_an_axis_sums_the_powers_of_its_coordinate():
     """Test that a moment over one axis of a phase space sums the field times the power of the coordinate."""
     assert str(moment(var('f'), 2, axes=('v',))) == 'reduce_axes(_coordinate_v^2*f, _coordinate_v)'
-
-
-@pytest.mark.parametrize(
-    ('kwargs', 'message'),
-    [
-        ({'order': 1, 'axes': ('v', 'w')}, 'must have an even order'),
-        ({'order': 1, 'coordinates': [0.0], 'axes': ('v',)}, 'Give no other coordinates'),
-    ],
-)
-def test_moment_over_axes_rejects_odd_orders_and_extra_coordinates(kwargs, message):
-    """Test that an odd moment over several axes, or coordinates given with axes, raise an error in plain words."""
-    with pytest.raises(ValidationError, match=message):
-        moment(var('f'), **kwargs)

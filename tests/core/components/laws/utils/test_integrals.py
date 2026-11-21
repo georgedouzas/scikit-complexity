@@ -74,14 +74,14 @@ def _observed(values: np.ndarray, axis: AxisSpec, function: Callable[[SimpleName
 
 def test_integration_variable_rejects_a_name_that_is_no_identifier() -> None:
     """Raise a named error for an axis name that is no identifier."""
-    with pytest.raises(ValidationError, match='identifier'):
+    with pytest.raises(ValidationError, match='valid Python name'):
         integration_variable('not a name')
 
 
 def test_cumulative_integral_rejects_an_axis_that_is_no_integer() -> None:
     """Raise a named error for an axis that is not a nonnegative integer."""
     for axis in (-1, 1.5, True):
-        with pytest.raises(ValidationError, match='nonnegative integer'):
+        with pytest.raises(ValidationError, match='whole number of 0 or more'):
             cumulative_integral(var('x'), axis)
 
 
