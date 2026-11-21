@@ -22,15 +22,14 @@ FRACTIONAL = _FractionalFunction('fractional', nargs=2)
 
 
 def fractional(x: object, alpha: float) -> Expression:
-    """Return the Caputo derivative of order `alpha` of a state, for a rate law.
+    """Return the derivative of a fractional order of a value, for a rate law.
 
-    The derivative `D^alpha x` of an order `0 < alpha < 1` weighs the whole past of the state, so a state it moves keeps
-    a memory of its history. `RateLaw(fractional(x, alpha), f)` states `D^alpha x = f`, which the Caputo solvers
-    integrate, and the order 1 is the ordinary first derivative. The relaxation `D^alpha x = -k x` decays as the
-    Mittag-Leffler function `E_alpha(-k t^alpha)`, slower than any exponential.
+    The Caputo derivative `D^alpha x` of an order `0 < alpha < 1` weighs the whole past of the value, so a value it
+    moves remembers its history. `RateLaw(fractional(x, 0.5), -k * x)` states `D^0.5 x = -k x`, a decay slower than any
+    exponential, as the Mittag-Leffler function `E_alpha(-k t^alpha)`, and the order 1 is the ordinary first derivative.
+    It models charges that relax in a dielectric, stress in a material that flows slowly, and drugs held in tissue.
 
-    Charges relax this way in dielectrics, stress in viscoelastic materials, drugs in tissues that trap them, and
-    tracers that diffuse anomalously in crowded cells.
+    Read more in the user guide, under Laws.
 
     Args:
         x:
@@ -46,6 +45,10 @@ def fractional(x: object, alpha: float) -> Expression:
     Raises:
         ValidationError:
             The order is not a number in `(0, 1]`, or `x` is not a state.
+
+    See Also:
+        RateLaw: Takes the derivative as its target.
+        distributed_delay: Delays a value through hidden stocks.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
@@ -74,15 +77,24 @@ def fractional(x: object, alpha: float) -> Expression:
 
 
 def fractional_of(target: object) -> tuple[Expression, float] | None:
-    """Return the state and the order of a fractional derivative, or `None`.
+    """Return the value and the order of a fractional derivative, or `None`.
+
+    It reads back what `fractional` built, such as `(x, 0.5)` for `fractional(x, 0.5)`, and gives `None` for any other
+    target, so the compiler picks the Caputo solver for the laws that need it. It finds the fractional decays of
+    dielectrics, slowly flowing materials, and drugs held in tissue.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         target:
             The target of a law.
 
     Returns:
-        parts:
-            The state and the order as a float, or `None` when the target is no fractional derivative.
+        derivative:
+            The value and the order as a float, or `None` when the target is no fractional derivative.
+
+    See Also:
+        fractional: Builds the derivatives it reads.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var

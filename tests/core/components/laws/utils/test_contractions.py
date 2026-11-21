@@ -60,7 +60,7 @@ def test_contraction_keeps_its_tensor_and_expressions():
 
 def test_contraction_rejects_a_tensor_that_is_not_a_symbol():
     """Test that a tensor that is not a symbol raises an error."""
-    with pytest.raises(ValidationError, match='symbol of a shaped parameter'):
+    with pytest.raises(ValidationError, match='symbol of an array parameter'):
         contraction(2.0, var('x'))
 
 
