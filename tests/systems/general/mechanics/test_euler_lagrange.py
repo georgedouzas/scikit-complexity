@@ -26,13 +26,12 @@ class PendulumInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the equation of the pendulum."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            q, t = context.target.q, context.t
-            rate = -sin(q) - DAMPING * q.diff(t) + FORCE * cos(OMEGA * t)
-            self.laws_ = [RateLaw(q.diff(t, 2), rate)]
+        q, t = context.target.q, context.t
+        rate = -sin(q) - DAMPING * q.diff(t) + FORCE * cos(OMEGA * t)
+        self.laws_ = [RateLaw(q.diff(t, 2), rate)]
 
 
 def _run(elements, interactions, until, dt=0.1):

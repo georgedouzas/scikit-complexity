@@ -158,11 +158,10 @@ class Give(Interaction):
         self.target = target
         self.transfer = transfer
 
-    def _prepare(self, context):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the giving rule of the agents."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context.target, self.give)]
+        self.laws_ = [UpdateLaw(context.target, self.give)]
 
     def give(self, agent, system):
         """Give the transfer to a random agent of the group."""
@@ -187,11 +186,10 @@ class Culler(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the culling rule of the whole system."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context, self.cull)]
+        self.laws_ = [UpdateLaw(context, self.cull)]
 
     def cull(self, system):
         """Remove the oldest agent while more than two remain."""
@@ -374,11 +372,10 @@ class Census(Interaction):
         self.threshold = threshold
         self.looked_up = looked_up
 
-    def _prepare(self, context):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the census rule of the whole system."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context, self.record)]
+        self.laws_ = [UpdateLaw(context, self.record)]
 
     def record(self, system):
         """Record the parameter, the counts and labels of the groups, and the space of the system."""
@@ -732,11 +729,10 @@ class Echo(Interaction):
         self.target = target
         self.gain = gain
 
-    def _prepare(self, context):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rule of the members."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context.target, self.echo)]
+        self.laws_ = [UpdateLaw(context.target, self.echo)]
 
     def echo(self, agent, system):
         """Log the agent with the gain of the interaction."""
@@ -834,11 +830,10 @@ def test_periodic_phase_runs_every_period_steps_from_its_offset():
 class OccupancyReader(Interaction):
     """Interaction that stores, at every step, the counts of the walkers by cell."""
 
-    def _prepare(self, context):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the reading rule of the whole system."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context, self.read)]
+        self.laws_ = [UpdateLaw(context, self.read)]
 
     def read(self, system):
         """Store the counts of the walkers by cell."""
@@ -862,11 +857,10 @@ def test_occupancy_counts_the_agents_of_a_group_by_cell():
 class TotalReader(Interaction):
     """Interaction that stores, at every step, the history of the observable it reads."""
 
-    def _prepare(self, context):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the reading rule of the whole system."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context, self.read, phase='visit')]
+        self.laws_ = [UpdateLaw(context, self.read, phase='visit')]
 
     def read(self, system):
         """Store the history of the total of the visits."""
@@ -1312,11 +1306,10 @@ class AgentRule(Interaction):
         self.rule = rule
         self.phase = phase
 
-    def _prepare(self, context):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rule of the members of the target group."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context.target, self.rule, phase=self.phase)]
+        self.laws_ = [UpdateLaw(context.target, self.rule, phase=self.phase)]
 
 
 class Branching(Interaction):
@@ -1327,11 +1320,10 @@ class Branching(Interaction):
         self.target = target
         self.mean = mean
 
-    def _prepare(self, context):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rule of reproduction."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context.target, self.reproduce)]
+        self.laws_ = [UpdateLaw(context.target, self.reproduce)]
 
     def reproduce(self, agent, system):
         """Create the offspring of one individual, one generation later, and remove the individual."""
@@ -1508,11 +1500,10 @@ class Braking(Interaction):
         super().__init__(label)
         self.p = p
 
-    def _prepare(self, context):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rule of the whole road."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context, self.brake)]
+        self.laws_ = [UpdateLaw(context, self.brake)]
 
     def brake(self, system):
         """Slow every car by one cell per step with probability `p`."""
@@ -1538,10 +1529,9 @@ class Arrive(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: object = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context, self.arrive)]
+        self.laws_ = [UpdateLaw(context, self.arrive)]
 
     def arrive(self, system: SimpleNamespace) -> None:
         """Add one member of age 0."""

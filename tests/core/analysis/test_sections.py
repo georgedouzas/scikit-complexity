@@ -108,11 +108,10 @@ class _Spring(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, t = context.target.x, context.t
-            self.laws_ = [RateLaw(x.diff(t, 2), -x)]
+        x, t = context.target.x, context.t
+        self.laws_ = [RateLaw(x.diff(t, 2), -x)]
 
 
 def test_section_reads_derivatives_by_their_names_with_a_prime():

@@ -66,16 +66,15 @@ class PairNoiseInteraction(Interaction):
         self.process = process
         self.conventions = conventions
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the noise of both values on the shared process."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            first, second = self.conventions
-            pair = context.target
-            self.laws_: list[BaseLaw] = [
-                NoiseLaw(pair.x, pair.sigma * pair.y, convention=first, process=self.process),
-                NoiseLaw(pair.y, pair.sigma * pair.x, convention=second, process=self.process),
-            ]
+        first, second = self.conventions
+        pair = context.target
+        self.laws_: list[BaseLaw] = [
+            NoiseLaw(pair.x, pair.sigma * pair.y, convention=first, process=self.process),
+            NoiseLaw(pair.y, pair.sigma * pair.x, convention=second, process=self.process),
+        ]
 
 
 def pair_system(size: int | None = None, conventions: tuple[str, str] = ('ito', 'ito')) -> System:

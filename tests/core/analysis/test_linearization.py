@@ -122,11 +122,10 @@ class PushInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            cart, t = context.target, context.t
-            self.laws_ = [RateLaw(cart.x.diff(t, 2), cart.force)]
+        cart, t = context.target, context.t
+        self.laws_ = [RateLaw(cart.x.diff(t, 2), cart.force)]
 
 
 def test_linearize_a_system_with_a_parameter_as_control():

@@ -15,7 +15,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import ObjectiveLaw, RateLaw
 from skcomplex.core.components.laws.utils import where
-from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
+from skcomplex.core.components.spaces import ContinuousSpace, RadiusNeighborhood
 from skcomplex.core.engine._utils import symbol
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.solvers import BaseSolver, ExternalSolver, LammpsSolver, StepSpec, VelocityVerletSolver
@@ -68,13 +68,12 @@ class LennardJonesInteraction(Interaction):
         self.epsilon = epsilon
         self.sigma = sigma
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the energy `4 * epsilon * ((sigma / r) ** 12 - (sigma / r) ** 6)` of a pair."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            r = _distance(s)
-            self.laws_ = [ObjectiveLaw(4 * s.epsilon * ((s.sigma / r) ** 12 - (s.sigma / r) ** 6))]
+        s = context
+        r = _distance(s)
+        self.laws_ = [ObjectiveLaw(4 * s.epsilon * ((s.sigma / r) ** 12 - (s.sigma / r) ** 6))]
 
 
 def _exponential(eps=1.0, sigma=0.5):
@@ -352,17 +351,16 @@ class CrowdsLennardJonesInteraction(Interaction):
         self.epsilon = epsilon
         self.sigma = sigma
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the forces `-U'(r)` of `4 * epsilon * ((sigma / r) ** 12 - (sigma / r) ** 6)` on both members."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            separation = s.first.x - s.second.x
-            r = sqrt(separation.dot_product(separation))
-            distance = SR.var('r', domain='positive')
-            energy = 4 * s.epsilon * ((s.sigma / distance) ** 12 - (s.sigma / distance) ** 6)
-            force = -energy.diff(distance).subs({distance: r}) * separation / r
-            self.laws_ = [RateLaw(s.first.x.diff(s.t, 2), force), RateLaw(s.second.x.diff(s.t, 2), -force)]
+        s = context
+        separation = s.first.x - s.second.x
+        r = sqrt(separation.dot_product(separation))
+        distance = SR.var('r', domain='positive')
+        energy = 4 * s.epsilon * ((s.sigma / distance) ** 12 - (s.sigma / distance) ** 6)
+        force = -energy.diff(distance).subs({distance: r}) * separation / r
+        self.laws_ = [RateLaw(s.first.x.diff(s.t, 2), force), RateLaw(s.second.x.diff(s.t, 2), -force)]
 
 
 def _lennard_jones_coefficients(value):

@@ -24,14 +24,13 @@ class _Drag(Interaction):
         self.c = c
         self.reads_speed = reads_speed
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            body, t = context.target, context.t
-            if self.reads_speed:
-                self.laws_ = [RateLaw(body.v.diff(t), -body.v.diff(t))]
-            else:
-                self.laws_ = [RateLaw(body.v.diff(t), -context.c * body.v / body.m + body.m.diff(t))]
+        body, t = context.target, context.t
+        if self.reads_speed:
+            self.laws_ = [RateLaw(body.v.diff(t), -body.v.diff(t))]
+        else:
+            self.laws_ = [RateLaw(body.v.diff(t), -context.c * body.v / body.m + body.m.diff(t))]
 
 
 def test_derivative_of_a_parameter_is_zero():

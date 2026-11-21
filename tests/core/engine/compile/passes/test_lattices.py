@@ -344,11 +344,10 @@ class LifeInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the life rule of the cells."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context.target.alive, LIFE, neighborhood=MOORE)]
+        self.laws_ = [UpdateLaw(context.target.alive, LIFE, neighborhood=MOORE)]
 
 
 def _life_step(alive):

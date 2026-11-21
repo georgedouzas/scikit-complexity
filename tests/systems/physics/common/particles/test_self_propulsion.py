@@ -7,7 +7,7 @@ import numpy as np
 
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace
+from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.systems import System
 from skcomplex.core.types import Role
 from skcomplex.systems.physics.common.particles import ActiveParticleElement, SelfPropulsionInteraction
@@ -23,11 +23,10 @@ class TurningInteraction(Interaction):
         self.target = target
         self.omega = omega
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the turning of the heading of the target."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [RateLaw(context.target.theta.diff(context.t), context.omega)]
+        self.laws_ = [RateLaw(context.target.theta.diff(context.t), context.omega)]
 
 
 def test_position_drifts_along_a_turning_heading():

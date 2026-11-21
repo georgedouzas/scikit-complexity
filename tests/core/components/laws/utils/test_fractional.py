@@ -13,7 +13,6 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import BaseLaw, NoiseLaw, RateLaw
 from skcomplex.core.components.laws.utils import fractional
 from skcomplex.core.components.laws.utils._fractional import fractional_of
-from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine.solvers import FractionalABMSolver, L1Solver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.systems import System
@@ -38,17 +37,16 @@ class AnomalousRelaxation(Interaction):
         self.alpha = alpha
         self.extra = extra
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the fractional relaxation, and an ordinary rate or a noise of the state for `extra`."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x = context.target.x
-            laws: list[BaseLaw] = [RateLaw(fractional(x, self.alpha), -context.k * x)]
-            if self.extra == 'rate':
-                laws.append(RateLaw(x, 1.0))
-            if self.extra == 'noise':
-                laws = [NoiseLaw(fractional(x, self.alpha), 0.1)]
-            self.laws_ = laws
+        x = context.target.x
+        laws: list[BaseLaw] = [RateLaw(fractional(x, self.alpha), -context.k * x)]
+        if self.extra == 'rate':
+            laws.append(RateLaw(x, 1.0))
+        if self.extra == 'noise':
+            laws = [NoiseLaw(fractional(x, self.alpha), 0.1)]
+        self.laws_ = laws
 
 
 def relaxation(**params: Any) -> System:

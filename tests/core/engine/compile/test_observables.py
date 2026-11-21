@@ -106,12 +106,11 @@ class ReadInteraction(Interaction):
         self.probe = probe
         self.source = source
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate of the probe."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [RateLaw(s.probe.y, abs(s.source.value))]
+        s = context
+        self.laws_ = [RateLaw(s.probe.y, abs(s.source.value))]
 
 
 def _double(s):
@@ -138,12 +137,11 @@ class InflowInteraction(Interaction):
         self.target = target
         self.source = source
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the inflow."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [RateLaw(s.target.n, s.source.value)]
+        s = context
+        self.laws_ = [RateLaw(s.target.n, s.source.value)]
 
 
 def _phase_vector(member):
@@ -300,12 +298,11 @@ class MixedReductionInteraction(Interaction):
         self.first = first
         self.second = second
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set a rate that reads the reduction the interaction tests."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [RateLaw(s.target.x, total(s.first.wealth + s.second.wealth))]
+        s = context
+        self.laws_ = [RateLaw(s.target.x, total(s.first.wealth + s.second.wealth))]
 
 
 class ForeignReductionInteraction(Interaction):
@@ -322,12 +319,11 @@ class ForeignReductionInteraction(Interaction):
         self.target = target
         self.first = first
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set a rate that reduces the wealth of the agents times the target."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [RateLaw(s.target.x, total(s.first.wealth * s.target.x))]
+        s = context
+        self.laws_ = [RateLaw(s.target.x, total(s.first.wealth * s.target.x))]
 
 
 def _village(interaction):
@@ -527,11 +523,10 @@ class SpringInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, t = context.target.x, context.t
-            self.laws_ = [RateLaw(x.diff(t, 2), -x)]
+        x, t = context.target.x, context.t
+        self.laws_ = [RateLaw(x.diff(t, 2), -x)]
 
 
 def _spring_energy(s):

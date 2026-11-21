@@ -20,11 +20,10 @@ class _Swinging(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            phi, t = context.target.phi, context.t
-            self.laws_ = [RateLaw(phi.diff(t, 2), -sin(phi))]
+        phi, t = context.target.phi, context.t
+        self.laws_ = [RateLaw(phi.diff(t, 2), -sin(phi))]
 
 
 class _SpeedObserver(BaseObserver):

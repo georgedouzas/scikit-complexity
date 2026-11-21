@@ -10,7 +10,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import ConstraintLaw, ObjectiveLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import either
-from skcomplex.core.components.spaces import BaseSpace, LatticeSpace
+from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems import RunStateSpec
@@ -38,27 +38,26 @@ class ToyNetworkInteraction(Interaction):
         self.total = total
         self.duals = duals
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context.target
-            balances = [
-                s.b1 - s.v1 - s.v2 == 0,
-                s.v1 + s.v3 - s.v4 - s.v5 == 0,
-                s.v2 - s.v3 == 0,
-                2 * s.v4 - s.v6 - s.v7 == 0,
-                s.v6 - s.b2 == 0,
-                s.v5 - s.vbio == 0,
-                s.v7 - 2 * s.vbio == 0,
-                s.v1 + s.v3 - s.v7 - 10 * s.vbio == 0,
-            ]
-            variables = [getattr(s, name) for name in TOY_NAMES]
-            bounds = [item <= 1000 for item in variables]
-            bounds += [getattr(s, name) >= (-1000 if name in TOY_REVERSIBLE else 0) for name in TOY_NAMES]
-            objectives = [-s.vbio]
-            if self.total:
-                objectives.append(sum(abs(item) for item in variables))
-            self.laws_ = [*_constraints(*balances, *bounds), ObjectiveLaw(objectives, variables, duals=self.duals)]
+        s = context.target
+        balances = [
+            s.b1 - s.v1 - s.v2 == 0,
+            s.v1 + s.v3 - s.v4 - s.v5 == 0,
+            s.v2 - s.v3 == 0,
+            2 * s.v4 - s.v6 - s.v7 == 0,
+            s.v6 - s.b2 == 0,
+            s.v5 - s.vbio == 0,
+            s.v7 - 2 * s.vbio == 0,
+            s.v1 + s.v3 - s.v7 - 10 * s.vbio == 0,
+        ]
+        variables = [getattr(s, name) for name in TOY_NAMES]
+        bounds = [item <= 1000 for item in variables]
+        bounds += [getattr(s, name) >= (-1000 if name in TOY_REVERSIBLE else 0) for name in TOY_NAMES]
+        objectives = [-s.vbio]
+        if self.total:
+            objectives.append(sum(abs(item) for item in variables))
+        self.laws_ = [*_constraints(*balances, *bounds), ObjectiveLaw(objectives, variables, duals=self.duals)]
 
 
 def _toy_network(total=False, duals=False):
@@ -87,17 +86,16 @@ class FlowInteraction(Interaction):
         self.infeasible = infeasible
         self.minimum = minimum
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context.target
-            constraints = _constraints(
-                s.v + s.w <= s.capacity,
-                s.w >= self.minimum,
-                s.v >= 0,
-                s.v <= 1000 * either(s.g1 > 0.5, s.g2 > 0.5),
-            )
-            self.laws_ = [*constraints, ObjectiveLaw(-s.v, [s.v, s.w], infeasible=self.infeasible)]
+        s = context.target
+        constraints = _constraints(
+            s.v + s.w <= s.capacity,
+            s.w >= self.minimum,
+            s.v >= 0,
+            s.v <= 1000 * either(s.g1 > 0.5, s.g2 > 0.5),
+        )
+        self.laws_ = [*constraints, ObjectiveLaw(-s.v, [s.v, s.w], infeasible=self.infeasible)]
 
 
 def _flows(flows=None, *interactions, infeasible='raise', minimum=0.0):
@@ -116,11 +114,10 @@ class UpperBoundInteraction(Interaction):
         self.target = target
         self.bound = bound
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            v = context.target.v
-            self.laws_ = [ConstraintLaw(v <= context.bound, target=v)]
+        v = context.target.v
+        self.laws_ = [ConstraintLaw(v <= context.bound, target=v)]
 
 
 class CellInteraction(Interaction):
@@ -132,20 +129,19 @@ class CellInteraction(Interaction):
         self.active = active
         self.infeasible = infeasible
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context.target
-            self.laws_ = [
-                *_constraints(s.growth == 0.1 * s.uptake, s.uptake >= 0),
-                ObjectiveLaw(
-                    -s.growth,
-                    [s.uptake, s.growth],
-                    infeasible=self.infeasible,
-                    active=s.biomass > 0.5 if self.active else None,
-                ),
-                RateLaw(s.biomass, s.growth * s.biomass),
-            ]
+        s = context.target
+        self.laws_ = [
+            *_constraints(s.growth == 0.1 * s.uptake, s.uptake >= 0),
+            ObjectiveLaw(
+                -s.growth,
+                [s.uptake, s.growth],
+                infeasible=self.infeasible,
+                active=s.biomass > 0.5 if self.active else None,
+            ),
+            RateLaw(s.biomass, s.growth * s.biomass),
+        ]
 
 
 def _cell(label='cell', biomass=1.0, space=None):
@@ -168,15 +164,14 @@ class UptakeInteraction(Interaction):
         self.vmax = vmax
         self.km = km
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            uptake = s.cell.uptake
-            self.laws_ = [
-                ConstraintLaw(uptake <= s.vmax * s.medium.glucose / (s.km + s.medium.glucose), target=uptake),
-                RateLaw(s.medium.glucose, -uptake * s.cell.biomass),
-            ]
+        s = context
+        uptake = s.cell.uptake
+        self.laws_ = [
+            ConstraintLaw(uptake <= s.vmax * s.medium.glucose / (s.km + s.medium.glucose), target=uptake),
+            RateLaw(s.medium.glucose, -uptake * s.cell.biomass),
+        ]
 
 
 def _culture_cell(biomass=1.0, glucose=10.0):
@@ -470,14 +465,13 @@ class FluxesInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context.target
-            self.laws_ = [
-                *_constraints(s.growth == 0.1 * s.uptake, s.uptake >= 0),
-                ObjectiveLaw(-s.growth, [s.uptake, s.growth], infeasible='zero'),
-            ]
+        s = context.target
+        self.laws_ = [
+            *_constraints(s.growth == 0.1 * s.uptake, s.uptake >= 0),
+            ObjectiveLaw(-s.growth, [s.uptake, s.growth], infeasible='zero'),
+        ]
 
 
 class BoundInteraction(Interaction):
@@ -488,11 +482,10 @@ class BoundInteraction(Interaction):
         self.fluxes = fluxes
         self.culture = culture
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            uptake, g = context.fluxes.uptake, context.culture.g
-            self.laws_ = [ConstraintLaw(uptake <= 10 * g / (0.015 + g), target=uptake)]
+        uptake, g = context.fluxes.uptake, context.culture.g
+        self.laws_ = [ConstraintLaw(uptake <= 10 * g / (0.015 + g), target=uptake)]
 
 
 class CultureGrowthInteraction(Interaction):
@@ -503,14 +496,13 @@ class CultureGrowthInteraction(Interaction):
         self.fluxes = fluxes
         self.culture = culture
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [
-                RateLaw(s.culture.x, s.fluxes.growth * s.culture.x),
-                RateLaw(s.culture.g, -s.fluxes.uptake * s.culture.x),
-            ]
+        s = context
+        self.laws_ = [
+            RateLaw(s.culture.x, s.fluxes.growth * s.culture.x),
+            RateLaw(s.culture.g, -s.fluxes.uptake * s.culture.x),
+        ]
 
 
 def _culture(*, nested: bool, biomass: float = 0.01, glucose: float = 10.0, solver='auto'):

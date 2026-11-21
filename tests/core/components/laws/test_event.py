@@ -9,7 +9,6 @@ import pytest
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import CallSpec, EventLaw, RateLaw
-from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.errors import BackendWarning, ValidationError
 from skcomplex.core.systems import System
@@ -24,28 +23,27 @@ class BounceInteraction(Interaction):
         self.target = target
         self.law = law
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the fall and the bounce."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context.target
-            name, speed = f'{self.target}.y', f'{self.target}.v'
-            crossings = {
-                'symbols': lambda: EventLaw(s.y, {s.v: -0.5 * s.v}, direction=-1),
-                'functions': lambda: EventLaw(
-                    lambda t, values: values[name],
-                    {s.v: lambda t, values: -0.5 * values[speed]},
-                    -1,
-                ),
-                'relative': lambda: EventLaw(
-                    CallSpec(lambda t, values: values['target.y'], relative=True),
-                    {s.v: CallSpec(lambda t, values: -0.5 * values['target.v'], relative=True)},
-                    -1,
-                ),
-                'mixed': lambda: EventLaw(lambda t, values: values[name], {s.v: -0.5 * s.v}, -1),
-                'arguments': lambda: EventLaw(CallSpec(lambda t, y: y, (s.y,)), direction=-1),
-            }
-            self.laws_ = [RateLaw(s.y, s.v), RateLaw(s.v, -9.81), crossings[self.law]()]
+        s = context.target
+        name, speed = f'{self.target}.y', f'{self.target}.v'
+        crossings = {
+            'symbols': lambda: EventLaw(s.y, {s.v: -0.5 * s.v}, direction=-1),
+            'functions': lambda: EventLaw(
+                lambda t, values: values[name],
+                {s.v: lambda t, values: -0.5 * values[speed]},
+                -1,
+            ),
+            'relative': lambda: EventLaw(
+                CallSpec(lambda t, values: values['target.y'], relative=True),
+                {s.v: CallSpec(lambda t, values: -0.5 * values['target.v'], relative=True)},
+                -1,
+            ),
+            'mixed': lambda: EventLaw(lambda t, values: values[name], {s.v: -0.5 * s.v}, -1),
+            'arguments': lambda: EventLaw(CallSpec(lambda t, y: y, (s.y,)), direction=-1),
+        }
+        self.laws_ = [RateLaw(s.y, s.v), RateLaw(s.v, -9.81), crossings[self.law]()]
 
 
 def _ball(law, backend='auto'):

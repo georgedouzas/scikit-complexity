@@ -18,7 +18,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, TopologyRequestSpec, UpdateLaw
 from skcomplex.core.components.laws.utils import neighbors
-from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace, NetworkSpace
+from skcomplex.core.components.spaces import ContinuousSpace, NetworkSpace
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.runtime import BaseObserver, ConservationObserver, RealTimeClock
 from skcomplex.core.engine.runtime._simulations import Simulation
@@ -520,12 +520,11 @@ class ProgressionInteraction(Interaction):
         self.target = target
         self.step = step
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the progression of the health."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [UpdateLaw(s.target.health, s.target.health + s.step)]
+        s = context
+        self.laws_ = [UpdateLaw(s.target.health, s.target.health + s.step)]
 
 
 def test_checked_mode_catches_values_outside_alphabet():
@@ -612,12 +611,11 @@ class AttachmentInteraction(Interaction):
     def __init__(self, label, *, among: Role = 'nodes', along=None):
         super().__init__(label, among=among, along=along)
 
-    def _prepare(self, context):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the request of a new node with one link as the law."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            request = TopologyRequestSpec('add-node', edges=1, one=True, toward=_get_degree)
-            self.laws_ = [UpdateLaw(request, 1.0)]
+        request = TopologyRequestSpec('add-node', edges=1, one=True, toward=_get_degree)
+        self.laws_ = [UpdateLaw(request, 1.0)]
 
 
 def test_run_grows_a_network_from_one_node_in_one_continuous_run():

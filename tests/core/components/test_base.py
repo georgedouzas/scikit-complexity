@@ -197,12 +197,11 @@ class FeedInteraction(Interaction):
         self.source = source
         self.k = k
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the decay, fed by the source when one is bound."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            feed = 0 if self.source is None else context.source.x
-            self.laws_ = [RateLaw(context.target.x.diff(context.t), -context.k * context.target.x + feed)]
+        feed = 0 if self.source is None else context.source.x
+        self.laws_ = [RateLaw(context.target.x.diff(context.t), -context.k * context.target.x + feed)]
 
 
 @pytest.mark.parametrize(('source', 'expected'), [(None, '-feed.k*a.x'), ('b', '-feed.k*a.x + b.x')])

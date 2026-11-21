@@ -182,11 +182,10 @@ def test_sage_expression_compiles_like_number():
             super().__init__(label)
             self.target = target
 
-        def _prepare(self, context=None):
+        def _prepare(self, context: SimpleNamespace) -> None:
             """Set an acceleration with a Sage value."""
             super()._prepare(context)
-            if isinstance(context, SimpleNamespace):
-                self.laws_ = [RateLaw(context.target.x.diff(context.t, 2), [force])]
+            self.laws_ = [RateLaw(context.target.x.diff(context.t, 2), [force])]
 
     sage_system = _free_particle(SageForceInteraction('push', target='p'))
     expected = system.prepare().simulate(until=1).get_values('p.x')

@@ -37,13 +37,13 @@ class PerCarVelocityInteraction(Interaction):
         self.hc = hc
         self.offset = offset
 
-    def _prepare(self, s):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the laws of the per car velocity interaction."""
-        super()._prepare(s)
-        if isinstance(s, SimpleNamespace):
-            t, leader, follower = s.t, s.leader.x, s.follower.x
-            optimal = s.V0 * (tanh(leader - follower + s.offset - s.hc) + tanh(s.hc))
-            self.laws_ = [RateLaw(follower.diff(t, 2), s.a * (optimal - follower.diff(t)))]
+        super()._prepare(context)
+        s = context
+        t, leader, follower = s.t, s.leader.x, s.follower.x
+        optimal = s.V0 * (tanh(leader - follower + s.offset - s.hc) + tanh(s.hc))
+        self.laws_ = [RateLaw(follower.diff(t, 2), s.a * (optimal - follower.diff(t)))]
 
 
 class PerCarDriverInteraction(Interaction):
@@ -76,15 +76,15 @@ class PerCarDriverInteraction(Interaction):
         self.length = length
         self.offset = offset
 
-    def _prepare(self, s):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the laws of the per car driver interaction."""
-        super()._prepare(s)
-        if isinstance(s, SimpleNamespace):
-            t, leader, follower = s.t, s.leader.x, s.follower.x
-            v, ahead = follower.diff(t), leader.diff(t)
-            gap = s.s0 + v * s.T + v * (v - ahead) / (2 * sqrt(s.a * s.b))
-            headway = leader - follower + s.offset - s.length
-            self.laws_ = [RateLaw(follower.diff(t, 2), s.a * (1 - (v / s.v0) ** s.delta - (gap / headway) ** 2))]
+        super()._prepare(context)
+        s = context
+        t, leader, follower = s.t, s.leader.x, s.follower.x
+        v, ahead = follower.diff(t), leader.diff(t)
+        gap = s.s0 + v * s.T + v * (v - ahead) / (2 * sqrt(s.a * s.b))
+        headway = leader - follower + s.offset - s.length
+        self.laws_ = [RateLaw(follower.diff(t, 2), s.a * (1 - (v / s.v0) ** s.delta - (gap / headway) ** 2))]
 
 
 def _per_car(system, interaction):

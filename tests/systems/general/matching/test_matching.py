@@ -39,11 +39,10 @@ class QuotingInteraction(Interaction):
         self.target = target
         self.rule = rule
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the quoting rule of every member of the target group."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context.target, self.rule, phase='quote')]
+        self.laws_ = [UpdateLaw(context.target, self.rule, phase='quote')]
 
 
 def _quote_below(agent, system):

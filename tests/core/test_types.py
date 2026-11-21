@@ -9,7 +9,6 @@ import pytest
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.errors import RoleElementError, RoleError
 from skcomplex.core.systems import System
 from skcomplex.core.types import Preference, Role
@@ -43,15 +42,14 @@ class PullInteraction(Interaction):
         self.switch = switch
         self.inputs = inputs
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the pull on the target, the sum of the inputs when there are any, minus the level of the switch."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            pull = sum((member.x for member in s.inputs), 0) if self.inputs else -1
-            self.laws_ = [RateLaw(s.target.x, pull)]
-            if self.switch is not None:
-                self.laws_.append(RateLaw(s.target.x, -s.switch.level))
+        s = context
+        pull = sum((member.x for member in s.inputs), 0) if self.inputs else -1
+        self.laws_ = [RateLaw(s.target.x, pull)]
+        if self.switch is not None:
+            self.laws_.append(RateLaw(s.target.x, -s.switch.level))
 
 
 def _prepare(*elements: Element, **roles: Any) -> System:

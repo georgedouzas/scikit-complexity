@@ -70,11 +70,10 @@ class ScoringInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the scoring of the strategy in its phase."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context.target, self.score, phase='scoring')]
+        self.laws_ = [UpdateLaw(context.target, self.score, phase='scoring')]
 
     def score(self, agent: BitStringView, system: SystemView) -> None:
         """Set the fitness to the count of ones."""

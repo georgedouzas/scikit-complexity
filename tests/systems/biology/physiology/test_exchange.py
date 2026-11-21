@@ -35,13 +35,12 @@ class _PreviousExchangeInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the metabolism of the substance and its exchange through gap junctions and nanotubes."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context.target
-            exchange = (s.g + s.xi) * laplacian(s.x) + s.xi * s.degree * s.x
-            self.laws_ = [RateLaw(s.x, -s.alpha * hill(s.x, s.beta) + exchange)]
+        s = context.target
+        exchange = (s.g + s.xi) * laplacian(s.x) + s.xi * s.degree * s.x
+        self.laws_ = [RateLaw(s.x, -s.alpha * hill(s.x, s.beta) + exchange)]
 
 
 def test_closed_contour_cell_exchange_synchronizes_in_the_stability_domain():

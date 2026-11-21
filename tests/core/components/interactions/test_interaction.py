@@ -56,12 +56,11 @@ class GrowthInteraction(Interaction):
         self.target = target
         self.r = r
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate of growth."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [RateLaw(s.target.n, s.r * s.target.n)]
+        s = context
+        self.laws_ = [RateLaw(s.target.n, s.r * s.target.n)]
 
 
 class PredationInteraction(Interaction):
@@ -82,15 +81,14 @@ class PredationInteraction(Interaction):
         self.a = a
         self.b = b
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the loss of prey and the gain of the predator."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [
-                RateLaw(s.prey.n, -s.a * s.predator.n * s.prey.n),
-                RateLaw(s.predator.n, s.b * s.predator.n * s.prey.n),
-            ]
+        s = context
+        self.laws_ = [
+            RateLaw(s.prey.n, -s.a * s.predator.n * s.prey.n),
+            RateLaw(s.predator.n, s.b * s.predator.n * s.prey.n),
+        ]
 
 
 class InflowInteraction(Interaction):
@@ -107,12 +105,11 @@ class InflowInteraction(Interaction):
         self.source = source
         self.sink = sink
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the inflow into the sink."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [RateLaw(s.sink.n, s.source.n)]
+        s = context
+        self.laws_ = [RateLaw(s.sink.n, s.source.n)]
 
 
 class ShockInteraction(Interaction):
@@ -129,12 +126,11 @@ class ShockInteraction(Interaction):
         self.target = target
         self.noise = noise
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the noise of the target."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [NoiseLaw(s.target.n, 1.0, process=s.noise.dW)]
+        s = context
+        self.laws_ = [NoiseLaw(s.target.n, 1.0, process=s.noise.dW)]
 
 
 class WeightedInteraction(Interaction):
@@ -151,12 +147,11 @@ class WeightedInteraction(Interaction):
         self.nodes = nodes
         self.links = links
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the weighted sum of the neighbours."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [RateLaw(s.nodes.n, neighbors(s.nodes.other.n, weight=s.links.n))]
+        s = context
+        self.laws_ = [RateLaw(s.nodes.n, neighbors(s.nodes.other.n, weight=s.links.n))]
 
 
 def _shocked(first, second):
@@ -312,15 +307,14 @@ class _ExchangeInteraction(Interaction):
         super().__init__(label, among=among, along=along)
         self.k = k
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the flow from the source to the target of an edge."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            flow = context.k * (context.source.x - context.target.x)
-            self.laws_ = [
-                RateLaw(context.target.x.diff(context.t), flow),
-                RateLaw(context.source.x.diff(context.t), -flow),
-            ]
+        flow = context.k * (context.source.x - context.target.x)
+        self.laws_ = [
+            RateLaw(context.target.x.diff(context.t), flow),
+            RateLaw(context.source.x.diff(context.t), -flow),
+        ]
 
 
 class _RewiringInteraction(Interaction):
@@ -330,12 +324,11 @@ class _RewiringInteraction(Interaction):
         super().__init__(label, among=among, along=along)
         self.p = p
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rewiring of an edge with the probability that its ends disagree."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            disagreement = (context.source.opinion - context.target.opinion) ** 2
-            self.laws_ = [UpdateLaw(TopologyRequestSpec('rewire'), context.p * disagreement)]
+        disagreement = (context.source.opinion - context.target.opinion) ** 2
+        self.laws_ = [UpdateLaw(TopologyRequestSpec('rewire'), context.p * disagreement)]
 
 
 def test_interaction_along_edges_runs_once_per_edge():
@@ -431,11 +424,10 @@ class _TriangleGrowthInteraction(Interaction):
     def __init__(self, label: str, *, among: Role = 'nodes', along: object = ('hyperedges', 3)) -> None:
         super().__init__(label, among=among, along=along)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the ageing of the triangle."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context.hyperedge.age, context.hyperedge.age + 1)]
+        self.laws_ = [UpdateLaw(context.hyperedge.age, context.hyperedge.age + 1)]
 
 
 def test_interaction_along_hyperedges_of_one_size_runs_on_a_growing_group():
@@ -497,11 +489,10 @@ class GravityInteraction(Interaction):
         self.target = target
         self.g = g
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the acceleration of the target."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [RateLaw(context.target.x.diff(context.t, 2), -context.g)]
+        self.laws_ = [RateLaw(context.target.x.diff(context.t, 2), -context.g)]
 
 
 def test_an_interaction_without_a_class_runs_like_a_subclass():

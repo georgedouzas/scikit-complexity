@@ -564,12 +564,11 @@ class ParityInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            parity = TotalisticSpec({total: total % 2 for total in range(4)})
-            neighborhood = LatticeNeighborhood(((-1,), (0,), (1,)))
-            self.laws_ = [UpdateLaw(context.target.alive, parity, neighborhood=neighborhood)]
+        parity = TotalisticSpec({total: total % 2 for total in range(4)})
+        neighborhood = LatticeNeighborhood(((-1,), (0,), (1,)))
+        self.laws_ = [UpdateLaw(context.target.alive, parity, neighborhood=neighborhood)]
 
 
 def test_automaton_of_a_system_with_plain_cells():

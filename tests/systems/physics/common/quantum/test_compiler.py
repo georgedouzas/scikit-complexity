@@ -8,7 +8,6 @@ import pytest
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import local_operator
-from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine._utils import symbol
 from skcomplex.core.engine.compile import OperatorCompiler
 from skcomplex.core.errors import IncompatibleLawsError
@@ -31,12 +30,11 @@ class DriveInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the field and the decay."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            psi = context.target.psi
-            self.laws_ = [GeneratorLaw(local_operator(psi, 'x')), DissipatorLaw(local_operator(psi, 'minus'), 0.25)]
+        psi = context.target.psi
+        self.laws_ = [GeneratorLaw(local_operator(psi, 'x')), DissipatorLaw(local_operator(psi, 'minus'), 0.25)]
 
 
 class ClassicalInteraction(Interaction):
@@ -46,11 +44,10 @@ class ClassicalInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the classical rate law."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [RateLaw(symbol('x'), 1)]
+        self.laws_ = [RateLaw(symbol('x'), 1)]
 
 
 def _qubit(*interactions: Interaction) -> System:

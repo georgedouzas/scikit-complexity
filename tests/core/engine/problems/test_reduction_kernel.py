@@ -15,7 +15,6 @@ from skcomplex.core.components.elements import Element, Period
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import JumpLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import count, maximum, mean, minimum, total, variance
-from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.problems._reduction_kernel import ReductionKernel
 from skcomplex.core.errors import RoleError, ValidationError
@@ -96,17 +95,16 @@ class DriveInteraction(Interaction):
         self.oscillators = oscillators
         self.theta_z = theta_z
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the laws of the drive interaction."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [
-                RateLaw(
-                    s.inhibitor.z,
-                    s.inhibitor.phi * (heaviside(maximum(s.oscillators.x) - s.theta_z) - s.inhibitor.z),
-                ),
-            ]
+        s = context
+        self.laws_ = [
+            RateLaw(
+                s.inhibitor.z,
+                s.inhibitor.phi * (heaviside(maximum(s.oscillators.x) - s.theta_z) - s.inhibitor.z),
+            ),
+        ]
 
 
 class MeanPulseInteraction(Interaction):
@@ -123,17 +121,16 @@ class MeanPulseInteraction(Interaction):
         self.neurons = neurons
         self.kappa = kappa
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the laws of the mean pulse interaction."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [
-                RateLaw(
-                    s.neurons.theta,
-                    (1 + cos(s.neurons.theta)) * s.kappa * mean(2 / 3 * (1 - cos(s.neurons.theta)) ** 2),
-                ),
-            ]
+        s = context
+        self.laws_ = [
+            RateLaw(
+                s.neurons.theta,
+                (1 + cos(s.neurons.theta)) * s.kappa * mean(2 / 3 * (1 - cos(s.neurons.theta)) ** 2),
+            ),
+        ]
 
 
 class MeanCouplingInteraction(Interaction):
@@ -154,14 +151,13 @@ class MeanCouplingInteraction(Interaction):
         self.Y = Y
         self.K = K
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the laws of the mean field coupling interaction."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [
-                RateLaw(s.target.theta, s.K * (s.Y.value * cos(s.target.theta) - s.X.value * sin(s.target.theta))),
-            ]
+        s = context
+        self.laws_ = [
+            RateLaw(s.target.theta, s.K * (s.Y.value * cos(s.target.theta) - s.X.value * sin(s.target.theta))),
+        ]
 
 
 class ReaderInteraction(Interaction):
@@ -178,12 +174,11 @@ class ReaderInteraction(Interaction):
         self.target = target
         self.source = source
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the laws of the reader interaction."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [RateLaw(s.target.x, s.source.value)]
+        s = context
+        self.laws_ = [RateLaw(s.target.x, s.source.value)]
 
 
 def _group_of(laws, size=10, values=None):
@@ -216,12 +211,11 @@ class MeanFieldInteraction(Interaction):
         self.target = target
         self.K = K
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the coupling of every phase to the mean field."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, theta = context, context.target.theta
-            self.laws_ = [RateLaw(theta, s.K * (mean(sin(theta)) * cos(theta) - mean(cos(theta)) * sin(theta)))]
+        s, theta = context, context.target.theta
+        self.laws_ = [RateLaw(theta, s.K * (mean(sin(theta)) * cos(theta) - mean(cos(theta)) * sin(theta)))]
 
 
 def _kuramoto(size, *, observables=False):
@@ -376,12 +370,11 @@ def test_two_groups_in_one_reduction():
             self.predators = predators
             self.target = target
 
-        def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        def _prepare(self, context: SimpleNamespace) -> None:
             """Set the laws of the predation interaction."""
             super()._prepare(context)
-            if isinstance(context, SimpleNamespace):
-                s = context
-                self.laws_ = [RateLaw(s.target.x, total(s.prey.x * s.predators.x))]
+            s = context
+            self.laws_ = [RateLaw(s.target.x, total(s.prey.x * s.predators.x))]
 
     system = System(
         elements=[
@@ -412,12 +405,11 @@ def test_interaction_reads_second_group_through_reductions():
             self.target = target
             self.source = source
 
-        def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        def _prepare(self, context: SimpleNamespace) -> None:
             """Set the laws of the coupling interaction."""
             super()._prepare(context)
-            if isinstance(context, SimpleNamespace):
-                s = context
-                self.laws_ = [RateLaw(s.target.x, mean(s.source.x) - s.target.x)]
+            s = context
+            self.laws_ = [RateLaw(s.target.x, mean(s.source.x) - s.target.x)]
 
     first, second = RNG.normal(size=4), RNG.normal(size=6)
     system = System(
@@ -559,12 +551,11 @@ def test_element_set_reduction():
             super().__init__(label)
             self.units = units
 
-        def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        def _prepare(self, context: SimpleNamespace) -> None:
             """Set the laws of the total interaction."""
             super()._prepare(context)
-            if isinstance(context, SimpleNamespace):
-                s = context
-                self.laws_ = [RateLaw(s.units.x, total(s.units.x))]
+            s = context
+            self.laws_ = [RateLaw(s.units.x, total(s.units.x))]
 
     system = System(
         elements=[UnitElement(f'unit_{index}', x=float(index + 1)) for index in range(3)],
@@ -591,12 +582,11 @@ def _shared(share, values):
             super().__init__(label)
             self.cells = cells
 
-        def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        def _prepare(self, context: SimpleNamespace) -> None:
             """Set the laws of the share interaction."""
             super()._prepare(context)
-            if isinstance(context, SimpleNamespace):
-                s = context
-                self.laws_ = [RateLaw(s.cells.x, share(s))]
+            s = context
+            self.laws_ = [RateLaw(s.cells.x, share(s))]
 
     return System(
         elements=[UnitElement('units', x=values, size=len(values))],
@@ -645,12 +635,11 @@ def test_element_set_of_mixed_types():
             super().__init__(label)
             self.units = units
 
-        def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        def _prepare(self, context: SimpleNamespace) -> None:
             """Set the laws of the total interaction."""
             super()._prepare(context)
-            if isinstance(context, SimpleNamespace):
-                s = context
-                self.laws_ = [RateLaw(s.units.x, total(s.units.x))]
+            s = context
+            self.laws_ = [RateLaw(s.units.x, total(s.units.x))]
 
     system = System(
         elements=[UnitElement('a'), OtherElement('b')],

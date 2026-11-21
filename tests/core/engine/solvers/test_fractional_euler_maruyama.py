@@ -8,7 +8,6 @@ import pytest
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import BaseLaw, NoiseLaw
-from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver, FractionalEulerMaruyamaSolver
 from skcomplex.core.errors import SolverError
 from skcomplex.core.systems import System
@@ -23,11 +22,10 @@ class NoiseInteraction(Interaction):
         self.target = target
         self.hurst = hurst
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the noise of the walkers."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = [NoiseLaw(context.target.x, 1, hurst=self.hurst)]
+        self.laws_: list[BaseLaw] = [NoiseLaw(context.target.x, 1, hurst=self.hurst)]
 
 
 class TaggedNoiseInteraction(NoiseInteraction):

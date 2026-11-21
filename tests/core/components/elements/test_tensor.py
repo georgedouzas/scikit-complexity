@@ -39,13 +39,12 @@ class RelaxationInteraction(Interaction):
         self.target = target
         self.S = S
 
-    def _prepare(self, context: object = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate of the tensor, which reads it as a matrix."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            Q = context.target.Q
-            square = (Q * Q).trace()
-            self.laws_ = [RateLaw(Q, -(square - context.S**2 / 2) * Q)]
+        Q = context.target.Q
+        square = (Q * Q).trace()
+        self.laws_ = [RateLaw(Q, -(square - context.S**2 / 2) * Q)]
 
 
 def test_tensor_holds_its_symmetry():

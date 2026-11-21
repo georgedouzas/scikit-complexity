@@ -33,15 +33,14 @@ class ReducedInteraction(Interaction):
         super().__init__(label, among=among, along=along)
         self.reduce = reduce
 
-    def _prepare(self, context):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the reduction as the rate of the focal member."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            if self.reduce == 'variance':
-                self.laws_ = [RateLaw(s.member.x, variance(s.members.x, over=s.members))]
-            else:
-                self.laws_ = [RateLaw(s.member.x, REDUCTIONS[self.reduce][0](s))]
+        s = context
+        if self.reduce == 'variance':
+            self.laws_ = [RateLaw(s.member.x, variance(s.members.x, over=s.members))]
+        else:
+            self.laws_ = [RateLaw(s.member.x, REDUCTIONS[self.reduce][0](s))]
 
 
 def _system(reduce: str, values: np.ndarray) -> System:

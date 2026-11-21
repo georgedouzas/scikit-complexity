@@ -61,18 +61,17 @@ class RewiringInteraction(Interaction):
         super().__init__(label, among=among, along=along)
         self.w = w
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rewiring of both orientations of a discordant edge."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [
-                JumpLaw(s.w * (1 - s.source.i) * s.target.i, {TopologyRequestSpec('rewire', toward=_healthy): 1}),
-                JumpLaw(
-                    s.w * s.source.i * (1 - s.target.i),
-                    {TopologyRequestSpec('rewire', keep='target', toward=_healthy): 1},
-                ),
-            ]
+        s = context
+        self.laws_ = [
+            JumpLaw(s.w * (1 - s.source.i) * s.target.i, {TopologyRequestSpec('rewire', toward=_healthy): 1}),
+            JumpLaw(
+                s.w * s.source.i * (1 - s.target.i),
+                {TopologyRequestSpec('rewire', keep='target', toward=_healthy): 1},
+            ),
+        ]
 
 
 def _growing(size):

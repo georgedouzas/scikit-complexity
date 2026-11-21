@@ -22,7 +22,7 @@ from skcomplex.core.components.laws import (
     UpdateLaw,
 )
 from skcomplex.core.components.laws.utils import count, mean, neighbors, series, total
-from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace, NetworkSpace, RadiusNeighborhood
+from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace, NetworkSpace, RadiusNeighborhood
 from skcomplex.core.engine.backends import NumbaBackend
 from skcomplex.core.engine.solvers import (
     EulerMaruyamaSolver,
@@ -173,13 +173,12 @@ class _Consensus(Interaction):
         self.target = target
         self.over = over
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the pull toward the neighbours or toward the mean."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x = context.target.x
-            pull = neighbors(context.target.other.x - x) if self.over == 'neighbours' else mean(x) - x
-            self.laws_: list[BaseLaw] = [RateLaw(x.diff(context.t), pull)]
+        x = context.target.x
+        pull = neighbors(context.target.other.x - x) if self.over == 'neighbours' else mean(x) - x
+        self.laws_: list[BaseLaw] = [RateLaw(x.diff(context.t), pull)]
 
 
 def test_prepare_writes_reductions_readably():
@@ -207,16 +206,15 @@ class _Rules(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set a named function rule, then a totalistic rule, of the cells."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            alive = context.target.alive
-            around = RadiusNeighborhood(1, center=True)
-            self.laws_: list[BaseLaw] = [
-                UpdateLaw(alive, _keep, neighborhood=around),
-                UpdateLaw(alive, TotalisticSpec({1: 1}), neighborhood=around, label='parity'),
-            ]
+        alive = context.target.alive
+        around = RadiusNeighborhood(1, center=True)
+        self.laws_: list[BaseLaw] = [
+            UpdateLaw(alive, _keep, neighborhood=around),
+            UpdateLaw(alive, TotalisticSpec({1: 1}), neighborhood=around, label='parity'),
+        ]
 
 
 def test_prepare_writes_local_rules_by_their_names():
@@ -235,24 +233,23 @@ class _Process(Interaction):
         self.target = target
         self.kind = kind
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the laws of the kind."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, t = context.target.x, context.t
-            if self.kind == 'dae':
-                y = context.target.y
-                self.laws_: list[BaseLaw] = [RateLaw(x.diff(t), -x + y), ConstraintLaw(y - 2 * x, 0, target=y)]
-                return
-            laws: dict[str, list[BaseLaw]] = {
-                'ode': [RateLaw(x.diff(t), -x)],
-                'sde': [RateLaw(x.diff(t), -x), NoiseLaw(x, 0.1)],
-                'jump': [JumpLaw(x, {x: -1})],
-                'map': [UpdateLaw(x, x / 2)],
-                'hybrid': [RateLaw(x.diff(t), -1), EventLaw(x, {x: 1})],
-                'objective': [ObjectiveLaw((x - 3) ** 2, x)],
-            }
-            self.laws_ = laws[self.kind]
+        x, t = context.target.x, context.t
+        if self.kind == 'dae':
+            y = context.target.y
+            self.laws_: list[BaseLaw] = [RateLaw(x.diff(t), -x + y), ConstraintLaw(y - 2 * x, 0, target=y)]
+            return
+        laws: dict[str, list[BaseLaw]] = {
+            'ode': [RateLaw(x.diff(t), -x)],
+            'sde': [RateLaw(x.diff(t), -x), NoiseLaw(x, 0.1)],
+            'jump': [JumpLaw(x, {x: -1})],
+            'map': [UpdateLaw(x, x / 2)],
+            'hybrid': [RateLaw(x.diff(t), -1), EventLaw(x, {x: 1})],
+            'objective': [ObjectiveLaw((x - 3) ** 2, x)],
+        }
+        self.laws_ = laws[self.kind]
 
 
 def _process(kind: str, solver: object = 'auto') -> System:
@@ -303,11 +300,10 @@ class _Conversion(Interaction):
         self.b = b
         self.k = k
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the transfer of one unit at the rate `k a`."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = [JumpLaw(context.k * context.a.n, {context.a.n: -1, context.b.n: 1})]
+        self.laws_: list[BaseLaw] = [JumpLaw(context.k * context.a.n, {context.a.n: -1, context.b.n: 1})]
 
 
 def test_one_reaction_runs_as_jumps_or_as_its_mean_with_two_solvers():
@@ -328,11 +324,10 @@ class _Hold(Interaction):
         self.control = control
         self.plant = plant
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the next input."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = [UpdateLaw(context.control.u, -context.plant.x / 2)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.control.u, -context.plant.x / 2)]
 
 
 class _Plant(Interaction):
@@ -343,12 +338,11 @@ class _Plant(Interaction):
         self.plant = plant
         self.control = control
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate of the plant."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, t = context.plant.x, context.t
-            self.laws_: list[BaseLaw] = [RateLaw(x.diff(t), -x + context.control.u)]
+        x, t = context.plant.x, context.t
+        self.laws_: list[BaseLaw] = [RateLaw(x.diff(t), -x + context.control.u)]
 
 
 def test_nested_systems_keep_the_time_their_laws_imply() -> None:
@@ -384,12 +378,11 @@ class _Balance(Interaction):
         self.target = target
         self.d = d
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the balance of supply and demand as the law."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            price = context.target.p
-            self.laws_ = [ConstraintLaw(price == context.d - price, target=price)]
+        price = context.target.p
+        self.laws_ = [ConstraintLaw(price == context.d - price, target=price)]
 
 
 def test_system_of_constraints_alone_is_static() -> None:
@@ -406,12 +399,11 @@ class _Attraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the pull of every member towards the others."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x = context.target.x
-            self.laws_: list[BaseLaw] = [RateLaw(x.diff(context.t), total(context.target.other.x - x) / count())]
+        x = context.target.x
+        self.laws_: list[BaseLaw] = [RateLaw(x.diff(context.t), total(context.target.other.x - x) / count())]
 
 
 class _Majority(Interaction):
@@ -420,12 +412,11 @@ class _Majority(Interaction):
     def __init__(self, label: str, *, among: Role = 'nodes', along: bool | str | None = 'hyperedges') -> None:
         super().__init__(label, among=among, along=along)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the pull towards the mean of the members of the hyperedge."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [RateLaw(s.member.x.diff(s.t), 2.0 * (mean(s.members.x, over=s.members) - s.member.x))]
+        s = context
+        self.laws_ = [RateLaw(s.member.x.diff(s.t), 2.0 * (mean(s.members.x, over=s.members) - s.member.x))]
 
 
 def test_prepare_names_the_other_members_a_law_reads():
@@ -456,12 +447,11 @@ class _Lookup(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set a rate that a table of breakpoints between whole numbers gives."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x = context.target.x
-            self.laws_ = [RateLaw(x.diff(context.t), -series(x, (0.0, 0.25, 0.5, 1.0), (0.0, 1.0, 1.5, 2.0)))]
+        x = context.target.x
+        self.laws_ = [RateLaw(x.diff(context.t), -series(x, (0.0, 0.25, 0.5, 1.0), (0.0, 1.0, 1.5, 2.0)))]
 
 
 def test_prepare_keeps_the_breakpoints_of_a_lookup_table():

@@ -15,6 +15,7 @@ from skcomplex.core.components import RoleSpec, interactions
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import BaseInteraction, Interaction, TrainingInteraction, WienerProcessSpec
 from skcomplex.core.components.laws import (
+    BaseLaw,
     CallSpec,
     NoiseLaw,
     ObjectiveLaw,
@@ -25,7 +26,6 @@ from skcomplex.core.components.laws import (
 )
 from skcomplex.core.components.laws.utils import clip
 from skcomplex.core.components.spaces import (
-    BaseSpace,
     ContinuousSpace,
     LatticeSpace,
     RadiusNeighborhood,
@@ -107,11 +107,10 @@ class GrowthInteraction(BaseInteraction):
         self.target = target
         self.r = r
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set no laws on a namespace."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = []
+        self.laws_: list[BaseLaw] = []
 
 
 def _get_fixed(interaction):
@@ -488,12 +487,11 @@ class PullInteraction(Interaction):
         self.target = target
         self.g = g
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the pull as the law of the interaction."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, t = context.target.x, context.t
-            self.laws_ = [RateLaw(x.diff(t, 2), -context.g)]
+        x, t = context.target.x, context.t
+        self.laws_ = [RateLaw(x.diff(t, 2), -context.g)]
 
 
 def test_prepare_sets_laws_from_a_namespace():
@@ -527,12 +525,11 @@ class RuleInteraction(Interaction):
         self.rule = rule
         self.bound = bound
 
-    def _prepare(self, context):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the update of the bound group, or of a namespace no role binds."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            target = context.target if self.bound else SimpleNamespace()
-            self.laws_ = [UpdateLaw(target, self.rule, phase='move')]
+        target = context.target if self.bound else SimpleNamespace()
+        self.laws_ = [UpdateLaw(target, self.rule, phase='move')]
 
 
 def _shift(agent, system):
@@ -563,13 +560,12 @@ class ParityInteraction(Interaction):
         self.target = target
         self.phase = phase
 
-    def _prepare(self, context):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the parity of the cells as a local rule."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            parity = TotalisticSpec(lambda total: total % 2)
-            neighborhood = RadiusNeighborhood(1, center=True)
-            self.laws_ = [UpdateLaw(context.target.alive, parity, neighborhood=neighborhood, phase=self.phase)]
+        parity = TotalisticSpec(lambda total: total % 2)
+        neighborhood = RadiusNeighborhood(1, center=True)
+        self.laws_ = [UpdateLaw(context.target.alive, parity, neighborhood=neighborhood, phase=self.phase)]
 
 
 def test_update_with_a_neighborhood_is_a_local_rule():
@@ -602,11 +598,10 @@ class DecayInteraction(Interaction):
         self.target = target
         self.k = k
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, t = context.target.x, context.t
-            self.laws_ = [RateLaw(x.diff(t), -context.k * x)]
+        x, t = context.target.x, context.t
+        self.laws_ = [RateLaw(x.diff(t), -context.k * x)]
 
 
 def test_allowed_values_of_an_argument_come_from_annotated():
@@ -624,11 +619,10 @@ class HalvingInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x = context.target.x
-            self.laws_ = [UpdateLaw(x, CallSpec(_halve, (x,)))]
+        x = context.target.x
+        self.laws_ = [UpdateLaw(x, CallSpec(_halve, (x,)))]
 
 
 def _halve(t, x):
@@ -652,11 +646,10 @@ class TrapInteraction(Interaction):
         self.name = name
         self.axes = axes
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x = context.target.x
-            self.laws_ = [RateLaw(x, -context.k.pairwise_product(x))]
+        x = context.target.x
+        self.laws_ = [RateLaw(x, -context.k.pairwise_product(x))]
 
 
 def test_list_argument_is_a_vector_parameter_that_a_schedule_drives():
@@ -691,11 +684,10 @@ class SpringInteraction(Interaction):
         self.k = k
         self.a = a
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, t = context.target.x, context.t
-            self.laws_ = [RateLaw(x.diff(t, 2), -context.k * (x - context.a))]
+        x, t = context.target.x, context.t
+        self.laws_ = [RateLaw(x.diff(t, 2), -context.k * (x - context.a))]
 
 
 def test_parameters_of_an_interaction_keep_the_order_of_its_arguments():
@@ -744,10 +736,9 @@ class _SharedNoiseInteraction(Interaction):
         self.target = target
         self.process = process
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [NoiseLaw(context.target.x, 1.0, process=context.process.dW)]
+        self.laws_ = [NoiseLaw(context.target.x, 1.0, process=context.process.dW)]
 
 
 def test_an_argument_holding_wiener_processes_binds_them():
@@ -839,11 +830,10 @@ class Contraction(Interaction):
         self.target = target
         self.a = a
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the decay at the first entry of the tensor."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [RateLaw(context.target.x, -context.a[0][0][0] * context.target.x)]
+        self.laws_ = [RateLaw(context.target.x, -context.a[0][0][0] * context.target.x)]
 
 
 def test_array_argument_no_group_shapes_is_an_issue_of_the_shape_of_a_parameter():

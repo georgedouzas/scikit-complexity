@@ -13,7 +13,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import neighbors
-from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
+from skcomplex.core.components.spaces import ContinuousSpace, RadiusNeighborhood
 from skcomplex.core.engine.solvers import (
     StepSpec,
     VelocityVerletSolver,
@@ -38,18 +38,17 @@ class SoftSphereInteraction(Interaction):
         self.cutoff = cutoff
         self.k = k
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the force of the neighbours within the cutoff on every member."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, x = context, context.target.x
-            separation = x - s.target.other.x
-            r = sqrt(separation.dot_product(separation))
-            distance = SR.var('r', domain='positive')
-            energy = s.k * (self.cutoff - distance) ** 2 / 2
-            slope = energy.diff(distance).subs({distance: r})
-            force = neighbors(-slope * separation / r, RadiusNeighborhood(self.cutoff))
-            self.laws_ = [RateLaw(x.diff(s.t, 2), force)]
+        s, x = context, context.target.x
+        separation = x - s.target.other.x
+        r = sqrt(separation.dot_product(separation))
+        distance = SR.var('r', domain='positive')
+        energy = s.k * (self.cutoff - distance) ** 2 / 2
+        slope = energy.diff(distance).subs({distance: r})
+        force = neighbors(-slope * separation / r, RadiusNeighborhood(self.cutoff))
+        self.laws_ = [RateLaw(x.diff(s.t, 2), force)]
 
 
 def test_a_free_ball_moves_at_its_constant_speed():

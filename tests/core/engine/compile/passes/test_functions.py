@@ -34,15 +34,14 @@ class CountThenCopyInteraction(Interaction):
         self.count = count
         self.copy = copy
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the count and the copy, each in its phase."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [
-                UpdateLaw(s.counter.count, s.counter.count + 1, phase=self.count),
-                UpdateLaw(s.counter.copy, s.counter.count, phase=self.copy),
-            ]
+        s = context
+        self.laws_ = [
+            UpdateLaw(s.counter.count, s.counter.count + 1, phase=self.count),
+            UpdateLaw(s.counter.copy, s.counter.count, phase=self.copy),
+        ]
 
 
 def _system(*phases: PhaseSpec, count: str | None = 'count', copy: str | None = 'copy') -> System:

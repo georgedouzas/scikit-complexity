@@ -10,7 +10,6 @@ from skcomplex.core.components.elements import Element, Quantity
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.laws.utils import transfer
-from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine.solvers import AgentView
 from skcomplex.core.errors import ConservationError, ValidationError
 from skcomplex.core.systems import System
@@ -96,11 +95,10 @@ class PaymentsInteraction(Interaction):
         self.holders = holders
         self.creates = creates
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rule that moves money."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context, self.move)]
+        self.laws_ = [UpdateLaw(context, self.move)]
 
     def move(self, system):
         """Move one unit from the first holder to the second, and create money when the payments create it."""

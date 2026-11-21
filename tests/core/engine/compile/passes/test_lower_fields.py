@@ -23,12 +23,11 @@ class ChosenGrowthInteraction(Interaction):
         self.choice = choice
         self.amount = amount
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the program of the choice and the rate of the amount."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            v, x = context.choice.v, context.amount.x
-            self.laws_ = [ObjectiveLaw([-v], [v]), ConstraintLaw(v <= RATE), RateLaw(x, v * x)]
+        v, x = context.choice.v, context.amount.x
+        self.laws_ = [ObjectiveLaw([-v], [v]), ConstraintLaw(v <= RATE), RateLaw(x, v * x)]
 
 
 def _system() -> System:

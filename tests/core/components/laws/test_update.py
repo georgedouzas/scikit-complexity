@@ -383,15 +383,14 @@ class StepTransferInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: object = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the increment of every cell, which loses its unit and gains the unit of the cell behind it."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            level = context.target.level
-            move = bernoulli('move', 0.5)
-            leaves = level * (1 - shift_member(level, 1)) * move
-            arrives = shift_member(level, -1) * (1 - level) * shift_member(move, -1)
-            self.laws_ = [UpdateLaw(level, level - leaves + arrives, increment=True)]
+        level = context.target.level
+        move = bernoulli('move', 0.5)
+        leaves = level * (1 - shift_member(level, 1)) * move
+        arrives = shift_member(level, -1) * (1 - level) * shift_member(move, -1)
+        self.laws_ = [UpdateLaw(level, level - leaves + arrives, increment=True)]
 
 
 def test_update_increments_move_units_once_per_step_with_one_draw_per_edge():

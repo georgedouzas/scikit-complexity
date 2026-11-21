@@ -8,7 +8,7 @@ import pytest
 from skcomplex.core.components import Observable
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws.utils import local_operator
-from skcomplex.core.components.spaces import BaseSpace, LatticeSpace
+from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.engine.solvers import BaseSolver
 from skcomplex.core.errors import SolverError
 from skcomplex.core.systems import System
@@ -34,11 +34,10 @@ class RabiInteraction(Interaction):
         self.target = target
         self.omega = omega
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the drive of the qubit."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [GeneratorLaw(context.omega / 2 * local_operator(context.target.psi, 'x'))]
+        self.laws_ = [GeneratorLaw(context.omega / 2 * local_operator(context.target.psi, 'x'))]
 
 
 class DecayInteraction(Interaction):
@@ -49,11 +48,10 @@ class DecayInteraction(Interaction):
         self.target = target
         self.gamma = gamma
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the decay of the qubit."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [DissipatorLaw(local_operator(context.target.psi, 'minus'), context.gamma)]
+        self.laws_ = [DissipatorLaw(local_operator(context.target.psi, 'minus'), context.gamma)]
 
 
 class DephasingInteraction(Interaction):
@@ -63,12 +61,11 @@ class DephasingInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the drive and the dephasing of the qubit."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            psi = context.target.psi
-            self.laws_ = [GeneratorLaw(local_operator(psi, 'x')), DissipatorLaw(local_operator(psi, 'z'), 0.3)]
+        psi = context.target.psi
+        self.laws_ = [GeneratorLaw(local_operator(psi, 'x')), DissipatorLaw(local_operator(psi, 'z'), 0.3)]
 
 
 class XXZInteraction(Interaction):
@@ -78,18 +75,17 @@ class XXZInteraction(Interaction):
         super().__init__(label, among=among, along=along)
         self.delta = delta
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the exchange of one bond."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            a, b = context.source.psi, context.target.psi
-            self.laws_ = [
-                GeneratorLaw(
-                    local_operator(a, 'x') * local_operator(b, 'x')
-                    + local_operator(a, 'y') * local_operator(b, 'y')
-                    + context.delta * local_operator(a, 'z') * local_operator(b, 'z'),
-                ),
-            ]
+        a, b = context.source.psi, context.target.psi
+        self.laws_ = [
+            GeneratorLaw(
+                local_operator(a, 'x') * local_operator(b, 'x')
+                + local_operator(a, 'y') * local_operator(b, 'y')
+                + context.delta * local_operator(a, 'z') * local_operator(b, 'z'),
+            ),
+        ]
 
 
 def _qubit(interaction: type[Interaction], solver: BaseSolver | str = 'auto') -> System:

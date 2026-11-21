@@ -15,7 +15,6 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import BaseLaw, ConstraintLaw
 from skcomplex.core.components.laws.utils import log_sum_exp, total
-from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine.compile import IssueSpec
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import Trajectory
@@ -110,11 +109,10 @@ class TermInteraction(Interaction):
         self.target = target
         self.gain = gain
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the term of the equation."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = [ConstraintLaw(0, context.gain, target=context.target.x)]
+        self.laws_: list[BaseLaw] = [ConstraintLaw(0, context.gain, target=context.target.x)]
 
 
 def _simulated(system: System, **settings: object) -> Trajectory:

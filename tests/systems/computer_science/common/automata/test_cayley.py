@@ -72,11 +72,10 @@ class CayleyRuleInteraction(Interaction):
         self.rule = rule
         self.neighborhood = neighborhood
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the local rule of every cell."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context.target.alive, self.rule, neighborhood=self.neighborhood)]
+        self.laws_ = [UpdateLaw(context.target.alive, self.rule, neighborhood=self.neighborhood)]
 
 
 def _cells(space, cells, **rule):
