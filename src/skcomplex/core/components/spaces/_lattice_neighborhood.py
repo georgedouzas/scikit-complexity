@@ -1,4 +1,4 @@
-"""Define the neighbourhood of ordered offsets that a local rule reads."""
+"""Define the neighbourhood of the grid offsets a local rule reads, in order."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,15 +17,13 @@ from ._base import BaseNeighborhood
 class LatticeNeighborhood(BaseNeighborhood):
     """A neighbourhood of the ordered lattice offsets that a local rule reads.
 
-    Each offset is a vector of integers from a site to a neighbour, and the site itself is the zero offset when it is
-    included. The order of the offsets is the order in which a local rule receives the values.
+    Each offset steps from a site to one neighbour, such as `(-1,)` for the cell on the left, and the offset of zeros
+    is the site itself. A local rule receives the values in the order of the offsets, so
+    `LatticeNeighborhood([(-1,), (0,), (1,)])` hands it a cell between its left and right neighbours. A cellular
+    automaton reads a cell and its two neighbours, a river carries a pollutant from the cells upstream, and a queue of
+    traffic reads the car ahead.
 
-    Unlike `RadiusNeighborhood`, which builds its offsets from a radius, it takes any list of offsets. Choose it when a
-    neighbourhood has an irregular shape, or an order of its own, such as a cell and its two neighbours from left to
-    right.
-
-    It appears in elementary cellular automata, which read a cell and its two neighbours, and in rules that read cells
-    in one direction only, such as the upwind cells of a model of advection.
+    Read more in the user guide, under Spaces.
 
     Args:
         offsets:
@@ -38,10 +36,14 @@ class LatticeNeighborhood(BaseNeighborhood):
         offsets_:
             The offsets as tuples of integers.
 
+    See Also:
+        RadiusNeighborhood: Builds its offsets from a radius and a metric.
+        LatticeSpace: Holds the sites the offsets step between.
+
     Examples:
         >>> from skcomplex.core.components.spaces import LatticeNeighborhood
-        >>> LatticeNeighborhood([(0, 1), (1, 0)]).prepare().offsets_
-        ((0, 1), (1, 0))
+        >>> LatticeNeighborhood([(-1,), (0,), (1,)]).prepare().offsets_
+        ((-1,), (0,), (1,))
     """
 
     def __init__(self, offsets: tuple[IntTuple, ...], *, label: str = 'neighborhood') -> None:

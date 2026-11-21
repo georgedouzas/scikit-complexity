@@ -1,4 +1,4 @@
-"""Define the neighbourhood of members joined by edges of a Delaunay triangulation."""
+"""Define the neighbourhood of the members that touch, with no member between them."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -9,17 +9,13 @@ from ._base import BaseNeighborhood
 class DelaunayNeighborhood(BaseNeighborhood):
     """A neighbourhood of the members joined by edges of a Delaunay triangulation.
 
-    The Delaunay triangulation of a set of points joins two points when their Voronoi cells, the regions closer to them
-    than to any other point, touch. The triangulation is of the positions of the members of a continuous space, and is
-    computed again at every step, so the neighbours follow moving members. In a periodic box it covers the periodic
-    images, so neighbours connect across the boundary. A group with too few members to triangulate, or in a degenerate
-    position, gives every member all the others.
+    In a continuous space two members are neighbours when the regions of the plane closer to each of them than to any
+    other member touch, whatever their distance. The neighbours are found again at every step, so they follow moving
+    members, and in a periodic box they connect across the walls. A group too small to triangulate gives every member
+    all the others. Cells in a tissue push on the cells that touch them, bubbles share walls in a foam, and animals
+    guard their territories against the animals next door.
 
-    Unlike `RadiusNeighborhood`, which takes every member within a distance, it takes the members that touch, whatever
-    the distance. Choose it when members interact with those beside them, with no gap between.
-
-    It appears in many fields. Cells in a tissue push on the cells that touch them, bubbles share walls in a foam, and
-    animals defend territories against their neighbours.
+    Read more in the user guide, under Spaces.
 
     Args:
         center:
@@ -28,9 +24,13 @@ class DelaunayNeighborhood(BaseNeighborhood):
         label:
             The name of the neighbourhood, such as `'moore'`.
 
+    See Also:
+        RadiusNeighborhood: Picks every member within a distance.
+        NearestNeighborhood: Picks a fixed number of the closest members.
+
     Examples:
         >>> from skcomplex.core.components.spaces import DelaunayNeighborhood
-        >>> DelaunayNeighborhood(center=True).center
+        >>> DelaunayNeighborhood(center=True).prepare().center
         True
     """
 

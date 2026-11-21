@@ -1,4 +1,4 @@
-"""Define the finite-volume spec."""
+"""Define the spec of how a finite-volume field moves its values between cells."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,15 +15,15 @@ RIEMANN_SOLVERS = ('rusanov', 'godunov')
 
 @dataclass(frozen=True)
 class FiniteVolumeSpec(BaseSpec):
-    """A spec of the scheme of a finite-volume field.
+    """A spec of how a finite-volume field moves its values between cells.
 
-    A rate law `RateLaw(u, -divergence(flux))` on a state of a finite-volume field is a conservation law. The scheme
-    reconstructs the state in each cell with `limiter` and computes the flux between cells with `riemann`, so the
-    total stays the same and shocks stay sharp. The conservation laws of one field form one system, whose wave speeds
-    come from the eigenvalues of the Jacobians of their fluxes.
+    On a lattice with `discretization='finite-volume'`, the law `u' = -divergence(flux)` moves amounts of `u` between
+    neighbouring cells, so the total stays the same. The spec says how: `limiter` rebuilds the value inside each cell
+    from its neighbours, and `riemann` computes the amount that crosses each wall, which keeps a sudden jump sharp, such
+    as `LatticeSpace(100, discretization='finite-volume', scheme=FiniteVolumeSpec(limiter='van-leer'))`. Cars pile up
+    into jams on a road, a gas forms shock waves, and the trees of a forest move along their growth curve.
 
-    It appears in many fields. Traffic density forms jams on a road, a gas forms shock waves, and the sizes of trees in
-    a forest move along their growth curve.
+    Read more in the user guide, under Spaces.
 
     Args:
         limiter:
@@ -42,10 +42,14 @@ class FiniteVolumeSpec(BaseSpec):
             The limiter or the numerical flux is unknown, or a speed comes with the Godunov flux, raised when its field
             checks it.
 
+    See Also:
+        LatticeSpace: Takes this spec as the `scheme` of a finite-volume lattice.
+
     Examples:
-        >>> from skcomplex.core.components.spaces import FiniteVolumeSpec
-        >>> FiniteVolumeSpec(riemann='godunov').limiter
-        'minmod'
+        >>> from skcomplex.core.components.spaces import FiniteVolumeSpec, LatticeSpace
+        >>> scheme = FiniteVolumeSpec(limiter='van-leer', riemann='godunov')
+        >>> LatticeSpace(100, discretization='finite-volume', scheme=scheme).prepare().scheme.limiter
+        'van-leer'
     """
 
     limiter: str | None = 'minmod'

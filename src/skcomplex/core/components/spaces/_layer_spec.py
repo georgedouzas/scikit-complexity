@@ -1,4 +1,4 @@
-"""Define the layer spec."""
+"""Define the spec of a named layer of edges over the nodes of a network."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,9 +15,12 @@ from ...errors import ValidationError
 class LayerSpec(BaseSpec):
     """A spec of a named relation over the nodes of a network space.
 
-    Examples are contacts or employment. The relation is held as a graph of its own. A network space holds several
-    layers over the same nodes. Edge groups and interactions over neighbours name the layer they bind to, and reductions
-    reduce over its edges with `AdjacencyNeighborhood(layer=label)`.
+    It holds a second set of edges over the same people or places as the network, such as who works with whom in
+    `LayerSpec('work', nx.path_graph(3))`. Interactions and groups on edges name the layer they use, and a law reads the
+    neighbours along it with `AdjacencyNeighborhood(layer='work')`. People meet at home and at work in an epidemic,
+    banks lend and trade on separate networks, and cities are joined by roads and by flights.
+
+    Read more in the user guide, under Spaces.
 
     Args:
         label:
@@ -26,11 +29,16 @@ class LayerSpec(BaseSpec):
         graph:
             The NetworkX graph of the relation, over the nodes of the network space.
 
+    See Also:
+        NetworkSpace: Holds the layers over its nodes.
+        AdjacencyNeighborhood: Reads the neighbours along one layer.
+
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.core.components.spaces import LayerSpec
-        >>> LayerSpec('work', nx.path_graph(3)).label
-        'work'
+        >>> from skcomplex.core.components.spaces import LayerSpec, NetworkSpace
+        >>> space = NetworkSpace(nx.path_graph(3), layers=[LayerSpec('work', nx.complete_graph(3))]).prepare()
+        >>> space.graphs_['work'].number_of_edges()
+        3
     """
 
     label: str

@@ -1,4 +1,4 @@
-"""Define the space of real positions, a box with a boundary or the whole of `R^d`."""
+"""Define the space of real positions, a box with walls or with no edges."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,26 +22,14 @@ REGION_DIMENSIONS = 2
 class ContinuousSpace(BaseSpace):
     """A space of real positions, a box with a boundary or the whole of `R^d`.
 
-    A box runs from 0 to `extent` along every dimension. Its `boundary` acts on every position state of the members:
+    Members move to any real position, and a value named after an axis is the position along it, such as `x` in
+    `Element('walker', values={'x': 0.0}, space=ContinuousSpace(n_dim=1))`. The axes are `x`, `y`, and `z`, or `x0`,
+    `x1`, and so on beyond three dimensions. A box runs from 0 to `extent` along every dimension, and without an extent
+    the space has no edges. The space has no sites, since the positions are values of the members. A plane can hold
+    named regions of a map, which agents start in, move to, and ask about. Atoms move in the box of a gas, birds fly in
+    a flock, pedestrians walk through a station, and households live in the districts of a city.
 
-    - `'open'`: positions stay as they are.
-    - `'periodic'`: opposite sides join, and pair distances use the nearest periodic image.
-    - `'reflecting'`: positions mirror back into the box and the velocity across the wall reverses.
-
-    Without an extent the space is unbounded and has `n_dim` dimensions. The positions are states of the members, so the
-    space has no sites. The axes are named `x`, `y`, and `z`, or `x0`, `x1`, and so on beyond three dimensions, and a
-    value of an element named after an axis is its position, such as `x` in
-    `Element('walker', values={'x': 0.0}, space=ContinuousSpace(n_dim=1))`. A space of two dimensions can hold
-    `regions`, the polygons of a map, which agents are placed in, moved to, and ask about. A region is one named
-    polygon, such as `regions={'tract_1': polygon}`, or a layer of polygons, such as
-    `regions={'parks': [first, second]}`. Agents whose value `region` names a region start at a point the run draws
-    inside it, such as `Element('residents', values={'region': 'tract_1'}, size=100, space=space)`.
-
-    Unlike `LatticeSpace`, whose sites are fixed, it lets members move to any real position. Choose it when members move
-    freely, such as particles or animals.
-
-    It appears in many fields. Atoms move in a box of a gas, birds fly in a flock, pedestrians walk through a station,
-    and households live in the districts of a map.
+    Read more in the user guide, under Spaces.
 
     Args:
         extent:
@@ -51,10 +39,14 @@ class ContinuousSpace(BaseSpace):
             The number of dimensions of an unbounded space, or `None` for the number of sides of the box.
 
         boundary:
-            `'open'`, `'periodic'`, or `'reflecting'`.
+            What happens at the walls of the box. Positions stay as they are with `'open'`. Opposite sides join with
+            `'periodic'`, and distances use the nearest copy across a wall. Positions mirror back into the box with
+            `'reflecting'`, and the velocity across the wall reverses.
 
         regions:
             The polygon of every region, or the polygons of every layer of regions, by name, or `None` for no regions.
+            A region is one polygon, such as `{'tract_1': polygon}`, and a layer is a list, such as
+            `{'parks': [first, second]}`. Agents whose value `region` names a region start at a random point inside it.
 
         label:
             The name of the space in its system, such as `'grid'`.
@@ -74,22 +66,16 @@ class ContinuousSpace(BaseSpace):
             A region is not a valid polygon in two dimensions, or the space has regions and other than two dimensions,
             raised by `prepare`.
 
+    See Also:
+        LatticeSpace: Places members on fixed sites of a grid.
+        RadiusNeighborhood: Picks the members within a distance in the box.
+        NearestNeighborhood: Picks the closest members in the box.
+
     Examples:
         >>> from skcomplex.core.components.spaces import ContinuousSpace
-        >>> ContinuousSpace(extent=(10.0, 5.0), boundary='periodic').prepare().extent_
-        (10.0, 5.0)
-        >>> ContinuousSpace(n_dim=3).prepare().n_dim_
-        3
-        >>> ContinuousSpace(n_dim=2).prepare().axes_
-        ('x', 'y')
-        >>> from shapely import Point, box
-        >>> layers = {'parks': [box(0.0, 0.0, 1.0, 1.0), box(2.0, 2.0, 3.0, 3.0)]}
-        >>> space = ContinuousSpace(extent=(5.0, 5.0), regions=layers).prepare()
-        >>> space.regions_['parks'].query(Point(2.5, 2.5), predicate='intersects').tolist()
-        [1]
-        >>> space = ContinuousSpace(extent=(5.0, 5.0), regions={'centre': box(2.0, 2.0, 3.0, 3.0)}).prepare()
-        >>> space.regions_['centre'].query(Point(2.5, 2.5), predicate='intersects').tolist()
-        [0]
+        >>> space = ContinuousSpace(extent=(10.0, 5.0), boundary='periodic').prepare()
+        >>> space.extent_, space.axes_
+        ((10.0, 5.0), ('x', 'y'))
     """
 
     space_tags: ClassVar[tuple[str, ...]] = ('continuous',)

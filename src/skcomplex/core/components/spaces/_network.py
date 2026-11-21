@@ -1,4 +1,4 @@
-"""Define the space of a graph whose nodes members occupy."""
+"""Define the space of the nodes of a graph, which members occupy."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,17 +25,14 @@ MIN_HYPEREDGE_NODES = 2
 class NetworkSpace(BaseSpace):
     """A space of a graph whose nodes the members occupy, with layers of relations.
 
-    The neighbours of a node are given by its edges. A group on the sites of a network holds one member per node, in the
-    order of `graph.nodes`. The graph is the default layer, and `layers` adds named relations over the same nodes, such
-    as work and home. Edges of a layer are numbered in the order of `graph.edges`, and on an undirected graph the source
-    of an edge is the end that comes first in node order. A network may also hold hyperedges, links of more than two
-    nodes. Build the graph with NetworkX, such as `nx.erdos_renyi_graph(100, 0.1, seed=0)`.
+    It places one member on every node of a NetworkX graph, in the order of `graph.nodes`, and the neighbours of a node
+    are the nodes its edges reach, such as the 100 people of `NetworkSpace(nx.erdos_renyi_graph(100, 0.1, seed=0))`.
+    Edges are numbered in the order of `graph.edges`, and on an undirected graph an edge starts at the end that comes
+    first. Named layers add more edges over the same nodes, such as work and home, and hyperedges join more than two
+    nodes at once. A disease spreads on a contact network, generators keep in step on a power grid, banks lend to each
+    other, and neurons fire along their synapses.
 
-    Unlike `LatticeSpace`, whose neighbours are regular, it takes any pattern of links. Choose it when the members are
-    joined by contacts, roads, wires, or trades.
-
-    It appears in many fields. A disease spreads on a contact network, generators synchronize on a power grid, banks
-    lend to each other on an interbank network, and neurons fire along their synapses.
+    Read more in the user guide, under Spaces.
 
     Args:
         graph:
@@ -83,26 +80,17 @@ class NetworkSpace(BaseSpace):
         memberships_:
             The indices of the hyperedges every node belongs to, in increasing order.
 
+    See Also:
+        LatticeSpace: Places members on a regular grid.
+        LayerSpec: Adds a named layer of edges over the nodes.
+        CellComplexSpace: Adds faces and directions to the nodes and edges.
+
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.core.components.spaces import NetworkSpace
-        >>> from skcomplex.core.components.spaces import LayerSpec
-        >>> NetworkSpace(nx.cycle_graph(5)).prepare().size_
-        5
-        >>> space = NetworkSpace(nx.path_graph(3), layers=[LayerSpec('work', nx.complete_graph(3))])
-        >>> space = space.prepare()
-        >>> list(space.graphs_), space.graphs_['work'].number_of_edges()
-        ([None, 'work'], 3)
-        >>> [item.tolist() for item in space.edges_[None]]
-        [[0, 1], [1, 2]]
-        >>> [item.tolist() for item in space.adjacency_[None]]
-        [[0, 1, 3, 4], [1, 0, 2, 1], [0, 0, 1, 1]]
-        >>> import itertools
-        >>> import xgi
-        >>> triangles = xgi.Hypergraph([list(nodes) for nodes in itertools.combinations(range(5), 3)])
-        >>> space = NetworkSpace(nx.complete_graph(5), hyperedges=triangles).prepare()
-        >>> len(space.hyperedges_), space.hyperedges_[0], space.memberships_[0]
-        (10, (0, 1, 2), (0, 1, 2, 3, 4, 5))
+        >>> space = NetworkSpace(nx.path_graph(3)).prepare()
+        >>> space.size_, [edge.tolist() for edge in space.edges_[None]]
+        (3, [[0, 1], [1, 2]])
     """
 
     space_tags: ClassVar[tuple[str, ...]] = ('network', 'hypergraph')
