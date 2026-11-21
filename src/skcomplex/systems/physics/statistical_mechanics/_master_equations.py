@@ -112,7 +112,7 @@ class GlauberMasterInteraction(Interaction):
         """
         return w / (1 + np.exp(beta * (destination - source)))
 
-    def _get_master_step(self, *around: Array) -> Array:
+    def _get_master_step(self, *around: Array, **kwargs: object) -> Array:
         """Return the probabilities after one step of the master equation.
 
         The neighbourhood columns are the probabilities and then the potentials of the left state, the state, and the

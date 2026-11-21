@@ -209,7 +209,7 @@ class CyclicInvasionInteraction(Interaction):
         self.target = target
 
     @staticmethod
-    def _invade(strategy: Array, *around: Array, random: Array) -> Array:
+    def _invade(strategy: Array, *around: Array, random: Array, **kwargs: object) -> Array:
         """Return the strategy of every site after invasion.
 
         A random neighbour that beats a site invades it.
@@ -229,7 +229,14 @@ class CyclicInvasionInteraction(Interaction):
         super()._prepare(context)
         strategy = context.target.strategy
         self.laws_: list[BaseLaw] = [
-            UpdateLaw(strategy, self._invade, neighborhood=NEAREST, schedule='random-sequential', label=self.label),
+            UpdateLaw(
+                strategy,
+                self._invade,
+                neighborhood=NEAREST,
+                schedule='random-sequential',
+                label=self.label,
+                stochastic=True,
+            ),
         ]
 
 

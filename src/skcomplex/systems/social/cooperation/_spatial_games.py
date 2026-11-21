@@ -191,7 +191,9 @@ class IteratedDilemmaInteraction(Interaction):
         """
         super()._prepare(context)
         strategy = context.target.strategy
-        self.laws_: list[BaseLaw] = [UpdateLaw(strategy, self._play, neighborhood=DIAMOND, label=self.label)]
+        self.laws_: list[BaseLaw] = [
+            UpdateLaw(strategy, self._play, neighborhood=DIAMOND, label=self.label, stochastic=True),
+        ]
 
     @staticmethod
     def get_years(
@@ -259,6 +261,7 @@ class IteratedDilemmaInteraction(Interaction):
         mutation: float | Array,
         extremes: float | Array,
         random: Array,
+        **kwargs: object,
     ) -> Array:
         """Return the strategies after the play, the revision, and the mutation.
 
@@ -355,9 +358,18 @@ class PrisonersDilemmaInteraction(Interaction):
         """
         super()._prepare(context)
         strategy = context.target.strategy
-        self.laws_: list[BaseLaw] = [UpdateLaw(strategy, self._play, neighborhood=SQUARE, label=self.label)]
+        self.laws_: list[BaseLaw] = [
+            UpdateLaw(strategy, self._play, neighborhood=SQUARE, label=self.label, stochastic=True),
+        ]
 
-    def _play(self, *values: Array, temptation: float | Array, noise: float | Array, random: Array) -> Array:
+    def _play(
+        self,
+        *values: Array,
+        temptation: float | Array,
+        noise: float | Array,
+        random: Array,
+        **kwargs: object,
+    ) -> Array:
         """Return the strategies after the play and the imitation.
 
         Every player plays against its neighbours.

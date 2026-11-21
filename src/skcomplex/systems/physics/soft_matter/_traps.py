@@ -108,7 +108,7 @@ class BiasedHopInteraction(Interaction):
         self.target = target
 
     @staticmethod
-    def _hop(*values: Array) -> tuple[Array, Array, Array]:
+    def _hop(*values: Array, **kwargs: object) -> tuple[Array, Array, Array]:
         """Return the occupation, the visits, and the clocks after one step.
 
         The step is one of fully biased hops out of the traps.

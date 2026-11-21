@@ -93,7 +93,7 @@ class EmploymentTakeoverInteraction(Interaction):
         self.target = target
 
     @staticmethod
-    def _follow_employer(*values: Array) -> Array:
+    def _follow_employer(*values: Array, **kwargs: object) -> Array:
         """Return the colours after every worker follows its employer.
 
         Every worker takes the colour of the employer at `x + 1`.
@@ -102,7 +102,7 @@ class EmploymentTakeoverInteraction(Interaction):
         return np.where(employers[0] > 0, colours[0], colours[1])
 
     @staticmethod
-    def _follow_workers(*values: Array) -> Array:
+    def _follow_workers(*values: Array, **kwargs: object) -> Array:
         """Return the colours after every employer follows its workers.
 
         Every employer counts its workers of colour 1 and follows a majority of three.

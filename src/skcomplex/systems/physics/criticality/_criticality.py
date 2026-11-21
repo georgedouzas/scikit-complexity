@@ -139,7 +139,7 @@ class AvalancheInteraction(TopplingInteraction):
         )
 
     @staticmethod
-    def _drop_grain(heights: Array, *, random: np.random.Generator) -> Array:
+    def _drop_grain(heights: Array, *, random: np.random.Generator, **kwargs: object) -> Array:
         """Return the heights with one grain added on a random site."""
         following = heights.copy()
         following[tuple(random.integers(size) for size in heights.shape)] += 1
@@ -179,7 +179,14 @@ class FireInteraction(Interaction):
         self.neighborhood = neighborhood
 
     @staticmethod
-    def _burn(cover: Array, *around: Array, growth: float | Array, lightning: float | Array, random: Array) -> Array:
+    def _burn(
+        cover: Array,
+        *around: Array,
+        growth: float | Array,
+        lightning: float | Array,
+        random: Array,
+        **kwargs: object,
+    ) -> Array:
         """Return the covers after trees catch fire, fires burn out, and trees grow."""
         burning = np.any(np.stack(around) == BURNING, axis=0) if around else np.zeros(np.shape(cover), dtype=bool)
         ignites = burning | (random < lightning)
@@ -195,7 +202,7 @@ class FireInteraction(Interaction):
                 The namespace of the target and the time `t`.
         """
         super()._prepare(context)
-        self.laws_ = [UpdateLaw(context.target.cover, self._burn, neighborhood=self.neighborhood)]
+        self.laws_ = [UpdateLaw(context.target.cover, self._burn, neighborhood=self.neighborhood, stochastic=True)]
 
 
 class SandpileSystem(BaseSystem):

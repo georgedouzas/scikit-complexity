@@ -55,7 +55,7 @@ class NilpotentRuleInteraction(Interaction):
         self.n = n
 
     @staticmethod
-    def _get_next(*values: Array) -> Array:
+    def _get_next(*values: Array, **kwargs: object) -> Array:
         """Return 0 on a window of ones or at the left end of a run of ones, and the cell otherwise.
 
         The values are those of the offsets `-1, 0, ..., n - 1`, so the cell itself is the second.
@@ -107,7 +107,7 @@ class InvolutiveRuleInteraction(Interaction):
         self.n = n
 
     @staticmethod
-    def _get_next(*values: Array) -> Array:
+    def _get_next(*values: Array, **kwargs: object) -> Array:
         """Return the cell under the involution.
 
         The values are those of the offsets `-1, 0, ..., n`, so the cell itself is the second.

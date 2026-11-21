@@ -96,7 +96,13 @@ class CyclicAdvanceInteraction(Interaction):
         self.target = target
 
     @staticmethod
-    def _advance_cyclically(level: Array, *around: Array, n: float | Array, threshold: float | Array) -> Array:
+    def _advance_cyclically(
+        level: Array,
+        *around: Array,
+        n: float | Array,
+        threshold: float | Array,
+        **kwargs: object,
+    ) -> Array:
         """Return the next levels, one step around the cycle.
 
         A cell steps where enough neighbours hold the following level.

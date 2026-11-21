@@ -128,7 +128,7 @@ class MajorityRuleInteraction(Interaction):
         self.neighborhood = neighborhood
 
     @staticmethod
-    def _get_majority(center: Array, *values: Array, degree: Array) -> Array:
+    def _get_majority(center: Array, *values: Array, degree: Array, **kwargs: object) -> Array:
         """Return the value held by more than half of a cell and its neighbours, keeping it on a tie."""
         total = center + np.sum(values, axis=0)
         count = degree + 1
@@ -225,7 +225,7 @@ class LaplacianRuleInteraction(Interaction):
         """Return the discrete Laplacian taken modulo the field size."""
         modulus = self.modulus
 
-        def laplacian(left: Array, center: Array, right: Array) -> Array:
+        def laplacian(left: Array, center: Array, right: Array, **kwargs: object) -> Array:
             return (left + right - 2 * center) % modulus
 
         return laplacian
@@ -268,7 +268,7 @@ class GoldenMeanMoveInteraction(Interaction):
         self.target = target
 
     @staticmethod
-    def _get_move(left: Array, center: Array, right: Array, *, random: Array) -> Array:
+    def _get_move(left: Array, center: Array, right: Array, *, random: Array, **kwargs: object) -> Array:
         """Return the cell flipped with probability one half, unless a 1 would sit next to another 1."""
         flipped = np.where(random < FLIP_PROBABILITY, 1.0 - center, center)
         blocked = (flipped == 1) & ((left == 1) | (right == 1))
@@ -290,6 +290,7 @@ class GoldenMeanMoveInteraction(Interaction):
                 neighborhood=THREE_CELLS,
                 schedule='random-sequential',
                 label=self.label,
+                stochastic=True,
             ),
         ]
 

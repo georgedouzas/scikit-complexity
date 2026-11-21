@@ -90,7 +90,7 @@ class NagelSchreckenbergInteraction(Interaction):
         self.vmax = vmax
 
     @staticmethod
-    def _accelerate(velocity: Array, *ahead: Array, slowdown: Array | float, random: Array) -> Array:
+    def _accelerate(velocity: Array, *ahead: Array, slowdown: Array | float, random: Array, **kwargs: object) -> Array:
         """Return the velocities after the cars accelerate, brake, and slow down at random.
 
         The cars brake to the gap ahead.
@@ -104,7 +104,7 @@ class NagelSchreckenbergInteraction(Interaction):
         return np.where(velocity >= 0, following, -1.0)
 
     @staticmethod
-    def _move(*behind: Array) -> Array:
+    def _move(*behind: Array, **kwargs: object) -> Array:
         """Return the velocities after every car moves forward by its velocity."""
         following = np.full(behind[0].shape, -1.0)
         for distance, velocity in enumerate(behind):
@@ -123,7 +123,7 @@ class NagelSchreckenbergInteraction(Interaction):
         ahead = LatticeNeighborhood(tuple((distance,) for distance in range(self.vmax + 1)))
         behind = LatticeNeighborhood(tuple((-distance,) for distance in range(self.vmax + 1)))
         self.laws_: list[BaseLaw] = [
-            UpdateLaw(velocity, self._accelerate, neighborhood=ahead, label='acceleration'),
+            UpdateLaw(velocity, self._accelerate, neighborhood=ahead, label='acceleration', stochastic=True),
             UpdateLaw(velocity, self._move, neighborhood=behind, label='movement'),
         ]
 

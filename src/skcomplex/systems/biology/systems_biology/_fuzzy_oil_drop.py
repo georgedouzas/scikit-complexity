@@ -240,7 +240,7 @@ class EnsembleReplayInteraction(Interaction):
         self.state = state
         self.ensemble = ensemble
 
-    def _read_member(self, values: Array, *, time: float) -> Array:
+    def _read_member(self, values: Array, *, time: float, **kwargs: object) -> Array:
         """Return the member of the time of a step."""
         return self.ensemble[min(int(time), len(self.ensemble) - 1)].reshape(values.shape)
 

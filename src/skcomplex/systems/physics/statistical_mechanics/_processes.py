@@ -103,7 +103,14 @@ class ContactInfectionInteraction(Interaction):
         self.target = target
 
     @staticmethod
-    def _spread(infected: Array, *around: Array, rate: float | Array, tau: float | Array, random: Array) -> Array:
+    def _spread(
+        infected: Array,
+        *around: Array,
+        rate: float | Array,
+        tau: float | Array,
+        random: Array,
+        **kwargs: object,
+    ) -> Array:
         """Return the next infections of the contact process over a time slice `tau`."""
         share = sum(around) / len(around)
         infects = random < -np.expm1(-rate * tau * share)
@@ -118,7 +125,7 @@ class ContactInfectionInteraction(Interaction):
                 The namespace of the target and the time `t`.
         """
         super()._prepare(context)
-        self.laws_ = [UpdateLaw(context.target.infected, self._spread, neighborhood=NEAREST)]
+        self.laws_ = [UpdateLaw(context.target.infected, self._spread, neighborhood=NEAREST, stochastic=True)]
 
 
 class ExclusionSiteElement(Element):
@@ -339,7 +346,7 @@ class FireSpreadInteraction(Interaction):
         self.target = target
 
     @staticmethod
-    def _burn(cover: Array, *around: Array) -> Array:
+    def _burn(cover: Array, *around: Array, **kwargs: object) -> Array:
         """Return the next cover of a site.
 
         The site burns out, catches fire from a burning neighbour, or stays.
@@ -422,7 +429,7 @@ class Q2RFlipInteraction(Interaction):
         self.target = target
 
     @staticmethod
-    def _flip_without_cost(*columns: Array) -> tuple[Array, Array]:
+    def _flip_without_cost(*columns: Array, **kwargs: object) -> tuple[Array, Array]:
         """Return the spins and phases after one Q2R step.
 
         The step reads the spins and the phases of a centred neighbourhood.

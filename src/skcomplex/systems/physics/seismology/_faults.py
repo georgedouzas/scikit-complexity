@@ -115,7 +115,7 @@ class EarthquakesSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _load(force: Array, *, random: np.random.Generator) -> Array:
+    def _load(force: Array, *, random: np.random.Generator, **kwargs: object) -> Array:
         """Return the forces after the uniform loading.
 
         The loading brings the most loaded block to the threshold.

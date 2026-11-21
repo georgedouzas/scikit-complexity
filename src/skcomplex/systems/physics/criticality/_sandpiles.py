@@ -114,7 +114,7 @@ class ToppleInteraction(Interaction):
         self.target = target
         self.threshold = threshold
 
-    def _get_topple(self, height: Array, *around: Array) -> Array:
+    def _get_topple(self, height: Array, *around: Array, **kwargs: object) -> Array:
         """Return the heights after every site at or above the threshold topples once."""
         gained = np.sum([neighbor >= self.threshold for neighbor in around], axis=0)
         return height - self.threshold * (height >= self.threshold) + gained
@@ -280,7 +280,7 @@ class ZhangSandpileSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _load(packet: float, energies: Array, *, random: np.random.Generator) -> Array:
+    def _load(packet: float, energies: Array, *, random: np.random.Generator, **kwargs: object) -> Array:
         """Return the energies with a packet added on a random site.
 
         The packet has a uniform size in `[0, packet]`.
