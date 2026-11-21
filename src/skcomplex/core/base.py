@@ -99,39 +99,26 @@ class _BaseEstimator[ContextT](BaseEstimator, ABC):
 class BaseConfig[ContextT, InputT](_BaseEstimator[ContextT]):
     """An abstract engine class, such as a solver, a backend, or an observer.
 
-    The constructor stores every setting unchanged under its own name, as a scikit-learn estimator does, so
-    `get_params`, `set_params`, and `clone` work on every class. The main public methods call the abstract hooks
-    `_prepare` and `_run`, which every child implements, itself or through the base of its family, and each returns the
-    object:
+    It stores every argument unchanged under its own name, as a scikit-learn estimator does, so `get_params`, `set_params`,
+    and `clone` work on it, such as `RK4Solver(dt=0.01).set_params(dt=0.1)`. Its method `prepare(context)` checks the
+    arguments, raising a named error for one it cannot take, and sets the attributes that end in `_`. Its method
+    `run(inputs, final=False)` does the one job of the prepared object, such as a step of a solver, and keeps what it
+    produces in attributes that end in `_`. A last call with `final=True` also frees what `prepare` took, such as an open
+    file. A subclass writes the private methods `_prepare` and `_run`. It is the base of the solvers that step a chemical
+    reactor, the backends that run a forest fire, and the observers that record an epidemic.
 
-    - `prepare(context)` prepares the object against the one thing it serves, through `_prepare(context)`. The hook
-      first checks the settings, raising a named error for one the object cannot take, and then sets the attributes that
-      end in `_`.
-    - `run(inputs, final=False)` performs the one action of the prepared object on its input, through `_run(inputs)`,
-      and keeps what it produces in attributes that end in `_`. A last call with `final=True` also releases what
-      preparing acquired, through the optional hook `_release`.
+    Read more in the user guide, under Extend the library.
 
-    Unlike `BaseEstimator` of scikit-learn, which fits data, it prepares against a context and runs on an input. Unlike
-    `BaseComponent`, the base of the components of a system, it runs. Choose it when a new family of engine classes
-    needs settings that `clone` and `set_params` read, such as a new solver or backend.
-
-    It appears in the engine of every system, such as its solvers, its backends, its observers, and the passes of its
-    compiler.
+    See Also:
+        BaseComponent: The base of the parts of a system, which have no `run`.
+        BaseSpec: The base of frozen values that classes read.
 
     Examples:
         >>> from skcomplex.core.base import BaseConfig
-        >>> class DoublingConfig(BaseConfig):
-        ...     def __init__(self, factor=2):
-        ...         self.factor = factor
-        ...
-        ...     def _prepare(self, context):
-        ...         if not isinstance(self.factor, int):
-        ...             raise TypeError('The factor must be an integer.')
-        ...
-        ...     def _run(self, inputs):
-        ...         self.doubled_ = self.factor * inputs
-        >>> DoublingConfig().prepare().run(3).doubled_
-        6
+        >>> from skcomplex.core.engine.solvers import RK4Solver
+        >>> solver = RK4Solver(dt=0.01).set_params(dt=0.1)
+        >>> isinstance(solver, BaseConfig), solver.dt
+        (True, 0.1)
     """
 
     @abstractmethod
@@ -193,21 +180,23 @@ class BaseConfig[ContextT, InputT](_BaseEstimator[ContextT]):
 class BaseSpec:
     """An abstract spec, a frozen value that a class reads, records, or builds.
 
-    A spec is a frozen dataclass whose fields are what it is. A spec declares what a class reads, records what a run
-    produced, or holds what a compiler built. It never changes and holds only its fields, the hook `_check`, and readers
-    of its own fields. A spec is a value, not an estimator: it has neither `prepare` nor `run`, and the class that owns
-    it calls `_check()` when it reads it. A child that validates its fields overrides `_check()`, and a spec is changed
-    with `dataclasses.replace`.
+    A spec is a frozen dataclass whose fields are what it is, such as the visual `VisualSpec('points')`. It says what a
+    class reads, records what a run produced, or holds what a compiler built. It never changes, so it is changed with
+    `dataclasses.replace`, and it has neither `prepare` nor `run`. A subclass that checks its fields writes the private
+    method `_check`, which the class that reads the spec calls. Specs mark the conserved money of an account, the axis of
+    velocities of a gas, and the frames a run of a flock recorded.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        BaseConfig: The base of the engine classes.
 
     Examples:
-        >>> from dataclasses import dataclass
+        >>> import dataclasses
         >>> from skcomplex.core.base import BaseSpec
-        >>> @dataclass(frozen=True)
-        ... class SpanSpec(BaseSpec):
-        ...     start: float
-        ...     end: float
-        >>> SpanSpec(0.0, 1.0).end
-        1.0
+        >>> from skcomplex.core.components.elements import VisualSpec
+        >>> isinstance(VisualSpec('points'), BaseSpec), dataclasses.replace(VisualSpec('points'), kind='line').kind
+        (True, 'line')
     """
 
     def _check(self) -> None:

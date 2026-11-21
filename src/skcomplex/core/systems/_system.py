@@ -34,18 +34,19 @@ BACKENDS = (NumpyBackend, NumbaBackend, JaxBackend)
 class System(BaseSystem):
     """A system of elements, interactions, nested systems, and a space.
 
-    It is the estimator of the library. `prepare` checks every component, compiles the laws of the interactions into
-    one problem, and chooses the solver and the backend, and `simulate` solves the problem and returns the trajectory.
-    The parameters of the components are reachable by nested names, `<label>__<parameter>`, as the steps of a
-    scikit-learn `Pipeline` are, so `set_params(gravity__g=1.62)` sets the parameter `g` of the component labelled
-    `gravity`. A solver or backend left as `'auto'` follows from the problem. It models an ecosystem of interacting
-    populations, a reaction network, a circuit, or a market, and a system nests in another one as a component.
+    It holds the parts of a model and runs them, such as a falling ball made of the element
+    `Element('ball', values={'x': 10.0, 'm': 1.0})` and an interaction whose law says how its height changes. `prepare`
+    checks every part, turns the laws of the interactions into one problem, and chooses the solver and the backend, and
+    `simulate` solves the problem and returns the trajectory. The arguments of the parts are reached by nested names, `<label>__<name>`, as the steps of a
+    scikit-learn `Pipeline` are, so `set_params(gravity__g=1.62)` sets `g` of the part labelled `gravity`. A solver or
+    backend left as `'auto'` follows from the problem. It models an ecosystem of populations, a network of reactions, a
+    circuit, or a market, and a system nests in another one as a part.
 
     Read more in the user guide, under Systems.
 
     Attributes:
         states_:
-            The names of the values the laws change, with the derivatives and lags they need.
+            The names of the values the laws change, with the derivatives and past values they need.
 
         parameters_:
             The names of the values no law changes.
@@ -54,7 +55,7 @@ class System(BaseSystem):
             One readable equation per state, summed over the laws and reduced to first order.
 
         form_:
-            The kind of problem the laws make, such as the ordinary differential equations.
+            The kind of problem the laws make, such as ordinary differential equations.
 
         solver_:
             The solver that every run copies.
@@ -63,16 +64,14 @@ class System(BaseSystem):
             The backend that evaluates the compiled functions.
 
     See Also:
-        BaseSystem: The base of ready-made systems, which prepare a system from the parameters of their model.
+        BaseSystem: The base of ready-made systems, which build a system from the parameters of their model.
 
     Examples:
         >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
-        >>> system = System(systems=[LotkaVolterraSystem(label='meadow')])
-        >>> system.set_params(meadow__r=1.5).get_params()['meadow__r']
-        1.5
-        >>> float(system.prepare().simulate(until=5.0).times[-1])
-        5.0
+        >>> system = System(systems=[LotkaVolterraSystem(label='meadow')]).set_params(meadow__r=1.5)
+        >>> system.get_params()['meadow__r'], float(system.prepare().simulate(until=5.0).times[-1])
+        (1.5, 5.0)
     """
 
     def __init__(

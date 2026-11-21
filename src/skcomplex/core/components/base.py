@@ -30,44 +30,33 @@ ROLE_CONTAINERS = (tuple, list, Sequence, Mapping, dict)
 
 
 class BaseComponent[ContextT](_BaseEstimator[ContextT]):
-    """An abstract component of a system, with a label, parameters, and tags.
+    """An abstract part of a system, with a label, arguments, and tags.
 
-    The components of a system are its elements, interactions, laws, spaces, and the system itself. Every component has
-    a label and stores its parameters under their own names, so `get_params`, `set_params`, and `clone` work on it. Its
-    one public method `prepare(context)` calls the hook `_prepare(context)`, which checks the arguments, prepares the
-    component against its context, and sets its attributes that end in `_`. The hook starts with
-    `super()._prepare(context)`, so this base checks the label and the declared specs first.
+    The parts of a system are its elements, interactions, spaces, and the system itself, such as the ball of
+    `Element('ball', values={'x': 10.0, 'm': 1.0})`. Every part has a label and stores its arguments under their own names,
+    so `get_params`, `set_params`, and `clone` work on it. Its method `prepare(context)` checks the arguments and sets the
+    attributes that end in `_`, such as `laws_` of an interaction. An element is prepared against the space of its system
+    and an interaction against the elements its roles bind. Which values are states and which are parameters follows from
+    the laws. `get_tags` returns what a part can do, read from its arguments alone, so the tags are known before
+    `prepare`. A part whose rules draw random numbers that its laws do not show sets the class attribute `draws`. It is the
+    base of the populations and contacts of an epidemic and of the accounts and payments of an economy.
 
-    The context of `prepare` depends on the family: a law is prepared against the path of its owner, an element against
-    the space of its system, and an interaction against the namespace of the elements its roles bind, from which it
-    sets `laws_`. The arguments of its constructor are plain values, and an interaction marks the elements it binds by
-    the type hint `Role`. Which values are states and which are parameters follows from the laws.
+    Read more in the user guide, under Extend the library.
 
-    A component returns its capability tags from `get_tags`, which reads only its declarations and arguments, so the
-    tags are known before `prepare`. Each family derives them in `_get_tags`. A component whose rules draw random
-    numbers that its laws do not show, such as an agent rule that reads `system.rng`, sets the class attribute `draws`,
-    or returns it from `_get_draws` when its arguments decide it. A component whose draws are all uniform, normal, or
-    relaxed Bernoulli or categorical draws sets `reparameterized`, so its runs on JAX are differentiable.
+    Args:
+        label:
+            The name of the part, unique among the parts of its system, such as `'ball'`.
 
-    Unlike `BaseConfig`, the base of the engine classes, it has no `run`: a system prepares its components and the
-    engine runs what they declare. Choose it when a new family of components is needed, and choose the base of an
-    existing family, such as `BaseElement`, otherwise.
-
-    It appears in every field through its families, such as the populations, infections, and contact networks of an
-    epidemic, or the accounts, payments, and markets of an economy.
+    See Also:
+        BaseConfig: The base of the engine classes, which run.
+        BaseElement: The base of the parts that hold values.
 
     Examples:
         >>> from skcomplex.core.components.base import BaseComponent
-        >>> class DoublingComponent(BaseComponent):
-        ...     def __init__(self, label, factor=2):
-        ...         super().__init__(label)
-        ...         self.factor = factor
-        ...
-        ...     def _prepare(self, context=None):
-        ...         super()._prepare(context)
-        ...         self.doubled_ = 2.0 * self.factor
-        >>> DoublingComponent('doubling', factor=3).prepare().doubled_
-        6.0
+        >>> from skcomplex.core.components.elements import Element
+        >>> ball = Element('ball', values={'x': 10.0, 'm': 1.0}).prepare()
+        >>> isinstance(ball, BaseComponent), ball.label
+        (True, 'ball')
     """
 
     draws: ClassVar[bool] = False
