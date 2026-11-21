@@ -29,18 +29,15 @@ WEIGHTS = np.array([OUTER_WEIGHT, 1 - 2 * OUTER_WEIGHT, OUTER_WEIGHT])
 
 
 class Yoshida4Solver(Solver):
-    """A solver of fourth order by the symplectic method of Yoshida.
+    """A solver of order 4 by the symplectic method of Yoshida.
 
-    It takes three velocity Verlet steps over two blocks of states. The solver splits the states into two blocks whose
-    rates each read only the other block: a state of order 2 into its position and velocity, and states of order 1 by
-    the sparsity of the Jacobian of the drift, as the coordinates and the momenta of a separable Hamiltonian split.
-    Every step composes three velocity Verlet steps of the lengths `w1 h`, `w0 h`, and `w1 h`, with `w1 = 1 / (2 -
-    2^(1/3))` and `w0 = 1 - 2 w1`, which kick the second block by half a step, drift the first, and kick the second
-    again. The scheme is symplectic, so the energy of a separable Hamiltonian stays bounded over long runs. With the
-    Numba backend every internal step of a frame runs in compiled code.
+    It splits the states into two blocks whose rates each read only the other block, such as the positions and the
+    momenta of a planet, and composes three velocity Verlet steps of the lengths `w1 h`, `w0 h`, and `w1 h`, with
+    `w1 = 1 / (2 - 2^(1/3))` and `w0 = 1 - 2 w1`. The energy of such a split system stays bounded over long runs, such
+    as a spring that swings from 1 to -1 in half a period. With the Numba backend every step of a frame runs in compiled
+    code. Choose it for accurate long runs of orbits, particle beams, and molecules.
 
-    Choose it for Hamiltonian systems that need high accuracy over long runs. It appears in celestial mechanics and in
-    models of particle accelerators.
+    Read more in the user guide, under Solvers.
 
     Args:
         dt:
@@ -63,16 +60,15 @@ class Yoshida4Solver(Solver):
         SolverError:
             The problem is not an ODE, or its states admit no split into two blocks whose rates read only the other.
 
+    See Also:
+        VelocityVerletSolver: A symplectic method of order 2.
+
     Examples:
-        >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.spaces import ContinuousSpace
-        >>> from skcomplex.core.engine.solvers import Yoshida4Solver, StepSpec
-        >>> from skcomplex.core.systems import System
-        >>> ball = Element('ball', values={'x': [0.0], "x'": [2.0]}, space=ContinuousSpace(n_dim=1))
-        >>> problem = System(elements=[ball]).prepare().simulate(until=0).problem
-        >>> stepper = Yoshida4Solver(dt=0.1).prepare(problem)
-        >>> stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_.round(10).tolist()
-        [2.0, 2.0]
+        >>> from skcomplex.core.engine.solvers import Yoshida4Solver
+        >>> from skcomplex.systems.physics.mechanics import HarmonicOscillatorSystem
+        >>> system = HarmonicOscillatorSystem(solver=Yoshida4Solver(dt=0.01)).prepare()
+        >>> system.simulate(until=3.1416, dt=3.1416).get_values('mass.x').round(3).tolist()
+        [1.0, -1.0]
     """
 
     @classmethod

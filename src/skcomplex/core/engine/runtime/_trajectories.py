@@ -15,29 +15,36 @@ from ..problems._draw_log_spec import _DrawLogSpec
 
 
 class Trajectory:
-    """A record of the states and parameters of a simulation over time.
+    """A record of the values of a run over time, which `simulate` returns.
+
+    It holds the time of every frame and the values of the states and parameters at each, read by name with
+    `get_values`, such as `trajectory.get_values('population.x')` for the size of a population at every frame. It also
+    holds the agents, observables, and events of a run that has them. It records the spread of an epidemic, the path of
+    a planet, and the prices of a market.
+
+    Read more in the user guide, under Simulate.
 
     Args:
         problem:
-            The compiled problem, which gives the names of the vector components.
+            The compiled problem, which gives the names of the values.
 
         times:
             The time of each recorded frame.
 
         states:
-            One state vector per row.
+            One row of state values per frame.
 
         parameters:
-            One parameter vector per row.
+            One row of parameter values per frame.
 
         agents:
-            One mapping from agent group path to agents per frame, empty for problems without agents.
+            One mapping from the path of a group of agents to its agents per frame, empty for problems without agents.
 
         reporters:
-            One mapping from dotted reporter name to value per frame, empty for problems without reporters.
+            One mapping from the dotted name of a reporter to its value per frame, empty for problems without reporters.
 
         observables:
-            One mapping from observable path to value per frame, empty for systems without observables.
+            One mapping from the path of an observable to its value per frame, empty for systems without observables.
 
         events:
             The events that fired during the run, in order, each with its time and the states before and after its
@@ -45,26 +52,23 @@ class Trajectory:
             with their members.
 
         structures:
-            One mapping from rewritten element path to its structure per frame, empty for other systems.
+            One mapping from the path of a rewritten element to its structure per frame, empty for other systems.
 
         draws:
             The named draws and jump firings of a run that records or replays them, or `None`.
 
         log_probability:
-            The total log-probability of the draws and firings of a run that records or replays them, or `None`.
+            The total log probability of the draws and firings of a run that records or replays them, or `None`.
+
+    See Also:
+        System: Returns it from `simulate`.
+        RecorderObserver: Gathers the frames of a run into one.
 
     Examples:
-        >>> from skcomplex.core.systems import System
-        >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
-        >>> system = System(
-        ...     elements=[PopulationElement('a', x=1)],
-        ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
-        ... )
-        >>> trajectory = system.prepare().simulate(until=1, dt=0.5)
-        >>> trajectory.times.tolist()
-        [0.0, 0.5, 1.0]
-        >>> trajectory.get_values('a.x').round(3).tolist()
-        [1.0, 1.649, 2.718]
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+        >>> trajectory = LogisticGrowthSystem().prepare().simulate(until=2, dt=1)
+        >>> trajectory.times.tolist(), trajectory.get_values('population.x').round(2).tolist()
+        ([0.0, 1.0, 2.0], [10.0, 23.2, 45.09])
     """
 
     def __init__(

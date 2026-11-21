@@ -21,21 +21,16 @@ from ._objective import BaseObjectiveSolver
 
 
 class MetropolisSolver(BaseObjectiveSolver):
-    """A solver that samples states with the Boltzmann weight of an objective.
+    """A solver that samples states by the Boltzmann weight of an objective.
 
-    Every unit of time is one sweep: each target state in turn takes a proposal `x + step * N(0, 1)`, accepted with the
-    probability `min(1, exp(-(U_new - U) / T))` at the temperature `T`. The states then visit low values of the
-    objective often and high ones rarely, as the positions of a particle in a well at thermal equilibrium, the opinions
-    of a population with a social cost, or the parameters of a model drawn from a posterior.
-
-    With `moves`, the solver samples the states of the members of a group on a lattice, a network, or the edges of a
-    cell complex, such as the spins of a magnet, member by member. The objective is then the local energy of a member
-    over the temperature, such as `ObjectiveLaw(-s.target.s * neighbors(s.target.other.s) / s.target.T, s.target.s)`,
-    whose terms read the neighbours of `neighborhood`, so the temperature stays a value of the system. Each state of
-    `moves` is proposed by its move, `'flip'` to its negative, `'random-value'` to one of its `values`, `'rotate'` by a
-    uniform step of at most `width`, `'gaussian'` by a normal step of deviation `width`, `'cluster'` by the clusters of
-    Wolff, or a function `move(values, random)`, and accepted by `rule`, `'metropolis'`, `'glauber'`, or `'heat-bath'`,
-    in the order of `schedule`, `'checkerboard'`, `'colored'`, or `'random-sequential'`.
+    Every unit of time is one sweep in which each target state takes a proposal `x + step * N(0, 1)`, kept with the
+    chance `min(1, exp(-(U_new - U) / T))` at the temperature `T`, so states with low objective come up often and high
+    ones rarely. With `moves` it samples the members of a group on a lattice, a network, or the edges of a cell complex
+    one by one, such as the spins of a magnet flipped by `moves={'spins.spin': 'flip'}`, where the objective is the
+    local energy of a member over the temperature. Each move, `'flip'`, `'random-value'`, `'rotate'`, `'gaussian'`,
+    `'cluster'`, or a function `move(values, random)`, is kept by `rule`, `'metropolis'`, `'glauber'`, or `'heat-bath'`,
+    in the order of `schedule`. It samples a particle in a well, the spins of a magnet, and the parameters of a model
+    from a posterior.
 
     Read more in the user guide, under Solvers.
 
@@ -43,45 +38,11 @@ class MetropolisSolver(BaseObjectiveSolver):
         MinimizeSolver: Finds the minimum of the objective, the limit of zero temperature.
 
     Examples:
-        >>> import numpy as np
-        >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.interactions import Interaction
-        >>> from skcomplex.core.components.laws import ObjectiveLaw
         >>> from skcomplex.core.engine.solvers import MetropolisSolver
-        >>> from skcomplex.core.types import Role
-        >>> from skcomplex.core.systems import System
-        >>> class Well(Interaction):
-        ...     def __init__(self, label, *, target: Role = 'ball'):
-        ...         super().__init__(label)
-        ...         self.target = target
-        ...
-        ...     def _prepare(self, context):
-        ...         super()._prepare(context)
-        ...         x = context.target.x
-        ...         self.laws_ = [ObjectiveLaw(x**2 / 2, x)]
-        >>> solver = MetropolisSolver(temperature=1.0, step=1.0)
-        >>> system = System(elements=[Element('ball', values={'x': 0.0})], interactions=[Well('well')], solver=solver)
-        >>> positions = system.prepare().simulate(until=20000, dt=1.0, random_state=0).get_values('ball.x')
-        >>> bool(abs(np.var(positions) - 1.0) < 0.1)
-        True
-
-        The spins of a ring sampled member by member at the temperature of the ring:
-
-        >>> from skcomplex.core.components.laws.utils import neighbors
-        >>> from skcomplex.core.components.spaces import LatticeSpace
-        >>> class Ising(Interaction):
-        ...     def __init__(self, label, *, target: Role = 'ring'):
-        ...         super().__init__(label)
-        ...         self.target = target
-        ...
-        ...     def _prepare(self, context):
-        ...         super()._prepare(context)
-        ...         ring = context.target
-        ...         self.laws_ = [ObjectiveLaw(-ring.s * neighbors(ring.other.s) / ring.T, ring.s)]
-        >>> ring = Element('ring', values={'s': np.ones(16), 'T': 0.5}, space=LatticeSpace(16))
-        >>> solver = MetropolisSolver(moves={'ring.s': 'flip'})
-        >>> system = System(elements=[ring], interactions=[Ising('ising')], solver=solver).prepare()
-        >>> float(system.simulate(until=5, random_state=0).get_values('ring.s')[-1].mean())
+        >>> from skcomplex.systems.physics.statistical_mechanics import IsingSystem
+        >>> solver = MetropolisSolver(moves={'spins.spin': 'flip'})
+        >>> system = IsingSystem(size=8, temperature=1.0, solver=solver).prepare()
+        >>> abs(float(system.simulate(until=50).get_values('spins.spin')[-1].mean()))
         1.0
     """
 

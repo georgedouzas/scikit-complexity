@@ -20,9 +20,23 @@ from ._solver import Solver
 class BaseObjectiveSolver(Solver):
     """An abstract solver of the objective of a static system.
 
-    It turns the sum of the objective laws into a function that gives the objective and its gradient over the target
-    states. A subclass decides what to do with it: minimise it once, follow its steepest descent, or sample states with
-    its Boltzmann weight.
+    It turns the sum of the objective laws, such as the energy `(x - 2)^2` of a ball in a well, into a function that
+    gives the objective and its slope over the target states. A subclass decides what to do with it: find the minimum
+    once, roll down the slope over time, or sample states by their Boltzmann weight. It is the base of the solvers of
+    the shapes of structures, the choices of consumers, and the spins of magnets.
+
+    Read more in the user guide, under Solvers.
+
+    See Also:
+        MinimizeSolver: Finds the minimum once.
+        GradientFlowSolver: Rolls down the slope over time.
+        MetropolisSolver: Samples states by their Boltzmann weight.
+
+    Examples:
+        >>> from skcomplex.core.engine.solvers import MetropolisSolver
+        >>> from skcomplex.core.engine.solvers._objective import BaseObjectiveSolver
+        >>> isinstance(MetropolisSolver(), BaseObjectiveSolver)
+        True
     """
 
     def _get_objective_function(self, problem: ProblemSpec) -> Callable[[Array, Array], tuple[float, Array]]:

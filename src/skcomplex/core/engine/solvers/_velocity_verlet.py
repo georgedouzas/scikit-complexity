@@ -25,15 +25,15 @@ from ._solver import Solver
 
 
 class VelocityVerletSolver(Solver):
-    """A solver of particle systems by velocity Verlet, stable over long runs.
+    """A solver of moving particles by velocity Verlet, stable over long runs.
 
-    The positions of the particles move with their velocities. Every step kicks the velocities by half a step, moves the
-    positions, applies the boundary laws, and kicks the velocities again with the accelerations at the new positions, so
-    a step costs one drift evaluation. It conserves energy over long runs of conservative forces. With the Numba backend
-    every internal step of a frame runs in compiled code.
+    Every step kicks the velocities by half a step, moves the positions, applies the boundary laws, and kicks the
+    velocities again with the accelerations at the new positions, so a step costs one evaluation of the forces. It keeps
+    the energy of conservative forces from drifting over long runs, such as a spring that swings from 1 to -1 in half a
+    period. With the Numba backend every step of a frame runs in compiled code. Choose it for Newtonian particles over
+    long runs, in molecules, planets, and crowds.
 
-    Choose it for Newtonian particles over long runs. It appears in molecular dynamics, celestial mechanics, and models
-    of crowds.
+    Read more in the user guide, under Solvers.
 
     Args:
         dt:
@@ -45,16 +45,16 @@ class VelocityVerletSolver(Solver):
         until:
             The end time of the run the solver prepares for, infinite for a run that goes on until it is stopped.
 
+    See Also:
+        Yoshida4Solver: A symplectic method of order 4.
+        LammpsSolver: Runs large systems of particles in LAMMPS.
+
     Examples:
-        >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.spaces import ContinuousSpace
-        >>> from skcomplex.core.engine.solvers import VelocityVerletSolver, StepSpec
-        >>> from skcomplex.core.systems import System
-        >>> ball = Element('ball', values={'x': [0.0], "x'": [2.0]}, space=ContinuousSpace(n_dim=1))
-        >>> problem = System(elements=[ball]).prepare().simulate(until=0).problem
-        >>> stepper = VelocityVerletSolver(dt=0.1, random_state=0).prepare(problem)
-        >>> stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_.round(10).tolist()
-        [2.0, 2.0]
+        >>> from skcomplex.core.engine.solvers import VelocityVerletSolver
+        >>> from skcomplex.systems.physics.mechanics import HarmonicOscillatorSystem
+        >>> system = HarmonicOscillatorSystem(solver=VelocityVerletSolver(dt=0.01)).prepare()
+        >>> system.simulate(until=3.1416, dt=3.1416).get_values('mass.x').round(3).tolist()
+        [1.0, -1.0]
     """
 
     @classmethod

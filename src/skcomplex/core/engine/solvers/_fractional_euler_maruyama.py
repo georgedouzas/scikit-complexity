@@ -30,13 +30,13 @@ MAX_INCREMENTS = 100_000_000
 class FractionalEulerMaruyamaSolver(Solver):
     """A solver of stochastic equations driven by fractional and ordinary noise.
 
-    SDEs are stochastic differential equations. The stepper draws the correlated increments of every fractional noise
-    row for the whole run when it first advances, on the grid `t0 + k dt` up to the horizon, and adds the stored
-    increment of each step times the amplitude. Ordinary noise rows take independent Wiener increments. A simulation
-    passes the end time of its run as the horizon when the stepper has none.
+    Fractional noise has long memory set by a Hurst index, so a step up makes the next step up more likely when the
+    index is above 0.5. The solver draws the linked increments of every fractional noise for the whole run when it first
+    moves, on the grid `t0 + k dt` up to the horizon, and adds each step's increment times its size. Ordinary noise
+    takes independent increments, and a run passes its end time as the horizon when the solver has none. Choose it for
+    rough prices in finance, river flows, and network traffic.
 
-    Choose it when the noise has long memory, set by a Hurst index. It appears in models of rough volatility in finance,
-    river flows, and network traffic.
+    Read more in the user guide, under Solvers.
 
     Args:
         dt:
@@ -61,22 +61,14 @@ class FractionalEulerMaruyamaSolver(Solver):
         hurst_:
             The Hurst index of every noise row the increments were drawn with.
 
+    See Also:
+        EulerMaruyamaSolver: Steps noise without memory.
+
     Examples:
-        >>> import numpy as np
-        >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.interactions import Interaction
-        >>> from skcomplex.core.components.laws import NoiseLaw
-        >>> from skcomplex.core.engine.solvers import FractionalEulerMaruyamaSolver, StepSpec
-        >>> from skcomplex.core.systems import System
-        >>> def rough(s):
-        ...     return [NoiseLaw(s.target.x, 1, hurst=0.75)]
-        >>> roughness = Interaction('roughness', roles={'target': 'walkers'}, laws=rough)
-        >>> system = System(elements=[Element('walkers', values={'x': 0.0}, size=500)], interactions=[roughness])
-        >>> problem = system.prepare().simulate(until=0).problem
-        >>> stepper = FractionalEulerMaruyamaSolver(dt=0.01, horizon=1.0, random_state=0).prepare(problem)
-        >>> state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_
-        >>> round(float(np.var(state)), 1)
-        1.0
+        >>> from skcomplex.systems.physics.soft_matter import FractionalBrownianMotionSystem
+        >>> system = FractionalBrownianMotionSystem(n_walkers=10).prepare()
+        >>> type(system.system_.solver_).__name__, system.simulate(until=1, dt=1).get_values('walkers.x').shape
+        ('FractionalEulerMaruyamaSolver', (2, 10, 2))
     """
 
     @classmethod

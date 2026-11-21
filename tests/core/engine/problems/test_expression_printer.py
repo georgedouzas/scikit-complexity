@@ -3,6 +3,7 @@
 import multiprocessing
 from concurrent.futures import ProcessPoolExecutor
 
+import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import (
     abs_symbolic,
@@ -154,3 +155,11 @@ def test_printed_code_is_the_same_in_every_process(monkeypatch):
         with ProcessPoolExecutor(max_workers=1, mp_context=multiprocessing.get_context('spawn')) as executor:
             printed.append(executor.submit(_printed_law, order).result())
     assert printed[0] == printed[1]
+
+
+def test_compiled_printer_evaluates_the_expressions_at_a_time_and_a_state():
+    """A compiled printer keeps a function of the time and the symbols."""
+    t = symbol('t')
+    printer = ExpressionPrinter(time=t, compiled=True).prepare([X])
+    values = printer.run([t * X, X**2]).code_(2.0, np.array([1.0, 3.0]))
+    assert [value.tolist() for value in values] == [[2.0, 6.0], [1.0, 9.0]]

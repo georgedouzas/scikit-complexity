@@ -19,11 +19,27 @@ SEPARATION = 1e-10
 
 
 class EventLocator:
-    """A locator of events between two times of a step, which applies their resets.
+    """A locator of the events within a step, which applies their resets.
+
+    It finds where the guard of an event crosses zero between two times of a step, such as a ball whose height reaches
+    0, applies the reset of the event, such as reversing the velocity, and keeps a record of each event that fired. It
+    finds the bounces of a ball, the spikes of a neuron, and the defaults of a bank.
+
+    Read more in the user guide, under Solvers.
 
     Args:
         problem:
             The compiled problem.
+
+    See Also:
+        Solver: Runs the events of its problems with it.
+
+    Examples:
+        >>> from skcomplex.core.engine.solvers._event_locator import EventLocator
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+        >>> problem = LogisticGrowthSystem().prepare().simulate(until=0).problem
+        >>> EventLocator(problem).records
+        []
     """
 
     def __init__(self, problem: ProblemSpec) -> None:

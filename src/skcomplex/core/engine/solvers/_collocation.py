@@ -28,17 +28,15 @@ MIN_NODES = 2
 class CollocationSolver(OptimalControlSolver):
     """A solver of optimal control by direct collocation.
 
-    Collocation is a transcription of the problem solved by nonlinear programming. The states and the controls at the
-    points of a grid are the variables of a nonlinear programme. The trapezoidal scheme requires the states of
-    neighbouring nodes to differ by the trapezoidal integral of their rates, and the Hermite-Simpson scheme adds a
-    midpoint to every interval, with a cubic interpolation of the states and Simpson's integral. The cost is the
-    quadrature of the running cost over the points plus the terminal cost. The controls lie within their bounds and the
-    states of nonnegative domains stay nonnegative. SciPy's `minimize` solves the programme with the gradient of the
-    cost and the Jacobian of the constraints derived symbolically. An objective to maximise is minimised with its sign
-    changed.
+    The states and controls at the points of a time grid become the unknowns of one large optimisation. The trapezoidal
+    scheme asks the states of neighbouring points to differ by the trapezoidal integral of their rates, and the
+    Hermite-Simpson scheme adds a midpoint to every interval. The cost is the sum of the running cost over the points
+    plus the terminal cost, the controls stay within their bounds, and states that cannot be negative stay nonnegative.
+    SciPy's `minimize` solves it with the slope of the cost and of the constraints derived by Sage, such as the fishing
+    effort of 1 that a fishery keeps at the start. Choose it for controls that minimise a cost under constraints, in
+    vaccination, the harvest of a fishery, and the path of a rocket.
 
-    Choose it when the controls of a run must minimise a cost under constraints. It appears in many fields, such as the
-    timing of vaccination in an epidemic, the harvest of a fishery, and the trajectory of a rocket.
+    Read more in the user guide, under Solvers.
 
     Args:
         objective:
@@ -83,29 +81,15 @@ class CollocationSolver(OptimalControlSolver):
         SolverError:
             The solver has no objective, or the optimiser does not converge.
 
+    See Also:
+        PontryaginSolver: Solves smooth problems by the maximum principle.
+
     Examples:
-        >>> from typing import Annotated
-        >>> from sage.sets.real_set import RealSet
-        >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.interactions import Interaction
-        >>> from skcomplex.core.components.laws import ObjectiveLaw, RateLaw
-        >>> from skcomplex.core.systems import System
-        >>> class PlantElement(Element):
-        ...     def __init__(self, label, x=1.0, u: Annotated[float, RealSet.closed(-10, 10)] = 0.0):
-        ...         super().__init__(label)
-        ...         self.x = x
-        ...         self.u = u
-        >>> def regulate(s):
-        ...     plant = s.target
-        ...     cost = (plant.x**2 + plant.u**2) / 2
-        ...     return [RateLaw(plant.x.diff(s.t), plant.u), ObjectiveLaw(cost, controls=[plant.u])]
-        >>> regulator = Interaction('regulator', roles={'target': 'plant'}, laws=regulate)
-        >>> from skcomplex.core.engine.solvers import CollocationSolver
-        >>> solver = CollocationSolver(nodes=51, scheme='hermite-simpson')
-        >>> plant = System(elements=[PlantElement('plant')], interactions=[regulator], solver=solver)
-        >>> trajectory = plant.prepare().simulate(until=1.0)
-        >>> float(round(trajectory.get_values('plant.u')[0], 3))
-        -0.762
+        >>> from skcomplex.systems.economics.resources import OptimalHarvestingSystem
+        >>> system = OptimalHarvestingSystem().prepare()
+        >>> trajectory = system.simulate(until=5.0)
+        >>> type(system.system_.solver_).__name__, float(trajectory.get_values('resource.effort')[0].round(3))
+        ('CollocationSolver', 1.0)
     """
 
     @classmethod

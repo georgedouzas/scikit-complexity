@@ -23,11 +23,15 @@ from ._solver import Solver
 
 
 class IterationSolver(Solver):
-    """A solver that iterates a discrete map, one application per unit of time.
+    """A solver that applies a discrete map once per unit of time.
 
-    A stochastic map takes its random draws from the stepper's random number generator at every step, through the draw
-    recorder of a run that records or replays its draws. A step may run its update laws in named phases, each reading
-    the values the phases before it set, such as a count in the phase `count` and its copy in the phase `copy`.
+    Every step applies the update laws once, such as `x ← r x (1 - x)` of the logistic map, which takes 0.2 to 0.592 and
+    then 0.894 at `r = 3.7`. A map that draws random numbers takes them from the solver's generator at every step, and a
+    step may run its laws in named phases, each reading what the phases before it set, such as a count in the phase
+    `count` and its copy in the phase `copy`. It runs the logistic map of a population, the cobweb of a market, and the
+    layers of a neural network.
+
+    Read more in the user guide, under Solvers.
 
     Args:
         phases:
@@ -41,20 +45,16 @@ class IterationSolver(Solver):
         until:
             The end time of the run the solver prepares for, infinite for a run that goes on until it is stopped.
 
+    See Also:
+        LatticeSolver: Applies the laws of a lattice once per step.
+        MesaSolver: Runs agents one step per unit of time.
+
     Examples:
-        >>> import numpy as np
-        >>> from skcomplex.core.systems import System
-        >>> from skcomplex.systems.economics.markets import CobwebInteraction, MarketElement
         >>> from skcomplex.core.engine.solvers import IterationSolver
-        >>> from skcomplex.core.engine.solvers import StepSpec
-        >>> system = System(
-        ...     elements=[MarketElement('m', price=1)],
-        ...     interactions=[CobwebInteraction('c', target='m', a=10, b=2, c=1, d=1)],
-        ... )
-        >>> problem = system.prepare().simulate(until=0).problem
-        >>> stepper = IterationSolver(random_state=0).prepare(problem)
-        >>> stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_.tolist()
-        [4.0]
+        >>> from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
+        >>> system = LogisticMapSystem(solver=IterationSolver()).prepare()
+        >>> system.simulate(until=2).get_values('map.x').round(3).tolist()
+        [0.2, 0.592, 0.894]
     """
 
     def __init__(

@@ -17,6 +17,12 @@ from ._trajectories import Trajectory
 class RecorderObserver(BaseObserver):
     """An observer that keeps every frame it receives.
 
+    It stores each frame in `frames_`, such as the frames of times 0, 1, and 2 of a run until 2, and gathers them into
+    `trajectory_`. It keeps the course of an epidemic, the prices of a market, and the moves of a flock for later
+    reading.
+
+    Read more in the user guide, under Observe.
+
     Attributes:
         problem_:
             The compiled problem of the run.
@@ -24,16 +30,20 @@ class RecorderObserver(BaseObserver):
         frames_:
             The frames received so far.
 
+        trajectory_:
+            The trajectory of the frames received so far.
+
+    See Also:
+        BaseObserver: The base of every observer.
+        Trajectory: The record of a run that `simulate` returns.
+
     Examples:
-        >>> from skcomplex.core.systems import System
-        >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
-        >>> growth = ExponentialGrowthInteraction('growth', target='a')
         >>> from skcomplex.core.engine.runtime import RecorderObserver
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
         >>> recorder = RecorderObserver()
-        >>> system = System(elements=[PopulationElement('a')], interactions=[growth]).prepare()
-        >>> _ = system.simulate(until=2, dt=1, observers=[recorder])
-        >>> len(recorder.trajectory_.times)
-        3
+        >>> _ = LogisticGrowthSystem().prepare().simulate(until=2, dt=1, observers=[recorder])
+        >>> [frame.time for frame in recorder.frames_]
+        [0.0, 1.0, 2.0]
     """
 
     def _prepare(self, context: BaseProblemSpec | None) -> None:

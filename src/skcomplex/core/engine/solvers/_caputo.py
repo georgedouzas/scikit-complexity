@@ -24,12 +24,25 @@ CHANGE_TOLERANCE = 1e-12
 
 
 class CaputoSolver(Solver):
-    """An abstract solver of Caputo fractional differential equations.
+    """An abstract solver of Caputo fractional differential equations on a fixed grid.
 
-    They step on a fixed grid from the start of a run. A state of order `alpha` follows `D^alpha x = f(t, x)`, and a
-    state of order 1 follows `dx/dt = f(t, x)`. The stepper keeps the history of the run on the grid `t0 + k dt`. A
-    change of a fractional state between frames starts a new history from the changed state, and a change of a state of
-    order 1 carries on.
+    A state of order `alpha` follows `D^alpha x = f(t, x)`, whose rate remembers the whole past of the state, such as
+    the slow relaxation of a polymer, and a state of order 1 follows `dx/dt = f(t, x)`. The solver keeps the history of
+    the run on the grid `t0 + k dt` from the start of the run. A change of a fractional state between frames starts a
+    new history from the changed state, and a change of a state of order 1 goes on. It is the base of the solvers of
+    materials with memory, anomalous diffusion, and epidemics with memory.
+
+    Read more in the user guide, under Solvers.
+
+    See Also:
+        FractionalABMSolver: The default fractional solver.
+        L1Solver: Weighs the past steps by the L1 scheme.
+        GrunwaldLetnikovSolver: Weighs the past steps by Grünwald-Letnikov.
+
+    Examples:
+        >>> from skcomplex.core.engine.solvers import CaputoSolver, L1Solver
+        >>> isinstance(L1Solver(dt=0.01), CaputoSolver)
+        True
     """
 
     @classmethod

@@ -22,20 +22,26 @@ COMPANION = re.compile(r'_(?P<kind>d|lag)(?P<count>\d+)(?P<index>\[[\w, ]+\])?$'
 
 @dataclass(frozen=True)
 class LayoutSpec(BaseSpec):
-    """A spec of the named variables stored in one flat vector, in order.
+    """A spec of the named values stored in one flat vector, in order.
+
+    It names each slice of a flat vector, such as `'population.x'` at index 0, and reads a value by its name, so solvers
+    work on plain arrays while users read values by name. It lays out the states of a population, the spins of a magnet,
+    and the positions of a gas.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         entries:
             The entries, in vector order.
 
+    See Also:
+        ProblemSpec: Holds the layouts of its states and parameters.
+
     Examples:
-        >>> import numpy as np
-        >>> from skcomplex.core.components import EntrySpec
-        >>> from skcomplex.core.engine.problems import LayoutSpec
-        >>> from sage.all__sagemath_symbolics import CC, RR
-        >>> layout = LayoutSpec((EntrySpec('a.n', 0, (), RR), EntrySpec('b.x', 1, (2,), RR)))
-        >>> layout.read(np.array([1.0, 2.0, 3.0]), 'b.x')
-        array([2., 3.])
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+        >>> problem = LogisticGrowthSystem().prepare().simulate(until=0).problem
+        >>> problem.states.names, problem.states.read(problem.initial_state, 'population.x')
+        (['population.x'], 10.0)
     """
 
     entries: tuple[EntrySpec, ...]

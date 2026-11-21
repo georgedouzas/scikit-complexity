@@ -8,23 +8,30 @@ from ._split import SplitSolver
 
 
 class IMEX2Solver(SplitSolver):
-    """A solver of second order that steps stiff parts implicitly, the rest explicitly.
+    """A solver of order 2 that steps stiff parts implicitly and the rest explicitly.
 
-    It has a trapezoidal linear part and an extrapolated remainder. Every step solves `(I - h L / 2) x_{n+1} = (I + h L
-    / 2) x_n + h (3 N_n - N_{n-1}) / 2`, starting with one Crank-Nicolson step with an Euler remainder. A call that does
-    not continue the time, state, and step of the previous call starts the scheme again.
+    Every step solves `(I - h L / 2) x_{n+1} = (I + h L / 2) x_n + h (3 N_n - N_{n-1}) / 2`, the trapezoidal rule for
+    the linear part `L` and a guess of the rest `N` from the last two steps. It starts with one Crank-Nicolson step, and
+    a call that does not go on from the time and state of the last call starts again. Choose it for fields with stiff
+    diffusion and reactions, such as the Gray-Scott patterns of chemistry, the pulses of a nerve, and the heat of a
+    plate.
 
-    Choose it for fields with stiff diffusion and nonlinear reactions. It appears in reaction diffusion models, such as
-    the Gray-Scott and FitzHugh-Nagumo equations.
+    Read more in the user guide, under Solvers.
 
     Args:
         dt:
             The fixed internal step.
 
+    See Also:
+        IMEXEulerSolver: The same split with order 1.
+
     Examples:
         >>> from skcomplex.core.engine.solvers import IMEX2Solver
-        >>> IMEX2Solver(dt=0.1).dt
-        0.1
+        >>> from skcomplex.systems.physics.heat import HeatDiffusionSystem
+        >>> system = HeatDiffusionSystem((16, 16), solver=IMEX2Solver(dt=0.5)).prepare()
+        >>> u = system.simulate(until=2).get_values('plate.u')
+        >>> round(float(u[0].sum()), 6), round(float(u[-1].sum()), 6)
+        (16.0, 16.0)
     """
 
     def _forget(self) -> None:

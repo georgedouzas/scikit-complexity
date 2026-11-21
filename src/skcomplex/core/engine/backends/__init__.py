@@ -1,6 +1,7 @@
-"""Define the backends, which write the numeric functions solvers call.
+"""Define the backends, which write the numeric functions that solvers call.
 
-They are NumPy, the default, Numba, which compiles kernels, and JAX, which differentiates them.
+They are NumPy, the default, Numba, which compiles the functions to machine code for large groups, and JAX, which also
+gives their derivatives, such as `LogisticGrowthSystem(backend=NumbaBackend())`.
 """
 
 from ._base import BaseBackend

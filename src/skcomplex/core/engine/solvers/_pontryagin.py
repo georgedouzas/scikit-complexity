@@ -36,17 +36,15 @@ CONTROL_SUPPORT = SupportSpec(
 class PontryaginSolver(OptimalControlSolver):
     """A solver of optimal control by the maximum principle of Pontryagin.
 
-    Its costates and the stationarity condition are derived symbolically. The solver builds the Hamiltonian `H = L + λ ·
-    f` from the running cost `L` and the rates `f` of the states, and derives the costate equations `λ' = -∂H/∂x` with
-    `λ(T) = ∂φ/∂x` at the horizon `T` for the terminal cost `φ`. The controls solve `∂H/∂u = 0`, projected onto their
-    bounds, or take the bound that minimises `H` where `H` is linear in them. A forward-backward sweep integrates the
-    states forward and the costates backward with fourth-order Runge-Kutta steps on a grid, and relaxes the controls
-    towards their update until they converge. The weight of the update halves whenever the distance of the controls to
-    their update stops falling, which breaks the cycles of the sweep. An objective to maximise is minimised with its
-    sign changed. The solution holds the costates.
+    It builds the Hamiltonian `H = L + λ · f` from the running cost `L` and the rates `f` of the states, and derives by
+    Sage the costate equations `λ' = -∂H/∂x` with `λ(T) = ∂φ/∂x` at the end time for the terminal cost `φ`. The controls
+    solve `∂H/∂u = 0` within their bounds, or take the bound that minimises `H` where `H` is linear in them. A forward
+    and backward sweep steps the states forward and the costates backward with Runge-Kutta steps, and moves the controls
+    towards their update until they settle, such as a vaccination rate of 0.153 at the start of an epidemic. Choose it
+    for smooth control problems with few states, such as the treatment of a tumour, the harvest of a fishery, and the
+    growth of an economy.
 
-    Choose it for smooth control problems with few states. It appears in many fields, such as optimal treatment in
-    medicine, optimal harvest in ecology, and optimal growth in economics.
+    Read more in the user guide, under Solvers.
 
     Args:
         objective:
@@ -89,28 +87,15 @@ class PontryaginSolver(OptimalControlSolver):
         ValidationError:
             The sense is unknown, the grid has fewer than 2 nodes, or the relaxation is not in `(0, 1]`.
 
+    See Also:
+        CollocationSolver: Solves the problem as one large optimisation.
+
     Examples:
-        >>> from typing import Annotated
-        >>> from sage.sets.real_set import RealSet
-        >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.interactions import Interaction
-        >>> from skcomplex.core.components.laws import ObjectiveLaw, RateLaw
-        >>> from skcomplex.core.systems import System
-        >>> class PlantElement(Element):
-        ...     def __init__(self, label, x=1.0, u: Annotated[float, RealSet.closed(-10, 10)] = 0.0):
-        ...         super().__init__(label)
-        ...         self.x = x
-        ...         self.u = u
-        >>> def regulate(s):
-        ...     plant = s.target
-        ...     cost = (plant.x**2 + plant.u**2) / 2
-        ...     return [RateLaw(plant.x.diff(s.t), plant.u), ObjectiveLaw(cost, controls=[plant.u])]
-        >>> regulator = Interaction('regulator', roles={'target': 'plant'}, laws=regulate)
-        >>> from skcomplex.core.engine.solvers import PontryaginSolver
-        >>> plant = System(elements=[PlantElement('plant')], interactions=[regulator], solver=PontryaginSolver())
-        >>> trajectory = plant.prepare().simulate(until=1.0)
-        >>> float(round(trajectory.get_values('plant.u')[0], 3))
-        -0.762
+        >>> from skcomplex.systems.biology.epidemiology import SIRVaccinationSystem
+        >>> system = SIRVaccinationSystem().prepare()
+        >>> trajectory = system.simulate(until=5.0)
+        >>> type(system.system_.solver_).__name__, float(trajectory.get_values('population.u')[0].round(3))
+        ('PontryaginSolver', 0.153)
     """
 
     @classmethod

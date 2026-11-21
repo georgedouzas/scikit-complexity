@@ -3,6 +3,8 @@
 import enum
 import inspect
 
+import numpy as np
+
 from skcomplex.core.base import BaseSpec
 from skcomplex.core.engine import problems as package
 from skcomplex.core.engine.problems import (
@@ -11,6 +13,7 @@ from skcomplex.core.engine.problems import (
     BaseProblemSpec,
     BaseRecordSpec,
     BaseSearch,
+    RunStateSpec,
 )
 from skcomplex.core.engine.problems._source_loader import SourceLoader
 
@@ -55,3 +58,19 @@ def test_public_problems_are_the_bases_frames_and_two_forms():
     }
     assert expected <= set(package.__all__)
     assert all(name.endswith('Spec') for name in set(package.__all__) - expected)
+
+
+class DecayKernel(BaseKernel):
+    """A kernel of the decay rate `-r x`."""
+
+    def __init__(self, rate=1.0):
+        self.rate = rate
+
+    def _run(self, inputs):
+        self.values_ = -self.rate * inputs.x
+
+
+def test_a_kernel_keeps_what_it_computes_at_a_run_state():
+    """A kernel keeps the values it computes at a run state in `values_`."""
+    state = RunStateSpec(0.0, np.array([2.0]), np.zeros(0))
+    assert DecayKernel(0.5).prepare().run(state).values_.tolist() == [-1.0]

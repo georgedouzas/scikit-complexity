@@ -11,9 +11,13 @@ from ...types import Array
 
 @dataclass(frozen=True)
 class StepSpec(BaseSpec):
-    """A spec of one step of a run.
+    """A spec of one step of a run, a state at a time and the time to move it to.
 
-    It holds the state at one time and the time a solver advances it to.
+    It holds the time `t`, the state `x`, and the parameters `p` at the start of a step, and the time `until` a solver
+    moves the state to, such as from 0 to 1. A solver reads it in `run`. It carries a step of a population, a magnet,
+    and a market alike.
+
+    Read more in the user guide, under Solvers.
 
     Args:
         t:
@@ -27,6 +31,9 @@ class StepSpec(BaseSpec):
 
         until:
             The time to advance to.
+
+    See Also:
+        BaseSolver: Moves the state of a step.
 
     Examples:
         >>> import numpy as np

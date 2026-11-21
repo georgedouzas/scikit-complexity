@@ -1,6 +1,7 @@
-"""Analyse systems, trajectories, and measured data by kind of data.
+"""Analyse systems, trajectories, and measured data by the kind of data.
 
-The kinds of data are series, paths, fields, agents, and networks.
+The kinds of data are series, paths, fields, agents, and networks, such as the price of a stock over time, the grid of a
+forest fire, or the friendships of a school, and each analysis takes a system, a trajectory, or plain arrays.
 """
 
 from ._alignment import AlignmentResult, alignment

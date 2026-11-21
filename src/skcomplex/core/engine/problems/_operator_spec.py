@@ -23,24 +23,27 @@ type Product = tuple[Factor, ...]
 class OperatorSpec(BaseSpec):
     """A spec of a sum of products of local operators of subsystems.
 
-    Each product has a symbolic coefficient. The compiler lowers the Sage operator expressions of laws and observables
-    to operators. Operators combine with `add`, `subtract`, `multiply`, `divide`, `negate`, and `adjoint`. A coefficient
-    is a number or a Sage expression of parameters and time. A scalar operand stands for that multiple of the identity,
-    and a product keeps its order.
+    Each product of local operators has a coefficient, a number or a Sage expression of parameters and time, such as
+    `J*a.x*b.x` for the coupling of two spins. Operators combine with `add`, `subtract`, `multiply`, `divide`, `negate`,
+    and `adjoint`, a number stands for that multiple of the identity, and a product keeps its order. The compiler turns
+    the operator expressions of laws and observables into it, for qubits, spin chains, and quantum optics.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         terms:
             A mapping from a tuple of factors, each the key of a subsystem and a local operator, in product order, to
             the coefficient of the product. The empty tuple is the identity.
 
+    See Also:
+        LocalOperatorSpec: An operator of one subsystem.
+
     Examples:
         >>> import qutip
-        >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.engine.problems import LocalOperatorSpec, OperatorSpec
         >>> x = LocalOperatorSpec('x', qutip.sigmax(), hermitian=True)
-        >>> a, b = OperatorSpec({(('a', x),): 1}), OperatorSpec({(('b', x),): 1})
-        >>> a.multiply(b).multiply(var('J')).text
-        'J*a.x*b.x'
+        >>> OperatorSpec({(('a', x),): 1}).multiply(OperatorSpec({(('b', x),): 1})).text
+        'a.x*b.x'
     """
 
     terms: Mapping[Product, object]

@@ -13,10 +13,14 @@ from ._base import BaseObserver
 
 
 class InvariantObserver(BaseObserver):
-    """An observer that checks that every named observable stays near its first value.
+    """An observer that checks that each named observable stays near its first value.
 
-    At every frame each observable must stay within its tolerance of its first value. A simulation attaches one when it
-    is given invariants.
+    At every frame each observable must stay within its tolerance of its value at the first frame, such as the energy of
+    a star within `1e-6` of its starting energy, and the observer raises an error that names the observable and the
+    frame otherwise. A run adds one when `simulate` is given `invariants`. It checks the energy of a pendulum, the total
+    of a closed population, and the probability of a quantum state.
+
+    Read more in the user guide, under Observe.
 
     Args:
         invariants:
@@ -26,20 +30,16 @@ class InvariantObserver(BaseObserver):
         initial_:
             The value of every invariant at the first frame.
 
+    See Also:
+        ConservationObserver: Checks that conserved quantities hold.
+
     Examples:
-        >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components import Observable
-        >>> from skcomplex.core.systems import System
         >>> from skcomplex.core.engine.runtime import InvariantObserver
-        >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction
-        >>> herd = Element('herd', values={'x': [2.0, 6.0]}, size=2)
-        >>> still = ExponentialGrowthInteraction('growth', target='herd', r=0.0)
-        >>> system = System(elements=[herd], interactions=[still])
-        >>> total = Observable('total', group='herd', reduce='sum', variable='x')
-        >>> monitor = InvariantObserver({'total': 1e-9})
-        >>> _ = system.prepare().simulate(until=3, dt=1, observables=[total], observers=[monitor])
-        >>> monitor.initial_
-        {'total': 8.0}
+        >>> from skcomplex.systems.physics.nonlinear_oscillators import HenonHeilesSystem
+        >>> observer = InvariantObserver({'star.energy': 1e-6})
+        >>> _ = HenonHeilesSystem().prepare().simulate(until=1, observers=[observer])
+        >>> round(observer.initial_['star.energy'], 4)
+        0.0659
     """
 
     def __init__(self, invariants: Mapping[str, float]) -> None:

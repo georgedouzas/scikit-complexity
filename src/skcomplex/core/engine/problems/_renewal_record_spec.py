@@ -16,7 +16,11 @@ from ._base_record_spec import BaseRecordSpec
 class RenewalRecordSpec(BaseRecordSpec):
     """A spec of the renewals of one renewal law that fired in one pass.
 
-    Each renewal is at the time of its member.
+    It holds the label of the law, the time and the member of each renewal, such as the walkers that jumped, and the
+    states before and after. It records the jumps of walkers in a glass, the spikes of neurons, and the repairs of
+    machines.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         label:
@@ -36,6 +40,15 @@ class RenewalRecordSpec(BaseRecordSpec):
 
         states:
             The dotted state name, with the component of a vector state, of every column.
+
+    See Also:
+        BaseRecordSpec: The base of every record.
+
+    Examples:
+        >>> from skcomplex.systems.physics.soft_matter import ContinuousTimeRandomWalkSystem
+        >>> trajectory = ContinuousTimeRandomWalkSystem(n_walkers=3).prepare().simulate(until=10, random_state=0)
+        >>> type(trajectory.events[0]).__name__, trajectory.events[0].label
+        ('RenewalRecordSpec', 'jumps')
     """
 
     label: str

@@ -17,9 +17,13 @@ RESTART = 1e-12
 
 
 class History:
-    """A record of the past states of a run, and the declared history before it.
+    """A record of the past states of a run, and the history given before its start.
 
-    Past states are interpolants over time segments.
+    It keeps the past states as smooth curves over the steps of a run, so a delayed law reads a state at any past time,
+    such as the population of a year ago, and a time before the start reads the history given, or the starting value. It
+    serves the delays of a population, of a market, and of blood cell production.
+
+    Read more in the user guide, under Solvers.
 
     Args:
         problem:
@@ -34,6 +38,16 @@ class History:
         extrapolate:
             Whether a time after the last recorded segment reads the extension of that segment, for adaptive solvers
             whose steps outgrow the shortest delay, instead of raising an error.
+
+    See Also:
+        Solver: Reads delays through it.
+
+    Examples:
+        >>> from skcomplex.core.engine.solvers._history import History
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+        >>> problem = LogisticGrowthSystem().prepare().simulate(until=0).problem
+        >>> History(problem, 0.0, problem.initial_state).get_value(-1.0, [0]).tolist()
+        [10.0]
     """
 
     def __init__(self, problem: ProblemSpec, start: float, state: Array, *, extrapolate: bool = False) -> None:

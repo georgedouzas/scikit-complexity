@@ -70,10 +70,14 @@ class _AgentSystem(mesa.Model):
 
 
 class SystemView:
-    """A view of the system as agent rules see it: parameters, time, agents, and space.
+    """A view of the system as agent rules see it: its values, time, agents, and space.
 
-    Every rule receives the view scoped to the interaction or agent group that owns it, so the rule reads the owner's
-    parameters by name and the groups bound to the owner's roles by role, also when its system is nested in another.
+    Every rule receives the view of the interaction or group that owns it, so it reads the owner's parameters by name
+    and the groups of the owner's roles, such as `system.get_agents('traders')` for the traders of a market, also when
+    the system is nested in another. It shows the traders of a market, the birds of a flock, and the residents of a city
+    to their rules.
+
+    Read more in the user guide, under Agents.
 
     Args:
         stepper:
@@ -84,6 +88,17 @@ class SystemView:
 
         roles:
             The paths of the elements and groups the owner's roles bind to, by role.
+
+    See Also:
+        AgentView: The view of one agent.
+        MesaSolver: Runs the rules that read it.
+
+    Examples:
+        >>> from skcomplex.core.engine.solvers import MesaSolver, SystemView
+        >>> from skcomplex.systems.economics.econophysics import BoltzmannWealthSystem
+        >>> problem = BoltzmannWealthSystem(n_agents=5).prepare().simulate(until=0).problem
+        >>> len(SystemView(MesaSolver().prepare(problem), 'traders').get_agents('traders'))
+        5
     """
 
     def __init__(
@@ -651,13 +666,15 @@ class SystemView:
 
 
 class AgentView:
-    """A view of an agent as agent rules see it.
+    """A view of one agent as agent rules see it.
 
-    It shows its states as attributes, its group's parameters, its neighbours, and its location. The stepper gives every
-    agent one view of the class of its group, whose states and parameters are properties, so two views of an agent are
-    the same object. Reading a state reads the agent, and setting it sets the agent, at the end of the phase in a
-    simultaneous phase. Parameters are read only, and an unknown name raises Python's own `AttributeError`. A primed
-    value, such as the velocity `x'` of a bird, is no attribute, and `get_value` and `set_value` read and set it.
+    It shows the values of the agent as attributes, such as `agent.wealth` of a trader, and its group's parameters, its
+    neighbours, and its place. Reading a value reads the agent, and setting it sets the agent, at the end of the phase
+    when all agents move at once. Parameters can only be read, and an unknown name raises `AttributeError`. A primed
+    value, such as the velocity `x'` of a bird, is no attribute, so `get_value` and `set_value` read and set it. It
+    shows a trader its money, a bird its heading, and a resident its neighbours.
+
+    Read more in the user guide, under Agents.
 
     Args:
         agent:
@@ -665,6 +682,17 @@ class AgentView:
 
         stepper:
             The stepper that runs the system.
+
+    See Also:
+        SystemView: The view of the whole system.
+
+    Examples:
+        >>> from skcomplex.core.engine.solvers import AgentView, MesaSolver, SystemView
+        >>> from skcomplex.systems.economics.econophysics import BoltzmannWealthSystem
+        >>> problem = BoltzmannWealthSystem(n_agents=5).prepare().simulate(until=0).problem
+        >>> agent = SystemView(MesaSolver().prepare(problem), 'traders').get_agents('traders')[0]
+        >>> isinstance(agent, AgentView), agent.wealth
+        (True, 1.0)
     """
 
     __slots__ = ('_agent', '_stepper')
@@ -1086,15 +1114,14 @@ class AgentView:
 
 
 class MesaSolver(ExternalSolver):
-    """A solver that runs agent-based problems in Mesa, one step per unit of time.
+    """A solver that runs agents in Mesa, one step per unit of time.
 
     An agent is a member of a group whose interactions give it rules, such as `UpdateLaw(s.target, move)` with
-    `def move(agent, system): agent.x += system.rng.normal()`. Every step advances Mesa's clock by one and activates
-    the agents by `activation`, and each agent runs its rules in the order the interactions give them. A rule may add
-    members with `agent.create()` and remove them with `agent.remove()`. A step may also run in named phases, such as
-    traders that quote in the phase `'quote'` before a clerk settles in the phase `'settle'`, each phase with an
-    activation of its own. It runs walkers, flocks, traders, and branching populations, with no space or on a lattice,
-    a network, or a continuous box of two or three sides.
+    `def move(agent, system): agent.x += system.rng.normal()`. Every step moves Mesa's clock by one and activates the
+    agents by `activation`, and each agent runs its rules in the order the interactions give them. A rule may add
+    members with `agent.create()` and remove them with `agent.remove()`, and a step may run in named phases, such as
+    traders that quote before a clerk settles. It runs walkers, flocks, traders, and growing populations, with no space
+    or on a lattice, a network, or a box.
 
     Read more in the user guide, under Agents.
 
@@ -1125,28 +1152,11 @@ class MesaSolver(ExternalSolver):
         GillespieSolver: The solver of jump processes, for populations counted rather than followed one by one.
 
     Examples:
-        >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.interactions import Interaction
-        >>> from skcomplex.core.components.laws import UpdateLaw
         >>> from skcomplex.core.engine.solvers import MesaSolver
-        >>> from skcomplex.core.types import Role
-        >>> from skcomplex.core.systems import System
-        >>> class Tick(Interaction):
-        ...     def __init__(self, label, *, target: Role):
-        ...         super().__init__(label)
-        ...         self.target = target
-        ...
-        ...     def _prepare(self, context):
-        ...         super()._prepare(context)
-        ...         self.laws_ = [UpdateLaw(context.target, self.tick)]
-        ...
-        ...     def tick(self, agent, system):
-        ...         agent.count += 1
-        >>> counters = Element('counters', values={'count': 0}, size=3)
-        >>> tick = Tick('tick', target='counters')
-        >>> system = System(elements=[counters], interactions=[tick], solver=MesaSolver(activation='sequential'))
-        >>> system.prepare().simulate(until=4).get_agents('counters', 4).values['count'].tolist()
-        [4, 4, 4]
+        >>> from skcomplex.systems.economics.econophysics import BoltzmannWealthSystem
+        >>> system = BoltzmannWealthSystem(n_agents=10, solver=MesaSolver(activation='random')).prepare()
+        >>> int(system.simulate(until=5, random_state=0).get_agents('traders', 5).values['wealth'].sum())
+        10
     """
 
     def __init__(

@@ -166,9 +166,12 @@ def compile_problem(
 ) -> tuple[BaseProblemSpec, BaseSolver]:
     """Return the problem compiled from a system, and the solver of its runs.
 
-    They serve runs that change only values. Runs of the problem through `run_problem` set their own initial states,
-    parameter schedules, and seeds without compiling again, so an experiment compiles a system once per structure and
-    keeps the problem for that call.
+    It turns the laws of a system into a problem once, such as the problem of one state `'population.x'` of a logistic
+    growth, so many runs through `run_problem` that change only starting values, schedules, or seeds skip compiling. An
+    experiment compiles a system once per structure this way, as for an ensemble of epidemics, a sweep of the rates of
+    a reaction, or a fit of a market model.
+
+    Read more in the user guide, under Run experiments.
 
     Args:
         system:
@@ -190,6 +193,17 @@ def compile_problem(
 
         solver:
             The solver of the runs, which every run copies.
+
+    See Also:
+        run_problem: Runs a system from the problem it returns.
+
+    Examples:
+        `System.prepare` compiles its components with it and keeps the solver of the runs.
+
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+        >>> system = LogisticGrowthSystem().prepare().system_
+        >>> system.states_, type(system.solver_).__name__
+        (('population.x',), 'ScipyODESolver')
     """
     composite, stepper, runner, form, observed = _prepare_runners(system, solver, backend, observables)
     simulation = Simulation(composite, compiler=form, solver=stepper, backend=runner, observables=observed).prepare()
@@ -215,9 +229,13 @@ def run_problem(
     record_draws: bool = False,
     replay: Trajectory | None = None,
 ) -> Trajectory:
-    """Simulate a system as `simulate` does.
+    """Return the trajectory of a run of a system, as `simulate` does.
 
-    It starts from a problem compiled from the system by `compile_problem` when one is given.
+    It runs a system from time 0 until `until` and starts from a problem that `compile_problem` built when one is given,
+    so runs that change only starting values, such as `{'population.x': 2.0}`, skip compiling. `System.simulate` and the
+    experiments call it, for the runs of an epidemic, a reaction, or a market alike.
+
+    Read more in the user guide, under Run experiments.
 
     Args:
         system:
@@ -276,6 +294,17 @@ def run_problem(
     Raises:
         ValidationError:
             The system is not a system, or no end time is given or tuned.
+
+    See Also:
+        compile_problem: Compiles the problem it starts from.
+
+    Examples:
+        `System.simulate` runs the problem it prepared with it.
+
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+        >>> system = LogisticGrowthSystem().prepare()
+        >>> system.simulate(until=2, dt=1, initial_state={'population.x': 2.0}).times.tolist()
+        [0.0, 1.0, 2.0]
     """
     if not isinstance(system, _CompositeSystem):
         error_msg = f'simulate takes a system, not {system!r}.'

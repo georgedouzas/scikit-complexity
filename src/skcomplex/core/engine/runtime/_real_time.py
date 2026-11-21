@@ -10,13 +10,27 @@ from ._base import BaseClock
 
 
 class RealTimeClock(BaseClock):
-    """A clock that advances simulated time at a fixed speed relative to wall time.
+    """A clock that runs simulated time at a fixed speed against wall time.
 
-    The largest delay of a frame behind its due time is recorded in `max_lag_`.
+    It waits before each frame until its time is due, so `RealTimeClock(speed=100.0)` shows 100 time units per second of
+    wall time, and it records in `max_lag_` how far a frame fell behind when the solver was slower. It paces a live view
+    of a pendulum, a demo of a traffic jam, and a game against a model of a market.
+
+    Read more in the user guide, under Observe.
 
     Args:
         speed:
             The number of simulated time units per second of wall time.
+
+    Attributes:
+        started_:
+            The wall time at which the run started, in seconds of `time.perf_counter`.
+
+        max_lag_:
+            The largest delay of a frame behind its due time, in seconds.
+
+    See Also:
+        AsFastAsPossibleClock: Never waits.
 
     Examples:
         >>> from skcomplex.core.engine.runtime import RealTimeClock

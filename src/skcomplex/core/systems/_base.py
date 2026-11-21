@@ -34,44 +34,37 @@ LEARNED = ('states_', 'parameters_', 'equations_', 'form_', 'solver_', 'backend_
 class BaseSystem(BaseComponent[Sequence[Observable]]):
     """An abstract system, which is prepared once and simulated many times.
 
-    `prepare` checks the components of the system and compiles them into a problem once, as `fit` does for a
-    scikit-learn estimator. `simulate` then solves that problem from a starting point and returns its trajectory, as
-    `predict` does, so one prepared system runs many times. A subclass takes the parameters of its model as arguments
-    of its `__init__`, and its `_prepare` sets `system_`, the `System` of its components, as `fit` calls `_fit`. Class
-    attributes may tune the end time, the time between frames, the observables, the initial state, the invariants,
-    and the schedule that `simulate` uses for the arguments a call leaves out.
-
-    A subclass also takes the settings `solver` and `backend`, as `System` does, and passes them on with the label,
-    as in `super().__init__(label, solver=solver, backend=backend)`. `prepare` gives them to `system_`, so
-    `RosslerSystem(backend=NumbaBackend())` runs on Numba, and `'auto'` keeps the ones `system_` chooses.
+    `prepare` checks the components of the system and turns them into a problem once, as `fit` does for a scikit-learn
+    estimator. `simulate` then solves that problem from a starting point and returns its trajectory, as `predict` does,
+    so one prepared system runs many times, such as `LotkaVolterraSystem().prepare().simulate(until=5.0)`. A ready-made
+    system takes the parameters of its model as arguments of `__init__`, with `solver` and `backend`, and its `_prepare`
+    builds `system_`, the `System` of its components. Class attributes may set the end time, the time between frames,
+    the observables, and the starting values that `simulate` uses when a call leaves them out. It is the base of the
+    ready-made systems of predators and prey, of reactions in a cell, and of prices in a market.
 
     Read more in the user guide, under Systems.
 
     Attributes:
         system_:
-            The prepared `System` of the components built from the model parameters.
+            The prepared `System` of the components built from the parameters of the model.
 
         observables_:
-            The observables compiled with the problem, the tuned `observables` unless `_prepare` sets them from the
-            model parameters, such as the lowest energy of the candidates of an annealing that a tracker reads.
+            The observables compiled with the problem, the class attribute `observables` unless `_prepare` sets them
+            from the parameters of the model, such as the lowest energy found by an annealing.
 
         initial_state_:
-            The starting values `simulate` uses when a call gives none, the tuned `initial_state` unless `_prepare` sets
-            them from the model parameters, such as the ground state of a spin chain.
+            The starting values `simulate` uses when a call gives none, the class attribute `initial_state` unless
+            `_prepare` sets them from the parameters of the model, such as the ground state of a chain of spins.
 
     See Also:
         System: The system of components that every ready-made system builds.
 
     Examples:
-        >>> from skcomplex.core.systems import BaseSystem, System
+        >>> from skcomplex.core.systems import BaseSystem
         >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
-        >>> class EcologySystem(BaseSystem):
-        ...     def _prepare(self, context=None):
-        ...         super()._prepare(context)
-        ...         self.system_ = System(self.label, systems=[LotkaVolterraSystem(label='meadow')])
-        >>> trajectory = EcologySystem().prepare().simulate(until=5.0)
-        >>> float(trajectory.times[-1])
-        5.0
+        >>> system = LotkaVolterraSystem().prepare()
+        >>> isinstance(system, BaseSystem), float(system.simulate(until=5.0).times[-1])
+        (True, 5.0)
     """
 
     until: ClassVar[float | None] = None

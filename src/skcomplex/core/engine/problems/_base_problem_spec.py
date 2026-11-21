@@ -31,9 +31,12 @@ from ._variable_spec import _VariableSpec
 class BaseProblemSpec(BaseSpec):
     """An abstract spec of a problem that a system compiles to.
 
-    It holds what every solver, observer, and visual reads of a problem. A problem is a value. Its fields hold what the
-    runtime reads, with trivial defaults for what a form does not have, and its readers answer the runtime's questions,
-    trivially by default. A formalism's problem adds the fields its own solver reads.
+    It holds what every solver, observer, and visual reads of a problem, such as the names of the states and their
+    starting values, with empty defaults for what a form does not have, and its readers answer the questions of the run.
+    A form that brings its own solver adds the fields that solver reads. It is the base of the problems of a growing
+    population, a quantum circuit, and a market of agents.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         form:
@@ -91,16 +94,16 @@ class BaseProblemSpec(BaseSpec):
             The observables of the system tree, each with the path of the system that declares it, empty for the
             root, which the compiler collects.
 
+    See Also:
+        ProblemSpec: The problem of the general compiler.
+        OperatorProblemSpec: The problem of operator systems.
+
     Examples:
-        >>> import numpy as np
-        >>> from skcomplex.core.enums import FormKind
-        >>> from skcomplex.core.engine._utils import symbol
-        >>> from skcomplex.core.engine.problems import LayoutSpec
         >>> from skcomplex.core.engine.problems import BaseProblemSpec
-        >>> layout = LayoutSpec(())
-        >>> problem = BaseProblemSpec(FormKind.ODE, layout, layout, np.zeros(0), np.zeros(0), symbol('t'))
-        >>> problem.stochastic, problem.adaptive_parameters, problem.get_lattice_shape('a.n')
-        (False, {}, None)
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+        >>> problem = LogisticGrowthSystem().prepare().simulate(until=0).problem
+        >>> isinstance(problem, BaseProblemSpec), problem.states.names
+        (True, ['population.x'])
     """
 
     form: FormKind | str

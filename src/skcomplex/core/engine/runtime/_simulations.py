@@ -72,14 +72,13 @@ STEPWISE_FORMS = frozenset(
 class Simulation(BaseConfig[None, float]):
     """A simulation of a system with the solver of its form, run frame by frame.
 
-    Each frame advances simulated time by `dt` and is handed to every observer. Parameters change between frames
-    only through the schedule, whose values are checked against the domains of their parameters, and `extend`
-    continues a run from its last frame.
+    `prepare()` checks the system, compiles it, and chooses the solver, and `run(until)` runs from time 0 until a time,
+    such as the frames of times 0, 1, and 2 of a run until 2 with `dt=1.0`. Each frame moves time on by `dt` and is
+    handed to every observer, and parameters change between frames only through the schedule. `extend` goes on from the
+    last frame. `System.simulate` builds one for every run, so it runs the growth of a population, the spread of a fire,
+    and the trades of a market alike.
 
-    A simulation composes the pipeline of the engine and follows its common API: `prepare()` validates the system,
-    compiles it and chooses the solver, and `run(until)` prepares and runs from time 0 until a time. A run
-    prepares the solver for its end time and every observer on the problem before the first frame, runs every observer
-    at every frame, and runs it with `final=True` at the end.
+    Read more in the user guide, under Simulate.
 
     Args:
         system:
@@ -174,6 +173,18 @@ class Simulation(BaseConfig[None, float]):
 
         draw_recorder_:
             The recorder of the draws of a run that records or replays them, or `None`.
+
+    See Also:
+        System: Builds a simulation for every call of `simulate`.
+        run_problem: Runs a system from a problem compiled once.
+
+    Examples:
+        >>> from skcomplex.core.engine.runtime._simulations import Simulation
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+        >>> problem = LogisticGrowthSystem().prepare().simulate(until=0).problem
+        >>> simulation = Simulation(problem, dt=1.0).prepare().run(2.0)
+        >>> simulation.trajectory_.times.tolist()
+        [0.0, 1.0, 2.0]
     """
 
     def __init__(

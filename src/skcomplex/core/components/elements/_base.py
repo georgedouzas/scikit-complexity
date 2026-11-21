@@ -15,20 +15,15 @@ from ._visual_spec import VisualSpec
 
 
 class BaseElement(BaseComponent[BaseSpace]):
-    """An abstract element, the component of a system that holds its states.
+    """An abstract element, the component of a system that holds its values.
 
-    A state is a value that changes as the system runs, such as the size of a population or the position of a particle.
-    An element names its states and parameters and is drawn as its class attribute `visual` says, such as
-    `VisualSpec('line')`, unless a visualisation observer draws it otherwise. A subclass takes each value as a plain
-    argument of its `__init__` and stores it under the same name, as a scikit-learn estimator does. It holds no laws,
-    which interactions state, and a value that a law changes is a state.
+    An element holds the values of one thing or of a group of members, such as the height and mass of a ball in
+    `Element('ball', values={'x': 10.0, 'm': 1.0})`. A value that a law changes is a state, and every other value is a
+    parameter. A subclass takes each value as a plain argument of its `__init__` and stores it under the same name, as a
+    scikit-learn estimator does. It holds no laws, which interactions state, and it is drawn as its class attribute
+    `visual` says. Its subclasses hold a population in ecology, a chemical in a reactor, and an account in a bank.
 
-    Unlike `BaseComponent`, it holds states, and the interactions and laws of a system read and change them through it.
-    Choose it when a new kind of element stores its values in a way of its own. Choose `Element` for one entity or a
-    group of members with named values.
-
-    It appears in every field through its subclasses, such as a population in ecology, a chemical species in a reactor,
-    a bank account in economics, and a pendulum in mechanics.
+    Read more in the user guide, under Elements.
 
     Args:
         label:
@@ -38,20 +33,15 @@ class BaseElement(BaseComponent[BaseSpace]):
         default_visual_:
             How the element is drawn by default, the `visual` of its class.
 
-    Examples:
-        A population with one state and one parameter. The constructor stores its arguments as given.
+    See Also:
+        Element: Holds named values of one thing or of many members.
+        VisualSpec: Says how an element is drawn.
 
-        >>> from skcomplex.core.components.elements import BaseElement
-        >>> from skcomplex.core.components.elements import VisualSpec
-        >>> class PopulationElement(BaseElement):
-        ...     visual = VisualSpec('line')
-        ...
-        ...     def __init__(self, label, n=1.0, r=0.5):
-        ...         super().__init__(label)
-        ...         self.n = n
-        ...         self.r = r
-        >>> PopulationElement('rabbits', n=40).get_params(deep=False)
-        {'label': 'rabbits', 'n': 40, 'r': 0.5}
+    Examples:
+        >>> from skcomplex.core.components.elements import BaseElement, Element
+        >>> ball = Element('ball', values={'x': 10.0, 'm': 1.0})
+        >>> isinstance(ball, BaseElement), ball.label
+        (True, 'ball')
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec()

@@ -11,30 +11,25 @@ from ...errors import ValidationError
 
 @dataclass(frozen=True)
 class Quantity(BaseSpec):
-    """A conserved quantity that a value of an element holds.
+    """A spec of a value that holds a conserved quantity, such as money.
 
     It is written in `Annotated` beside the allowed values, such as
-    `stock: Annotated[float, RealSet.closed_open(0, oo), Quantity('money')] = 100.0`. The total of a quantity changes
-    only by its flows with the environment, so the conservation monitor checks it at every frame, and a law other than a
-    flow cannot change a value that holds it.
+    `stock: Annotated[float, Quantity('money')] = 100.0`. The total of a quantity changes only by its flows to and from
+    the outside, so the conservation observer checks it at every frame, and a law other than a flow cannot change a
+    value that holds it. It holds the money of a bank, the people of an epidemic, and the energy of a reserve.
 
-    Unlike the allowed values in `Annotated`, which say what a value may be, it says what a value holds. Choose it when
-    a total must change only by flows, such as money that moves between accounts.
-
-    It appears in many fields. The money of a bank, the people of an epidemic, and the energy of a reserve are each a
-    quantity.
+    Read more in the user guide, under Elements.
 
     Args:
         name:
             The name of the quantity, such as `'money'`.
 
+    See Also:
+        Member: Marks a value that names a member of another group.
+        ConservationObserver: Checks that the totals of quantities hold.
+
     Examples:
-        >>> from typing import Annotated
-        >>> from skcomplex.core.components.elements import Element, Quantity
-        >>> class Account(Element):
-        ...     def __init__(self, label, stock: Annotated[float, Quantity('money')] = 100.0):
-        ...         super().__init__(label)
-        ...         self.stock = stock
+        >>> from skcomplex.core.components.elements import Quantity
         >>> Quantity('money').name
         'money'
     """

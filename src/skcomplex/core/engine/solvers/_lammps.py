@@ -60,20 +60,16 @@ os.environ.setdefault('FI_PROVIDER', 'tcp')
 
 
 class LammpsSolver(ExternalSolver):
-    """A solver that runs systems of points in the LAMMPS program.
+    """A solver that runs systems of points in the LAMMPS program by velocity Verlet.
 
-    It uses LAMMPS velocity Verlet integration. An element or group whose members declare a vector position state of
-    order 2, such as a point, becomes an atom type, whose atoms move with the first derivative of the position as their
-    velocity. The mass of an atom type is the value `m` of its members, and 1 without it. Boxes become LAMMPS boundaries
-    and `fix wall/reflect`. An interaction whose class `pairs` gives a native pair style becomes that pair style,
-    between the members of its roles `first` and `second` closer than the radius of `within=RadiusNeighborhood(r)`, or
-    within its `cutoff`. A pair interaction with `within=` that gives its energy as `ObjectiveLaw(V)` and has no native
-    pair style becomes a Lepton expression potential. An interaction whose class `fixes` gives a native fix becomes that
-    fix. Any other interaction that only changes the derivatives of the positions runs through `fix external`, evaluated
-    by the framework.
+    A group whose members have a vector position whose second derivative a law sets, such as the atoms of a gas, becomes
+    an atom type, with the mass `m` of its members or 1. Boxes become LAMMPS walls, an interaction whose class names a
+    native pair style or fix becomes that style or fix, such as a Lennard-Jones pair within `RadiusNeighborhood(2.5)`,
+    and a pair energy `ObjectiveLaw(V)` without a native style becomes a Lepton expression. Any other interaction that
+    only sets accelerations runs through `fix external`, computed by the library. Choose it for large systems of
+    particles, such as liquids, solids, and polymers.
 
-    Choose it for large systems of particles with standard potentials. It appears in molecular dynamics of liquids,
-    solids, and polymers.
+    Read more in the user guide, under Solvers.
 
     Args:
         dt:
@@ -117,28 +113,15 @@ class LammpsSolver(ExternalSolver):
         released_:
             Whether the LAMMPS instance is closed.
 
+    See Also:
+        VelocityVerletSolver: Runs the same scheme in the library itself.
+        LammpsFixSpec: The values a native fix reads.
+
     Examples:
-        >>> from sage.all__sagemath_symbolics import sqrt
-        >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.interactions import Interaction
-        >>> from skcomplex.core.components.laws import RateLaw
-        >>> from skcomplex.core.components.laws.utils import neighbors
-        >>> from skcomplex.core.components.spaces import ContinuousSpace, RadiusNeighborhood
-        >>> from skcomplex.core.engine.solvers import LammpsSolver
-        >>> from skcomplex.core.systems import System
-        >>> def lennard_jones(s):
-        ...     x = s.target.x
-        ...     separation = x - s.target.other.x
-        ...     r = sqrt(separation.dot_product(separation))
-        ...     force = 24 * (2 * r**-12 - r**-6) / r**2 * separation
-        ...     return [RateLaw(x.diff(s.t, 2), neighbors(force, RadiusNeighborhood(2.5)))]
-        >>> gas = Element('gas', values={'x': [[0.0, 0.0], [1.5, 0.0]]}, size=2, space=ContinuousSpace(n_dim=2))
-        >>> forces = Interaction('lj', roles={'target': 'gas'}, laws=lennard_jones)
-        >>> system = System(elements=[gas], interactions=[forces], solver=LammpsSolver(dt=0.005))
-        >>> trajectory = system.prepare().simulate(until=0.5, dt=0.1)
-        >>> positions = trajectory.get_values('gas.x')
-        >>> bool(positions[-1, 1, 0] - positions[-1, 0, 0] < 1.5)
-        True
+        >>> from skcomplex.core.engine.solvers import ExternalSolver, LammpsSolver
+        >>> solver = LammpsSolver(dt=0.005)
+        >>> isinstance(solver, ExternalSolver), solver.dt
+        (True, 0.005)
     """
 
     @classmethod

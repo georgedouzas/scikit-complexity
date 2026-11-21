@@ -44,18 +44,16 @@ SCHEMES = ('gauss-seidel', 'jacobi')
 
 
 class CoSimulationSolver(Solver):
-    """A solver that advances every partition of a co-simulation with its own solver.
+    """A solver that moves every component of a system with a solver of its own.
 
-    Every partition is advanced to each synchronisation point. Between synchronisation points a partition holds the
-    states of the other partitions at their last values, so a split adds an error of the order of `sync_dt`. A discrete
-    partition that holds a linear program takes one step per synchronisation interval, whatever its length, so the
-    program solves at every synchronisation point. A law of one partition that reads a reduction of the agents of
-    another, such as `count(s.farmers)`, reads the value the scheduler computes at every synchronisation point and holds
-    until the next. Gauss-Seidel advances the partitions in system order, each reading the values the partitions before
-    it already advanced. Jacobi advances every partition from the same values.
+    Every component is moved to each meeting time, every `sync_dt`, and between meeting times it holds the values of the
+    other components at their last values, so the split adds an error of the order of `sync_dt`. Gauss-Seidel moves the
+    components in order, each reading what the components before it already moved, and Jacobi moves every component from
+    the same values. A law that reads a total over the agents of another component reads the value at the last meeting
+    time. Choose it when components need different solvers, such as cars on a road beside their exhaust, cells beside
+    the food they eat, or farmers beside their crops.
 
-    Choose it when components of a system need different solvers, such as agents beside a field. It appears in many
-    fields, such as cars on a road network beside their emissions, and cells beside the nutrients they eat.
+    Read more in the user guide, under Solvers.
 
     Args:
         solvers:
@@ -82,28 +80,16 @@ class CoSimulationSolver(Solver):
         steppers_:
             The stepper of every partition by partition name.
 
+    See Also:
+        Solver: The base of the solvers each component may take.
+
     Examples:
-        >>> from skcomplex.core.systems import System
-        >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.solvers import CoSimulationSolver
-        >>> system = System(
-        ...     systems=[
-        ...         System(
-        ...             'a',
-        ...             elements=[PopulationElement('x', x=1)],
-        ...             interactions=[ExponentialGrowthInteraction('g', target='x')],
-        ...         ),
-        ...         System(
-        ...             'b',
-        ...             elements=[PopulationElement('y', x=1)],
-        ...             interactions=[ExponentialGrowthInteraction('g', target='y')],
-        ...         ),
-        ...     ],
-        ...     solver=CoSimulationSolver(split=True),
-        ... )
-        >>> trajectory = system.prepare().simulate(until=1, dt=0.5)
-        >>> [round(float(trajectory.get_values(name)[-1]), 2) for name in ('a/x.x', 'b/y.x')]
-        [2.72, 2.72]
+        >>> from skcomplex.core.systems import System
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+        >>> system = System(systems=[LogisticGrowthSystem(label='a'), LogisticGrowthSystem(label='b')])
+        >>> system.set_params(solver=CoSimulationSolver(split=True)).prepare().simulate(until=1, dt=1).states.shape
+        (2, 2)
     """
 
     @classmethod

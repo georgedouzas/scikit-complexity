@@ -11,22 +11,22 @@ from ...errors import ValidationError
 
 @dataclass(frozen=True)
 class Member(BaseSpec):
-    """A group whose members a value names, such as the parent of a child.
+    """A spec of a value that names a member of another group, such as a parent.
 
-    It is written in `Annotated` beside the allowed values, such as
-    `employer: Annotated[int, Member('firms')] = -1`. The value is the index of a member of that group, and -1 names
-    none. When a member of the group is removed, every value that names it becomes -1, so a worker whose firm closes has
-    no employer. A rule reads the member a value names with `agent.get_referenced('employer')`.
+    It is written in `Annotated` beside the allowed values, such as `employer: Annotated[int, Member('firms')] = -1`.
+    The value is the index of a member of that group, and -1 names none. When a member of the group is removed, every
+    value that names it becomes -1, so a worker whose firm closes has no employer. A rule reads the member a value names
+    with `agent.get_referenced('employer')`. It links a worker to a firm, a customer to a bank, and a child to a parent.
 
-    Unlike the allowed values in `Annotated`, which say what a value may be, it says what a value points to. Choose it
-    when a value links a member to a member of another group, such as a customer to its bank.
-
-    It appears in many fields. The employer of a worker, the bank of a customer, the owner of a cow, and the parent of a
-    child each name a member of another group.
+    Read more in the user guide, under Elements.
 
     Args:
         group:
             The label of the group whose members the value names, such as `'firms'`.
+
+    See Also:
+        Quantity: Marks a value whose total only flows change.
+        Period: Marks a value that wraps around, such as an angle.
 
     Examples:
         >>> from skcomplex.core.components.elements import Member

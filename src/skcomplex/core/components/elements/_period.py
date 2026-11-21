@@ -12,31 +12,26 @@ from ...errors import ValidationError
 
 @dataclass(frozen=True)
 class Period(BaseSpec):
-    """A period that a value of an element wraps around, such as `2 * pi` for an angle.
+    """A spec of a value that wraps around a period, such as `2 * pi` for an angle.
 
-    It is written in `Annotated` beside the allowed values, such as `theta: Annotated[float, Period(2 * pi)] = 0.0`.
-    The value is brought back within one period after every step, so the angle of a pendulum, the phase of a clock, or
-    the heading of a bird stays on its circle. The analyses read a periodic value as a phase, or as a heading when its
-    element moves in a space.
+    It is written in `Annotated` beside the allowed values, such as `theta: Annotated[float, Period(2 * pi)] = 0.0`. The
+    value is brought back within one period after every step, so `0` and `2 * pi` are the same angle. The analyses read
+    a periodic value as a phase, or as a heading when its element moves in a space. It holds the angle of a pendulum,
+    the phase of a firefly, and the heading of a bird.
 
-    Unlike the allowed values in `Annotated`, which reject a value outside them, it brings a value back onto its
-    circle. Choose it when a value is an angle, so `0` and `2 * pi` are the same value.
-
-    It appears in many fields. The angle of a pendulum, the phase of a firefly, and the heading of a bird each wrap
-    around.
+    Read more in the user guide, under Elements.
 
     Args:
         length:
             The length of the period, a positive number.
 
+    See Also:
+        Quantity: Marks a value whose total only flows change.
+        Tensor: Marks a value that holds a square matrix.
+
     Examples:
         >>> import math
-        >>> from typing import Annotated
-        >>> from skcomplex.core.components.elements import Element, Period
-        >>> class Clock(Element):
-        ...     def __init__(self, label, theta: Annotated[float, Period(2 * math.pi)] = 0.0):
-        ...         super().__init__(label)
-        ...         self.theta = theta
+        >>> from skcomplex.core.components.elements import Period
         >>> round(Period(2 * math.pi).length, 4)
         6.2832
     """

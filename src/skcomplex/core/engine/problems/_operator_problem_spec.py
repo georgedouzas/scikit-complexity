@@ -26,9 +26,13 @@ REAL_TOLERANCE = 1e-10
 
 @dataclass(frozen=True)
 class OperatorProblemSpec(BaseProblemSpec):
-    """A spec of a problem of the operator form.
+    """A spec of a problem of the operator form, a state vector and its operators.
 
-    Its state is a pure state or a density matrix stored as complex pairs.
+    Its state is a pure state or a density matrix, stored as pairs of real numbers, over the subsystems of the system,
+    such as two qubits of dimensions `(2, 2)`. Its operators hold the coefficients that move the state. It is the
+    problem of qubits, spin chains, and quantum optics.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         dimensions:
@@ -61,14 +65,15 @@ class OperatorProblemSpec(BaseProblemSpec):
         cache:
             The matrices of local operators computed so far.
 
+    See Also:
+        OperatorSpec: A sum of products of local operators.
+
     Examples:
         >>> from skcomplex.core.systems import System
-        >>> from skcomplex.core.engine.compile import OperatorCompiler
         >>> from skcomplex.systems.physics.common.quantum import QubitElement
-        >>> system = System(elements=[QubitElement('a'), QubitElement('b')])
-        >>> problem = OperatorCompiler().prepare(system).run().problem_
-        >>> problem.dimensions, problem.subsystems
-        ((2, 2), ('a', 'b'))
+        >>> problem = System(elements=[QubitElement('a'), QubitElement('b')]).prepare().simulate(until=0).problem
+        >>> type(problem).__name__, problem.dimensions, problem.subsystems
+        ('OperatorProblemSpec', (2, 2), ('a', 'b'))
     """
 
     dimensions: tuple[int, ...] = ()
