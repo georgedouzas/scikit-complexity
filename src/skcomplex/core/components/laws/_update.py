@@ -159,6 +159,10 @@ class UpdateLaw(BaseLaw):
 
         A stochastic law gives a function value a uniform number per cell as `random`.
 
+        Returns:
+            rule:
+                The local rule of the law.
+
         Raises:
             ValidationError:
                 The law has no neighbourhood.
@@ -260,6 +264,10 @@ class UpdateLaw(BaseLaw):
             inputs:
                 A mapping from the name of every symbol the law reads to its value, and for a local rule `space`, the
                 space of the cells.
+
+        Returns:
+            value:
+                The next value.
         """
         if self.neighborhood is not None:
             rule = self._get_local_rule()

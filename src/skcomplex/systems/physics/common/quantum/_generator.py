@@ -81,5 +81,9 @@ class GeneratorLaw(BaseLaw):
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
+
+        Returns:
+            operator:
+                The operator with its coefficients.
         """
         return self._evaluate(self.operator, inputs)

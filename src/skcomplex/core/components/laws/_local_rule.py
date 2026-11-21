@@ -246,6 +246,10 @@ class _LocalRuleLaw(BaseLaw):
             inputs:
                 A mapping with `space`, the values of every read state by the name of its symbol, and the keywords a
                 function rule receives.
+
+        Returns:
+            values:
+                The next values of the cells, a tuple of them for several targets.
         """
         keywords = dict(inputs) if isinstance(inputs, Mapping) else {}
         space = keywords.pop('space', None)

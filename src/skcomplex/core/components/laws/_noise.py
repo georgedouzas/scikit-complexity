@@ -163,5 +163,9 @@ class NoiseLaw(BaseLaw):
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
+
+        Returns:
+            amplitude:
+                The amplitude of the noise.
         """
         return self._evaluate(self.value, inputs)

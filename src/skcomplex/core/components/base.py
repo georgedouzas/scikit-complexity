@@ -44,10 +44,6 @@ class BaseComponent[ContextT](_BaseEstimator[ContextT]):
 
     Read more in the user guide, under Extend the library.
 
-    Args:
-        label:
-            The name of the component, unique among the components of its system, such as `'ball'`.
-
     See Also:
         BaseConfig: The base of the engine classes, which run.
         BaseElement: The base of the components that hold values.
@@ -71,7 +67,7 @@ class BaseComponent[ContextT](_BaseEstimator[ContextT]):
 
         Args:
             label:
-                The label of the component, unique among the components of its system.
+                The name of the component, unique among the components of its system, such as `'ball'`.
         """
         self.label = label
 

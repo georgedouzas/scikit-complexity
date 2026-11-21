@@ -443,6 +443,13 @@ class Simulation(BaseConfig[None, float]):
         The state and parameters of the current time move to the new layout, with the new rows free as unused rows
         are, and the stepper continues from the same random stream.
 
+        Args:
+            error:
+                The error of the full group, with its path and number of rows.
+
+            stream:
+                The state of the random stream the run continues from.
+
         Raises:
             CapacityError:
                 The group has a capacity of its own, so it does not grow.

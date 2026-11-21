@@ -93,6 +93,20 @@ class ConservationLawsPass(BasePass):
 
         Any other law, and a rate law that is no conservation law, stays as it is.
 
+        Args:
+            spec:
+                The kernel spec that holds the law.
+
+            law:
+                The law to split.
+
+            declarations:
+                The declarations of the values of the system.
+
+        Returns:
+            laws:
+                The flux law and the rate law of the sources, or a list of the law itself.
+
         Raises:
             ValidationError:
                 The rate applies `divergence` to a flux in a way other than a sum with constant factors.

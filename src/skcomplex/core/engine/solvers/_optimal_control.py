@@ -367,6 +367,17 @@ class OptimalControlSolver(Solver):
 
         A control without allowed values is unbounded.
 
+        Args:
+            problem:
+                The compiled problem.
+
+            symbols:
+                The symbols of the states.
+
+        Returns:
+            controls:
+                The controls, in the order of the states.
+
         Raises:
             SolverError:
                 A control is not a scalar.

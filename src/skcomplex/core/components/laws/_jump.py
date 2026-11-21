@@ -144,6 +144,10 @@ class JumpLaw(BaseLaw):
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
+
+        Returns:
+            changes:
+                The increment or the new value of every state the jump names.
         """
         changes = dict(self.changes or {}) if self.waiting is None else dict(self.reset or {})
         return self._evaluate(changes, inputs)

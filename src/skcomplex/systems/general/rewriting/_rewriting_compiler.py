@@ -127,6 +127,23 @@ class RewritingCompiler(BaseCompiler):
     def _get_bound(path: str, scope: str, interaction: BaseInteraction, rewritten: Collection[str]) -> dict[str, str]:
         """Return the path of the word or patch each role of an interaction binds.
 
+        Args:
+            path:
+                The path of the interaction, which errors name.
+
+            scope:
+                The path prefix of the system that holds the interaction.
+
+            interaction:
+                The interaction.
+
+            rewritten:
+                The paths of the words and patches of the system.
+
+        Returns:
+            bound:
+                The path of the word or patch every role binds, by the name of the role.
+
         Raises:
             IncompatibleLawsError:
                 A role binds no word or patch.

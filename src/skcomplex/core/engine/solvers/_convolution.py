@@ -28,6 +28,21 @@ class ConvolutionSolver(CaputoSolver):
 
     Read more in the user guide, under Solvers.
 
+    Args:
+        dt:
+            The fixed step. Frames must fall on multiples of it.
+
+        memory:
+            The length of time over which the history enters with its exact weights, or `None` for the whole run. The
+            history older than the window enters through exponential modes fitted to the weights, so a step costs
+            the same however long the run.
+
+        random_state:
+            The seed or generator of stochastic solvers.
+
+        until:
+            The end time of the run the solver prepares for, infinite for a run that goes on until it is stopped.
+
     See Also:
         L1Solver: Weighs the past steps by the L1 scheme.
         GrunwaldLetnikovSolver: Weighs the past steps by Grünwald-Letnikov.

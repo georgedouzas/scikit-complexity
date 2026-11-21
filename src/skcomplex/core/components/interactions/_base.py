@@ -458,6 +458,14 @@ class BaseInteraction(BaseComponent[SimpleNamespace]):
         of other classes, such as the terms of a flow, are kept as they are. A subclass of `RateLaw` or `NoiseLaw` is
         normalized as its base is.
 
+        Args:
+            law:
+                The law to normalize.
+
+        Returns:
+            normalized:
+                The law on the state of the order of its derivative, or the law itself.
+
         Raises:
             ValidationError:
                 A fractional derivative is the target of a law other than a rate law, or of no state.
@@ -587,6 +595,20 @@ class BaseInteraction(BaseComponent[SimpleNamespace]):
         minimise. Each member feels the force `-dV/dx` on its position `x`, divided by its mass `m` when it has one,
         as the second derivative of `x`, such as `RateLaw(s.first.x.diff(s.t, 2), -dV/dx_first / s.first.m)`.
 
+        Args:
+            law:
+                The law the interaction states for a pair.
+
+            namespace:
+                The namespace of the pair, with the members `first` and `second`.
+
+            time:
+                The symbol of the time.
+
+        Returns:
+            laws:
+                The forces on both members for a pair energy, or a list of the law itself.
+
         Raises:
             ValidationError:
                 The pair energy names targets or controls.
@@ -656,6 +678,20 @@ class BaseInteraction(BaseComponent[SimpleNamespace]):
         is a function `move(agent, system)` that reads and changes one member, and every member runs it at each step.
         An update law whose target is the namespace of the interaction itself, such as `UpdateLaw(s, brake)`, is a rule
         of the whole system: its value is a function `brake(system)` that runs once per step after the agents' rules.
+
+        Args:
+            law:
+                The law the interaction states.
+
+            roles:
+                The value every role binds, by the name of the role.
+
+            system:
+                The namespace of the interaction itself, or `None`.
+
+        Returns:
+            rule:
+                The rule of the agents or of the system, or `None` for a law that states none.
 
         Raises:
             ValidationError:

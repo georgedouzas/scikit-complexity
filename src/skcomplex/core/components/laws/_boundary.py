@@ -71,5 +71,9 @@ class _BoundaryLaw(BaseLaw):
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
+
+        Returns:
+            value:
+                The new value.
         """
         return self._evaluate(self.value, inputs)

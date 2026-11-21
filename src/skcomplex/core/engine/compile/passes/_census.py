@@ -1172,6 +1172,17 @@ class CensusPass(BasePass):
         while the next one is sought, as the smallest total flux at the greatest growth. An inequality of another
         component is a constraint of the program of the value its `target` names, such as the uptake a medium allows.
 
+        Args:
+            laws:
+                The laws of the component.
+
+            owner:
+                The path of the component, which errors name.
+
+        Returns:
+            laws:
+                The laws, with the linear objectives and their constraints as linear programs.
+
         Raises:
             ValidationError:
                 A sequence of values is not linear in the targets, or an inequality outside a program names no target.

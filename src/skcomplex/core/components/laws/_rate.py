@@ -93,5 +93,9 @@ class RateLaw(BaseLaw):
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
+
+        Returns:
+            rate:
+                The rate.
         """
         return self._evaluate(self.value, inputs)

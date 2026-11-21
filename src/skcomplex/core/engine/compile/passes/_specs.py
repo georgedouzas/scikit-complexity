@@ -616,6 +616,23 @@ class SpecsPass(BasePass):
         and layer of the interaction's nodes, and its member declares values, such as the sign of every link. Only an
         interaction that sets its laws in `_prepare` reads such a group without a role.
 
+        Args:
+            node:
+                The node of the interaction.
+
+            nodes:
+                The blocks of the nodes the interaction binds.
+
+            parts:
+                The kinds of links to look on in order, such as `('hyperedges', 'edges')`.
+
+            elements:
+                The block of every element, by its path.
+
+        Returns:
+            group:
+                The block of the group on the links, or `None`.
+
         Raises:
             RoleError:
                 Several groups with values sit on the same links.

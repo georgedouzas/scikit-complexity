@@ -279,6 +279,13 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         A stock is a real scalar state of one element or of every member of a group, and the amount of its flow is a
         number or an expression.
 
+        Args:
+            law:
+                The term of the flow.
+
+            spec:
+                The kernel spec that holds the term.
+
         Raises:
             ValidationError:
                 The stock is no state, a vector, or complex, or the amount is a function.
@@ -304,6 +311,16 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         enters. A flow from outside the system has only the term on the stock it enters, and a flow out of it only the
         term on the stock it leaves. The flow is reported under the element of its stocks, or under the component when
         its stocks belong to several elements, and a flow that draws reports its mean.
+
+        Args:
+            spec:
+                The kernel spec that holds the terms.
+
+            label:
+                The label the terms share.
+
+            terms:
+                The terms of the flow, one or two.
 
         Raises:
             ValidationError:

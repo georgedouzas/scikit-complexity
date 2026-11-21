@@ -568,6 +568,14 @@ def _get_declared(source: DataSource) -> DataSource:
 def _get_second(source: DataSource) -> _CompositeSystem:
     """Return the declared composite of the second automaton of a composition.
 
+    Args:
+        source:
+            The second automaton of the composition.
+
+    Returns:
+        composite:
+            The declared composite of the automaton.
+
     Raises:
         AnalysisError:
             The second automaton is not a system.

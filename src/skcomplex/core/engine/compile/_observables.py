@@ -542,6 +542,20 @@ class ObservableEvaluator:
         `ball.x'`, which the problem holds as a state when a law reads the second derivative of `x`. It is the same for
         an expression of one member of a group, such as the mean of `x.diff(t)` over the agents.
 
+        Args:
+            path:
+                The path of the observable, which errors name.
+
+            expression:
+                The expression of the observable, a function of the namespace or a value.
+
+            namespace:
+                The namespace of the components the expression reads.
+
+        Returns:
+            value:
+                The value of the expression, with every derivative read from its own state.
+
         Raises:
             ValidationError:
                 The expression reads a derivative that the problem does not hold.
@@ -567,6 +581,20 @@ class ObservableEvaluator:
         components: Mapping[str, tuple[str, int]],
     ) -> object:
         """Return an expression with every state derivative read from its own state.
+
+        Args:
+            path:
+                The path of the observable, which errors name.
+
+            value:
+                The expression to rewrite, or any other value, which is returned as it is.
+
+            components:
+                The state name and column of every scalar state symbol, by its name.
+
+        Returns:
+            expression:
+                The expression with every state derivative replaced by its state.
 
         Raises:
             ValidationError:

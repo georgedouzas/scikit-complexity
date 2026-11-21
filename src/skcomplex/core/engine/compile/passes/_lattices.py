@@ -721,6 +721,17 @@ class LatticeProblemPass(BasePass):
         Such a drive, such as `UpdateLaw(h, h + 1)` adding a grain to every site of a sandpile, changes every site by
         the same function of its own value.
 
+        Args:
+            law:
+                The update law of the drive.
+
+            context:
+                The context of the cascade, with the component that owns it.
+
+        Returns:
+            update:
+                The update of the whole array of the state.
+
         Raises:
             ValidationError:
                 The value reads anything but the state and numbers.

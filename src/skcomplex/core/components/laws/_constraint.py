@@ -110,6 +110,10 @@ class ConstraintLaw(BaseLaw):
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
+
+        Returns:
+            residual:
+                The residual `lhs - rhs`.
         """
         lhs, rhs = self._get_sides()
         return self._evaluate(lhs - rhs, inputs)

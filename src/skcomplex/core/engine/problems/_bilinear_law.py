@@ -94,6 +94,10 @@ class BilinearLaw(BaseLaw):
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
+
+        Returns:
+            values:
+                The rate and the outcome table, or `None` for no table.
         """
         outcomes = None if self.outcomes is None else np.asarray(self.outcomes, dtype=object).tolist()
         return self._evaluate((np.asarray(self.rate, dtype=object).tolist(), outcomes), inputs)

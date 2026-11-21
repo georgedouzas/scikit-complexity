@@ -79,6 +79,10 @@ class Compilation:
         held:
             The paths of the observables that roles bind to and laws read only at synchronisation points.
 
+        trained:
+            The dotted paths of the parameters a training trains, such as `recurrence.A`, which the compilation makes
+            adaptive states.
+
     Attributes:
         nodes:
             The elements, groups, and interactions of the system tree, flattened once.

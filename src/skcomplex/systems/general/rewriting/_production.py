@@ -102,5 +102,9 @@ class ProductionLaw(BaseLaw):
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value, unused.
+
+        Returns:
+            modules:
+                The modules of the successor.
         """
         return ModuleSpec.parse_word(self.successor)

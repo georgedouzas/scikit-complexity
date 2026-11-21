@@ -1302,6 +1302,14 @@ class MesaSolver(ExternalSolver):
     def _get_phases(self, problem: ProblemSpec) -> list[PhaseSpec]:
         """Return the phases of the solver and the system, with the default activation.
 
+        Args:
+            problem:
+                The compiled problem, whose rules give the phases of the system.
+
+        Returns:
+            phases:
+                The phases of a step, in order.
+
         Raises:
             ValidationError:
                 The activation is not one of the known orders.
@@ -2211,6 +2219,16 @@ class MesaSolver(ExternalSolver):
     @staticmethod
     def _check_given(spec: _CompiledAgentsSpec, names: Sequence[str], defaults: Mapping[str, object]) -> None:
         """Raise an error for the states a new agent is not given and has no default of.
+
+        Args:
+            spec:
+                The compiled group of the agents.
+
+            names:
+                The names of the states the new agent is not given.
+
+            defaults:
+                The default of every state the element class gives one, by name.
 
         Raises:
             SimulationError:

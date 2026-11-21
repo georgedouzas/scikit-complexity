@@ -121,6 +121,20 @@ class _StateInference:
         element with many members takes one starting value per member as an array, such as the velocities of a gas. The
         names in `skipped`, such as the history of a delayed value, are left out.
 
+        Args:
+            element:
+                The element whose values name the starting values.
+
+            values:
+                The values of the element, by name.
+
+            skipped:
+                The names to leave out.
+
+        Returns:
+            starting:
+                The starting value of every index, by the name of the value it starts.
+
         Raises:
             ValidationError:
                 A starting value names no value of the element.
@@ -450,6 +464,47 @@ class _StateInference:
         reads a value outside its interval as a real number, so a control that starts outside its bounds is reported
         as an issue of its bounds.
 
+        Args:
+            element:
+                The element that holds the value.
+
+            name:
+                The name of the value.
+
+            value:
+                The value itself.
+
+            order:
+                The order of the highest derivative the laws give the value, or `None` for a parameter.
+
+            lags:
+                The number of past values the laws read.
+
+            starting:
+                The starting value of every derivative or past value, by its index, or `None` for none.
+
+            role:
+                The role of the value, `'position'` or `'velocity'`, or `None` for none.
+
+            moving:
+                Whether the element moves in a space.
+
+            history:
+                The history of a delayed value, or `None`.
+
+            control:
+                Whether the value is a control of an objective law.
+
+            objects:
+                Whether the value holds objects other than numbers.
+
+            probing:
+                Whether the declaration is for the probe of the laws.
+
+        Returns:
+            declaration:
+                The declaration of the value.
+
         Raises:
             ValidationError:
                 A starting value is given for a parameter, or for a derivative or past value no law reads.
@@ -653,6 +708,20 @@ class _StateInference:
 
         A fractional order matches only itself.
 
+        Args:
+            name:
+                The name of the value, which errors name.
+
+            order:
+                The new order.
+
+            known:
+                The order found so far, or `None` for none.
+
+        Returns:
+            order:
+                The higher of the two orders.
+
         Raises:
             ValidationError:
                 The value has a fractional order and another order.
@@ -673,6 +742,16 @@ class _StateInference:
         """Raise an error for rate laws of two integer orders on one state.
 
         Rates of the same derivative add up, but a rate of `x` beside a rate of `x''` states the motion twice.
+
+        Args:
+            name:
+                The name of the state, which errors name.
+
+            order:
+                The order of the new rate law.
+
+            known:
+                The order of the rate laws found so far, or `None` for none.
 
         Raises:
             ValidationError:
@@ -709,6 +788,17 @@ class _StateInference:
         A value whose derivative of order `k` a constraint reads has order `k` at least, as the charge of
         `L q'' + R q' + q / C == 0`. A law reads the derivative of a complex value `z` as the derivatives of its real
         and imaginary parts, so they count as derivatives of `z`.
+
+        Args:
+            compilation:
+                The compilation, with its census and layout.
+
+        Returns:
+            orders:
+                The order of every value, by name.
+
+            lags:
+                The number of past values of every value, by name.
 
         Raises:
             ValidationError:

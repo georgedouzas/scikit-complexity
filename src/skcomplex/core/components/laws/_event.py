@@ -92,5 +92,9 @@ class EventLaw(BaseLaw):
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
+
+        Returns:
+            values:
+                The new value of every state the reset names.
         """
         return self._evaluate(dict(self.reset or {}), inputs)

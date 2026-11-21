@@ -84,6 +84,10 @@ class SubstitutionLaw(BaseLaw):
         Args:
             inputs:
                 A mapping from the name of every symbol the maps read to its value.
+
+        Returns:
+            pieces:
+                The name of every piece with the scale, the rotation, and the translation of its map.
         """
         return [
             (name, self._evaluate((affine.scale, affine.rotation, tuple(affine.translation)), inputs))

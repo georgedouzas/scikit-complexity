@@ -96,5 +96,9 @@ class DissipatorLaw(BaseLaw):
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
+
+        Returns:
+            values:
+                The operator and the rate.
         """
         return self._evaluate((self.operator, self.rate), inputs)

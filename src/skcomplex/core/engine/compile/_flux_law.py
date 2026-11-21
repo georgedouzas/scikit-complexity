@@ -71,5 +71,9 @@ class _FluxLaw(BaseLaw):
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
+
+        Returns:
+            flux:
+                The components of the flux.
         """
         return [self._evaluate(item, inputs) for item in self.flux]

@@ -81,6 +81,10 @@ class _RuleLaw(BaseLaw):
         Args:
             inputs:
                 The arguments of the function, a sequence such as `(agent, system)`.
+
+        Returns:
+            result:
+                What the function of the rule returns.
         """
         arguments = tuple(inputs) if isinstance(inputs, Sequence) else (inputs,)
         return self.function(*arguments)

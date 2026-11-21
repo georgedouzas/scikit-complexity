@@ -511,16 +511,6 @@ class CapacityError(SimulationError):
 
     Read more in the user guide, under Troubleshooting.
 
-    Args:
-        message:
-            The message.
-
-        path:
-            The path of the full group, such as `'nodes'`.
-
-        rows:
-            The number of rows the group holds.
-
     See Also:
         SimulationError: Raised for a run used in a state that forbids the call.
 

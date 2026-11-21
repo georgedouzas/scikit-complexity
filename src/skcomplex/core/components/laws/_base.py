@@ -101,6 +101,10 @@ class BaseLaw(BaseSpec, ABC):
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
+
+        Returns:
+            values:
+                The values of the arguments of the law.
         """
         return self._evaluate(self._get_values(), inputs)
 

@@ -148,5 +148,9 @@ class ObjectiveLaw(BaseLaw):
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
+
+        Returns:
+            objective:
+                The value of the objective.
         """
         return self._evaluate(SR(self.value), inputs)
