@@ -752,7 +752,7 @@ class TopologyKind(StrEnum):
     """A kind of request that changes the links or nodes of a network, such as rewire.
 
     A law asks the network to change, such as `'add-edge'` to join two nodes or `'rewire'` to move one end of a link.
-    Friends meet and part in a social network, genes are copied in the network of a cell, and routers join and leave the
+    Friends meet and drift off in a network, genes are copied in the network of a cell, and routers join and leave the
     internet.
 
     Read more in the user guide, under Laws.

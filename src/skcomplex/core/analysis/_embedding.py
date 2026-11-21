@@ -149,7 +149,7 @@ def embedding(
 
     See Also:
         recurrence: Finds when an orbit returns near itself.
-        lyapunov: Measures how fast nearby runs part.
+        lyapunov: Measures how fast nearby runs drift apart.
 
     Examples:
         >>> from skcomplex.core.analysis import embedding

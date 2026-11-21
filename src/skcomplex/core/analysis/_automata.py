@@ -283,10 +283,10 @@ def automaton(
             share their next grid, whether every grid has a grid before it, and whether two grids that differ in a
             window never share their next grid. `'garden-of-eden'` finds a pattern no grid leads to. `'inverse'` finds
             the rule that undoes a reversible rule, trying radii up to `max_radius`. `'compose'` applies the rule and
-            then `second`. `'difference'` shows where two runs part when one cell of `configuration` at `site` changes.
-            `'entropy'` is `log |X_F| / |F|` of the allowed patterns of each window `F`. `'matrix'` and `'polynomial'`
-            give a linear rule as a matrix or a Laurent polynomial. `'admissible'` and `'violations'` check
-            `configuration` against the forbidden patterns. `'count'` counts the allowed grids of a subshift and
+            then `second`. `'difference'` shows where two runs differ when one cell of `configuration` at `site`
+            changes. `'entropy'` is `log |X_F| / |F|` of the allowed patterns of each window `F`. `'matrix'` and
+            `'polynomial'` give a linear rule as a matrix or a Laurent polynomial. `'admissible'` and `'violations'`
+            check `configuration` against the forbidden patterns. `'count'` counts the allowed grids of a subshift and
             `'sample'` draws one.
 
         method:

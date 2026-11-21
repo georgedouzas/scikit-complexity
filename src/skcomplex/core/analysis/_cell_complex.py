@@ -29,10 +29,10 @@ TAGS = AnalysisTags(DataKind.FIELD)
 class CellComplexResult:
     """A result of `cell_complex`, a split of flows, counts of holes, or curved faces.
 
-    It holds, one row per frame, the three parts of a flow on links, the counts of holes of each dimension of a complex,
-    or the faces around which an angle winds. A grid of 4 by 4 sites joined at its edges has one piece, two loops, and
-    one hollow, the Betti numbers `(1, 2, 1)`. It reports the cycles of a road network, the holes of a pattern, and the
-    vortices of a gauge field.
+    It holds, one row per frame, the three flows that a flow on links splits into, the counts of holes of each dimension
+    of a complex, or the faces around which an angle winds. A grid of 4 by 4 sites joined at its edges has one piece,
+    two loops, and one hollow, the Betti numbers `(1, 2, 1)`. It reports the cycles of a road network, the holes of a
+    pattern, and the vortices of a gauge field.
 
     Read more in the user guide, under Analyse.
 
@@ -100,8 +100,8 @@ def cell_complex(
     """Return the split of a flow, the holes, or the curved faces of a complex.
 
     It reads a value on the links of a `CellComplexSpace` from a trajectory, or an array with the complex passed as
-    `space`, one row per frame. The kind `'hodge'` splits a flow on links into a part that runs downhill from site to
-    site, a part that circulates around faces, and a part that does neither, three parts at right angles. The kind
+    `space`, one row per frame. The kind `'hodge'` splits a flow on links into a flow that runs downhill from site to
+    site, a flow that circulates around faces, and a flow that does neither, three flows at right angles. The kind
     `'betti'` counts the pieces, loops, and hollows of the complex, and `'curvature'` finds the faces around which an
     angle winds a whole turn. It splits the flows of a network, counts the holes of a pattern, and finds the vortices of
     a gauge field.

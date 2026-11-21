@@ -40,7 +40,7 @@ class CellComplexSpace(NetworkSpace):
     `p` and `t` arrays of a scikit-fem mesh, which fits a domain of any shape and is solved by finite elements. A
     lattice numbers its links by direction and then by site, each pointing along its axis, and a mesh orients each
     cell by increasing node number. Angles live on the links of a lattice in gauge theory, the flows of a road network
-    split into a part that runs downhill and a part that circulates, and heat flows through a machine part meshed into
+    split into a flow that runs downhill and a flow that circulates, and heat flows through a machine piece meshed into
     triangles.
 
     Read more in the user guide, under Spaces.

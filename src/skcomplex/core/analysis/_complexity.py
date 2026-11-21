@@ -114,7 +114,7 @@ def complexity(
 
     See Also:
         entropy: Measures the entropy of a series.
-        lyapunov: Measures how fast nearby runs part.
+        lyapunov: Measures how fast nearby runs drift apart.
 
     Examples:
         >>> import numpy as np
