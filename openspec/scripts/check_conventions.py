@@ -105,6 +105,9 @@ LAYOUT_PACKAGES = (
             '_invariants',
             '_irreversibility',
             '_jump_path_spec',
+            '_kramers_moyal',
+            '_large_deviations',
+            '_linearization',
         )
     ),
 )
