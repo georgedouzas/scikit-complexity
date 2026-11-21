@@ -269,7 +269,7 @@ def test_local_rule_needs_lattice_group():
     """Test that a local rule on a state outside a lattice group is rejected."""
     cells = Element('cells', values={'value': [0.0, 0.0, 0.0]}, size=3)
     system = System(elements=[cells], interactions=[Interaction('rule', roles={'target': 'cells'}, laws=_copy)])
-    with pytest.raises(ValidationError, match='update law of rule needs a LatticeSpace'):
+    with pytest.raises(ValidationError, match='UpdateLaw of rule needs a LatticeSpace'):
         system.prepare()
 
 

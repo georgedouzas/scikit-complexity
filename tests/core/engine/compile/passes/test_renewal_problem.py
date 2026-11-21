@@ -59,7 +59,7 @@ def test_compiler_rejects_an_unknown_distribution():
     typo = _renewing(lambda s: draw('wait', 'paretto', b=1.5))
     with pytest.raises(
         ValidationError,
-        match=r"RenewalLaw of renew draws 'wait' from the distribution 'paretto'.*pareto",
+        match=r"JumpLaw of renew draws 'wait' from the distribution 'paretto'.*pareto",
     ):
         typo.prepare()
 
