@@ -6,7 +6,7 @@
 import copy
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, is_dataclass
-from typing import Self
+from typing import Self, cast
 
 from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
@@ -28,11 +28,12 @@ class _BaseEstimator[ContextT](BaseEstimator, ABC):
     """
 
     @abstractmethod
-    def _prepare(self, context: ContextT | None) -> None:
+    def _prepare(self, context: ContextT) -> None:
         """Check the settings of the object and prepare it against what it serves.
 
         It checks every setting before it sets its attributes that end in `_`, raising a named error for one the
-        object cannot take. A child chains with `super()._prepare(context)` when its base prepares something.
+        object cannot take. A child chains with `super()._prepare(context)` when its base prepares something. A child
+        that `prepare` calls without a context declares `None` among the types of `context`.
 
         Args:
             context:
@@ -90,7 +91,7 @@ class _BaseEstimator[ContextT](BaseEstimator, ABC):
             ValidationError:
                 A setting is invalid, named in the message.
         """
-        self._prepare(context)
+        self._prepare(cast('ContextT', context))
         self._prepared = True
         return self
 

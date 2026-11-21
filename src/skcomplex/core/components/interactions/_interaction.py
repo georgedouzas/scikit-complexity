@@ -12,7 +12,7 @@ from ...errors import ValidationError
 from .._declared_variable_spec import _DeclaredVariableSpec
 from .._role_spec import RoleSpec
 from ..base import BaseComponent
-from ..spaces import BaseSpace, RadiusNeighborhood
+from ..spaces import RadiusNeighborhood
 from ._base import BaseInteraction
 from ._random_partition import RandomPartition
 
@@ -175,12 +175,8 @@ class Interaction(BaseInteraction):
             return self.among
         return super()._get_binding(role)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Check the interaction, or set the laws of `laws` for a binding.
-
-        Args:
-            context:
-                The space the interaction inherits from its system, or the namespace of the elements it binds.
+    def _check_arguments(self) -> None:
+        """Raise an error for roles, laws, or groups the interaction cannot take.
 
         Raises:
             ValidationError:
@@ -209,8 +205,17 @@ class Interaction(BaseInteraction):
         if grouped and self.among is None:
             error_msg = f'{self.label!r} runs along groups of members. Name their group with `among`.'
             raise ValidationError(error_msg)
+        super()._check_arguments()
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the laws of `laws` for a binding.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace) and self.laws is not None:
+        if self.laws is not None:
             self.laws_ = list(self.laws(context) if callable(self.laws) else self.laws)
 
     @staticmethod

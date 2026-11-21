@@ -222,7 +222,7 @@ class BaseLaw(BaseComponent[str]):
             context:
                 The path of the element or interaction that returns the law, or `None`.
         """
-        super()._prepare(context)
+        self._check_specs()
         self.targets_ = self._get_targets()
         self.reads_ = frozenset(
             item for value in self._get_values() if isinstance(value, Expression) for item in value.variables()

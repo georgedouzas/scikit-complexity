@@ -10,7 +10,7 @@ from dataclasses import fields as dataclass_fields
 from dataclasses import is_dataclass, replace
 from operator import lt as operator_lt
 from types import SimpleNamespace, UnionType
-from typing import ClassVar, Union, cast, get_args, get_origin
+from typing import ClassVar, Self, Union, cast, get_args, get_origin
 
 import numpy as np
 import numpy.typing as npt
@@ -59,7 +59,7 @@ class _RealFunction(SymbolicFunction):
         return self(*args)
 
 
-class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace]):
+class BaseInteraction(BaseComponent[SimpleNamespace]):
     """An abstract interaction, the component that changes the states of elements.
 
     An interaction binds elements through roles, such as `'source'` and `'target'`, reads their states, and returns laws
@@ -707,9 +707,39 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace]):
             return False
         return True
 
+    def prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> Self:
+        """Check the interaction, and set its laws in `laws_` on the namespace of a binding.
+
+        The engine prepares a copy of the interaction on the namespace of every binding of its roles. Only a namespace
+        reaches the hook `_prepare`, so a subclass reads its roles, the time, and its parameters there. On the space
+        of its system, or on nothing, the interaction checks its arguments and learns no laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names, the space of the system, or `None`.
+
+        Returns:
+            self:
+                The prepared interaction.
+
+        Raises:
+            SpaceError:
+                A variant needs a kind of space the system does not have.
+            ValidationError:
+                An argument is invalid, named in the message.
+        """
+        if isinstance(context, SimpleNamespace):
+            return super().prepare(context)
+        self._check_arguments()
+        self._prepare_on(context)
+        return self
+
     def _prepare_on(self, space: BaseSpace | SimpleNamespace | None) -> None:
         """Check the interaction on the space of its system, learning no laws."""
-        BaseInteraction._prepare(self, space if isinstance(space, BaseSpace) else None)
+        self._check_specs()
+        self._check_states()
+        self._check_processes()
+        self._check_space(space if isinstance(space, BaseSpace) else None)
         self._prepared = True
 
     def _get_binding(self, role: str) -> object:
@@ -1130,29 +1160,32 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace]):
                 The space of the system, or `None`.
         """
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
-        """Check the interaction on its space, or start the laws of a binding.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
-        It first raises an error for declarations the interaction cannot take.
+        There is none by default. A subclass checks its own arguments here, which `prepare` calls on every context
+        before a namespace reaches `_prepare`.
+        """
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Check the interaction and start the laws of a binding.
+
+        It first raises an error for declarations and arguments the interaction cannot take. A subclass then sets its
+        laws in `laws_`, reading the roles, the time `t`, and the parameters from the namespace.
 
         Args:
             context:
-                The space the interaction inherits from its system, or the namespace of the elements it binds, whose
-                laws a subclass then sets in `laws_`.
+                The namespace of the elements a binding of the roles names.
 
         Raises:
-            SpaceError:
-                A variant needs a kind of space the system does not have.
             ValidationError:
-                The type declares states.
+                The type declares states, or an argument is invalid.
         """
         super()._prepare(context)
         self._check_states()
         self._check_processes()
-        if isinstance(context, SimpleNamespace):
-            self.laws_: Sequence[BaseComponent] = []
-            return
-        self._check_space(context)
+        self._check_arguments()
+        self.laws_: Sequence[BaseComponent] = []
 
     def get_requirements(self) -> _InteractionRequirementSpec:
         """Return what the interaction needs.

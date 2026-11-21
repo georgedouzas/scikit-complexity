@@ -149,7 +149,7 @@ class _CompositeSystem(BaseComponent[BaseSpace]):
             RoleElementError:
                 A role is bound to an element with a state of a domain the role does not accept.
         """
-        BaseComponent._prepare(self, context)
+        self._check_specs()
         space = self.space if self.space is not None else context
         for component in (self.space, self.time):
             if component is not None:

@@ -183,7 +183,7 @@ class BaseSystem(BaseComponent[Sequence[Observable]]):
             context:
                 The observables to compile with the problem, or `None` for none.
         """
-        super()._prepare(context)
+        self._check_specs()
         self.observables_ = tuple(context or ())
         self.initial_state_ = self.initial_state
 

@@ -336,7 +336,7 @@ class BaseComponent[ContextT](_BaseEstimator[ContextT]):
         """
         return {**self._get_specs(), **{name: item.spec for name, item in self._get_declared().items()}}
 
-    def _prepare(self, context: ContextT | None) -> None:
+    def _prepare(self, context: ContextT) -> None:
         """Check the label and the declared specs of the component.
 
         A child starts its own `_prepare` with `super()._prepare(context)`, so these checks come first, and then
@@ -350,6 +350,10 @@ class BaseComponent[ContextT](_BaseEstimator[ContextT]):
             ValidationError:
                 The label or a declared spec is invalid, named in the message.
         """
+        self._check_specs()
+
+    def _check_specs(self) -> None:
+        """Raise an error for a label or a declared spec that is invalid."""
         self._check_label()
         for spec in [*self._get_specs().values(), *self._get_declared().values()]:
             spec._check()

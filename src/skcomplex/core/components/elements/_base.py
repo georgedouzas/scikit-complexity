@@ -63,7 +63,7 @@ class BaseElement(BaseComponent[BaseSpace]):
             context:
                 The space the element inherits from its system, which an element does not read.
         """
-        super()._prepare(context)
+        self._check_specs()
         self.default_visual_ = self._get_visual()
 
     def _get_visual(self) -> VisualSpec:

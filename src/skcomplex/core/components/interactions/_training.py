@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Sequence
-from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
 from sage.all__sagemath_symbolics import oo
@@ -16,7 +15,6 @@ from .._observable_spec import Observable
 from .._parameter_spec import _ParameterSpec
 from .._role_spec import RoleSpec
 from ..laws import BaseLaw, DatasetSpec
-from ..spaces import BaseSpace
 from ._interaction import Interaction
 
 
@@ -178,19 +176,15 @@ class TrainingInteraction(Interaction):
             )
             raise ValidationError(error_msg)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _check_arguments(self) -> None:
         """Raise an error for an optimizer, counts, parameters, or observables it rejects.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The optimizer is unknown, the batch size or the truncation is not a positive integer, no parameter is
                 trained, or the loss, the data, or a metric has the wrong type or label.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         self._check_counts()
         self._check_observables()
         self.data._check()
