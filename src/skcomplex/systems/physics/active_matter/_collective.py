@@ -12,7 +12,7 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import SR, Expression, oo, sqrt
+from sage.all__sagemath_symbolics import SR, oo, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
@@ -21,7 +21,6 @@ from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.components.laws.utils import advection, divergence, gradient, laplacian, neighbors
 from ....core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace, RadiusNeighborhood
-from ....core.components.types import Target
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver, RK4Solver
 from ....core.systems import BaseSystem, System
@@ -167,8 +166,8 @@ class SoftSphereInteraction(Interaction):
 
     The energy is `k (cutoff - r)^2 / 2` closer than the cutoff, so every member is pushed by `k (cutoff - r)` along the
     line of centres from each member that overlaps it, `x_i' += sum_j k (cutoff - r_ij) (x_i - x_j) / r_ij`. In a
-    periodic box the separations are minimum images. The push moves an overdamped sphere, and a subclass for spheres
-    with inertia overrides the hook `_get_rate_law` to put it on the acceleration, `RateLaw(x.diff(t, 2), push)`. It is
+    periodic box the separations are minimum images. The push moves an overdamped sphere, and with `inertia` it moves
+    the acceleration instead, `RateLaw(x.diff(t, 2), push / m)`, divided by the mass `m` of a sphere that has one. It is
     the contact of disks in a granular layer, of cells in a tissue, or of swimmers that bump into each other.
 
     Args:
@@ -184,6 +183,9 @@ class SoftSphereInteraction(Interaction):
         k:
             The stiffness.
 
+        inertia:
+            Whether the push moves the acceleration of a sphere, divided by its mass `m` when it has one.
+
     Examples:
         >>> from skcomplex.systems.physics.active_matter._collective import SoftSphereInteraction
         >>> SoftSphereInteraction('contact', target='gas', cutoff=0.1, k=50.0).k
@@ -197,11 +199,13 @@ class SoftSphereInteraction(Interaction):
         target: Role,
         cutoff: Annotated[float, RealSet.open(0, oo)] = 1.0,
         k: Annotated[float, RealSet.open(0, oo)] = 100.0,
+        inertia: bool = False,
     ) -> None:
         super().__init__(label)
         self.target = target
         self.cutoff = cutoff
         self.k = k
+        self.inertia = inertia
 
     def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
         """Set the push of the overlapping neighbours on every sphere.
@@ -218,28 +222,11 @@ class SoftSphereInteraction(Interaction):
             distance = SR.var('r', domain='positive')
             slope = (s.k * (s.cutoff - distance) ** 2 / 2).diff(distance).subs({distance: r})
             push = neighbors(-slope * separation / r, RadiusNeighborhood(self.cutoff))
-            self.laws_ = [self._get_rate_law(x, push, s.t)]
-
-    def _get_rate_law(self, x: Target, push: object, t: Expression) -> RateLaw:
-        """Return the law of the push on the velocity of a sphere, `x' = push`.
-
-        This is the hook a subclass overrides for spheres with inertia, `RateLaw(x.diff(t, 2), push)`.
-
-        Args:
-            x:
-                The position of the sphere as a function of the time.
-
-            push:
-                The sum of the pushes of the overlapping neighbours.
-
-            t:
-                The time.
-
-        Returns:
-            law:
-                The rate law of the position.
-        """
-        return RateLaw(x.diff(t), push)
+            if self.inertia:
+                mass = getattr(s.target, 'm', None)
+                self.laws_ = [RateLaw(x.diff(s.t, 2), push if mass is None else push / mass)]
+            else:
+                self.laws_ = [RateLaw(x.diff(s.t), push)]
 
 
 class CuckerSmaleAlignmentInteraction(Interaction):

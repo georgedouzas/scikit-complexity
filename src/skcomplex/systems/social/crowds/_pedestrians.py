@@ -16,7 +16,6 @@ from ....core.components import Observable
 from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import ObjectiveLaw, RateLaw
 from ....core.components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
-from ....core.components.types import Target
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver
 from ....core.systems import BaseSystem, System
@@ -162,7 +161,8 @@ class WallsInteraction(GradientInteraction):
 
     It is a `GradientInteraction` of the position `x` down the potential
     `strength falloff (exp((radius - y) / falloff) + exp((radius - width + y) / falloff))`, so the force per unit mass
-    from a wall at distance `d` is `strength * exp((radius - d) / falloff)`, pointing away from the wall.
+    from a wall at distance `d` is `strength * exp((radius - d) / falloff)`, pointing away from the wall. It moves the
+    acceleration `x''` of a walker, with `inertia`.
 
     Args:
         label:
@@ -199,15 +199,11 @@ class WallsInteraction(GradientInteraction):
         falloff: Annotated[float, RealSet.open(0, oo)] = 0.2,
         radius: Annotated[float, RealSet.closed_open(0, oo)] = 0.3,
     ) -> None:
-        super().__init__(label, target=target, potential=self._get_potential)
+        super().__init__(label, target=target, potential=self._get_potential, inertia=True)
         self.width = width
         self.strength = strength
         self.falloff = falloff
         self.radius = radius
-
-    def _get_rate_law(self, state: Target, rate: object, member: SimpleNamespace, time: Expression) -> RateLaw:
-        """Return the force per unit mass of the walls on the acceleration of a walker."""
-        return RateLaw(state.diff(time, 2), rate)
 
     def _get_potential(self, s: SimpleNamespace) -> Expression:
         """Return the potential of both walls at the position of a walker."""

@@ -47,15 +47,7 @@ def _cahn_hilliard(phi):
     return laplacian(phi**3) - laplacian(phi) - KAPPA * laplacian(laplacian(phi))
 
 
-class NewtonWellInteraction(GradientInteraction):
-    """Gradient that puts the force over the mass `m` on the second derivative, Newton's law."""
-
-    def _get_rate_law(self, state, rate, member, time):
-        """Return `x'' = -dU/dx / m`."""
-        return RateLaw(state.diff(time, 2), rate / member.m)
-
-
-class PairWellInteraction(NewtonWellInteraction):
+class PairWellInteraction(GradientInteraction):
     """Harmonic well between two members, which moves both."""
 
     def __init__(
@@ -66,7 +58,7 @@ class PairWellInteraction(NewtonWellInteraction):
         second: Role,
         k: float = 1.0,
     ) -> None:
-        super().__init__(label, target=first)
+        super().__init__(label, target=first, inertia=True)
         self.first = first
         self.second = second
         self.k = k
@@ -77,9 +69,14 @@ class PairWellInteraction(NewtonWellInteraction):
         return s.k * gap.dot_product(gap) / 2
 
 
-def _harmonic(label, k, kind=GradientInteraction):
-    """Return a harmonic gradient on the state `x` of a target, a gradient flow or Newton's law by its class."""
-    return kind(f'{label}_well', target=label, potential=lambda s: k * s.target.x.dot_product(s.target.x) / 2)
+def _harmonic(label, k, *, inertia=False):
+    """Return a harmonic gradient on the state `x` of a target, a gradient flow or with inertia Newton's law."""
+    return GradientInteraction(
+        f'{label}_well',
+        target=label,
+        potential=lambda s: k * s.target.x.dot_product(s.target.x) / 2,
+        inertia=inertia,
+    )
 
 
 def _density(s):
@@ -110,7 +107,7 @@ def test_simulate_gives_the_gradient_flow_and_the_newtonian_motion():
             Element('slow', values={'x': [1.0]}),
             Element('fast', values={'x': [1.0], 'm': 2.0}),
         ],
-        interactions=[_harmonic('slow', 2.0), _harmonic('fast', 4.0, NewtonWellInteraction)],
+        interactions=[_harmonic('slow', 2.0), _harmonic('fast', 4.0, inertia=True)],
     )
     trajectory = _run(system, 2 * np.pi, 0.1)
     times = trajectory.times
@@ -198,7 +195,15 @@ def test_simulate_divides_every_member_by_its_own_mass():
 
 def test_simulate_divides_by_the_mass_of_newton_law():
     """Test that a harmonic well over the mass `4` oscillates at the frequency `1 / 2`."""
-    well = _harmonic('body', 1.0, NewtonWellInteraction)
+    well = _harmonic('body', 1.0, inertia=True)
     system = System(elements=[Element('body', values={'x': [1.0], 'm': 4.0})], interactions=[well])
     trajectory = _run(system, np.pi, np.pi)
     assert float(trajectory.get_values('body.x')[-1][0]) == pytest.approx(0.0, abs=1e-6)
+
+
+def test_inertia_without_a_mass_moves_the_second_derivative_by_the_force():
+    """Test that a harmonic well with inertia on an element with no mass reverses it after half a period `pi`."""
+    well = _harmonic('body', 1.0, inertia=True)
+    system = System(elements=[Element('body', values={'x': [1.0]})], interactions=[well])
+    trajectory = _run(system, np.pi, np.pi)
+    assert float(trajectory.get_values('body.x')[-1][0]) == pytest.approx(-1.0, abs=1e-6)

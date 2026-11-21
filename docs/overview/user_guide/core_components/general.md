@@ -437,8 +437,8 @@ round(float(trajectory.get_values('model.a')[-1]), 3), round(float(trajectory.ge
 The weights reach 1.0 and -2.0, the minimum of the loss.
 
 **How the engine runs it.** The interaction differentiates the potential symbolically and returns one rate law per
-moving state, the gradient flow `x' = -dU/dx`. A subclass that defines the hook `_get_rate_law` puts the force
-`-dU/dx` on the second derivative instead, for Newton's law. `ScipyODESolver` integrates the rates.
+moving state, the gradient flow `x' = -dU/dx`. With `inertia=True` the force `-dU/dx` moves the second derivative
+instead, divided by the mass `m` of an element that has one, for Newton's law. `ScipyODESolver` integrates the rates.
 
 ```python continuation
 [law.__name__ for law in descent.law_classes]

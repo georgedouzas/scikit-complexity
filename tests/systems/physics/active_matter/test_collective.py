@@ -3,7 +3,6 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver, LammpsSolver, VelocityVerletSolver
 from skcomplex.core.systems import System
@@ -16,14 +15,6 @@ from skcomplex.systems.physics.active_matter import (
 )
 from skcomplex.systems.physics.active_matter._collective import SoftSphereInteraction
 from skcomplex.systems.physics.common.particles import LAMMPS_FIXES, LAMMPS_PAIRS
-
-
-class InertialSoftSphereInteraction(SoftSphereInteraction):
-    """Soft repulsion that accelerates spheres of unit mass."""
-
-    def _get_rate_law(self, x, push, t):
-        """Return the law of the push on the acceleration, `x'' = push`."""
-        return RateLaw(x.diff(t, 2), push)
 
 
 def _pair(interaction, distance, solver):
@@ -43,11 +34,24 @@ def _pair(interaction, distance, solver):
 )
 def test_soft_spheres_repel_inside_contact(solver):
     """Test that overlapping soft spheres move apart and stop interacting beyond contact."""
-    soft = InertialSoftSphereInteraction('soft', target='pair', cutoff=1.0, k=50.0)
+    soft = SoftSphereInteraction('soft', target='pair', cutoff=1.0, k=50.0, inertia=True)
     trajectory = _pair(soft, 0.8, solver).prepare().simulate(until=1)
     separation = np.linalg.norm(trajectory.get_values('pair.x')[:, 1] - trajectory.get_values('pair.x')[:, 0], axis=1)
     assert separation[-1] > 1.0
     assert np.allclose(np.diff(separation[-3:]), np.diff(separation[-3:])[0])
+
+
+def test_soft_spheres_with_inertia_divide_the_push_by_the_mass():
+    """Test that spheres of mass 2 separate as spheres of no mass under half the stiffness."""
+
+    def separation(k, values):
+        pair = PointElement('pair', x=np.array([[0.0, 0.0], [0.8, 0.0]]), values=values, size=2)
+        soft = SoftSphereInteraction('soft', target='pair', cutoff=1.0, k=k, inertia=True)
+        system = System(elements=[pair], interactions=[soft], space=ContinuousSpace(n_dim=2))
+        x = system.set_params(solver=VelocityVerletSolver(dt=0.001)).prepare().simulate(until=0.5).get_values('pair.x')
+        return x[:, 1, 0] - x[:, 0, 0]
+
+    np.testing.assert_allclose(separation(50.0, {'m': 2.0}), separation(25.0, None))
 
 
 def _mean_neighbors(positions, size, radius):

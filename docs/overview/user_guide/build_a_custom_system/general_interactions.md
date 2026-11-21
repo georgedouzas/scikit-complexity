@@ -176,27 +176,20 @@ round(float(flow.simulate(until=1.0, dt=0.01).get_values('walker.x')[-1]), 4)
 
 The walker slides from 1.0 to 0.3679 in the well `x^2 / 2`, the decay `exp(-t)` of the flow `x' = -x`.
 
-A subclass that defines the hook `_get_rate_law` gives Newton's equations, the rate going to the second derivative
-of the position, whose first derivative the trajectory reports as `"point.x'"`.
+With `inertia=True` the interaction gives Newton's equations, the force going to the second derivative of the
+position, divided by the mass `m` of an element that has one. The trajectory reports the first derivative as
+`"point.x'"`.
 
 ```python continuation
-from skcomplex.core.components.laws import RateLaw
-
-
-class SpringForceInteraction(GradientInteraction):
-    def _get_rate_law(self, state, rate, member, time):
-        return RateLaw(state.diff(time, 2), rate)
-
-
-spring = SpringForceInteraction('spring', target='point', potential=lambda s: s.target.x * s.target.x / 2)
+spring = GradientInteraction('spring', target='point', potential=lambda s: s.target.x * s.target.x / 2, inertia=True)
 newton = System(elements=[Element('point', values={'x': [1.0]})], interactions=[spring]).prepare()
 round(float(newton.simulate(until=3.1416, dt=0.01).get_values('point.x')[-1][0]), 3)
 ```
 
 The point starts at 1.0 and reaches -1.0 after half a period `pi` of the harmonic spring.
 
-`GradientInteraction(target, states, potential, sources=(), variational=False, conserved=False)` also gives the
-variational or conserved dynamics of a field.
+`GradientInteraction(target, states, potential, sources=(), variational=False, conserved=False, inertia=False)` also
+gives the variational or conserved dynamics of a field.
 
 An interaction states Newton's or Hamilton's equations directly as rate laws written in Sage. Here a pendulum swings
 from the angle 0.1 under the law `q'' = -sin q`.
