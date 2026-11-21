@@ -64,7 +64,7 @@ ordinary differential equations. A solver then advances that problem. See
 
 A component is a building block of a system: an element, an interaction, a space, a neighbourhood, or a nested
 system. Every component derives from `BaseComponent`, has a label, parameters, and capability tags, and has the method
-`prepare`. A law is not a component but a value that an interaction sets.
+`prepare`. The laws are what interactions set, see [Law](#law).
 A component of a vector or a connected component of a network keeps its usual meaning. See
 [How the components fit](core_components/index.md#the-components).
 
