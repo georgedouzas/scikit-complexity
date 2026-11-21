@@ -43,9 +43,9 @@ FIXES: dict[type[SkcomplexError], tuple[str, str]] = {
     RoleElementError: (
         'role-element',
         (
-            'Bind the role to an element that carries the state, declare the state on the element, or read another '
-            'state. `get_requirements()` of an interaction and `get_states()` of an element show what they need and '
-            'carry.'
+            'Bind the role to an element that has the value, give the element the value, such as '
+            "`Element('ball', values={'x': 0.0})`, or read another value. `get_requirements()` of an interaction shows "
+            'the values its roles read.'
         ),
     ),
     SpaceError: ('space-missing', 'Give the system a space whose kind the component supports.'),

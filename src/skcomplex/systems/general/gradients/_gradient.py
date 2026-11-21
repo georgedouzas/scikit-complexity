@@ -26,8 +26,8 @@ class GradientInteraction(Interaction):
     """An interaction that moves states down the gradient of a potential.
 
     Every state `x` that the interaction moves follows the gradient flow `x' = -dU/dx`, where `U` is the potential. A
-    vector state gets the gradient of every component. A subclass for Newton's law overrides the hook `_get_rate_law`
-    to put the force on the second derivative, `RateLaw(x.diff(t, 2), -dU/dx / m)`.
+    vector state gets the gradient of every component. With `inertia` the force moves the second derivative instead,
+    Newton's law `RateLaw(x.diff(t, 2), -dU/dx / m)`, divided by the mass `m` of the member when it has one.
 
     On a field, the potential is the density `f` of a functional `F`, the integral of `f` over space, and may read the
     field, its derivatives, and its Laplacian. With `variational` the field moves by the functional derivative of `F`,
@@ -63,6 +63,10 @@ class GradientInteraction(Interaction):
         conserved:
             Whether the rate is the Laplacian of the derivative of the potential, which conserves the total of a field.
 
+        inertia:
+            Whether the force moves the second derivative of every state, divided by the mass `m` of the member when it
+            has one.
+
     Raises:
         ValidationError:
             A state is not a name, or the potential is not callable.
@@ -90,6 +94,7 @@ class GradientInteraction(Interaction):
         sources: tuple[Role, ...] = (),
         variational: bool = False,
         conserved: bool = False,
+        inertia: bool = False,
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -98,6 +103,7 @@ class GradientInteraction(Interaction):
         self.sources = sources
         self.variational = variational
         self.conserved = conserved
+        self.inertia = inertia
 
     def _get_names(self) -> tuple[str, ...]:
         """Return the names of the states the interaction moves."""
@@ -136,30 +142,6 @@ class GradientInteraction(Interaction):
             error_msg = f'{type(self).__name__} {self.label!r} has no potential. Give a function of the namespace.'
             raise ValidationError(error_msg)
         return self.potential(namespace)
-
-    def _get_rate_law(self, state: Target, rate: object, member: SimpleNamespace, time: Expression) -> RateLaw:
-        """Return the law that moves a state, the gradient flow `x' = rate`.
-
-        This is the hook a subclass overrides for Newton's law, `RateLaw(state.diff(time, 2), rate / member.m)`.
-
-        Args:
-            state:
-                The moving state as a function of the time.
-
-            rate:
-                The rate down the gradient, `-dU/dx`.
-
-            member:
-                The namespace of the symbols of the moving member, such as its mass `m`.
-
-            time:
-                The time.
-
-        Returns:
-            law:
-                The rate law of the state.
-        """
-        return RateLaw(state, rate)
 
     def _walk(self, expression: Expression) -> Iterator[Expression]:
         """Yield an expression and every subexpression of it."""
@@ -297,5 +279,10 @@ class GradientInteraction(Interaction):
                 state = getattr(member, name)
                 derivative = self._get_derivative(potential, state)
                 rate = self._get_laplacian(derivative, state) if self.conserved else -derivative
-                laws.append(self._get_rate_law(getattr(functional, name), rate, member, time))
+                target = getattr(functional, name)
+                if not self.inertia:
+                    laws.append(RateLaw(target, rate))
+                    continue
+                mass = getattr(member, 'm', None)
+                laws.append(RateLaw(target.diff(time, 2), rate if mass is None else rate / mass))
         return laws

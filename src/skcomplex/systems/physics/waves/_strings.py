@@ -23,7 +23,6 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace
-from ....core.components.types import Target
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, VelocityVerletSolver
 from ....core.systems import BaseSystem, System
@@ -143,11 +142,7 @@ class PotentialEnergyInteraction(GradientInteraction):
         potential: Callable[[SimpleNamespace], object] | None = None,
         states: str | tuple[str, ...] = 'x',
     ) -> None:
-        super().__init__(label, target=target, states=states, potential=potential)
-
-    def _get_rate_law(self, state: Target, rate: object, member: SimpleNamespace, time: Expression) -> RateLaw:
-        """Return Newton's law of a position, `x'' = -dU/dx / m`."""
-        return RateLaw(state.diff(time, 2), rate / member.m)
+        super().__init__(label, target=target, states=states, potential=potential, inertia=True)
 
 
 class HarmonicPotentialInteraction(PotentialEnergyInteraction):

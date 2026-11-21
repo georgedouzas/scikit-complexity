@@ -17,6 +17,7 @@ from sklearn.base import clone
 from ..components import Observable, Tags
 from ..components.base import BaseComponent
 from ..engine.backends import BaseBackend
+from ..engine.compile import OperatorCompiler
 from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import BaseProblemSpec
 from ..engine.problems._composite_system import _CompositeSystem
@@ -132,11 +133,13 @@ class BaseSystem(BaseComponent[Sequence[Observable]]):
         the laws that change them, so the states and parameters of such elements are inferred first. The kinds of laws
         that interactions learn only when they are prepared, such as those of `Interaction('flip', laws=...)`, follow
         from the census of the laws of the system, and so does their randomness when their kinds draw, such as noise.
+        A system of operators takes no census, since `OperatorCompiler` reads its laws, so only its declarations give
+        its tags.
         """
         compiler = PassCompiler()
         declared = compiler._get_declared_system(self._get_composite())
         tags = declared._get_tags()
-        if tags.laws is not None:
+        if tags.laws is not None or OperatorCompiler._contains_operator(declared):
             return tags
         census = compiler._get_census_of(declared, compiler.nodes_).census
         if census is None or census.errors:

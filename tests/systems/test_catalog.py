@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 from sklearn.base import clone
 
+from skcomplex.core.components import Tags
 from skcomplex.core.engine.problems import ProblemSpec
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.errors import RegistryError, ValidationError
@@ -214,6 +215,12 @@ def test_system_conforms(system: type[BaseSystem], tmp_path: Path):
     copy = clone(built)
     assert copy is not built
     assert copy.prepare().simulate(0, random_state=0).problem.states.names == problem.states.names
+
+
+@pytest.mark.parametrize('system', [system for _, system in all_systems()], ids=lambda system: system.__name__)
+def test_system_gives_its_tags_before_prepare(system: type[BaseSystem]):
+    """Test that every ready-made system gives its tags without being prepared."""
+    assert isinstance(system().get_tags(), Tags)
 
 
 @pytest.mark.parametrize('system', [system for _, system in all_systems()], ids=lambda system: system.__name__)
