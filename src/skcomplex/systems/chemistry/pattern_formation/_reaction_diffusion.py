@@ -109,6 +109,12 @@ class GrayScottSystem(ReactionDiffusionSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.chemistry.pattern_formation import GrayScottSystem
         >>> GrayScottSystem((32, 32), F=0.04).prepare().system_.elements[0].values['F']
@@ -364,6 +370,12 @@ class SchnakenbergSystem(ReactionDiffusionSystem):
 
         label:
             The label of the system, which names it when it is nested in another one.
+
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
 
     Examples:
         >>> from skcomplex.systems.chemistry.pattern_formation import SchnakenbergSystem

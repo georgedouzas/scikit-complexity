@@ -63,6 +63,12 @@ class OptimalHarvestingSystem(DynamicalSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.resources import OptimalHarvestingSystem
         >>> OptimalHarvestingSystem(delta=0.05).prepare().system_.elements[0].get_value('delta')

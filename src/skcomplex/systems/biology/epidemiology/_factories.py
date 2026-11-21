@@ -281,6 +281,12 @@ class SIRSystem(ReactionNetworkSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import SIRSystem
         >>> [element.label for element in SIRSystem().prepare().system_.elements]
@@ -363,6 +369,12 @@ class SISSystem(ReactionNetworkSystem):
 
         label:
             The label of the system, which names it when it is nested in another one.
+
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
 
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import SISSystem
@@ -452,6 +464,12 @@ class SIRSSystem(ReactionNetworkSystem):
 
         label:
             The label of the system, which names it when it is nested in another one.
+
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
 
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import SIRSSystem
@@ -555,6 +573,12 @@ class ZombieOutbreakSystem(ReactionNetworkSystem):
 
         label:
             The label of the system, which names it when it is nested in another one.
+
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
 
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import ZombieOutbreakSystem

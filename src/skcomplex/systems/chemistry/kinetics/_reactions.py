@@ -116,6 +116,12 @@ class MichaelisMentenSystem(ReactionNetworkSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.chemistry.kinetics import MichaelisMentenSystem
         >>> [element.label for element in MichaelisMentenSystem().prepare().system_.elements]
@@ -347,6 +353,12 @@ class ChemicalLangevinNetworkSystem(ReactionNetworkSystem):
 
         label:
             The label of the system, which names it when it is nested in another one.
+
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
 
     Examples:
         >>> from skcomplex.systems.chemistry.kinetics import ChemicalLangevinNetworkSystem
