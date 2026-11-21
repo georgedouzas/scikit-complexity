@@ -28,9 +28,13 @@ from ._subsystem_spec import _SubsystemSpec
 class OperatorLowering(BaseConfig[None, tuple[object, str]]):
     """A lowering of the operators of subsystems to sparse matrices on the whole space.
 
-    Coefficients are lowered to functions. `run((expression, owner))` keeps in `kernels_` the terms of an operator, with
-    constant terms folded and terms of equal coefficients summed. The owner, the description of the law or observable of
-    the operator, names it in errors.
+    A quantum law names operators of single subsystems, such as the Pauli `z` of one qubit, and the engine needs them as
+    matrices on the tensor product of all subsystems. `run((expression, owner))` turns an operator expression into
+    operator kernels, each a sparse matrix with a coefficient compiled to a function, with constant terms folded and
+    terms of equal coefficients summed. The owner, the law or observable of the operator, names it in errors. It builds
+    the generators of qubits, spin chains, and atoms in a cavity.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         time:
@@ -49,6 +53,16 @@ class OperatorLowering(BaseConfig[None, tuple[object, str]]):
         kernels_:
             The terms of the operator of the last run: the constant term first, if any, then one term per distinct
             coefficient.
+
+    See Also:
+        OperatorKernel: One term that the lowering builds.
+
+    Examples:
+        >>> from skcomplex.core.systems import System
+        >>> from skcomplex.systems.physics.common.quantum import QubitElement
+        >>> problem = System(elements=[QubitElement('a')]).prepare().simulate(until=0).problem
+        >>> type(problem.generator[0]).__name__
+        'OperatorKernel'
     """
 
     kernels_: tuple[OperatorKernel, ...]

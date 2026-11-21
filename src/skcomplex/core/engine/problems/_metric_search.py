@@ -20,19 +20,22 @@ from ._run_state_spec import RunStateSpec
 
 
 class MetricSearch(BaseSearch):
-    """A search of the neighbours in a continuous space, from member positions.
+    """A search of the neighbours of every member in a continuous space.
 
-    The search uses a k-d tree or a Delaunay triangulation.
+    At every evaluation it reads the positions of the members and finds the neighbours of each one, the members within a
+    radius, the nearest few, those inside a cone of vision, or those that share a triangle of a Delaunay triangulation,
+    with a k-d tree or a triangulation and with distances that wrap around a periodic box. It finds the neighbours of a
+    bird in a flock, a molecule in a fluid, and a pedestrian in a crowd.
 
-    They are found at every evaluation.
+    Read more in the user guide, under Spaces.
 
     Args:
         neighbourhood:
             The radius, nearest, cone, or Delaunay neighbourhood.
 
         positions:
-            The entry of the vector position state of the members, or the entries of their scalar positions along
-            every axis of the space, such as `x` and `y` of walkers in a plane.
+            The entry of the vector position state of the members, or the entries of their scalar positions along every
+            axis of the space, such as `x` and `y` of walkers in a plane.
 
         periods:
             The sides of a periodic box, or `None` for distances without minimum images.
@@ -43,6 +46,16 @@ class MetricSearch(BaseSearch):
     Attributes:
         pairs_:
             The row starts and the neighbours of every member of the last run, with no edges.
+
+    See Also:
+        PairSearch: The pairs of members closer than a cutoff.
+        StaticSearch: Neighbours that do not change.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics import LennardJonesFluidSystem
+        >>> search = LennardJonesFluidSystem().prepare().simulate(until=0).problem.neighbourhoods[0].search
+        >>> type(search).__name__, search.neighbourhood
+        ('MetricSearch', RadiusNeighborhood(radius=2.5))
     """
 
     pairs_: EdgesFound

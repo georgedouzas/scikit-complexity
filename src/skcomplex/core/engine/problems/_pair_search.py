@@ -14,7 +14,14 @@ from ._run_state_spec import RunStateSpec
 
 
 class PairSearch(BaseSearch):
-    """A search that returns the pairs of members closer than a cutoff.
+    """A search of the pairs of members of two groups that are closer than a cutoff.
+
+    An interaction with `within=RadiusNeighborhood(r)` runs its laws once for every pair of members closer than `r`,
+    such as two molecules that repel each other. The search reads the positions of both groups at every evaluation and
+    returns the pairs, with distances that wrap around a periodic box when it has one. It finds the colliding molecules
+    of a gas, the pedestrians of two crowds who avoid each other, and the cells of a tissue that touch.
+
+    Read more in the user guide, under Spaces.
 
     Args:
         first:
@@ -32,6 +39,17 @@ class PairSearch(BaseSearch):
     Attributes:
         pairs_:
             The indices of the first and second members of every pair of the last run.
+
+    See Also:
+        MetricSearch: The neighbours of every member of one group.
+
+    Examples:
+        >>> from sage.all__sagemath_symbolics import RR
+        >>> from skcomplex.core.components import EntrySpec
+        >>> from skcomplex.core.engine.problems._pair_search import PairSearch
+        >>> positions = EntrySpec('walkers.x', 0, (2,), RR, 3)
+        >>> PairSearch(positions, positions, 1.5, None).cutoff
+        1.5
     """
 
     pairs_: tuple[Indices, Indices]

@@ -17,7 +17,14 @@ from ._reference_spec import ReferenceSpec
 
 @dataclass(frozen=True)
 class OutputSpec(BaseSpec):
-    """A spec of the value a kernel produces for one target component.
+    """A spec of one value that a kernel of laws gives for one target.
+
+    Every law of a kernel gives one value for its target, such as the rate of the size of a population, written as a
+    symbolic expression or computed by a Python function. The spec also says how the value is combined when several laws
+    set one state, whether it reads a named noise process, and whether its function draws random numbers. It holds the
+    rate of a population, the noise of a price, and the update of a cell.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         target:
@@ -61,6 +68,15 @@ class OutputSpec(BaseSpec):
 
         vectorized:
             Whether a `Call` function runs once per evaluation with arrays.
+
+    See Also:
+        LawKernel: The kernel that gives the values.
+
+    Examples:
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+        >>> kernel = LogisticGrowthSystem().prepare().simulate(until=0).problem.jacobian.kernels[0]
+        >>> kernel.outputs[0].expression
+        -r_growth*x_population*(x_population/K_growth - 1)
     """
 
     target: ReferenceSpec | None

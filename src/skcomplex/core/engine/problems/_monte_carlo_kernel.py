@@ -19,9 +19,14 @@ from ._run_state_spec import RunStateSpec
 
 
 class MonteCarloKernel(BaseKernel):
-    """A kernel of the Monte Carlo sampling of a lattice state.
+    """A kernel of Monte Carlo moves on a lattice, accepted by the change they cause.
 
-    It is compiled from its local objective, move, and sampler.
+    At every step it proposes moves of the sites, such as flipping a spin, computes the change of the local objective
+    each move would cause, and accepts it with a probability that falls with that change, by the Metropolis, heat bath,
+    or cluster rules, on all sites at once in a checkerboard pattern or one by one. It samples the spins of a magnet,
+    the opinions of a society, and the alleles of a population.
+
+    Read more in the user guide, under Solvers.
 
     Args:
         owner:
@@ -63,6 +68,15 @@ class MonteCarloKernel(BaseKernel):
 
         signs:
             For a local objective over cofaces, the sign of every coface of every cell, which `table` then lists.
+
+    See Also:
+        RuleKernel: Runs a local rule of a lattice.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics import IsingSystem
+        >>> kernel = IsingSystem().prepare().simulate(until=0).problem.lattice[0]
+        >>> kernel.sampler.kind, kernel.move.kind
+        ('metropolis', 'flip')
     """
 
     values_: None

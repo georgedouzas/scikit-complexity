@@ -57,7 +57,14 @@ def _fused_lookup(
 
 
 class RuleKernel(BaseKernel):
-    """A kernel of a local rule of a lattice, with its neighbour table.
+    """A kernel of a local rule on a lattice, with the neighbours of every site.
+
+    A local rule sets the next value of every site from the values of its neighbours, such as a cell of the Game of Life
+    that lives with three live neighbours. The rule is a Python function or a lookup table, and it updates all sites at
+    once, in a checkerboard pattern, or one by one, with random numbers when it draws. It runs the Game of Life, the
+    spread of a forest fire, and the votes of neighbours on a grid.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         owner:
@@ -103,6 +110,15 @@ class RuleKernel(BaseKernel):
 
         name:
             The name of the rule that the equations of a system show, such as `life`.
+
+    See Also:
+        MonteCarloKernel: Accepts random moves of a lattice by the change they cause.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.automata import GameOfLifeSystem
+        >>> kernel = GameOfLifeSystem().prepare().simulate(until=0).problem.lattice[0]
+        >>> kernel.schedule, kernel.fused
+        ('synchronous', True)
     """
 
     values_: None

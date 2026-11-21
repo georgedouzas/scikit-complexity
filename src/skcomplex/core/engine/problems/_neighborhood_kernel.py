@@ -56,9 +56,14 @@ type NeighborSearch = StaticSearch | EdgeRowSearch | MetricSearch
 
 
 class NeighborhoodKernel(BaseKernel):
-    """A kernel of a reduction over neighbours that laws read, one value per member.
+    """A kernel of a sum, mean, or other reduction over the neighbours of every member.
 
-    It is compiled into a function of its symbols.
+    Laws often read a value over the neighbours of a member, such as the number of infected neighbours of a person or
+    the size of the connected component a node belongs to. The kernel computes one such value per member before the laws
+    run and stores it after the parameters, so the laws read it like any other value. It counts the infected contacts of
+    a person, the live neighbours of a cell, and the friends of a voter who agree.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         symbol:
@@ -66,12 +71,12 @@ class NeighborhoodKernel(BaseKernel):
 
         kind:
             One of `'sum'`, `'mean'`, `'count'`, `'max'`, `'min'`, `'normalized-mean'`, `'argmax'`, the components
-            reductions `'component-label'`, `'component-size'`, `'component-largest'`, and `'component-giant'`, and
-            the shortest paths reductions `'path-betweenness'` and `'path-closeness'`.
+            reductions `'component-label'`, `'component-size'`, `'component-largest'`, and `'component-giant'`, and the
+            shortest paths reductions `'path-betweenness'` and `'path-closeness'`.
 
         argument:
-            The value of one neighbour, or the activity of one link for a components or a shortest paths reduction,
-            with nested reductions replaced by their placeholders.
+            The value of one neighbour, or the activity of one link for a components or a shortest paths reduction, with
+            nested reductions replaced by their placeholders.
 
         weight:
             The weight of one neighbour, 1 without one.
@@ -95,13 +100,24 @@ class NeighborhoodKernel(BaseKernel):
             The factor of every pair of the search, such as the oriented entries of an incidence, or `None` for 1.
 
         hyperedge:
-            The size of the hyperedges that every member forms with sets of its current neighbours, which the
-            reduction runs over instead of single neighbours, or `None` for single neighbours.
+            The size of the hyperedges that every member forms with sets of its current neighbours, which the reduction
+            runs over instead of single neighbours, or `None` for single neighbours.
 
     Attributes:
         paths_:
             The active links of the last shortest paths reduction with its values, which a run reuses while the links
             stay the same, or `None` before the first one.
+
+    See Also:
+        ReductionKernel: A reduction over the members of a group.
+        StaticSearch: The neighbours a reduction runs over.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.networks import BarabasiAlbertSystem
+        >>> problem = BarabasiAlbertSystem().prepare().simulate(until=0).problem
+        >>> kernel = problem.topology.reductions.neighbourhoods[0]
+        >>> kernel.kind, kernel.group
+        ('sum', 'nodes')
     """
 
     values_: None

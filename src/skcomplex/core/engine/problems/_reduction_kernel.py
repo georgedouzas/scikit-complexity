@@ -32,7 +32,14 @@ REDUCTIONS: dict[str, Callable[[AnyArray], npt.ArrayLike]] = {
 
 
 class ReductionKernel(BaseKernel):
-    """A kernel of a reduction that laws read, compiled into a function.
+    """A kernel of a sum, mean, or other reduction over the members of a group.
+
+    Laws often read a value over a whole group, such as the mean phase of a set of oscillators or the number of infected
+    people. The kernel computes it before the laws run, over all members or those a condition selects, with weights when
+    given, and stores it after the parameters, so the laws read it like any other value. It gives the mean field of
+    oscillators, the total wealth of a market, and the count of infected people.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         symbol:
@@ -48,8 +55,8 @@ class ReductionKernel(BaseKernel):
             The condition that selects the members, or `None` for all members.
 
         weights:
-            The constant weight matrix as a CSR array of shape `(readers, size)`, the read of a shaped parameter of
-            that shape, or `None`.
+            The constant weight matrix as a CSR array of shape `(readers, size)`, the read of a shaped parameter of that
+            shape, or `None`.
 
         entry:
             The hidden entry that holds the value, after the parameters in the extended parameter vector.
@@ -71,6 +78,16 @@ class ReductionKernel(BaseKernel):
 
         function:
             The function of the array of member values of a reduction of the kind `'function'`, or `None`.
+
+    See Also:
+        NeighborhoodKernel: A reduction over the neighbours of every member.
+        ReductionScheduleSpec: The order the reductions run in.
+
+    Examples:
+        >>> from skcomplex.systems.physics.synchronization import KuramotoSystem
+        >>> kernel = KuramotoSystem().prepare().simulate(until=0).problem.reductions[0]
+        >>> kernel.kind, kernel.group
+        ('count', 'oscillators')
     """
 
     values_: None

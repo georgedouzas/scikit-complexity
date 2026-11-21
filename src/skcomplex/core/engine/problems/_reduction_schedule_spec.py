@@ -19,9 +19,14 @@ from ._run_state_spec import RunStateSpec
 
 @dataclass(frozen=True)
 class ReductionScheduleSpec(BaseSpec):
-    """A spec of the reductions of a problem.
+    """A spec of the reductions of a problem, in the order they must run.
 
-    They are evaluated in dependency order into the extended parameter vector.
+    A reduction may read another, such as a variance that reads a mean, so the spec lists every reduction over a group
+    or over neighbours after those it reads, and says where their values start after the parameters. The engine runs
+    them in that order before the laws at every evaluation. It orders the mean field of oscillators, the totals of a
+    market, and the counts of an epidemic.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         reductions:
@@ -35,6 +40,15 @@ class ReductionScheduleSpec(BaseSpec):
 
         sequence:
             Every reduction of both kinds in dependency order, or empty for the reductions over groups in their order.
+
+    See Also:
+        ReductionKernel: One reduction over a group.
+
+    Examples:
+        >>> from skcomplex.systems.physics.synchronization import KuramotoSystem
+        >>> schedule = KuramotoSystem().prepare().simulate(until=0).problem.jacobian.reductions
+        >>> [kernel.kind for kernel in schedule.reductions]
+        ['count', 'sum', 'sum']
     """
 
     reductions: tuple[ReductionKernel, ...] = ()

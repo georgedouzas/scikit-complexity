@@ -23,7 +23,14 @@ from ._pair_search import PairSearch
 
 @dataclass(frozen=True)
 class ReferenceSpec(BaseSpec):
-    """A spec of the component of a state or parameter that a symbol stands for.
+    """A spec of the value that a symbol of a law stands for, and how it is read.
+
+    Every symbol of a compiled law stands for one number of a state or parameter, such as the size of a population, and
+    the spec says where it sits, whether it is a state, which number of the value it is, and how it is read for every
+    member: its own value, a shared value, a neighbour, or a partner in a pair. It locates the size of a population, the
+    position of a particle, and the price of a stock.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         entry:
@@ -33,8 +40,8 @@ class ReferenceSpec(BaseSpec):
             Whether the variable is a state, as opposed to a parameter.
 
         column:
-            The component of the variable of one member, or for a single read of one group member, the component
-            counted from the group's first component.
+            The component of the variable of one member, or for a single read of one group member, the component counted
+            from the group's first component.
 
         source:
             How the component is read for each evaluation index.
@@ -42,6 +49,17 @@ class ReferenceSpec(BaseSpec):
         neighbor:
             How a neighbour read finds the neighbour of every member, for the neighbour source, or the global operator
             of a derived read, for the derived source.
+
+    See Also:
+        EntrySpec: Where a value sits in a vector.
+        ReadKind: The kinds of read.
+
+    Examples:
+        >>> from sage.all__sagemath_symbolics import RR
+        >>> from skcomplex.core.components import EntrySpec
+        >>> from skcomplex.core.engine.problems._reference_spec import ReferenceSpec
+        >>> ReferenceSpec(EntrySpec('population.x', 0, (), RR), True, 0).source
+        <ReadKind.SINGLE: 'single'>
     """
 
     entry: EntrySpec

@@ -15,7 +15,14 @@ from ._recorded_spec import _RecordedSpec
 
 @dataclass(frozen=True)
 class TransferNetworkSpec(BaseSpec):
-    """A spec of the quantities, flows, and recorded values of a compiled system.
+    """A spec of what flows between the stocks of a system and what runs record.
+
+    A system of stocks and flows, such as water that drains from one tank into another, keeps the quantities every flow
+    moves, the flows themselves, the values a trajectory records, and the terms of its feedback graph. Analyses read it
+    to check that a quantity is conserved and to find feedback loops. It holds the flows of water between tanks, money
+    between accounts, and people between the compartments of an epidemic.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         quantities:
@@ -28,8 +35,7 @@ class TransferNetworkSpec(BaseSpec):
             The flows and the running values of objectives that trajectories record.
 
         boundary:
-            The hidden state that accumulates the net inflow from the environment of each quantity with boundary
-            flows.
+            The hidden state that accumulates the net inflow from the environment of each quantity with boundary flows.
 
         terms:
             The terms of the feedback graph.
@@ -39,6 +45,15 @@ class TransferNetworkSpec(BaseSpec):
 
         delays:
             The delays and smoothings of the laws, in the order the compiler replaced them by hidden states.
+
+    See Also:
+        LoopTermSpec: One term of the feedback graph.
+
+    Examples:
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+        >>> network = LogisticGrowthSystem().prepare().simulate(until=0).problem.transfer_network
+        >>> network.discrete, network.terms[0].path
+        (False, 'population.x')
     """
 
     quantities: Mapping[str, tuple[str, ...]]

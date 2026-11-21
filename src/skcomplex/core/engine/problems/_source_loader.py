@@ -18,13 +18,14 @@ CACHE_DIR = Path.home() / '.cache' / 'skcomplex' / 'kernels'
 
 
 class SourceLoader(BaseConfig[str | Path | None, str]):
-    """A loader of generated source code.
+    """A loader that writes generated Python code to a file and imports it.
 
-    The source is imported from a file of the cache directory named by its digest. `prepare(cache_dir)` sets the
-    directory of the generated files, `~/.cache/skcomplex/kernels` by default, and `run(source)` writes the source there
-    once and imports it into `module_`. Source without injected functions is kept in `sys.modules`, so the same source
-    is imported once. Source with injected functions is imported afresh, with the functions set on the module before its
-    code runs.
+    Backends generate the code of the compiled laws of a system, and this loader writes it once to a file named by its
+    digest in a cache directory, `~/.cache/skcomplex/kernels` by default, and imports it into `module_`, so the same
+    code loads fast the next time. Code that reads injected functions is imported afresh with them set on its module. It
+    loads the compiled rates of a population, a reactor, and a market.
+
+    Read more in the user guide, under Backends.
 
     Args:
         prefix:
@@ -39,6 +40,9 @@ class SourceLoader(BaseConfig[str | Path | None, str]):
 
         module_:
             The module of the last source run.
+
+    See Also:
+        ExpressionPrinter: Prints the code the loader imports.
 
     Examples:
         >>> from skcomplex.core.engine.problems._source_loader import SourceLoader

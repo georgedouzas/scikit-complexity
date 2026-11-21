@@ -28,21 +28,15 @@ type Fired = tuple[int, int, Mapping[str, object] | None, Array | None]
 
 
 class TopologyKernel(BaseKernel):
-    """A kernel of the topology requests of a problem, applied between steps.
+    """A kernel of the requests that add or remove nodes and edges between steps.
 
-    They apply to the rows of the variable groups of its networks. `run(state)` fires the requests of update laws at the
-    state and keeps the state after them in `values_`. The solver of jump laws applies the request of every jump channel
-    that fires. The weights of a request read the node its new ends join as the source, and a condition that reads the
-    source of an addition draws the new node before it decides, so a node that does not fire is never added and a node
-    that fires keeps those values. A new node of a request with a hyperedge forms a new member of the variable group on
-    the hyperedges, with the ends of an edge it draws and further nodes drawn by the weights of the request, and joins
-    each of them by an edge, or, without edges to draw or with independent ends, with nodes drawn by the weights alone.
-    A node of `'add-hyperedge'` forms a new hyperedge with nodes drawn by the weights, and `'remove-hyperedge'` frees
-    the row of a hyperedge. A removed node takes its hyperedges with it. Independent ends join every candidate on its
-    own with the weight as its probability. A request with `one` fires for one row drawn uniformly among the rows
-    present, with the probability of its law there. An edge request with candidates adds the candidate of the smallest
-    score, and without a target joins pairs of nodes drawn uniformly. Further requests replace a node, close a triangle
-    around it, contract its edge with a neighbour, or duplicate it.
+    Between steps it fires the requests of update laws and applies the requests of jump laws that fire, changing the
+    rows of the groups that hold the nodes, edges, and hyperedges of a network, such as a new node that joins old nodes
+    in proportion to their degree. The weights of a request choose the new ends, and further requests replace a node,
+    close a triangle, contract an edge, or duplicate a node. It grows the web of citations, rewires the friendships of a
+    school, and removes the failed lines of a power grid.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         networks:
@@ -60,6 +54,15 @@ class TopologyKernel(BaseKernel):
     Attributes:
         values_:
             The state vector after the requests of the last run.
+
+    See Also:
+        CompiledRequestSpec: One request with the kernels that decide it.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.networks import BarabasiAlbertSystem
+        >>> kernel = BarabasiAlbertSystem().prepare().simulate(until=0).problem.topology
+        >>> type(kernel).__name__, kernel.requests[0].owner
+        ('TopologyKernel', 'growth')
     """
 
     values_: Array

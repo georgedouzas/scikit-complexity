@@ -11,9 +11,14 @@ from ._run_state_spec import RunStateSpec
 
 
 class StaticSearch(BaseSearch):
-    """A search of neighbours that do not change during a run.
+    """A search of neighbours that stay the same during a run.
 
-    They are the edges of a network or the offsets of a lattice.
+    On a fixed network or a lattice the neighbours of every member never change, such as the friends of a person or the
+    eight cells around a cell, so the search holds them once as the start of every member's list and the neighbours in
+    turn, and gives them at every evaluation. It finds the contacts of a person, the cells around a cell, and the trade
+    partners of a country.
+
+    Read more in the user guide, under Spaces.
 
     Args:
         indptr:
@@ -28,6 +33,18 @@ class StaticSearch(BaseSearch):
     Attributes:
         pairs_:
             The row starts, the neighbours, and the edges of the last run.
+
+    See Also:
+        EdgeRowSearch: Neighbours on a network whose edges change.
+        MetricSearch: Neighbours in a continuous space.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.engine.problems import RunStateSpec
+        >>> from skcomplex.core.engine.problems._static_search import StaticSearch
+        >>> search = StaticSearch(np.array([0, 1, 2]), np.array([1, 0])).prepare()
+        >>> search.run(RunStateSpec(0.0, np.zeros(0), np.zeros(0))).pairs_[1].tolist()
+        [1, 0]
     """
 
     pairs_: EdgesFound
