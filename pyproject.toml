@@ -255,7 +255,7 @@ line-length = 120
 target-version = "py312"
 
 [tool.ruff.lint]
-ignore = ["D202", "N806", "N803", "S101", "INP001", "Q000", "TRY002", "PLR0913", "EXE001", "EXE002", "E741"]
+ignore = ["D107", "D202", "N806", "N803", "S101", "INP001", "Q000", "TRY002", "PLR0913", "EXE001", "EXE002", "E741"]
 select = ["C", "E", "F", "W", "B", "I", "D", "N", "UP", "YTT", "ANN", "S",
 "BLE", "A", "COM", "C4", "DTZ", "T10", "EM", "EXE", "ISC", "ICN", "G",
 "INP", "PIE", "T20", "PT", "Q", "RET501", "RET502", "RET503", "SIM",
@@ -272,8 +272,7 @@ extend-immutable-calls = ["skcomplex.core.components.elements.VisualSpec", "skco
 "docs/examples/*" = ["ANN", "D", "B018", "PLR2004"]
 "docs/generated/*" = ["ANN", "D"]
 # Test classes document their arguments in the class docstring, so their `__init__` methods carry none.
-"test_*" = ["ANN", "PLR2004", "D107"]
-"conftest.py" = ["D107"]
+"test_*" = ["ANN", "PLR2004"]
 "src/skcomplex/core/components/declarations.py" = ["ANN401"]
 # Numba-compiled loops take positional arrays and compiled functions, whose Numba types have no Python annotation.
 "src/skcomplex/core/analysis/_lyapunov.py" = ["PLR0917", "ANN401"]
@@ -304,7 +303,7 @@ check-yield-types = false
 check-class-attributes = false
 # Raises sections name propagated exceptions too, which pydoclint cannot see in the function body.
 skip-checking-raises = true
-# Constructors carry their own docstrings, as ruff D107 asks, beside the class docstring.
+# A constructor is documented by the Args of its class docstring, as in scikit-learn, or by a docstring of its own.
 allow-init-docstring = true
 
 [tool.bandit]

@@ -511,6 +511,16 @@ class CapacityError(SimulationError):
 
     Read more in the user guide, under Troubleshooting.
 
+    Args:
+        message:
+            The message.
+
+        path:
+            The path of the full group, such as `'nodes'`.
+
+        rows:
+            The number of rows the group holds.
+
     See Also:
         SimulationError: Raised for a run used in a state that forbids the call.
 
@@ -521,18 +531,6 @@ class CapacityError(SimulationError):
     """
 
     def __init__(self, message: str, *, path: str = '', rows: int = 0) -> None:
-        """Keep the path of the full group and its number of rows.
-
-        Args:
-            message:
-                The message.
-
-            path:
-                The path of the full group, such as `'nodes'`.
-
-            rows:
-                The number of rows the group holds.
-        """
         super().__init__(message)
         self.path = path
         self.rows = rows
