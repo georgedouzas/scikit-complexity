@@ -71,14 +71,11 @@ class RewritingInteraction(Interaction):
                 A law is neither a production nor a substitution.
         """
         super()._check_arguments()
-        wrong = [law for law in self._get_laws() if not isinstance(law, ProductionLaw | SubstitutionLaw)]
+        laws = self.laws if isinstance(self.laws, list | tuple) else []
+        wrong = [law for law in laws if not isinstance(law, ProductionLaw | SubstitutionLaw)]
         if wrong:
             error_msg = f'{self.label!r} rewrites by {wrong[0]!r}. Give ProductionLaw or SubstitutionLaw laws.'
             raise RewritingError(error_msg)
-
-    def _get_laws(self) -> list[BaseComponent]:
-        """Return the laws as a list, empty when they are no list or tuple."""
-        return list(self.laws) if isinstance(self.laws, list | tuple) else []
 
     def _prepare(self, context: SimpleNamespace) -> None:
         """Set the laws of a binding.
@@ -88,4 +85,4 @@ class RewritingInteraction(Interaction):
                 The namespace of the word or patch it binds.
         """
         super()._prepare(context)
-        self.laws_: list[BaseComponent] = self._get_laws()
+        self.laws_: list[BaseComponent] = list(self.laws) if isinstance(self.laws, list | tuple) else []
