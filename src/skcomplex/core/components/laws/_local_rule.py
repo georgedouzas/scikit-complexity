@@ -34,8 +34,9 @@ class _LocalRuleLaw(BaseLaw):
     A function rule receives one array per neighbour of every read state, in neighbourhood order, with one value per
     site. It also receives the keywords of every rule of an `UpdateLaw`: the parameters of the element, `time`, the
     time at the start of the step, `space`, `degree`, the number of neighbours of every site, and `random`, a uniform
-    number per site when the rule is stochastic and `None` otherwise. It takes `**kwargs` for those it ignores. It returns the next values of the
-    target, or one array per target. A table or a totalistic rule may stand in place of the function.
+    number per site when the rule is stochastic and `None` otherwise. It takes `**kwargs` for those it ignores. It
+    returns the next values of the target, or one array per target. A table or a totalistic rule may stand in place of
+    the function.
 
     A run computes one synchronous step. Its input holds `space`, the space of the sites, the values of every read state
     by the name of its symbol, and the keywords a function rule receives. Sites outside a lattice with fixed edges read

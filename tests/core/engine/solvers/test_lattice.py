@@ -244,7 +244,7 @@ def test_rule_reads_the_start_time_of_its_step():
                 s.target.value,
                 lambda value, time, **kwargs: value * 0 + time,
                 neighborhood=LatticeNeighborhood(((0,),)),
-            )
+            ),
         ]
 
     trajectory = _cells(LatticeSpace(2), laws, value=[-1.0, -1.0]).prepare().simulate(until=3, dt=1)
