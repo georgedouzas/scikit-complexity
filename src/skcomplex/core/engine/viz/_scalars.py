@@ -15,11 +15,13 @@ from ._base import PARTS, SERIES_COLORS, BaseVisual
 
 
 class ScalarsVisual(BaseVisual):
-    """A visual that logs each state component of an element as a time series.
+    """A visual that draws every value of an element as a line over time.
 
-    Every state gets static series colors from a categorical palette, by its position among the states of every element
-    of the problem, so the series of one view are told apart. The lag states that keep the past values of a delayed
-    state are left out.
+    It draws one line per value, or per entry of a vector value, each with a colour of its own, such as the prey of a
+    predator and prey system in `ScalarsVisual(path='prey')`. The past values that a delayed value keeps are left out.
+    It shows the populations of an ecosystem, the concentrations of a reaction, and the price of a market.
+
+    Read more in the user guide, under Observe.
 
     Args:
         components:
@@ -35,10 +37,14 @@ class ScalarsVisual(BaseVisual):
         styled_:
             The entity paths whose series colors are logged.
 
+    See Also:
+        HistogramVisual: Draws the spread of the values of a group as histograms.
+        ImageVisual: Draws the values of a grid as images.
+
     Examples:
         >>> from skcomplex.core.engine.viz import ScalarsVisual
-        >>> ScalarsVisual()
-        ScalarsVisual()
+        >>> ScalarsVisual(path='prey')
+        ScalarsVisual(path='prey')
     """
 
     def __init__(

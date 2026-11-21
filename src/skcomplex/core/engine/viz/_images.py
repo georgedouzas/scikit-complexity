@@ -25,15 +25,15 @@ SPACE_TIME = 'space_time'
 
 
 class ImageVisual(BaseVisual):
-    """A visual that logs every state of a lattice group as an image coloured by value.
+    """A visual that draws every value of a group on a grid as a coloured image.
 
-    In 3D and more, it logs a tensor. A one-dimensional lattice also logs a space-time image under
-    `<path>/space_time/<state>`, with one row per logged frame, the oldest at the top, and at most `history` rows. Its
-    colors span the values of the rows it shows.
+    It draws one pixel per site, with colours from `low` to `high`, such as `ImageVisual(low=0, high=1)` for a value
+    between 0 and 1. A row of sites also builds an image with one row per frame, the oldest at the top, so the change
+    over time reads from top to bottom. On a phase space it can show one plane through `slices` and the averages over
+    the extra axes through `moments`. It shows the patterns of a chemical reaction, the spins of a magnet, and the heat
+    spreading along a rod.
 
-    A state on a phase space of more than two axes can log a plane through `slices`. Its moments over the class axes log
-    under `<path>/<state>/moment_<order>`, as a bar series over a one-dimensional position lattice and as an image over
-    a two-dimensional one.
+    Read more in the user guide, under Observe.
 
     Args:
         states:
@@ -70,6 +70,10 @@ class ImageVisual(BaseVisual):
         ValidationError:
             `slices` or `moments` are given for a group that is not on a phase space, or `slices` does not leave two
             axes.
+
+    See Also:
+        SiteVisual: Draws values on the sites of a triangular grid or a network.
+        MeshVisual: Draws values on the triangles of a mesh.
 
     Examples:
         >>> from skcomplex.core.engine.viz import ImageVisual

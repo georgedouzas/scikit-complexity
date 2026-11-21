@@ -18,13 +18,14 @@ POSITION_MARGIN = 0.05
 
 
 class PhaseRingVisual(BaseVisual):
-    """A visual that logs the wrapped phases of oscillators against their position.
+    """A visual that draws the phases of a group of oscillators against their position.
 
-    The oscillators are those of a group, logged as colored points. Every member is a point at its position along the
-    group and its phase wrapped into `(-pi, pi]`, colored by the cyclic palette of phases, so a coherent stretch of
-    oscillators shows as a flat run of one color and an incoherent stretch as scattered points. The points are logged
-    under `<path>/phases` with the vertical axis up, one turn of phase spanning six tenths of the extent of the
-    positions, and the other states as time series under `<path>/<state>`.
+    It draws every oscillator as a point at its position and its phase wrapped into `(-pi, pi]`, coloured by a palette
+    that wraps around, such as `PhaseRingVisual('theta')`. Oscillators in step show as a flat run of one colour, and
+    oscillators out of step as scattered points. The other values are drawn as lines over time. It shows fireflies
+    flashing together, the generators of a power grid, and the neurons of a ring firing in waves.
+
+    Read more in the user guide, under Observe.
 
     Args:
         phase:
@@ -39,6 +40,9 @@ class PhaseRingVisual(BaseVisual):
 
         recording:
             The Rerun recording to log to, or `None` for the active recording of the thread.
+
+    See Also:
+        PointsVisual: Draws a group at its positions in space.
 
     Examples:
         >>> from skcomplex.core.engine.viz import PhaseRingVisual

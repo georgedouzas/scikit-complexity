@@ -1,4 +1,4 @@
-"""Draw the states of a lattice group that is not square."""
+"""Draw the values of a group on a triangular grid or a network as sites."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,13 +23,15 @@ CHANGING_CENTRING = 0.05
 
 
 class SiteVisual(BaseVisual):
-    """A visual that logs every state of a non-square lattice group as coloured sites.
+    """A visual that draws the values of a group on a triangular grid or a network.
 
-    A triangular lattice is logged as `Points2D` at the site positions, with radii that cover the hexagonal cells of
-    the sites. A lattice group on a network is logged as `GraphNodes` colored by state, at the `pos` attributes of the
-    nodes or a seeded spring layout, with its `GraphEdges` logged once as static data. A variable group on the nodes of
-    a network whose topology changes logs the nodes present at every frame, placed by the force layout of the graph
-    view, and its edges at every frame where they change.
+    It colours each site by value, from `low` to `high`, such as `SiteVisual(low=0, high=2)` for three states of a
+    cell. A triangular grid draws a hexagon around each site, and a network draws its nodes at their `pos` attributes or
+    a fixed spring layout, with its edges drawn once. A network whose links change draws the nodes and edges present at
+    each frame. It shows the infected people of a contact network, the cells of a hexagonal automaton, and the opinions
+    of a growing social network.
+
+    Read more in the user guide, under Observe.
 
     Args:
         states:
@@ -53,6 +55,10 @@ class SiteVisual(BaseVisual):
 
         changing_:
             The hash of the latest logged edges of every changing network, by entity path.
+
+    See Also:
+        ImageVisual: Draws the values of a square grid as images.
+        AgentsVisual: Draws agents at the nodes they occupy.
 
     Examples:
         >>> from skcomplex.core.engine.viz import SiteVisual

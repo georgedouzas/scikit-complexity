@@ -21,13 +21,14 @@ PLANE_AXES = 2
 
 
 class CellVisual(BaseVisual):
-    """A visual that logs a state of a group on the edges or faces of a complex.
+    """A visual that draws a value on the links or faces of a cell complex.
 
-    The complex is a cell complex. A state on edges logs under `<path>/<state>` as `LineStrips2D` colored by value, with
-    a cyclic palette for an angle state, and its oriented sums around the faces log under `<path>/<state>/faces`. A
-    state on hyperedges logs under `<path>/<state>`. Values on faces log as an image of the lattice shape on a lattice
-    complex, and as colored closed polygons on a network complex. A lattice of more than two dimensions logs the plane
-    and the slice it selects.
+    It draws a value on links as lines coloured by value, with a palette that wraps around for an angle, and the sum of
+    the values around each face, such as `CellVisual('theta')` for angles on the links of a grid. Values on faces are
+    an image on a grid and coloured polygons on a network, and a grid of more than two dimensions shows one plane of
+    it. It shows the angles of a gauge field, the flows of a road network, and the currents of a circuit.
+
+    Read more in the user guide, under Observe.
 
     Args:
         state:
@@ -48,6 +49,9 @@ class CellVisual(BaseVisual):
     Raises:
         ValidationError:
             The group lives on no edges or hyperedges of a cell complex, or the plane is not two axes of the lattice.
+
+    See Also:
+        SiteVisual: Draws values on the sites of a triangular grid or a network.
 
     Examples:
         >>> from skcomplex.core.engine.viz import CellVisual

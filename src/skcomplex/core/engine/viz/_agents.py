@@ -22,21 +22,15 @@ THREE_DIMENSIONS = 3
 
 
 class AgentsVisual(BaseVisual):
-    """A visual that logs the agents of a group as one batch per frame.
+    """A visual that draws the agents of a group as coloured points, once per frame.
 
-    The agents are colored by a state. Agents on a grid or in a continuous space of two dimensions are logged as
-    `Points2D` at their cell centres or positions, agents in a continuous space of three dimensions as `Points3D` at
-    their positions, and agents on a network as `GraphNodes` at their nodes, which keep the `pos` attributes of the
-    nodes, or the positions of a seeded spring layout of the network. On a grid the radius is in cells, and on a network
-    a fraction of the spacing of neighbouring nodes. Without a given radius, agents in a continuous space take a share
-    of the side of the space, smaller for larger groups. Agents in a continuous space of two dimensions are logged with
-    their second coordinate negated, so the view, bounded by the space, draws them with the vertical axis up. Every
-    layer of regions of the space is logged once as static `LineStrips2D` under `<path>/regions/<layer>`, under the
-    points of the agents. Every point carries the agent id as a hidden label, so agents keep their identity across
-    frames and removed agents disappear. Agents whose position is a state are logged at that state: positions of one
-    coordinate, such as cars on a road, as one thin series of one color per agent under `<path>/<position>`, so their
-    time series view, without a legend, is a space-time diagram, and positions of two coordinates as `Points2D` with the
-    vertical axis up.
+    It draws every agent at its cell, position, or network node, coloured by one of its values, such as
+    `AgentsVisual(color_by='opinion')`. Points in a plane are drawn with the vertical axis up, the regions of a map
+    are drawn once beneath them, and every point keeps the id of its agent, so agents keep their identity and removed
+    agents vanish. Agents with one position value, such as cars on a road, are drawn as one line per agent over time.
+    It shows the opinions of voters on a network, the wealth of traders on a grid, and the cars along a road.
+
+    Read more in the user guide, under Observe.
 
     Args:
         color_by:
@@ -63,6 +57,10 @@ class AgentsVisual(BaseVisual):
 
         span_:
             The range of the colored values logged so far, or `None`.
+
+    See Also:
+        PointsVisual: Draws a group of members with a position value as points.
+        HistogramVisual: Draws the spread of the values of agents as histograms.
 
     Examples:
         >>> from skcomplex.core.engine.viz import AgentsVisual

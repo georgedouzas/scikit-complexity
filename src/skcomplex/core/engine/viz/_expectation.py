@@ -1,4 +1,4 @@
-"""Draw the local expectation values of operator elements and groups."""
+"""Draw the average measured values of elements and groups of operators."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,12 +25,15 @@ from ._images import SPACE_TIME, ImageVisual
 
 
 class ExpectationVisual(ImageVisual):
-    """A visual that logs the local expectations of operator elements and groups.
+    """A visual that draws the average measured values of an element of operators.
 
-    A group logs the expectation of the displayed local operator of every member, such as `z`, as an image of
-    its lattice under `<path>/<name>`, with a space-time image under `<path>/space_time/<name>` in one dimension. A
-    particle on sites logs the probability of every site the same way under `probability`. Any other element logs the
-    expectation of each Hermitian local operator as a series under `<path>/<name>`.
+    It draws the average of a measurement on every member of a quantum group, such as the spin `z` of each site, as an
+    image of the grid, with one row per frame in one dimension, as in `ExpectationVisual(low=-1.0, high=1.0)`. A
+    particle on sites shows the chance of finding it at each site, and any other quantum element draws each average as
+    a line over time. It shows the spins of a quantum magnet, a particle spreading on a chain, and the qubits of a
+    circuit.
+
+    Read more in the user guide, under Observe.
 
     Args:
         states:
@@ -45,10 +48,13 @@ class ExpectationVisual(ImageVisual):
         history:
             The largest number of rows of the space-time image, or `None` for as many as sites, between 64 and 256.
 
+    See Also:
+        ImageVisual: Draws the plain values of a grid as images.
+
     Examples:
         >>> from skcomplex.core.engine.viz import ExpectationVisual
-        >>> ExpectationVisual(low=-0.5, high=0.5)
-        ExpectationVisual(high=0.5, low=-0.5)
+        >>> ExpectationVisual(low=-1.0, high=1.0)
+        ExpectationVisual(high=1.0, low=-1.0)
     """
 
     def _log(self, recording: rr.RecordingStream, element: CompiledElementSpec, frame: FrameSpec) -> None:

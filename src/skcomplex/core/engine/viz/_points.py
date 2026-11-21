@@ -23,18 +23,15 @@ TRAIL_WIDTH = 0.25
 
 
 class PointsVisual(BaseVisual):
-    """A visual that logs a vector state as points, and other states as time series.
+    """A visual that draws a position value as points and other values as lines.
 
-    There is one point per member of a group. Each state is logged as one batch, so a group of any size takes one log
-    call per state and frame. Positions in two dimensions are logged with the second coordinate negated, since Rerun's
-    2D views point their vertical axis down, so the views draw them with the vertical axis up and show the negated value
-    on hover. Without a given radius, the points take a share of the extent of the positions logged so far, smaller for
-    larger groups. The extent and the count include every element drawn by a points visual of the same position state,
-    so single particles that share a space, such as the masses of a chain, take one radius from the whole drawing. A
-    group of at most ten points in two or three dimensions also logs the trail of its recent positions as line strips
-    under `<path>/trail`, a quarter as wide as that share, whatever the radius. With `strip`, the points in two or three
-    dimensions are also joined in member order by one line strip under `<path>/strip`, with the mean color of the
-    points.
+    It draws one point per member at its position, coloured by another value, such as
+    `PointsVisual(position='x', color_by='v')` for particles coloured by speed. Points in a plane are drawn with the
+    vertical axis up, and without a radius they take a share of the area the positions cover, smaller for larger
+    groups. A group of at most ten points also draws the trail of its recent positions, and `strip` joins the points in
+    member order. It shows the atoms of a gas, the birds of a flock, and the masses of a chain of springs.
+
+    Read more in the user guide, under Observe.
 
     Args:
         position:
@@ -73,6 +70,10 @@ class PointsVisual(BaseVisual):
 
         span_:
             The range of the colored values logged so far, or `None`.
+
+    See Also:
+        BodiesVisual: Draws bodies whose positions follow from several values.
+        AgentsVisual: Draws agents at their cells, positions, or nodes.
 
     Examples:
         >>> from skcomplex.core.engine.viz import PointsVisual

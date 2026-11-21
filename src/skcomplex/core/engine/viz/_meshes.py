@@ -1,4 +1,4 @@
-"""Draw the states of a finite element field as colored meshes."""
+"""Draw the values of a field on a mesh as coloured triangles."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,10 +21,13 @@ SURFACE_DIMENSION = 2
 
 
 class MeshVisual(BaseVisual):
-    """A visual that logs every state of a finite element field as a triangle mesh.
+    """A visual that draws every value of a field on a mesh as coloured triangles.
 
-    The mesh is colored by value. Triangle meshes are drawn flat with the value as their height, and tetrahedral meshes
-    as points.
+    It colours the triangles of a mesh by value and raises each node to its value, so the field reads as a surface,
+    such as `MeshVisual(low=0.0)` for a value that never falls below zero. A mesh of tetrahedra is drawn as coloured
+    points. It shows the heat in a machine part, the stress in a beam, and the pressure of air around a wing.
+
+    Read more in the user guide, under Observe.
 
     Args:
         states:
@@ -41,6 +44,9 @@ class MeshVisual(BaseVisual):
 
         recording:
             The Rerun recording to log to, or `None` for the active recording of the thread.
+
+    See Also:
+        ImageVisual: Draws the values of a regular grid as images.
 
     Examples:
         >>> from skcomplex.core.engine.viz import MeshVisual

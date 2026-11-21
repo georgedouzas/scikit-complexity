@@ -78,17 +78,15 @@ VISUALS: dict[str, type[BaseVisual]] = {
 class RerunObserver(BaseObserver):
     """An observer that logs the frames of a run to the Rerun viewer.
 
-    Its entity paths follow the system tree. `prepare(problem)` creates the recording, builds the visual of every
-    element and agent group from the visual its type declares, lays out their views, and sends the recording to its
-    sinks. `run(frame)` logs a frame, and `run(final=True)` flushes the recording. Each logged frame sets the `sim_time`
-    and `step` timelines, logs every element with its visual, logs every parameter up to a matrix under
-    `parameters/<name>`, leaving out coupling tensors, whose entries no view can draw, and logs the renewals of renewal
-    laws since the previous frame as text entries under `renewals/<label>`. A subclass logs entities of its own apart
-    from the system's with `_log_extra`.
+    It draws every element of a system with the visual its class names, in the Rerun viewer or in a `.rrd` file, such
+    as `system.simulate(until=10.0, observers=[RerunObserver(save_path='run.rrd')])`. `prepare(problem)` builds the
+    visuals and lays out their views, `run(frame)` draws one frame, and `run(final=True)` writes out what is left. Each
+    frame also draws the parameters and the renewals of renewal laws, on timelines of the simulated time and the step.
+    The default layout puts the pictures of space first, side by side, and the lines over time below them. A subclass
+    draws more with `_log_extra`. It replays a predator and prey cycle, the spread of an epidemic on a network, and the
+    patterns of a chemical reaction.
 
-    The default blueprint puts spatial views first and side by side, with time series views below them. Scalar elements
-    of one type share a time series view with at most six series, and time series views show the whole run. The side
-    panels are collapsed, the top panel is hidden, and the time panel follows the latest frame of the simulated time.
+    Read more in the user guide, under Observe.
 
     Args:
         application_id:
@@ -139,31 +137,16 @@ class RerunObserver(BaseObserver):
         logged_frames_:
             The number of frames logged.
 
-    Examples:
-        >>> import tempfile
-        >>> from pathlib import Path
-        >>> from skcomplex.core.systems import System
-        >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
-        >>> from skcomplex.core.engine.viz import RerunObserver
-        >>> system = System(
-        ...     elements=[PopulationElement('a', x=1)],
-        ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
-        ... )
-        >>> path = Path(tempfile.mkdtemp()) / 'growth.rrd'
-        >>> _ = system.prepare().simulate(until=1, dt=0.1, observers=[RerunObserver('growth', save_path=path)])
-        >>> path.exists()
-        True
-        >>> observer = RerunObserver('growth', save_path=path, blueprint='default')
-        >>> _ = system.prepare().simulate(until=1, dt=0.1, observers=[observer])
-        >>> path.with_suffix('.rbl').exists()
-        True
+    See Also:
+        BaseVisual: Draws one element at every frame.
 
-        The default blueprint of a compiled problem, with a chosen view first:
-        >>> from skcomplex.systems.chemistry.pattern_formation import GrayScottSystem
-        >>> problem = GrayScottSystem(shape=(16, 16)).prepare().simulate(until=0).problem
-        >>> observer = RerunObserver(blueprint='default', primary='cells/v').prepare(problem)
-        >>> [str(view.origin) for view in observer.blueprint_.root_container.contents]
-        ['cells/v', 'cells/u']
+    Examples:
+        >>> from skcomplex.core.engine.viz import RerunObserver
+        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+        >>> observer = RerunObserver(interval=10)
+        >>> _ = LotkaVolterraSystem().prepare().simulate(until=1.0, dt=0.1, observers=[observer])
+        >>> observer.logged_frames_
+        2
     """
 
     def __init__(

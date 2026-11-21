@@ -25,13 +25,14 @@ MINIMUM_WIDTH = 0.005 * NODE_SPACING
 
 
 class LinearProgramVisual(BaseVisual):
-    """A visual that draws the linear program of an element.
+    """A visual that draws the solution of a linear program of an element.
 
-    It logs a bar chart of the variables under `<path>/variables`, the objective values as scalars under
-    `<path>/objective`, and with a graph one node per row of the matrix and per variable under `<path>/graph`, laid out
-    once with a seeded layout whose nodes lie about as far apart as the sites of a network, with the rows and the
-    variables in two colours. It also logs the edges under `<path>/flows` as lines whose widths are proportional to the
-    absolute values of their variables.
+    It draws the solved variables as bars and the value of the objective over time, such as
+    `LinearProgramVisual(graph=False)` for the bars alone. With a graph it also draws one node per constraint and per
+    variable, in two colours, joined by lines as wide as the size of each variable. It shows the fluxes of a metabolic
+    network, the shipments of a supply chain, and the flows of a power grid.
+
+    Read more in the user guide, under Observe.
 
     Args:
         variables:
@@ -58,6 +59,9 @@ class LinearProgramVisual(BaseVisual):
 
         positions_:
             The position of every node of the graph, by its name, or nothing without a graph.
+
+    See Also:
+        MatrixVisual: Draws a matrix value as an image.
 
     Examples:
         >>> from skcomplex.core.engine.viz import LinearProgramVisual

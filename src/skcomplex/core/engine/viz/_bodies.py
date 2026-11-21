@@ -34,13 +34,13 @@ SPACE = 3
 class BodiesVisual(BaseVisual):
     """A visual that draws bodies at positions computed from the states of an element.
 
-    It also draws rods, trails, and outlines. The bodies are logged as points under `<path>/bodies`, the rods from the
-    pivot through the bodies in order as one line strip under `<path>/rods`, the trails of the traced bodies as segments
-    under `<path>/trail` that grow more transparent with age, the outlines once as static line strips under
-    `<path>/outline`, and the marks once as static points under `<path>/marks`. Every state is also logged as a time
-    series under `<path>/<state>`. Bodies with three coordinates are drawn in a 3D view. Bodies with two are drawn in a
-    2D view with the second coordinate negated, since Rerun's 2D views point their vertical axis down, so the views draw
-    it upward.
+    It computes the position of every body from the values of an element and draws the bodies as points, with rods
+    from a pivot through them, trails that fade with age, and fixed outlines and marks, such as
+    `BodiesVisual(('x', 'y'), trail=50)` for one body whose position is held by `x` and `y`. Every value is also drawn
+    as a line over time, and bodies in a plane are drawn with the vertical axis up. It shows the swing of a double
+    pendulum, the orbits of planets, and a ball bouncing on a table.
+
+    Read more in the user guide, under Observe.
 
     Args:
         positions:
@@ -83,10 +83,13 @@ class BodiesVisual(BaseVisual):
         drawn_:
             The entity paths whose outline and marks are logged.
 
+    See Also:
+        PointsVisual: Draws a group whose position is one vector value.
+
     Examples:
         >>> from skcomplex.core.engine.viz import BodiesVisual
-        >>> BodiesVisual(('x', 'y'), trail=None).trail is None
-        True
+        >>> BodiesVisual(('x', 'y'), trail=50).trail
+        50
     """
 
     def __init__(
