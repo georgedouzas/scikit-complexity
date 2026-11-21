@@ -37,34 +37,25 @@ RESERVED_MEANINGS = {
 
 
 class Element(BaseElement):
-    """An element whose states and parameters are declared by its own subclass.
+    """An element that holds named values of one thing or of a group of members.
 
-    A subclass takes each state and parameter as a plain argument of its `__init__`, and the laws decide which values
-    change. It lists the classes of the laws that interactions state for it in `law_classes`, so that `get_tags` can
-    name their kinds before a run.
+    It holds its values by name, such as the height and mass of a ball in `Element('ball', values={'x': 10.0, 'm': 1.0})`,
+    and the laws of the interactions decide which values change. With `size` it holds a group of members with values of
+    their own, such as 1000 molecules of a gas, and with `space` one member per site, such as the cells of a grid. A
+    subclass may take its values as arguments of `__init__` instead, such as a population class with a growth rate. Members
+    whose values change by agent rules, Python functions run for each member at each step, act as agents, and their values
+    may be any Python object. It holds a prey population, a firm of an economy, and the charge of a capacitor.
 
-    An element whose laws are agent rules, Python functions that change one member at each step, is an agent. Under
-    discrete time each member runs its rules with its states as attributes, and these states may hold any value, not
-    only numbers. A member is removed only when its states tagged with a quantity reach zero. Its states and parameters
-    cannot take the names that the agent view or Mesa reads, such as `location`, `alive`, `position`, or `system`.
-
-    Unlike `BaseElement`, it declares its states by its own subclass, and it can act as an agent. Choose it
-    when a kind of entity deserves a class of its own, such as a population with a growth law or a capacitor with two
-    pins, and give `values` to a plain `Element` when the values are known only as data.
-
-    It appears in many fields. A prey population in ecology, a capacitor in an electric circuit, a firm in an economy,
-    and a pendulum in mechanics are each a subclass of it.
+    Read more in the user guide, under Elements.
 
     Args:
         label:
-            The name of the element, unique among the components of its system, such as `'rabbits'`.
+            The name of the element, unique among the parts of its system, such as `'rabbits'`.
 
         values:
-            Values by name, such as `{'x': 10.0, 'm': 1.0}`, in place of a subclass that takes them as arguments. A
-            derivative or a past value that a law reads starts from the value named with primes or a past index, such
-            as `{'x': 10.0, "x'": 3.0}` for a ball thrown upwards or `{'y': 1.0, 'y[-1]': 0.5}` for an economy. An
-            element with many members takes one starting value per member as an array, such as the velocities of a
-            gas.
+            Values by name, such as `{'x': 10.0, 'm': 1.0}`. A derivative or a past value that a law reads starts from the
+            value named with primes or a past index, such as `{'x': 10.0, "x'": 3.0}` for a ball thrown upwards or
+            `{'y': 1.0, 'y[-1]': 0.5}` for an economy. A group of members takes one value per member as an array.
 
         size:
             The number of members, each with its own values, such as `1000` molecules of a gas, or `None` for one.
@@ -73,36 +64,22 @@ class Element(BaseElement):
             The space of the element, with one member per site, such as a lattice of cells, or `None` for none.
 
         on:
-            The part of a network space that holds one member each: `'edges'` for every link, such as the signed
-            links of a network, `'hyperedges'` for every hyperedge, the name of a layer for every link of that layer,
-            such as `'immune'` for the links between immune cells, or `None` for every site.
+            The part of a network space that holds one member each: `'edges'` for every link, `'hyperedges'` for every
+            hyperedge, the name of a layer for every link of that layer, such as `'immune'`, or `None` for every site.
 
     Attributes:
         default_visual_:
             How the element is drawn by default, the `visual` of its class.
 
-    Examples:
-        A population and a bank deposit both grow at a rate proportional to their size, so one class serves both.
+    See Also:
+        BaseElement: The base of every element.
+        Interaction: States the laws that change the values of elements.
 
+    Examples:
         >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.interactions import Interaction
-        >>> from skcomplex.core.components.laws import RateLaw
-        >>> from skcomplex.core.systems import System
-        >>> class Population(Element):
-        ...     def __init__(self, label, x=1.0, r=0.5):
-        ...         super().__init__(label)
-        ...         self.x = x
-        ...         self.r = r
-        >>> def grow(s):
-        ...     return [RateLaw(s.target.x, s.target.r * s.target.x)]
-        >>> rabbits = Population('rabbits', x=40.0, r=0.5)
-        >>> deposit = Population('deposit', x=250.0, r=0.05)
-        >>> names = ['rabbits', 'deposit']
-        >>> growths = [Interaction(f'{name}_growth', roles={'target': name}, laws=grow) for name in names]
-        >>> system = System(elements=[rabbits, deposit], interactions=growths)
-        >>> trajectory = system.prepare().simulate(until=1, dt=1.0)
-        >>> trajectory.get_values('rabbits.x').round(1).tolist(), trajectory.get_values('deposit.x').round(2).tolist()
-        ([40.0, 65.9], [250.0, 262.82])
+        >>> ball = Element('ball', values={'x': 10.0, 'm': 1.0})
+        >>> ball.get_params()['x']
+        10.0
     """
 
     law_classes: ClassVar[tuple[type, ...]] = ()

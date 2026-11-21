@@ -1,7 +1,8 @@
-"""Define elements, the components of a system that hold its states.
+"""Define elements, the parts of a system that hold its values.
 
-An element holds the states of a system, such as an amount, a position, or a word, and says how a visualisation
-observer draws it.
+An element holds the values of one thing or of a group of members, such as the height and mass of a ball in
+`Element('ball', values={'x': 10.0, 'm': 1.0})`, and says how a visualisation observer draws it. Specs written in
+`Annotated` mark a value as an angle, a conserved quantity, a matrix, or a link to a member of another group.
 """
 
 from ._base import BaseElement
