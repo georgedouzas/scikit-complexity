@@ -115,6 +115,9 @@ LAYOUT_PACKAGES = (
             '_markov',
             '_mode_decomposition',
             '_motifs',
+            '_neighbors',
+            '_networks',
+            '_partial_information',
         )
     ),
 )
