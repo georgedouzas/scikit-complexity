@@ -93,7 +93,7 @@ def motifs(
     samples: int = 100,
     random_state: int | None = None,
 ) -> MotifsResult:
-    """Return the motifs of three or four nodes of a graph or of every network of a trajectory.
+    """Return the motifs of three or four nodes of a graph or of the networks of a run.
 
     A motif is a small connected pattern of links, such as a triangle or a path, counted wherever its nodes are linked
     in that pattern and in no other way, such as the four triangles of four nodes all joined. Directed triads carry the
