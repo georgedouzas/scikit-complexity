@@ -26,7 +26,13 @@ INTEGER_KINDS = (DomainKind.INTEGER, DomainKind.BOOLEAN)
 
 @dataclass(frozen=True)
 class BasinStabilityResult:
-    """A result of `basin_stability`, the share of initial states per attractor.
+    """A result of `basin_stability`, the share of initial states per final behaviour.
+
+    It holds the random initial states, the final behaviour each one ended in, and the share of the states that reached
+    each behaviour with its standard error, such as `{'capacity': 1.0}` when every population grows to its capacity. It
+    reports how often a power grid stays in step, how often a species survives, and how often a genetic switch ends on.
+
+    Read more in the user guide, under Run experiments.
 
     Args:
         rows:
@@ -40,6 +46,14 @@ class BasinStabilityResult:
 
         errors:
             The standard error of every fraction.
+
+    See Also:
+        basin_stability: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.experiments import BasinStabilityResult
+        >>> BasinStabilityResult([], [], {'capacity': 1.0}, {'capacity': 0.0}).fractions
+        {'capacity': 1.0}
     """
 
     rows: list[Row]
@@ -62,14 +76,13 @@ def basin_stability(
 ) -> BasinStabilityResult:
     """Return the share of random initial states that end in each final behaviour.
 
-    An attractor is the state or the cycle that a run settles into. The function draws initial states uniformly within
-    `bounds`, runs each one to `until`, and asks `classifier` which attractor the run ended in. The shares measure how
-    stable each attractor is against large disturbances. With `vectorized`, all initial states run as the members of one
-    simulation of the replicated system, and the classifier receives every member as a trajectory of the original
-    system.
+    It draws initial states at random within `bounds`, runs each one to `until`, and asks `classifier` which final
+    behaviour the run settled into, such as a resting state or a cycle. The share of each behaviour says how well it
+    withstands large disturbances. With `vectorized`, every initial state runs as one member of a single simulation. It
+    measures how often a power grid stays in step after a fault, how often a population survives, and how often a
+    genetic switch ends on rather than off.
 
-    It appears in many fields. It measures how often a power grid stays in step after a fault, how often a population
-    survives rather than dies out, and how often a genetic switch ends on rather than off.
+    Read more in the user guide, under Run experiments.
 
     Args:
         system:
@@ -111,13 +124,15 @@ def basin_stability(
         ExperimentError:
             The system is a name.
 
+    See Also:
+        orbit_diagram: Shows the values a run visits over a range of a parameter.
+        ensemble: Runs a system many times with independent random streams.
+
     Examples:
         >>> from skcomplex.core.experiments import basin_stability
         >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
-        >>> result = basin_stability(
-        ...     LogisticGrowthSystem(), {'population.x': (0.1, 10)}, lambda trajectory: 'capacity', n=5, until=5
-        ... )
-        >>> result.fractions
+        >>> bounds = {'population.x': (0.1, 10)}
+        >>> basin_stability(LogisticGrowthSystem(), bounds, lambda run: 'capacity', n=5, until=5).fractions
         {'capacity': 1.0}
     """
     _check_source(system)

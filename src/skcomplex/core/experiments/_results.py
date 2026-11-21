@@ -18,13 +18,20 @@ from ._run_result_spec import _RunResultSpec
 class ExperimentResult:
     """A result of an experiment, with one row per run and the series it kept.
 
-    They hold one row per run, the kept series, ensembles, and summaries across replicates. `sweep`, `ensemble`, and
-    `compare_scenarios` return it. Its rows form a tidy table, one row per run and one column per value of the run,
-    scenario, replicate, seed, and scalar output, which `to_frame` returns as a data frame.
+    It holds the runs of `sweep`, `ensemble`, and `compare_scenarios` as a tidy table, one row per run and one column
+    per parameter, scenario, replicate, seed, and output, which `to_frame` returns as a data frame. It also reads the
+    kept series together as an ensemble and a summary across replicates. It holds the runs of an epidemic over its rate
+    of infection, of a magnet over its temperature, and of a market over its tax.
+
+    Read more in the user guide, under Run experiments.
 
     Args:
         runs:
             The results of every run, in the experiment's order.
+
+    See Also:
+        sweep: Returns this result for rows of values.
+        ensemble: Returns this result for random streams.
 
     Examples:
         >>> from skcomplex.core.experiments import sweep

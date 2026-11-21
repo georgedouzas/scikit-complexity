@@ -22,12 +22,27 @@ from .types import SystemSource
 class OrbitDiagramResult:
     """A result of `orbit_diagram`, the values visited for every value of a parameter.
 
+    It holds the values a run keeps visiting after it settles, for every value of the parameter, and how many distinct
+    values each run visits, so a period of 2 means a cycle between two values. It shows the period doubling of a
+    population, the route to chaos of a forced pendulum, and the pulses of a laser.
+
+    Read more in the user guide, under Run experiments.
+
     Args:
         points:
             The kept values of the observable for every value of the parameter.
 
         periods:
             The number of distinct kept values for every value of the parameter, the period of periodic orbits.
+
+    See Also:
+        orbit_diagram: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.experiments import orbit_diagram
+        >>> from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
+        >>> orbit_diagram(LogisticMapSystem(), 'r', [2.9, 3.2], 'map.x', transient=1000, keep=20).periods.tolist()
+        [1, 2]
     """
 
     points: list[Array]
@@ -48,15 +63,14 @@ def orbit_diagram(
     executor: str | Executor = 'serial',
     vectorized: bool = False,
 ) -> OrbitDiagramResult:
-    """Return the values an observable visits after a transient.
+    """Return the values an observable visits after a transient, per parameter value.
 
-    They are given for every value of a parameter. Every value of the parameter is run to `transient + (keep - 1) * dt`,
-    and the frames from `transient` on are kept. With `vectorized`, all values run as the members of one simulation of
-    the system replicated over them, which needs a dotted path of a state or parameter of an element, and a system of
-    single elements and their interactions.
+    It runs the system for every value of `parameter` to `transient + (keep - 1) * dt` and keeps the values of
+    `observable` from `transient` on, so a settled cycle shows as the few values it repeats. With `vectorized`, every
+    value runs as one member of a single simulation. It shows the period doubling of the logistic map of a population,
+    the route to chaos of a forced pendulum, and the pulses of a laser.
 
-    It appears in many fields. It shows the period doubling of the logistic map of a population, the routes to chaos of
-    a forced pendulum, and the bifurcations of a laser.
+    Read more in the user guide, under Run experiments.
 
     Args:
         system:
@@ -104,6 +118,10 @@ def orbit_diagram(
 
         ExperimentError:
             The system is a name.
+
+    See Also:
+        basin_stability: Gives the share of initial states per final behaviour.
+        sweep: Runs a system over values of its parameters.
 
     Examples:
         >>> from skcomplex.core.experiments import orbit_diagram

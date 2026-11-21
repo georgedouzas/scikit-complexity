@@ -33,12 +33,12 @@ def compare_scenarios(
 ) -> ExperimentResult:
     """Return the runs of every scenario of a system.
 
-    The scenarios share their random streams per replicate. A scenario overrides parameters or dotted paths before
-    the run, changes parameters at given times, or replaces the system for structural changes. Every scenario of a
-    replicate runs with the same random stream, so the scenarios differ only through what they change.
+    It runs every `ScenarioSpec` on a copy of the system, `replicates` times, and every scenario of a replicate draws
+    the same random numbers, so the scenarios differ only through what they change. A scenario overrides values before
+    the run, changes parameters at given times, or replaces the system. It compares early and late lockdowns of an
+    epidemic, paths of emissions of a climate model, and tax policies of an economy.
 
-    It appears in many fields. It compares early and late lockdowns of an epidemic, emission paths of a climate model,
-    and tax policies of an economy, each under the same random draws.
+    Read more in the user guide, under Run experiments.
 
     Args:
         system:
@@ -93,9 +93,12 @@ def compare_scenarios(
         ExperimentError:
             The system is a name, or the worker processes stop before finishing.
 
+    See Also:
+        ScenarioSpec: Names one variant of a system.
+        sweep: Runs a system over values of its parameters.
+
     Examples:
-        >>> from skcomplex.core.experiments import ScenarioSpec
-        >>> from skcomplex.core.experiments import compare_scenarios
+        >>> from skcomplex.core.experiments import ScenarioSpec, compare_scenarios
         >>> from skcomplex.systems.biology.epidemiology import SIRSystem
         >>> scenarios = [ScenarioSpec(), ScenarioSpec('distancing', overrides={'beta': 0.0001})]
         >>> result = compare_scenarios(SIRSystem(), scenarios, until=50, outputs=['I.x'])

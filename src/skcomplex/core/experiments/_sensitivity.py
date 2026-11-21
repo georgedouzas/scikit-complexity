@@ -28,6 +28,13 @@ SIZES = {'oat': 0, 'morris': 10, 'sobol': 1024}
 class SensitivityResult:
     """A result of `sensitivity`, the effect of each input on a scalar output.
 
+    It holds the inputs and the output of every run, the effects the method measures, and the inputs ranked from the
+    most to the least influential, such as `'growth.K'` first when the capacity sets the final size. It ranks the rates
+    of an epidemic by their effect on its peak, the inputs of a climate model by their effect on warming, and the costs
+    of a supply chain by their effect on profit.
+
+    Read more in the user guide, under Run experiments.
+
     Args:
         names:
             The inputs, names `set_params` takes or dotted paths.
@@ -64,6 +71,16 @@ class SensitivityResult:
 
         total_order_conf:
             The confidence interval of `total_order`, for `'sobol'`.
+
+    See Also:
+        sensitivity: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.experiments import sensitivity
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+        >>> bounds = {'growth.r': (0.1, 1.0), 'growth.K': (50, 150)}
+        >>> sensitivity(LogisticGrowthSystem(), bounds, output='population.x', method='oat', until=20).ranking[0]
+        'growth.K'
     """
 
     names: list[str]
@@ -96,17 +113,13 @@ def sensitivity(
 ) -> SensitivityResult:
     """Return the sensitivity of a scalar output of a system to its inputs, with SALib.
 
-    The inputs vary within bounds. The function runs the system once per row of the design the method reads, as `sweep`
-    does, and analyses the output of the runs:
+    It varies the inputs within `bounds`, runs the system once per row of the design of the method, as `sweep` does, and
+    measures how much each input moves the last value of `output`. One at a time moves each input alone, Morris averages
+    many such moves, and Sobol splits the variance of the output among the inputs. It ranks the rates of an epidemic by
+    their effect on its peak, the inputs of a climate model by their effect on warming, and the costs of a supply chain
+    by their effect on profit.
 
-    - `'oat'` moves every input from its lower to its upper bound with the others at their midpoints, and gives the
-      change of the output.
-    - `'morris'` runs `n` Morris trajectories on four levels, 10 by default, and gives the Morris elementary effects.
-    - `'sobol'` runs Saltelli's sample of `n` base points, 1024 by default and best a power of 2, and gives the
-      first-order and total Sobol indices.
-
-    It appears in many fields. It ranks the parameters of an epidemic by their effect on its peak, the inputs of a
-    climate model by their effect on warming, and the costs of a supply chain by their effect on profit.
+    Read more in the user guide, under Run experiments.
 
     Args:
         system:
@@ -121,7 +134,10 @@ def sensitivity(
             The state or observable path whose last value is the scalar output.
 
         method:
-            `'oat'`, `'morris'`, or `'sobol'`.
+            `'oat'` moves every input from its lower to its upper bound with the others at their midpoints.
+            `'morris'` runs `n` Morris trajectories on four levels, 10 by default, and gives the elementary effects.
+            `'sobol'` runs the sample of Saltelli of `n` base points, 1024 by default and best a power of 2, and gives
+            the first-order and total Sobol indices.
 
         n:
             The number of Morris trajectories or of base points of Saltelli's sample, or `None` for the default.
@@ -154,6 +170,9 @@ def sensitivity(
 
         ValidationError:
             A bound is not a pair, or an input is no parameter of the system and no state or parameter of a component.
+
+    See Also:
+        sweep: Runs a system over values of its parameters.
 
     Examples:
         >>> from skcomplex.core.experiments import sensitivity

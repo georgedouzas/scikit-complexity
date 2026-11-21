@@ -68,10 +68,14 @@ type Summary = Callable[[Mapping[str, Array]], npt.ArrayLike]
 
 @dataclass(frozen=True)
 class CalibrationResult:
-    """A result of `calibrate`, the fitted parameters and system, with diagnostics.
+    """A result of `calibrate`, the fitted parameters and system, with measures of fit.
 
-    A point fit holds one estimate. A posterior method also holds the samples, their weights, the diagnostics of the
-    method, and the posterior predictive check, and its estimates are the posterior medians.
+    It holds the system with the fitted parameters, the estimates, and how well the runs match the data, such as `r2`,
+    the share of the variation of the data the fit explains. A method that samples the likely values also holds the
+    samples, their weights, its own checks, and a band of simulated series around the data. It reports the fitted rates
+    of an epidemic, the constants of a reaction, and the growth of a firm.
+
+    Read more in the user guide, under Calibrate.
 
     Args:
         system:
@@ -117,6 +121,18 @@ class CalibrationResult:
             The 5%, 50%, and 95% quantiles of the simulated series of posterior draws at the data times by path, under
             `q05`, `q50`, and `q95`, and the share of observed points inside the band under `coverage`, or `None` for
             a point fit.
+
+    See Also:
+        calibrate: Returns this result.
+        IndividualCalibrationResult: Holds one calibration per individual.
+
+    Examples:
+        >>> from skcomplex.core.experiments import calibrate
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+        >>> trajectory = LogisticGrowthSystem(r=0.5).prepare().simulate(until=20, dt=1.0)
+        >>> data = {'population.x': (trajectory.times, trajectory.get_values('population.x'))}
+        >>> round(calibrate(LogisticGrowthSystem(), data, {'r': (0.1, 2.0)}).r2, 3)
+        1.0
     """
 
     system: AnySystem
@@ -906,40 +922,14 @@ def calibrate(
 ) -> CalibrationResult:
     """Return the fit of the model parameters of a system to observed time series.
 
-    The fitted system reproduces the observed time series. It is a copy of the system with `set_params` applied, or
-    what the factory builds from the parameters. Every evaluation runs the system through `simulate` to the last data
-    time and interpolates its states or observables at the data times. Stochastic systems average `replicates` runs
-    with fixed streams, so the loss is smooth in the parameters.
+    It searches the parameters within `bounds` for the run that best matches `data`, a mapping from a path such as
+    `'population.x'` to its observed times and values, and returns a copy of the system with them. Every candidate runs
+    the system to the last data time and reads its values at the data times, and a random system averages `replicates`
+    runs with fixed seeds. A point method returns one estimate, and a method that samples the likely values returns
+    their median with the samples. It fits the rates of an epidemic to case counts, the constants of a reaction to
+    measured concentrations, and a predator and prey model to the pelts traded by trappers.
 
-    `method` says how to search or sample and `loss` what scores a candidate:
-
-    - `'local'`: a local SciPy fit, `least_squares` for `'squares'` and `minimize` for `'likelihood'` and `'events'`,
-      with the covariance from the Jacobian of the residuals.
-    - `'global'`: the best of `budget` evaluations, 200 by default, chosen by Optuna's seeded tree-structured Parzen
-      estimator over the bounds, which copes with the rough losses of stochastic runs.
-    - `'abc_smc'`: an approximate posterior by sequential Monte Carlo approximate Bayesian computation with pyabc,
-      which compares the summaries of every simulation with the observed ones by an adaptive distance and stops after
-      `budget` simulations, 20000 by default. Its diagnostics hold the tolerance and the acceptance rate of every
-      generation.
-    - `'mcmc'`: `chains` chains of `n_samples` draws of the posterior of the Gaussian or the event likelihood with
-      numpyro, by NUTS through the JAX run of a system with the tag `differentiable` and the Gaussian likelihood, and
-      by the gradient-free affine invariant ensemble sampler otherwise. Its diagnostics hold the split R-hat and the
-      effective sample size of every parameter.
-    - `'variational'`: a multivariate normal posterior fitted by numpyro SVI over `budget` steps, 2000 by default,
-      through the JAX run of a system with the tag `differentiable`. With `'squares'` it is the generalised posterior
-      of the sum of squares. Its diagnostics hold the loss history.
-
-    A posterior method returns the samples, their weights, the posterior medians as the estimates, and a posterior
-    predictive check of at most 200 draws at the data times.
-
-    A bound is a pair `(low, high)`, read as a uniform prior, or a SciPy distribution, read as the prior of that
-    parameter. Point fits search the pair or the central 99.9% of the distribution. `'squares'` is least squares,
-    `'likelihood'` the Gaussian likelihood with an unknown variance, and `'events'` the log-probability of the draws of
-    a trajectory recorded with `simulate(..., record_draws=True)`, given as `data`, replayed under every candidate with
-    `random_state`, the seed of the recorded run.
-
-    It appears in many fields. It fits the rates of an epidemic to case counts, the rate constants of a reaction to
-    measured concentrations, and the parameters of a predator and prey model to pelt records.
+    Read more in the user guide, under Calibrate.
 
     Args:
         system:
@@ -952,16 +942,28 @@ def calibrate(
 
         bounds:
             A mapping from a parameter of the system, such as `r` or the nested `growth__r`, to its `(low, high)` bounds
-            or its SciPy prior.
+            or its SciPy prior. A pair reads as a uniform prior, and a point fit searches the pair or the central
+            99.9% of the prior.
 
         method:
-            `'local'`, `'global'`, `'abc_smc'`, `'mcmc'`, or `'variational'`.
+            How to search or sample. `'local'` is a local SciPy fit, with the covariance from the Jacobian of the
+            residuals. `'global'` keeps the best of `budget` evaluations, 200 by default, chosen by the seeded
+            tree-structured Parzen estimator of Optuna, which copes with the rough losses of random runs. `'abc_smc'`
+            samples by approximate Bayesian computation with pyabc, comparing summaries of every run with the observed
+            ones, and stops after `budget` runs, 20000 by default. `'mcmc'` draws `chains` chains of `n_samples` with
+            numpyro, by NUTS through JAX for a system tagged `differentiable` with the Gaussian likelihood, and by an
+            ensemble sampler otherwise. `'variational'` fits a normal posterior by numpyro over `budget` steps, 2000 by
+            default, through JAX. A sampling method returns the samples, their medians as the estimates, and a check of
+            at most 200 simulated draws at the data times.
 
         initial:
             The starting values of the parameters of a local fit, or `None` for the medians of their priors.
 
         loss:
-            `'squares'`, `'likelihood'`, or `'events'`, as the method allows.
+            What scores a candidate, as the method allows. `'squares'` sums the squared gaps, `'likelihood'` is the
+            Gaussian likelihood with an unknown variance, and `'events'` is the log-probability of the draws of a
+            trajectory recorded with `simulate(..., record_draws=True)`, replayed under every candidate with
+            `random_state`, the seed of the recorded run.
 
         summary:
             The function from simulated or observed series by path to summary statistics that ABC-SMC compares, or
@@ -998,25 +1000,18 @@ def calibrate(
             The system is a system name, the method or the loss is unknown or they do not fit, there is no data, the
             replicates are bad, or a bound is neither a pair nor a SciPy distribution or has a dotted path.
 
+    See Also:
+        calibrate_individuals: Fits each individual to its own data.
+        identifiability: Tells which parameters the data determine.
+        posterior_coverage: Checks the intervals of a method that samples.
+
     Examples:
-        >>> import numpy as np
         >>> from skcomplex.core.experiments import calibrate
         >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
-        >>> times = np.arange(0, 21.0)
-        >>> values = 100 / (1 + 9 * np.exp(-0.5 * times))
-        >>> bounds = {'r': (0.1, 2.0), 'K': (50, 200)}
-        >>> fitted = calibrate(LogisticGrowthSystem(), {'population.x': (times, values)}, bounds).system
-        >>> round(fitted.r, 2), round(fitted.K)
-        (0.5, 100)
-        >>> result = calibrate(LogisticGrowthSystem(), {'population.x': (times, values)}, bounds, method='global',
-        ...     budget=100, random_state=0)
-        >>> bool(abs(result.estimates['r'] - 0.5) < 0.1)
-        True
-        >>> noisy = {'population.x': (times, values * (1 + 0.02 * np.random.default_rng(0).standard_normal(21)))}
-        >>> posterior = calibrate(LogisticGrowthSystem(), noisy, bounds, method='variational', loss='likelihood',
-        ...     n_samples=200, random_state=0)
-        >>> round(posterior.estimates['r'], 1), posterior.samples['r'].shape
-        (0.5, (200,))
+        >>> trajectory = LogisticGrowthSystem(r=0.5).prepare().simulate(until=20, dt=1.0)
+        >>> data = {'population.x': (trajectory.times, trajectory.get_values('population.x'))}
+        >>> round(calibrate(LogisticGrowthSystem(), data, {'r': (0.1, 2.0)}).estimates['r'], 2)
+        0.5
     """
     _check_source(system)
     _check_settings(method, loss, data, bounds, replicates)
