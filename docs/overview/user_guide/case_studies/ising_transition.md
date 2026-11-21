@@ -23,7 +23,10 @@ susceptibility, and `nu = 1` for the correlation length, the distance over which
 
 ## Selecting and checking the model
 
-The catalog holds the model as [IsingSystem](../../../systems/physics/statistical_mechanics/ising.md). One unit of
+The catalog holds the model as [IsingSystem](../../../systems/physics/statistical_mechanics/ising.md). It is the
+same model as the Ising system of the [running examples](../index.md#the-running-examples): an element with a spin on
+every site of a `LatticeSpace`, an interaction that gives the energy of each spin over the temperature, and a
+`MetropolisSolver` that flips the spins. The class adds a magnetic field `h` and a choice of the starting spins. One unit of
 time is one sweep, an attempt to flip every spin once by the Metropolis rule. An
 [Observable][skcomplex.core.components.Observable] records the magnetization at every sweep, the mean of the variable
 `spin` over the group `spins`.
