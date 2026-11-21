@@ -32,7 +32,8 @@ class RootSolver(Solver):
 
     Args:
         method:
-            The method of `scipy.optimize.root`.
+            The method of `scipy.optimize.root`, or `'auto'` for `'hybr'` with a second try by `'lm'` from the same
+            starting values when it does not converge, as an exponential diode from zero volts needs.
 
         tolerance:
             The largest residual of a solution.
@@ -60,7 +61,7 @@ class RootSolver(Solver):
     def __init__(
         self,
         *,
-        method: str = 'hybr',
+        method: str = 'auto',
         tolerance: float = 1e-9,
         random_state: int | np.random.Generator | None = None,
         until: float = np.inf,
@@ -119,16 +120,20 @@ class RootSolver(Solver):
         if not indices.size:
             return np.asarray(problem.update(0.0, x, p), dtype=float) if problem.update is not None else x
         self._get_kernel().prepare(problem)
-        result = root(
-            self._get_residuals,
-            x[indices],
-            args=(x, p),
-            jac=self._get_jacobian,
-            method=self.method,
-            tol=self.tolerance,
-        )
-        residual = float(np.max(np.abs(self._get_residuals(result.x, x, p))))
-        if not result.success or not residual <= self.tolerance:
+        methods = ('hybr', 'lm') if self.method == 'auto' else (self.method,)
+        for method in methods:
+            result = root(
+                self._get_residuals,
+                x[indices],
+                args=(x, p),
+                jac=self._get_jacobian,
+                method=method,
+                tol=self.tolerance,
+            )
+            residual = float(np.max(np.abs(self._get_residuals(result.x, x, p))))
+            if result.success and residual <= self.tolerance:
+                break
+        else:
             equations = ', '.join(f'{name}: {value} == 0' for name, value in problem.equations.items() if value != 0)
             error_msg = (
                 f'The numerical solve of the equations {equations} did not converge: the largest residual is '

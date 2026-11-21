@@ -7,7 +7,7 @@ from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
 from typing import ClassVar
 
-from sage.all__sagemath_symbolics import SR, Expression, function
+from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.components.interactions import Interaction
@@ -176,8 +176,8 @@ class EulerLagrangeInteraction(Interaction):
                 for name, item in vars(namespace).items()
             },
         )
-        rates = {function(str(q))(time).diff(time): velocity for q, velocity in velocities.items()}
-        states = {function(name)(time): symbol for name, symbol in functions.items()}
+        rates = {self._get_function_of(q)(time).diff(time): velocity for q, velocity in velocities.items()}
+        states = {self._get_function_of(symbol)(time): symbol for symbol in functions.values()}
         return SR(self._get_lagrangian(functional)).subs(rates).subs(states)
 
     @staticmethod
