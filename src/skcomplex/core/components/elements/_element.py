@@ -9,7 +9,7 @@ import inspect
 import numbers
 from collections.abc import Mapping
 from dataclasses import replace
-from typing import Annotated, ClassVar, Self, get_args, get_origin
+from typing import Annotated, Any, ClassVar, Self, get_args, get_origin
 
 import numpy as np
 from sage.all__sagemath_symbolics import CC, RR, ZZ
@@ -122,7 +122,7 @@ class Element(BaseElement):
         self.space = space
         self.on: object = on
 
-    def get_params(self, deep: bool = True) -> dict[str, object]:
+    def get_params(self, deep: bool = True) -> dict[str, Any]:
         """Return the parameters of the element, with each entry of `values` when deep.
 
         An entry of `values` whose name is a Python identifier is listed under its own name, so a system lists it as
