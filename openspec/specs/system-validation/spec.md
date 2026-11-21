@@ -224,7 +224,7 @@ fields SHALL be equal, so errors that name them never show a memory address.
 
 #### Scenario: An error that names a sink
 
-- **WHEN** a transfer law is given a sink where a source belongs and is prepared
+- **WHEN** a transfer law is given a sink where a source belongs and its system is prepared
 - **THEN** the error shows `Sink(label='environment')`, not an address in memory
 
 ### Requirement: Bad spaces raise library errors

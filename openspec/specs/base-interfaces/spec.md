@@ -148,7 +148,6 @@ protocol SHALL end in `Protocol`.
 Every main public method of a configurable object SHALL return the object itself, and every hook SHALL return `None`. A run SHALL
 keep what it produces in an attribute ending in `_`, named once for each family:
 - elements, interactions, and systems keep their laws in `laws_`, and no other component has `laws_`,
-- laws keep their contribution in `value_`,
 - compilers keep the compiled problem in `problem_`,
 - lowerings keep what they lowered in `lowered_`,
 - backends keep the lowered functions in `functions_`,
@@ -171,10 +170,6 @@ SHALL forward to the base method and return the object.
 #### Scenario: A solver's state
 - **WHEN** the runtime runs a prepared solver on one step
 - **THEN** `run()` returns the solver, and `state_` is the state vector at the end of the step
-
-#### Scenario: A law's contribution
-- **WHEN** a user prepares a rate law and runs it at given values
-- **THEN** `run()` returns the law, and `value_` is its rate at those values
 
 #### Scenario: A simulation keeps its named input
 - **WHEN** a user runs `system.prepare().simulate(until=20)`
@@ -234,13 +229,14 @@ components prepared, and preparing again SHALL replace their attributes.
 
 ### Requirement: Estimators are the components and the engine
 The classes with `prepare` and `run` SHALL be the components a modeler defines, which are elements, interactions,
-laws, spaces, times, and systems, and the engine that runs them, which is solvers, backends, compilers and their
+spaces, times, and systems, and the engine that runs them, which is solvers, backends, compilers and their
 passes, observers, visuals, clocks, kernels, and printers. Simulating, analysing, running experiments, and calibrating
-SHALL be functions of a system or of its results.
+SHALL be functions of a system or of its results. Laws SHALL be frozen values that interactions hold, with no
+`prepare` and no `run`.
 
 #### Scenario: Listing estimators
 - **WHEN** a test lists the public classes of `skcomplex.core` that have `prepare` and `run`
-- **THEN** every one is a component or a class of the engine, and none is an experiment or a calibration
+- **THEN** every one is a component or a class of the engine, and none is a law, an experiment, or a calibration
 
 ### Requirement: Systems form a class hierarchy
 `BaseSystem` SHALL be the base of every system: it SHALL hold `prepare`, `run`, `get_tags()` derived from the
