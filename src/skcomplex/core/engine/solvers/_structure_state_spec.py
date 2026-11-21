@@ -11,9 +11,13 @@ from ...base import BaseSpec
 
 @dataclass(frozen=True)
 class StructureStateSpec(BaseSpec):
-    """A spec of the structures of elements kept outside the state vector.
+    """A spec of the structures of elements kept outside the state vector at a frame.
 
-    They are held at one frame, with their measures.
+    It holds the structures by the path of their element, such as the word of a rewriting system, and the reporters that
+    measure them, such as its length. It keeps the words of a grammar, the shapes of a growing plant, and the strings of
+    a language.
+
+    Read more in the user guide, under Solvers.
 
     Args:
         structures:
@@ -21,6 +25,14 @@ class StructureStateSpec(BaseSpec):
 
         reporters:
             A mapping from dotted reporter name, such as `<path>.length`, to its value.
+
+    See Also:
+        BaseSolver: Collects it after a step.
+
+    Examples:
+        >>> from skcomplex.core.engine.solvers import StructureStateSpec
+        >>> StructureStateSpec().structures
+        {}
     """
 
     structures: Mapping[str, object] = field(default_factory=dict)

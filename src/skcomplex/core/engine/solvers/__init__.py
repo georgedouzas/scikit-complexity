@@ -1,4 +1,9 @@
-"""Advance compiled problems through time, with a default solver per form."""
+"""Define the solvers that move compiled problems forward in time.
+
+A system picks the solver of the form its laws make, such as `ScipyODESolver` for the growth of a population or
+`GillespieSolver` for the jumps of a few molecules, and takes another with `solver=`, such as
+`LogisticGrowthSystem(solver=RK4Solver(dt=0.01))`.
+"""
 
 from ._base import BaseSolver
 from ._caputo import CaputoSolver

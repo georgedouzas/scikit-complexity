@@ -38,11 +38,10 @@ class RenewalClock:
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.engine.solvers import _event_locator, _renewals
+        >>> from skcomplex.core.engine.solvers._renewals import EventLocator, RenewalClock
         >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
         >>> problem = LogisticGrowthSystem().prepare().simulate(until=0).problem
-        >>> locator = _event_locator.EventLocator(problem)
-        >>> _renewals.RenewalClock(problem, np.random.default_rng(0), locator).get_earliest()
+        >>> RenewalClock(problem, np.random.default_rng(0), EventLocator(problem)).get_earliest()
         inf
     """
 

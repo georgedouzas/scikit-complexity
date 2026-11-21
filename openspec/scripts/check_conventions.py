@@ -80,6 +80,7 @@ LAYOUT_PACKAGES = (
     'skcomplex.core.components.base.',
     'skcomplex.core.systems.',
     'skcomplex.core.engine.runtime.',
+    'skcomplex.core.engine.solvers.',
 )
 LAYOUT_HEAD = ('summary', 'paragraph', 'user guide')
 LAYOUT_SECTIONS = ('Args:', 'Attributes:', 'Returns:', 'Raises:', 'Warns:', 'See Also:', 'Examples:')

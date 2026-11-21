@@ -32,17 +32,17 @@ NONNEGATIVE_DOMAINS = frozenset({RealSet.open(0, oo), RealSet.closed_open(0, oo)
 
 
 class OptimalControlSolver(Solver):
-    """An abstract solver that computes the optimal controls of a run.
+    """An abstract solver that finds the controls of a run that minimise a cost.
 
-    The controls minimise an objective over the run. A system states it with an objective law that names its controls,
-    `ObjectiveLaw(s.plant.x**2 + s.plant.u**2, controls=[s.plant.u], terminal=...)`, whose running cost is integrated
-    over the run and whose terminal cost is added at the horizon, the time `until` of the run. The bounds of a control
-    are the allowed values of its element. Without such a law the solver reads the bounded adaptive parameters of the
-    system as its controls and takes the costs as its arguments `objective` and `terminal`, each a function of the
-    namespace `s` of the states, parameters, and time of the system by dotted name or a number, minimised for the sense
-    `'min'` and maximised for `'max'`. It solves the problem over the whole run from the initial state and the initial
-    parameters at the start of the run, and then follows the solution frame by frame. Subclasses take `objective`,
-    `terminal`, and `sense` as arguments, implement `_solve`, and may implement `_prepare`.
+    A system states the cost with an objective law that names its controls, such as
+    `ObjectiveLaw(s.plant.x**2 + s.plant.u**2, controls=[s.plant.u], terminal=...)`, whose running cost adds up over the
+    run and whose terminal cost counts at the end time `until`. The bounds of a control are the allowed values of its
+    element. Without such a law the solver takes the bounded adaptive parameters as controls and the costs from its
+    arguments `objective` and `terminal`, minimised for `sense='min'` and maximised for `'max'`. It solves the whole run
+    from the starting values and then hands it on frame by frame. A subclass writes the private method `_solve`. It is
+    the base of the solvers of vaccination plans, harvests of a fishery, and the growth of an economy.
+
+    Read more in the user guide, under Solvers.
 
     Attributes:
         control_problem_:
@@ -53,6 +53,15 @@ class OptimalControlSolver(Solver):
 
         solution_:
             The optimal solution of the run.
+
+    See Also:
+        CollocationSolver: Solves the problem as one large optimisation.
+        PontryaginSolver: Solves the problem by the maximum principle.
+
+    Examples:
+        >>> from skcomplex.core.engine.solvers import OptimalControlSolver, PontryaginSolver
+        >>> isinstance(PontryaginSolver(), OptimalControlSolver)
+        True
     """
 
     @classmethod

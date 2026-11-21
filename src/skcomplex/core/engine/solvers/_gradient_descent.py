@@ -31,20 +31,17 @@ type Unroll = Callable[[TracedArray, tuple[TracedArray, ...]], TracedArray]
 
 
 class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
-    """A solver of the learning form, which takes optimizer steps per epoch.
+    """A solver that trains the parameters of a nested system by gradient steps.
 
-    It trains the parameters of a nested system by gradient steps on JAX and Optax. Every unit of time is one epoch. The
-    solver shuffles the sequences of the dataset with its random number generator, splits them into batches, and for
-    every batch unrolls the nested system from its initial states over each sequence, writing the values of the dataset
-    into its parameters before every inner step. A discrete map unrolls with `jax.lax.scan`, and ordinary differential
-    equations with one `diffrax.diffeqsolve` per inner step, with `Tsit5`, a PID step size controller, and recursive
-    checkpointing. The loss is the weighted mean of the loss observable over the steps and sequences, its gradient comes
-    from `jax.value_and_grad`, and an Optax optimizer updates the trained parameters. Truncated backpropagation through
-    time stops the gradient of the carried inner states every `truncation` steps. The optimizer reads its
-    hyperparameters from the parameter vector before every frame, so a schedule takes effect at the next frame, and its
-    state persists across frames until the solver is prepared again. The solver records the mean batch loss of every
-    epoch and every metric over the whole dataset at the end of the epoch as reporters `<interaction path>/loss` and
-    `<interaction path>/<metric>`.
+    Every unit of time is one epoch on JAX and Optax. The solver shuffles the sequences of the dataset, splits them into
+    batches, and for every batch runs the nested system over each sequence, writing the values of the dataset into its
+    parameters before every inner step. The loss is the weighted mean of the loss observable over the steps, its
+    gradient comes from `jax.value_and_grad`, and an Optax optimizer updates the trained parameters. Backpropagation
+    through time stops every `truncation` steps. The mean loss of every epoch and each metric are recorded as reporters,
+    such as `<interaction path>/loss`. It trains a recurrent network on text, a model of an epidemic on case counts, and
+    a controller of a pendulum.
+
+    Read more in the user guide, under Solvers.
 
     Args:
         precision:
@@ -67,6 +64,9 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
     Raises:
         ValidationError:
             The precision is unknown.
+
+    See Also:
+        GradientFlowSolver: Follows the slope of an objective without data.
 
     Examples:
         >>> from skcomplex.core.engine.solvers import GradientDescentSolver
