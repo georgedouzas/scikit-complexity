@@ -449,7 +449,7 @@ class ProblemPass(BasePass):
         unknown = [item for item in arguments if spec.references.get(item) is None]
         if unknown:
             error_msg = (
-                f'An event of {spec.owner} uses {", ".join(map(str, unknown))}, which the namespace does not hold.'
+                f'An event of {spec.owner} uses {", ".join(map(str, unknown))}, which are not values it can read.'
             )
             raise ValidationError(error_msg)
         reads = [
@@ -495,7 +495,7 @@ class ProblemPass(BasePass):
         unknown = [item for item in arguments if spec.references.get(item) is None]
         if unknown:
             error_msg = (
-                f'An event of {spec.owner} uses {", ".join(map(str, unknown))}, which the namespace does not hold.'
+                f'An event of {spec.owner} uses {", ".join(map(str, unknown))}, which are not values it can read.'
             )
             raise ValidationError(error_msg)
         reads = [

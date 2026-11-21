@@ -81,7 +81,7 @@ class MemberLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         super()._prepare(context)
         layout = self.compilation_.layout
         if layout is None:
-            error_msg = 'The compilation has no layout yet. Lower member offsets after the layout pass.'
+            error_msg = 'The compilation has no layout yet. Run the layout pass before rewriting member offsets.'
             raise ValidationError(error_msg)
         self.time_ = layout.time
         self.shifted_ = {}

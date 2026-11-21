@@ -167,7 +167,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         super()._prepare(context)
         declarations = self.compilation_.layout
         if declarations is None:
-            error_msg = 'The compilation has no layout yet. Lower differential operators after the layout pass.'
+            error_msg = 'The compilation has no layout yet. Run the layout pass before rewriting operators.'
             raise ValidationError(error_msg)
         self.fields_ = self._get_field_entries(declarations)
         self.initial_ = self._get_initial_values(self.spec, declarations)
@@ -246,7 +246,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         """
         reference = self._get_reference_of(item, self.spec)
         if reference is None:
-            error_msg = f'A law of {self.spec.owner} reads {item}, which is not a state or parameter of its namespace.'
+            error_msg = f'A law of {self.spec.owner} reads {item}, which is not a state or parameter it can read.'
             raise ValidationError(error_msg)
         return reference
 
@@ -523,8 +523,8 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             isinstance(space, CellComplexSpace) and space._is_mesh()
         ):
             error_msg = (
-                f'A law of {self.spec.owner} applies a stencil to {expression}, which lives on a mesh. Use the '
-                'finite-element discretization.'
+                f'A law of {self.spec.owner} applies a finite difference operator to {expression}, which lives on a '
+                'mesh. Use the finite-element discretization.'
             )
             raise ValidationError(error_msg)
         return space

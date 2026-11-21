@@ -1299,6 +1299,6 @@ class CensusPass(BasePass):
             group = node.component
             return group.element(group.label).set_params(**(group.values or {})).prepare()
         if not isinstance(node.component, BaseComponent):
-            error_msg = f'The node {node.path} holds a {type(node.component).__name__}, which declares no laws.'
+            error_msg = f'The component {node.path} is a {type(node.component).__name__}, which declares no laws.'
             raise TypeError(error_msg)
         return node.component

@@ -248,8 +248,8 @@ class KernelsPass(BasePass):
             return lowered[id(law)]
         if isinstance(law, NoiseLaw) and law.conserved:
             error_msg = (
-                f'A conserved noise law of {spec.owner} has no lowering. Declare its state on a `Field` of the fields '
-                'formalism, or remove `conserved=True`.'
+                f'A conserved noise law of {spec.owner} drives a state that is not on a lattice. Declare the state on '
+                'an element whose space is a `LatticeSpace`, or remove `conserved=True`.'
             )
             raise ValidationError(error_msg)
         outputs = KernelsPass._get_outputs_of(law.value, targets, f'{law._get_name()} of {spec.owner}')

@@ -538,7 +538,7 @@ class LayoutPass(BasePass):
         node = block.node
         group = node.component
         if not isinstance(group, _GroupElement):
-            error_msg = f'{node.path} has a capacity layout, but it is not a group.'
+            error_msg = f'{node.path} has a capacity, but it is not a group.'
             raise ValidationError(error_msg)
         rows, active = node.members or 0, node.active or 0
         declarations, block = LayoutPass._declare_hidden(

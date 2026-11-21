@@ -315,8 +315,8 @@ class FunctionsPass(BasePass):
         unknown = [item for item in arguments if item not in spec.references]
         if unknown:
             error_msg = (
-                f'The order of an update law of {spec.owner} reads {", ".join(map(str, unknown))}, which the namespace '
-                'does not hold. Order the members by their states, parameters, and draws.'
+                f'The order of an update law of {spec.owner} reads {", ".join(map(str, unknown))}, which its members '
+                'do not hold. Order the members by their states, parameters, and draws.'
             )
             raise ValidationError(error_msg)
         references = [spec.references[item] for item in arguments]

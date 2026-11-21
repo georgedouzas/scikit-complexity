@@ -1162,7 +1162,7 @@ class SpecsPass(BasePass):
         if clashes:
             error_msg = (
                 f'Interaction {block.node.path} declares the parameters {", ".join(clashes)}, whose names its laws '
-                'read as the slots of a hyperedge or a group. Rename them.'
+                'read as the members of a hyperedge or a group. Rename them.'
             )
             raise LabelError(error_msg)
 

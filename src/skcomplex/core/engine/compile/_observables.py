@@ -361,7 +361,7 @@ class ObservableEvaluator:
         problem = self.problem
         if not isinstance(problem, ProblemSpec) or problem.agents:
             error_msg = (
-                f'Observable {path} is a function of the values of a system, which a system with agents or a '
+                f'Observable {path} is a function of the values of a system, which a system with agents or an '
                 'operator system does not hold as a vector. Give an expression, or an expression of each agent.'
             )
             raise ValidationError(error_msg)
@@ -417,7 +417,7 @@ class ObservableEvaluator:
             else:
                 error_msg = (
                     f'Observable {path} uses the symbol {item}, which is neither a variable of a single element or '
-                    'interaction nor an earlier observable. Use the namespace that the expression receives.'
+                    'interaction nor an earlier observable. Use the values that the expression receives.'
                 )
                 raise ValidationError(error_msg)
         function = ExpressionPrinter(time=self.problem.time, compiled=True).prepare(arguments).run([expression]).code_
@@ -846,7 +846,7 @@ class ObservableEvaluator:
                 The problem holds no lowering of its operators.
         """
         if problem.lowering is None:
-            error_msg = 'The operator problem holds no lowering of its operators. Compile it with OperatorCompiler.'
+            error_msg = 'The operator problem holds no compiled operators. Compile it with OperatorCompiler.'
             raise ValidationError(error_msg)
         return problem.lowering
 
@@ -898,7 +898,7 @@ class ObservableEvaluator:
                 for member in problem.members[group]
             ]
         else:
-            error_msg = f'Observable {path} of an operator group needs a function of a member namespace or a variable.'
+            error_msg = f'Observable {path} of an operator group needs a function of each member or a variable.'
             raise ValidationError(error_msg)
 
         def get(t: float, x: Array, p: Array, done: Mapping[str, object]) -> object:

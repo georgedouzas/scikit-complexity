@@ -449,7 +449,7 @@ class PassCompiler(BaseCompiler):
         """Return the problem of the elements the pass compiler compiles."""
         compilation = self.compilation_
         if compilation is None:
-            error_msg = 'The system stopped compiling before its census. Prepare the compiler on a valid system.'
+            error_msg = 'The system stopped compiling before its laws were found. Prepare the compiler on a valid one.'
             raise PipelineError(error_msg)
         if self.partition == 'subsystems':
             return self._copy_with_initial_state(self._get_subsystem_problem(compilation), initial_state)

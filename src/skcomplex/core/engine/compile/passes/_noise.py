@@ -1,4 +1,5 @@
 """Add to the drift the correction of every noise law that is not in the Itô form."""
+
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 

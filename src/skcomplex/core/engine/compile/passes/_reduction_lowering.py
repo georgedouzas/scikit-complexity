@@ -161,7 +161,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
                 No laws are passed.
         """
         if inputs is None:
-            error_msg = 'The reduction lowering runs on the laws of every kernel spec. Pass them to `run`.'
+            error_msg = 'The reductions are rewritten in the laws of every component. Pass them to `run`.'
             raise PipelineError(error_msg)
         self.lowered_ = [(spec, [self._lower_law(law, spec) for law in laws]) for spec, laws in inputs]
 
@@ -300,7 +300,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         if reference is None or reference.source not in {ReadKind.MEMBER, ReadKind.SINGLE, ReadKind.OTHER}:
             error_msg = (
                 f'A reduction of {spec.owner} reads {item}, which is not a state or parameter of an element, a group '
-                'member, or another reduction. Reductions read the namespace `s` of the law.'
+                'member, or another reduction. Reductions read the values that the law reaches through `s`.'
             )
             raise ValidationError(error_msg)
         entry = reference.entry
@@ -550,8 +550,8 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         if reference is None or side is None or (side == 'reader' and owner != readers):
             error_msg = (
                 f'A reduction of {spec.owner} reads {item}, which is not a state or parameter of an element, of the '
-                f'reading member of {readers or "no group"}, or of the other member. Reductions read the namespaces '
-                '`s` and `s.other` of the law.'
+                f'reading member of {readers or "no group"}, or of the other member. Reductions read the values that '
+                'the law reaches through `s` and `s.other`.'
             )
             raise ValidationError(error_msg)
         entry = reference.entry
@@ -967,8 +967,8 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         if reference is None or reference.source not in {ReadKind.MEMBER, ReadKind.SINGLE, ReadKind.OTHER}:
             error_msg = (
                 f'A neighbourhood reduction of {spec.owner} reads {item}, which is not a state or parameter of a '
-                'member, of its neighbour, or of an element. Neighbourhood reductions read the namespaces `s` and '
-                '`s.other` of the law.'
+                'member, of its neighbour, or of an element. Neighbourhood reductions read the values that the law '
+                'reaches through `s` and `s.other`.'
             )
             raise ValidationError(error_msg)
         if reference.source is ReadKind.SINGLE:
@@ -981,7 +981,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         if owner != group:
             error_msg = (
                 f'A neighbourhood reduction of {spec.owner} over the members of {group} reads {item} of another group. '
-                '_ReadSpec the other group through a reduction over its members.'
+                'Read the other group through a reduction over its members.'
             )
             raise RoleError(error_msg)
         indices = (entry.start + np.arange(entry.rows) * entry.columns + reference.column).astype(np.intp)

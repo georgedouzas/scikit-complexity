@@ -212,7 +212,7 @@ class OrdersPass(BasePass):
                 and (str(other).rpartition('__')[2] if '__' in str(other) else '') == alias
             ):
                 return other
-        error_msg = f'A law of {spec.owner} reads {name}, which the namespace does not hold.'
+        error_msg = f'A law of {spec.owner} reads {name}, which is not a state or parameter it can read.'
         raise ValidationError(error_msg)
 
     @staticmethod

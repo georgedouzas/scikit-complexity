@@ -114,7 +114,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
         super()._prepare(context)
         declarations = self.compilation_.layout
         if declarations is None:
-            error_msg = 'The compilation has no layout yet. Lower draws after the layout pass.'
+            error_msg = 'The compilation has no layout yet. Run the layout pass before rewriting draws.'
             raise ValidationError(error_msg)
         self.offset_, self.time_ = declarations.ends[False], declarations.time
         self.requests_, self.draws_, self.shifted_ = [], None, {}

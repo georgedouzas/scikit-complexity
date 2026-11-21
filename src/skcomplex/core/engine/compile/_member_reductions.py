@@ -136,7 +136,7 @@ class _MemberReductions(BaseConfig[None, object]):
         if item not in self.reads_:
             error_msg = (
                 f'A reduction of observable {self.path} reads {item}, which is not a variable of a member of '
-                f'{self.group}, of a single element, or another reduction. Reductions read the namespace the '
+                f'{self.group}, of a single element, or another reduction. Reductions read the values that the '
                 'expression receives.'
             )
             raise ValidationError(error_msg)

@@ -235,7 +235,7 @@ class TopologyFunctionsPass(BasePass):
             for law in laws:
                 request = TopologyKernel._request_of(law)
                 if request is None or not isinstance(law, UpdateLaw):
-                    error_msg = f'A law of {spec.owner} set apart for the networks requests no topology change.'
+                    error_msg = f'A law of {spec.owner} set apart as a change of a network requests no change.'
                     raise PipelineError(error_msg)
                 item = TopologyFunctionsPass._get_compiled_request(spec, request, networks, weights, declarations)
                 requests.append(

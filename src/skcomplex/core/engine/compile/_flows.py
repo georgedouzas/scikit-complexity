@@ -151,7 +151,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         """
         layout = self.compilation_.layout
         if layout is None:
-            error_msg = 'The compilation has no layout yet. Lower flows after the layout pass.'
+            error_msg = 'The compilation has no layout yet. Run the layout pass before rewriting flows.'
             raise ValidationError(error_msg)
         return layout
 
