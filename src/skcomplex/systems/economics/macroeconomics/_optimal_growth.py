@@ -69,7 +69,7 @@ class OptimalConsumptionSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.economics.macroeconomics import OptimalConsumptionSystem
-        >>> OptimalConsumptionSystem(rho=0.05).prepare().system_.elements[0].get_value('rho')
+        >>> OptimalConsumptionSystem(rho=0.05).prepare().system_.elements[0].get_params()['rho']
         0.05
     """
 

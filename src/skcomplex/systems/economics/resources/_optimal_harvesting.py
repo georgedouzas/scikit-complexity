@@ -71,7 +71,7 @@ class OptimalHarvestingSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.economics.resources import OptimalHarvestingSystem
-        >>> OptimalHarvestingSystem(delta=0.05).prepare().system_.elements[0].get_value('delta')
+        >>> OptimalHarvestingSystem(delta=0.05).prepare().system_.elements[0].get_params()['delta']
         0.05
     """
 

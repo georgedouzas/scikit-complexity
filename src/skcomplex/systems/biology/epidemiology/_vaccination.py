@@ -80,7 +80,7 @@ class SIRVaccinationSystem(DynamicalSystem):
 
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import SIRVaccinationSystem
-        >>> SIRVaccinationSystem(beta=0.3).prepare().system_.elements[0].get_value('beta')
+        >>> SIRVaccinationSystem(beta=0.3).prepare().system_.elements[0].get_params()['beta']
         0.3
     """
 
