@@ -76,11 +76,11 @@ class HilbertSpaceProtocol(Protocol):
         OperatorKernel: A matrix that the compiler builds from the operators of the space.
 
     Examples:
-        >>> import numpy as np
         >>> from skcomplex.core.engine.types import HilbertSpaceProtocol
-        >>> from skcomplex.systems.physics.common.quantum import HilbertSpec
-        >>> isinstance(HilbertSpec(2, {'z': (np.diag([1.0, -1.0]), True)}), HilbertSpaceProtocol)
-        True
+        >>> from skcomplex.systems.physics.common.quantum import QubitElement
+        >>> space = QubitElement('a').hilbert
+        >>> isinstance(space, HilbertSpaceProtocol), space.dimension
+        (True, 2)
     """
 
     @property
