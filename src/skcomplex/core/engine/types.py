@@ -62,9 +62,25 @@ type SpectralBlock = tuple[IntTuple, list[Indices], ComplexArray]
 
 @runtime_checkable
 class HilbertSpaceProtocol(Protocol):
-    """A protocol of the state space of a subsystem that the operator compiler reads.
+    """A protocol of the vector space of the states of a subsystem, such as a qubit.
 
-    A field package defines the space, and the space names the compiler of its systems.
+    A field package defines the space of a subsystem, such as the two states of a qubit with its Pauli operators, and
+    the operator compiler reads its dimension, its named local operators, its basis states, and the compiler of its
+    systems. An element that takes such a space and declares a complex value is a subsystem, and a group of them is the
+    tensor product of their spaces. It describes a qubit of a quantum computer, a spin of a magnet, and an atom in a
+    cavity.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        OperatorKernel: A matrix that the compiler builds from the operators of the space.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.engine.types import HilbertSpaceProtocol
+        >>> from skcomplex.systems.physics.common.quantum import HilbertSpec
+        >>> isinstance(HilbertSpec(2, {'z': (np.diag([1.0, -1.0]), True)}), HilbertSpaceProtocol)
+        True
     """
 
     @property
