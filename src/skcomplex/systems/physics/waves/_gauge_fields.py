@@ -442,6 +442,44 @@ class LatticeGaugeFieldsSystem(BaseSystem):
         The arguments are those of `BaseSystem.simulate`, whose end time and time between frames default to those of
         the dynamics.
 
+        Args:
+            until:
+                The end time, or `None` for 50 with Hamiltonian dynamics and the tuned one otherwise.
+
+            dt:
+                The time between frames, or `None` for 0.5 with Hamiltonian dynamics and the tuned one otherwise.
+
+            initial_state:
+                Initial values by dotted state name, such as `{'ball.x': 20.0}`, or `None` for the tuned or the declared
+                ones.
+
+            random_state:
+                The seed or the generator of the random numbers of the run, or `None` for fresh entropy.
+
+            observables:
+                The observables to record, or none for the tuned ones.
+
+            observers:
+                The observers that watch the run, such as a Rerun recording.
+
+            invariants:
+                The tolerance of each observable that must stay constant, or `None` for the tuned ones.
+
+            schedule:
+                The functions of time that drive parameters, by dotted name, or `None` for the tuned ones.
+
+            clock:
+                The clock that paces the run, or `None` to run as fast as possible.
+
+            checked:
+                Whether every frame checks that states stay in their domains.
+
+            record_draws:
+                Whether the run records its random draws.
+
+            replay:
+                A trajectory whose recorded draws the run replays, or `None`.
+
         Returns:
             trajectory:
                 The states and observables of the run at every frame.

@@ -163,6 +163,10 @@ class NetworkSuperpositionSystem(BaseSystem):
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of the nodes of the union of the subgraphs.
 
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+
         Raises:
             ValidationError:
                 The bounds of the linking probabilities are not `0 < low <= high <= 1`.

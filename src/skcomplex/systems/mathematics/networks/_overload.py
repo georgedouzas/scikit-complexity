@@ -181,6 +181,10 @@ class MotterLaiOverloadSystem(BaseSystem):
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of the loaded nodes of the network after the attack.
 
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+
         Raises:
             ValidationError:
                 The attack is unknown.

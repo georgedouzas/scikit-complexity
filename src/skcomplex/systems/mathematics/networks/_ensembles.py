@@ -311,6 +311,10 @@ class NetworkAttackSystem(BaseSystem):
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of the Barabási-Albert network and the removal of its nodes.
 
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+
         Raises:
             ValidationError:
                 The strategy is unknown.

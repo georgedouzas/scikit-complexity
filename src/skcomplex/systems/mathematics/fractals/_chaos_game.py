@@ -241,6 +241,10 @@ class ChaosGameSystem(BaseSystem):
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of the points and the maps that move them.
 
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+
         Raises:
             ValidationError:
                 The preset is unknown.

@@ -512,6 +512,10 @@ class KoopmanModelPredictiveControlSystem(BaseSystem):
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set `system_` to the controller and the plant built from the model parameters.
 
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+
         Raises:
             ValidationError:
                 The plant is unknown.
