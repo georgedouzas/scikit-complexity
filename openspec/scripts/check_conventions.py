@@ -97,6 +97,10 @@ LAYOUT_PACKAGES = (
             '_elementary_modes',
             '_embedding',
             '_emergence',
+            '_ergodicity',
+            '_events',
+            '_fit',
+            '_groups',
         )
     ),
 )

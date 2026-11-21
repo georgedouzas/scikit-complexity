@@ -85,3 +85,9 @@ def test_invariant_density_and_ulam_chain_of_the_logistic_map():
     np.testing.assert_allclose(chain.transition_matrix.sum(axis=1), 1)
     two_bins = _ergodicity('invariant-density', [0.1, 0.2, 0.6, 0.7], bins=2, value_range=(0.0, 1.0))
     assert two_bins.density.tolist() == [1.0, 1.0]
+
+
+def test_ulam_chain_of_the_doubling_map_is_uniform():
+    """Test that the Ulam chain of the doubling map on four cells has the uniform density."""
+    chain = _ergodicity('ulam', lambda x: np.mod(2 * x, 1), edges=np.linspace(0, 1, 5))
+    assert chain.density.round(2).tolist() == [1.0, 1.0, 1.0, 1.0]

@@ -39,9 +39,13 @@ KIND_TAGS = {
 
 @dataclass(frozen=True)
 class ErgodicityResult:
-    """A result of `ergodicity`, a diagnostic of ergodicity.
+    """A result of `ergodicity`, whether a time average equals an ensemble average.
 
-    The diagnostic is of one kind.
+    It holds the runs or the map it read and the measure of the kind, such as an ergodicity breaking of 0 for two runs
+    that visit the same values and near 1 for runs frozen in their own states. It tells whether one long run of a gas,
+    a wealth process, or a neuron stands for the whole ensemble.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         values:
@@ -74,6 +78,14 @@ class ErgodicityResult:
 
         transition_matrix:
             The probability that a point of every cell lands in every cell, of `'ulam'`.
+
+    See Also:
+        ergodicity: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import ergodicity
+        >>> ergodicity([[0.0, 0.0], [1.0, 1.0]], kind='distance').ergodicity_distance
+        0.5
     """
 
     values: Array | None = None
@@ -100,28 +112,15 @@ def ergodicity(
     edges: npt.ArrayLike | None = None,
     samples: int = 100,
 ) -> ErgodicityResult:
-    """Return a diagnostic of the ergodicity of an ensemble of runs, one run, or a map.
+    """Return whether a time average equals an ensemble average, of one kind.
 
-    The diagnostic is of one kind.
+    The ensemble kinds read one row per run and one column per time, such as `ExperimentResult.get_ensemble` returns,
+    and compare what one run visits over time with what all runs visit, such as a breaking of 0 for two runs that swap
+    between 1 and -1. The density kinds read one long run or a map of the line and give the density it settles to. It
+    asks whether the growth of one fortune, the motion of one gas molecule, or one firing neuron stands for the whole
+    ensemble.
 
-    The ensemble kinds read one row per run and one column per time, such as `ExperimentResult.get_ensemble` returns:
-
-    - `'breaking'`: the variance across runs of the time averages over the variance of all the values, near 0 for
-      ergodic runs longer than their relaxation time and near 1 when every run is frozen in its own state.
-    - `'metric'`: the fluctuation metric of Thirumalai and Mountain, the mean square deviation of the running time
-      averages from their ensemble mean, which decays as `1 / t` for ergodic runs and levels off for frozen ones.
-    - `'distance'`: the median total-variation distance between the values one run visits over time and the values
-      of all runs, after Lesmana et al. (2026), near 0 for ergodic runs and near `1 - p` when every run stays in its
-      own state of ensemble weight `p`.
-
-    The density kinds read one coordinate of a long run, or a one-dimensional map:
-
-    - `'invariant-density'`: the histogram density of the values of a long run.
-    - `'ulam'`: the Markov chain of a map coarse-grained on the cells between `edges` by Ulam's method, and the
-      density of its stationary vector.
-
-    It appears in many fields. It asks whether a time average equals an ensemble average, as for the growth of wealth in
-    economics and the motion of a gas in physics.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
@@ -129,7 +128,15 @@ def ergodicity(
             for `'invariant-density'`, or the map, a function of an array of points, for `'ulam'`.
 
         kind:
-            The diagnostic, one of the kinds above.
+            What to return. `'breaking'` gives the variance across runs of the time averages over the variance of all
+            the values, near 0 for ergodic runs longer than their relaxation time and near 1 when every run is frozen
+            in its own state. `'metric'` gives the fluctuation metric of Thirumalai and Mountain, the mean square
+            deviation of the running time averages from their ensemble mean, which decays as `1 / t` for ergodic runs
+            and levels off for frozen ones. `'distance'` gives the median total variation distance between the values
+            one run visits over time and the values of all runs, after Lesmana et al. (2026), near 0 for ergodic runs
+            and near `1 - p` when every run stays in its own state of ensemble weight `p`. `'invariant-density'` gives
+            the histogram density of the values of a long run. `'ulam'` gives the Markov chain of a map on the cells
+            between `edges` by Ulam's method, and the density of its stationary vector.
 
         variables:
             The variable of a trajectory whose values `'invariant-density'` reads, or `None` for the first one.
@@ -161,17 +168,15 @@ def ergodicity(
             The kind is unknown, a setting the kind does not read is changed, a setting is out of range, the edges of
             the Ulam chain are missing, the map is not callable, or the ensemble has fewer than two runs.
 
+    See Also:
+        irreversibility: Measures how far a run is from its reverse in time.
+        markov: Estimates a Markov chain from a run.
+
     Examples:
-        >>> import numpy as np
         >>> from skcomplex.core.analysis import ergodicity
         >>> runs = [[1.0, -1.0, 1.0, -1.0], [-1.0, 1.0, -1.0, 1.0]]
         >>> ergodicity(runs).ergodicity_breaking
         0.0
-        >>> ergodicity([[0.0, 0.0], [1.0, 1.0]], kind='distance').ergodicity_distance
-        0.5
-        >>> ulam = ergodicity(lambda x: np.mod(2 * x, 1), kind='ulam', edges=np.linspace(0, 1, 5))
-        >>> ulam.density.round(2).tolist()
-        [1.0, 1.0, 1.0, 1.0]
     """
     _check_choice('ergodicity', 'kind', kind, KINDS)
     _check_settings(
