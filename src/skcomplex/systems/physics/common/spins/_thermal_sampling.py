@@ -13,9 +13,8 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import SR, oo
 from sage.sets.real_set import RealSet
 
-from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
-from .....core.components.laws import ObjectiveLaw
+from .....core.components.laws import BaseLaw, ObjectiveLaw
 from .....core.types import Role
 
 
@@ -82,4 +81,4 @@ class ThermalSamplingInteraction(Interaction):
         super()._prepare(context)
         state = getattr(self._get_member(context, 'target'), self.state)
         objective = SR(self.energy(context)) / SR(self._get_temperature(context))
-        self.laws_: list[BaseComponent] = [ObjectiveLaw(objective, state)]
+        self.laws_: list[BaseLaw] = [ObjectiveLaw(objective, state)]

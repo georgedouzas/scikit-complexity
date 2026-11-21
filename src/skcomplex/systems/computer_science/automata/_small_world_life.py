@@ -13,9 +13,8 @@ import networkx as nx
 import numpy as np
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import both, either, neighbors, where
 from ....core.components.spaces import NetworkSpace
 from ....core.engine.backends import BaseBackend
@@ -68,7 +67,7 @@ class NetworkLifeInteraction(Interaction):
         alive = context.target.alive
         live = neighbors(context.target.other.alive)
         born_or_kept = either(live == BIRTH, both(alive == 1, live == SURVIVAL))
-        self.laws_: list[BaseComponent] = [UpdateLaw(alive, where(born_or_kept, 1, 0))]
+        self.laws_: list[BaseLaw] = [UpdateLaw(alive, where(born_or_kept, 1, 0))]
 
 
 class SmallWorldLifeSystem(BaseSystem):

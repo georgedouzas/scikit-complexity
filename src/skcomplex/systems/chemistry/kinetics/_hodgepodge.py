@@ -12,10 +12,9 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace, LatticeSpace, RadiusNeighborhood
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -134,7 +133,7 @@ class HodgepodgeInteraction(Interaction):
         """
         super()._prepare(context)
         level = context.target.level
-        self.laws_: list[BaseComponent] = [UpdateLaw(level, self._infect, neighborhood=MOORE, label=self.label)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(level, self._infect, neighborhood=MOORE, label=self.label)]
 
 
 class HodgepodgeSystem(BaseSystem):

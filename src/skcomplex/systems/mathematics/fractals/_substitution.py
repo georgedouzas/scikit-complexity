@@ -15,8 +15,8 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
@@ -83,7 +83,7 @@ class CantorInteraction(Interaction):
             ('interval', AffineSpec(scale=context.ratio)),
             ('interval', AffineSpec(scale=context.ratio, translation=(1 - context.ratio, 0))),
         ]
-        self.laws_: list[BaseComponent] = [SubstitutionLaw('interval', pieces)]
+        self.laws_: list[BaseLaw] = [SubstitutionLaw('interval', pieces)]
 
 
 class SierpinskiInteraction(Interaction):
@@ -135,7 +135,7 @@ class SierpinskiInteraction(Interaction):
         """
         super()._prepare(context)
         prototile, pieces = self._get_sierpinski_tiles(self.shape)
-        self.laws_: list[BaseComponent] = [SubstitutionLaw(prototile.name, pieces)]
+        self.laws_: list[BaseLaw] = [SubstitutionLaw(prototile.name, pieces)]
 
     @staticmethod
     def _get_sierpinski_tiles(shape: str) -> tuple[PrototileSpec, list[tuple[str, AffineSpec]]]:

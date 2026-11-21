@@ -3,15 +3,12 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Mapping
+from dataclasses import dataclass
 
-from sage.all__sagemath_symbolics import Expression
-from sage.structure.element import Matrix
-
-from ..types import Target
 from ._rate import RateLaw
 
 
+@dataclass(frozen=True)
 class _OrderedRateLaw(RateLaw):
     """A rate law on a state that keeps the order of the derivative it gives.
 
@@ -33,16 +30,7 @@ class _OrderedRateLaw(RateLaw):
             The name of the rate in messages, or the empty string for none.
     """
 
-    def __init__(
-        self,
-        target: Target | Matrix | Mapping[Expression, int],
-        value: object,
-        order: float | None = None,
-        *,
-        label: str = '',
-    ) -> None:
-        super().__init__(target, value, label=label)
-        self.order = order
+    order: float | None = None
 
     @classmethod
     def _get_name(cls) -> str:

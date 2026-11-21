@@ -15,10 +15,9 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
@@ -180,7 +179,7 @@ class HouseholdDemandInteraction(Interaction):
         price = s.price * (1 + s.change)
         demand = self.get_demand(s, price)
         rest = s.budget - price * demand
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(s.price, price),
             UpdateLaw(s.demand, demand),
             UpdateLaw(s.expenditure, price * demand),

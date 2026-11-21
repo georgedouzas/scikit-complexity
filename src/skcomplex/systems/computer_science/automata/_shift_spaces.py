@@ -17,10 +17,9 @@ import scipy.optimize
 from sage.all__sagemath_symbolics import ZZ
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -164,7 +163,7 @@ class GapShiftInteraction(Interaction):
         super()._prepare(context)
         window = LatticeNeighborhood(tuple((offset,) for offset in range(1 - self.size, 2)))
         alive = context.target.alive
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(alive, self._get_function(), neighborhood=window, label=self.label),
         ]
 
@@ -242,7 +241,7 @@ class ContextFreeMoveInteraction(Interaction):
         super()._prepare(context)
         ring = LatticeNeighborhood(tuple((offset,) for offset in range(1 - self.size, self.size)))
         symbol = context.target.symbol
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(symbol, self._get_move, neighborhood=ring, schedule='random-sequential', label=self.label),
         ]
 
@@ -299,7 +298,7 @@ class CarryInteraction(Interaction):
         super()._prepare(context)
         lower = LatticeNeighborhood(tuple((offset,) for offset in range(1 - self.digits, 1)))
         digit = context.target.digit
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(digit, self._get_function(), neighborhood=lower, label=self.label),
         ]
 

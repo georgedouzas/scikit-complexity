@@ -9,7 +9,6 @@ from typing import ClassVar
 
 from sage.all__sagemath_symbolics import SR
 
-from ....core.components.base import BaseComponent
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.errors import ValidationError
@@ -98,4 +97,4 @@ class FlowInteraction(Interaction):
         amount = SR(self.amount(context) if callable(self.amount) else self.amount)
         signs = {self.leaves: -1, self.enters: 1}
         stocks = {getattr(context.target, name): sign for name, sign in signs.items() if name is not None}
-        self.laws_: list[BaseComponent] = [RateLaw(stocks, amount, label=self.label)]
+        self.laws_: list[BaseLaw] = [RateLaw(stocks, amount, label=self.label)]

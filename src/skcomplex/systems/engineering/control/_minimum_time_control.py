@@ -14,10 +14,9 @@ from sage.all__sagemath_symbolics import Expression, abs_symbolic, sqrt
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import RateLaw
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import sign, where
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -116,7 +115,7 @@ class BangBangPlantInteraction(Interaction):
         """
         super()._prepare(context)
         plant, t = context.target, context.t
-        self.laws_: list[BaseComponent] = [RateLaw(plant.x.diff(t, 2), context.a * plant.x + plant.u)]
+        self.laws_: list[BaseLaw] = [RateLaw(plant.x.diff(t, 2), context.a * plant.x + plant.u)]
 
     @staticmethod
     def _get_switching_curve(plant: str, x: Expression) -> Expression:

@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Callable, Sequence
+from dataclasses import KW_ONLY, dataclass
 from typing import ClassVar
 
 from ...components.laws import BaseLaw, RequirementSpec
@@ -11,6 +12,7 @@ from ...components.spaces import LatticeSpace, NetworkSpace
 from ...components.spaces._discrete_time import _DiscreteTime
 
 
+@dataclass(frozen=True)
 class RelaxationLaw(BaseLaw):
     """A law that drives a lattice once per step and relaxes it until it is stable.
 
@@ -47,28 +49,19 @@ class RelaxationLaw(BaseLaw):
         >>> height = var('height')
         >>> cross = RadiusNeighborhood(1, metric='manhattan', center=True)
         >>> topple = UpdateLaw(height, lambda z, *n: z - 4 * (z >= 4), neighborhood=cross)
-        >>> RelaxationLaw([], [topple], lambda z: bool((z < 4).all())).prepare().targets_
-        (height,)
+        >>> RelaxationLaw([], [topple], lambda z: bool((z < 4).all())).relax[0] is topple
+        True
     """
 
     law_tag: ClassVar[str] = 'update'
 
-    def __init__(
-        self,
-        drive: Sequence[BaseLaw],
-        relax: Sequence[BaseLaw],
-        stable: Callable[..., bool],
-        max_iterations: int = 100_000,
-        activity: Callable[..., object] | None = None,
-        *,
-        label: str = '',
-    ) -> None:
-        super().__init__(label)
-        self.drive = drive
-        self.relax = relax
-        self.stable = stable
-        self.max_iterations = max_iterations
-        self.activity = activity
+    drive: Sequence[BaseLaw]
+    relax: Sequence[BaseLaw]
+    stable: Callable[..., bool]
+    max_iterations: int = 100000
+    activity: Callable[..., object] | None = None
+    _: KW_ONLY
+    label: str = ''
 
     @classmethod
     def _get_name(cls) -> str:
@@ -84,13 +77,8 @@ class RelaxationLaw(BaseLaw):
         """Return what the relaxation requires: discrete time on a lattice or a network."""
         return RequirementSpec(time=(_DiscreteTime,), space=(LatticeSpace, NetworkSpace))
 
-    def _prepare(self, context: str | None = None) -> None:
-        """Check every drive law and every law that relaxes the lattice.
-
-        Args:
-            context:
-                The path of the element or interaction that returns the law, or `None`.
-        """
-        super()._prepare(context)
+    def _check(self) -> None:
+        """Check every drive law and every law that relaxes the lattice."""
+        super()._check()
         for law in (*self.drive, *self.relax):
-            law.prepare(context)
+            law._check()

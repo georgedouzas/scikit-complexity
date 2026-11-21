@@ -9,7 +9,6 @@ from typing import ClassVar
 
 from sage.all__sagemath_symbolics import SR
 
-from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, EventLaw
 from .....core.components.laws.utils import periodic_guard
@@ -136,7 +135,7 @@ class PulseInteraction(Interaction):
         """
         super()._prepare(context)
         reset = {self._get_reset_state(context, name): SR(f(context)) for name, f in self.reset.items()}
-        laws: list[BaseComponent] = [EventLaw(context.t - time, reset, 1, label=self.label) for time in self.times]
+        laws: list[BaseLaw] = [EventLaw(context.t - time, reset, 1, label=self.label) for time in self.times]
         if self.period is not None:
             guard = periodic_guard(context.t, self.period, self.start, self.count)
             laws.append(EventLaw(guard, reset, 0, False, label=self.label))

@@ -10,7 +10,6 @@ from typing import Annotated, ClassVar
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, RateLaw
 from .....core.errors import ValidationError
@@ -113,7 +112,7 @@ class SpringDamperInteraction(Interaction):
         first, second = (getattr(member, name) for name in self.states)
         spring = -context.k * (first - second)
         damper = -context.b * (first.diff(t) - second.diff(t))
-        laws: list[BaseComponent] = []
+        laws: list[BaseLaw] = []
         for state, mass, sign in ((first, self.masses[0], 1), (second, self.masses[1], -1)):
             laws += [
                 RateLaw(state.diff(t, 2), sign * spring / getattr(member, mass)),

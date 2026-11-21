@@ -19,10 +19,9 @@ from sage.all__sagemath_symbolics import SR, cos, oo, sin, sqrt, vector
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, Period
 from ....core.components.interactions import Interaction
-from ....core.components.laws import NoiseLaw, RateLaw, UpdateLaw
+from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.components.spaces import ContinuousSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver
@@ -166,7 +165,7 @@ class AnisotropicDiffusionInteraction(Interaction):
         axis = [getattr(s.target, name) for name in DIRECTIONS]
         position = [getattr(s.target, name) for name in AXES]
         length = sqrt(sum(component**2 for component in axis))
-        laws: list[BaseComponent] = []
+        laws: list[BaseLaw] = []
         for i, (coordinate, component) in enumerate(zip(position, axis, strict=True)):
             laws.append(RateLaw(component.diff(t), -2 * s.D_r * component))
             for j, other in enumerate(axis):

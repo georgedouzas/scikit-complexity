@@ -4,6 +4,7 @@
 # License: MIT
 
 import numbers
+from dataclasses import KW_ONLY, dataclass
 from typing import ClassVar
 
 from ....core.components.laws import BaseLaw, RequirementSpec, UpdateLaw
@@ -11,6 +12,7 @@ from ....core.errors import RewritingError
 from ._module_spec import Letters, ModuleSpec
 
 
+@dataclass(frozen=True)
 class ProductionLaw(BaseLaw):
     """A law that rewrites every matching symbol of a word by a successor.
 
@@ -52,30 +54,20 @@ class ProductionLaw(BaseLaw):
 
     Examples:
         >>> from skcomplex.systems.general.rewriting import ProductionLaw
-        >>> ProductionLaw('F', 'F+F--F+F').prepare().successor
+        >>> ProductionLaw('F', 'F+F--F+F').successor
         'F+F--F+F'
     """
 
     law_tag: ClassVar[str] = 'update'
 
-    def __init__(
-        self,
-        predecessor: str | ModuleSpec,
-        successor: Letters,
-        *,
-        left: Letters | None = None,
-        right: Letters | None = None,
-        condition: object = None,
-        probability: object = None,
-        label: str = '',
-    ) -> None:
-        super().__init__(label)
-        self.predecessor = predecessor
-        self.successor = successor
-        self.left = left
-        self.right = right
-        self.condition = condition
-        self.probability = probability
+    predecessor: str | ModuleSpec
+    successor: Letters
+    _: KW_ONLY
+    left: Letters | None = None
+    right: Letters | None = None
+    condition: object = None
+    probability: object = None
+    label: str = ''
 
     def _get_targets(self) -> tuple[object, ...]:
         """Return no states.
@@ -89,16 +81,12 @@ class ProductionLaw(BaseLaw):
         """Return what the law requires of a system: the discrete time of an update."""
         return UpdateLaw.get_requirements()
 
-    def _prepare(self, context: str | None = None) -> None:
+    def _check(self) -> None:
         """Raise an error for a predecessor not one module, or a bad numeric probability.
 
         A numeric probability must be in `[0, 1]`.
-
-        Args:
-            context:
-                The path of the element or interaction that returns the law, or `None`.
         """
-        super()._prepare(context)
+        super()._check()
         if len(ModuleSpec.parse_word(self.predecessor)) != 1:
             error_msg = f'The predecessor of a production is one symbol or module, not {self.predecessor!r}.'
             raise RewritingError(error_msg)

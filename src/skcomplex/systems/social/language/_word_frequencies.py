@@ -10,10 +10,9 @@ import numpy as np
 from sage.all__sagemath_symbolics import exp
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import ConstraintLaw
+from ....core.components.laws import BaseLaw, ConstraintLaw
 from ....core.components.laws.utils import log_sum_exp
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -124,7 +123,7 @@ class LeastEffortInteraction(Interaction):
         super()._prepare(s)
         weight = -s.target.exponent * s.words.cost
         log_partition = log_sum_exp(weight, over=s.words)
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             ConstraintLaw(log_partition == 0, target=s.target.exponent),
             ConstraintLaw(s.words.probability == exp(weight - log_partition), target=s.words.probability),
         ]

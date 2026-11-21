@@ -14,10 +14,9 @@ import numpy as np
 from sage.all__sagemath_symbolics import ZZ
 
 from ....core.components import Observable, SubshiftSpec
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import TotalisticSpec, UpdateLaw
+from ....core.components.laws import BaseLaw, TotalisticSpec, UpdateLaw
 from ....core.components.spaces import BaseNeighborhood, BaseSpace, LatticeNeighborhood, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -144,7 +143,7 @@ class MajorityRuleInteraction(Interaction):
         """
         super()._prepare(context)
         alive = context.target.alive
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(alive, self._get_majority, neighborhood=self.neighborhood, label=self.label),
         ]
 
@@ -193,7 +192,7 @@ class ParityRuleInteraction(Interaction):
         super()._prepare(context)
         parity = TotalisticSpec({total: total % 2 for total in range(len(self.neighborhood.elements) + 1)})
         alive = context.target.alive
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(alive, parity, neighborhood=self.neighborhood, label=self.label),
         ]
 
@@ -240,7 +239,7 @@ class LaplacianRuleInteraction(Interaction):
         """
         super()._prepare(context)
         value = context.target.value
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(value, self._get_function(), neighborhood=THREE_CELLS, label=self.label),
         ]
 
@@ -284,7 +283,7 @@ class GoldenMeanMoveInteraction(Interaction):
         """
         super()._prepare(context)
         alive = context.target.alive
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(
                 alive,
                 self._get_move,

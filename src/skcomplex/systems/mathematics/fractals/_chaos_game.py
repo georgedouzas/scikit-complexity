@@ -11,10 +11,9 @@ from sage.all__sagemath_symbolics import SR, Expression, vector
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import categorical, where
 from ....core.components.spaces import ContinuousSpace
 from ....core.engine.backends import BaseBackend
@@ -152,7 +151,7 @@ class RandomAffineMapInteraction(Interaction):
         """
         super()._prepare(context)
         position = getattr(context.target, self.state)
-        self.laws_: list[BaseComponent] = [UpdateLaw(position, self._get_image(context))]
+        self.laws_: list[BaseLaw] = [UpdateLaw(position, self._get_image(context))]
 
     def _get_image(self, namespace: SimpleNamespace) -> FreeModuleElement:
         """Return the image of the position by the map drawn among the maps."""

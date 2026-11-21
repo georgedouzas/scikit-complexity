@@ -14,10 +14,9 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import RateLaw
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import step, where
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -90,7 +89,7 @@ class FeedInteraction(Interaction):
                 The namespace of the elements a binding of the roles names.
         """
         super()._prepare(context)
-        self.laws_: list[BaseComponent] = [RateLaw(context.target.m.diff(context.t), context.feed)]
+        self.laws_: list[BaseLaw] = [RateLaw(context.target.m.diff(context.t), context.feed)]
 
 
 class StageSplitInteraction(Interaction):
@@ -147,7 +146,7 @@ class StageSplitInteraction(Interaction):
         super()._prepare(context)
         s = context
         m = s.target.m
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             RateLaw({m: -1, s.above.m: +1}, s.k * m, label='up'),
             RateLaw({m: -1, s.below.m: +1}, (1 - s.k) * m, label='down'),
         ]

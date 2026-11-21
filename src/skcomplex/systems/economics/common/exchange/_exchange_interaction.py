@@ -12,9 +12,8 @@ from typing import ClassVar
 
 import numpy as np
 
-from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
-from .....core.components.laws import PartnerSpec, UpdateLaw
+from .....core.components.laws import BaseLaw, PartnerSpec, UpdateLaw
 from .....core.components.laws.utils import pairs
 from .....core.components.types import AgentViewProtocol, SystemViewProtocol
 from .....core.types import Role
@@ -93,7 +92,7 @@ class ExchangeInteraction(Interaction):
                 The namespace of the elements a binding of the roles names.
         """
         super()._prepare(context)
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(context, self.trade, phase=self.phase),
             UpdateLaw(context, self.report_trades, phase=self.phase),
         ]

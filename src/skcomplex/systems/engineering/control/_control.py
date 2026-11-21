@@ -11,7 +11,6 @@ from sage.all__sagemath_symbolics import Expression, cos, oo, pi, sin
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, ConstraintLaw, EventLaw
@@ -68,7 +67,7 @@ class HeatCapacityInteraction(Interaction):
         """
         super()._prepare(context)
         T = context.node.T
-        self.laws_: list[BaseComponent] = [ConstraintLaw(-context.C * T.diff(context.t), 0, target=T)]
+        self.laws_: list[BaseLaw] = [ConstraintLaw(-context.C * T.diff(context.t), 0, target=T)]
 
 
 class ThermalConductorInteraction(Interaction):
@@ -111,7 +110,7 @@ class ThermalConductorInteraction(Interaction):
         super()._prepare(context)
         a, b = context.a.T, context.b.T
         flow = context.G * (a - b)
-        self.laws_: list[BaseComponent] = [ConstraintLaw(-flow, 0, target=a), ConstraintLaw(flow, 0, target=b)]
+        self.laws_: list[BaseLaw] = [ConstraintLaw(-flow, 0, target=a), ConstraintLaw(flow, 0, target=b)]
 
 
 class ConvectionInteraction(Interaction):
@@ -160,7 +159,7 @@ class ConvectionInteraction(Interaction):
         """
         super()._prepare(context)
         T = context.node.T
-        self.laws_: list[BaseComponent] = [ConstraintLaw(-context.h * (T - context.fluid), 0, target=T)]
+        self.laws_: list[BaseLaw] = [ConstraintLaw(-context.h * (T - context.fluid), 0, target=T)]
 
 
 class HeatingResistorInteraction(BranchInteraction):
@@ -209,7 +208,7 @@ class HeatingResistorInteraction(BranchInteraction):
         self.switch = switch
         self.R = R
 
-    def _get_branch_laws(self, s: SimpleNamespace) -> list[BaseComponent]:
+    def _get_branch_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the switched current into both electrical balances and the power into the thermal balance."""
         voltage = s.a.v - s.b.v
         current = s.switch.closed * voltage / s.R
@@ -279,7 +278,7 @@ class SwitchInteraction(Interaction):
         """
         super()._prepare(context)
         guard = context.sensor.T - context.threshold
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             EventLaw(guard, {context.switch.closed: context.value}, direction=self.direction),
         ]
 

@@ -22,10 +22,9 @@ from sklearn.preprocessing import PolynomialFeatures
 
 from ....core.analysis import ModeDecompositionResult, mode_decomposition
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import CallSpec, RateLaw, UpdateLaw
+from ....core.components.laws import BaseLaw, CallSpec, RateLaw, UpdateLaw
 from ....core.engine.backends import BaseBackend
 from ....core.engine.runtime import Trajectory
 from ....core.engine.solvers import BaseSolver
@@ -243,7 +242,7 @@ class PlantInteraction(Interaction):
         super()._prepare(context)
         case, plant, t = PLANTS[self.kind], context.plant, context.t
         rates = case.rates(plant, case.limit * context.control.u, t, case.step)
-        self.laws_: list[BaseComponent] = [RateLaw(plant.x.diff(t), rates[0]), RateLaw(plant.y.diff(t), rates[1])]
+        self.laws_: list[BaseLaw] = [RateLaw(plant.x.diff(t), rates[0]), RateLaw(plant.y.diff(t), rates[1])]
 
 
 class _PredictiveProblem:
@@ -369,7 +368,7 @@ class PredictiveControlInteraction(Interaction):
         super()._prepare(context)
         plant = context.plant
         value = 0.0 if self.policy is None else CallSpec(self.policy, (plant.x, plant.y))
-        self.laws_: list[BaseComponent] = [UpdateLaw(context.control.u, value)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.control.u, value)]
 
 
 class KoopmanModelPredictiveControlSystem(BaseSystem):

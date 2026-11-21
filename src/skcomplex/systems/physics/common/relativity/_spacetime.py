@@ -397,7 +397,7 @@ class GeodesicInteraction(Interaction):
         super()._prepare(context)
         self.laws_ = self._get_geodesic_laws(context)
 
-    def _get_geodesic_laws(self, context: SimpleNamespace) -> list[BaseComponent]:
+    def _get_geodesic_laws(self, context: SimpleNamespace) -> list[BaseLaw]:
         """Return the rate law of the second derivative of the position.
 
         It is minus the connection on the tangent.

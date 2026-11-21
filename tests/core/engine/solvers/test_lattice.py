@@ -190,7 +190,7 @@ def test_unknown_schedule_is_rejected():
             lambda *values: values[0],
             neighborhood=LatticeNeighborhood(((-1,), (0,), (1,))),
             schedule='parallel',
-        ).prepare()
+        )._check()
 
 
 def test_forest_fire_is_reproducible():

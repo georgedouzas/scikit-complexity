@@ -11,10 +11,9 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, Quantity
 from ....core.components.interactions import Interaction
-from ....core.components.laws import RateLaw, UpdateLaw
+from ....core.components.laws import BaseLaw, RateLaw, UpdateLaw
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, EulerSolver
 from ....core.systems import BaseSystem, System
@@ -211,7 +210,7 @@ class CircuitInteraction(Interaction):
             ({firms.deposits: +1}, self._get_lending(firms, bank), 'lending'),
             ({firms.deposits: -1}, firms.repayment * firms.loans, 'repayments'),
         ]
-        self.laws_: list[BaseComponent] = [RateLaw(target, amount, label=flow) for target, amount, flow in flows]
+        self.laws_: list[BaseLaw] = [RateLaw(target, amount, label=flow) for target, amount, flow in flows]
 
     @staticmethod
     def _get_consumption(households: SimpleNamespace, firms: SimpleNamespace) -> Expression:
@@ -343,7 +342,7 @@ class StockFlowConsistentEconomySystem(BaseSystem):
         self.repayment = repayment
 
     @staticmethod
-    def _get_next_loans(s: SimpleNamespace) -> list[BaseComponent]:
+    def _get_next_loans(s: SimpleNamespace) -> list[BaseLaw]:
         """Return the loans of the firms after a period.
 
         The new loans are added and the repayments taken.
@@ -357,7 +356,7 @@ class StockFlowConsistentEconomySystem(BaseSystem):
         ]
 
     @staticmethod
-    def _get_next_sales(s: SimpleNamespace) -> list[BaseComponent]:
+    def _get_next_sales(s: SimpleNamespace) -> list[BaseLaw]:
         """Return the sales of the firms of a period, the consumption of the households."""
         return [UpdateLaw(s.target.sales, CircuitInteraction._get_consumption(s.households, s.target))]
 

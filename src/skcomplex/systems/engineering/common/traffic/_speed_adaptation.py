@@ -10,9 +10,8 @@ from collections.abc import Callable
 from types import SimpleNamespace
 
 from .....core.components import Tags
-from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
-from .....core.components.laws import NoiseLaw, RateLaw
+from .....core.components.laws import BaseLaw, NoiseLaw, RateLaw
 from .....core.errors import ValidationError
 from .....core.types import Role
 
@@ -115,7 +114,7 @@ class SpeedAdaptationInteraction(Interaction):
         position = getattr(s.target, self.state.rstrip("'"))
         order = len(self.state) - len(self.state.rstrip("'"))
         value = position.diff(t, order) if order else position
-        laws: list[BaseComponent] = [RateLaw(value.diff(t), (self._get_goal(s) - value) / self._get_time(s))]
+        laws: list[BaseLaw] = [RateLaw(value.diff(t), (self._get_goal(s) - value) / self._get_time(s))]
         noise = self._get_noise(s)
         if noise is not None:
             laws.append(NoiseLaw(position.diff(t, order + 1), noise))

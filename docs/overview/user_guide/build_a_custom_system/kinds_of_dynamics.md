@@ -59,16 +59,18 @@ hook to the compiled form. The compiler has two main public methods.
 ## Writing a law
 
 This section writes a law class of your own and shows why a system cannot run it without a compiler that knows it. A
-new law derives from [`BaseLaw`](../core_components/laws.md#baselaw). It stores its arguments under their own names
-and implements three methods.
+new law derives from [`BaseLaw`](../core_components/laws.md#baselaw). It is a frozen dataclass whose fields are its
+arguments, and it implements three methods.
 
-- `_get_targets` returns the states it changes, which `prepare` sets as `targets_`.
+- `_get_targets` returns the states it changes.
 - `_get_requirements` returns a `RequirementSpec` of the kinds of space it runs in.
-- `_get_value` returns its value at given values of the symbols it reads, which `prepare` sets as `reads_`.
+- `_get_value` returns its value at given values of the symbols it reads.
 
 Here a decay law returns the rate `-k n` and runs in any space.
 
 ```python
+from dataclasses import dataclass
+
 from sage.all__sagemath_symbolics import var
 
 from skcomplex.core.components.elements import Element
@@ -78,11 +80,11 @@ from skcomplex.core.errors import UnregisteredLawError
 from skcomplex.core.systems import System
 
 
+@dataclass(frozen=True)
 class DecayLaw(BaseLaw):
-    def __init__(self, target, rate, *, label=''):
-        super().__init__(label)
-        self.target = target
-        self.rate = rate
+    target: object
+    rate: object
+    label: str = ''
 
     def _get_targets(self):
         return (self.target,)
@@ -96,11 +98,11 @@ class DecayLaw(BaseLaw):
 
 
 n, k = var('n k')
-law = DecayLaw(n, k).prepare('atom')
-law.targets_, sorted(map(str, law.reads_)), law.owner_
+law = DecayLaw(n, k)
+law.target, law.rate, law == DecayLaw(n, k)
 ```
 
-The law targets `n`, reads `k` and `n`, and belongs to `atom`. It checks and prepares on its own.
+The law targets `n` at the rate `k`, and equals any decay law with the same fields.
 
 The passes of the compilers that the library ships are fixed lists of the engine, so no form takes a law of a new
 class inside a system. An [`Interaction`](../core_components/interactions.md#interaction) that sets the law shows

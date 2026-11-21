@@ -18,10 +18,9 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace, RadiusNeighborhood
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -126,7 +125,7 @@ class NoisyRuleInteraction(Interaction):
         """
         super()._prepare(context)
         alive = context.target.alive
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(alive, self._get_function(), neighborhood=ELEMENTARY, label=self.label),
         ]
 
@@ -176,7 +175,7 @@ class DiscreteDiffusionInteraction(Interaction):
         """
         super()._prepare(context)
         level = context.target.level
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(level, self._get_function(), neighborhood=VON_NEUMANN, label=self.label),
         ]
 
@@ -217,7 +216,7 @@ class AdditiveRuleInteraction(Interaction):
         """
         super()._prepare(context)
         value = context.target.value
-        self.laws_: list[BaseComponent] = [UpdateLaw(value, self._add, neighborhood=PREDECESSORS, label=self.label)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(value, self._add, neighborhood=PREDECESSORS, label=self.label)]
 
 
 class HighlifeSystem(BaseSystem):

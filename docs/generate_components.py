@@ -187,7 +187,7 @@ def _links(items: list[str], more: str) -> str:
 
 
 def _fact_sheet(
-    item: type[BaseComponent],
+    item: type[BaseComponent | BaseLaw],
     catalog: list[tuple[str, type[BaseSystem], set[type]]],
     family: str,
 ) -> list[str]:
@@ -253,14 +253,14 @@ def _fact_sheet(
     return lines
 
 
-def _family_classes(package: ModuleType) -> list[type[BaseComponent]]:
-    """Return the public component classes of a family package, sorted by name."""
+def _family_classes(package: ModuleType) -> list[type[BaseComponent | BaseLaw]]:
+    """Return the public component and law classes of a family package, sorted by name."""
     every = (getattr(package, name) for name in package.__all__)
-    found = (item for item in every if isinstance(item, type) and issubclass(item, BaseComponent))
+    found = (item for item in every if isinstance(item, type) and issubclass(item, BaseComponent | BaseLaw))
     return sorted(found, key=lambda item: item.__name__)
 
 
-def _facts(items: list[type[BaseComponent]], family: str) -> str:
+def _facts(items: list[type[BaseComponent | BaseLaw]], family: str) -> str:
     """Return the comparison table and the fact sheets of the classes of a family."""
     catalog = _catalog_classes()
     rows = [[f'[`{item.__name__}`](#{item.__name__.lower()})', *_comparison(item)] for item in items]

@@ -10,7 +10,6 @@ from typing import ClassVar
 from sage.all__sagemath_symbolics import SR, Expression, vector
 from sage.modules.free_module_element import FreeModuleElement
 
-from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, RateLaw
 from .....core.components.types import Target
@@ -187,7 +186,7 @@ class HamiltonianInteraction(Interaction):
         symbol = SR.symbol()
         return hamiltonian.subs({state: symbol}).diff(symbol).subs({symbol: state})
 
-    def _get_canonical_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
+    def _get_canonical_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the rate of every coordinate, `dH/dp`, and of every momentum, `-dH/dq`.
 
         Args:
@@ -200,7 +199,7 @@ class HamiltonianInteraction(Interaction):
         """
         pairs = self._get_pairs(namespace)
         hamiltonian = SR(self._get_hamiltonian(namespace))
-        laws: list[BaseComponent] = []
+        laws: list[BaseLaw] = []
         for q, p in pairs:
             laws.append(RateLaw(q, self._get_derivative(hamiltonian, p)))
             laws.append(RateLaw(p, -self._get_derivative(hamiltonian, q)))

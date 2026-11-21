@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Mapping
+from dataclasses import KW_ONLY, dataclass
 from typing import ClassVar
 
 from sage.all__sagemath_symbolics import Expression
@@ -14,6 +15,7 @@ from ._base import BaseLaw
 from ._requirement_spec import RequirementSpec
 
 
+@dataclass(frozen=True)
 class EventLaw(BaseLaw):
     """A law that resets states or ends the run when a guard crosses zero.
 
@@ -53,27 +55,18 @@ class EventLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws import EventLaw
         >>> y, z = var('y'), var('z')
-        >>> law = EventLaw(y, {z: -0.8 * z}, direction=-1).prepare()
-        >>> law.targets_
-        (z,)
+        >>> EventLaw(y, {z: -0.8 * z}, direction=-1).reset
+        {z: -0.8*z}
     """
 
     law_tag: ClassVar[str] = 'update'
 
-    def __init__(
-        self,
-        guard: object,
-        reset: Mapping[Expression, object] | None = None,
-        direction: int = 0,
-        terminal: bool = False,
-        *,
-        label: str = '',
-    ) -> None:
-        super().__init__(label)
-        self.guard = guard
-        self.reset = reset
-        self.direction = direction
-        self.terminal = terminal
+    guard: object
+    reset: Mapping[Expression, object] | None = None
+    direction: int = 0
+    terminal: bool = False
+    _: KW_ONLY
+    label: str = ''
 
     def _get_targets(self) -> tuple[object, ...]:
         """Return the states the crossing resets."""
@@ -84,14 +77,9 @@ class EventLaw(BaseLaw):
         """Return what the law requires of a system: continuous time."""
         return RequirementSpec(time=(_ContinuousTime,))
 
-    def _prepare(self, context: str | None = None) -> None:
-        """Raise an error for a direction that is not -1, 0, or 1.
-
-        Args:
-            context:
-                The path of the element or interaction that returns the law, or `None`.
-        """
-        super()._prepare(context)
+    def _check(self) -> None:
+        """Raise an error for a direction that is not -1, 0, or 1."""
+        super()._check()
         if self.direction not in {-1, 0, 1}:
             error_msg = f'The direction of a crossing is -1, 0, or 1, but got {self.direction!r}.'
             raise ValidationError(error_msg)

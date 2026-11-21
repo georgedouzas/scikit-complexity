@@ -63,13 +63,13 @@ def _switched_rate(s):
 
 
 def test_equation_takes_two_sides_or_a_relation():
-    """Test that an equation takes either a relation or two sides, and prepares both sides."""
+    """Test that an equation takes either a relation or two sides, and splits a relation into its sides."""
     x, h = var('x h')
-    law = ConstraintLaw(x == h).prepare()
-    assert (law.lhs_, law.rhs_) == (x, h)
+    law = ConstraintLaw(x == h)
+    assert law._get_sides() == (x, h)
     assert ConstraintLaw(1, 2).rhs == 2
     with pytest.raises(ValidationError, match='left and a right side'):
-        ConstraintLaw(1).prepare()
+        ConstraintLaw(1)._check()
 
 
 def test_pendulum_as_written_matches_solved_form():
@@ -120,4 +120,4 @@ def test_equation_with_driver_or_condition_matches_rate(equation, rate):
 def test_check_names_equations_as_symbolic_only():
     """Test that a function as a side of an equation raises an error pointing to a rate law."""
     with pytest.raises(ValidationError, match=r'solved symbolically.*`RateLaw`'):
-        ConstraintLaw(var('x'), print).prepare()
+        ConstraintLaw(var('x'), print)._check()

@@ -11,7 +11,6 @@ from sage.all__sagemath_symbolics import Expression, cos, oo, pi, sin
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, ConstraintLaw, RateLaw
@@ -90,7 +89,7 @@ class KirchhoffVoltageInteraction(Interaction):
         law = ConstraintLaw(
             loop.L * q.diff(t, 2) + loop.R * q.diff(t) + q / loop.C == context.V * cos(context.omega * t),
         )
-        self.laws_: list[BaseComponent] = [law]
+        self.laws_: list[BaseLaw] = [law]
 
 
 class ChuaCircuitElement(Element):
@@ -183,7 +182,7 @@ class ChuaInteraction(Interaction):
         """
         super()._prepare(context)
         s, x, y, z = context, context.target.x, context.target.y, context.target.z
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             RateLaw(x.diff(s.t), s.alpha * (y - x - s.m1 * x - (s.m0 - s.m1) * (abs(x + 1) - abs(x - 1)) / 2)),
             RateLaw(y.diff(s.t), x - y + z),
             RateLaw(z.diff(s.t), -s.beta * y),
@@ -264,7 +263,7 @@ class MultiscrollChuaInteraction(Interaction):
         """
         super()._prepare(context)
         s, x, y, z = context, context.target.x, context.target.y, context.target.z
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             RateLaw(x.diff(s.t), s.alpha * (y - self._scroll_nonlinearity(x, s.a, s.b, s.c))),
             RateLaw(y.diff(s.t), x - y + z),
             RateLaw(z.diff(s.t), -s.beta * y),
@@ -344,7 +343,7 @@ class MixedModeChuaInteraction(Interaction):
         """
         super()._prepare(context)
         s, x, y, z = context, context.target.x, context.target.y, context.target.z
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             RateLaw(x.diff(s.t), (-y + (s.a + s.b * x) * x**2) / s.epsilon),
             RateLaw(y.diff(s.t), s.alpha * (x - s.R * y - z)),
             RateLaw(z.diff(s.t), s.c - s.beta * y),

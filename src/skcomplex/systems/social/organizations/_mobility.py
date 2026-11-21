@@ -15,10 +15,9 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, SystemView
@@ -145,7 +144,7 @@ class ExplorationInteraction(Interaction):
                 The namespace of the elements a binding of the roles names.
         """
         super()._prepare(s)
-        self.laws_: list[BaseComponent] = [UpdateLaw(s, self.move)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(s, self.move)]
 
     def move(self, system: SystemView) -> None:
         """Displace every individual once, to a new location or back to a visited one.
@@ -258,7 +257,7 @@ class ContainerMobilityInteraction(Interaction):
                 The namespace of the symbols the laws can use.
         """
         super()._prepare(s)
-        self.laws_: list[BaseComponent] = [UpdateLaw(s, self.move)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(s, self.move)]
 
     def _get_attractiveness(self, rng: np.random.Generator) -> list[Array]:
         """Return the attractiveness of every container of every level.

@@ -12,9 +12,8 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction, WienerProcessSpec
-from .....core.components.laws import NoiseLaw, RateLaw
+from .....core.components.laws import BaseLaw, NoiseLaw, RateLaw
 from .....core.types import Role
 
 
@@ -84,7 +83,7 @@ class GeometricBrownianMotionInteraction(Interaction):
         process = None
         if self.process is not None:
             process = context.process.dW if self.index is None else context.process.dW[self.index]
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             RateLaw(price, context.mu * price),
             NoiseLaw(price, context.sigma * price, process=process),
         ]

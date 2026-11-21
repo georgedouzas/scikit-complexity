@@ -156,17 +156,17 @@ def test_a_spec_without_hooks_is_a_value():
 
 
 def test_clone_shares_the_symbolic_values_of_sage():
-    """Test that a clone keeps the conditions of a lookup table and the symbolic functions of a law as they are."""
+    """Test that a clone keeps the conditions of a lookup table and the symbolic functions of a setting as they are."""
     x = var('x')
     deaths = series(x, (0.0, 0.25, 0.5, 1.0), (30.0, 3.0, 2.0, 1.0))
     speed = function('speed')
-    law = RateLaw(x, deaths + speed(x), label='decline')
-    cloned = clone(law)
-    assert cloned is not law
-    assert cloned.value is law.value
-    assert str(cloned.value) == str(deaths + speed(x))
-    assert '< 0.25' in str(cloned.value)
-    assert any(item.operator() is speed for item in cloned.value.operands())
+    config = ScalingConfig(factor=deaths + speed(x))
+    cloned = clone(config)
+    assert cloned is not config
+    assert cloned.factor is config.factor
+    assert str(cloned.factor) == str(deaths + speed(x))
+    assert '< 0.25' in str(cloned.factor)
+    assert any(item.operator() is speed for item in cloned.factor.operands())
 
 
 def test_clone_copies_mutable_settings():

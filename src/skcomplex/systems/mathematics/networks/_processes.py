@@ -16,10 +16,9 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import laplacian, neighbors
 from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.components.types import AgentViewProtocol
@@ -109,7 +108,7 @@ class PagerankInteraction(Interaction):
         super()._prepare(context)
         page, other, damping = context.target, context.target.other, context.damping
         term = damping * other.rank / other.degree + (1 - damping) / (context.n_nodes * page.degree)
-        self.laws_: list[BaseComponent] = [UpdateLaw(page.rank, neighbors(term))]
+        self.laws_: list[BaseLaw] = [UpdateLaw(page.rank, neighbors(term))]
 
 
 class NetworkWalkerView(AgentViewProtocol, Protocol):
@@ -183,7 +182,7 @@ class NetworkStepInteraction(Interaction):
                 The namespace of the elements a binding of the roles names.
         """
         super()._prepare(context)
-        self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self._step)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self._step)]
 
     def _step(self, agent: NetworkWalkerView, system: SystemView) -> None:
         """Move a walker to a random neighbouring node and count the step."""

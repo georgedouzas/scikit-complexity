@@ -706,7 +706,7 @@ from skcomplex.core.components.laws import UpdateLaw
 
 ensemble = np.zeros((38, 20, 3))
 replay = UpdateLaw(var('x'), lambda t, values: ensemble[min(int(t), 37)])
-replay.prepare().targets_
+replay.target
 ```
 
 The law targets the one state `x`.

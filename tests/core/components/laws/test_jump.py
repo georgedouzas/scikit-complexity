@@ -16,16 +16,16 @@ N, K = var('n k')
 
 def test_jump_targets_its_changes_or_its_reset():
     """Test that a jump at a rate targets and gives its changes, and one after a waiting time its reset."""
-    law = JumpLaw(2 * N, {N: -1}).prepare()
-    assert (law.targets_, law._get_value({'n': 3.0})) == ((N,), {N: -1})
-    waiting = JumpLaw(waiting=draw('wait', 'expon'), reset={N: K}, label='fires').prepare()
-    assert (waiting.targets_, waiting._get_value({'k': 4.0})) == ((N,), {N: 4.0})
+    law = JumpLaw(2 * N, {N: -1})
+    assert (law._get_targets(), law._get_value({'n': 3.0})) == ((N,), {N: -1})
+    waiting = JumpLaw(waiting=draw('wait', 'expon'), reset={N: K}, label='fires')
+    assert (waiting._get_targets(), waiting._get_value({'k': 4.0})) == ((N,), {N: 4.0})
 
 
 def test_jump_at_a_rate_takes_the_label_of_its_channel():
     """Test that a jump at a rate takes a label, which names its channel, as an infection of an epidemic."""
-    law = JumpLaw(0.5 * N, {N: -1, K: 1}, label='infection').prepare()
-    assert (law.label, law.targets_) == ('infection', (N, K))
+    law = JumpLaw(0.5 * N, {N: -1, K: 1}, label='infection')
+    assert (law.label, law._get_targets()) == ('infection', (N, K))
 
 
 @pytest.mark.parametrize(
@@ -41,7 +41,7 @@ def test_jump_at_a_rate_takes_the_label_of_its_channel():
 def test_jump_rejects_invalid_clocks_and_increments(arguments, message):
     """Test that a jump rejects both or no clock, an option of the clock it does not use, and a symbolic increment."""
     with pytest.raises(ValidationError, match=message):
-        JumpLaw(**arguments).prepare()
+        JumpLaw(**arguments)._check()
 
 
 def test_jump_moving_a_quantity_between_two_stocks_conserves_their_total():

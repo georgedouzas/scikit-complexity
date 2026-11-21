@@ -15,7 +15,7 @@ F, G, H, MU, Q = var('f g h mu q')
 
 def lower(target, form):
     """Return the bilinear law of a rate law with a bilinear form."""
-    return BilinearLaw._get_lowered(RateLaw(target, form)).prepare()
+    return BilinearLaw._get_lowered(RateLaw(target, form))
 
 
 def test_lowered_law_runs_into_its_signed_rate_and_outcomes():
@@ -28,8 +28,8 @@ def test_lowered_law_runs_into_its_signed_rate_and_outcomes():
 
 def test_lowered_law_targets_the_first_density_and_the_target():
     """Test that the lowered law targets the first density, and a target other than it."""
-    assert lower(F, bilinear(0.5, None, F, G)).targets_ == (F,)
-    assert lower(H, bilinear(0.5, np.ones((1, 1, 1)), F, G)).targets_ == (F, H)
+    assert lower(F, bilinear(0.5, None, F, G))._get_targets() == (F,)
+    assert lower(H, bilinear(0.5, np.ones((1, 1, 1)), F, G))._get_targets() == (F, H)
 
 
 def test_lowered_law_evaluates_parameter_tables():
@@ -38,7 +38,7 @@ def test_lowered_law_evaluates_parameter_tables():
     rate, outcomes = law._get_value({'q': 0.25})
     assert rate == 0.25
     assert outcomes[0][0] == [0.25, 0.75]
-    assert law.reads_ == {F, Q}
+    assert law._get_reads() == {F, Q}
 
 
 def test_lowered_law_needs_continuous_time_on_class_lattices():

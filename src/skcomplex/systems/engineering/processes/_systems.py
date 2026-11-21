@@ -15,7 +15,6 @@ from sage.all__sagemath_symbolics import Expression, oo, sin
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, Quantity
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
@@ -101,7 +100,7 @@ class ReliefPipelineInteraction(Interaction):
         """
         super()._prepare(context)
         s = SimpleNamespace(t=context.t, **vars(context.target))
-        self.laws_: list[BaseComponent] = ReliefPipelineInteraction._get_relief_laws(s)
+        self.laws_: list[BaseLaw] = ReliefPipelineInteraction._get_relief_laws(s)
 
     @staticmethod
     def _need(s: SimpleNamespace) -> Expression:
@@ -223,7 +222,7 @@ class RiceMillInteraction(Interaction):
         """
         super()._prepare(context)
         s = SimpleNamespace(t=context.t, **vars(context.target))
-        self.laws_: list[BaseComponent] = RiceMillInteraction._get_rice_mill_laws(s)
+        self.laws_: list[BaseLaw] = RiceMillInteraction._get_rice_mill_laws(s)
 
     @staticmethod
     def _get_season(mean: Expression, amplitude: Expression, t: Expression, period: float) -> Expression:
@@ -360,7 +359,7 @@ class IrrigationSchemeInteraction(Interaction):
         """
         super()._prepare(context)
         s = SimpleNamespace(t=context.t, **vars(context.target))
-        self.laws_: list[BaseComponent] = IrrigationSchemeInteraction._get_irrigation_laws(s)
+        self.laws_: list[BaseLaw] = IrrigationSchemeInteraction._get_irrigation_laws(s)
 
     @staticmethod
     def _get_demand(s: SimpleNamespace) -> Expression:
@@ -498,7 +497,7 @@ class WasteSystemInteraction(Interaction):
         """
         super()._prepare(context)
         s = SimpleNamespace(t=context.t, **vars(context.target))
-        self.laws_: list[BaseComponent] = WasteSystemInteraction._get_waste_laws(s)
+        self.laws_: list[BaseLaw] = WasteSystemInteraction._get_waste_laws(s)
 
     @staticmethod
     def _get_generation(s: SimpleNamespace) -> Expression:

@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from dataclasses import KW_ONLY, dataclass
 from typing import ClassVar
 
 from sage.all__sagemath_symbolics import SR, Expression
@@ -12,6 +13,7 @@ from .....core.components.laws.utils import has_operator
 from .....core.errors import ValidationError
 
 
+@dataclass(frozen=True)
 class DissipatorLaw(BaseLaw):
     """A law that adds one Lindblad term, a collapse operator and its rate.
 
@@ -40,16 +42,16 @@ class DissipatorLaw(BaseLaw):
         >>> from skcomplex.systems.physics.common.quantum import DissipatorLaw
         >>> from skcomplex.core.components.laws.utils import local_operator
         >>> minus = local_operator(SR.symbol('q'), SR.symbol('minus'))
-        >>> DissipatorLaw(minus, 2 * var('gamma')).prepare().rate
+        >>> DissipatorLaw(minus, 2 * var('gamma')).rate
         2*gamma
     """
 
     law_tag: ClassVar[str] = 'rate'
 
-    def __init__(self, operator: object, rate: object = 1.0, *, label: str = '') -> None:
-        super().__init__(label)
-        self.operator = operator
-        self.rate = rate
+    operator: object
+    rate: object = 1.0
+    _: KW_ONLY
+    label: str = ''
 
     def _get_targets(self) -> tuple[object, ...]:
         """Return no states.
@@ -63,16 +65,12 @@ class DissipatorLaw(BaseLaw):
         """Return what the law requires of a system: the continuous time of a rate."""
         return RateLaw.get_requirements()
 
-    def _prepare(self, context: str | None = None) -> None:
+    def _check(self) -> None:
         """Raise an error for a function as operator or rate, or a bad operator or rate.
 
         It raises it for no local operators, or a rate of another type.
-
-        Args:
-            context:
-                The path of the element or interaction that returns the law, or `None`.
         """
-        super()._prepare(context)
+        super()._check()
         if any(callable(item) and not isinstance(item, Expression) for item in (self.operator, self.rate)):
             error_msg = (
                 'Dissipators need symbolic operators and rates, so neither can be a function. Give the rate as '

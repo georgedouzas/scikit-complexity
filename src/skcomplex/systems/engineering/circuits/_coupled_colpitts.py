@@ -14,7 +14,6 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
@@ -130,7 +129,7 @@ class ColpittsDynamicsInteraction(Interaction):
         super()._prepare(context)
         o, t = context.target, context.t
         conduction = where(o.z < -1, -1 - o.z, 0)
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             RateLaw(o.x.diff(t), o.omega * o.y - o.a * conduction),
             RateLaw(o.y.diff(t), o.c - o.omega * o.x - o.z - o.b * o.y),
             RateLaw(o.z.diff(t), o.epsilon * (o.y - o.d)),
@@ -185,7 +184,7 @@ class ColpittsCouplingInteraction(Interaction):
         """
         super()._prepare(context)
         y = context.target.y
-        self.laws_: list[BaseComponent] = [RateLaw(y.diff(context.t), context.k * (context.source.y - y))]
+        self.laws_: list[BaseLaw] = [RateLaw(y.diff(context.t), context.k * (context.source.y - y))]
 
 
 class CoupledColpittsSystem(BaseSystem):

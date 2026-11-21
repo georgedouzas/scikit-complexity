@@ -16,10 +16,9 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, SystemView
@@ -212,7 +211,7 @@ class HarvestInteraction(Interaction):
                 The namespace of the elements a binding of the roles names.
         """
         super()._prepare(s)
-        self.laws_: list[BaseComponent] = [UpdateLaw(s, self.work)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(s, self.work)]
 
     def _hire(self, farmers: list[FarmerView], harvesters: list[HarvesterView], rng: np.random.Generator) -> None:
         """Let the workers ask the employers of their area for work.

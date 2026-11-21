@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from dataclasses import KW_ONLY, dataclass
 from typing import ClassVar
 
 from sage.all__sagemath_symbolics import Expression
@@ -17,6 +18,7 @@ from ._requirement_spec import RequirementSpec
 NOISE_CONVENTIONS = {'ito': 0.0, 'stratonovich': 0.5, 'anti-ito': 1.0}
 
 
+@dataclass(frozen=True)
 class NoiseLaw(BaseLaw):
     """A law that gives the amplitude of a noise that drives a derivative of a state.
 
@@ -67,7 +69,7 @@ class NoiseLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws import NoiseLaw
         >>> x = var('x')
-        >>> NoiseLaw(x, 0.2 * x, process='shared').prepare().process
+        >>> NoiseLaw(x, 0.2 * x, process='shared').process
         'shared'
         >>> D = var('D')
         >>> NoiseLaw(x, 2 * D, hurst=0.7).hurst
@@ -76,24 +78,14 @@ class NoiseLaw(BaseLaw):
 
     law_tag: ClassVar[str] = 'noise'
 
-    def __init__(
-        self,
-        target: Target,
-        value: object,
-        *,
-        convention: str = 'ito',
-        process: Process = None,
-        conserved: bool = False,
-        hurst: object = None,
-        label: str = '',
-    ) -> None:
-        super().__init__(label)
-        self.target = target
-        self.value = value
-        self.convention = convention
-        self.process = process
-        self.conserved = conserved
-        self.hurst = hurst
+    target: Target
+    value: object
+    _: KW_ONLY
+    convention: str = 'ito'
+    process: Process = None
+    conserved: bool = False
+    hurst: object = None
+    label: str = ''
 
     def _get_targets(self) -> tuple[object, ...]:
         """Return the state the noise drives."""
@@ -153,18 +145,14 @@ class NoiseLaw(BaseLaw):
             )
             raise ValidationError(error_msg)
 
-    def _prepare(self, context: str | None = None) -> None:
+    def _check(self) -> None:
         """Raise an error for an array value, an unknown convention, or an invalid process.
 
         It also raises it for an invalid Hurst index.
 
         The array is a NumPy array.
-
-        Args:
-            context:
-                The path of the element or interaction that returns the law, or `None`.
         """
-        super()._prepare(context)
+        super()._check()
         self._check_array('value')
         if self.convention not in NOISE_CONVENTIONS:
             error_msg = f'Unknown noise convention {self.convention!r}. Use one of {", ".join(NOISE_CONVENTIONS)}.'

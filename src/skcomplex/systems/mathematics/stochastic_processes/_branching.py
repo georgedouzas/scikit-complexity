@@ -10,10 +10,9 @@ from typing import Annotated, Protocol
 from sage.all__sagemath_symbolics import NN
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, SystemView
@@ -96,7 +95,7 @@ class BranchingInteraction(Interaction):
                 The namespace of the elements a binding of the roles names.
         """
         super()._prepare(context)
-        self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self._replace)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self._replace)]
 
     def _replace(self, agent: IndividualView, system: SystemView) -> None:
         """Create the offspring of an individual and remove it."""

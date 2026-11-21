@@ -12,10 +12,9 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import ZZ
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import (
     BaseSpace,
     LatticeNeighborhood,
@@ -110,7 +109,7 @@ class ElementaryRuleInteraction(Interaction):
         """
         super()._prepare(context)
         alive = context.target.alive
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(alive, Wolfram(self.rule), neighborhood=ELEMENTARY, label=self.label),
         ]
 
@@ -159,7 +158,7 @@ class LangtonsAntInteraction(Interaction):
         """
         super()._prepare(context)
         states = (context.target.color, context.target.ant)
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(states, self._get_next, neighborhood=VON_NEUMANN, label=self.label),
         ]
 

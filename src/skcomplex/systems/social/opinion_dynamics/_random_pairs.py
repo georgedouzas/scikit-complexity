@@ -9,9 +9,8 @@ the cells or nodes around it.
 
 from types import SimpleNamespace
 
-from ....core.components.base import BaseComponent
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.solvers import SystemView
 from ....core.errors import ValidationError
@@ -58,7 +57,7 @@ class MeetingsInteraction(Interaction):
                 The namespace of the elements a binding of the roles names.
         """
         super()._prepare(context)
-        self.laws_: list[BaseComponent] = [UpdateLaw(context, self._run_meetings, phase=self.phase)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self._run_meetings, phase=self.phase)]
 
     def _run_meetings(self, system: SystemView) -> None:
         """Act on every group of one step in random order."""

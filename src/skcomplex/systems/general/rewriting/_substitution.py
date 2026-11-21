@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Sequence
+from dataclasses import KW_ONLY, dataclass
 from typing import ClassVar
 
 from ....core.components.laws import BaseLaw, RequirementSpec, UpdateLaw
@@ -13,6 +14,7 @@ from ._affine_spec import AffineSpec
 PIECE_SIZE = 2
 
 
+@dataclass(frozen=True)
 class SubstitutionLaw(BaseLaw):
     """A law that replaces every tile of a prototile by smaller placed pieces.
 
@@ -45,10 +47,10 @@ class SubstitutionLaw(BaseLaw):
 
     law_tag: ClassVar[str] = 'update'
 
-    def __init__(self, prototile: str, pieces: Sequence[tuple[str, AffineSpec]], *, label: str = '') -> None:
-        super().__init__(label)
-        self.prototile = prototile
-        self.pieces = pieces
+    prototile: str
+    pieces: Sequence[tuple[str, AffineSpec]]
+    _: KW_ONLY
+    label: str = ''
 
     def _get_targets(self) -> tuple[object, ...]:
         """Return no states.
@@ -62,16 +64,12 @@ class SubstitutionLaw(BaseLaw):
         """Return what the law requires of a system: the discrete time of an update."""
         return UpdateLaw.get_requirements()
 
-    def _prepare(self, context: str | None = None) -> None:
+    def _check(self) -> None:
         """Raise an error for a piece that is not a pair of a prototile name and a map.
 
         The map must be an affine map.
-
-        Args:
-            context:
-                The path of the element or interaction that returns the law, or `None`.
         """
-        super()._prepare(context)
+        super()._check()
         for piece in self.pieces:
             if not (isinstance(piece, tuple) and len(piece) == PIECE_SIZE and isinstance(piece[1], AffineSpec)):
                 error_msg = f'A piece of a substitution is a prototile name and an `AffineSpec`, not {piece!r}.'

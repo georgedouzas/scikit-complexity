@@ -12,10 +12,9 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, SystemView
@@ -185,7 +184,7 @@ class GibratGrowthInteraction(Interaction):
                 The namespace of the elements a binding of the roles names.
         """
         super()._prepare(context)
-        self.laws_: list[BaseComponent] = [UpdateLaw(context, self._remember), UpdateLaw(context, self._grow)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self._remember), UpdateLaw(context, self._grow)]
 
     def _remember(self, system: SystemView) -> None:
         """Keep the size of every firm as its previous size."""
@@ -234,7 +233,7 @@ class KestenGrowthInteraction(Interaction):
                 The namespace of the elements a binding of the roles names.
         """
         super()._prepare(context)
-        self.laws_: list[BaseComponent] = [UpdateLaw(context, self._grow)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self._grow)]
 
     def _grow(self, system: SystemView) -> None:
         """Multiply the size of every firm by a random factor and add a random term."""
@@ -295,7 +294,7 @@ class ReflectingFloorInteraction(Interaction):
                 The namespace of the elements a binding of the roles names.
         """
         super()._prepare(context)
-        self.laws_: list[BaseComponent] = [UpdateLaw(context, self._raise, phase=self.phase)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self._raise, phase=self.phase)]
 
     def _raise(self, system: SystemView) -> None:
         """Raise every size below `c` times the mean size of the group before the step to that floor."""

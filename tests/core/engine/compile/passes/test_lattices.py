@@ -316,7 +316,7 @@ def test_life_simulation_agrees_with_the_run_of_its_law():
     space = LatticeSpace((5, 5))
     system = _local('cells', 'alive', rule, RadiusNeighborhood(1, metric='chebyshev'), space, alive=start)
     trajectory = system.prepare().simulate(until=1, dt=1)
-    law = UpdateLaw(var('alive'), rule, neighborhood=RadiusNeighborhood(1, metric='chebyshev')).prepare()
+    law = UpdateLaw(var('alive'), rule, neighborhood=RadiusNeighborhood(1, metric='chebyshev'))
     image = law._get_value({'space': space, 'alive': start.astype(int)})
     np.testing.assert_array_equal(trajectory.get_values('cells.alive')[-1].astype(int), image)
 

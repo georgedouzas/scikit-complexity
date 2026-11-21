@@ -19,10 +19,9 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import NoiseLaw, RateLaw
+from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.components.laws.utils import neighbors
 from ....core.components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
 from ....core.engine.backends import BaseBackend, NumbaBackend
@@ -369,7 +368,7 @@ class ActivePassiveFlockingSystem(BaseSystem):
         overlap = 1 - r / (2 * radius)
         return epsilon * 2 * radius * overlap ** (exponent + 1) / (exponent + 1)
 
-    def _get_repulsion_laws(self, s: SimpleNamespace) -> list[BaseComponent]:
+    def _get_repulsion_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the push of every agent by the agents that overlap it.
 
         The push of one agent is minus the slope of the repulsion energy along the line of centres, summed over the

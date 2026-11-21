@@ -10,7 +10,6 @@ from collections.abc import Callable
 from types import SimpleNamespace
 from typing import ClassVar
 
-from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, UpdateLaw
 from .....core.components.types import SystemViewProtocol
@@ -64,7 +63,7 @@ class PolicyRuleInteraction[SystemT: SystemViewProtocol](Interaction):
                 The namespace of the elements a binding of the roles names.
         """
         super()._prepare(context)
-        self.laws_: list[BaseComponent] = [UpdateLaw(context, self.act, phase=self.phase)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self.act, phase=self.phase)]
 
     def act(self, system: SystemT) -> None:
         """Read the system and set parameters.

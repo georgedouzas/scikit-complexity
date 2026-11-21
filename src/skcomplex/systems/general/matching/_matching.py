@@ -12,7 +12,6 @@ from typing import ClassVar
 
 import numpy as np
 
-from ....core.components.base import BaseComponent
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, PartnerSpec, UpdateLaw
 from ....core.components.laws.utils import pairs, transfer
@@ -788,9 +787,9 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
                 The namespace of the elements a binding of the roles names.
         """
         super()._prepare(context)
-        self.laws_: Sequence[BaseComponent] = self._get_matching_laws(context)
+        self.laws_: Sequence[BaseLaw] = self._get_matching_laws(context)
 
-    def _get_matching_laws(self, namespace: SimpleNamespace) -> Sequence[BaseComponent]:
+    def _get_matching_laws(self, namespace: SimpleNamespace) -> Sequence[BaseLaw]:
         """Return the rule that matches the members in the matching's phase.
 
         Args:

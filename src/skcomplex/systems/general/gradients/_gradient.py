@@ -13,7 +13,6 @@ from sage.modules.free_module_element import FreeModuleElement
 from sage.structure.element import Matrix
 from sage.symbolic.operators import add_vararg, mul_vararg
 
-from ....core.components.base import BaseComponent
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import distribute_operators, laplacian, partial
@@ -135,7 +134,7 @@ class GradientInteraction(Interaction):
         super()._prepare(context)
         time = getattr(context, 't', SR.var('t'))
         namespace = self._get_symbolic(context, time)
-        self.laws_: list[BaseComponent] = self._get_gradient_laws(namespace, context, time)
+        self.laws_: list[BaseLaw] = self._get_gradient_laws(namespace, context, time)
 
     def _get_potential(self, namespace: SimpleNamespace) -> object:
         """Return the potential.
@@ -269,14 +268,14 @@ class GradientInteraction(Interaction):
         namespace: SimpleNamespace,
         context: SimpleNamespace,
         time: Expression,
-    ) -> list[BaseComponent]:
+    ) -> list[BaseLaw]:
         """Return the rate of every moving state, down the potential.
 
         The potential is differentiated in the symbols of `namespace`, and the laws target the states of `context`, the
         same states as functions of the time.
         """
         potential = SR(self._get_potential(namespace))
-        laws: list[BaseComponent] = []
+        laws: list[BaseLaw] = []
         members = zip(self._get_members(namespace), self._get_members(context), strict=True)
         for member, functional in members:
             for name in self._get_names():

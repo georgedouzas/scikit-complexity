@@ -10,10 +10,9 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import NN, Expression
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import categorical, where
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -141,7 +140,7 @@ class MarkovChainInteraction(Interaction):
         super()._prepare(context)
         state = getattr(context.target, self.state)
         following = self._draw_row(f'{self.label}_{self.state}', self.transition, state)
-        self.laws_: list[BaseComponent] = [UpdateLaw(state, following)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(state, following)]
         if self.emission is not None:
             observed = getattr(context.target, self.observed)
             emitted = self._draw_row(f'{self.label}_{self.observed}', self.emission, following)

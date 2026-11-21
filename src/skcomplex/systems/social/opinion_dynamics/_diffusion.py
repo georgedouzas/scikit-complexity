@@ -14,10 +14,9 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
@@ -228,7 +227,7 @@ class AdoptionInteraction(Interaction):
                 The namespace of the adopters.
         """
         super()._prepare(context)
-        self.laws_: list[BaseComponent] = [UpdateLaw(context, self.adopt)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self.adopt)]
 
     def adopt(self, system: SystemViewProtocol) -> None:
         """Let every agent that has not adopted adopt, from the adoptions at the start of the step.

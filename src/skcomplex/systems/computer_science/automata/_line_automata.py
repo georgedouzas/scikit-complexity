@@ -13,9 +13,8 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -76,7 +75,7 @@ class NilpotentRuleInteraction(Interaction):
         super()._prepare(context)
         window = LatticeNeighborhood(tuple((offset,) for offset in range(-1, self.n)))
         alive = context.target.alive
-        self.laws_: list[BaseComponent] = [UpdateLaw(alive, self._get_next, neighborhood=window, label=self.label)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(alive, self._get_next, neighborhood=window, label=self.label)]
 
 
 class InvolutiveRuleInteraction(Interaction):
@@ -130,7 +129,7 @@ class InvolutiveRuleInteraction(Interaction):
         super()._prepare(context)
         window = LatticeNeighborhood(tuple((offset,) for offset in range(-1, self.n + 1)))
         alive = context.target.alive
-        self.laws_: list[BaseComponent] = [UpdateLaw(alive, self._get_next, neighborhood=window, label=self.label)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(alive, self._get_next, neighborhood=window, label=self.label)]
 
 
 class NilpotentAutomatonSystem(BaseSystem):

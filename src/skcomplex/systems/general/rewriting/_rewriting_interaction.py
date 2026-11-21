@@ -7,7 +7,6 @@ from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import ClassVar
 
-from ....core.components.base import BaseComponent
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw
 from ....core.errors import RewritingError
@@ -85,4 +84,4 @@ class RewritingInteraction(Interaction):
                 The namespace of the word or patch it binds.
         """
         super()._prepare(context)
-        self.laws_: list[BaseComponent] = list(self.laws) if isinstance(self.laws, list | tuple) else []
+        self.laws_: list[BaseLaw] = list(self.laws) if isinstance(self.laws, list | tuple) else []

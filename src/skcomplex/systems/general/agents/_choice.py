@@ -14,7 +14,6 @@ from sage.sets.real_set import RealSet
 from scipy.special import expit, softmax
 
 from ....core.base import BaseSpec
-from ....core.components.base import BaseComponent
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import categorical, uniform, where
@@ -195,7 +194,7 @@ class ChoiceInteraction(Interaction):
                 The namespace of the elements a binding of the roles names.
         """
         super()._prepare(context)
-        self.laws_: list[BaseComponent] = self._get_choice_laws(context)
+        self.laws_: list[BaseLaw] = self._get_choice_laws(context)
 
     @staticmethod
     def _get_draw_name(state: Expression, kind: str) -> str:
@@ -328,7 +327,7 @@ class ChoiceInteraction(Interaction):
         """
         self._update_agents(system, self.schedule or 'synchronous', self._get_choice, self._set_choice)
 
-    def _get_choice_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
+    def _get_choice_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the update of the state of every revising member.
 
         With a schedule it returns the rule that walks the agents instead.

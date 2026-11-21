@@ -23,7 +23,6 @@ from sage.symbolic.function import BuiltinFunction, SymbolicFunction
 from sage.symbolic.operators import FDerivativeOperator
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
@@ -366,7 +365,7 @@ class EinsteinFieldEquationsInteraction(Interaction):
             return matrix(SR, n_dim, n_dim)
         return matrix(SR, self.source(context))
 
-    def _get_rate_laws(self, context: SimpleNamespace) -> list[BaseComponent]:
+    def _get_rate_laws(self, context: SimpleNamespace) -> list[BaseLaw]:
         """Return the rate law of the second derivative of every state.
 
         It is solved from the chosen equations.

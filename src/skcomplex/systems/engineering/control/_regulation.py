@@ -16,10 +16,9 @@ from sage.sets.real_set import RealSet
 
 from ....core.analysis import linearization
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import ConstraintLaw, RateLaw, UpdateLaw
+from ....core.components.laws import BaseLaw, ConstraintLaw, RateLaw, UpdateLaw
 from ....core.components.laws.utils import clip
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, RK4Solver
@@ -83,7 +82,7 @@ class CartPendulumInteraction(Interaction):
         cart, t = context.target, context.t
         x_acceleration, theta_acceleration = cart.x.diff(t, 2), cart.theta.diff(t, 2)
         spin = cart.theta.diff(t)
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             ConstraintLaw(
                 (cart.M + cart.m) * x_acceleration
                 - cart.m * cart.l * theta_acceleration * cos(cart.theta)
@@ -136,7 +135,7 @@ class DrivenOscillatorInteraction(Interaction):
         oscillator, t = context.target, context.t
         x, omega = oscillator.x, oscillator.omega
         acceleration = -(omega**2) * x - 2 * oscillator.zeta * omega * x.diff(t) + oscillator.force
-        self.laws_: list[BaseComponent] = [RateLaw(x.diff(t, 2), acceleration)]
+        self.laws_: list[BaseLaw] = [RateLaw(x.diff(t, 2), acceleration)]
 
 
 class PIDInteraction(Interaction):
@@ -227,7 +226,7 @@ class PIDInteraction(Interaction):
         output = s.kp * error + s.ki * value
         if self.kd != 0:
             output -= s.kd * measured.diff(s.t)
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             RateLaw(value.diff(s.t), error),
             UpdateLaw(getattr(s.plant, self.control), clip(output, *(self.limits or (None, None)))),
         ]
@@ -296,7 +295,7 @@ class StateFeedbackInteraction(Interaction):
         plant, t = context.plant, context.t
         read = [getattr(plant, name.rstrip("'")).diff(t, name.count("'")) for name in self.states]
         feedback = -sum((float(gain) * value for value, gain in zip(read, self.gain, strict=True)), 0)
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(getattr(plant, self.control), clip(feedback, *(self.limits or (None, None)))),
         ]
 

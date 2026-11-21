@@ -12,9 +12,8 @@ from sage.all__sagemath_symbolics import cos, oo, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.interactions import Interaction
-from ....core.components.laws import RateLaw
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import shift_member
 from ....core.components.spaces import ContinuousSpace
 from ....core.engine.backends import BaseBackend
@@ -78,7 +77,7 @@ class LeadCarInteraction(Interaction):
         """
         super()._prepare(context)
         s, t = context, context.t
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             RateLaw(s.target.x.diff(t, 2), -s.u * s.amplitude * s.omega * cos(s.omega * t)),
         ]
 
@@ -146,7 +145,7 @@ class DelayedFollowingInteraction(Interaction):
         leader, follower = s.leader.x, s.target.x
         gap = (leader - follower)(t=t - s.T)
         approach = (leader.diff(t) - follower.diff(t))(t=t - s.T)
-        self.laws_: list[BaseComponent] = [RateLaw(follower.diff(t, 2), s.reaction * approach / gap**s.power)]
+        self.laws_: list[BaseLaw] = [RateLaw(follower.diff(t, 2), s.reaction * approach / gap**s.power)]
 
 
 class IntelligentDriverInteraction(Interaction):
@@ -233,7 +232,7 @@ class IntelligentDriverInteraction(Interaction):
         v = x.diff(t)
         gap = s.s0 + v * s.T + v * (v - shift_member(v, 1)) / (2 * sqrt(s.a * s.b))
         headway = OptimalVelocityInteraction._get_headway(x, s.road_length)
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             RateLaw(x.diff(t, 2), s.a * (1 - (v / s.v0) ** s.delta - (gap / (headway - s.length)) ** 2)),
         ]
 

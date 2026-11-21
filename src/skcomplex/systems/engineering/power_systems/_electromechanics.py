@@ -14,7 +14,6 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
@@ -98,7 +97,7 @@ class WheelLoadInteraction(Interaction):
         super()._prepare(context)
         s, z = context, getattr(context.target, self.state)
         load = pulse_train(s.t, s.T, s.width, s.F) + pulse_train(s.t, s.T, s.width, s.F, start=s.spacing)
-        self.laws_: list[BaseComponent] = [RateLaw(z.diff(s.t, 2), load / getattr(s.target, self.mass))]
+        self.laws_: list[BaseLaw] = [RateLaw(z.diff(s.t, 2), load / getattr(s.target, self.mass))]
 
 
 class BallastInteraction(Interaction):
@@ -176,7 +175,7 @@ class BallastInteraction(Interaction):
         super()._prepare(context)
         s, zs = context, getattr(context.target, self.state)
         force = -s.bs * zs.diff(s.t) - s.ks * zs - s.k2 * (s.alpha * zs**2 + s.beta * zs**3)
-        self.laws_: list[BaseComponent] = [RateLaw(zs.diff(s.t, 2), force / getattr(s.target, self.mass))]
+        self.laws_: list[BaseLaw] = [RateLaw(zs.diff(s.t, 2), force / getattr(s.target, self.mass))]
 
 
 class RegenerativeBrakingSystem(DynamicalSystem):

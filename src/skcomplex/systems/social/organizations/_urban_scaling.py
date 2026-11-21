@@ -13,10 +13,9 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import ConstraintLaw
+from ....core.components.laws import BaseLaw, ConstraintLaw
 from ....core.components.laws.utils import neighbors
 from ....core.components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
 from ....core.engine.backends import BaseBackend
@@ -118,7 +117,7 @@ class GravityContactInteraction(Interaction):
         super()._prepare(s)
         dx, dy = s.target.other.x - s.target.x, s.target.other.y - s.target.y
         contacts = neighbors((dx**2 + dy**2) ** (-s.gamma / 2), over=RadiusNeighborhood(self.reach))
-        self.laws_: list[BaseComponent] = [ConstraintLaw(s.target.contacts == contacts, target=s.target.contacts)]
+        self.laws_: list[BaseLaw] = [ConstraintLaw(s.target.contacts == contacts, target=s.target.contacts)]
 
 
 class GravityUrbanScalingSystem(BaseSystem):

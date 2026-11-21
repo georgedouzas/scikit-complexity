@@ -84,8 +84,7 @@ class DeclareRenewalsPass(BasePass):
         """
         renewals = [law for law in laws if isinstance(law, RenewalLaw)]
         declared = []
-        for law in renewals:
-            position = renewals.index(law)
+        for position, law in enumerate(renewals):
             label = law.label or (spec.owner if len(renewals) == 1 else f'{spec.owner}:{position}')
             declarations, renewal = DeclareRenewalsPass._declare_renewal(spec, law, declarations, label)
             declared.append(renewal)

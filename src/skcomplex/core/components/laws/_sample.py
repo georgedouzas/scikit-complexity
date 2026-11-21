@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from dataclasses import KW_ONLY, dataclass
 from typing import ClassVar
 
 from ..spaces import LatticeSpace, NetworkSpace
@@ -14,6 +15,7 @@ from ._requirement_spec import RequirementSpec
 from ._sampler_spec import SamplerSpec
 
 
+@dataclass(frozen=True)
 class _SampleLaw(BaseLaw):
     """A law of a Monte Carlo sweep that samples states by proposed moves.
 
@@ -43,18 +45,11 @@ class _SampleLaw(BaseLaw):
 
     law_tag: ClassVar[str] = 'sampling'
 
-    def __init__(
-        self,
-        objective: ObjectiveSpec,
-        move: MoveSpec,
-        sampler: SamplerSpec | None = None,
-        *,
-        label: str = '',
-    ) -> None:
-        super().__init__(label)
-        self.objective = objective
-        self.move = move
-        self.sampler = sampler
+    objective: ObjectiveSpec
+    move: MoveSpec
+    sampler: SamplerSpec | None = None
+    _: KW_ONLY
+    label: str = ''
 
     @classmethod
     def _get_name(cls) -> str:
@@ -70,14 +65,9 @@ class _SampleLaw(BaseLaw):
         """Return what the sweep requires: discrete time on a lattice or a network."""
         return RequirementSpec(time=(_DiscreteTime,), space=(LatticeSpace, NetworkSpace))
 
-    def _prepare(self, context: str | None = None) -> None:
-        """Check the objective, the move, and the sampler.
-
-        Args:
-            context:
-                The path of the element or interaction that returns the law, or `None`.
-        """
-        super()._prepare(context)
+    def _check(self) -> None:
+        """Check the objective, the move, and the sampler."""
+        super()._check()
         for spec in (self.objective, self.move, self.sampler):
             if spec is not None:
                 spec._check()

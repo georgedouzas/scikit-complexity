@@ -14,10 +14,9 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, SystemView
@@ -153,7 +152,7 @@ class RoomCleaningInteraction(Interaction):
                 The namespace of the elements a binding of the roles names.
         """
         super()._prepare(context)
-        self.laws_: list[BaseComponent] = [UpdateLaw(context, self._score_agents, phase=self.phase)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self._score_agents, phase=self.phase)]
 
     def score(self, strategies: IntArray, rng: np.random.Generator) -> Array:
         """Return the mean score of strategies in random rooms.
@@ -341,7 +340,7 @@ class CircumstanceInteraction(Interaction):
                 The namespace of the elements a binding of the roles names.
         """
         super()._prepare(context)
-        self.laws_: list[BaseComponent] = [UpdateLaw(context, self._advance_generation)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self._advance_generation)]
 
     def _advance_generation(self, system: SystemView) -> None:
         """Age the strategies and replace the old and starving ones.

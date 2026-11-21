@@ -15,10 +15,9 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import ZZ
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -120,7 +119,7 @@ class MullerRuleInteraction(Interaction):
         """
         super()._prepare(context)
         states = (context.target.first, context.target.second)
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(states, self._get_function(), neighborhood=FREE_GENERATORS, label=self.label),
         ]
 
@@ -170,7 +169,7 @@ class SurjectiveLinearRuleInteraction(Interaction):
         """
         super()._prepare(context)
         states = (context.target.first, context.target.second)
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(states, self._get_function(), neighborhood=FREE_GENERATORS, label=self.label),
         ]
 

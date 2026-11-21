@@ -111,7 +111,7 @@ Each task rewrites the systems of its fields on the new API: elements as data wi
 - [x] 6.4 Split the bases in `src/skcomplex/core/base.py` and `src/skcomplex/core/components/base.py`: `BaseComponent` gives label, parameters, cloning, tags, and `prepare` with no `run`, the fallback to `_get_laws` goes from every component, and `BaseConfig` keeps `prepare` and `run` for engine classes only. Verify with tests in `tests/core/test_base.py` and `tests/core/components/test_base.py` that list the methods of each base.
 - [x] 6.5 Give `GradientInteraction` and `SoftSphereInteraction` the argument `inertia`, drop the `_get_rate_law` hook from them and their subclasses, drop the `isinstance(context, SimpleNamespace)` guards of `_prepare`, and fix the gaps the guide found: tags of `QuantumHeisenbergSystem`, `x.diff(t)` targets of subclasses of `RateLaw`, and messages that still say to declare states. Verify with identical catalog runs at seed 0 and tests of each gap.
 - [ ] 6.6 Give every function of an `UpdateLaw` the same keywords and `stochastic=`, with no reading of signatures. Verify with tests of the keywords and identical catalog runs.
-- [ ] 6.7 Make laws frozen values with no `prepare`, label, or cloning. Verify with tests that list the methods of `BaseLaw` and identical catalog runs.
+- [x] 6.7 Make laws frozen values with no `prepare`, label, or cloning. Verify with tests that list the methods of `BaseLaw` and identical catalog runs.
 - [x] 6.8 List the values of an element as `<element>__<name>` parameters. Verify with tests of `get_params`, `set_params(ball__x=2.0)`, and a sweep over one value.
 
 ## 7. Documentation

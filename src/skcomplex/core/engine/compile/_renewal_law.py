@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Mapping
+from dataclasses import KW_ONLY, dataclass
 
 from sage.all__sagemath_symbolics import Expression
 
@@ -11,6 +12,7 @@ from ...components.laws import BaseLaw, RequirementSpec
 from ...components.spaces._continuous_time import _ContinuousTime
 
 
+@dataclass(frozen=True)
 class RenewalLaw(BaseLaw):
     """A law that renews states after waiting times drawn anew at every renewal.
 
@@ -33,16 +35,14 @@ class RenewalLaw(BaseLaw):
         >>> from skcomplex.core.components.laws.utils import draw
         >>> from skcomplex.core.engine.compile._renewal_law import RenewalLaw
         >>> n = var('n')
-        >>> RenewalLaw(draw('wait', 'expon'), {n: 0}).prepare().targets_
-        (n,)
         >>> RenewalLaw(draw('wait', 'expon'), {n: n + 1}).reset
         {n: n + 1}
     """
 
-    def __init__(self, waiting: object, reset: Mapping[Expression, object] | None = None, *, label: str = '') -> None:
-        super().__init__(label)
-        self.waiting = waiting
-        self.reset = reset
+    waiting: object
+    reset: Mapping[Expression, object] | None = None
+    _: KW_ONLY
+    label: str = ''
 
     @classmethod
     def _get_name(cls) -> str:

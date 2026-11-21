@@ -15,10 +15,9 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, Member
 from ....core.components.interactions import Interaction
-from ....core.components.laws import PartnerSpec, UpdateLaw
+from ....core.components.laws import BaseLaw, PartnerSpec, UpdateLaw
 from ....core.components.laws.utils import pairs
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
@@ -201,7 +200,7 @@ class PaymentsInteraction(Interaction):
                 The namespace of the elements a binding of the roles names.
         """
         super()._prepare(context)
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(context, self.pay, phase=self.phase),
             UpdateLaw(context, self.repay, phase=self.phase),
         ]
@@ -306,7 +305,7 @@ class LendingInteraction(Interaction):
                 The namespace of the elements a binding of the roles names.
         """
         super()._prepare(context)
-        self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.lend, phase=self.phase)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.lend, phase=self.phase)]
 
     def lend(self, agent: ReserveBankView, system: SystemView) -> None:
         """Lend the excess reserves to a random customer.

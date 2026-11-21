@@ -15,10 +15,9 @@ from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable, Tags
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, Quantity
 from ....core.components.interactions import Interaction
-from ....core.components.laws import NoiseLaw, RateLaw
+from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.components.laws.utils import series
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -293,7 +292,7 @@ class PartialAdjustmentInteraction(Interaction):
         """
         super()._prepare(context)
         state = getattr(context.target, self.state)
-        laws: list[BaseComponent] = [RateLaw(state, self._broadcast(self._get_rate(context), state))]
+        laws: list[BaseLaw] = [RateLaw(state, self._broadcast(self._get_rate(context), state))]
         if self.noise is not None:
             laws.append(NoiseLaw(state, self._evaluate(self.noise, context)))
         self.laws_ = laws
@@ -469,7 +468,7 @@ class FoodSecuritySystem(BaseSystem):
         self.intensity_target = intensity_target
 
     @staticmethod
-    def _get_rice_laws(namespace: SimpleNamespace) -> list[BaseComponent]:
+    def _get_rice_laws(namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the yield potential, the soil, and the practice of the sector."""
         s = namespace.target
         chemical = 1 - s.bio_fraction

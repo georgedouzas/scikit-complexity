@@ -8,7 +8,6 @@ from types import SimpleNamespace
 from typing import ClassVar
 
 from ....core.components import Tags
-from ....core.components.base import BaseComponent
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.types import Role
@@ -100,7 +99,7 @@ class EquationInteraction(Interaction):
         name = self.state.rstrip("'")
         order = len(self.state) - len(name)
         state = getattr(context.target, name)
-        laws: list[BaseComponent] = []
+        laws: list[BaseLaw] = []
         if self.time == 'discrete' and self.equation is not None:
             laws.append(UpdateLaw(state, self.equation(context)))
         elif self.equation is not None:
@@ -108,4 +107,4 @@ class EquationInteraction(Interaction):
         if self.time != 'discrete' and self.noise is not None:
             noise = self.noise(context) if callable(self.noise) else self.noise
             laws.append(NoiseLaw(state.diff(context.t, max(order, 1)), noise, convention=self.convention))
-        self.laws_: list[BaseComponent] = laws
+        self.laws_: list[BaseLaw] = laws

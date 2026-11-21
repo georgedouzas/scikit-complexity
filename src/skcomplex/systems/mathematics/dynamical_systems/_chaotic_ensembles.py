@@ -13,10 +13,9 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, floor
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import mod, where
 from ....core.components.spaces import BaseSpace, ContinuousSpace
 from ....core.engine.backends import BaseBackend
@@ -103,7 +102,7 @@ class CubicWalkInteraction(Interaction):
         """
         super()._prepare(context)
         u, x = context.target.u, context.target.x
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(u, context.lam * u * (u - 1 / 2) * (u - 1) + u),
             UpdateLaw(x, x + 2 * u - 1),
         ]
@@ -144,7 +143,7 @@ class DoublingMapInteraction(Interaction):
         """
         super()._prepare(context)
         x, q = context.target.x, context.q
-        self.laws_: list[BaseComponent] = [UpdateLaw(x, mod(2 * floor(q * x + 1 / 2), q) / q)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(x, mod(2 * floor(q * x + 1 / 2), q) / q)]
 
 
 class SkewTentMapInteraction(Interaction):
@@ -182,7 +181,7 @@ class SkewTentMapInteraction(Interaction):
         """
         super()._prepare(context)
         x, a = context.target.x, context.a
-        self.laws_: list[BaseComponent] = [UpdateLaw(x, where(x < a, x / a, (1 - x) / (1 - a)))]
+        self.laws_: list[BaseLaw] = [UpdateLaw(x, where(x < a, x / a, (1 - x) / (1 - a)))]
 
 
 def _get_square_displacement(member: SimpleNamespace) -> Expression:

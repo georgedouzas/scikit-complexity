@@ -21,9 +21,8 @@ from sage.sets.real_set import RealSet
 
 from .....core.base import BaseSpec
 from .....core.components import MatrixGroupSpec
-from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
-from .....core.components.laws import ObjectiveLaw, UpdateLaw
+from .....core.components.laws import BaseLaw, ObjectiveLaw, UpdateLaw
 from .....core.components.laws.utils import exterior_derivative, neighbors
 from .....core.components.spaces import BaseSpace, CellComplexSpace, CofaceNeighborhood
 from .....core.errors import ValidationError
@@ -216,7 +215,7 @@ class WilsonSamplingInteraction(Interaction):
         super()._prepare(context)
         links = getattr(self._get_member(context, 'target'), self.state)
         if self._get_score() is None:
-            self.laws_: list[BaseComponent] = [ObjectiveLaw(self._get_action(context), links)]
+            self.laws_: list[BaseLaw] = [ObjectiveLaw(self._get_action(context), links)]
         else:
             self.laws_ = [UpdateLaw(links, self._sample_holonomies, label=self.label, arrays=True)]
 

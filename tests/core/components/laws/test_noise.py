@@ -20,7 +20,7 @@ from skcomplex.core.systems import System
 def test_noise_takes_a_label_labels_or_no_process(process):
     """Test that a noise law takes a label, a tuple of labels, or no process, and gives its amplitude."""
     n = var('n')
-    law = NoiseLaw(n, 0.1 * n, process=process).prepare()
+    law = NoiseLaw(n, 0.1 * n, process=process)
     assert law._get_value({'n': 2.0}) == pytest.approx(0.2)
 
 
@@ -36,13 +36,13 @@ def test_noise_takes_a_label_labels_or_no_process(process):
 def test_noise_rejects_invalid_processes_and_conventions(arguments, message):
     """Test that a noise law rejects an invalid process, a process of conserved noise, and an unknown convention."""
     with pytest.raises(ValidationError, match=message):
-        NoiseLaw(var('n'), 1.0, **arguments).prepare()
+        NoiseLaw(var('n'), 1.0, **arguments)._check()
 
 
 @pytest.mark.parametrize('hurst', [0.3, 0.7, var('H')])
 def test_noise_takes_a_hurst_index(hurst):
     """Test that a noise law takes a Hurst index in (0, 1) or a parameter."""
-    law = NoiseLaw(var('n'), 1.0, hurst=hurst).prepare()
+    law = NoiseLaw(var('n'), 1.0, hurst=hurst)
     assert law.hurst is hurst
 
 
@@ -58,7 +58,7 @@ def test_noise_takes_a_hurst_index(hurst):
 def test_noise_rejects_invalid_hurst_indices(arguments, message):
     """Test that a noise law rejects a Hurst index out of range, with a process, or on a conserved noise."""
     with pytest.raises(ValidationError, match=message):
-        NoiseLaw(var('n'), 1.0, **arguments).prepare()
+        NoiseLaw(var('n'), 1.0, **arguments)._check()
 
 
 def _shake(s):

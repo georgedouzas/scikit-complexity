@@ -14,10 +14,9 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, Quantity
 from ....core.components.interactions import Interaction
-from ....core.components.laws import RateLaw
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import clip, series
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -238,7 +237,7 @@ class CocoaSystem(BaseSystem):
     )
 
     @staticmethod
-    def _get_cocoa_laws(s: SimpleNamespace) -> list[BaseComponent]:
+    def _get_cocoa_laws(s: SimpleNamespace) -> list[BaseLaw]:
         """Return the thinning of shade and the growth and control of the insects."""
         land = s.target
         unprotected = 1 - land.subsidy
@@ -301,7 +300,7 @@ class CocoaSystem(BaseSystem):
         self.subsidy = subsidy
 
     @staticmethod
-    def _get_land_use(s: SimpleNamespace) -> list[BaseComponent]:
+    def _get_land_use(s: SimpleNamespace) -> list[BaseLaw]:
         """Return the planting, abandonment, fallow, and conversion of cocoa land, reported under the plantation."""
         land = s.target
         conversion = CocoaSystem._get_conversion(land)

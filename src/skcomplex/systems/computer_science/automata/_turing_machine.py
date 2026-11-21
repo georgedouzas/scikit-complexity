@@ -14,10 +14,9 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, ZZ
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -154,7 +153,7 @@ class TuringMachineInteraction(Interaction):
         """
         super()._prepare(context)
         states = (context.target.symbol, context.target.head)
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(states, self._get_function(), neighborhood=THREE_CELLS, label=self.label),
         ]
 

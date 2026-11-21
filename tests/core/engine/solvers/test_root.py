@@ -11,10 +11,9 @@ from sage.all__sagemath_symbolics import SR, cos, exp, var
 from scipy.special import logsumexp
 
 from skcomplex.core.components import Observable
-from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import ConstraintLaw
+from skcomplex.core.components.laws import BaseLaw, ConstraintLaw
 from skcomplex.core.components.laws.utils import log_sum_exp, total
 from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine.compile import IssueSpec
@@ -115,7 +114,7 @@ class TermInteraction(Interaction):
         """Set the term of the equation."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [ConstraintLaw(0, context.gain, target=context.target.x)]
+            self.laws_: list[BaseLaw] = [ConstraintLaw(0, context.gain, target=context.target.x)]
 
 
 def _simulated(system: System, **settings: object) -> Trajectory:

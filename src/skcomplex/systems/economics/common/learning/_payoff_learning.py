@@ -14,7 +14,6 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression
 from sage.sets.real_set import RealSet
 
-from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, UpdateLaw
 from .....core.components.laws.utils import where
@@ -145,7 +144,7 @@ class PayoffLearningInteraction(Interaction):
                 The namespace of the members it binds.
         """
         super()._prepare(context)
-        self.laws_: list[BaseComponent] = self._get_learning_laws(context)
+        self.laws_: list[BaseLaw] = self._get_learning_laws(context)
 
     def _check(self) -> None:
         """Raise an error for an unknown variant, no scores, or an uncallable payoff."""
@@ -220,13 +219,13 @@ class PayoffLearningInteraction(Interaction):
         for index in order:
             self._update_member(agents[int(index)], system)
 
-    def _get_learning_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
+    def _get_learning_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the update of every score towards its payoff, or the rule of the schedule."""
         if self.schedule == 'member':
             return [UpdateLaw(namespace.target, self._update_member, phase=self.phase)]
         if self.schedule is not None:
             return [UpdateLaw(namespace, self.update, phase=self.phase)]
-        laws: list[BaseComponent] = []
+        laws: list[BaseLaw] = []
         for index, name in enumerate(self.scores):
             score = getattr(namespace.target, name)
             payoff = self.payoff(namespace, index)

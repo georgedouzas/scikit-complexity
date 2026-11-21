@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Mapping
+from dataclasses import KW_ONLY, dataclass
 from typing import ClassVar
 
 from sage.all__sagemath_symbolics import Expression
@@ -15,6 +16,7 @@ from ._base import BaseLaw
 from ._requirement_spec import RequirementSpec
 
 
+@dataclass(frozen=True)
 class RateLaw(BaseLaw):
     """A law that adds a rate to the highest time derivative of a state.
 
@@ -52,25 +54,19 @@ class RateLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws import RateLaw
         >>> n = var('n')
-        >>> RateLaw(n, 2 * n).prepare().targets_
-        (n,)
+        >>> RateLaw(n, 2 * n).target
+        n
         >>> alive, dead = var('alive dead')
-        >>> RateLaw({alive: -1, dead: +1}, 0.1 * alive, label='deaths').prepare().targets_
-        (alive, dead)
+        >>> RateLaw({alive: -1, dead: +1}, 0.1 * alive, label='deaths').target
+        {alive: -1, dead: 1}
     """
 
     law_tag: ClassVar[str] = 'rate'
 
-    def __init__(
-        self,
-        target: Target | Matrix | Mapping[Expression, int],
-        value: object,
-        *,
-        label: str = '',
-    ) -> None:
-        super().__init__(label)
-        self.target = target
-        self.value = value
+    target: Target | Matrix | Mapping[Expression, int]
+    value: object
+    _: KW_ONLY
+    label: str = ''
 
     def _get_order(self) -> float | None:
         """Return the order of the derivative the rate gives, `None` for its state."""
@@ -87,14 +83,9 @@ class RateLaw(BaseLaw):
         """Return what the law requires of a system: continuous time."""
         return RequirementSpec(time=(_ContinuousTime,))
 
-    def _prepare(self, context: str | None = None) -> None:
-        """Raise an error for a value that is a NumPy array.
-
-        Args:
-            context:
-                The path of the element or interaction that returns the law, or `None`.
-        """
-        super()._prepare(context)
+    def _check(self) -> None:
+        """Raise an error for a value that is a NumPy array."""
+        super()._check()
         self._check_array('value')
 
     def _get_value(self, inputs: object) -> object:

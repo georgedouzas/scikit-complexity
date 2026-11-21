@@ -18,10 +18,9 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import TopologyRequestSpec, UpdateLaw
+from ....core.components.laws import BaseLaw, TopologyRequestSpec, UpdateLaw
 from ....core.components.laws.utils import components, maximum, mod, neighbors, where
 from ....core.components.spaces import AdjacencyNeighborhood, BaseSpace, LayerSpec, NetworkSpace
 from ....core.engine.backends import BaseBackend
@@ -112,7 +111,7 @@ class InterdependenceInteraction(Interaction):
         both = node.active * node.other.active
         first = components(both, reduce='giant')
         second = components(both, over=AdjacencyNeighborhood(layer=self.layer), reduce='giant')
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(node.active, node.active * where(mod(context.t, 2) < 1, first, second)),
         ]
 
@@ -233,7 +232,7 @@ class AttackInteraction(Interaction):
         super()._prepare(context)
         degree = neighbors(1)
         removal = where(degree - maximum(degree) >= 0, 1, 0) if self.targeted else context.rate
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(context.target.degree, degree),
             UpdateLaw(TopologyRequestSpec('remove-node'), removal),
         ]

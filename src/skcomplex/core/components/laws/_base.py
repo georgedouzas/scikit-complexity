@@ -7,60 +7,49 @@ from __future__ import annotations
 
 import inspect
 import numbers
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from collections.abc import Collection, Mapping
-from dataclasses import replace
-from typing import ClassVar
+from dataclasses import dataclass, fields
+from typing import Any, ClassVar
 
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 from sage.structure.element import Matrix
 
+from ...base import BaseSpec
 from ...errors import ValidationError
-from .._tags import Tags
-from ..base import BaseComponent
 from ._call_spec import CallSpec
 from ._requirement_spec import RequirementSpec
 
 
-class BaseLaw(BaseComponent[str]):
+@dataclass(frozen=True)
+class BaseLaw(BaseSpec, ABC):
     """An abstract law, one equation or rule by which states change.
 
-    An interaction sets laws in `laws_` when it is prepared, and the compiler lowers them to a problem that a solver
-    runs. A law takes the states it changes and the expressions it reads as arguments of its `__init__`, which stores
-    each under the same name, as a scikit-learn estimator does. A subclass returns the states it changes from
-    `_get_targets`, what it needs of a system, such as continuous or discrete time, from `_get_requirements`, and its
-    value for given values of the symbols it reads from `_get_value`.
+    A law is a frozen value compared by its fields, such as the state it targets and the expression of its rate. An
+    interaction returns laws in `laws_` when it is prepared, and the compiler checks them with `_check` and lowers them
+    to a problem that a solver runs. A subclass returns the states it changes from `_get_targets`, what it needs of a
+    system, such as continuous or discrete time, from `_get_requirements`, and its value for given values of the
+    symbols it reads from `_get_value`. A law is changed with `dataclasses.replace`.
 
-    Unlike `BaseComponent`, it belongs to another component and is not added to a system on its own. Choose it when a
-    new kind of dynamics needs a lowering of its own, and choose an existing law, such as `RateLaw` or `UpdateLaw`,
-    otherwise.
+    Unlike `BaseComponent`, it has no parameters or `prepare`, and it is not added to a system on its own. Its `label`,
+    when it takes one, is a field like any other, the name a trajectory records it under, such as the name of a flow.
+    Choose it when a new kind of dynamics needs a lowering of its own, and choose an existing law, such as `RateLaw` or
+    `UpdateLaw`, otherwise.
 
     It appears in every field through its subclasses, such as the rate of an epidemic, the next value of a cellular
     automaton, a chemical reaction as a random jump, and Kirchhoff's laws as equations.
-
-    Args:
-        label:
-            The name of the law, or the empty string for a law without one.
-
-    Attributes:
-        targets_:
-            The states the law changes.
-
-        reads_:
-            The symbols the law reads.
-
-        owner_:
-            The path of the element or interaction that returns the law, or `None`.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws import RateLaw
         >>> x, k = var('x'), var('k')
-        >>> law = RateLaw(x, -k * x).prepare('decay')
-        >>> law.targets_, sorted(map(str, law.reads_)), law.owner_
-        ((x,), ['k', 'x'], 'decay')
+        >>> law = RateLaw(x, -k * x)
+        >>> law.target, law.value
+        (x, -k*x)
+        >>> law == RateLaw(x, -k * x)
+        True
     """
 
     law_tag: ClassVar[str] = ''
@@ -89,14 +78,6 @@ class BaseLaw(BaseComponent[str]):
         """
         return self._get_requirements()
 
-    def _get_tags(self) -> Tags:
-        """Return the tags of the law.
-
-        They are its kind, its randomness, and the times its arguments let it run in.
-        """
-        times = frozenset(getattr(time, 'time_tag', '') for time in self._get_law_requirements().time) - {''}
-        return replace(self._get_law_tags([type(self)]), time=times)
-
     @classmethod
     def get_requirements(cls) -> RequirementSpec:
         """Return what the laws of the class require of a system before any law exists.
@@ -124,6 +105,10 @@ class BaseLaw(BaseComponent[str]):
                 A mapping from the name of every symbol the law reads to its value.
         """
         return self._evaluate(self._get_values(), inputs)
+
+    def _get_fields(self) -> dict[str, Any]:
+        """Return the value of every field of the law by name, shared, not copied."""
+        return {item.name: getattr(self, item.name) for item in fields(self)}
 
     def _get_values(self, include: Collection[str] | None = None, exclude: Collection[str] = ()) -> list[object]:
         """Return the values of the arguments of the law besides its label.
@@ -213,18 +198,8 @@ class BaseLaw(BaseComponent[str]):
             )
             raise ValidationError(error_msg)
 
-    def _prepare(self, context: str | None = None) -> None:
-        """Set `targets_`, `reads_`, and `owner_`.
-
-        They are the states the law changes, the symbols it reads, and its owner.
-
-        Args:
-            context:
-                The path of the element or interaction that returns the law, or `None`.
-        """
-        self._check_specs()
-        self.targets_ = self._get_targets()
-        self.reads_ = frozenset(
+    def _get_reads(self) -> frozenset[Expression]:
+        """Return the symbols the law reads, those of its expressions at any depth."""
+        return frozenset(
             item for value in self._get_values() if isinstance(value, Expression) for item in value.variables()
         )
-        self.owner_ = context

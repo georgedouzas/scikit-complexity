@@ -10,10 +10,9 @@ from types import SimpleNamespace
 from sage.all__sagemath_symbolics import abs_symbolic, cos, exp, pi, sin
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import mod, where
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -58,7 +57,7 @@ class LogisticMapInteraction(Interaction):
         """
         super()._prepare(context)
         x, r = context.target.x, context.target.r
-        self.laws_: list[BaseComponent] = [UpdateLaw(x, r * x * (1 - x))]
+        self.laws_: list[BaseLaw] = [UpdateLaw(x, r * x * (1 - x))]
 
 
 class LogisticMapSystem(BaseSystem):
@@ -166,7 +165,7 @@ class HenonMapInteraction(Interaction):
         super()._prepare(context)
         x, y = context.target.x, context.target.y
         a, b = context.a, context.b
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(x, 1 - a * x**2 + y),
             UpdateLaw(y, b * x),
         ]
@@ -278,7 +277,7 @@ class StandardMapInteraction(Interaction):
         super()._prepare(context)
         theta, p = context.target.theta, context.target.p
         kicked = p + context.K * sin(theta)
-        self.laws_: list[BaseComponent] = [UpdateLaw(p, kicked), UpdateLaw(theta, mod(theta + kicked, 2 * pi))]
+        self.laws_: list[BaseLaw] = [UpdateLaw(p, kicked), UpdateLaw(theta, mod(theta + kicked, 2 * pi))]
 
 
 class StandardMapSystem(BaseSystem):
@@ -548,7 +547,7 @@ class BakerMapInteraction(Interaction):
         super()._prepare(context)
         x, y = context.target.x, context.target.y
         alpha, lambda_a, lambda_b = context.alpha, context.lambda_a, context.lambda_b
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(
                 x,
                 where(
@@ -699,7 +698,7 @@ class TowelMapInteraction(Interaction):
         super()._prepare(context)
         x, y, z = context.target.x, context.target.y, context.target.z
         a, b = context.a, context.b
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(x, a * x * (1 - x) - 0.05 * (y + 0.35) * (1 - 2 * z)),
             UpdateLaw(y, 0.1 * ((y + 0.35) * (1 - 2 * z) - 1) * (1 - 1.9 * x)),
             UpdateLaw(z, b * z * (1 - z) + 0.2 * y),
@@ -822,7 +821,7 @@ class IntermittencyMapInteraction(Interaction):
         super()._prepare(context)
         x = context.target.x
         z = context.z
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(x, mod(x + x**z, 1)),
         ]
 
@@ -921,7 +920,7 @@ class NewtonRaphsonMapInteraction(Interaction):
         """
         super()._prepare(context)
         x, y = context.target.x, context.target.y
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(x, 2 * x / 3 + (x**2 - y**2) / (3 * (x**2 + y**2) ** 2)),
             UpdateLaw(y, 2 * y / 3 - 2 * x * y / (3 * (x**2 + y**2) ** 2)),
         ]
@@ -1022,7 +1021,7 @@ class CatMapInteraction(Interaction):
         """
         super()._prepare(context)
         x, y = context.target.x, context.target.y
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(x, mod(2 * x + y, 1)),
             UpdateLaw(y, mod(x + y, 1)),
         ]
@@ -1133,7 +1132,7 @@ class LoziMapInteraction(Interaction):
         super()._prepare(context)
         x, y = context.target.x, context.target.y
         a, b = context.a, context.b
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(x, 1 + y - a * abs_symbolic(x)),
             UpdateLaw(y, b * x),
         ]
@@ -1250,7 +1249,7 @@ class ConservativeHenonMapInteraction(Interaction):
         super()._prepare(context)
         x, y = context.target.x, context.target.y
         nu = context.nu
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(x, cos(2 * pi * nu) * x + sin(2 * pi * nu) * (y + x**2)),
             UpdateLaw(y, -sin(2 * pi * nu) * x + cos(2 * pi * nu) * (y + x**2)),
         ]
@@ -1365,7 +1364,7 @@ class FermiUlamMapInteraction(Interaction):
         super()._prepare(context)
         u, theta = context.target.u, context.target.theta
         epsilon = context.epsilon
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(u, abs_symbolic(u + epsilon * sin(theta))),
             UpdateLaw(
                 theta,

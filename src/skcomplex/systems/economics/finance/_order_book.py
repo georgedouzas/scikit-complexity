@@ -16,10 +16,9 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
@@ -204,7 +203,7 @@ class LimitOrderInteraction(Interaction):
                 The namespace of the elements a binding of the roles names.
         """
         super()._prepare(context)
-        self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.quote, phase=self.phase)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.quote, phase=self.phase)]
 
     @staticmethod
     def get_prices(agent: StockTraderView, system: SystemView) -> tuple[float, float]:
@@ -290,7 +289,7 @@ class AccountingInteraction(Interaction):
                 The namespace of the elements a binding of the roles names.
         """
         super()._prepare(context)
-        self.laws_: list[BaseComponent] = [UpdateLaw(context, self.account, phase=self.phase)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self.account, phase=self.phase)]
 
     def account(self, system: SystemView) -> None:
         """Set the gain of every trader, and then its wealth at the last price.

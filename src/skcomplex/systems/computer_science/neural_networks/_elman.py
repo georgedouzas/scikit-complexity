@@ -13,10 +13,9 @@ import numpy as np
 from sage.all__sagemath_symbolics import exp
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction, TrainingInteraction
-from ....core.components.laws import DatasetSpec, UpdateLaw
+from ....core.components.laws import BaseLaw, DatasetSpec, UpdateLaw
 from ....core.components.laws.utils import total
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -179,7 +178,7 @@ class InputCouplingInteraction(Interaction):
         """
         super()._prepare(context)
         drive = total(context.source.x, weights=context.D)
-        self.laws_: list[BaseComponent] = [UpdateLaw(context.target.u, drive, phase='drive')]
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target.u, drive, phase='drive')]
 
 
 class RecurrenceCouplingInteraction(Interaction):
@@ -221,7 +220,7 @@ class RecurrenceCouplingInteraction(Interaction):
         hidden = context.target
         recurrent = total(hidden.s, weights=context.A)
         activity = 1 / (1 + exp(-(recurrent + hidden.u + hidden.b)))
-        self.laws_: list[BaseComponent] = [UpdateLaw(hidden.s, activity, phase='hidden')]
+        self.laws_: list[BaseLaw] = [UpdateLaw(hidden.s, activity, phase='hidden')]
 
 
 class ReadoutCouplingInteraction(Interaction):
@@ -266,7 +265,7 @@ class ReadoutCouplingInteraction(Interaction):
         outputs = context.target
         readout = total(context.source.s, weights=context.W)
         prediction = 1 / (1 + exp(-(readout + outputs.c)))
-        self.laws_: list[BaseComponent] = [UpdateLaw(outputs.y, prediction, phase='readout')]
+        self.laws_: list[BaseLaw] = [UpdateLaw(outputs.y, prediction, phase='readout')]
 
 
 class ElmanNetworkSystem(BaseSystem):

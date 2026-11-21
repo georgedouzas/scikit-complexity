@@ -32,7 +32,7 @@ class UnpackRenewalsPass(BasePass):
                 spec,
                 [
                     (
-                        RenewalLaw(law.waiting, law.reset, label=law.label).prepare(law.owner_)
+                        RenewalLaw(law.waiting, law.reset, label=law.label)
                         if isinstance(law, JumpLaw) and law.waiting is not None
                         else law
                     )

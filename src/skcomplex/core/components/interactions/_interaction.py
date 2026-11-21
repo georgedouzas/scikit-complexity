@@ -11,7 +11,7 @@ from types import SimpleNamespace
 from ...errors import ValidationError
 from .._declared_variable_spec import _DeclaredVariableSpec
 from .._role_spec import RoleSpec
-from ..base import BaseComponent
+from ..laws import BaseLaw
 from ..spaces import RadiusNeighborhood
 from ._base import BaseInteraction
 from ._random_partition import RandomPartition
@@ -123,7 +123,7 @@ class Interaction(BaseInteraction):
         label: str,
         *,
         roles: Mapping[str, object] | None = None,
-        laws: Callable[[SimpleNamespace], Sequence[BaseComponent]] | Sequence[BaseComponent] | None = None,
+        laws: Callable[[SimpleNamespace], Sequence[BaseLaw]] | Sequence[BaseLaw] | None = None,
         among: str | None = None,
         along: bool | str | tuple[str, int] | RandomPartition | None = None,
         within: RadiusNeighborhood | None = None,

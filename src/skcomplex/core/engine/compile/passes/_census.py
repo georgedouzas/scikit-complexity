@@ -401,7 +401,7 @@ class CensusPass(BasePass):
         plain = not law.increment and law.source is None and law.order is None and law.phase is None
         if not plain or law.neighborhood is not None or owner not in flowing:
             return law
-        return _BoundaryLaw(law.target, law.value, label=law.label).prepare(owner)
+        return BasePass._get_checked_law(_BoundaryLaw(law.target, law.value, label=law.label))
 
     @staticmethod
     def _get_renewal_group(spec: KernelSpec, law: RenewalLaw) -> str:
@@ -482,9 +482,7 @@ class CensusPass(BasePass):
         owner = CensusPass._get_special_owner(spec, law, agents)
         if owner is not None:
             return owner
-        if isinstance(law, ConstraintLaw | EventLaw) or (
-            isinstance(law, RelaxationLaw) and not law._get_targets()
-        ):
+        if isinstance(law, ConstraintLaw | EventLaw) or (isinstance(law, RelaxationLaw) and not law._get_targets()):
             return spec.owner
         lattice = isinstance(law, RelaxationLaw | _LocalRuleLaw | _SampleLaw)
         target = law._get_targets()[0] if lattice else CensusPass._get_changed_target(spec, law)
@@ -584,7 +582,7 @@ class CensusPass(BasePass):
         The replacement goes through vectors, mappings, sequences, calls, and laws.
         """
         if isinstance(value, BaseLaw):
-            parameters = value.get_params(deep=False)
+            parameters = value._get_fields()
             return BasePass._get_replaced(
                 value,
                 **{name: CensusPass._get_substituted(item, mapping) for name, item in parameters.items()},
@@ -627,7 +625,7 @@ class CensusPass(BasePass):
         if not isinstance(substituted, BaseLaw):
             error_msg = f'The law {law!r} of {edges.owner} is not a law once written for the member.'
             raise TypeError(error_msg)
-        return substituted.prepare(edges.owner)
+        return BasePass._get_checked_law(substituted)
 
     @staticmethod
     def _get_own_end(edges: KernelSpec, law: BaseLaw) -> str | None:
@@ -734,7 +732,7 @@ class CensusPass(BasePass):
         for axis, step in enumerate(space.spacings_):
             offset = [sign * step if index == axis else 0 for index in range(dimensions)]
             total += value.subs({other: shifted(member, offset) for other, member in ends.items()})
-        return BasePass._get_replaced(law, value=total).prepare(edges.owner)
+        return BasePass._get_checked_law(BasePass._get_replaced(law, value=total))
 
     @staticmethod
     def _get_field_laws(edges: KernelSpec, laws: list[BaseLaw]) -> tuple[list[BaseLaw], list[BaseLaw]]:
@@ -784,7 +782,7 @@ class CensusPass(BasePass):
                 continue
             coefficient, member = difference
             lowered.append(
-                BasePass._get_replaced(law, value=coefficient * scale * laplacian(member)).prepare(edges.owner),
+                BasePass._get_checked_law(BasePass._get_replaced(law, value=coefficient * scale * laplacian(member))),
             )
             taken |= {index, partner}
         if isinstance(place.space, LatticeSpace):
@@ -841,7 +839,7 @@ class CensusPass(BasePass):
             if not isinstance(expanded, BaseLaw):
                 error_msg = f'The law {law!r} of {spec.owner} is not a law once its reductions are written out.'
                 raise TypeError(error_msg)
-            kept.append(HyperedgeTables._get_masked(spec, expanded.prepare(spec.owner)))
+            kept.append(HyperedgeTables._get_masked(spec, BasePass._get_checked_law(expanded)))
         return kept
 
     @staticmethod
@@ -916,7 +914,7 @@ class CensusPass(BasePass):
         a drive or a rule that updates a whole array by a function as an array update.
         """
         relaxation = relaxation_of(law.value) if isinstance(law, UpdateLaw) else None
-        if relaxation is None:
+        if relaxation is None or not isinstance(law, UpdateLaw):
             return CensusPass._get_array_update(law)
         rules = tuple(
             (
@@ -1005,7 +1003,7 @@ class CensusPass(BasePass):
         return None
 
     @staticmethod
-    def _get_returned_laws(spec: KernelSpec, component: BaseComponent) -> Sequence[BaseComponent]:
+    def _get_returned_laws(spec: KernelSpec, component: BaseComponent) -> Sequence[BaseLaw]:
         """Return the laws a component returns.
 
         A read of a state a role does not have raises an error of the role.
@@ -1081,15 +1079,16 @@ class CensusPass(BasePass):
             raise ValidationError(error_msg)
         laws = [CensusPass._get_sampled(spec, law, solver, scope) for law in laws]
         laws = [item for law in laws for item in CensusPass._get_mean_jumps(law, solver)]
-        lowered = [BilinearLaw._get_lowered(law) for law in CensusPass._get_programs(laws, spec.owner)]
+        programs = CensusPass._get_programs([CensusPass._get_checked_sides(law) for law in laws], spec.owner)
+        lowered = [BilinearLaw._get_lowered(law) for law in programs]
         split = [item for law in lowered for item in CensusPass._get_component_rates(spec, law)]
-        declared = [CensusPass._get_relaxation(law).prepare(spec.owner) for law in split]
+        declared = [BasePass._get_checked_law(CensusPass._get_relaxation(law)) for law in split]
         if spec.hyperedge is not None:
             declared = CensusPass._get_hyperedge_laws(spec, declared)
         searched = spec.pairs is not None and spec.edges is None
         alone = spec.edges is not None and spec.edges.pairs is None
         rules = [law for law in declared if (searched or alone) and isinstance(law, _RuleLaw)]
-        declared = [law for law in declared if law not in rules]
+        declared = [law for law in declared if all(law is not rule for rule in rules)]
         if isinstance(spec.pairs, PairSearch) and not all(isinstance(law, RateLaw) for law in declared):
             error_msg = (
                 f'Pair interaction {spec.owner} returns laws other than Rate, which pair interactions do not take.'
@@ -1132,11 +1131,21 @@ class CensusPass(BasePass):
         checked = []
         for law in declared:
             try:
-                checked.append(law.prepare(spec.owner))
+                checked.append(BasePass._get_checked_law(law))
             except ValidationError as error:
                 error_msg = f'{law._get_name()} of {spec.owner}: {error}'
                 raise ValidationError(error_msg) from error
         return [*rules, *checked]
+
+    @staticmethod
+    def _get_checked_sides(law: BaseLaw) -> BaseLaw:
+        """Return a law, checking it first when it is an equation or an objective.
+
+        Linear programs read the sides of both before the other checks run.
+        """
+        if isinstance(law, ConstraintLaw | ObjectiveLaw):
+            law._check()
+        return law
 
     @staticmethod
     def _get_programs(laws: Sequence[BaseLaw], owner: str) -> list[BaseLaw]:
@@ -1164,7 +1173,8 @@ class CensusPass(BasePass):
             if id(law) in programs:
                 continue
             objective = isinstance(law, ObjectiveLaw) and law.controls is None
-            if objective and not isinstance(law.value, Expression) and isinstance(law.value, Sequence):
+            value = law.value if isinstance(law, ObjectiveLaw) else None
+            if objective and not isinstance(value, Expression) and isinstance(value, Sequence):
                 error_msg = (
                     f'The objective of {owner} is a sequence of values, which is minimised in order as a linear '
                     'program, so every value is linear in the targets or a sum of their absolute values.'

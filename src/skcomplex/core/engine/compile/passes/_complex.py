@@ -354,13 +354,14 @@ class LowerComplexPass(BasePass):
     def _split_equation(equation: ConstraintLaw, owner: str) -> list[BaseLaw]:
         """Return the real equations of the real and imaginary parts of a complex equation."""
         description = f'Equation of {owner}'
-        real_lhs, imaginary_lhs = LowerComplexPass._split_complex(equation.lhs_, description)
-        real_rhs, imaginary_rhs = LowerComplexPass._split_complex(equation.rhs_, description)
+        left, right = equation._get_sides()
+        real_lhs, imaginary_lhs = LowerComplexPass._split_complex(left, description)
+        real_rhs, imaginary_rhs = LowerComplexPass._split_complex(right, description)
         real = LowerComplexPass._is_zero(imaginary_lhs) and LowerComplexPass._is_zero(imaginary_rhs)
         target = equation.target if real else None
-        equations: list[BaseLaw] = [ConstraintLaw(real_lhs, real_rhs, target=target).prepare()]
+        equations: list[BaseLaw] = [ConstraintLaw(real_lhs, real_rhs, target=target)]
         if not real:
-            equations.append(ConstraintLaw(imaginary_lhs, imaginary_rhs).prepare())
+            equations.append(ConstraintLaw(imaginary_lhs, imaginary_rhs))
         return equations
 
     @staticmethod

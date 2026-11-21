@@ -15,10 +15,9 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import total
 from ....core.components.spaces import BaseSpace, LatticeSpace, RadiusNeighborhood
 from ....core.engine.backends import BaseBackend
@@ -229,7 +228,7 @@ class CyclicInvasionInteraction(Interaction):
         """
         super()._prepare(context)
         strategy = context.target.strategy
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(strategy, self._invade, neighborhood=NEAREST, schedule='random-sequential', label=self.label),
         ]
 

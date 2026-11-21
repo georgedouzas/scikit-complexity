@@ -23,13 +23,13 @@ U1 = MatrixGroupSpec('U', 1)
 def test_drive_targets_its_lattice_state():
     """Test that a drive targets the one lattice state it changes."""
     height = var('height')
-    assert ArrayUpdateLaw(height, lambda values, *, random: values + 1).prepare().targets_ == (height,)
+    assert ArrayUpdateLaw(height, lambda values, *, random: values + 1)._get_targets() == (height,)
 
 
 def test_drive_needs_a_callable_function():
     """Test that a drive rejects a function that cannot be called."""
     with pytest.raises(ValidationError, match='callable'):
-        ArrayUpdateLaw(var('height'), 1.0).prepare()
+        ArrayUpdateLaw(var('height'), 1.0)._check()
 
 
 class ReplayInteraction(Interaction):

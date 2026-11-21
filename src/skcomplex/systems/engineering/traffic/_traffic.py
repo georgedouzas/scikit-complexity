@@ -12,10 +12,9 @@ from sage.all__sagemath_symbolics import ZZ, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -123,7 +122,7 @@ class NagelSchreckenbergInteraction(Interaction):
         velocity = context.target.velocity
         ahead = LatticeNeighborhood(tuple((distance,) for distance in range(self.vmax + 1)))
         behind = LatticeNeighborhood(tuple((-distance,) for distance in range(self.vmax + 1)))
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(velocity, self._accelerate, neighborhood=ahead, label='acceleration'),
             UpdateLaw(velocity, self._move, neighborhood=behind, label='movement'),
         ]

@@ -73,7 +73,7 @@ class TowardsPass(BasePass):
                 node_spec = SpecsPass._get_member_spec(nodes, declarations.time)
                 references = dict(node_spec.references)
                 namespace = SpecsPass._copy_with_source(nodes, node_spec.namespace, references)
-                weights = [
+                weights: list[BaseLaw] = [
                     UpdateLaw(_WeightSpec(request, score=part == 'score'), SR(function(namespace)))
                     for part, function in (('toward', request.toward), ('score', request.score))
                     if function is not None

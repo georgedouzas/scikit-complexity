@@ -19,10 +19,9 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import JumpLaw
+from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
@@ -104,7 +103,7 @@ class RecoveryInteraction(Interaction):
         """
         super()._prepare(context)
         node = context.target
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             JumpLaw(node.recovery * where(node.infected == 1, 1, 0), {node.infected: -1}),
         ]
 
@@ -164,7 +163,7 @@ class SimplicialInfectionInteraction(Interaction):
         infected = context.member.infected
         rate = context.beta if len(context.others) + 1 == PAIR else context.beta_triangle
         exposed = math.prod((other.infected for other in context.others), start=where(infected == 0, 1, 0))
-        self.laws_: list[BaseComponent] = [JumpLaw(rate * exposed, {infected: 1})]
+        self.laws_: list[BaseLaw] = [JumpLaw(rate * exposed, {infected: 1})]
 
 
 class SimplicialContagionSystem(BaseSystem):

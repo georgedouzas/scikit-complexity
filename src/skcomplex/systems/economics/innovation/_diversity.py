@@ -14,10 +14,9 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import where
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -100,7 +99,7 @@ class CombinationInteraction(Interaction):
         x, d, r = context.target.x, context.target.d, context.target.r
         current = x + d
         produced = r * (1 - current) * (current**2 - x**2)
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(x, x + d, increment=True),
             UpdateLaw(d, where(produced < 1 - current, produced, 1 - current)),
         ]

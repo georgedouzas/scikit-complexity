@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from dataclasses import KW_ONLY, dataclass
 from typing import ClassVar
 
 from sage.all__sagemath_symbolics import Expression
@@ -12,6 +13,7 @@ from .....core.components.laws.utils import has_operator
 from .....core.errors import ValidationError
 
 
+@dataclass(frozen=True)
 class GeneratorLaw(BaseLaw):
     """A law that adds a Hermitian operator to the generator of a linear evolution.
 
@@ -36,15 +38,15 @@ class GeneratorLaw(BaseLaw):
         >>> from skcomplex.systems.physics.common.quantum import GeneratorLaw
         >>> from skcomplex.core.components.laws.utils import local_operator
         >>> z = local_operator(SR.symbol('q'), SR.symbol('z'))
-        >>> GeneratorLaw(var('h') * z).prepare().operator
+        >>> GeneratorLaw(var('h') * z).operator
         h*local_operator(q, z)
     """
 
     law_tag: ClassVar[str] = 'rate'
 
-    def __init__(self, operator: object, *, label: str = '') -> None:
-        super().__init__(label)
-        self.operator = operator
+    operator: object
+    _: KW_ONLY
+    label: str = ''
 
     def _get_targets(self) -> tuple[object, ...]:
         """Return no states.
@@ -58,14 +60,9 @@ class GeneratorLaw(BaseLaw):
         """Return what the law requires of a system: the continuous time of a rate."""
         return RateLaw.get_requirements()
 
-    def _prepare(self, context: str | None = None) -> None:
-        """Raise an error for a function as the operator, or one without local operators.
-
-        Args:
-            context:
-                The path of the element or interaction that returns the law, or `None`.
-        """
-        super()._prepare(context)
+    def _check(self) -> None:
+        """Raise an error for a function as the operator, or one without local operators."""
+        super()._check()
         if callable(self.operator) and not isinstance(self.operator, Expression):
             error_msg = (
                 'Generators need symbolic operators, so a generator cannot be a function. Give the coefficient '

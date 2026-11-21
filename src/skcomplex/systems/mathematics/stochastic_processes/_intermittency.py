@@ -14,10 +14,9 @@ from sage.all__sagemath_symbolics import oo, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import NoiseLaw, RateLaw
+from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, HeunSolver
 from ....core.systems import BaseSystem, System
@@ -95,7 +94,7 @@ class IntermittencyInteraction(Interaction):
         """
         super()._prepare(context)
         x = context.target.x
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             RateLaw(x, context.epsilon * x - x**3),
             NoiseLaw(x, sqrt(2 * context.D) * x, convention='stratonovich'),
         ]

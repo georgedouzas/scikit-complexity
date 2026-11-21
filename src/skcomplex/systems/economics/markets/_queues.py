@@ -11,10 +11,9 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, SystemView
@@ -136,7 +135,7 @@ class WashingInteraction(Interaction):
                 The namespace of the elements a binding of the roles names.
         """
         super()._prepare(context)
-        self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.work)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.work)]
 
     def work(self, agent: AgentViewProtocol, system: SystemView) -> None:
         """Work one second on the front car of an area.
@@ -329,7 +328,7 @@ class CarWashOperationInteraction(Interaction):
                 The namespace of the elements a binding of the roles names.
         """
         super()._prepare(context)
-        self.laws_: list[BaseComponent] = [UpdateLaw(context, self.operate)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self.operate)]
 
     def operate(self, system: SystemView) -> None:
         """Finish the cars whose work is done and reset the crews.

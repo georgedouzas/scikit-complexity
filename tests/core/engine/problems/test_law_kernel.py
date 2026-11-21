@@ -220,7 +220,7 @@ def test_renewal_sampler_counts_like_its_constant_waiting_time(backend):
 def test_jump_rejects_a_function_in_the_reset_of_a_renewal():
     """Test that a renewal says that its reset is symbolic."""
     with pytest.raises(ValidationError, match='takes symbolic values'):
-        JumpLaw(waiting=_waiting_sampler, reset={SR.var('n'): lambda t, values: 0.0}).prepare()
+        JumpLaw(waiting=_waiting_sampler, reset={SR.var('n'): lambda t, values: 0.0})._check()
 
 
 def _sum(s):

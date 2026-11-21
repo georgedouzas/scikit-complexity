@@ -15,10 +15,9 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, Quantity
 from ....core.components.interactions import Interaction
-from ....core.components.laws import RateLaw
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import distributed_delay, maximum, minimum, step
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -347,7 +346,7 @@ class EchelonInteraction(Interaction):
         """
         super()._prepare(context)
         echelon = context.target
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             RateLaw(echelon.backlog, -EchelonElement._get_shipments(echelon)),
             RateLaw(echelon.expected, -echelon.theta * echelon.expected),
         ]
@@ -390,7 +389,7 @@ class BreweryInteraction(Interaction):
         """
         super()._prepare(context)
         factory = context.factory
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             RateLaw({factory.in_transit: +1}, BreweryInteraction._get_orders(factory), label='starts'),
             RateLaw(
                 {factory.in_transit: -1, factory.inventory: +1},
@@ -454,7 +453,7 @@ class RetailDemandInteraction(Interaction):
         """
         super()._prepare(context)
         retailer = context.retailer
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             RateLaw({retailer.inventory: -1}, EchelonElement._get_shipments(retailer), label='sales'),
         ]
 
@@ -502,7 +501,7 @@ class SupplyLinkInteraction(Interaction):
         """
         super()._prepare(context)
         upstream, downstream = context.upstream, context.downstream
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             RateLaw(
                 {upstream.inventory: -1, downstream.in_transit: +1},
                 EchelonElement._get_shipments(upstream),

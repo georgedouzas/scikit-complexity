@@ -7,10 +7,9 @@ import pytest
 from scipy.integrate import solve_ivp
 
 from skcomplex.core.components import Observable
-from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction, TrainingInteraction
-from skcomplex.core.components.laws import DatasetSpec, RateLaw
+from skcomplex.core.components.laws import BaseLaw, DatasetSpec, RateLaw
 from skcomplex.core.components.laws.utils import contraction
 from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine.backends import NumpyBackend
@@ -297,7 +296,7 @@ class CubicInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             x = context.target.x
-            self.laws_: list[BaseComponent] = [RateLaw(x.diff(context.t), contraction(context.T, x, x))]
+            self.laws_: list[BaseLaw] = [RateLaw(x.diff(context.t), contraction(context.T, x, x))]
 
 
 def _node_error(member):

@@ -103,7 +103,7 @@ class BaseInteraction(BaseComponent[SimpleNamespace]):
     """
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = ()
-    laws_: Sequence[BaseComponent]
+    laws_: Sequence[BaseLaw]
 
     def _get_argument(self, name: str) -> object:
         """Return the value of an argument of the general interaction.
@@ -416,16 +416,16 @@ class BaseInteraction(BaseComponent[SimpleNamespace]):
         return replace(spec, **changed) if changed else spec
 
     @staticmethod
-    def _get_replaced(law: BaseComponent, **params: object) -> BaseComponent:
-        """Return a copy of a law with some parameters replaced and the others shared.
+    def _get_replaced(law: BaseLaw, **params: object) -> BaseLaw:
+        """Return a copy of a law with some fields replaced and the others shared.
 
         A deep copy would rebuild every Sage expression from its pickle, which can change its numbers, such as
         `1.0 * x` into `x`, and so merge branches of a table function that were apart. The copy shares them instead.
         """
-        return copy.copy(law).set_params(**params)
+        return replace(law, **params)
 
     @staticmethod
-    def _get_law_in_states(law: BaseComponent, time: Expression, symbols: Mapping[str, Expression]) -> BaseComponent:
+    def _get_law_in_states(law: BaseLaw, time: Expression, symbols: Mapping[str, Expression]) -> BaseLaw:
         """Return a law written with functions of time as a law of the states.
 
         The rules and the drive of a relaxation, such as the toppling and the grain of a sandpile, become laws of the
@@ -434,7 +434,7 @@ class BaseInteraction(BaseComponent[SimpleNamespace]):
         if not symbols:
             return law
         discrete = isinstance(law, UpdateLaw)
-        params = law.get_params(deep=False)
+        params = law._get_fields()
         translated = {
             name: (
                 BaseInteraction._get_translated_spec(item, time, symbols, discrete)
@@ -460,7 +460,7 @@ class BaseInteraction(BaseComponent[SimpleNamespace]):
         return BaseInteraction._get_replaced(law, **changed) if changed else law
 
     @staticmethod
-    def _get_normalized(law: BaseComponent) -> BaseComponent:
+    def _get_normalized(law: BaseLaw) -> BaseLaw:
         """Return a law on a derivative of order `k` as a law on the state of order `k`.
 
         A rate law on the fractional derivative `fractional(x, alpha)` becomes a rate law on `x` of the order `alpha`,
@@ -500,16 +500,16 @@ class BaseInteraction(BaseComponent[SimpleNamespace]):
         return BaseInteraction._get_ordered(law, state, int(order))
 
     @staticmethod
-    def _get_ordered(law: RateLaw | NoiseLaw, target: object, order: float | None) -> BaseComponent:
+    def _get_ordered(law: RateLaw | NoiseLaw, target: object, order: float | None) -> BaseLaw:
         """Return a rate or noise law on a state that keeps the order of its derivative.
 
         The new law shares the arguments of the law, such as its value, without copying them.
         """
         ordered = _OrderedNoiseLaw if isinstance(law, NoiseLaw) else _OrderedRateLaw
-        return ordered(**{**law.get_params(deep=False), 'target': target, 'order': order})
+        return ordered(**{**law._get_fields(), 'target': target, 'order': order})
 
     @staticmethod
-    def _get_normalized_complex(law: RateLaw | NoiseLaw) -> BaseComponent:
+    def _get_normalized_complex(law: RateLaw | NoiseLaw) -> BaseLaw:
         """Return a law on the derivative of a complex state as a law on the state.
 
         The derivative `z.diff(t, k)` of a complex state is the sum of the derivatives of order `k` of its real and
@@ -524,7 +524,7 @@ class BaseInteraction(BaseComponent[SimpleNamespace]):
         return BaseInteraction._get_ordered(law, state, orders.pop() if orders else 1)
 
     @staticmethod
-    def _get_normalized_vector(law: RateLaw | NoiseLaw) -> BaseComponent:
+    def _get_normalized_vector(law: RateLaw | NoiseLaw) -> BaseLaw:
         """Return a law on the derivatives of a vector as a law on the vector.
 
         The derivatives of order `k` of the components, such as `x.diff(t, 2)`, give the vector the order `k`. A target
@@ -540,7 +540,7 @@ class BaseInteraction(BaseComponent[SimpleNamespace]):
         states = vector(SR, [item[0] for item in found if item is not None])
         return BaseInteraction._get_ordered(law, states, orders.pop())
 
-    def _get_laws_of(self, inputs: object) -> Sequence[BaseComponent]:
+    def _get_laws_of(self, inputs: object) -> Sequence[BaseLaw]:
         """Return the laws for a namespace, from a copy prepared on it."""
         if not isinstance(inputs, SimpleNamespace):
             error_msg = f'{type(self).__name__} learns its laws from a namespace of symbols, but got {inputs!r}.'
@@ -565,7 +565,7 @@ class BaseInteraction(BaseComponent[SimpleNamespace]):
         stated = prepared.laws_
         if self._get_within() is not None:
             stated = [item for law in stated for item in self._get_energy_forces(law, functional, time)]
-        laws: list[BaseComponent] = []
+        laws: list[BaseLaw] = []
         for law in stated:
             if not isinstance(law, BaseLaw):
                 laws.append(law)
@@ -575,17 +575,20 @@ class BaseInteraction(BaseComponent[SimpleNamespace]):
                 laws.append(rule)
                 continue
             translated = self._get_law_in_states(law, time, functions)
-            flow = isinstance(translated, RateLaw | UpdateLaw)
-            terms = FlowTermLaw._get_terms(translated, self.label) if flow else [translated]
+            terms = (
+                FlowTermLaw._get_terms(translated, self.label)
+                if isinstance(translated, RateLaw | UpdateLaw)
+                else [translated]
+            )
             laws.extend(self._get_local_rule(self._get_normalized(term)) for term in terms)
         return laws
 
     def _get_energy_forces(
         self,
-        law: BaseComponent,
+        law: BaseLaw,
         namespace: SimpleNamespace,
         time: Expression,
-    ) -> list[BaseComponent]:
+    ) -> list[BaseLaw]:
         """Return the forces of a pair energy on both members, or the law itself.
 
         An `ObjectiveLaw(V)` of an interaction that runs for pairs is the energy of the pair, not an objective to
@@ -606,7 +609,7 @@ class BaseInteraction(BaseComponent[SimpleNamespace]):
             raise ValidationError(error_msg)
         energy = SR(law.value)
         position = getattr(self, 'position', 'x')
-        forces: list[BaseComponent] = []
+        forces: list[BaseLaw] = []
         for role in (self._get_role('first'), self._get_role('second')):
             member = getattr(namespace, role)
             x = getattr(member, position)
@@ -638,20 +641,20 @@ class BaseInteraction(BaseComponent[SimpleNamespace]):
         return ParameterShapeError(error_msg)
 
     @staticmethod
-    def _get_local_rule(law: BaseComponent) -> BaseComponent:
+    def _get_local_rule(law: BaseLaw) -> BaseLaw:
         """Return the local rule of an update law with a neighbourhood, or the law itself.
 
         An update law with a neighbourhood, such as `UpdateLaw(s.target.alive, life(), neighborhood=MOORE)`, runs as a
         local rule of the cells, with its lookup tables and fused lattice kernels.
         """
         if isinstance(law, UpdateLaw) and law.neighborhood is not None:
-            law.prepare()
+            law._check()
             return law._get_local_rule()
         return law
 
     def _get_rule(
         self,
-        law: BaseComponent,
+        law: BaseLaw,
         roles: Mapping[str, object],
         system: SimpleNamespace | None = None,
     ) -> _RuleLaw | None:
@@ -1185,7 +1188,7 @@ class BaseInteraction(BaseComponent[SimpleNamespace]):
         self._check_states()
         self._check_processes()
         self._check_arguments()
-        self.laws_: Sequence[BaseComponent] = []
+        self.laws_: Sequence[BaseLaw] = []
 
     def get_requirements(self) -> _InteractionRequirementSpec:
         """Return what the interaction needs.

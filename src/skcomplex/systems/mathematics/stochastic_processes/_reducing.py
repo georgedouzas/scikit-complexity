@@ -15,10 +15,9 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, SystemView
@@ -102,7 +101,7 @@ class CascadeInteraction(Interaction):
                 The namespace of the elements a binding of the roles names.
         """
         super()._prepare(context)
-        self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self._jump)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self._jump)]
 
     def _jump(self, agent: BallView, system: SystemView) -> None:
         """Replace a ball by its offspring at lower states, or remove it at state 1."""
@@ -188,7 +187,7 @@ class BreakingInteraction(Interaction):
                 The namespace of the elements a binding of the roles names.
         """
         super()._prepare(context)
-        self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self._split)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self._split)]
 
     def _split(self, agent: FragmentView, system: SystemView) -> None:
         """Cut a fragment in two with the probability `rate`, unless it has size 1."""
@@ -242,7 +241,7 @@ class ReducingJumpInteraction(Interaction):
                 The namespace of the elements a binding of the roles names.
         """
         super()._prepare(context)
-        self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self._jump)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self._jump)]
 
     def _jump(self, agent: BallView, system: SystemView) -> None:
         """Move a ball to its next state."""

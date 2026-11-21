@@ -126,8 +126,8 @@ def _decay(label: str, state: str, rate: float) -> Interaction:
 def test_rate_gives_its_value():
     """Test that a rate law targets its state and gives its value at given values of the symbols."""
     n, r = var('n r')
-    law = RateLaw(n, r * n).prepare()
-    assert law.targets_ == (n,)
+    law = RateLaw(n, r * n)
+    assert law._get_targets() == (n,)
     assert law._get_value({'n': 3.0, 'r': 2.0}) == 6.0
 
 

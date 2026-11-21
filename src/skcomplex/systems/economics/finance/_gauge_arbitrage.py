@@ -18,10 +18,9 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import RateLaw
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import codifferential, exterior_derivative
 from ....core.components.spaces import BaseSpace, CellComplexSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
@@ -172,7 +171,7 @@ class TraderCurrentInteraction(Interaction):
         source, target, edge = context.source, context.target, context.edge
         middle = (source.rho + target.rho) / 2
         current = -context.D * (target.rho - source.rho - context.q * edge.A * middle)
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             RateLaw(source.rho, -current),
             RateLaw(target.rho, current),
             RateLaw(edge.E, -current),

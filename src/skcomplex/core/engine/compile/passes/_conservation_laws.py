@@ -116,8 +116,8 @@ class ConservationLawsPass(BasePass):
                 riemann=scheme.riemann,
                 speed=scheme.speed,
                 label=law.label,
-            ).prepare(spec.owner),
+            ),
         ]
         if not rest.is_zero():
-            laws.append(_OrderedRateLaw(law.target, rest, law._get_order(), label=law.label).prepare(spec.owner))
+            laws.append(_OrderedRateLaw(law.target, rest, law._get_order(), label=law.label))
         return laws

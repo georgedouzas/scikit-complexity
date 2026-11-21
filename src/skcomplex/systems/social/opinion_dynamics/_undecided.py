@@ -17,10 +17,9 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, Quantity, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import RateLaw, UpdateLaw
+from ....core.components.laws import BaseLaw, RateLaw, UpdateLaw
 from ....core.components.spaces import NetworkSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
@@ -341,7 +340,7 @@ class UndecidedFlowsSystem(BaseSystem):
         return s.target.eta * s.target.support * s.target.undecided**s.target.drive
 
     @staticmethod
-    def _get_flows(s: SimpleNamespace) -> list[BaseComponent]:
+    def _get_flows(s: SimpleNamespace) -> list[BaseLaw]:
         """Return the flows of undecided agents to both sides and back."""
         undecided, against, support = s.target.undecided, s.target.against, s.target.support
         return [

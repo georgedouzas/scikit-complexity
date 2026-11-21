@@ -7,10 +7,9 @@ import pytest
 from sage.all__sagemath_symbolics import var
 from scipy.special import erfcx, gamma
 
-from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import NoiseLaw, RateLaw
+from skcomplex.core.components.laws import BaseLaw, NoiseLaw, RateLaw
 from skcomplex.core.components.laws.utils import fractional
 from skcomplex.core.components.laws.utils._fractional import fractional_of
 from skcomplex.core.components.spaces import BaseSpace
@@ -43,7 +42,7 @@ class AnomalousRelaxation(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             x = context.target.x
-            laws: list[BaseComponent] = [RateLaw(fractional(x, self.alpha), -context.k * x)]
+            laws: list[BaseLaw] = [RateLaw(fractional(x, self.alpha), -context.k * x)]
             if self.extra == 'rate':
                 laws.append(RateLaw(x, 1.0))
             if self.extra == 'noise':

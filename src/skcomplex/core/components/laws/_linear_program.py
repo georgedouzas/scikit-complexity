@@ -5,6 +5,7 @@
 
 import operator
 from collections.abc import Sequence
+from dataclasses import KW_ONLY, dataclass
 from typing import ClassVar
 
 from sage.all__sagemath_symbolics import Expression
@@ -21,6 +22,7 @@ INFEASIBLE_POLICIES = ('raise', 'zero', 'hold')
 RELATIONS = (operator.eq, operator.le, operator.ge)
 
 
+@dataclass(frozen=True)
 class _LinearProgramLaw(BaseLaw):
     """A law that sets algebraic states to the optimum of a linear program.
 
@@ -63,29 +65,19 @@ class _LinearProgramLaw(BaseLaw):
     Raises:
         ValidationError:
             A constraint is not a relation, an objective is not a `LinearObjectiveSpec`, or the policy is unknown,
-            raised by `prepare`.
+            raised by `_check`.
     """
 
     law_tag: ClassVar[str] = 'equation'
 
-    def __init__(
-        self,
-        variables: Sequence[Expression],
-        constraints: Sequence[Expression],
-        objectives: Sequence[LinearObjectiveSpec] = (),
-        *,
-        active: Expression | None = None,
-        infeasible: str = 'raise',
-        duals: bool = False,
-        label: str = '',
-    ) -> None:
-        super().__init__(label)
-        self.variables = variables
-        self.constraints = constraints
-        self.objectives = objectives
-        self.active = active
-        self.infeasible = infeasible
-        self.duals = duals
+    variables: Sequence[Expression]
+    constraints: Sequence[Expression]
+    objectives: Sequence[LinearObjectiveSpec] = ()
+    _: KW_ONLY
+    active: Expression | None = None
+    infeasible: str = 'raise'
+    duals: bool = False
+    label: str = ''
 
     @classmethod
     def _get_name(cls) -> str:
@@ -101,19 +93,15 @@ class _LinearProgramLaw(BaseLaw):
         """Return what the law requires of a system: continuous, discrete, or static time."""
         return RequirementSpec(time=(_ContinuousTime, _DiscreteTime, _StaticTime))
 
-    def _prepare(self, context: str | None = None) -> None:
+    def _check(self) -> None:
         """Raise an error for no variables, a bad constraint or objective, or a bad policy.
-
-        Args:
-            context:
-                The path of the element or interaction that returns the law, or `None`.
 
         Raises:
             ValidationError:
                 The program has no variables, a constraint is not a relation, an objective is not a
                 `LinearObjectiveSpec`, or the policy is unknown.
         """
-        super()._prepare(context)
+        super()._check()
         if not len(self.variables):
             error_msg = 'A linear program law sets at least one variable, but it has none.'
             raise ValidationError(error_msg)

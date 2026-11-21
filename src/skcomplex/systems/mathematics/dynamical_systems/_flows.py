@@ -12,10 +12,9 @@ from types import SimpleNamespace
 from sage.all__sagemath_symbolics import abs_symbolic, sin
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import RateLaw
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.systems import BaseSystem, System
@@ -94,7 +93,7 @@ class LangfordInteraction(Interaction):
         x, y, z = context.target.x, context.target.y, context.target.z
         a, b, c, d, e, f = context.a, context.b, context.c, context.d, context.e, context.f
         radius = x**2 + y**2
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             RateLaw(x, (z - b) * x - d * y),
             RateLaw(y, d * x + (z - b) * y),
             RateLaw(z, c + a * z - z**3 / 3 - radius * (1 + e * z) + f * z * x**3),
@@ -134,7 +133,7 @@ class MixedFlowInteraction(Interaction):
         """
         super()._prepare(context)
         x, y, z = context.target.x, context.target.y, context.target.z
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             RateLaw(x, y + 2 * x * y + x * z),
             RateLaw(y, 1 - 2 * x**2 + y * z),
             RateLaw(z, x - x**2 - y**2),
@@ -174,7 +173,7 @@ class NoseHooverInteraction(Interaction):
         """
         super()._prepare(context)
         x, y, z = context.target.x, context.target.y, context.target.z
-        self.laws_: list[BaseComponent] = [RateLaw(x, y), RateLaw(y, y * z - x), RateLaw(z, 1 - y**2)]
+        self.laws_: list[BaseLaw] = [RateLaw(x, y), RateLaw(y, y * z - x), RateLaw(z, 1 - y**2)]
 
 
 class LorenzElement(Element):
@@ -269,7 +268,7 @@ class LorenzInteraction(Interaction):
         """
         super()._prepare(context)
         s = context.target
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             RateLaw(s.x, s.sigma * (s.y - s.x)),
             RateLaw(s.y, s.x * (s.rho - s.z) - s.y),
             RateLaw(s.z, s.x * s.y - s.beta * s.z),
@@ -465,7 +464,7 @@ class SprottJerkInteraction(Interaction):
         super()._prepare(context)
         x, t = context.target.x, context.t
         jerk = -context.A * x.diff(t, 2) - x.diff(t) + abs_symbolic(x) - 1
-        self.laws_: list[BaseComponent] = [RateLaw(x.diff(t, 3), jerk)]
+        self.laws_: list[BaseLaw] = [RateLaw(x.diff(t, 3), jerk)]
 
 
 class SprottJerkSystem(BaseSystem):
@@ -581,7 +580,7 @@ class FiniteTimeBlowUpInteraction(Interaction):
         super()._prepare(context)
         x = context.target.x
         a, p = context.a, context.p
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             RateLaw(x, a * x**p),
         ]
 
@@ -706,7 +705,7 @@ class HyperchaoticRosslerInteraction(Interaction):
         super()._prepare(context)
         x, y, z, w = context.target.x, context.target.y, context.target.z, context.target.w
         a, b, c, d = context.a, context.b, context.c, context.d
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             RateLaw(x, -(y + z)),
             RateLaw(y, x + a * y + w),
             RateLaw(z, b + x * z),
@@ -1097,7 +1096,7 @@ class ThomasInteraction(Interaction):
         super()._prepare(context)
         x, y, z = context.target.x, context.target.y, context.target.z
         a = context.a
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             RateLaw(x, -a * x + sin(y)),
             RateLaw(y, -a * y + sin(z)),
             RateLaw(z, -a * z + sin(x)),
@@ -1220,7 +1219,7 @@ class IkedaInteraction(Interaction):
         """
         super()._prepare(context)
         x, t = context.target.x, context.t
-        self.laws_: list[BaseComponent] = [RateLaw(x, context.a * sin(x(t=t - context.tau)))]
+        self.laws_: list[BaseLaw] = [RateLaw(x, context.a * sin(x(t=t - context.tau)))]
 
 
 class IkedaSystem(BaseSystem):

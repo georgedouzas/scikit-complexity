@@ -15,7 +15,6 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
 from .....core.base import BaseSpec
-from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, UpdateLaw
 from .....core.components.laws.utils import relax
@@ -204,7 +203,7 @@ class TopplingInteraction(Interaction):
 
         return scatter
 
-    def _get_cascade(self, value: Expression) -> list[BaseComponent]:
+    def _get_cascade(self, value: Expression) -> list[BaseLaw]:
         """Return the update of the state of the target, driven and relaxed until stable."""
         threshold, share = self.threshold, self.share
         drive = [] if self.drive is None else [UpdateLaw(value, self.drive, arrays=True)]

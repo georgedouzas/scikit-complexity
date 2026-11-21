@@ -1,5 +1,6 @@
 """Test the `_base` module of `skcomplex.core.components.laws`."""
 
+import dataclasses
 import inspect
 
 import numpy as np
@@ -33,38 +34,76 @@ def test_every_law_derives_from_the_law_base():
         assert not inspect.isabstract(law), law
 
 
-def test_law_runs_alone_once_prepared():
-    """Test that a prepared rate law knows its targets, reads, and owner, and gives its rate at given values."""
+def _get_methods(klass):
+    """Return the names of the methods a class defines itself, besides the special ones."""
+    return {
+        name
+        for name, value in vars(klass).items()
+        if not name.startswith('__') and (callable(value) or isinstance(value, classmethod | staticmethod))
+    }
+
+
+def test_law_base_lists_its_methods():
+    """Test that the law base gives its targets, requirements, reads, value, and name, and has no `prepare`."""
+    assert _get_methods(BaseLaw) == {
+        '_get_targets',
+        '_get_requirements',
+        '_get_name',
+        '_get_law_requirements',
+        'get_requirements',
+        '_get_value',
+        '_get_fields',
+        '_get_values',
+        '_get_reads',
+        '_is_function',
+        '_evaluate',
+        '_check_array',
+        '_check_matrix',
+    }
+    for name in ('prepare', 'get_params', 'set_params', 'get_tags', 'label'):
+        assert not hasattr(BaseLaw, name), name
+
+
+def test_law_is_a_frozen_value_equal_by_its_fields():
+    """Test that a law cannot change, equals a law of the same class and fields, and changes by replacement."""
     n, r = var('n r')
-    law = RateLaw(n, r * n).prepare('meadow/rabbits')
+    law = RateLaw(n, r * n, label='growth')
+    assert dataclasses.is_dataclass(law)
+    assert law == RateLaw(n, r * n, label='growth')
+    assert law != RateLaw(n, r * n, label='decay')
+    assert law != UpdateLaw(n, r * n, label='growth')
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        law.value = 2 * n
+    changed = dataclasses.replace(law, value=-r * n)
+    assert (changed.target, changed.value, changed.label) == (n, -r * n, 'growth')
+    assert changed.target is law.target
+
+
+def test_law_gives_its_targets_reads_and_value():
+    """Test that a rate law knows its targets and reads, and gives its rate at given values."""
+    n, r = var('n r')
+    law = RateLaw(n, r * n)
     assert law._get_value({'n': 10, 'r': 0.5}) == 5.0
-    assert law.targets_ == (n,)
-    assert law.reads_ == {n, r}
-    assert law.owner_ == 'meadow/rabbits'
+    assert law._get_targets() == (n,)
+    assert law._get_reads() == {n, r}
 
 
-def test_law_without_an_owner_has_none():
-    """Test that a law prepared without the path of its owner has no owner."""
-    assert RateLaw(var('x'), 1).prepare().owner_ is None
-
-
-def test_targets_are_a_tuple_once_prepared():
-    """Test that preparing a law sets its targets as a tuple, and that laws without targets have none."""
+def test_targets_are_a_tuple():
+    """Test that a law gives its targets as a tuple, and that laws without targets have none."""
     x, y = var('x y')
-    assert RateLaw(x, 1).prepare().targets_ == (x,)
+    assert RateLaw(x, 1)._get_targets() == (x,)
     assert UpdateLaw(
         y,
         TotalisticSpec({2: 1}),
         neighborhood=LatticeNeighborhood(((-1,), (0,), (1,))),
-    ).prepare().targets_ == (y,)
-    assert EventLaw(x - 1).prepare().targets_ == ()
+    )._get_targets() == (y,)
+    assert EventLaw(x - 1)._get_targets() == ()
 
 
 def test_law_reads_the_symbols_of_its_nested_arguments():
     """Test that the reads of a law include the symbols inside vectors, sequences, and mappings."""
     x, y, a, b = var('x y a b')
-    law = RateLaw(vector([x, y]), vector([a * x, b])).prepare()
-    assert law.reads_ == {x, y, a, b}
+    assert RateLaw(vector([x, y]), vector([a * x, b]))._get_reads() == {x, y, a, b}
 
 
 def test_law_requirements_are_a_requirement_spec():
@@ -77,7 +116,7 @@ def test_law_requirements_are_a_requirement_spec():
 def test_law_rejects_a_numpy_array_value():
     """Test that a NumPy array, which NumPy builds from a scalar times a vector, is rejected with a fix."""
     with pytest.raises(ValidationError, match='NumPy array'):
-        RateLaw(vector([var('x')]), np.float64(2.0) * vector([var('x')])).prepare()
+        RateLaw(vector([var('x')]), np.float64(2.0) * vector([var('x')]))._check()
 
 
 def _double(t, value):
@@ -103,13 +142,11 @@ def test_get_requirements_reads_every_law_class_without_an_instance():
     assert JumpLaw.get_requirements().time == RateLaw.get_requirements().time
 
 
-def test_laws_give_their_kind_times_and_randomness():
-    """Test that a law gives its kind, the times it runs in, and a randomness that follows from its kind."""
-    x = var('x')
-    rate = RateLaw(x, -x).get_tags()
-    assert (rate.laws, rate.time, rate.randomness) == ({'rate'}, {'continuous'}, 'deterministic')
-    assert NoiseLaw(x, 1.0).get_tags().randomness == 'stochastic'
-    assert ConstraintLaw(x).get_tags().time == {'continuous', 'static'}
+def test_laws_give_their_kind_and_times():
+    """Test that a law class gives its kind and the times it runs in."""
+    assert (RateLaw.law_tag, NoiseLaw.law_tag) == ('rate', 'noise')
+    times = {time.time_tag for time in ConstraintLaw(var('x'))._get_law_requirements().time}
+    assert times == {'continuous', 'static'}
 
 
 def test_every_core_law_names_a_known_kind():

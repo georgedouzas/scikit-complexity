@@ -16,10 +16,9 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import TopologyRequestSpec, UpdateLaw
+from ....core.components.laws import BaseLaw, TopologyRequestSpec, UpdateLaw
 from ....core.components.laws.utils import components, shortest_paths, where
 from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
@@ -106,7 +105,7 @@ class OverloadInteraction(Interaction):
         """
         super()._prepare(context)
         node = context.target
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(node.load, shortest_paths(1)),
             UpdateLaw(node.giant, components(1, reduce='largest')),
             UpdateLaw(TopologyRequestSpec('remove-node'), where(shortest_paths(1) > node.capacity, 1, 0)),

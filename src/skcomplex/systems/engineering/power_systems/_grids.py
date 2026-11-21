@@ -14,7 +14,6 @@ from sage.all__sagemath_symbolics import oo, sin
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
@@ -67,7 +66,7 @@ class SwingInteraction(Interaction):
         """
         super()._prepare(context)
         node, t = context.target, context.t
-        self.laws_: list[BaseComponent] = [RateLaw(node.phi.diff(t, 2), node.P - context.gamma * node.phi.diff(t))]
+        self.laws_: list[BaseLaw] = [RateLaw(node.phi.diff(t, 2), node.P - context.gamma * node.phi.diff(t))]
 
 
 class TransmissionLineInteraction(Interaction):
@@ -118,7 +117,7 @@ class TransmissionLineInteraction(Interaction):
         """
         super()._prepare(context)
         first, second, t = context.a.phi, context.b.phi, context.t
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             RateLaw(first.diff(t, 2), context.K * sin(second - first)),
             RateLaw(second.diff(t, 2), context.K * sin(first - second)),
         ]

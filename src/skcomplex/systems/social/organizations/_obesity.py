@@ -18,10 +18,9 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import BaseInteraction, Interaction
-from ....core.components.laws import PartnerSpec, UpdateLaw
+from ....core.components.laws import BaseLaw, PartnerSpec, UpdateLaw
 from ....core.components.laws.utils import pairs
 from ....core.components.spaces import BaseSpace, ContinuousSpace
 from ....core.components.types import AgentViewProtocol
@@ -338,7 +337,7 @@ class DietInteraction(Interaction):
                 The namespace of the elements a binding of the roles names.
         """
         super()._prepare(context)
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(context.target, self.count_day, phase=self.day_phase),
             UpdateLaw(context.target, self.gain_weight, phase=self.week_phase),
         ]
@@ -506,7 +505,7 @@ class ObesitySystem(BaseSystem):
                 EaterElement.settle_meal(eater, restaurant, [calories], system)
 
     @staticmethod
-    def _get_meals(s: SimpleNamespace, phase: str) -> list[BaseComponent]:
+    def _get_meals(s: SimpleNamespace, phase: str) -> list[BaseLaw]:
         """Return the meals of a phase as the rule of the system."""
         return [UpdateLaw(s, ObesitySystem._eat, phase=phase)]
 

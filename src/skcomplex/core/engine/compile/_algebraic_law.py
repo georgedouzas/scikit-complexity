@@ -3,9 +3,12 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from dataclasses import dataclass
+
 from ...components.laws._boundary import _BoundaryLaw
 
 
+@dataclass(frozen=True)
 class AlgebraicLaw(_BoundaryLaw):
     """A law that gives the value of an algebraic state at a frame.
 
@@ -26,8 +29,8 @@ class AlgebraicLaw(_BoundaryLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.engine.compile._algebraic_law import AlgebraicLaw
         >>> v, r = var('v r')
-        >>> sorted(map(str, AlgebraicLaw(v, 2 * r).prepare().reads_))
-        ['r', 'v']
+        >>> AlgebraicLaw(v, 2 * r).value
+        2*r
     """
 
     @classmethod
