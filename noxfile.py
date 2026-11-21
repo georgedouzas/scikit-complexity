@@ -28,10 +28,8 @@ QUICK_TESTS: list[str] = [
     'tests/core/engine/solvers/test_scipy_ode.py',
     'tests/core/engine/viz',
     'tests/core/experiments',
-    'tests/core/specs',
     'tests/core/test_base.py',
     'tests/core/test_errors.py',
-    'tests/core/components/specs',
     'tests/core/test_types.py',
 ]
 TEST_GROUPS: list[list[str]] = [

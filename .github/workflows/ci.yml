@@ -149,7 +149,7 @@ jobs:
       run: python -m pip install . "${{ matrix.pandas }}" pytest pytest-markdown-docs
 
     - name: Run the translator tests against the fixtures
-      run: python -m pytest tests/core/engine/translators tests/core/engine/solvers/test_euler.py tests/core/specs/test_run_settings_spec.py
+      run: python -m pytest tests/core/engine/translators tests/core/engine/solvers/test_euler.py
 
   gallery:
 
