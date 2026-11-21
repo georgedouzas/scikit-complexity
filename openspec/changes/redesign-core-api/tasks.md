@@ -122,7 +122,7 @@ Each task rewrites the systems of its fields on the new API: elements as data wi
 
 ## 8. Checks
 
-- [ ] 8.1 Run the full nox sessions for quality, types, conventions, tests, and the gallery sample. Verify that all pass, and report the mypy errors that predate this change separately.
+- [x] 8.1 Run the full nox sessions for quality, types, conventions, tests, and the gallery sample. Verify that all pass, and report the mypy errors that predate this change separately.
 
 ## Workflow follow-up
 
