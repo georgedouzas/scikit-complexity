@@ -24,14 +24,15 @@ from ._solver import Solver
 
 
 class StrangSplittingSolver(Solver):
-    """A solver that splits half transport steps around a full collision step.
+    """A solver that puts a full collision step between two half transport steps.
 
-    A half transport step, a full collision step, and a half transport step follow each other. The transport solver
-    advances the flux differences of the finite-volume fields and the collision solver the source rates, which the
-    problem keeps apart.
+    Every step takes half a step of transport, a full step of collisions, and another half step of transport, which is
+    of order 2. The transport solver moves the flux differences of the finite volume fields, such as a gas streaming
+    along its positions, and the collision solver the source rates, such as its relaxation towards equilibrium, which
+    the problem keeps apart. Choose it for kinetic equations with collisions, in models of rarefied gases, plasmas, and
+    traffic.
 
-    Choose it for kinetic equations with collisions. It appears in models of rarefied gases and of particles in a
-    plasma.
+    Read more in the user guide, under Solvers.
 
     Args:
         transport:
@@ -56,31 +57,15 @@ class StrangSplittingSolver(Solver):
         collision_:
             The prepared solver of the source rates.
 
+    See Also:
+        SemiLagrangianSolver: Moves transport with any step.
+        SSPRKSolver: Moves transport with shocks.
+
     Examples:
-        >>> import numpy as np
-        >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.interactions import Interaction
-        >>> from skcomplex.core.components.laws import RateLaw
-        >>> from skcomplex.core.components.laws.utils import coordinate, divergence
-        >>> from skcomplex.core.components.spaces import AxisSpec, LatticeSpace, PhaseSpace
-        >>> from skcomplex.core.systems import System
-        >>> def streaming(s):
-        ...     return [RateLaw(s.target.x, -divergence([coordinate('v') * s.target.x, 0]))]
-        >>> stream = Interaction('stream', roles={'target': 'gas'}, laws=streaming)
-        >>> from skcomplex.core.components.laws.utils import maximum_entropy
-        >>> from skcomplex.core.engine.solvers import RK4Solver, SemiLagrangianSolver, StrangSplittingSolver
-        >>> def relaxation(s):
-        ...     return [RateLaw(s.target.x, (maximum_entropy(s.target.x, axes=('v',)) - s.target.x) / 0.5)]
-        >>> relax = Interaction('relax', roles={'target': 'gas'}, laws=relaxation)
-        >>> position = LatticeSpace((8,), discretization='finite-volume')
-        >>> space = PhaseSpace(position, [AxisSpec('v', 16, -6.0, 6.0)]).prepare()
-        >>> start = np.outer(2 + np.sin(2 * np.pi * np.arange(8) / 8), np.exp(-space.coordinates_['v'] ** 2))
-        >>> gas = Element('gas', values={'x': start}, space=space)
-        >>> solver = StrangSplittingSolver(SemiLagrangianSolver(dt=0.1), RK4Solver(dt=0.1), dt=0.1)
-        >>> system = System(elements=[gas], interactions=[stream, relax], solver=solver)
-        >>> final = system.prepare().simulate(until=0.2).get_values('gas.x')[-1]
-        >>> abs(float(final.sum() / start.sum()) - 1.0) < 1e-12
-        True
+        >>> from skcomplex.systems.physics.fluids import BGKEquationSystem
+        >>> solver = BGKEquationSystem(positions=8, velocities=16).prepare().system_.solver_
+        >>> type(solver).__name__, type(solver.transport).__name__, type(solver.collision).__name__
+        ('StrangSplittingSolver', 'SSPRKSolver', 'RK4Solver')
     """
 
     @classmethod

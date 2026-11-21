@@ -36,11 +36,14 @@ TIME = symbol('t')
 
 
 class SplitSolver(Solver):
-    """An abstract solver that treats the linear part of the rates of fields apart.
+    """An abstract solver that steps the linear part of the rates of fields on its own.
 
-    The linear part is treated apart from the nonlinear remainder. The linear part is held in Fourier blocks for
-    spectral fields, a small matrix per Fourier mode, and in a sparse matrix over the whole state vector for the other
-    fields. Every block is the shape of the field, the state indices of its states, and its matrices.
+    The rates of a field split into a linear part, such as the diffusion `D ∇²u` of heat, and the rest, such as a
+    reaction. The linear part is held as a small matrix per Fourier mode for spectral fields and as one sparse matrix
+    over all states for the other fields, so a subclass can step it implicitly or exactly while it steps the rest
+    explicitly. It is the base of the solvers of heat flow, of patterns in reaction and diffusion, and of option prices.
+
+    Read more in the user guide, under Solvers.
 
     Args:
         dt:
@@ -58,6 +61,16 @@ class SplitSolver(Solver):
 
         blocks_:
             The spectral blocks.
+
+    See Also:
+        IMEXEulerSolver: Steps the linear part implicitly with order 1.
+        IMEX2Solver: Steps the linear part implicitly with order 2.
+        ETDRK4Solver: Steps the linear part exactly per Fourier mode.
+
+    Examples:
+        >>> from skcomplex.core.engine.solvers import IMEX2Solver, SplitSolver
+        >>> isinstance(IMEX2Solver(dt=0.1), SplitSolver)
+        True
     """
 
     @classmethod

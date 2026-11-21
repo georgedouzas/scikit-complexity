@@ -13,12 +13,13 @@ from ._convolution import MODE_SPACING, ConvolutionSolver
 class L1Solver(ConvolutionSolver):
     """A solver of Caputo fractional equations by the L1 scheme of order 1.
 
-    The L1 scheme interpolates the state linearly between grid points inside the Caputo integral. A step sets
+    It draws the state as straight lines between grid points inside the fractional integral, so a step sets
     `Gamma(2 - alpha) dt^alpha f(t_(k-1), x_(k-1)) = sum_(j=0)^(k-1) b_j (x_(k-j) - x_(k-j-1))` with the weights
-    `b_j = (j + 1)^(1 - alpha) - j^(1 - alpha)`. States of order 1 take explicit Euler steps.
+    `b_j = (j + 1)^(1 - alpha) - j^(1 - alpha)`. States of order 1 take explicit Euler steps. Choose it for fractional
+    orders below 1 with a smooth solution, such as the relaxation of a polymer, subdiffusion in a cell, and the creep of
+    a material.
 
-    Choose it for fractional orders below one with a smooth solution. It appears in models of subdiffusion and of
-    materials with memory.
+    Read more in the user guide, under Solvers.
 
     Args:
         dt:
@@ -33,22 +34,16 @@ class L1Solver(ConvolutionSolver):
         orders_:
             The order of every state component.
 
+    See Also:
+        GrunwaldLetnikovSolver: Another explicit scheme of order 1.
+        FractionalABMSolver: A predictor and corrector of order `1 + alpha`.
+
     Examples:
-        >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.interactions import Interaction
-        >>> from skcomplex.core.components.laws import RateLaw
-        >>> from skcomplex.core.components.laws.utils import fractional
-        >>> from skcomplex.core.engine.solvers import L1Solver, StepSpec
-        >>> from skcomplex.core.systems import System
-        >>> def relax(s):
-        ...     return [RateLaw(fractional(s.target.x, 0.5), -s.target.x)]
-        >>> relaxation = Interaction('relaxation', roles={'target': 'a'}, laws=relax)
-        >>> system = System(elements=[Element('a', values={'x': 1.0})], interactions=[relaxation])
-        >>> problem = system.prepare().simulate(until=0).problem
-        >>> stepper = L1Solver(dt=0.001, random_state=0).prepare(problem)
-        >>> step = StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)
-        >>> round(float(stepper.run(step).state_[0]), 2)
-        0.43
+        >>> from skcomplex.core.engine.solvers import L1Solver
+        >>> from skcomplex.systems.mathematics.fractional_dynamics import FractionalRelaxationSystem
+        >>> system = FractionalRelaxationSystem(order=0.5, solver=L1Solver(dt=0.001)).prepare()
+        >>> system.simulate(until=1, dt=1).get_values('relaxation.x').round(2).tolist()
+        [1.0, 0.43]
     """
 
     def _get_weights(self, alpha: Array, count: int) -> Array:
