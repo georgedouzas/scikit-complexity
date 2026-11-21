@@ -12,7 +12,7 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import both, components
 from skcomplex.core.components.laws.utils._reductions import neighborhoods_in
-from skcomplex.core.components.spaces import BaseSpace, NetworkSpace
+from skcomplex.core.components.spaces import NetworkSpace
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.systems import System
@@ -40,15 +40,14 @@ class ComponentsInteraction(Interaction):
         self.reduce = reduce
         self.sites = sites
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the drift of the reduction over the links that are open, or open between occupied nodes."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            active = s.links.a
-            if self.sites:
-                active = both(s.links.a != 0, both(s.nodes.a > 0.5, s.nodes.other.a > 0.5))
-            self.laws_ = [RateLaw(s.nodes.a, components(active, reduce=self.reduce))]
+        s = context
+        active = s.links.a
+        if self.sites:
+            active = both(s.links.a != 0, both(s.nodes.a > 0.5, s.nodes.other.a > 0.5))
+        self.laws_ = [RateLaw(s.nodes.a, components(active, reduce=self.reduce))]
 
 
 def _random_network(seed, directed=False):

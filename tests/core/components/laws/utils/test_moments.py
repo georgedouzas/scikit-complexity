@@ -54,18 +54,17 @@ class UpwardInteraction(Interaction):
         self.population = population
         self.eta = eta
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the encounter."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            table = np.zeros((CLASSES, CLASSES, CLASSES))
-            for candidate in range(CLASSES):
-                table[candidate, :, min(candidate + 1, CLASSES - 1)] += 0.5
-                table[candidate, :, candidate] += 0.5
-            self.laws_ = [
-                RateLaw(s.population.x, bilinear(s.eta, table, s.population.x, s.population.x, conserved=True)),
-            ]
+        s = context
+        table = np.zeros((CLASSES, CLASSES, CLASSES))
+        for candidate in range(CLASSES):
+            table[candidate, :, min(candidate + 1, CLASSES - 1)] += 0.5
+            table[candidate, :, candidate] += 0.5
+        self.laws_ = [
+            RateLaw(s.population.x, bilinear(s.eta, table, s.population.x, s.population.x, conserved=True)),
+        ]
 
 
 class ReadMeanInteraction(Interaction):
@@ -82,12 +81,11 @@ class ReadMeanInteraction(Interaction):
         self.recorder = recorder
         self.population = population
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [RateLaw(s.recorder.y, moment(s.population.x, 1, ACTIVITIES, normalized=True))]
+        s = context
+        self.laws_ = [RateLaw(s.recorder.y, moment(s.population.x, 1, ACTIVITIES, normalized=True))]
 
 
 def density(s):
@@ -180,12 +178,11 @@ def test_moment_inside_a_group_law_is_shared():
             super().__init__(label)
             self.population = population
 
-        def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        def _prepare(self, context: SimpleNamespace) -> None:
             """Set the rate."""
             super()._prepare(context)
-            if isinstance(context, SimpleNamespace):
-                s = context
-                self.laws_ = [RateLaw(s.population.x, moment(s.population.x, 1, ACTIVITIES))]
+            s = context
+            self.laws_ = [RateLaw(s.population.x, moment(s.population.x, 1, ACTIVITIES))]
 
     system = System(
         elements=[AmountElement('wealth', x=PROFILE, space=CLASSES_SPACE)],

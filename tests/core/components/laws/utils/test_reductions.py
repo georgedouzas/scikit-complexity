@@ -153,12 +153,11 @@ class ReducingInteraction(Interaction):
         self.over = over
         self.reduce = reduce
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the update of `out` to the reduction."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context.target
-            self.laws_ = [UpdateLaw(s.out, neighbors(s.other.w, over=self.over, reduce=self.reduce))]
+        s = context.target
+        self.laws_ = [UpdateLaw(s.out, neighbors(s.other.w, over=self.over, reduce=self.reduce))]
 
 
 def _reducing(group, over=None, reduce='sum'):
@@ -374,12 +373,11 @@ def test_interaction_reduces_over_the_neighbours_of_its_group():
             super().__init__(label)
             self.target = target
 
-        def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        def _prepare(self, context: SimpleNamespace) -> None:
             """Set the laws of the diffusion interaction."""
             super()._prepare(context)
-            if isinstance(context, SimpleNamespace):
-                s = context
-                self.laws_ = [RateLaw(s.target.y, neighbors(s.target.other.y - s.target.y))]
+            s = context
+            self.laws_ = [RateLaw(s.target.y, neighbors(s.target.other.y - s.target.y))]
 
     group = Element('g', values={'y': [0.0, 1.0, 4.0]}, space=NetworkSpace(nx.path_graph(3)))
     system = System(elements=[group], interactions=[BondExchangeInteraction('d', target='g')])
@@ -546,11 +544,10 @@ class PairwiseInteraction(Interaction):
         self.group = group
         self.reduction = reduction
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate of every member."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [RateLaw(context.group.x, self.reduction(context.group))]
+        self.laws_ = [RateLaw(context.group.x, self.reduction(context.group))]
 
 
 def _pairwise_expected(name, values):
@@ -725,22 +722,21 @@ class AroundInteraction(Interaction):
         self.target = target
         self.term = term
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate of `x`, a reduction over the hyperedges around the member."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context.target
-            terms = {
-                'triad': lambda: hyperedges(sin(s.others[0].x + s.others[1].x - 2 * s.x), size=3),
-                'pull': lambda: hyperedges(total(s.members.x, over=s.members) - count(over=s.members) * s.x),
-                'mean': lambda: hyperedges(mean(s.members.x, over=s.members) - s.x, reduce='mean'),
-                'largest': lambda: hyperedges(s.others[0].x, reduce='max', size=2),
-                'beyond': lambda: hyperedges(s.others[1].x, size=2),
-                'extremum': lambda: hyperedges(maximum(s.members.x, over=s.members), reduce='max'),
-                'missing': lambda: hyperedges(s.x, size=6),
-                'count': lambda: hyperedges(s.x, reduce='count'),
-            }
-            self.laws_ = [RateLaw(s.x, terms[self.term]())]
+        s = context.target
+        terms = {
+            'triad': lambda: hyperedges(sin(s.others[0].x + s.others[1].x - 2 * s.x), size=3),
+            'pull': lambda: hyperedges(total(s.members.x, over=s.members) - count(over=s.members) * s.x),
+            'mean': lambda: hyperedges(mean(s.members.x, over=s.members) - s.x, reduce='mean'),
+            'largest': lambda: hyperedges(s.others[0].x, reduce='max', size=2),
+            'beyond': lambda: hyperedges(s.others[1].x, size=2),
+            'extremum': lambda: hyperedges(maximum(s.members.x, over=s.members), reduce='max'),
+            'missing': lambda: hyperedges(s.x, size=6),
+            'count': lambda: hyperedges(s.x, reduce='count'),
+        }
+        self.laws_ = [RateLaw(s.x, terms[self.term]())]
 
 
 def _around(label, space, term, values=0.0):
@@ -860,18 +856,17 @@ class NeighbourSetInteraction(Interaction):
         self.term = term
         self.radius = radius
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate of `w`, a reduction over the sets of neighbours of the member."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context.target
-            over = RadiusNeighborhood(self.radius)
-            terms = {
-                'flank': lambda: hyperedges(self._flank(s), size=3, over=over),
-                'count': lambda: hyperedges(SR(1), reduce='count', size=4, over=over),
-                'pairs': lambda: hyperedges(SR(1), size=3, over=over),
-            }
-            self.laws_ = [RateLaw(s.w, terms[self.term]())]
+        s = context.target
+        over = RadiusNeighborhood(self.radius)
+        terms = {
+            'flank': lambda: hyperedges(self._flank(s), size=3, over=over),
+            'count': lambda: hyperedges(SR(1), reduce='count', size=4, over=over),
+            'pairs': lambda: hyperedges(SR(1), size=3, over=over),
+        }
+        self.laws_ = [RateLaw(s.w, terms[self.term]())]
 
     @staticmethod
     def _flank(s):
@@ -979,13 +974,12 @@ class LogPartitionInteraction(Interaction):
         self.target = target
         self.energies = energies
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the equation of the reduction."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            value = log_sum_exp(s.energies.energy, over=s.energies)
-            self.laws_ = [ConstraintLaw(s.target.value == value, target=s.target.value)]
+        s = context
+        value = log_sum_exp(s.energies.energy, over=s.energies)
+        self.laws_ = [ConstraintLaw(s.target.value == value, target=s.target.value)]
 
 
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
@@ -1021,20 +1015,19 @@ class BoltzmannInteraction(Interaction):
         self.n_spins = n_spins
         self.temperature = temperature
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the equations of the log partition function, the mean energy, and the entropy per spin."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            weight = -s.levels.energy / s.temperature
-            log_partition = log_sum_exp(weight, over=s.levels)
-            energy = total(s.levels.energy * exp(weight - log_partition), over=s.levels)
-            entropy = (s.target.log_partition + s.target.energy / s.temperature) / s.n_spins
-            self.laws_ = [
-                ConstraintLaw(s.target.log_partition == log_partition, target=s.target.log_partition),
-                ConstraintLaw(s.target.energy == energy, target=s.target.energy),
-                ConstraintLaw(s.target.entropy == entropy, target=s.target.entropy),
-            ]
+        s = context
+        weight = -s.levels.energy / s.temperature
+        log_partition = log_sum_exp(weight, over=s.levels)
+        energy = total(s.levels.energy * exp(weight - log_partition), over=s.levels)
+        entropy = (s.target.log_partition + s.target.energy / s.temperature) / s.n_spins
+        self.laws_ = [
+            ConstraintLaw(s.target.log_partition == log_partition, target=s.target.log_partition),
+            ConstraintLaw(s.target.energy == energy, target=s.target.energy),
+            ConstraintLaw(s.target.entropy == entropy, target=s.target.entropy),
+        ]
 
 
 def _random_levels(temperature: float = 1.0, random_state: int = 0) -> System:

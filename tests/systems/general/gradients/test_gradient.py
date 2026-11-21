@@ -29,12 +29,11 @@ class OrderRateInteraction(Interaction):
         self.target = target
         self.rate = rate
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate of the order parameter."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            phi = context.target.phi
-            self.laws_ = [RateLaw(phi.diff(context.t), self.rate(phi))]
+        phi = context.target.phi
+        self.laws_ = [RateLaw(phi.diff(context.t), self.rate(phi))]
 
 
 def _allen_cahn(phi):

@@ -66,11 +66,10 @@ class CountingInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the growth of the count."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [RateLaw(context.target.n.diff(context.t), 1)]
+        self.laws_ = [RateLaw(context.target.n.diff(context.t), 1)]
 
 
 @pytest.mark.parametrize(('value', 'valid'), [(3, True), (0.5, False)])

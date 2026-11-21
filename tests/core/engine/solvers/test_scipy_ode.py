@@ -17,7 +17,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import BaseLaw, EventLaw, RateLaw
 from skcomplex.core.components.laws.utils import laplacian, mean, step, total, where
-from skcomplex.core.components.spaces import BaseSpace, LatticeSpace
+from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.engine.backends import NumpyBackend
 from skcomplex.core.engine.problems import RunStateSpec
 from skcomplex.core.engine.solvers import CrankNicolsonSolver, RK4Solver, ScipyODESolver, StepSpec, _scipy_ode
@@ -90,12 +90,11 @@ class ExplosionInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate `n**2`."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x = context.target.x
-            self.laws_: list[BaseLaw] = [RateLaw(x.diff(context.t), x**2)]
+        x = context.target.x
+        self.laws_: list[BaseLaw] = [RateLaw(x.diff(context.t), x**2)]
 
 
 def test_scipy_ode_failure_raises_error():
@@ -350,11 +349,10 @@ class LevelInteraction(Interaction):
         self.line = line
         self.level = level
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the event that ends the run when the total of the line reaches the level."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = [EventLaw(total(context.line.u) - context.level, terminal=True)]
+        self.laws_: list[BaseLaw] = [EventLaw(total(context.line.u) - context.level, terminal=True)]
 
 
 def _stiff_fisher(size=SIZE):

@@ -23,11 +23,10 @@ class DecayInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            c = context.target.c
-            self.laws_ = [RateLaw(c.diff(context.t), -c)]
+        c = context.target.c
+        self.laws_ = [RateLaw(c.diff(context.t), -c)]
 
 
 def _run(pulse, until):
@@ -82,10 +81,9 @@ class CoastInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [RateLaw(context.target.x.diff(context.t, 2), 0)]
+        self.laws_ = [RateLaw(context.target.x.diff(context.t, 2), 0)]
 
 
 def test_prepare_kicks_a_derivative_named_with_a_prime():

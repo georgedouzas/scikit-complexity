@@ -63,13 +63,12 @@ class ExchangeInteraction(Interaction):
         self.population = population
         self.eta = eta
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the encounter."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            x = s.population.x
-            self.laws_ = [RateLaw(x, bilinear(s.eta, _table(), x, x, conserved=True))]
+        s = context
+        x = s.population.x
+        self.laws_ = [RateLaw(x, bilinear(s.eta, _table(), x, x, conserved=True))]
 
 
 class TurnoverInteraction(Interaction):
@@ -86,15 +85,14 @@ class TurnoverInteraction(Interaction):
         self.population = population
         self.field = field
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the proliferation and the destruction."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [
-                RateLaw(s.population.x, bilinear(0.6, None, s.population.x, s.field.x)),
-                RateLaw(s.population.x, bilinear(-0.2, None, s.population.x, s.field.x)),
-            ]
+        s = context
+        self.laws_ = [
+            RateLaw(s.population.x, bilinear(0.6, None, s.population.x, s.field.x)),
+            RateLaw(s.population.x, bilinear(-0.2, None, s.population.x, s.field.x)),
+        ]
 
 
 class DecayInteraction(Interaction):
@@ -109,11 +107,10 @@ class DecayInteraction(Interaction):
         super().__init__(label)
         self.population = population
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [RateLaw(context.population.x, -context.population.x)]
+        self.laws_ = [RateLaw(context.population.x, -context.population.x)]
 
 
 def _profile():

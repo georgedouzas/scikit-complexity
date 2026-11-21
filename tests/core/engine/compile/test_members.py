@@ -44,12 +44,11 @@ class LookAheadInteraction(Interaction):
         self.boundary = boundary
         self.fill = fill
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the update of the read position."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            value = shift_member(context.cars.x, self.offset, boundary=self.boundary, fill=self.fill)
-            self.laws_ = [UpdateLaw(context.cars.ahead, value)]
+        value = shift_member(context.cars.x, self.offset, boundary=self.boundary, fill=self.fill)
+        self.laws_ = [UpdateLaw(context.cars.ahead, value)]
 
 
 class RingInteraction(Interaction):
@@ -64,12 +63,11 @@ class RingInteraction(Interaction):
         super().__init__(label)
         self.cars = cars
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate of a member from its neighbours on the ring."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x = context.cars.x
-            self.laws_ = [RateLaw(x, sin(shift_member(x, 1) - x) + 0.5 * sin(shift_member(x, -2) - x))]
+        x = context.cars.x
+        self.laws_ = [RateLaw(x, sin(shift_member(x, 1) - x) + 0.5 * sin(shift_member(x, -2) - x))]
 
 
 def _ahead(backend, **settings):
@@ -140,12 +138,11 @@ class ShiftedGapInteraction(Interaction):
         self.cars = cars
         self.gap = gap
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the update of the read position."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [UpdateLaw(s.cars.ahead, shift_member(s.cars.x + s.gap, 1))]
+        s = context
+        self.laws_ = [UpdateLaw(s.cars.ahead, shift_member(s.cars.x + s.gap, 1))]
 
 
 def test_shift_member_reads_a_parameter_of_an_interaction_as_it_is():
@@ -179,12 +176,11 @@ class HopInteraction(Interaction):
         self.sites = sites
         self.boundary = boundary
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the hop to the next site."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            n = context.sites.n
-            self.laws_ = [JumpLaw(n, {n: -1, shift_member(n, 1, boundary=self.boundary): 1})]
+        n = context.sites.n
+        self.laws_ = [JumpLaw(n, {n: -1, shift_member(n, 1, boundary=self.boundary): 1})]
 
 
 def _hopping(occupations, boundary='periodic'):

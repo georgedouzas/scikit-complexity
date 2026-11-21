@@ -114,12 +114,11 @@ class Gravity(Interaction):
         self.target = target
         self.g = g
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the acceleration as the law."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, t = context.target.x, context.t
-            self.laws_: list[BaseLaw] = [RateLaw(x.diff(t, 2), -context.g)]
+        x, t = context.target.x, context.t
+        self.laws_: list[BaseLaw] = [RateLaw(x.diff(t, 2), -context.g)]
 
 
 class Jerk(Interaction):
@@ -130,13 +129,12 @@ class Jerk(Interaction):
         self.target = target
         self.A = A
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the third derivative as the law."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, t = context.target.x, context.t
-            jerk = -context.A * x.diff(t, 2) - x.diff(t) + abs_symbolic(x) - 1
-            self.laws_ = [RateLaw(x.diff(t, 3), jerk)]
+        x, t = context.target.x, context.t
+        jerk = -context.A * x.diff(t, 2) - x.diff(t) + abs_symbolic(x) - 1
+        self.laws_ = [RateLaw(x.diff(t, 3), jerk)]
 
 
 class Mixed(Interaction):
@@ -146,12 +144,11 @@ class Mixed(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set laws of two orders."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, t = context.target.x, context.t
-            self.laws_ = [RateLaw(x, 1.0), RateLaw(x.diff(t, 2), 1.0)]
+        x, t = context.target.x, context.t
+        self.laws_ = [RateLaw(x, 1.0), RateLaw(x.diff(t, 2), 1.0)]
 
 
 class Accelerator(Interaction):
@@ -163,12 +160,11 @@ class Accelerator(Interaction):
         self.a = a
         self.b = b
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the next income as the law."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            y, t = context.target.y, context.t
-            self.laws_ = [UpdateLaw(y, 1 + context.a * y(t=t - 1) + context.b * y(t=t - 2))]
+        y, t = context.target.y, context.t
+        self.laws_ = [UpdateLaw(y, 1 + context.a * y(t=t - 1) + context.b * y(t=t - 2))]
 
 
 class Feedback(Interaction):
@@ -179,12 +175,11 @@ class Feedback(Interaction):
         self.target = target
         self.tau = tau
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the delayed decay as the law."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, t = context.target.x, context.t
-            self.laws_ = [RateLaw(x, -x(t=t - context.tau))]
+        x, t = context.target.x, context.t
+        self.laws_ = [RateLaw(x, -x(t=t - context.tau))]
 
 
 class DelayedDamping(Interaction):
@@ -195,12 +190,11 @@ class DelayedDamping(Interaction):
         self.target = target
         self.tau = tau
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the delayed damping of the velocity as the law."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, t = context.target.x, context.t
-            self.laws_ = [RateLaw(x.diff(t, 2), -x.diff(t)(t=t - context.tau))]
+        x, t = context.target.x, context.t
+        self.laws_ = [RateLaw(x.diff(t, 2), -x.diff(t)(t=t - context.tau))]
 
 
 class Wave(Interaction):
@@ -211,12 +205,11 @@ class Wave(Interaction):
         self.target = target
         self.c = c
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the acceleration of every site as the law."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            u, t = context.target.u, context.t
-            self.laws_ = [RateLaw(u.diff(t, 2), context.c**2 * laplacian(u))]
+        u, t = context.target.u, context.t
+        self.laws_ = [RateLaw(u.diff(t, 2), context.c**2 * laplacian(u))]
 
 
 def test_get_declared_makes_untouched_values_parameters():
@@ -347,12 +340,11 @@ class ElementDelayFeedback(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the decay delayed by the value `tau` of the target as the law."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, t = context.target.x, context.t
-            self.laws_ = [RateLaw(x, -x(t=t - context.target.tau))]
+        x, t = context.target.x, context.t
+        self.laws_ = [RateLaw(x, -x(t=t - context.target.tau))]
 
 
 def test_get_declared_reads_a_delay_that_is_a_value_of_an_element():
@@ -423,12 +415,11 @@ class Diffusion(Interaction):
         self.target = target
         self.D = D
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the heat equation as the law."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            u = context.target.u
-            self.laws_: list[BaseLaw] = [RateLaw(u.diff(context.t), context.D * laplacian(u))]
+        u = context.target.u
+        self.laws_: list[BaseLaw] = [RateLaw(u.diff(context.t), context.D * laplacian(u))]
 
 
 class Consensus(Interaction):
@@ -439,14 +430,13 @@ class Consensus(Interaction):
         self.target = target
         self.k = k
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the sum of the differences to the neighbours as the law."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x = context.target.x
-            self.laws_: list[BaseLaw] = [
-                RateLaw(x.diff(context.t), context.k * neighbors(context.target.other.x - x)),
-            ]
+        x = context.target.x
+        self.laws_: list[BaseLaw] = [
+            RateLaw(x.diff(context.t), context.k * neighbors(context.target.other.x - x)),
+        ]
 
 
 def test_get_declared_spreads_heat_on_a_lattice():
@@ -495,15 +485,14 @@ class Resistor(Interaction):
         self.b = b
         self.R = R
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the current out of `a` and into `b` as terms of their balances."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            current = (context.a.v - context.b.v) / context.R
-            self.laws_: list[BaseLaw] = [
-                ConstraintLaw(-current, 0, target=context.a.v),
-                ConstraintLaw(current, 0, target=context.b.v),
-            ]
+        current = (context.a.v - context.b.v) / context.R
+        self.laws_: list[BaseLaw] = [
+            ConstraintLaw(-current, 0, target=context.a.v),
+            ConstraintLaw(current, 0, target=context.b.v),
+        ]
 
 
 class VoltageSource(Interaction):
@@ -526,17 +515,16 @@ class VoltageSource(Interaction):
         self.E = E
         self.w = w
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the voltage as the equation of the current, and the current as terms of both balances."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            current = context.branch.i
-            voltage = context.E * (1 + context.w * sin(context.t))
-            self.laws_: list[BaseLaw] = [
-                ConstraintLaw(context.plus.v - context.minus.v, voltage, target=current),
-                ConstraintLaw(current, 0, target=context.plus.v),
-                ConstraintLaw(-current, 0, target=context.minus.v),
-            ]
+        current = context.branch.i
+        voltage = context.E * (1 + context.w * sin(context.t))
+        self.laws_: list[BaseLaw] = [
+            ConstraintLaw(context.plus.v - context.minus.v, voltage, target=current),
+            ConstraintLaw(current, 0, target=context.plus.v),
+            ConstraintLaw(-current, 0, target=context.minus.v),
+        ]
 
 
 class Ground(Interaction):
@@ -547,14 +535,13 @@ class Ground(Interaction):
         self.branch = branch
         self.node = node
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set zero potential as the equation of the current, and the current as a term of the balance."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = [
-                ConstraintLaw(context.node.v, 0, target=context.branch.i),
-                ConstraintLaw(context.branch.i, 0, target=context.node.v),
-            ]
+        self.laws_: list[BaseLaw] = [
+            ConstraintLaw(context.node.v, 0, target=context.branch.i),
+            ConstraintLaw(context.branch.i, 0, target=context.node.v),
+        ]
 
 
 class Loop(Interaction):
@@ -567,14 +554,13 @@ class Loop(Interaction):
         self.R = R
         self.C = C
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the voltage law of the loop."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            q, t = context.target.q, context.t
-            self.laws_: list[BaseLaw] = [
-                ConstraintLaw(context.L * q.diff(t, 2) + context.R * q.diff(t) + q / context.C == 0),
-            ]
+        q, t = context.target.q, context.t
+        self.laws_: list[BaseLaw] = [
+            ConstraintLaw(context.L * q.diff(t, 2) + context.R * q.diff(t) + q / context.C == 0),
+        ]
 
 
 def test_get_declared_reads_the_order_of_a_state_from_the_derivatives_of_a_constraint():
@@ -618,11 +604,10 @@ class Walk(Interaction):
         self.target = target
         self.D = D
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set a noise of variance `2 D` per unit time on `x`."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = [NoiseLaw(context.target.x, sqrt(2 * context.D))]
+        self.laws_: list[BaseLaw] = [NoiseLaw(context.target.x, sqrt(2 * context.D))]
 
 
 def test_get_declared_reads_a_value_named_after_an_axis_as_a_position():
@@ -658,11 +643,10 @@ class Growth(Interaction):
     def __init__(self, label: str, *, among: Role = 'nodes', along: bool | str | None = None) -> None:
         super().__init__(label, among=among, along=along)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the request of one new node as the law."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = [UpdateLaw(TopologyRequestSpec('add-node', edges=1, one=True), 1.0)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(TopologyRequestSpec('add-node', edges=1, one=True), 1.0)]
 
 
 def test_get_declared_records_the_values_of_a_growing_network():
@@ -722,11 +706,10 @@ class Count(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the next count as the law."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = [UpdateLaw(context.target.n, context.target.n + 1)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target.n, context.target.n + 1)]
 
 
 def test_get_declared_reads_an_int_as_an_integer():
@@ -745,12 +728,11 @@ class Julia(Interaction):
         self.target = target
         self.c = c
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the next point as the law."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            z = context.target.z
-            self.laws_: list[BaseLaw] = [UpdateLaw(z, z**2 + context.c)]
+        z = context.target.z
+        self.laws_: list[BaseLaw] = [UpdateLaw(z, z**2 + context.c)]
 
 
 def test_get_declared_maps_a_complex_value():
@@ -778,11 +760,10 @@ class Wander(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rule of the members as the law."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.wander)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.wander)]
 
     def wander(self, agent: WandererView, system: object) -> None:
         """Move an agent by its speed, or remove it once it passes ten."""
@@ -829,12 +810,11 @@ class Drift(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the next position and the next velocity as the laws."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, v = context.target.x, context.target.v
-            self.laws_: list[BaseLaw] = [UpdateLaw(x, x + v), UpdateLaw(v, v / 2)]
+        x, v = context.target.x, context.target.v
+        self.laws_: list[BaseLaw] = [UpdateLaw(x, x + v), UpdateLaw(v, v / 2)]
 
 
 def test_get_declared_reads_the_step_of_a_position_as_its_velocity():
@@ -852,13 +832,12 @@ class Brake(Interaction):
         super().__init__(label)
         self.cart = cart
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the motion and the force the controller sets."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            cart, t = context.cart, context.t
-            speed = cart.x.diff(t)
-            self.laws_: list[BaseLaw] = [RateLaw(speed.diff(t), cart.force), UpdateLaw(cart.force, -2 * speed)]
+        cart, t = context.cart, context.t
+        speed = cart.x.diff(t)
+        self.laws_: list[BaseLaw] = [RateLaw(speed.diff(t), cart.force), UpdateLaw(cart.force, -2 * speed)]
 
 
 def test_get_declared_holds_a_value_a_controller_sets_after_every_step():
@@ -877,16 +856,15 @@ class WeightedExchange(Interaction):
     def __init__(self, label: str, *, among: Role = 'nodes', along: bool | str | None = True) -> None:
         super().__init__(label, among=among, along=along)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the flow from the source to the target of an edge, weighted by its link."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            flow = s.edge.w * (s.source.x - s.target.x)
-            self.laws_: list[BaseLaw] = [
-                RateLaw(s.target.x.diff(s.t), flow),
-                RateLaw(s.source.x.diff(s.t), -flow),
-            ]
+        s = context
+        flow = s.edge.w * (s.source.x - s.target.x)
+        self.laws_: list[BaseLaw] = [
+            RateLaw(s.target.x.diff(s.t), flow),
+            RateLaw(s.source.x.diff(s.t), -flow),
+        ]
 
 
 def test_get_declared_puts_one_member_on_every_edge():
@@ -910,15 +888,14 @@ class Regulation(Interaction):
         super().__init__(label, among=among, along=along)
         self.p = p
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the activity of the link from the activity and the sign of its regulator."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            regulator = s.others[1].active
-            allowed = where(s.edge.sign > 0, regulator, 1 - regulator)
-            retained = bernoulli('retained', s.p) * allowed
-            self.laws_: list[BaseLaw] = [UpdateLaw(s.edge.active, retained, phase='regulation')]
+        s = context
+        regulator = s.others[1].active
+        allowed = where(s.edge.sign > 0, regulator, 1 - regulator)
+        retained = bernoulli('retained', s.p) * allowed
+        self.laws_: list[BaseLaw] = [UpdateLaw(s.edge.active, retained, phase='regulation')]
 
 
 class Percolation(Interaction):
@@ -929,12 +906,11 @@ class Percolation(Interaction):
         self.nodes = nodes
         self.links = links
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the membership of the giant component."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            giant = components(context.links.active, reduce='giant')
-            self.laws_: list[BaseLaw] = [UpdateLaw(context.nodes.active, giant, phase='percolation')]
+        giant = components(context.links.active, reduce='giant')
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.nodes.active, giant, phase='percolation')]
 
 
 def test_get_declared_gives_the_signed_links_of_triadic_percolation():
@@ -958,14 +934,13 @@ class Majority(Interaction):
     def __init__(self, label: str, *, among: Role = 'nodes', along: bool | str | None = 'hyperedges') -> None:
         super().__init__(label, among=among, along=along)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the pull towards the mean of the members."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            center = (s.member.x + sum(other.x for other in s.others)) / (1 + len(s.others))
-            pull = s.hyperedge.k * (center - s.member.x)
-            self.laws_: list[BaseLaw] = [RateLaw(s.member.x.diff(s.t), pull)]
+        s = context
+        center = (s.member.x + sum(other.x for other in s.others)) / (1 + len(s.others))
+        pull = s.hyperedge.k * (center - s.member.x)
+        self.laws_: list[BaseLaw] = [RateLaw(s.member.x.diff(s.t), pull)]
 
 
 def test_get_declared_puts_one_member_on_every_hyperedge():
@@ -986,14 +961,13 @@ class Transport(Interaction):
         self.target = target
         self.flux = flux
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate of `u`."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            u = context.target.u
-            self.laws_: list[BaseLaw] = [
-                RateLaw(u.diff(context.t), -divergence([u**2 / 2]) if self.flux else laplacian(u)),
-            ]
+        u = context.target.u
+        self.laws_: list[BaseLaw] = [
+            RateLaw(u.diff(context.t), -divergence([u**2 / 2]) if self.flux else laplacian(u)),
+        ]
 
 
 def _run_field(name: str) -> np.ndarray:
@@ -1074,14 +1048,13 @@ class Extraction(Interaction):
         self.r = r
         self.flow = flow
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the extraction as a flow or as a plain rate."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            stock = context.target.stock
-            rate = context.r * stock
-            law = RateLaw({stock: -1}, rate, label='extracted') if self.flow else RateLaw(stock, -rate)
-            self.laws_ = [law]
+        stock = context.target.stock
+        rate = context.r * stock
+        law = RateLaw({stock: -1}, rate, label='extracted') if self.flow else RateLaw(stock, -rate)
+        self.laws_ = [law]
 
 
 def test_get_declared_reads_the_quantity_of_a_value():
@@ -1145,13 +1118,12 @@ class Spread(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set a local rule that reads the signal and the gate of every site and its neighbours."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            cells = context.target
-            around = RadiusNeighborhood(1, center=True)
-            self.laws_ = [UpdateLaw(cells.s, _spread, neighborhood=around, reads=(cells.s, cells.gate))]
+        cells = context.target
+        around = RadiusNeighborhood(1, center=True)
+        self.laws_ = [UpdateLaw(cells.s, _spread, neighborhood=around, reads=(cells.s, cells.gate))]
 
 
 def test_get_declared_keeps_a_value_a_local_rule_reads():
@@ -1172,11 +1144,10 @@ class Relaxation(Interaction):
         self.target = target
         self.rate = rate
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the decay of the matrix as the law."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [RateLaw(context.target.S, -context.rate * context.target.S)]
+        self.laws_ = [RateLaw(context.target.S, -context.rate * context.target.S)]
 
 
 @pytest.mark.parametrize('members', [{}, {'size': 3}, {'space': LatticeSpace(3)}])
@@ -1220,12 +1191,11 @@ class Spring(Interaction):
         self.target = target
         self.k = k
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the acceleration of the vector position as the law."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x, t = context.target.x, context.t
-            self.laws_ = [RateLaw(x.diff(t, 2), -context.k * x)]
+        x, t = context.target.x, context.t
+        self.laws_ = [RateLaw(x.diff(t, 2), -context.k * x)]
 
 
 @pytest.mark.parametrize(
@@ -1287,11 +1257,10 @@ class Spin(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the unit rate of the angles."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [RateLaw(context.target.theta.diff(context.t), 1)]
+        self.laws_ = [RateLaw(context.target.theta.diff(context.t), 1)]
 
 
 def test_get_declared_wraps_a_periodic_value_and_reads_it_as_a_phase():
@@ -1317,12 +1286,11 @@ class Echo(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the angle to a tenth of the delayed sum of the neighbours."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            past = context.target.other.theta(t=context.t - 2)
-            self.laws_ = [UpdateLaw(context.target.theta, neighbors(past, over=RadiusNeighborhood(1.5)) / 10)]
+        past = context.target.other.theta(t=context.t - 2)
+        self.laws_ = [UpdateLaw(context.target.theta, neighbors(past, over=RadiusNeighborhood(1.5)) / 10)]
 
 
 def test_get_declared_keeps_the_past_values_neighbours_read_from_each_member():
@@ -1413,12 +1381,11 @@ class Combination(Interaction):
     def __init__(self, label: str, *, among: Role = 'goods', along: bool | str | None = None) -> None:
         super().__init__(label, among=among, along=along)
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the request of one new node with a hyperedge of three members."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            request = TopologyRequestSpec('add-node', hyperedge=3, independent=True, one=True)
-            self.laws_: list[BaseLaw] = [UpdateLaw(request, 1.0)]
+        request = TopologyRequestSpec('add-node', hyperedge=3, independent=True, one=True)
+        self.laws_: list[BaseLaw] = [UpdateLaw(request, 1.0)]
 
 
 def test_get_declared_grows_a_group_on_the_hyperedges_the_laws_add():

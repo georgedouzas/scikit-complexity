@@ -10,7 +10,6 @@ import pytest
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction, WienerProcessSpec
 from skcomplex.core.components.laws import BaseLaw, NoiseLaw
-from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver, HeunSolver, StepSpec
 from skcomplex.core.errors import SolverError
@@ -32,15 +31,14 @@ class DriveInteraction(Interaction):
         self.second = second
         self.noise = noise
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the noise of both elements."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            dw = context.noise.dW
-            self.laws_: list[BaseLaw] = [
-                NoiseLaw(context.first.n, 1.0, process=dw[0]),
-                NoiseLaw(context.second.n, 1.0, process=dw[1]),
-            ]
+        dw = context.noise.dW
+        self.laws_: list[BaseLaw] = [
+            NoiseLaw(context.first.n, 1.0, process=dw[0]),
+            NoiseLaw(context.second.n, 1.0, process=dw[1]),
+        ]
 
 
 def _correlated(covariance: npt.ArrayLike, backend: object) -> System:

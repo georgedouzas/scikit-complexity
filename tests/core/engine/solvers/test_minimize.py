@@ -8,7 +8,6 @@ from sage.all__sagemath_symbolics import cos
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import BaseLaw, ConstraintLaw, ObjectiveLaw
-from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine.solvers import MinimizeSolver
 from skcomplex.core.systems import System
 from skcomplex.core.types import Role
@@ -30,11 +29,10 @@ class PullInteraction(Interaction):
         self.target = target
         self.goal = goal
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the quadratic cost."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = [ObjectiveLaw((context.target.x - self.goal) ** 2, context.target.x)]
+        self.laws_: list[BaseLaw] = [ObjectiveLaw((context.target.x - self.goal) ** 2, context.target.x)]
 
 
 class BudgetInteraction(Interaction):
@@ -51,14 +49,13 @@ class BudgetInteraction(Interaction):
         self.a = a
         self.b = b
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the cost and the budget."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = [
-                ObjectiveLaw(context.a.x**2 + context.b.x**2, [context.a.x, context.b.x]),
-                ConstraintLaw(context.a.x + context.b.x == 1, target=context.b.x),
-            ]
+        self.laws_: list[BaseLaw] = [
+            ObjectiveLaw(context.a.x**2 + context.b.x**2, [context.a.x, context.b.x]),
+            ConstraintLaw(context.a.x + context.b.x == 1, target=context.b.x),
+        ]
 
 
 class ImplicitInteraction(Interaction):
@@ -75,14 +72,13 @@ class ImplicitInteraction(Interaction):
         self.a = a
         self.b = b
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the cost and an implicit constraint."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = [
-                ObjectiveLaw((context.a.x - 1) ** 2, context.a.x),
-                ConstraintLaw(context.b.x == cos(context.b.x) + context.a.x, target=context.b.x),
-            ]
+        self.laws_: list[BaseLaw] = [
+            ObjectiveLaw((context.a.x - 1) ** 2, context.a.x),
+            ConstraintLaw(context.b.x == cos(context.b.x) + context.a.x, target=context.b.x),
+        ]
 
 
 def points(*values: float) -> list[PointElement]:

@@ -10,7 +10,6 @@ from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import BaseLaw, ObjectiveLaw, UpdateLaw
-from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine.backends import BaseBackend, NumbaBackend, NumpyBackend
 from skcomplex.core.engine.runtime import Trajectory
 from skcomplex.core.engine.solvers import BaseSolver, RK4Solver
@@ -153,11 +152,10 @@ class CountInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the next count as the law."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseLaw] = [UpdateLaw(context.target.n, context.target.n + 1)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target.n, context.target.n + 1)]
 
 
 def test_get_tags_reads_the_domains_of_values_from_the_laws() -> None:
@@ -176,10 +174,10 @@ def test_get_tags_reads_the_laws_of_a_one_off_interaction_from_the_census() -> N
     assert (tags.laws, tags.time) == ({'update'}, {'discrete'})
 
 
-
 def test_get_tags_of_a_system_that_trains_reads_the_laws_of_the_trained_system() -> None:
     """The tags of a system that trains a nested network name the kinds of laws of that network."""
     assert ElmanNetworkSystem().get_tags().laws == {'update'}
+
 
 def test_simulate_a_static_system_needs_no_end_time():
     """Test that a system that only minimises an objective simulates with no `until` to its one frame."""

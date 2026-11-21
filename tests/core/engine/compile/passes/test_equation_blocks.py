@@ -11,7 +11,6 @@ from scipy.optimize import brentq
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import ConstraintLaw, EventLaw, NoiseLaw, RateLaw, UpdateLaw
-from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import SolverError, ValidationError
@@ -37,16 +36,15 @@ class BranchInteraction(Interaction):
         del s
         return []
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the current into the balances of both nodes and the equations of the branch."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            i = context.branch.i
-            self.laws_ = [
-                ConstraintLaw(i, 0, target=context.a.v),
-                ConstraintLaw(-i, 0, target=context.b.v),
-                *self._get_branch_laws(context),
-            ]
+        i = context.branch.i
+        self.laws_ = [
+            ConstraintLaw(i, 0, target=context.a.v),
+            ConstraintLaw(-i, 0, target=context.b.v),
+            *self._get_branch_laws(context),
+        ]
 
 
 class ResistorInteraction(BranchInteraction):
@@ -119,12 +117,11 @@ class GroundInteraction(Interaction):
         self.node = node
         self.branch = branch
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the zero potential and the current into the balance of the node."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            i = context.branch.i
-            self.laws_ = [ConstraintLaw(context.node.v, 0, target=i), ConstraintLaw(i, 0, target=context.node.v)]
+        i = context.branch.i
+        self.laws_ = [ConstraintLaw(context.node.v, 0, target=i), ConstraintLaw(i, 0, target=context.node.v)]
 
 
 def _nodes(*labels):

@@ -12,7 +12,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import neighbors
-from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
+from skcomplex.core.components.spaces import ContinuousSpace, RadiusNeighborhood
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.systems import System
 from skcomplex.core.types import Role
@@ -38,18 +38,17 @@ class SoftSphereInteraction(Interaction):
         self.epsilon = epsilon
         self.sigma = sigma
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the force of the neighbours within the cutoff on every member."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, x = context, context.target.x
-            separation = x - s.target.other.x
-            r = sqrt(separation.dot_product(separation))
-            distance = SR.var('r', domain='positive')
-            energy = s.epsilon * (s.sigma / distance) ** 12
-            slope = energy.diff(distance).subs({distance: r})
-            force = neighbors(-slope * separation / r, RadiusNeighborhood(self.cutoff))
-            self.laws_ = [RateLaw(x.diff(s.t, 2), force)]
+        s, x = context, context.target.x
+        separation = x - s.target.other.x
+        r = sqrt(separation.dot_product(separation))
+        distance = SR.var('r', domain='positive')
+        energy = s.epsilon * (s.sigma / distance) ** 12
+        slope = energy.diff(distance).subs({distance: r})
+        force = neighbors(-slope * separation / r, RadiusNeighborhood(self.cutoff))
+        self.laws_ = [RateLaw(x.diff(s.t, 2), force)]
 
 
 def _gas(positions, space, **settings):

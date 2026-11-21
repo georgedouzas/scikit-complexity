@@ -40,11 +40,10 @@ class ReplayInteraction(Interaction):
         self.target = target
         self.ensemble = ensemble
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the replay."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context.target.x, self._replay, arrays=True)]
+        self.laws_ = [UpdateLaw(context.target.x, self._replay, arrays=True)]
 
     def _replay(self, values, *, time, **kwargs):
         """Return the member of the ensemble of the step, or the last member after the ensemble ends."""
@@ -89,11 +88,10 @@ class _DriveInteraction(Interaction):
         self.function = function
         self.stochastic = stochastic
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the drive."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context.target.x, self.function, arrays=True, stochastic=self.stochastic)]
+        self.laws_ = [UpdateLaw(context.target.x, self.function, arrays=True, stochastic=self.stochastic)]
 
 
 class PairElement(Element):
@@ -118,11 +116,10 @@ class RotationInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rotation."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context.target.U, self._rotate, arrays=True)]
+        self.laws_ = [UpdateLaw(context.target.U, self._rotate, arrays=True)]
 
     def _rotate(self, values, *, space, **kwargs):
         """Return the components rotated by the number of faces of every link."""
@@ -148,11 +145,10 @@ class PartialInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set a drive of the first component."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context.target.U[0], lambda values, **kwargs: values, arrays=True)]
+        self.laws_ = [UpdateLaw(context.target.U[0], lambda values, **kwargs: values, arrays=True)]
 
 
 def test_drive_of_one_component_of_a_matrix_state_raises_an_error():

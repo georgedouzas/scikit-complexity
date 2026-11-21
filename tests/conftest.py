@@ -147,12 +147,11 @@ class CallableGrowthInteraction(Interaction):
         self.target = target
         self.r = r
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set a callable rate law."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            name = f'{self.target}.n'
-            self.laws_ = [RateLaw(context.target.n, lambda t, values: values[f'{self.label}.r'] * values[name])]
+        name = f'{self.target}.n'
+        self.laws_ = [RateLaw(context.target.n, lambda t, values: values[f'{self.label}.r'] * values[name])]
 
 
 class DriveInteraction(Interaction):
@@ -164,15 +163,14 @@ class DriveInteraction(Interaction):
         self.second = second
         self.noise = noise
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the noise of both elements."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [
-                NoiseLaw(s.first.n, 1.0, process=s.noise.dW[0]),
-                NoiseLaw(s.second.n, 1.0, process=s.noise.dW[1]),
-            ]
+        s = context
+        self.laws_ = [
+            NoiseLaw(s.first.n, 1.0, process=s.noise.dW[0]),
+            NoiseLaw(s.second.n, 1.0, process=s.noise.dW[1]),
+        ]
 
 
 class WeightedSumInteraction(Interaction):
@@ -191,14 +189,13 @@ class WeightedSumInteraction(Interaction):
         self.inputs = inputs
         self.weights = weights
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the update of the target."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            weights = s.weights if isinstance(self.weights, Sequence) else [s.weights] * len(s.inputs)
-            summed = sum((w * item.x for w, item in zip(weights, s.inputs, strict=True)), 0)
-            self.laws_ = [UpdateLaw(s.target.x, summed)]
+        s = context
+        weights = s.weights if isinstance(self.weights, Sequence) else [s.weights] * len(s.inputs)
+        summed = sum((w * item.x for w, item in zip(weights, s.inputs, strict=True)), 0)
+        self.laws_ = [UpdateLaw(s.target.x, summed)]
 
 
 class WeightedInputInteraction(Interaction):
@@ -219,12 +216,11 @@ class WeightedInputInteraction(Interaction):
         self.W = W
         self.reduce = reduce
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the weighted input of the target."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            reduction = total if self.reduce == 'sum' else mean
-            self.laws_ = [RateLaw(context.target.x, reduction(context.source.x, weights=context.W))]
+        reduction = total if self.reduce == 'sum' else mean
+        self.laws_ = [RateLaw(context.target.x, reduction(context.source.x, weights=context.W))]
 
 
 def _weighted(
@@ -255,11 +251,10 @@ class GrowthInteraction(Interaction):
         self.target = target
         self.r = r
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the growth of the amount."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [RateLaw(context.target.n, context.r * context.target.n)]
+        self.laws_ = [RateLaw(context.target.n, context.r * context.target.n)]
 
 
 def _total(s: SimpleNamespace) -> object:
@@ -284,11 +279,10 @@ class QueueInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rule of the queue."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context.target, self._step)]
+        self.laws_ = [UpdateLaw(context.target, self._step)]
 
     def _step(self, agent: SimpleNamespace, system: SimpleNamespace) -> None:
         """Append the order of the step, and pop the oldest of a full queue."""

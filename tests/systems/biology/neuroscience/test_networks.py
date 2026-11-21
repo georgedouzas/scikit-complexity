@@ -32,17 +32,16 @@ class _PreviousOscillationInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the fast variable with its excitation by the neighbours, and the slow recovery."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context.target
-            active = s.m * logistic(s.x - s.theta_x, 0, s.kappa)
-            excitation = s.W * s.m * (laplacian(active) + 4 * active)
-            self.laws_ = [
-                RateLaw(s.x, 3 * s.x - s.x**3 + 2 - s.y + s.I + excitation),
-                RateLaw(s.y, s.epsilon * (s.gamma * (1 + tanh(s.x / s.beta)) - s.y)),
-            ]
+        s = context.target
+        active = s.m * logistic(s.x - s.theta_x, 0, s.kappa)
+        excitation = s.W * s.m * (laplacian(active) + 4 * active)
+        self.laws_ = [
+            RateLaw(s.x, 3 * s.x - s.x**3 + 2 - s.y + s.I + excitation),
+            RateLaw(s.y, s.epsilon * (s.gamma * (1 + tanh(s.x / s.beta)) - s.y)),
+        ]
 
 
 def test_delayed_lif_network_rates():

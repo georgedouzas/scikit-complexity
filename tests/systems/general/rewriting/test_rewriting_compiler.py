@@ -42,16 +42,15 @@ class GrowthInteraction(Interaction):
         self.target = target
         self.R = R
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the production."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            production = ProductionLaw(
-                ModuleSpec('A', (X,)),
-                [ModuleSpec('F', (X,)), ModuleSpec('A', (X * context.R,))],
-                condition=X > 0.1,
-            )
-            self.laws_ = [production]
+        production = ProductionLaw(
+            ModuleSpec('A', (X,)),
+            [ModuleSpec('F', (X,)), ModuleSpec('A', (X * context.R,))],
+            condition=X > 0.1,
+        )
+        self.laws_ = [production]
 
 
 def _rewritten(element, rules=()):

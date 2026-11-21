@@ -15,7 +15,7 @@ from skcomplex.core.base import BaseSpec
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import CallSpec, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
+from skcomplex.core.components.spaces import ContinuousSpace, RadiusNeighborhood
 from skcomplex.core.engine import backends as package
 from skcomplex.core.engine._utils import vector
 from skcomplex.core.engine.backends import (
@@ -107,17 +107,16 @@ class LennardJonesInteraction(Interaction):
         self.epsilon = epsilon
         self.sigma = sigma
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the forces `-U'(r)` of `4 * epsilon * ((sigma / r) ** 12 - (sigma / r) ** 6)` on both members."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            separation = s.first.x - s.second.x
-            r = sqrt(separation.dot_product(separation))
-            distance = SR.var('r', domain='positive')
-            energy = 4 * s.epsilon * ((s.sigma / distance) ** 12 - (s.sigma / distance) ** 6)
-            force = -energy.diff(distance).subs({distance: r}) * separation / r
-            self.laws_ = [RateLaw(s.first.x.diff(s.t, 2), force), RateLaw(s.second.x.diff(s.t, 2), -force)]
+        s = context
+        separation = s.first.x - s.second.x
+        r = sqrt(separation.dot_product(separation))
+        distance = SR.var('r', domain='positive')
+        energy = 4 * s.epsilon * ((s.sigma / distance) ** 12 - (s.sigma / distance) ** 6)
+        force = -energy.diff(distance).subs({distance: r}) * separation / r
+        self.laws_ = [RateLaw(s.first.x.diff(s.t, 2), force), RateLaw(s.second.x.diff(s.t, 2), -force)]
 
 
 @numba.njit
@@ -140,12 +139,11 @@ class CompiledGrowthInteraction(Interaction):
         self.target = target
         self.r = r
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the compiled rate."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [RateLaw(s.target.x, CallSpec(_logistic, (s.target.x, s.r)))]
+        s = context
+        self.laws_ = [RateLaw(s.target.x, CallSpec(_logistic, (s.target.x, s.r)))]
 
 
 class PythonGrowthInteraction(Interaction):
@@ -160,13 +158,12 @@ class PythonGrowthInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the Python rate."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            name = f'{self.target}.x'
-            self.laws_ = [RateLaw(s.target.x, lambda t, values: values[name] * (1 - values[name] / 100))]
+        s = context
+        name = f'{self.target}.x'
+        self.laws_ = [RateLaw(s.target.x, lambda t, values: values[name] * (1 - values[name] / 100))]
 
 
 class HalvingInteraction(Interaction):
@@ -181,12 +178,11 @@ class HalvingInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the next value `n / 2`."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [UpdateLaw(s.target.x, s.target.x / 2)]
+        s = context
+        self.laws_ = [UpdateLaw(s.target.x, s.target.x / 2)]
 
 
 class VolatilityInteraction(Interaction):
@@ -201,12 +197,11 @@ class VolatilityInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the noise amplitude."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [RateLaw(s.target.x, 0.1 * s.target.x), NoiseLaw(s.target.x, 0.2 * s.target.x)]
+        s = context
+        self.laws_ = [RateLaw(s.target.x, 0.1 * s.target.x), NoiseLaw(s.target.x, 0.2 * s.target.x)]
 
 
 class DecayInteraction(Interaction):
@@ -221,12 +216,11 @@ class DecayInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set a jump with a negative rate."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [JumpLaw(-s.target.x, {s.target.x: -1})]
+        s = context
+        self.laws_ = [JumpLaw(-s.target.x, {s.target.x: -1})]
 
 
 @pytest.fixture(scope='module')
@@ -432,12 +426,11 @@ def test_rk4_matches_exponential(backend, numba_backend):
             super().__init__(label)
             self.target = target
 
-        def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        def _prepare(self, context: SimpleNamespace) -> None:
             """Set the rate `x`."""
             super()._prepare(context)
-            if isinstance(context, SimpleNamespace):
-                s = context
-                self.laws_ = [RateLaw(s.target.x, s.target.x)]
+            s = context
+            self.laws_ = [RateLaw(s.target.x, s.target.x)]
 
     system = System(
         elements=[Element('a', values={'x': np.ones(2)}, size=2)],

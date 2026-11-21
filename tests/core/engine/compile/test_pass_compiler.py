@@ -203,11 +203,10 @@ class GrowthInteraction(Interaction):
         self.target = target
         self.r = r
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate of growth."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [RateLaw(context.target.n, context.r * context.target.n)]
+        self.laws_ = [RateLaw(context.target.n, context.r * context.target.n)]
 
 
 def _codes(report):
@@ -267,11 +266,10 @@ class MisuseInteraction(Interaction):
         self.target = target
         self.noise = noise
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the rate."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [RateLaw(context.target.n, context.noise.dW)]
+        self.laws_ = [RateLaw(context.target.n, context.noise.dW)]
 
 
 class CoupledInteraction(Interaction):
@@ -283,12 +281,11 @@ class CoupledInteraction(Interaction):
         self.other = other
         self.noise = noise
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the noise of the target, whose amplitude reads the other value."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [NoiseLaw(s.target.n, s.other.n, convention='stratonovich', process=s.noise.dW)]
+        s = context
+        self.laws_ = [NoiseLaw(s.target.n, s.other.n, convention='stratonovich', process=s.noise.dW)]
 
 
 class SingleInteraction(Interaction):
@@ -299,11 +296,10 @@ class SingleInteraction(Interaction):
         self.target = target
         self.noise = noise
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the noise."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [NoiseLaw(context.target.n, 1.0, process=context.noise.dW)]
+        self.laws_ = [NoiseLaw(context.target.n, 1.0, process=context.noise.dW)]
 
 
 def _spread(layer: str | bool = True) -> Interaction:
@@ -745,11 +741,10 @@ class SitesDriveInteraction(Interaction):
         self.hub = hub
         self.sites = sites
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the growth of the hub."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [RateLaw(context.hub.y, sum((item.x for item in context.sites), 0))]
+        self.laws_ = [RateLaw(context.hub.y, sum((item.x for item in context.sites), 0))]
 
 
 def _compile_time(n_links):
@@ -788,17 +783,16 @@ class LennardJonesInteraction(Interaction):
         self.epsilon = epsilon
         self.sigma = sigma
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the forces `-U'(r)` of `4 * epsilon * ((sigma / r) ** 12 - (sigma / r) ** 6)` on both members."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            separation = s.first.x - s.second.x
-            r = sqrt(separation.dot_product(separation))
-            distance = SR.var('r', domain='positive')
-            energy = 4 * s.epsilon * ((s.sigma / distance) ** 12 - (s.sigma / distance) ** 6)
-            force = -energy.diff(distance).subs({distance: r}) * separation / r
-            self.laws_ = [RateLaw(s.first.x.diff(s.t, 2), force), RateLaw(s.second.x.diff(s.t, 2), -force)]
+        s = context
+        separation = s.first.x - s.second.x
+        r = sqrt(separation.dot_product(separation))
+        distance = SR.var('r', domain='positive')
+        energy = 4 * s.epsilon * ((s.sigma / distance) ** 12 - (s.sigma / distance) ** 6)
+        force = -energy.diff(distance).subs({distance: r}) * separation / r
+        self.laws_ = [RateLaw(s.first.x.diff(s.t, 2), force), RateLaw(s.second.x.diff(s.t, 2), -force)]
 
 
 def _lennard_jones_gas(n, seed=0):
@@ -822,12 +816,11 @@ class RecorderInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Record the symbols and set a zero rate on the position."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            RECEIVED.update(x=context.target.x, m=context.target.m, t=context.t)
-            self.laws_ = [RateLaw(context.target.x, 0 * context.target.x)]
+        RECEIVED.update(x=context.target.x, m=context.target.m, t=context.t)
+        self.laws_ = [RateLaw(context.target.x, 0 * context.target.x)]
 
 
 @pytest.mark.parametrize(
@@ -1829,11 +1822,10 @@ def test_role_element_names_a_variadic_role():
             self.target = target
             self.sources = sources
 
-        def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+        def _prepare(self, context: SimpleNamespace) -> None:
             """Set a rate of the target that reads the value `missing` of its first source."""
             super()._prepare(context)
-            if isinstance(context, SimpleNamespace):
-                self.laws_ = [RateLaw(context.target.x, context.sources[0].missing)]
+            self.laws_ = [RateLaw(context.target.x, context.sources[0].missing)]
 
     system = System(
         elements=[Element('first', values={'x': 1.0}), TankElement('tank')],

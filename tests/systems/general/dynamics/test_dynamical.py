@@ -10,7 +10,6 @@ from sage.sets.real_set import RealSet
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import BaseLaw, RateLaw
-from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine.backends import BaseBackend, NumbaBackend
 from skcomplex.core.engine.solvers import BaseSolver
 from skcomplex.core.errors import ValidationError
@@ -62,15 +61,14 @@ class LorenzInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s, t = context.target, context.t
-            self.laws_: list[BaseLaw] = [
-                RateLaw(s.x.diff(t), s.sigma * (s.y - s.x)),
-                RateLaw(s.y.diff(t), s.x * (s.rho - s.z) - s.y),
-                RateLaw(s.z.diff(t), s.x * s.y - s.beta * s.z),
-            ]
+        s, t = context.target, context.t
+        self.laws_: list[BaseLaw] = [
+            RateLaw(s.x.diff(t), s.sigma * (s.y - s.x)),
+            RateLaw(s.y.diff(t), s.x * (s.rho - s.z) - s.y),
+            RateLaw(s.z.diff(t), s.x * s.y - s.beta * s.z),
+        ]
 
 
 def henon(order: str) -> DynamicalSystem:

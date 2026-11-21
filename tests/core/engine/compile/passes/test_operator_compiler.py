@@ -45,13 +45,12 @@ class ExchangeInteraction(Interaction):
         super().__init__(label, among=among, along=along)
         self.J = J
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the exchange of one pair."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            a, b = context.source.psi, context.target.psi
-            exchange = sum(local_operator(a, axis) * local_operator(b, axis) for axis in 'xyz')
-            self.laws_ = [GeneratorLaw(context.J * exchange)]
+        a, b = context.source.psi, context.target.psi
+        exchange = sum(local_operator(a, axis) * local_operator(b, axis) for axis in 'xyz')
+        self.laws_ = [GeneratorLaw(context.J * exchange)]
 
 
 class DecayInteraction(Interaction):
@@ -62,11 +61,10 @@ class DecayInteraction(Interaction):
         self.target = target
         self.gamma = gamma
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the decay."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [DissipatorLaw(local_operator(context.target.psi, 'minus'), context.gamma)]
+        self.laws_ = [DissipatorLaw(local_operator(context.target.psi, 'minus'), context.gamma)]
 
 
 class RuleInteraction(Interaction):
@@ -77,11 +75,10 @@ class RuleInteraction(Interaction):
         self.target = target
         self.rule = rule
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the laws the rule gives."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = self.rule(context.target)
+        self.laws_ = self.rule(context.target)
 
 
 def _qubit(laws):

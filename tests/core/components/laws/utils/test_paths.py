@@ -13,7 +13,7 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, TopologyRequestSpec, UpdateLaw
 from skcomplex.core.components.laws.utils import shortest_paths
 from skcomplex.core.components.laws.utils._reductions import neighborhoods_in
-from skcomplex.core.components.spaces import BaseSpace, NetworkSpace
+from skcomplex.core.components.spaces import NetworkSpace
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.problems._neighborhood_kernel import NeighborhoodKernel
 from skcomplex.core.errors import BackendWarning, ValidationError
@@ -37,11 +37,10 @@ class PathsInteraction(Interaction):
         self.links = links
         self.reduce = reduce
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the drift of the reduction over the links whose value is not 0."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [RateLaw(context.nodes.a, shortest_paths(context.links.a, reduce=self.reduce))]
+        self.laws_ = [RateLaw(context.nodes.a, shortest_paths(context.links.a, reduce=self.reduce))]
 
 
 def _paths(space, weights, reduce='betweenness', backend='auto'):

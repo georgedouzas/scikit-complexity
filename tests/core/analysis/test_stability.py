@@ -204,11 +204,10 @@ class _Fisher(Interaction):
         self.D = D
         self.r = r
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            u, t = context.target.u, context.t
-            self.laws_ = [RateLaw(u.diff(t), context.r * u * (1 - u) + context.D * laplacian(u))]
+        u, t = context.target.u, context.t
+        self.laws_ = [RateLaw(u.diff(t), context.r * u * (1 - u) + context.D * laplacian(u))]
 
 
 def test_dispersion_relation_of_a_system_of_a_plain_element():

@@ -12,7 +12,6 @@ from sage.sets.real_set import RealSet
 from skcomplex.core.components.elements import Element, Period, Quantity
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine.solvers import VelocityVerletSolver
 from skcomplex.core.errors import ConservationError, ValidationError
 from skcomplex.core.systems import System
@@ -51,12 +50,11 @@ class SwingInteraction(Interaction):
         self.g = g
         self.l = l
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the angular acceleration."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [RateLaw(s.target.theta.diff(s.t, 2), -(s.g / s.l) * sin(s.target.theta))]
+        s = context
+        self.laws_ = [RateLaw(s.target.theta.diff(s.t, 2), -(s.g / s.l) * sin(s.target.theta))]
 
 
 class SpringInteraction(Interaction):
@@ -67,12 +65,11 @@ class SpringInteraction(Interaction):
         self.target = target
         self.k = k
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the force of the spring."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [RateLaw(s.target.x.diff(s.t, 2), -s.k * s.target.x / s.target.m)]
+        s = context
+        self.laws_ = [RateLaw(s.target.x.diff(s.t, 2), -s.k * s.target.x / s.target.m)]
 
 
 class DamperInteraction(Interaction):
@@ -83,12 +80,11 @@ class DamperInteraction(Interaction):
         self.target = target
         self.c = c
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the force of the damper."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [RateLaw(s.target.x.diff(s.t, 2), -s.c * s.target.x.diff(s.t) / s.target.m)]
+        s = context
+        self.laws_ = [RateLaw(s.target.x.diff(s.t, 2), -s.c * s.target.x.diff(s.t) / s.target.m)]
 
 
 class MismatchedInteraction(Interaction):
@@ -98,12 +94,11 @@ class MismatchedInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the mismatched rate."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [RateLaw(s.target.x.diff(s.t), -s.target.x)]
+        s = context
+        self.laws_ = [RateLaw(s.target.x.diff(s.t), -s.target.x)]
 
 
 class LeakyElement(Element):

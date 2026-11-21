@@ -11,7 +11,6 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import BaseLaw, RateLaw
 from skcomplex.core.components.laws.utils import contraction
 from skcomplex.core.components.laws.utils._contractions import contractions_in
-from skcomplex.core.components.spaces import BaseSpace
 from skcomplex.core.engine.backends import JaxBackend, NumbaBackend, NumpyBackend
 from skcomplex.core.errors import ParameterError, ValidationError
 from skcomplex.core.systems import System
@@ -34,12 +33,11 @@ class CubicInteraction(Interaction):
         self.target = target
         self.T = T
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the contraction of the tensor with the states."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x = context.target.x
-            self.laws_: list[BaseLaw] = [RateLaw(x.diff(context.t), contraction(context.T, x, x))]
+        x = context.target.x
+        self.laws_: list[BaseLaw] = [RateLaw(x.diff(context.t), contraction(context.T, x, x))]
 
 
 def _cubic(tensor, x, target='species', backend='auto'):

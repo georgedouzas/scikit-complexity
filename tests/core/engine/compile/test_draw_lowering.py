@@ -12,7 +12,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import bernoulli, categorical, normal, shift_member, total, uniform, where
-from skcomplex.core.components.spaces import BaseSpace, NetworkSpace
+from skcomplex.core.components.spaces import NetworkSpace
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.errors import IncompatibleLawsError, ValidationError
 from skcomplex.core.systems import System
@@ -59,12 +59,11 @@ class ChainInteraction(Interaction):
         self.target = target
         self.stay = stay
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the draw of the next symbol."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x = context.target.x
-            self.laws_ = [UpdateLaw(x, _row('next', [[context.stay, 1 - context.stay], [0.4, 0.6]], x))]
+        x = context.target.x
+        self.laws_ = [UpdateLaw(x, _row('next', [[context.stay, 1 - context.stay], [0.4, 0.6]], x))]
 
 
 def _chain():
@@ -81,15 +80,14 @@ class HiddenInteraction(Interaction):
         self.emission = emission
         self.order = order
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the transition of the hidden state and the emission of the observed one from the next hidden state."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context.target
-            emission = EMISSION if self.emission is None else self.emission
-            following = _row('h', CHAIN, s.h)
-            laws = [UpdateLaw(s.h, following), UpdateLaw(s.o, _row('o', emission, following))]
-            self.laws_ = laws if self.order == 1 else laws[::-1]
+        s = context.target
+        emission = EMISSION if self.emission is None else self.emission
+        following = _row('h', CHAIN, s.h)
+        laws = [UpdateLaw(s.h, following), UpdateLaw(s.o, _row('o', emission, following))]
+        self.laws_ = laws if self.order == 1 else laws[::-1]
 
 
 def _hidden(**settings):
@@ -107,13 +105,12 @@ class KeptRegulationInteraction(Interaction):
         super().__init__(label, among=among, along=along)
         self.part = part
 
-    def _prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> None:
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the increment of the edge or of the focal member."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            target = s.edge.x if self.part == 'edge' else s.member.x
-            self.laws_ = [UpdateLaw(target, target + bernoulli('kept', 0.5) * s.others[-1].x, increment=True)]
+        s = context
+        target = s.edge.x if self.part == 'edge' else s.member.x
+        self.laws_ = [UpdateLaw(target, target + bernoulli('kept', 0.5) * s.others[-1].x, increment=True)]
 
 
 def _run(system, until, backend=None, random_state=0, **settings):

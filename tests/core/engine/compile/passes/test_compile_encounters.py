@@ -66,14 +66,13 @@ class ExchangeInteraction(Interaction):
         self.eta = eta
         self.table = table
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the encounter."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [
-                RateLaw(s.population.x, bilinear(s.eta, self.table, s.population.x, s.population.x, conserved=True)),
-            ]
+        s = context
+        self.laws_ = [
+            RateLaw(s.population.x, bilinear(s.eta, self.table, s.population.x, s.population.x, conserved=True)),
+        ]
 
 
 class RedistributionInteraction(Interaction):
@@ -83,13 +82,12 @@ class RedistributionInteraction(Interaction):
         super().__init__(label)
         self.population = population
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the conserved bilinear law without a second density."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            outcomes = np.asarray([[[0.0, 1.0]], [[0.0, 1.0]]])
-            self.laws_ = [RateLaw(s.population.x, bilinear(1.0, outcomes, s.population.x, conserved=True))]
+        s = context
+        outcomes = np.asarray([[[0.0, 1.0]], [[0.0, 1.0]]])
+        self.laws_ = [RateLaw(s.population.x, bilinear(1.0, outcomes, s.population.x, conserved=True))]
 
 
 class GrowthInteraction(Interaction):
@@ -110,15 +108,14 @@ class GrowthInteraction(Interaction):
         self.mu = mu
         self.kill = kill
 
-    def _prepare(self, context=None):
+    def _prepare(self, context: SimpleNamespace) -> None:
         """Set the proliferation and the destruction."""
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            s = context
-            self.laws_ = [
-                RateLaw(s.population.x, bilinear(s.mu, None, s.population.x, s.field.x)),
-                RateLaw(s.population.x, bilinear(-s.kill, None, s.population.x, s.field.x)),
-            ]
+        s = context
+        self.laws_ = [
+            RateLaw(s.population.x, bilinear(s.mu, None, s.population.x, s.field.x)),
+            RateLaw(s.population.x, bilinear(-s.kill, None, s.population.x, s.field.x)),
+        ]
 
 
 def _profile(size=CLASSES):
@@ -213,18 +210,17 @@ def test_parameter_in_transition_table_is_evaluated():
             self.population = population
             self.q = q
 
-        def _prepare(self, context=None):
+        def _prepare(self, context: SimpleNamespace) -> None:
             """Set the encounter."""
             super()._prepare(context)
-            if isinstance(context, SimpleNamespace):
-                s = context
-                table = np.zeros((CLASSES, CLASSES, CLASSES), dtype=object)
-                for candidate in range(CLASSES):
-                    table[candidate, :, min(candidate + 1, CLASSES - 1)] += s.q
-                    table[candidate, :, candidate] += 1 - s.q
-                self.laws_ = [
-                    RateLaw(s.population.x, bilinear(1.0, table, s.population.x, s.population.x, conserved=True)),
-                ]
+            s = context
+            table = np.zeros((CLASSES, CLASSES, CLASSES), dtype=object)
+            for candidate in range(CLASSES):
+                table[candidate, :, min(candidate + 1, CLASSES - 1)] += s.q
+                table[candidate, :, candidate] += 1 - s.q
+            self.laws_ = [
+                RateLaw(s.population.x, bilinear(1.0, table, s.population.x, s.population.x, conserved=True)),
+            ]
 
     space = LatticeSpace(CLASSES, boundary='fixed')
     system = System(
