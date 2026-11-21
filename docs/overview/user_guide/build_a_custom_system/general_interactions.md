@@ -47,7 +47,7 @@ you need in the list below, then follow the link to its subsection.
 - Reset states when a condition crosses zero, or at chosen times: an [`EventLaw`](../core_components/laws.md#eventlaw),
   in [Crossings and impulses](#crossings-and-impulses).
 - Sample configurations by Monte Carlo: an [`ObjectiveLaw`](../core_components/laws.md#objectivelaw) moved by a
-  [`MetropolisSolver`](../core_components/interactions.md#samplinginteraction), in [Monte Carlo sampling](#monte-carlo-sampling).
+  [`MetropolisSolver`](../core_components/laws.md#objectivelaw), in [Monte Carlo sampling](#monte-carlo-sampling).
 - Set a state from the time or the random stream of the step: an update law whose value is a function, in
   [Updates that read the step](#updates-that-read-the-step).
 - Write an operation as symbolic laws or as agent rules: in [Agent and symbolic forms](#agent-and-symbolic-forms).

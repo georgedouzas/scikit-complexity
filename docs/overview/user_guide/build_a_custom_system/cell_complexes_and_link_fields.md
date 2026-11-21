@@ -102,7 +102,7 @@ weight one. The next section uses it for the Wilson action.
 This section samples a lattice gauge field at equilibrium, link by link. In compact U(1) gauge theory every link holds
 an angle, and the Wilson action sums the cosine of the oriented sum of the angles around every plaquette. An
 interaction gives this action as the `ObjectiveLaw` of every link, and a
-[`MetropolisSolver`](../core_components/interactions.md#samplinginteraction) draws new angles by Metropolis moves against it, one
+[`MetropolisSolver`](../core_components/laws.md#objectivelaw) draws new angles by Metropolis moves against it, one
 sweep per unit of time for 200 sweeps.
 
 ```python

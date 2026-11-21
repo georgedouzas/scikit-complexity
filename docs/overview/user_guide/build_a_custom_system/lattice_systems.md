@@ -139,7 +139,7 @@ This section draws the configurations of a lattice at a temperature. In the Isin
 plus or minus one, and the energy falls when neighbouring spins align. Below the critical temperature, about 2.27 on the
 square lattice, most spins align. An interaction gives the energy of every site over the temperature as an
 [`ObjectiveLaw`](../core_components/laws.md#objectivelaw), and a
-[`MetropolisSolver`](../core_components/interactions.md#samplinginteraction) proposes changes of a state and accepts them by
+[`MetropolisSolver`](../core_components/laws.md#objectivelaw) proposes changes of a state and accepts them by
 their change of energy. Here the spins of a periodic grid of 32 by 32 start aligned and evolve at the temperature 1.5.
 
 ```python

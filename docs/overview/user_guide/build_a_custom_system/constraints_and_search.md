@@ -9,7 +9,7 @@ like any other dynamics.
 This section anneals twenty candidates towards the minimum of `(x - 2)^2`. Simulated annealing proposes a random move
 and accepts it with a probability that falls as the move worsens the objective and as the search cools. An interaction
 gives the objective over a temperature that falls with the time, here `T / (1 + t)`, as an `ObjectiveLaw`, and a
-[`MetropolisSolver`](../core_components/interactions.md#samplinginteraction) moves the candidates. The candidates form a group on
+[`MetropolisSolver`](../core_components/laws.md#objectivelaw) moves the candidates. The candidates form a group on
 the sites of a one-dimensional [`LatticeSpace`](../core_components/spaces.md#latticespace), and every sweep is one
 step.
 
