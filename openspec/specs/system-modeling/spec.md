@@ -653,8 +653,8 @@ returns laws. A modeller SHALL define a type of element by subclassing `Element`
 - **THEN** each is a subclass of `BaseElement`, and `CompositeSystem` and `BaseInteraction` are not
 
 ### Requirement: A system is defined by elements, interactions, and laws
-A system SHALL be defined by its elements, its interactions, and the laws they return, and SHALL declare no other
-kind of component. A value that only names an expression SHALL be written in the laws, and what a run records or
+A system SHALL be defined by its elements and its interactions, which are components, and by the laws its
+interactions hold, which are values, and SHALL declare no other kind of component. A value that only names an expression SHALL be written in the laws, and what a run records or
 checks SHALL be an argument of the run.
 
 #### Scenario: Auxiliary as an expression
@@ -672,19 +672,18 @@ breaks it.
 - **THEN** the run raises `ConservationError` naming `total_wealth` and the first frame that breaks it
 
 ### Requirement: Components share two main public methods
-Elements, interactions, laws, spaces, times, and systems SHALL derive from `BaseComponent`, which defines `label`,
+Elements, interactions, spaces, times, and systems SHALL derive from `BaseComponent`, which defines `label`,
 `prepare(context)`, and `run(input)`. Elements, interactions, and systems SHALL return `self` from `prepare`, and
-their laws from `run(s)`, and a system SHALL return the laws of its children. A law SHALL return a prepared copy, and
-SHALL evaluate its contribution from `run(values)`.
+their laws from `run(s)`, and a system SHALL return the laws of its children. A law SHALL be a frozen value deriving
+from `BaseLaw`, with its fields and no `prepare`, component label, or cloning.
 
 #### Scenario: System yields laws
 - **WHEN** a system of a population element and a growth interaction is prepared and run with a namespace
 - **THEN** it returns the laws of the element and of the interaction, in order
 
-#### Scenario: Law run alone
-- **WHEN** a user prepares `RateLaw(s.n, r * s.n)` against a namespace with `n` and `r`, and runs it at `n=10`,
-  `r=0.5`
-- **THEN** the result is `5.0`, its `targets_` holds `n`, and its `reads_` holds `n` and `r`
+#### Scenario: A law is a value
+- **WHEN** a user builds `RateLaw(n, r * n)` twice
+- **THEN** the two laws are equal, neither is an instance of `BaseComponent`, and neither has `prepare`
 
 ### Requirement: Hamiltonian interactions generate rate laws
 `HamiltonianInteraction` SHALL derive Hamilton's equations symbolically from a function of canonical coordinates and

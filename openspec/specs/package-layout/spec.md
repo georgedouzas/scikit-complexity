@@ -162,15 +162,17 @@ SHALL derive from `BaseConfig`. Validation SHALL read a domain's kind from the d
 - **THEN** it advances the problem through `run`
 
 ### Requirement: Bases are unrelated
-No base class SHALL derive from another, except that `BaseElement`, `BaseInteraction`, `BaseLaw`,
-`BaseNeighborhood`, `BaseSpace`, `BaseTime`, and `BaseSystem` SHALL derive from `BaseComponent`, and that every
+No base class SHALL derive from another, except that `BaseElement`, `BaseInteraction`,
+`BaseNeighborhood`, `BaseSpace`, `BaseTime`, and `BaseSystem` SHALL derive from `BaseComponent`, that `BaseLaw`
+SHALL derive from `BaseSpec`, and that every
 configurable base, such as `BaseComponent`, `BaseSolver`, `BaseBackend`, and `BaseCompiler`, SHALL derive from
 `BaseConfig`, which derives from scikit-learn's `BaseEstimator`. `BaseSpec` SHALL derive from no base.
 
 #### Scenario: Unrelated bases
 - **WHEN** a test checks every pair of base classes with `issubclass`
 - **THEN** no base is a subclass of another, except the bases of components, which are subclasses of
-  `BaseComponent`, and the configurable bases, which are subclasses of `BaseConfig`
+  `BaseComponent`, `BaseLaw`, which is a subclass of `BaseSpec`, and the configurable bases, which are subclasses of
+  `BaseConfig`
 
 #### Scenario: System and interaction
 - **WHEN** a test checks `CompositeSystem` and `BaseInteraction` against `BaseElement`
@@ -570,14 +572,14 @@ function of an equation by its name. Expressions SHALL print and compile as befo
 ### Requirement: The components package holds the base of every component
 `skcomplex.core.components.base` SHALL define `BaseComponent`, the base of every component, and SHALL import only the
 root modules of `skcomplex.core`. The base of each family of components SHALL live in the `_base` module of its
-package: `BaseElement` in `elements`, `BaseInteraction` in `interactions`, `BaseLaw` in `laws`, `BaseNeighborhood`,
-`BaseSpace`, and `BaseTime` in `spaces`, and `BaseSystem` in `systems`. The base of any other concept SHALL live in
-that concept's package.
+package: `BaseElement` in `elements`, `BaseInteraction` in `interactions`, `BaseNeighborhood`, `BaseSpace`, and
+`BaseTime` in `spaces`, and `BaseSystem` in `systems`. The base of any other concept SHALL live in that concept's
+package, such as `BaseLaw`, the base of every law, in `laws`.
 
 #### Scenario: The bases of components
 - **WHEN** a user imports `BaseComponent` from `skcomplex.core.components.base`, and `BaseElement`,
   `BaseInteraction`, `BaseLaw`, `BaseSpace`, `BaseTime`, and `BaseSystem` from their packages
-- **THEN** every import succeeds, and every base but `BaseComponent` is a subclass of `BaseComponent`
+- **THEN** every import succeeds, and every base but `BaseComponent` and `BaseLaw` is a subclass of `BaseComponent`
 
 #### Scenario: Other bases
 - **WHEN** a user imports `BaseSolver` from `skcomplex.core.engine.solvers` and `BaseBackend` from
@@ -585,15 +587,16 @@ that concept's package.
 - **THEN** every import succeeds, and neither is a subclass of `BaseComponent`
 
 ### Requirement: One word names the building blocks of a system
-The building blocks of a system, which are its elements, interactions, laws, spaces, neighbourhoods, times, and the
-system itself, SHALL be called components in names, messages, docstrings, documentation pages, specs, and plans.
+The building blocks of a system, which are its elements, interactions, spaces, neighbourhoods, times, and the
+system itself, SHALL be called components in names, messages, docstrings, documentation pages, specs, and plans. The
+laws that interactions hold SHALL be called laws, and are values, not components.
 Part SHALL keep only its other meanings. A mathematical component, such as a vector, tensor, or connected component,
 SHALL be qualified in prose, so that the bare word names a building block.
 
 #### Scenario: The base of every component
 - **WHEN** a user imports `BaseComponent` from `skcomplex.core.components.base`
-- **THEN** the import succeeds, and `BaseElement`, `BaseInteraction`, `BaseLaw`, `BaseNeighborhood`, `BaseSpace`,
-  `BaseTime`, and `BaseSystem` are subclasses of it
+- **THEN** the import succeeds, and `BaseElement`, `BaseInteraction`, `BaseNeighborhood`, `BaseSpace`, `BaseTime`,
+  and `BaseSystem` are subclasses of it, and `BaseLaw` is not
 
 #### Scenario: Other meanings of part
 - **WHEN** a reader searches the library for part
