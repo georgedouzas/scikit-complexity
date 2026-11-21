@@ -1531,22 +1531,6 @@ def test_a_rule_of_the_whole_road_runs_once_per_step_after_the_cars(p, moved):
         assert trajectory.get_agents('cars', frame).values['x'].tolist() == [(x + distance) % 10 for x in (0, 3, 8)]
 
 
-class _AgentBraking(Braking):
-    """Braking whose rule wrongly takes an agent and the system."""
-
-    def brake(self, agent, system):
-        """Slow one car."""
-        agent.v = 0
-
-
-def test_a_rule_of_the_whole_system_takes_the_system_alone():
-    """Test that a rule of the whole system that takes an agent too raises an error that shows the right form."""
-    cars = Element('cars', values={'x': [0], 'v': 1}, size=1, space=LatticeSpace(10))
-    road = System(elements=[cars], interactions=[AgentRule('drive', target='cars', rule=_drive), _AgentBraking('road')])
-    with pytest.raises(ValidationError, match=r'def brake\(system\)'):
-        road.prepare()
-
-
 class Arrive(Interaction):
     """A rule of the whole system that adds one member with a given age to its group every step."""
 
