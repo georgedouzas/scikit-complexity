@@ -40,7 +40,7 @@ def test_check_rejects_a_malformed_program(arguments, message):
 
 
 def test_check_rejects_an_unknown_policy_and_sense():
-    """Test that an unknown infeasibility policy and an unknown sense of an objective are rejected."""
+    """Test that an unknown choice for constraints that cannot all hold and an unknown sense are rejected."""
     with pytest.raises(ValidationError, match='raise, zero, hold'):
         _LinearProgramLaw([V], [V <= 1], infeasible='stop')._check()
     with pytest.raises(ValidationError, match='max, min'):

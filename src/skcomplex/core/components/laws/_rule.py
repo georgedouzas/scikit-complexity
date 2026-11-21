@@ -72,7 +72,7 @@ class _RuleLaw(BaseLaw):
             error_msg = f'The function of a rule must be callable, but it is {self.function!r}.'
             raise ValidationError(error_msg)
         if self.members is not None and not (isinstance(self.members, str) and self.members):
-            error_msg = f'The members of a rule name a role, but they are {self.members!r}.'
+            error_msg = f'The members of a rule are the name of a role, such as `target`, not {self.members!r}.'
             raise ValidationError(error_msg)
 
     def _get_value(self, inputs: object) -> object:

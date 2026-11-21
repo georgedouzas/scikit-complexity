@@ -240,9 +240,9 @@ def test_run_function_rule_reads_keywords_and_sets_several_targets():
 def test_run_rejects_invalid_inputs_and_rules():
     """Test that a run without the space or a state, or with an unknown rule or coefficients, raises an error."""
     law = _LocalRuleLaw(var('cell'), LatticeNeighborhood(((-1,), (0,), (1,))), Wolfram(90))
-    with pytest.raises(ValidationError, match='runs on a mapping'):
+    with pytest.raises(ValidationError, match='reads a mapping'):
         law._get_value({'cell': [0, 1, 0]})
-    with pytest.raises(ValidationError, match='runs on a mapping'):
+    with pytest.raises(ValidationError, match='reads a mapping'):
         law._get_value({'space': LatticeSpace(3)})
     with pytest.raises(ValidationError, match='is not a TableSpec'):
         _run(object(), LatticeNeighborhood(((-1,), (0,), (1,))), LatticeSpace(3), [0, 1, 0])
@@ -255,7 +255,7 @@ def test_run_rejects_invalid_inputs_and_rules():
             LinearRuleSpec((1, 1, 1), 'GF(x)'),
         )._check()
     graph = AdjacencyNeighborhood()
-    with pytest.raises(ValidationError, match='on offsets or a memory set'):
+    with pytest.raises(ValidationError, match='gives no fixed places'):
         _run(LIFE, graph, LatticeSpace(3), [0, 1, 0])
 
 
