@@ -37,7 +37,7 @@ class _DeclaredElement(Element):
 
         variables:
             The initial value and the spec of each state and parameter, by name, or `None` for none. For example,
-            `{'x': DeclaredVariableSpec(100.0, StateSpec())}` declares a state `x` that starts at 100, in the units of
+            `{'x': _DeclaredVariableSpec(100.0, _StateSpec())}` declares a state `x` that starts at 100, in the units of
             the system, such as people or moles.
 
         drawing:

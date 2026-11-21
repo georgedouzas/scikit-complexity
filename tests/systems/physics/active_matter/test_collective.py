@@ -3,6 +3,7 @@
 import numpy as np
 import pytest
 
+from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver, LammpsSolver, VelocityVerletSolver
 from skcomplex.core.systems import System
@@ -15,6 +16,14 @@ from skcomplex.systems.physics.active_matter import (
 )
 from skcomplex.systems.physics.active_matter._collective import SoftSphereInteraction
 from skcomplex.systems.physics.common.particles import LAMMPS_FIXES, LAMMPS_PAIRS
+
+
+class InertialSoftSphereInteraction(SoftSphereInteraction):
+    """Soft repulsion that accelerates spheres of unit mass."""
+
+    def _get_rate_law(self, x, push, t):
+        """Return the law of the push on the acceleration, `x'' = push`."""
+        return RateLaw(x.diff(t, 2), push)
 
 
 def _pair(interaction, distance, solver):
@@ -34,7 +43,7 @@ def _pair(interaction, distance, solver):
 )
 def test_soft_spheres_repel_inside_contact(solver):
     """Test that overlapping soft spheres move apart and stop interacting beyond contact."""
-    soft = SoftSphereInteraction('soft', target='pair', cutoff=1.0, k=50.0, order=2)
+    soft = InertialSoftSphereInteraction('soft', target='pair', cutoff=1.0, k=50.0)
     trajectory = _pair(soft, 0.8, solver).prepare().simulate(until=1)
     separation = np.linalg.norm(trajectory.get_values('pair.x')[:, 1] - trajectory.get_values('pair.x')[:, 0], axis=1)
     assert separation[-1] > 1.0

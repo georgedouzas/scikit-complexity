@@ -117,7 +117,7 @@ class ResidencesPass(BasePass):
             for call in ResidencesPass._get_calls_in(law):
                 if not isinstance(law, UpdateLaw):
                     error_msg = (
-                        f'A {type(law).__name__} of {spec.owner} reads {call}, which only update laws of discrete time '
+                        f'A {law._get_name()} of {spec.owner} reads {call}, which only update laws of discrete time '
                         'read.'
                     )
                     raise ValidationError(error_msg)

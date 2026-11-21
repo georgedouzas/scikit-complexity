@@ -227,7 +227,7 @@ class ConservedNoisePass(BasePass):
         if not outside:
             return None
         message = (
-            f'The conserved {type(record.law).__name__} of {record.path} drives {", ".join(dict.fromkeys(outside))}, '
+            f'The conserved {record.law._get_name()} of {record.path} drives {", ".join(dict.fromkeys(outside))}, '
             'but conserved noise needs a state of a finite-difference field on a square lattice, with one process per '
             'link.'
         )

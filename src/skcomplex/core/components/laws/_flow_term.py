@@ -9,6 +9,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 
 from ...errors import ValidationError
 from ..spaces._lattice import BOUNDARIES
+from ._ordered_rate import _OrderedRateLaw
 from ._rate import RateLaw
 from ._update import UpdateLaw
 from .utils._reductions import shift_member
@@ -17,7 +18,7 @@ SIGNS = (-1, 1)
 SHIFT = 'shift_member'
 
 
-class FlowTermLaw(RateLaw):
+class FlowTermLaw(_OrderedRateLaw):
     """A law of the rate `sign * f` that a flow adds to one of its stocks.
 
     It keeps the sign the stock has in the flow. A flow `RateLaw({s.alive: -1, s.dead: +1}, f, label='deaths')`
@@ -39,9 +40,6 @@ class FlowTermLaw(RateLaw):
         value:
             The rate the flow adds to the stock, `sign * f`.
 
-        order:
-            The order of the derivative the rate gives, 1.
-
         label:
             The name of the flow.
 
@@ -60,14 +58,13 @@ class FlowTermLaw(RateLaw):
         self,
         target: Expression,
         value: object,
-        order: int | None = None,
         *,
         label: str = '',
         sign: int = 1,
         increment: bool = False,
         shifted: bool = False,
     ) -> None:
-        super().__init__(target, value, order, label=label)
+        super().__init__(target, value, 1, label=label)
         self.sign = sign
         self.increment = increment
         self.shifted = shifted
@@ -119,7 +116,7 @@ class FlowTermLaw(RateLaw):
         for stock, sign in law.target.items():
             state, value = cls._get_unshifted(stock, int(sign) * SR(law.value), presence)
             shifted = state is not stock
-            terms.append(cls(state, value, 1, label=law.label, sign=int(sign), increment=increment, shifted=shifted))
+            terms.append(cls(state, value, label=law.label, sign=int(sign), increment=increment, shifted=shifted))
         return terms
 
     @staticmethod

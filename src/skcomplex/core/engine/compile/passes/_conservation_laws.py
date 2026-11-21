@@ -7,6 +7,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 from sage.symbolic.operators import add_vararg, mul_vararg
 
 from ....components.laws import BaseLaw, RateLaw
+from ....components.laws._ordered_rate import _OrderedRateLaw
 from ....errors import ValidationError
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._field_element import _FieldElement
@@ -45,7 +46,7 @@ class ConservationLawsPass(BasePass):
     def _get_field(spec: KernelSpec, law: RateLaw, declarations: DeclarationsSpec) -> _FieldElement | None:
         """Return the finite-volume field whose scalar state a rate law targets, or `None`."""
         scalar = isinstance(law.target, Expression) and isinstance(law.value, Expression)
-        if law.order not in (None, 1) or not scalar:
+        if law._get_order() not in (None, 1) or not scalar:
             return None
         references = [item for item in spec._get_target_references(law.target) if item is not None]
         if len(references) != 1:
@@ -118,5 +119,5 @@ class ConservationLawsPass(BasePass):
             ).prepare(spec.owner),
         ]
         if not rest.is_zero():
-            laws.append(RateLaw(law.target, rest, law.order, label=law.label).prepare(spec.owner))
+            laws.append(_OrderedRateLaw(law.target, rest, law._get_order(), label=law.label).prepare(spec.owner))
         return laws

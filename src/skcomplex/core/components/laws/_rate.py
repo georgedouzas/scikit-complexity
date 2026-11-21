@@ -18,7 +18,7 @@ from ._requirement_spec import RequirementSpec
 class RateLaw(BaseLaw):
     """A law that adds a rate to the highest time derivative of a state.
 
-    On a state of order 1 the rate is its first derivative, and on a state of order `k` it adds to the `k`th derivative.
+    A rate on a state is its first derivative, and a rate on the derivative `x.diff(t, k)` adds to the `k`th derivative.
     Rates on the same state add up, so separate mechanisms superpose, and a system with only rate laws is a system of
     ordinary differential equations.
 
@@ -36,15 +36,13 @@ class RateLaw(BaseLaw):
 
     Args:
         target:
-            The symbol of a scalar state, the column of symbols of a vector state, the matrix of a tensor state, or, for
-            a flow, a mapping from the symbol of each stock to the sign of its change, `-1` or `+1`.
+            The symbol of a scalar state, a derivative of it such as `x.diff(t, 2)`, the column of symbols of a vector
+            state, the matrix of a tensor state, or, for a flow, a mapping from the symbol of each stock to the sign of
+            its change, `-1` or `+1`.
 
         value:
             A symbolic expression, a matrix of the shape of a tensor state, a `Call`, or a callable `f(t, values)` where
             `values` maps dotted state and parameter names to their current values.
-
-        order:
-            The order of the derivative the rate gives, checked against the state's order, or `None` to use it.
 
         label:
             The name of a flow, which the trajectory records under the element of its stocks, such as
@@ -67,14 +65,16 @@ class RateLaw(BaseLaw):
         self,
         target: Target | Matrix | Mapping[Expression, int],
         value: object,
-        order: int | None = None,
         *,
         label: str = '',
     ) -> None:
         super().__init__(label)
         self.target = target
         self.value = value
-        self.order = order
+
+    def _get_order(self) -> float | None:
+        """Return the order of the derivative the rate gives, `None` for its state."""
+        return None
 
     def _get_targets(self) -> tuple[object, ...]:
         """Return the state the rate changes, or the stocks of a flow."""

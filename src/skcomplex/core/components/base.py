@@ -40,8 +40,8 @@ class BaseComponent[ContextT](_BaseEstimator[ContextT]):
 
     The context of `prepare` depends on the family: a law is prepared against the path of its owner, an element against
     the space of its system, and an interaction against the namespace of the elements its roles bind, from which it
-    sets `laws_`. A component declares which arguments of its constructor are states, parameters, or roles by
-    annotating them with `StateSpec`, `ParameterSpec`, or `RoleSpec` inside `Annotated`.
+    sets `laws_`. The arguments of its constructor are plain values, and an interaction marks the elements it binds by
+    the type hint `Role`. Which values are states and which are parameters follows from the laws.
 
     A component returns its capability tags from `get_tags`, which reads only its declarations and arguments, so the
     tags are known before `prepare`. Each family derives them in `_get_tags`. A component whose rules draw random

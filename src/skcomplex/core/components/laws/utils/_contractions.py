@@ -17,7 +17,7 @@ def contraction(tensor: object, *expressions: object) -> Expression:
     """Return the contraction of a tensor with one expression per later index.
 
     It is `sum_jk T_ijk a_j b_k`, with one expression per index after the first. The tensor is a parameter of an
-    interaction declared `ParameterSpec(shape=(role,) * k)`, whose first index runs over the reading members and every
+    interaction given as an array with one index per member, whose first index runs over the reading members and every
     other index over the members of a group. Inside the contraction the symbols of the expression of an index stand for
     the member of that index, so `contraction(T, x, x)` reads `x_j` and `x_k`.
 

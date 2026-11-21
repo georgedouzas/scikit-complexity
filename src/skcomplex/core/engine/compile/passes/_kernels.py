@@ -18,6 +18,7 @@ from ....components.interactions import WienerProcessSpec
 from ....components.laws import BaseLaw, CallSpec, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....components.laws._boundary import _BoundaryLaw
 from ....components.laws._flow_term import FlowTermLaw
+from ....components.laws._ordered_rate import _OrderedRateLaw
 from ....errors import PipelineError, ValidationError
 from ....types import ProcessKey
 from ..._utils import components_of, symbols_of
@@ -142,7 +143,7 @@ class KernelsPass(BasePass):
         law sets, whose changes this law adds to. A law of one member of a group meets the laws of every member, and a
         law of every member the laws of each one.
         """
-        kind = type(law).__name__
+        kind = law._get_name()
         combined = set()
         for position, target in enumerate(targets):
             if target.source in {ReadKind.FIRST, ReadKind.SECOND}:
@@ -235,7 +236,7 @@ class KernelsPass(BasePass):
                 'formalism, or remove `conserved=True`.'
             )
             raise ValidationError(error_msg)
-        outputs = KernelsPass._get_outputs_of(law.value, targets, f'{type(law).__name__} of {spec.owner}')
+        outputs = KernelsPass._get_outputs_of(law.value, targets, f'{law._get_name()} of {spec.owner}')
         if isinstance(law, NoiseLaw) and law.process is not None:
             keys = NoisePass._get_process_keys(spec, law, declarations)
             outputs = [
@@ -281,7 +282,7 @@ class KernelsPass(BasePass):
                     outputs[(JumpLaw, False, None)].append(output)
                     continue
                 if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | _BoundaryLaw):
-                    error_msg = f'A {type(law).__name__} of {spec.owner} reached lowering before it was rewritten.'
+                    error_msg = f'A {law._get_name()} of {spec.owner} reached lowering before it was rewritten.'
                     raise ValidationError(error_msg)
                 targets = spec._get_target_references(law._get_targets()[0])
                 once = KernelsPass._is_once(spec, law)
@@ -359,8 +360,8 @@ class KernelsPass(BasePass):
     def _get_kind_of(law: BaseLaw) -> type:
         """Return the class of a law that decides its form.
 
-        Every noise law counts as a noise law, the term of a flow as a rate law, and the increment of a flow in
-        discrete time as an update law.
+        Every noise law counts as a noise law, every rate law and the term of a flow as a rate law, and the increment
+        of a flow in discrete time as an update law.
 
         Args:
             law:
@@ -372,6 +373,8 @@ class KernelsPass(BasePass):
         """
         if isinstance(law, FlowTermLaw):
             return UpdateLaw if law.increment else RateLaw
+        if isinstance(law, _OrderedRateLaw):
+            return RateLaw
         return NoiseLaw if isinstance(law, NoiseLaw) else type(law)
 
     @staticmethod

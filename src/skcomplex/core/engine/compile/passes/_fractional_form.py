@@ -62,7 +62,7 @@ class FractionalFormPass(BasePass):
 
         Returns:
             times:
-                The time class of every system by path, such as `ContinuousTime`, or `None` for a system without one.
+                The time class of every system by path, such as continuous time, or `None` for a system without one.
         """
         time = type(system.time) if system.time is not None else inherited
         times = {scope: time}
@@ -143,7 +143,7 @@ class FractionalFormPass(BasePass):
             targets = sorted({entry.name for entry in record.targets} & names)
             if not targets or not isinstance(record.law, others):
                 continue
-            name = type(record.law).__name__
+            name = record.law._get_name()
             message = (
                 f'The {name} of {record.path} targets {", ".join(targets)}, a state of a fractional order, but no '
                 f'fractional solver runs {name}.'

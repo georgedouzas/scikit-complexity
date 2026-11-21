@@ -23,7 +23,7 @@ class AgentsPass(BasePass):
     """A pass that marks the nodes of the elements and groups of the agent stepper.
 
     They are the elements and groups that run on the agent stepper. An agent is a member of a variable group, or of an
-    element or group whose own laws include a `RuleLaw`. When the tree holds rules, of components or of interactions,
+    element or group whose own laws include an agent rule. When the tree holds rules, of components or of interactions,
     the groups whose element type has no laws of its own are agents too, as passive agents that rules read and change,
     unless an interaction whose laws are not all rules or matchings binds them through a role. Single elements, such as
     the holders of reductions, and groups on the sites, edges, or hyperedges of a space are never passive agents.
@@ -104,7 +104,7 @@ class AgentsPass(BasePass):
 
         Returns:
             runs_rules:
-                Whether the component is a variable group, or an element or group whose own laws include a `RuleLaw`.
+                Whether the component is a variable group, or an element or group whose own laws include an agent rule.
         """
         if isinstance(component, _GroupElement) and component.variable:
             return True

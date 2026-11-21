@@ -10,6 +10,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....components.laws import BaseLaw, NoiseLaw
+from ....components.laws._ordered_noise import _OrderedNoiseLaw
 from ....errors import ValidationError
 from ..._utils import components_of, symbols_of
 from ...problems._declarations_spec import DeclarationsSpec
@@ -87,7 +88,9 @@ class CheckFractionalNoisePass(BasePass):
             description = CheckFractionalNoisePass._get_fractional_description(spec, law)
             CheckFractionalNoisePass._get_checked_hurst(spec, law, declarations, description)
             if SR(law.hurst).is_numeric() and float(SR(law.hurst)) == BROWNIAN_HURST:
-                result.append(NoiseLaw(law._get_targets()[0], law.value, law.order, convention=law.convention))
+                result.append(
+                    _OrderedNoiseLaw(law._get_targets()[0], law.value, law._get_order(), convention=law.convention),
+                )
                 continue
             values = [item for item in components_of(law.value) if isinstance(item, Expression)]
             if not isinstance(law.value, Expression | FreeModuleElement) and not SR(law.value).is_numeric():

@@ -80,7 +80,7 @@ class ObjectiveLaw(BaseLaw):
 
     See Also:
         ConstraintLaw: A relation that holds at the minimum.
-        LinearProgramLaw: A linear objective with linear constraints, solved as a linear program.
+        UpdateLaw: The next value of a state, such as one step of a descent.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var

@@ -197,8 +197,8 @@ means chaos, a negative one contraction, and zero a direction along which paths 
 
 ## Main public methods
 
-The main public methods of a component are `prepare`, which checks it against what it works on, and `run`, which sets
-what it contributes. Both return the component itself. See [How the components
+The main public method of a component is `prepare`, which checks it against what it works on and returns the component
+itself. A system has a second one, `simulate`, which returns a trajectory. See [How the components
 fit](core_components/index.md#the-main-public-methods).
 
 ## Markov chain Monte Carlo

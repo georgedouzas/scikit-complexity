@@ -90,10 +90,13 @@ def test_equations_of_discrete_map_gives_next_value():
     assert bool(equation.lhs() == function('price_m')(t + 1))
 
 
-def test_equations_of_group_with_numeric_derivatives_raises_error():
-    """A group of order two whose forces are computed numerically has no symbolic equations."""
-    with pytest.raises(AnalysisError, match='computed numerically'):
-        symbolic(LennardJonesFluidSystem(16).prepare().system_)
+def test_equations_of_group_with_pair_forces_are_of_order_two():
+    """Test that a group with pair forces has one second order equation per component of its position."""
+    system = LennardJonesFluidSystem(16).prepare().system_
+    equations = symbolic(system).equations
+    t = system.prepare()._problem.time
+    assert list(equations) == ['fluid.x[i, 0]', 'fluid.x[i, 1]']
+    assert bool(equations['fluid.x[i, 0]'].lhs() == diff(function('x_fluid_0')(t), t, 2))
 
 
 def test_equations_of_jump_process_raises_error():

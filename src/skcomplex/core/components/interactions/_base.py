@@ -20,7 +20,6 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.structure.element import Matrix
 from sage.symbolic.function import SymbolicFunction
 from sage.symbolic.operators import FDerivativeOperator
-from sklearn.base import clone
 
 from ...base import BaseSpec
 from ...enums import DomainKind
@@ -33,6 +32,8 @@ from .._tags import Tags
 from ..base import BaseComponent
 from ..laws import BaseLaw, NoiseLaw, ObjectiveLaw, PartnerSpec, RateLaw, UpdateLaw
 from ..laws._flow_term import FlowTermLaw
+from ..laws._ordered_noise import _OrderedNoiseLaw
+from ..laws._ordered_rate import _OrderedRateLaw
 from ..laws._rule import _RuleLaw
 from ..laws.utils import relax
 from ..laws.utils._fractional import fractional_of
@@ -63,10 +64,10 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace]):
 
     An interaction binds elements through roles, such as `'source'` and `'target'`, reads their states, and returns laws
     that change them. It holds no state of its own. A state on a coupling, such as the weight of an edge, lives in a
-    group on the edges or hyperedges of a network. A subclass takes each role and parameter as an argument of its
-    `__init__`, annotated with `RoleSpec` or `ParameterSpec` inside `Annotated`, and stores it under the same name, as a
-    scikit-learn estimator does. Its `_prepare` sets `laws_` when the context is the namespace of a binding, where
-    `context.<role>` reads the states of the element a role binds and `context.<parameter>` is a symbol.
+    group on the edges or hyperedges of a network. A subclass takes each role, typed `Role`, and each parameter as an
+    argument of its `__init__`, and stores it under the same name, as a scikit-learn estimator does. Its `_prepare`
+    sets `laws_` when the context is the namespace of a binding, where `context.<role>` reads the states of the element
+    a role binds and `context.<parameter>` is a symbol.
 
     A role states the element kinds and states it needs in its `RoleSpec`, and the class lists the laws it may return in
     `law_classes`, so that `get_requirements` and `get_tags` can name them before a run. A subclass whose arguments
@@ -464,16 +465,22 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace]):
 
         A rate law on the fractional derivative `fractional(x, alpha)` becomes a rate law on `x` of the order `alpha`,
         and a law on the derivatives of the components of a vector, such as `x.diff(t, 2)` for a position in the
-        plane, becomes a law on the vector of the order of its derivatives.
+        plane, becomes a law on the vector of the order of its derivatives. A law on a state itself has order 1. Laws
+        of other classes, such as the terms of a flow, are kept as they are.
 
         Raises:
             ValidationError:
                 A fractional derivative is the target of a law other than a rate law, or of no state.
         """
-        if isinstance(law, RateLaw | NoiseLaw) and isinstance(law.target, FreeModuleElement):
-            return BaseInteraction._get_normalized_vector(law)
-        if not isinstance(law, RateLaw | NoiseLaw) or not isinstance(law.target, Expression):
+        stated = type(law) in (RateLaw, NoiseLaw)
+        if (
+            not stated
+            or not isinstance(law, RateLaw | NoiseLaw)
+            or not isinstance(law.target, Expression | FreeModuleElement)
+        ):
             return law
+        if isinstance(law.target, FreeModuleElement):
+            return BaseInteraction._get_normalized_vector(law)
         found = fractional_of(law.target)
         if found is not None:
             state, order = found
@@ -483,13 +490,22 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace]):
                     'such as `RateLaw(fractional(s.target.x, 0.5), -s.k * s.target.x)`.'
                 )
                 raise ValidationError(error_msg)
-            return BaseInteraction._get_replaced(law, target=state, order=1 if order == 1 else order)
+            return BaseInteraction._get_ordered(law, state, 1 if order == 1 else order)
         if law.target.has(SR(I)):
             return BaseInteraction._get_normalized_complex(law)
         if law.target.operator() is not derivative:
-            return law if law.order is not None else BaseInteraction._get_replaced(law, order=1)
+            return BaseInteraction._get_ordered(law, law.target, 1)
         state, order = law.target.operands()
-        return BaseInteraction._get_replaced(law, target=state, order=int(order))
+        return BaseInteraction._get_ordered(law, state, int(order))
+
+    @staticmethod
+    def _get_ordered(law: RateLaw | NoiseLaw, target: object, order: float | None) -> BaseComponent:
+        """Return a rate or noise law on a state that keeps the order of its derivative.
+
+        The new law shares the arguments of the law, such as its value, without copying them.
+        """
+        ordered = _OrderedNoiseLaw if isinstance(law, NoiseLaw) else _OrderedRateLaw
+        return ordered(**{**law.get_params(deep=False), 'target': target, 'order': order})
 
     @staticmethod
     def _get_normalized_complex(law: RateLaw | NoiseLaw) -> BaseComponent:
@@ -504,8 +520,7 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace]):
         if len(orders) > 1:
             return law
         state = target.subs({item: item.operands()[0] for item in found})
-        order = orders.pop() if orders else (law.order or 1)
-        return BaseInteraction._get_replaced(law, target=state, order=order)
+        return BaseInteraction._get_ordered(law, state, orders.pop() if orders else 1)
 
     @staticmethod
     def _get_normalized_vector(law: RateLaw | NoiseLaw) -> BaseComponent:
@@ -522,7 +537,7 @@ class BaseInteraction(BaseComponent[BaseSpace | SimpleNamespace]):
         if not found or None in found or len(orders) != 1:
             return law
         states = vector(SR, [item[0] for item in found if item is not None])
-        return clone(law).set_params(target=states, order=orders.pop())
+        return BaseInteraction._get_ordered(law, states, orders.pop())
 
     def _get_laws_of(self, inputs: object) -> Sequence[BaseComponent]:
         """Return the laws for a namespace, from a copy prepared on it."""

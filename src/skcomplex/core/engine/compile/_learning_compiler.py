@@ -138,7 +138,7 @@ class _LearningCompiler(BaseCompiler):
             if isinstance(law, DIFFERENTIABLE) and not callable_values:
                 continue
             message = (
-                f'The {type(law).__name__} of {record.path} in the nested system {training.system} cannot be '
+                f'The {law._get_name()} of {record.path} in the nested system {training.system} cannot be '
                 'differentiated. Learning needs a discrete map or ordinary differential equations written as symbolic '
                 'laws.'
             )

@@ -683,11 +683,18 @@ def langevin(noise):
 
 
 def test_noise_on_a_derivative_is_written_in_sage():
-    """Test that `NoiseLaw(x.diff(t, 2), g)` drives the velocity `x'` as the order 2 does."""
+    """Test that `NoiseLaw(x.diff(t, 2), g)` drives the velocity `x'` as a noise on a velocity state `v` does."""
     sage = langevin(lambda x, t: NoiseLaw(x.diff(t, 2), 0.5)).simulate(until=1.0, dt=0.1, random_state=0)
-    ordered = langevin(lambda x, t: NoiseLaw(x, 0.5, order=2)).simulate(until=1.0, dt=0.1, random_state=0)
+
+    def laws(s):
+        x, v, t = s.target.x, s.target.v, s.t
+        return [RateLaw(x.diff(t), v), RateLaw(v.diff(t), -v), NoiseLaw(v.diff(t), 0.5)]
+
+    kick = Interaction('kick', roles={'target': 'p'}, laws=laws)
+    first = System(elements=[Element('p', values={'x': 0.0, 'v': 0.0})], interactions=[kick]).prepare()
+    explicit = first.simulate(until=1.0, dt=0.1, random_state=0)
     assert np.ptp(sage.get_values("p.x'")) > 0
-    assert sage.get_values("p.x'") == pytest.approx(ordered.get_values("p.x'"))
+    assert sage.get_values("p.x'") == pytest.approx(explicit.get_values('p.v'))
 
 
 def test_noise_of_a_lower_order_names_the_derivative_to_write():

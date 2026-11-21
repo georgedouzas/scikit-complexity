@@ -241,7 +241,7 @@ def _composite(source: DataSource) -> DataSource:
 
     Returns:
         source:
-            The prepared composite `CompositeSystem` of a system that builds its components, or the source itself.
+            The prepared system tree of a ready-made system, or the source itself.
     """
     if isinstance(source, systems.BaseSystem):
         return source._get_composite()
@@ -648,9 +648,9 @@ def _read_snapshots(source: DataSource, group: str | None = None) -> _SnapshotsS
     """Return the agents of a group of a trajectory at every frame.
 
     Agent groups give their positions unwrapped across periodic sides, and velocities and directions from the states
-    with the role `'velocity'` or `'direction'` in their `StateSpec`. Particle groups give the states with the role
-    `'position'`, the first derivatives of those states or else the states with the role `'velocity'`, and the state
-    with the role `'direction'`. Either kind of group gives the state with the role `'phase'` as its phases.
+    the compiler reads as velocities or directions. Particle groups give their positions, the values named after the
+    axes of their space, the first derivatives of those positions or else their velocities, and their directions.
+    Either kind of group gives its periodic values as its phases.
 
     Args:
         source:

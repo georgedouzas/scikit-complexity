@@ -19,13 +19,13 @@ class BaseElement(BaseComponent[BaseSpace]):
 
     A state is a value that changes as the system runs, such as the size of a population or the position of a particle.
     An element names its states and parameters and is drawn as its class attribute `visual` says, such as
-    `VisualSpec('line')`, unless a visualisation observer draws it otherwise. A subclass takes each state and parameter
-    as an argument of its `__init__`, annotated with `StateSpec` or `ParameterSpec` inside `Annotated`, and stores it
-    under the same name, as a scikit-learn estimator does. It holds no laws, which interactions state.
+    `VisualSpec('line')`, unless a visualisation observer draws it otherwise. A subclass takes each value as a plain
+    argument of its `__init__` and stores it under the same name, as a scikit-learn estimator does. It holds no laws,
+    which interactions state, and a value that a law changes is a state.
 
     Unlike `BaseComponent`, it holds states, and the interactions and laws of a system read and change them through it.
-    Choose it when a new kind of element stores its members in a way of its own, as `GroupElement` does. Choose
-    `Element` for one entity with named states.
+    Choose it when a new kind of element stores its values in a way of its own. Choose `Element` for one entity or a
+    group of members with named values.
 
     It appears in every field through its subclasses, such as a population in ecology, a chemical species in a reactor,
     a bank account in economics, and a pendulum in mechanics.

@@ -18,7 +18,7 @@ class RequirementSpec(BaseSpec):
 
     Args:
         time:
-            The time classes the component runs in, such as `(ContinuousTime,)`.
+            The time classes the component runs in, such as continuous time alone.
 
         space:
             The space classes the component runs in, such as `(LatticeSpace,)`.

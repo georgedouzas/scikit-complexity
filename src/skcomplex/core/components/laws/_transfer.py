@@ -21,7 +21,7 @@ class _Source(BaseSpec):
     """A holder outside the system that a transfer takes an amount from.
 
     Unlike a state, it has no value and never runs out. Choose it when an amount enters the system from outside, as the
-    source of a `TransferLaw`.
+    source of a `_TransferLaw`.
 
     It appears in many fields as the origin of what enters a system, such as a bank that creates money, births into a
     population, or an inflow into a reservoir.
@@ -39,7 +39,7 @@ class _Sink(BaseSpec):
     """A holder outside the system that a transfer releases an amount to.
 
     Unlike a state, it has no value and never fills. Choose it when an amount leaves the system, as the sink of a
-    `TransferLaw`.
+    `_TransferLaw`.
 
     It appears in many fields as the end of what leaves a system, such as a drain, the atmosphere, or deaths out of a
     population.
@@ -70,11 +70,11 @@ class _TransferLaw(BaseLaw):
 
     Args:
         source:
-            The symbol of the state the quantity leaves, the symbol read at a member offset, or `Source()` for the
+            The symbol of the state the quantity leaves, the symbol read at a member offset, or `_Source()` for the
             environment.
 
         sink:
-            The symbol of the state the quantity enters, the symbol read at a member offset, or `Sink()` for the
+            The symbol of the state the quantity enters, the symbol read at a member offset, or `_Sink()` for the
             environment.
 
         amount:

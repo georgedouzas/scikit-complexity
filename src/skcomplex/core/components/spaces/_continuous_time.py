@@ -14,7 +14,7 @@ class _ContinuousTime(_BaseTime):
     The laws it accepts are rates, noise, implicit equations, random jumps, and crossings of a guard. A solver
     integrates them between the frames of a run.
 
-    Unlike `DiscreteTime`, which steps, it lets states change at every instant. Choose it when the model is a
+    Unlike `_DiscreteTime`, which steps, it lets states change at every instant. Choose it when the model is a
     differential equation or a stochastic process in continuous time.
 
     It appears in many fields. An epidemic flows by the SIR equations, a chemical reactor by its rate equations, a

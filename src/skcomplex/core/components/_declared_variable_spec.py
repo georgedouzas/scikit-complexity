@@ -27,7 +27,7 @@ class _DeclaredVariableSpec(BaseSpec):
 
     Raises:
         ValidationError:
-            The spec is no `StateSpec`, `ParameterSpec`, or `RoleSpec`, raised when its owner checks it.
+            The spec is no `_StateSpec`, `_ParameterSpec`, or `RoleSpec`, raised when its owner checks it.
     """
 
     value: object
@@ -38,7 +38,7 @@ class _DeclaredVariableSpec(BaseSpec):
 
         Raises:
             ValidationError:
-                The spec is no `StateSpec`, `ParameterSpec`, or `RoleSpec`.
+                The spec is no `_StateSpec`, `_ParameterSpec`, or `RoleSpec`.
         """
         if not isinstance(self.spec, _StateSpec | _ParameterSpec | RoleSpec):
             error_msg = f'A declared variable is a state, a parameter, or a role, but its spec is {self.spec!r}.'

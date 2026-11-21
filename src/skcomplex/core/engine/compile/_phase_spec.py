@@ -26,7 +26,7 @@ class PhaseSpec(BaseSpec):
 
     Args:
         name:
-            The name of the phase, which rules name in `RuleLaw(function, phase=name)`.
+            The name of the phase, which rules name in `UpdateLaw(s, rule, phase=name)`.
 
         activation:
             The activation policy.

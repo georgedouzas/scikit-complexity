@@ -599,8 +599,8 @@ class NeighborhoodKernel(BaseKernel):
         position = NeighborhoodKernel._get_position_state(states)
         if position is None or states[position].order <= 1:
             error_msg = (
-                'The cone has no direction: the position of the members has no first derivative. Declare the position '
-                "of order 2, `state(vector=True, order=2, role='position')`, or name a direction state, such as "
+                'The cone has no direction: the position of the members has no first derivative. Give the position a '
+                "rate law on `x.diff(t, 2)` or a starting velocity `x'`, or name a direction state, such as "
                 "`RadiusNeighborhood(r, angle=angle, direction='theta')`."
             )
             raise ValidationError(error_msg)

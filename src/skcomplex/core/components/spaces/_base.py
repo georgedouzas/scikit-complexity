@@ -355,7 +355,7 @@ class _BaseTime(BaseComponent[None]):
     returns the times of the frames of a run up to a time.
 
     Unlike `BaseSpace`, which says where members are, it says how the states advance. Choose it when a system advances
-    in a new way, and choose `ContinuousTime`, `DiscreteTime`, or `StaticTime` otherwise.
+    in a new way, and choose `_ContinuousTime`, `_DiscreteTime`, or `_StaticTime` otherwise.
 
     It appears in every field through its subclasses, such as the flow of an epidemic in continuous time, the
     generations of a population in discrete time, and the static balance of an economy.

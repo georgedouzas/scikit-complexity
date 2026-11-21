@@ -21,7 +21,7 @@ class _DiscreteTime(_BaseTime):
     The laws it accepts are updates, agent rules, local rules, rewrites, and Monte Carlo samples. A `schedule` may order
     the laws of one step in phases.
 
-    Unlike `ContinuousTime`, which flows, it advances by whole steps. Choose it when the model is a map, a cellular
+    Unlike `_ContinuousTime`, which flows, it advances by whole steps. Choose it when the model is a map, a cellular
     automaton, or an agent-based model.
 
     It appears in many fields. A population grows by generations, a cellular automaton steps its cells, agents trade in

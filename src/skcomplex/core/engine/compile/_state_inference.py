@@ -730,7 +730,7 @@ class _StateInference:
             for name, steps in _StateInference._get_lags(law, named).items():
                 lags[name] = max(steps, lags.get(name, 0))
             order = (
-                (law.order or 1)
+                (law._get_order() or 1)
                 if isinstance(law, RateLaw | NoiseLaw)
                 else 0 if isinstance(law, _LinearProgramLaw) else 1
             )

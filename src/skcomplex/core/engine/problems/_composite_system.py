@@ -96,8 +96,8 @@ class _CompositeSystem(BaseComponent[BaseSpace]):
                 The space the elements live on, which gives vector states their dimension, or `None` for none.
 
             time:
-                The time the system evolves in, `ContinuousTime`, `DiscreteTime` with its schedule, or `StaticTime`, or
-                `None` to infer it from the laws.
+                The time the system evolves in, `_ContinuousTime`, `_DiscreteTime` with its schedule, or
+                `_StaticTime`, or `None` to infer it from the laws.
 
             solver:
                 The solver of the laws of the system, which a nested system keeps as it keeps its time, or `None` for

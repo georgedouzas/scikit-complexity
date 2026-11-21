@@ -1012,7 +1012,7 @@ class LatticeProblemPass(BasePass):
             square = isinstance(record.space, LatticeSpace) and record.space.geometry == 'square'
             if not square and LatticeProblemPass._schedule_of(record.law) == 'checkerboard':
                 message = (
-                    f'The {type(record.law).__name__} of {record.path} uses the checkerboard schedule, which needs a '
+                    f'The {record.law._get_name()} of {record.path} uses the checkerboard schedule, which needs a '
                     f'square lattice, but the component lives on {record.space!r}.'
                 )
                 fix = (

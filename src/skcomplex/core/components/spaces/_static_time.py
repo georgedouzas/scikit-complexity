@@ -16,7 +16,7 @@ class _StaticTime(_BaseTime):
 
     The system holds only algebraic equations, constraints, and objectives, and a run solves them once, with no frames.
 
-    Unlike `ContinuousTime` and `DiscreteTime`, it has no dynamics. Choose it when the answer is a balance or an
+    Unlike `_ContinuousTime` and `_DiscreteTime`, it has no dynamics. Choose it when the answer is a balance or an
     optimum, not a path.
 
     It appears in many fields. Flux balance analysis finds the steady fluxes of a metabolic network, an economy finds

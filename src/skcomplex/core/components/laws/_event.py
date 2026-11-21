@@ -22,8 +22,9 @@ class EventLaw(BaseLaw):
     leaves the equations of a system as they are, so it combines with rate laws, and the trajectory records every
     crossing with its time and the states before and after it.
 
-    Unlike `BoundaryLaw`, which corrects a state once per step, it finds the time of the event within the tolerance of
-    the solver. Choose it when the time of the event matters, such as an impact or a threshold.
+    Unlike an `UpdateLaw` on a state that rate laws change, which corrects the state once per step, it finds the time
+    of the event within the tolerance of the solver. Choose it when the time of the event matters, such as an impact or
+    a threshold.
 
     It appears in many fields. A ball bounces off the floor, a neuron fires when its potential reaches a threshold, and
     a thermostat switches a heater at a set temperature.

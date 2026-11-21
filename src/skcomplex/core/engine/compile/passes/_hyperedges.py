@@ -360,7 +360,7 @@ class HyperedgeTables:
         """
         if not isinstance(value, Expression | FreeModuleElement | Number):
             error_msg = (
-                f'{spec.owner} returns {type(law).__name__} with the value {value!r} for the members of hyperedges '
+                f'{spec.owner} returns {law._get_name()} with the value {value!r} for the members of hyperedges '
                 'that change during a run, but a free row of the hypergraph switches off only a symbolic value. Write '
                 'the value as an expression, or keep the hyperedges fixed.'
             )
@@ -410,7 +410,7 @@ class HyperedgeTables:
         if isinstance(law, UpdateLaw) and spec.hyperedge == HYPEREDGE_LAWS:
             return law
         error_msg = (
-            f'{spec.owner} returns {type(law).__name__} for the members of hyperedges that change during a run, where '
+            f'{spec.owner} returns {law._get_name()} for the members of hyperedges that change during a run, where '
             'its free rows would write to a node. Write a rate, a noise, or a jump, or update the hyperedge member.'
         )
         raise ValidationError(error_msg)

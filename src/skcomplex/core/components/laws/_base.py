@@ -77,6 +77,10 @@ class BaseLaw(BaseComponent[str]):
         An example is continuous or discrete time.
         """
 
+    def _get_name(self) -> str:
+        """Return the name of the law in messages, the class users write it with."""
+        return type(self).__name__
+
     def _get_law_requirements(self) -> RequirementSpec:
         """Return what this law requires of a system.
 

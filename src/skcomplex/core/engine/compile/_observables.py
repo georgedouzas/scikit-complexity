@@ -14,7 +14,7 @@ from sage.all__sagemath_symbolics import SR, Expression, I, function
 from sage.modules.free_module_element import FreeModuleElement
 
 from ...components import EntrySpec, Observable
-from ...components._state_spec import _StateSpec as StateSpec
+from ...components._state_spec import _StateSpec
 from ...components.elements import Element
 from ...components.interactions import BaseInteraction
 from ...components.laws.utils import local_operator
@@ -26,7 +26,7 @@ from ...types import Array, Indices
 from .._utils import binding_of, bound_labels, declarations_of, symbol, symbols_of, vector
 from ..enums import ReadKind
 from ..problems import BaseProblemSpec, ProblemSpec, RunStateSpec
-from ..problems._composite_system import _CompositeSystem as CompositeSystem
+from ..problems._composite_system import _CompositeSystem
 from ..problems._declarations_spec import ACTIVE
 from ..problems._drive_kernel import DriveKernel
 from ..problems._expression_printer import ExpressionPrinter
@@ -60,7 +60,7 @@ class _HeldElement(Element):
     def __init__(
         self,
         label: str,
-        value: Annotated[float, StateSpec()] = 0.0,
+        value: Annotated[float, _StateSpec()] = 0.0,
         *,
         reduction: '_HeldReductionSpec | None' = None,
     ) -> None:
@@ -96,7 +96,7 @@ class ObservableEvaluator:
     """
 
     @staticmethod
-    def _get_role_paths(system: CompositeSystem, scope: str = '') -> set[str]:
+    def _get_role_paths(system: _CompositeSystem, scope: str = '') -> set[str]:
         """Return the paths from the root of everything roles of a system tree bind to."""
         paths = set()
         for interaction in system.interactions:
@@ -136,10 +136,10 @@ class ObservableEvaluator:
 
     @staticmethod
     def _copy_with_held_reductions(
-        system: CompositeSystem,
+        system: _CompositeSystem,
         reductions: Sequence['_HeldReductionSpec'],
         scope: str = '',
-    ) -> CompositeSystem:
+    ) -> _CompositeSystem:
         """Return a system tree that holds every reduction of agents in an element.
 
         The element is in the system of the group.
@@ -186,10 +186,10 @@ class ObservableEvaluator:
 
     @staticmethod
     def _copy_with_held_observables(
-        system: CompositeSystem,
+        system: _CompositeSystem,
         read: set[str],
         scope: str = '',
-    ) -> tuple[CompositeSystem, list[str]]:
+    ) -> tuple[_CompositeSystem, list[str]]:
         """Return a system tree that also holds every observable in `read` in an element.
 
         It also returns their paths.
@@ -232,7 +232,7 @@ class ObservableEvaluator:
         return copied, held
 
     @staticmethod
-    def _get_held_observables(system: CompositeSystem, nodes: list[_NodeSpec]) -> set[str]:
+    def _get_held_observables(system: _CompositeSystem, nodes: list[_NodeSpec]) -> set[str]:
         """Return the paths of the observables read only at synchronisation points.
 
         They are the observables that roles bind to and laws read only at those points.
@@ -1124,7 +1124,7 @@ class ObservableEvaluator:
         return node is not None and not node.is_agent and isinstance(observable.reduce, str)
 
     @staticmethod
-    def _get_lowerable_observables(system: CompositeSystem, nodes: list[_NodeSpec]) -> Declared:
+    def _get_lowerable_observables(system: _CompositeSystem, nodes: list[_NodeSpec]) -> Declared:
         """Return every observable of a system tree that laws can read, by path.
 
         Laws read them at the current state. An expression of a system's symbols is lowerable when every observable

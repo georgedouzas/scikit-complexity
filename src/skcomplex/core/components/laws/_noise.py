@@ -37,14 +37,12 @@ class NoiseLaw(BaseLaw):
 
     Args:
         target:
-            The symbol of a scalar state, or the column of symbols of a vector state.
+            The symbol of a scalar state, a derivative of it such as `x.diff(t)`, or the column of symbols of a vector
+            state.
 
         value:
             A symbolic expression, a `Call`, or a callable `f(t, values)`. A vector target gets one Wiener process per
             component.
-
-        order:
-            The order of the derivative the noise drives, checked against the state's order, or `None` to use it.
 
         convention:
             The stochastic calculus of the law, `'ito'`, `'stratonovich'`, or `'anti-ito'`. The compiler adds the
@@ -82,7 +80,6 @@ class NoiseLaw(BaseLaw):
         self,
         target: Target,
         value: object,
-        order: int | None = None,
         *,
         convention: str = 'ito',
         process: Process = None,
@@ -93,7 +90,6 @@ class NoiseLaw(BaseLaw):
         super().__init__(label)
         self.target = target
         self.value = value
-        self.order = order
         self.convention = convention
         self.process = process
         self.conserved = conserved
@@ -107,6 +103,10 @@ class NoiseLaw(BaseLaw):
     def _get_requirements(cls) -> RequirementSpec:
         """Return what the law requires of a system: continuous time."""
         return RequirementSpec(time=(_ContinuousTime,))
+
+    def _get_order(self) -> float | None:
+        """Return the order of the derivative the noise drives, `None` for its state."""
+        return None
 
     def _check_process(self) -> None:
         """Raise an error for a process that is not a label, labels, or a handle.

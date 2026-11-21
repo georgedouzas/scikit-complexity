@@ -2,17 +2,23 @@
 
 import numpy as np
 import pytest
+from sage.all__sagemath_symbolics import vector
 
 from skcomplex.core.components.elements import VisualSpec
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.systems import System
 from skcomplex.systems.general.elements import PointElement
-from skcomplex.systems.general.gradients import GradientInteraction
 
 
 def _flight(**members: object) -> System:
-    """Return points under a uniform pull of 1 along the second axis, the gradient of the potential `y`."""
-    gravity = GradientInteraction('gravity', target='ball', potential=lambda s: s.target.x[1], order=2)
+    """Return points under a uniform pull of 1 along the second axis, the acceleration `x'' = (0, -1)`."""
+    gravity = Interaction(
+        'gravity',
+        roles={'target': 'ball'},
+        laws=lambda s: [RateLaw(s.target.x.diff(s.t, 2), vector([0, -1]))],
+    )
     return System(elements=[PointElement('ball', **members)], interactions=[gravity], space=ContinuousSpace(n_dim=2))
 
 

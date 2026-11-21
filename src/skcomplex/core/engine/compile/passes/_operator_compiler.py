@@ -557,7 +557,7 @@ class OperatorCompiler(BaseCompiler):
                 The compiler adds no law of this class.
         """
         del generators, dissipators
-        error_msg = f'{owner} returns the law {type(law).__name__}, which {type(self).__name__} cannot compile.'
+        error_msg = f'{owner} returns the law {law._get_name()}, which {type(self).__name__} cannot compile.'
         raise IncompatibleLawsError(error_msg)
 
     def _get_interaction_laws(

@@ -246,7 +246,8 @@ class OrdersPass(BasePass):
             kept = orders.lags.get(reference.entry.name, 0) if reference is not None else 0
             if reference is None or not steps.is_integer() or not 0 < int(steps) <= kept:
                 error_msg = (
-                    f'{owner} uses {call}, but the state keeps {kept} past values. Declare more with `state(lags=...)`.'
+                    f'{owner} uses {call}, but the state keeps {kept} past values. Write a past value as `x(t=t - k)` '
+                    'with a whole number of steps `k` of at least 1.'
                 )
                 raise ValidationError(error_msg)
             replacements[call] = OrdersPass._get_companion_symbol(spec, item, f'_lag{int(steps)}')
@@ -280,14 +281,16 @@ class OrdersPass(BasePass):
         references = [spec.references.get(item) for item in components_of(law._get_targets()[0])]
         names = ', '.join(sorted({reference.entry.name for reference in references if reference is not None}))
         order: float = OrdersPass._get_state_order(law, spec, orders)
-        if law.order is not None and not float(law.order).is_integer():
+        given = law._get_order()
+        if given is not None and not float(given).is_integer():
             declared = {
                 orders.fractional.get(reference.entry.name, 1.0) for reference in references if reference is not None
             }
             order = max(declared, default=1.0)
-        if law.order is not None and law.order != order:
+        if given is not None and given != order:
+            stated = 'NoiseLaw' if isinstance(law, NoiseLaw) else 'RateLaw'
             error_msg = (
-                f'A {type(law).__name__} of {spec.owner} on {names} gives the derivative of order {law.order}, but the '
+                f'A {stated} of {spec.owner} on {names} gives the derivative of order {given}, but the '
                 f'state has order {order}. Write the law on the derivative of that order, such as `x.diff(t, {order})`.'
             )
             raise ValidationError(error_msg)
@@ -389,7 +392,7 @@ class OrdersPass(BasePass):
 
         Derivatives and lags are replaced and rates retargeted.
         """
-        owner = f'A {type(law).__name__} of {spec.owner}'
+        owner = f'A {law._get_name()} of {spec.owner}'
         if isinstance(law, JumpLaw):
             return JumpLaw(OrdersPass._substitute(law.rate, spec, orders, owner), law.changes)
         if isinstance(law, EventLaw | RenewalLaw):

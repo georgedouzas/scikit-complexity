@@ -452,7 +452,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
             name, quantity = self._get_quantity_of(target, spec)
             if quantity is not None:
                 error_msg = (
-                    f'A {type(law).__name__} of {spec.owner} changes {name}, which holds the quantity '
+                    f'A {law._get_name()} of {spec.owner} changes {name}, which holds the quantity '
                     f'{quantity!r}, by {value} outside any flow. Write the change as a flow, such as '
                     f"RateLaw({{s.{name.rpartition('.')[2]}: -1}}, f, label='outflow') for a flow out of the system."
                 )

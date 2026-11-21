@@ -30,7 +30,7 @@ class _FieldElement(_GroupElement):
     the neighbouring sites, and `discretization` says how they become numbers. Each state takes a boundary condition at
     the edges of a lattice.
 
-    Unlike `GroupElement`, it places one member at every site and gives its states spatial operators and boundary
+    Unlike `_GroupElement`, it places one member at every site and gives its states spatial operators and boundary
     conditions. Choose it when a model is a partial differential equation, a law for how a quantity changes in both time
     and space, solved on a grid, a network, or a mesh.
 

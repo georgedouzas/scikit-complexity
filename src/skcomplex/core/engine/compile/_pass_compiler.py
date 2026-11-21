@@ -817,7 +817,7 @@ class PassCompiler(BaseCompiler):
             names = [] if determined else [item.name for item in record.targets]
             for name in names:
                 if name in algebraic:
-                    law = type(record.law).__name__
+                    law = record.law._get_name()
                     message = (
                         f'The {law} of {record.path} targets the algebraic state {name}, but the equations of the '
                         'system determine this state.'
@@ -1446,7 +1446,7 @@ class PassCompiler(BaseCompiler):
         """
         issues = []
         for record in records:
-            name = f'{type(record.law).__name__} of {record.path}'
+            name = f'{record.law._get_name()} of {record.path}'
             include = ('rate',) if isinstance(record.law, JumpLaw) else ('value',)
             values = record.law._get_values(include=include)
             if isinstance(record.law, _SampleLaw):
@@ -1500,7 +1500,7 @@ class PassCompiler(BaseCompiler):
             for draw in found.values():
                 if draw.kind in RELAXED_KINDS and draw.temperature is None:
                     message = (
-                        f'The {type(record.law).__name__} of {record.path} draws the {draw.kind} draw {draw.name!r} '
+                        f'The {record.law._get_name()} of {record.path} draws the {draw.kind} draw {draw.name!r} '
                         'without a temperature, which has no gradient on JAX.'
                     )
                     fix = f'Give the draw {draw.name!r} a temperature, such as `temperature=0.1`, to relax it.'
@@ -1520,7 +1520,7 @@ class PassCompiler(BaseCompiler):
         """
         issues = []
         for record in records:
-            name = f'{type(record.law).__name__} of {record.path}'
+            name = f'{record.law._get_name()} of {record.path}'
             include = ('rate',) if isinstance(record.law, JumpLaw) else ('value',)
             values = record.law._get_values(include=include)
             reductions = {str(item.call): item for value in values for item in hyperedges_in(value)}
@@ -1894,7 +1894,7 @@ class PassCompiler(BaseCompiler):
         by_path = {node.path: node for node in nodes}
         issues = []
         for record in records:
-            name = f'{type(record.law).__name__} of {record.path}'
+            name = f'{record.law._get_name()} of {record.path}'
             include = ('rate',) if isinstance(record.law, JumpLaw) else ('value',)
             values = record.law._get_values(include=include)
             reductions = {str(item.call): item for value in values for item in PassCompiler._get_reductions_of(value)}
@@ -2034,8 +2034,9 @@ class PassCompiler(BaseCompiler):
     @staticmethod
     def _get_law_name(record: _CensusRecordSpec) -> str:
         """Return the name of the law of a record, by its kind for a lowered law."""
-        name = type(record.law).__name__
-        name = f'{record.law.law_tag} law' if name.startswith('_') else name
+        law = record.law
+        name = law._get_name()
+        name = f'{law.law_tag} law' if name.startswith('_') else name
         return f'{name} of {record.path}'
 
     @staticmethod
@@ -2438,7 +2439,7 @@ class PassCompiler(BaseCompiler):
             listed = ', '.join(fixed) or 'none'
             where = f'the layer {request.layer!r}' if request.layer is not None else 'the network'
             message = (
-                f'The {type(record.law).__name__} of {record.path} requests {request!r}, which changes the fixed '
+                f'The {record.law._get_name()} of {record.path} requests {request!r}, which changes the fixed '
                 f'groups {listed}.'
             )
             if missing:

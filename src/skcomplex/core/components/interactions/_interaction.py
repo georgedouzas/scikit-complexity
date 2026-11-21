@@ -25,9 +25,9 @@ PAIR_ROLES = ('first', 'second')
 class Interaction(BaseInteraction):
     """An interaction whose laws run once for the elements its roles bind.
 
-    When a role binds a group, the laws run once for every member of the group, as arrays. A subclass takes its roles
-    and parameters as arguments of its `__init__`, annotated with `RoleSpec` or `ParameterSpec` inside `Annotated`, and
-    sets its laws in `laws_` from its `_prepare`, or takes them from `laws`.
+    When a role binds a group, the laws run once for every member of the group, as arrays. A subclass takes its roles,
+    typed `Role`, and its parameters as arguments of its `__init__`, and sets its laws in `laws_` from its `_prepare`,
+    or takes them from `laws`.
 
     Unlike `BaseInteraction`, it fixes how the laws run: once per bound element or member, or once per edge with
     `along`. Choose it when a law reads the elements it binds, such as predation between two populations, or the two

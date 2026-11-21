@@ -10,8 +10,9 @@ from ....errors import ValidationError
 def transfer(source: object, sink: object, amount: float, state: str, sink_state: str | None = None) -> None:
     """Move an amount of a quantity from one agent to another at once, inside a rule.
 
-    It is the imperative form of `TransferLaw` for agent rules. Both holdings change together, so the total of the
-    quantity over all agents is unchanged, and a negative holding is an amount the agent owes.
+    It is the imperative form of a flow between holdings, such as `RateLaw({s.source.cash: -1, s.target.cash: +1}, f,
+    label='pay')`, for agent rules. Both holdings change together, so the total of the quantity over all agents is
+    unchanged, and a negative holding is an amount the agent owes.
 
     Args:
         source:

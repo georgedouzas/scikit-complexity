@@ -36,6 +36,7 @@ from ....components.laws._boundary import _BoundaryLaw
 from ....components.laws._flow_term import FlowTermLaw
 from ....components.laws._linear_program import _LinearProgramLaw
 from ....components.laws._local_rule import _LocalRuleLaw
+from ....components.laws._ordered_rate import _OrderedRateLaw
 from ....components.laws._rule import _RuleLaw
 from ....components.laws._sample import _SampleLaw
 from ....components.laws._transfer import _TransferLaw
@@ -448,7 +449,7 @@ class CensusPass(BasePass):
             direct = [item for item in changed if not CensusPass._is_offset(item)]
             return next(iter(direct or changed))
         if not law._get_targets():
-            error_msg = f'A {type(law).__name__} of {spec.owner} changes no state of its component.'
+            error_msg = f'A {law._get_name()} of {spec.owner} changes no state of its component.'
             raise ValidationError(error_msg)
         return law._get_targets()[0]
 
@@ -965,7 +966,7 @@ class CensusPass(BasePass):
             if not any(FieldLowering._has_operators(item) for item in law.value):
                 return [law]
             pairs = zip(law.target, law.value, strict=True)
-            return [RateLaw(target, rate, law.order, label=law.label) for target, rate in pairs]
+            return [_OrderedRateLaw(target, rate, law._get_order(), label=law.label) for target, rate in pairs]
         if not isinstance(law.target, Matrix):
             return [law]
         references = [spec.references.get(item) for item in law.target.variables()]
@@ -976,7 +977,7 @@ class CensusPass(BasePass):
         tensor = entry.tensor
         targets = [law.target[row, column] for row, column in tensor.indices]
         if BaseLaw._is_function(law.value):
-            return [RateLaw(vector(targets), law.value, law.order, label=law.label)]
+            return [_OrderedRateLaw(vector(targets), law.value, law._get_order(), label=law.label)]
         if not isinstance(law.value, Matrix) or law.value.dimensions() != law.target.dimensions():
             error_msg = (
                 f'A rate law of {spec.owner} on the tensor state {entry.name} has the value {law.value}. Give a matrix '
@@ -985,7 +986,10 @@ class CensusPass(BasePass):
             raise TensorShapeError(error_msg)
         CensusPass._check_tensor_rate(law, entry.name, tensor, law.value)
         rates = [law.value[row, column] for row, column in tensor.indices]
-        return [RateLaw(target, rate, law.order, label=law.label) for target, rate in zip(targets, rates, strict=True)]
+        return [
+            _OrderedRateLaw(target, rate, law._get_order(), label=law.label)
+            for target, rate in zip(targets, rates, strict=True)
+        ]
 
     @staticmethod
     def _get_role_of(namespace: SimpleNamespace, holder: SimpleNamespace) -> str | None:
@@ -1131,7 +1135,7 @@ class CensusPass(BasePass):
             try:
                 checked.append(law.prepare(spec.owner))
             except ValidationError as error:
-                error_msg = f'{type(law).__name__} of {spec.owner}: {error}'
+                error_msg = f'{law._get_name()} of {spec.owner}: {error}'
                 raise ValidationError(error_msg) from error
         return [*rules, *checked]
 

@@ -331,7 +331,7 @@ class LowerComplexPass(BasePass):
 
         The law is a rate, noise, update, or boundary law.
         """
-        description = f'{type(law).__name__} of {owner}'
+        description = f'{law._get_name()} of {owner}'
         targets = components_of(law._get_targets()[0])
         values = (
             None
@@ -457,7 +457,7 @@ class LowerComplexPass(BasePass):
         if isinstance(law, ConstraintLaw):
             return LowerComplexPass._split_equation(law, owner)
         error_msg = (
-            f'A {type(law).__name__} of {owner} holds a complex value. {type(law).__name__}s take real states and '
+            f'A {law._get_name()} of {owner} holds a complex value. {law._get_name()}s take real states and '
             'real values.'
         )
         raise ValidationError(error_msg)
