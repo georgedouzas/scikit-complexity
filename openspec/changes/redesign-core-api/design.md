@@ -430,8 +430,11 @@ are the consumers of the core and of their field's common package.
 
 The old model that the engine still works on, `CompositeSystem`, `GroupElement`, `FieldElement`, `DeclaredElement`,
 `StateSpec` and its family, and the lowered laws such as `BoundaryLaw`, `SampleLaw`, `RuleLaw`, and `LocalRuleLaw`,
-becomes private records of the compiler. No public name of them is left, and the compiler keeps lowering the new laws
-onto them.
+becomes private records. No public name of them is left, and the compiler keeps lowering the new laws onto them. Each
+record lives in the lowest package that uses it, so the layers of the core hold: the old specs in
+`skcomplex.core.components`, the old laws and times in their own modules of the laws and spaces packages, and the old
+elements and the composite in `skcomplex.core.engine.problems`. `RoleSpec`, `VisualSpec`, and the value objects that
+`components/base.py` reads stay public in `skcomplex.core.components` and its elements package.
 
 Both specs packages, `skcomplex.core.specs` and `skcomplex.core.components.specs`, are removed. Every value lives
 beside the class that uses it: `RoleSpec` and `Role` with the interactions, `Tags` with the components, `Observable`
