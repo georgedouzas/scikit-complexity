@@ -67,14 +67,38 @@ GALLERY = Path('docs') / 'examples'
 OWN_RECEIVERS = ('self', 'cls', 'super()')
 DOCTESTS = doctest.DocTestParser()
 LAYOUT_PACKAGES = (
-    'skcomplex.core.analysis',
-    'skcomplex.core.experiments',
-    'skcomplex.core.components.spaces',
-    'skcomplex.core.engine.backends',
-    'skcomplex.core.engine.viz',
-    'skcomplex.core.enums',
-    'skcomplex.core.errors',
-    'skcomplex.core.types',
+    'skcomplex.core.experiments.',
+    'skcomplex.core.components.spaces.',
+    'skcomplex.core.engine.backends.',
+    'skcomplex.core.engine.viz.',
+    'skcomplex.core.enums.',
+    'skcomplex.core.errors.',
+    'skcomplex.core.types.',
+    *(
+        f'skcomplex.core.analysis.{module}.'
+        for module in (
+            '_alignment',
+            '_analysis_tags',
+            '_autocatalytic',
+            '_automata',
+            '_base',
+            '_cell_complex',
+            '_clusters',
+            '_coarse_grain',
+            '_collapse',
+            '_complexity',
+            '_computational_mechanics',
+            '_correlation',
+            '_defects',
+            '_discovery',
+            '_displacement',
+            '_distribution',
+            '_domains',
+            '_elementary_modes',
+            '_embedding',
+            '_emergence',
+        )
+    ),
 )
 LAYOUT_HEAD = ('summary', 'paragraph', 'user guide')
 LAYOUT_SECTIONS = ('Args:', 'Attributes:', 'Returns:', 'Raises:', 'Warns:', 'See Also:', 'Examples:')
