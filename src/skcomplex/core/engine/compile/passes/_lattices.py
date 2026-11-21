@@ -131,7 +131,7 @@ class LatticeProblemPass(BasePass):
 
     @staticmethod
     def _get_keywords(context: _LatticeContextSpec) -> _ArgumentsSpec:
-        """Return every parameter its component reads, which a function receives by keyword."""
+        """Return every parameter its component reads, which a rule receives by keyword."""
         names, starts, sizes = [], [], []
         for name, is_state, start, size in context.arguments.values():
             if not is_state:
