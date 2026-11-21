@@ -67,7 +67,9 @@ edge of each state by name, such as `boundary={'T': ('fixed', 0.0), 'c': 'zero-f
 - `('fixed', value)` holds the edge at a value, so a rod whose ends are held at 0 loses its heat through them.
 - A state the mapping does not name joins periodically.
 
-The equations keep the operators, such as `diff(u(t), t) == D*laplacian(u(t))`, and the backends evaluate the stencils.
+The equations keep the operators. The `equations_` of the prepared system read
+`{'rod.u[i]': 'conduction.D*laplacian(rod.u[i])'}`, one equation for every site `i`, and the backends evaluate the
+stencils.
 On Numba, the stencils of a lattice fuse into one compiled loop.
 
 Explicit steps stay stable only below the diffusive limit `h^2 / (2 d D)`, where `h` is the spacing. A trajectory

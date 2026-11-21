@@ -171,6 +171,37 @@ rk4, message
 says that the invariant changed from -2.65142 to -2.64349 at frame 1, time 1, beyond its tolerance. Forward Euler gains
 a little on every turn of the cycle, so a smaller step or a solver of higher order fixes it.
 
+### One model, two solvers
+
+The solver is a setting of the system, not of its parts, so the same laws can run in two ways. In the reaction
+`A + B -> C` of the [running examples](index.md#the-running-examples), a `JumpLaw` fires at the rate `0.01 a b` and
+turns one molecule of `A` and one of `B` into one of `C`. By default the system is a jump process, run molecule by
+molecule by `GillespieSolver`. Given `ScipyODESolver()`, the same system runs the rate equations of the mean, which
+chemists write for large amounts.
+
+```python continuation
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import JumpLaw
+from skcomplex.core.engine.solvers import ScipyODESolver
+from skcomplex.core.systems import System
+
+bind = Interaction(
+    'bind',
+    roles={'a': 'A', 'b': 'B', 'c': 'C'},
+    laws=lambda s: [JumpLaw(0.01 * s.a.n * s.b.n, {s.a.n: -1, s.b.n: -1, s.c.n: +1})],
+)
+molecules = [Element('A', values={'n': 100}), Element('B', values={'n': 80}), Element('C', values={'n': 0})]
+network = System(elements=molecules, interactions=[bind]).prepare()
+counted = network.simulate(until=5, dt=1, random_state=0).get_values('C.n').tolist()
+averaged = network.set_params(solver=ScipyODESolver()).prepare().simulate(until=5, dt=1).get_values('C.n')
+counted, averaged.round(1).tolist()
+```
+
+The jumps make 43, 58, 65, 68, and 69 molecules of `C` after one to five time units, and the rate equations make 42.0,
+56.9, 64.3, 68.8, and 71.7. With a hundred molecules the two agree within a few, and the fewer the molecules, the more
+chance decides what happens.
+
 ### Backends
 
 The library has three backends.
