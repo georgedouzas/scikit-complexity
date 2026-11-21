@@ -66,6 +66,45 @@ FAMILY_PAGES = {
 GALLERY = Path('docs') / 'examples'
 OWN_RECEIVERS = ('self', 'cls', 'super()')
 DOCTESTS = doctest.DocTestParser()
+LAYOUT_PACKAGES = (
+    'skcomplex.core.experiments.',
+    'skcomplex.core.components.spaces.',
+    'skcomplex.core.engine.backends.',
+    'skcomplex.core.engine.viz.',
+    'skcomplex.core.enums.',
+    'skcomplex.core.errors.',
+    'skcomplex.core.types.',
+    *(
+        f'skcomplex.core.analysis.{module}.'
+        for module in (
+            '_alignment',
+            '_analysis_tags',
+            '_autocatalytic',
+            '_automata',
+            '_base',
+            '_cell_complex',
+            '_clusters',
+            '_coarse_grain',
+            '_collapse',
+            '_complexity',
+            '_computational_mechanics',
+            '_correlation',
+            '_defects',
+            '_discovery',
+            '_displacement',
+            '_distribution',
+            '_domains',
+            '_elementary_modes',
+            '_embedding',
+            '_emergence',
+        )
+    ),
+)
+LAYOUT_HEAD = ('summary', 'paragraph', 'user guide')
+LAYOUT_SECTIONS = ('Args:', 'Attributes:', 'Returns:', 'Raises:', 'Warns:', 'See Also:', 'Examples:')
+REQUIRED_SECTIONS = ('See Also:', 'Examples:')
+USER_GUIDE_LINE = re.compile(r'Read more in the user guide, under [A-Z][\w ,]*\.')
+EXAMPLE_LINES = range(3, 7)
 CLASS_PACKAGES = (
     'skcomplex.core.components',
     'skcomplex.core.engine',
@@ -141,10 +180,6 @@ SUFFIXES = (
     'Error',
 )
 KINDS = {suffix: suffix.lower() for suffix in SUFFIXES} | {'Neighborhood': 'neighbourhood'}
-FAMILIES = (
-    *(f'skcomplex.core.components.{family}' for family in ('elements', 'interactions', 'laws', 'spaces')),
-    'skcomplex.systems.general',
-)
 COMPONENT_PACKAGES = (
     *(f'skcomplex.core.components.{family}' for family in ('elements', 'interactions', 'laws', 'spaces')),
     'skcomplex.core.systems',
@@ -1679,18 +1714,58 @@ def check_docstrings_say_main_public_methods(root: Path) -> list[str]:
     ]
 
 
-def check_components_compare_and_name_uses(root: Path) -> list[str]:
-    """Return every public class of a family that compares itself with no nearest part or names no uses."""
-    found = []
-    for place, name, _, docstring in _public_definitions(root, ast.ClassDef):
-        if not name.startswith(FAMILIES) or name.endswith('Spec'):
-            continue
-        paragraphs = [' '.join(paragraph.split()) for paragraph in docstring.split('\n\n')]
-        compares = any(p.startswith('Unlike') and 'Choose it when' in p for p in paragraphs)
-        names_uses = any(p.startswith('It appears in') for p in paragraphs)
-        if not (compares and names_uses):
-            found.append(f'{place}: {name} lacks its comparison or its uses')
-    return found
+def _layout_faults(docstring: str) -> list[str]:
+    """Return what the docstring of a public class or function lacks of the layout of the core."""
+    lines = docstring.splitlines()
+    headers = [line for line in lines if line in LAYOUT_SECTIONS]
+    head = '\n'.join(lines[: lines.index(headers[0])] if headers else lines)
+    blocks = [block.strip() for block in head.split('\n\n') if block.strip()]
+    faults = []
+    if len(blocks) != len(LAYOUT_HEAD) or '\n' in blocks[0]:
+        faults.append('no summary line, one paragraph, and a link to the user guide')
+    if not USER_GUIDE_LINE.fullmatch(blocks[-1]):
+        faults.append('no link to the user guide')
+    if headers != sorted(set(headers), key=LAYOUT_SECTIONS.index):
+        faults.append('sections out of order')
+    faults += [f'no {section.removesuffix(":")}' for section in REQUIRED_SECTIONS if section not in headers]
+    return faults
+
+
+def _example_faults(docstring: str) -> list[str]:
+    """Return what makes the Examples section of a docstring long or built on a class of its own."""
+    _, found, examples = docstring.partition('\nExamples:\n')
+    lines = [line.strip() for line in examples.splitlines() if line.strip()]
+    faults = []
+    if found and len(lines) not in EXAMPLE_LINES:
+        faults.append(f'an example of {len(lines)} lines')
+    if any(re.match(r'(>>>|\.\.\.) +class ', line) for line in lines):
+        faults.append('an example that defines a class')
+    return faults
+
+
+def _layout_definitions(root: Path) -> Iterator[tuple[str, str, str, str]]:
+    """Return every public class and function of the packages that follow the layout of the core."""
+    for definition in [*_public_definitions(root, ast.ClassDef), *_public_definitions(root, ast.FunctionDef)]:
+        if definition[1].startswith(LAYOUT_PACKAGES):
+            yield definition
+
+
+def check_docstrings_follow_the_layout(root: Path) -> list[str]:
+    """Return every public class or function of the layout packages whose docstring breaks the layout."""
+    return [
+        f'{place}: {name}: {", ".join(faults)}'
+        for place, name, _, docstring in _layout_definitions(root)
+        if (faults := _layout_faults(docstring))
+    ]
+
+
+def check_examples_are_short(root: Path) -> list[str]:
+    """Return every public class or function of the layout packages with a long example or one built on a class."""
+    return [
+        f'{place}: {name}: {", ".join(faults)}'
+        for place, name, _, docstring in _layout_definitions(root)
+        if (faults := _example_faults(docstring))
+    ]
 
 
 def check_every_error_is_raised_in_the_library(root: Path) -> list[str]:
@@ -2287,7 +2362,62 @@ def check_part_names_are_named(folder: Path) -> list[str]:
     return _expected('_parts_of', _parts_of(folder, [path], [], [page]), expected)
 
 
+def check_layout_faults_are_named(folder: Path) -> list[str]:
+    """Return a finding unless a docstring in the layout passes, and one with no link and a long example does not."""
+    path = _write_module(
+        folder,
+        'planted',
+        """
+        class LatticeSpace:
+            \"\"\"A space of sites.
+
+            It places the members on sites.
+
+            Read more in the user guide, under Spaces.
+
+            See Also:
+                NetworkSpace: Places the members on nodes.
+
+            Examples:
+                >>> from skcomplex.core.components.spaces import LatticeSpace
+                >>> LatticeSpace((3,)).prepare().shape_
+                (3,)
+            \"\"\"
+
+
+        class Grid:
+            \"\"\"A space of sites.
+
+            It places the members on sites.
+
+            See Also:
+                NetworkSpace: Places the members on nodes.
+
+            Examples:
+                >>> from skcomplex.core.components.spaces import LatticeSpace
+                >>> class Grid(LatticeSpace): ...
+                >>> Grid((3,)).prepare().shape_
+                (3,)
+                >>> Grid((4,)).prepare().shape_
+                (4,)
+                >>> Grid((5,)).prepare().shape_
+                (5,)
+            \"\"\"
+        """,
+    )
+    good, bad = (ast.get_docstring(node) or '' for node in _read_tree(path).body)
+    found = [_layout_faults(good), _example_faults(good), _layout_faults(bad), _example_faults(bad)]
+    expected = [
+        [],
+        [],
+        ['no summary line, one paragraph, and a link to the user guide', 'no link to the user guide'],
+        ['an example of 8 lines', 'an example that defines a class'],
+    ]
+    return _expected('_layout_faults', found, expected)
+
+
 SELF_CHECKS = (
+    check_layout_faults_are_named,
     check_misplaced_constants_are_named,
     check_constant_gaps_are_named,
     check_unowned_functions_are_named,
@@ -2324,7 +2454,8 @@ CHECKS = (
     check_docstrings_read_naturally,
     check_class_summaries_name_their_kind,
     check_docstrings_say_main_public_methods,
-    check_components_compare_and_name_uses,
+    check_docstrings_follow_the_layout,
+    check_examples_are_short,
     check_every_error_is_raised_in_the_library,
     check_every_dataclass_is_a_frozen_spec_or_result,
     check_enums_and_protocols_live_in_their_modules,

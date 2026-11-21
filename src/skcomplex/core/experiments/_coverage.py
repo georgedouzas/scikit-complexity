@@ -25,12 +25,14 @@ POSTERIOR_METHODS = (CalibrationMethodKind.ABC_SMC, CalibrationMethodKind.MCMC, 
 
 @dataclass(frozen=True)
 class CoverageResult:
-    """A result of `posterior_coverage`, how often credible intervals hold the truth.
+    """A result of `posterior_coverage`, how often the intervals hold the true values.
 
-    The data are simulated from prior draws.
+    It holds, for every level and parameter, the share of the simulated data sets whose central interval holds the true
+    value, such as 0.9 for a level of 0.9 when the intervals are right. It also holds the rank of every true value among
+    its samples, which is uniform for a sound method. It checks the intervals of the rates of an epidemic, the constants
+    of a reaction, and the parameters of a climate model.
 
-    A calibrated posterior covers the true value with its central interval of level `q` in a share `q` of the data
-    sets, and the ranks of the true values among their samples are uniform, as simulation-based calibration checks.
+    Read more in the user guide, under Calibrate.
 
     Args:
         levels:
@@ -47,6 +49,9 @@ class CoverageResult:
 
         results:
             The calibration of every data set.
+
+    See Also:
+        posterior_coverage: Returns this result.
 
     Examples:
         >>> from skcomplex.core.experiments import CoverageResult
@@ -138,15 +143,15 @@ def posterior_coverage(
     random_state: int | None = None,
     executor: str | Executor = 'serial',
 ) -> CoverageResult:
-    """Return the empirical coverage of the credible intervals of a posterior method.
+    """Return how often the intervals of a sampling calibration hold the true values.
 
-    It draws `n` true parameter vectors from the priors the bounds give, simulates data at each at the given times with
-    Gaussian noise of a standard deviation, calibrates every data set with the posterior method, and counts how often
-    the central credible interval of every level holds the true value. It also gives the rank of every true value among
-    its samples, the check of simulation-based calibration (Talts et al. 2018).
+    It draws `n` sets of true parameters from the priors that `bounds` give, simulates noisy data from each, calibrates
+    every data set, and counts how often the central interval of every level holds the true value. A sound method covers
+    the truth with its 90% interval in 90% of the data sets. It also ranks every true value among its samples, the check
+    of Talts et al. (2018). It is run before trusting a calibration of an epidemic, a climate model, or a chemical
+    reaction on real data.
 
-    It appears in every Bayesian calibration that needs to check its intervals, such as of the rates of an epidemic, of
-    the parameters of a climate model, or of the constants of a reaction, before trusting them on real data.
+    Read more in the user guide, under Calibrate.
 
     Args:
         system:
@@ -210,24 +215,16 @@ def posterior_coverage(
             The method is not a posterior method, the loss does not fit it, a level is not between 0 and 1, `n` is not
             a positive integer, or the executor is unknown or runs numpyro on threads.
 
+    See Also:
+        calibrate: Fits the parameters of a system to data.
+
     Examples:
-        >>> import numpy as np
         >>> from skcomplex.core.experiments import posterior_coverage
         >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
-        >>> result = posterior_coverage(
-        ...     LogisticGrowthSystem(n=10.0),
-        ...     {'r': (0.5, 1.0)},
-        ...     np.arange(0.0, 11.0),
-        ...     method='variational',
-        ...     n=3,
-        ...     levels=(0.9,),
-        ...     noise=5.0,
-        ...     n_samples=100,
-        ...     budget=300,
-        ...     random_state=0,
-        ... )
-        >>> sorted(result.coverage[0.9]), result.ranks['r'].shape
-        (['r'], (3,))
+        >>> settings = dict(method='variational', n=3, levels=(0.9,), noise=5.0, n_samples=100, budget=300)
+        >>> result = posterior_coverage(LogisticGrowthSystem(n=10.0), {'r': (0.5, 1.0)}, list(range(11)), **settings)
+        >>> result.ranks['r'].shape
+        (3,)
     """
     source = _check_source(system)
     if method not in POSTERIOR_METHODS:

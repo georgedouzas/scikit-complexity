@@ -35,21 +35,14 @@ def sweep(
 ) -> ExperimentResult:
     """Return the runs of a system over rows of values.
 
-    It is in the role of `validation_curve` of scikit-learn. A name without a dot is a name `set_params` takes, such as
-    the model parameter `r` or the nested name `growth__r` of a `System`. Every value of it is set on a clone of the
-    system, which is prepared again, or passed to the factory. A dotted path names an initial state or a parameter of a
-    component, such as `population.x` or `growth.r`, which keeps its value for the whole run, and the rows that differ
-    only by dotted paths simulate one prepared clone. The rows come from the design:
+    It runs a copy of the system for every row of values, as `validation_curve` of scikit-learn does, such as
+    `sweep(system, {'r': [0.5, 1.0]})` for two growth rates. A name without a dot, such as `r` or the nested
+    `growth__r`, is set with `set_params` and the copy is prepared again, and a dotted path, such as `population.x`,
+    sets a value of a component on one prepared copy. The rows come from a grid or a random design, and the system
+    passed in is left unchanged. It maps the change of state of a magnet over temperature, the final size of an epidemic
+    over its rate of infection, and the clusters of opinions over the confidence of the voters.
 
-    - `'grid'`: every combination of a sequence of values per name, the last name varying fastest.
-    - `'random'`: `n` independent samples, uniform within a pair `(low, high)` or drawn from a SciPy distribution.
-    - `'latin_hypercube'`: `n` samples of a Latin hypercube, one in every stratum of every name.
-    - `'sobol'`: `n` points of a scrambled Sobol sequence, best with `n` a power of 2.
-
-    A sequence of rows, each a mapping from name to value, runs as it is.
-
-    It appears in many fields. It maps the phase transition of a magnet over temperature, the final size of an epidemic
-    over its rate of infection, and the clusters of an opinion model over its confidence bound.
+    Read more in the user guide, under Run experiments.
 
     Args:
         system:
@@ -60,7 +53,11 @@ def sweep(
             What the design reads by name, or the rows to run.
 
         design:
-            The design of the rows, one of the designs above.
+            The design of the rows. `'grid'` runs every combination of a sequence of values per name, the last name
+            varying fastest. `'random'` draws `n` samples, uniform within a pair `(low, high)` or from a SciPy
+            distribution. `'latin_hypercube'` draws `n` samples with one in every stratum of every name. `'sobol'`
+            takes `n` points of a scrambled Sobol sequence, best with `n` a power of 2. A sequence of rows, each a
+            mapping from name to value, runs as it is.
 
         n:
             The number of rows of a sampled design.
@@ -111,20 +108,16 @@ def sweep(
         ExperimentError:
             The system is a name, or the worker processes stop before finishing.
 
+    See Also:
+        ensemble: Runs a system many times with independent random streams.
+        sensitivity: Ranks the inputs of a system by their effect on an output.
+
     Examples:
         >>> from skcomplex.core.experiments import sweep
         >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
         >>> result = sweep(LogisticGrowthSystem(), {'r': [0.5, 1.0]}, until=5, outputs=['population.x'])
-        >>> len(result.rows)
-        2
-
-        A `System` takes the nested names of its components, and the system passed in is left unchanged:
-
-        >>> from skcomplex.core.systems import System
-        >>> system = System(systems=[LogisticGrowthSystem(label='meadow')])
-        >>> result = sweep(system, {'meadow__r': [0.5, 1.0]}, until=5, outputs=['meadow/population.x'])
-        >>> result.get_column('meadow__r').tolist(), system.get_params()['meadow__r']
-        ([0.5, 1.0], 1.0)
+        >>> result.get_column('r').tolist()
+        [0.5, 1.0]
     """
     rows = _get_rows(parameters, design, n, random_state)
     return _run_experiment(

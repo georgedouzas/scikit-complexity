@@ -21,9 +21,11 @@ from .types import AnySystem, SystemSource
 def build_system(source: SystemSource, arguments: Mapping[str, object], solver: BaseSolver | None = None) -> AnySystem:
     """Return a copy of the system of a source with parameters set.
 
-    A system is cloned and takes the arguments through `set_params`, as `cross_val_score` clones an estimator, so the
-    system of the user never changes. The names are those `set_params` takes, such as the model parameter `r` of a
-    ready-made system or the nested name `growth__r` of a `System`. A factory takes them as keyword arguments.
+    It clones a system and sets the parameters with `set_params`, as `cross_val_score` clones an estimator, so the
+    system of the user never changes, or it calls a factory with them, such as `{'r': 0.3}` for the growth rate of a
+    population. Every experiment builds its runs with it, for an epidemic, a market, or a magnet alike.
+
+    Read more in the user guide, under Run experiments.
 
     Args:
         source:
@@ -45,6 +47,15 @@ def build_system(source: SystemSource, arguments: Mapping[str, object], solver: 
 
         ExperimentError:
             The factory returns no system.
+
+    See Also:
+        simulate_system: Runs the system it returns.
+
+    Examples:
+        >>> from skcomplex.core.experiments._utils import build_system
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+        >>> build_system(LogisticGrowthSystem(), {'r': 0.3}).r
+        0.3
     """
     if isinstance(source, BaseSystem | _CompositeSystem):
         deep = isinstance(source, BaseSystem)
@@ -70,9 +81,11 @@ def build_system(source: SystemSource, arguments: Mapping[str, object], solver: 
 def get_problem(system: AnySystem) -> BaseProblemSpec:
     """Return the compiled problem of a system.
 
-    Its layouts name the states and parameters of the system.
+    It prepares the system when it is not prepared yet and returns the problem its laws compile into, whose layouts name
+    the states and the parameters, such as the growth rate of a population. Experiments read it to find the values they
+    set, for an epidemic, a reaction, or a market alike.
 
-    A system that is prepared already is not prepared again.
+    Read more in the user guide, under Run experiments.
 
     Args:
         system:
@@ -81,6 +94,15 @@ def get_problem(system: AnySystem) -> BaseProblemSpec:
     Returns:
         problem:
             The compiled problem.
+
+    See Also:
+        build_system: Returns the copy of a system with parameters set.
+
+    Examples:
+        >>> from skcomplex.core.experiments._utils import get_problem
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+        >>> get_problem(LogisticGrowthSystem()).backend
+        'numpy'
     """
     if isinstance(system, BaseSystem):
         prepared = system if hasattr(system, 'system_') else system.prepare()
@@ -100,8 +122,11 @@ def simulate_system(
 ) -> Trajectory:
     """Return one run of a system.
 
-    A system with `prepare` and `simulate` is prepared the first time it runs, and every later run reuses it. Its solver
-    is a setting that `build_system` sets. A system of the old kind runs through the function `simulate`.
+    It prepares the system the first time it runs and reuses it later, then simulates it to `until`, such as five units
+    of time of a growing population. Every experiment runs its systems through it, for an epidemic, a market, or a
+    magnet alike.
+
+    Read more in the user guide, under Run experiments.
 
     Args:
         system:
@@ -125,6 +150,15 @@ def simulate_system(
     Returns:
         trajectory:
             The trajectory of the run.
+
+    See Also:
+        build_system: Returns the copy of a system with parameters set.
+
+    Examples:
+        >>> from skcomplex.core.experiments._utils import simulate_system
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+        >>> float(simulate_system(LogisticGrowthSystem(), until=5.0).times[-1])
+        5.0
     """
     if isinstance(system, BaseSystem):
         prepared = system if hasattr(system, 'system_') else system.prepare()

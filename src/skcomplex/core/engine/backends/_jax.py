@@ -1,4 +1,4 @@
-"""Run compiled problems in JAX."""
+"""Define the backend that writes functions JAX compiles and differentiates."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -44,14 +44,14 @@ type TracedValues = Callable[[object, TracedArray, TracedArray], list[TracedArra
 class JaxBackend(BaseBackend):
     """A backend that writes discrete maps and differential equations as JAX functions.
 
-    The ODEs are ordinary differential equations. The functions return new arrays instead of writing into buffers, so
-    JAX traces, compiles, and differentiates them. Reductions lower to sums, means, and matrix products, and a reduction
-    weighted by a shaped parameter to the product with its block of the parameter vector reshaped into a matrix. The
-    forward functions in `functions_` take and return NumPy arrays and compute in double precision. Rule, noise, and
-    jump laws, reductions over neighbourhoods, and laws given as Python callables have no JAX form.
+    It writes the rate function `f(t, x, p)` of `x' = f(t, x, p)`, or the next state of a map, as a function that
+    returns new arrays, so JAX can compile it, run it on a GPU, and take its gradient, as in
+    `System(..., backend=JaxBackend())`. The functions in `functions_` take and return NumPy arrays in double
+    precision, and `traced_` is the pure JAX function. Rule, noise, and jump laws, sums over neighbourhoods, and laws
+    given as Python functions have no JAX form. The rates of an epidemic are fitted by gradients, a neural
+    differential equation is trained, and the parameters of a circuit are tuned.
 
-    Choose it when a run must be differentiated, as in gradient-based calibration, or run on a GPU. It appears in many
-    fields, such as fitting the rates of an epidemic by gradients and training a neural differential equation.
+    Read more in the user guide, under Backends.
 
     Attributes:
         functions_:
@@ -61,14 +61,15 @@ class JaxBackend(BaseBackend):
             The pure JAX function `f(t, x, p)` of the form of the kernels of the last run, the drift of ordinary
             differential equations or the update of a discrete map.
 
+    See Also:
+        NumpyBackend: Writes the functions with NumPy, the default.
+        NumbaBackend: Compiles the functions to machine code.
+
     Examples:
         >>> from skcomplex.core.engine.backends import JaxBackend
-        >>> from skcomplex.core.systems import System
-        >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
-        >>> growth = ExponentialGrowthInteraction('growth', target='a')
-        >>> system = System(elements=[PopulationElement('a', x=2.0)], interactions=[growth], backend=JaxBackend())
-        >>> problem = system.prepare().simulate(until=0).problem
-        >>> problem.backend
+        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+        >>> system = LotkaVolterraSystem(backend=JaxBackend()).prepare()
+        >>> system.simulate(until=1.0).problem.backend
         'jax'
     """
 

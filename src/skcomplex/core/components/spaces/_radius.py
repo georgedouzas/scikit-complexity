@@ -18,39 +18,25 @@ HEXAGONAL_DIMENSIONS = 2
 class RadiusNeighborhood(BaseNeighborhood):
     """A neighbourhood of the members within a distance under a metric.
 
-    In a continuous space, it is the members whose positions lie within `radius`, by the nearest periodic image in a
-    periodic box. With an `angle` below `pi`, a neighbour must also lie in the cone around the direction of the member,
-    so `angle = pi` is the whole disk and `angle = pi / 2` the half ahead. The direction is a vector state of the
-    members, or in two dimensions a scalar state that holds the angle.
+    A law that reads it sees every member within `radius` of a member, so the number of neighbours varies, such as the
+    eight cells around a cell in `RadiusNeighborhood(1, metric='chebyshev')`. In a continuous space the distance runs
+    between positions, across the walls of a periodic box, and an `angle` below `pi` keeps only the members in a cone
+    ahead of the member. On a lattice the neighbours are the offsets within the radius under the metric, and with
+    `center` the site itself comes first. Birds align with the flockmates they can see, atoms push on the atoms within
+    a cutoff, a sandpile topples grains onto its four neighbours, and a cell of the Game of Life counts its eight.
 
-    On a lattice, it is the offsets within `radius` under the metric, in as many dimensions as the lattice has:
-
-    - `'euclidean'`: the length of the offset is at most the radius.
-    - `'chebyshev'`: every coordinate of the offset is at most the radius. For radius 1 in two dimensions these are the
-      8 cells of the Moore neighbourhood.
-    - `'manhattan'`: the sum of the absolute coordinates is at most the radius. For radius 1 in two dimensions these are
-      the 4 cells of the von Neumann neighbourhood.
-    - `'hexagonal'`: `max(|a|, |b|, |a + b|)` is at most the radius on a triangular lattice, in two dimensions. The
-      offsets come ring by ring, each counterclockwise, and for radius 1 direction `k` points at `60 k` degrees.
-
-    The other metrics give the offsets in lexicographic order. With `center`, the site itself comes first.
-
-    Unlike `NearestNeighborhood`, which takes a fixed number of members, it takes every member within a distance, so the
-    number of neighbours varies. Unlike `LatticeNeighborhood`, which takes its offsets one by one, it builds them from a
-    radius and a metric. Choose it when members sense others up to a range, or when a law reads the usual neighbours on
-    a grid.
-
-    It appears in many fields. Birds align with flockmates within sight in the Vicsek model, atoms interact within a
-    cutoff, a sandpile topples grains to its four neighbours, and a cell of the Game of Life counts its eight
-    neighbours.
+    Read more in the user guide, under Spaces.
 
     Args:
         radius:
             The largest distance of a neighbour.
 
         metric:
-            `'euclidean'`, `'chebyshev'`, `'manhattan'`, or `'hexagonal'`. A continuous space measures euclidean
-            distances.
+            How a lattice measures the length of an offset. With `'euclidean'` it is the straight length. With
+            `'chebyshev'` it is the largest coordinate, so radius 1 in two dimensions gives the 8 cells around a cell.
+            With `'manhattan'` it is the sum of the coordinates, so radius 1 gives the 4 cells beside it. With
+            `'hexagonal'` it is `max(|a|, |b|, |a + b|)` on a triangular lattice, and the offsets come ring by ring,
+            counterclockwise. A continuous space measures straight lengths.
 
         angle:
             The half-angle of the cone, between 0 and `pi`, which is the whole disk. A lattice takes the whole disk.
@@ -65,13 +51,16 @@ class RadiusNeighborhood(BaseNeighborhood):
         label:
             The name of the neighbourhood, such as `'moore'`.
 
+    See Also:
+        NearestNeighborhood: Picks a fixed number of the closest members.
+        LatticeNeighborhood: Takes its offsets one by one.
+        DelaunayNeighborhood: Picks the members that touch, whatever the distance.
+
     Examples:
         >>> import math
         >>> from skcomplex.core.components.spaces import RadiusNeighborhood
-        >>> RadiusNeighborhood(1, metric='chebyshev').prepare().metric
-        'chebyshev'
-        >>> RadiusNeighborhood(1.0, angle=math.pi / 2, direction='theta').direction
-        'theta'
+        >>> RadiusNeighborhood(1.0, angle=math.pi / 2).prepare().angle
+        1.5707963267948966
     """
 
     def __init__(

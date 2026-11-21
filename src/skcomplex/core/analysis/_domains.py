@@ -35,7 +35,13 @@ TAGS = AnalysisTags(DataKind.FIELD)
 
 @dataclass(frozen=True)
 class DomainsResult:
-    """A result of `domains`, the domains of a field or of states on a network.
+    """A result of `domains`, the size, growth, or pattern of the regions of a field.
+
+    It holds the size of the regions of equal value in every frame, the exponent of their growth, the dominant
+    wavelength and orientation of a pattern, or the share of neighbours that differ, such as `[0.25]` for stripes two
+    sites wide. It reports the growth of magnetic domains, of regions of opinion, and of the phases of an alloy.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         frames:
@@ -61,6 +67,14 @@ class DomainsResult:
 
         density:
             The interface density of every frame, for `'interface-density'`.
+
+    See Also:
+        domains: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import domains
+        >>> domains([[1, 1, -1, -1]] * 4, kind='interface-density').density.tolist()
+        [0.25]
     """
 
     frames: list[nx.Graph] | Array
@@ -84,33 +98,27 @@ def domains(
     times: Sequence[float] | None = None,
     attribute: str = 'state',
 ) -> DomainsResult:
-    """Return the domains of every frame of a field, or of the states on a network.
+    """Return the regions of every frame of a field, or of the states on a network.
 
-    The domains are of one kind.
+    A domain is a region of equal value, such as a patch of spins pointing up. It measures their typical size, how fast
+    they grow, the dominant wavelength of a pattern, or the share of neighbours whose values differ, 0 for one domain
+    and 1/2 for random values. A trajectory gives the frames and times of a lattice value, and a graph holds values on
+    its nodes. It measures the growth of magnetic domains after a quench, of regions of opinion in a voter model, and of
+    the phases of an alloy.
 
-    The kinds read frames of a field on a periodic grid:
-
-    - `'size'`: the characteristic domain size, `2 pi / <k>` over the structure factor with `method='moment'`, or the
-      first zero of the correlation function with `method='zero'`.
-    - `'growth'`: the domain size of every frame and the exponent of its growth in time, the slope of `log size`
-      against `log time` over the fit range, 1/2 for non-conserved and 1/3 for conserved order parameters.
-    - `'wavelength'`: the dominant wavelength and wavenumber of a pattern, the peak of its structure factor, and the
-      nematic order of the wave vectors near the peak, 1 for parallel stripes and near 0 for labyrinths or spots.
-    - `'interface-density'`: the share of neighbouring pairs, on a periodic grid without corners or along the edges of
-      a network, whose states differ, 0 for one domain and 1/2 for random binary states.
-
-    A trajectory gives the frames of a lattice state and their times. An array is one frame, or one frame per entry of
-    `times` along its first axis. A graph carries the states on its nodes for `'interface-density'`.
-
-    It appears in many fields. It measures the growth of magnetic domains after a quench, of opinion regions in a voter
-    model, and of phases in an alloy.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
             The trajectory, an array of frames, or a graph.
 
         kind:
-            The domain measure to compute, one of the kinds above.
+            `'size'` gives the typical size, `2 pi / <k>` of the structure factor with `method='moment'` or the first
+            zero of the correlation with `method='zero'`. `'growth'` gives the size of every frame and the slope of
+            `log size` against `log time`, 1/2 when the total is free and 1/3 when it is kept. `'wavelength'` gives the
+            peak of the structure factor and how parallel the waves near it are, 1 for stripes. `'interface-density'`
+            gives the share of neighbouring pairs whose values differ, on a periodic grid or along the edges of a
+            network.
 
         variables:
             The lattice state of a trajectory to read, or `None` for the first one.
@@ -139,16 +147,12 @@ def domains(
             The kind or method is unknown, a setting the kind does not read is changed, the spacing is not positive,
             or a kind that reads a field is given a graph.
 
+    See Also:
+        clusters: Finds the clusters of a grid.
+        correlation: Measures how far order reaches.
+
     Examples:
-        >>> import numpy as np
         >>> from skcomplex.core.analysis import domains
-        >>> x = np.arange(256)
-        >>> stripes = np.sign(np.cos(2 * np.pi * x / 16))
-        >>> domains(stripes[:64], method='zero').size.tolist()
-        [4.0]
-        >>> stack = [np.sign(np.cos(2 * np.pi * x / (8 * t))) for t in (1, 2, 4)]
-        >>> round(domains(stack, kind='growth', method='zero', times=[1, 2, 4]).exponent, 2)
-        1.0
         >>> domains([[1, 1, -1, -1]] * 4, kind='interface-density').density.tolist()
         [0.25]
     """

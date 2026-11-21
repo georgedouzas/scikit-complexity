@@ -10,14 +10,13 @@ from ._base import BaseNeighborhood
 class NearestNeighborhood(BaseNeighborhood):
     """A neighbourhood of the `k` members of a continuous space closest to a member.
 
-    Distances are measured between the position states of the members, by the nearest periodic image in a periodic box.
-    A group of at most `k` other members gives every member all the others.
+    A law that reads it sees the `k` members closest to a member, however far they are, such as the seven closest
+    birds in `NearestNeighborhood(7)`. Distances run between the positions of the members, across the walls of a
+    periodic box, and a group of at most `k` other members gives every member all the others. Starlings follow their
+    seven nearest neighbours, fish school by their closest neighbours, and the robots of a swarm align with the
+    nearest robots.
 
-    Unlike `RadiusNeighborhood`, which takes every member within a distance, it takes a fixed number of members,
-    whatever their distance. Choose it when each member attends to a fixed number of others.
-
-    It appears in many fields. Starlings in a flock follow their seven nearest neighbours, fish school by their closest
-    neighbours, and robots of a swarm align with the nearest robots.
+    Read more in the user guide, under Spaces.
 
     Args:
         k:
@@ -29,9 +28,13 @@ class NearestNeighborhood(BaseNeighborhood):
         label:
             The name of the neighbourhood, such as `'moore'`.
 
+    See Also:
+        RadiusNeighborhood: Picks every member within a distance, however many.
+        DelaunayNeighborhood: Picks the members that touch.
+
     Examples:
         >>> from skcomplex.core.components.spaces import NearestNeighborhood
-        >>> NearestNeighborhood(7).k
+        >>> NearestNeighborhood(7).prepare().k
         7
     """
 

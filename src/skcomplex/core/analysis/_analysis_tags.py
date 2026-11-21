@@ -17,10 +17,12 @@ from ..errors import ValidationError
 class AnalysisTags(BaseSpec):
     """A set of tags that an analysis needs of its data and of the system.
 
-    They are the kind of data it reads and the capability tags of the system that produced it. An analysis module
-    declares its tags as the module constant `TAGS`, and a family of kinds declares the tags of the kinds that differ in
-    `KIND_TAGS`, by kind. The capability tags are checked against the tags of a system, or of the system behind a
-    trajectory, before the analysis does any work. A field that is empty or `None` needs nothing.
+    It names the kind of data an analysis reads and the tags the system behind the data must have, so an analysis
+    refuses data it cannot read before doing any work, such as `AnalysisTags('system', randomness='deterministic')` for
+    an analysis of systems with no randomness. An analysis module declares it as the constant `TAGS`, and an empty field
+    needs nothing. It keeps a stability analysis off a random epidemic and a network measure off a price series.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         data:
@@ -34,6 +36,9 @@ class AnalysisTags(BaseSpec):
 
         randomness:
             The randomness the system needs, `'deterministic'` or `'stochastic'`, or `None` for either.
+
+    See Also:
+        applicable_analyses: Lists the analyses whose tags a source meets.
 
     Examples:
         >>> from skcomplex.core.analysis import AnalysisTags

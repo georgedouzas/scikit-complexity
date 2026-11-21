@@ -1,4 +1,4 @@
-"""Draw the principal axes of a tensor state, or the arrows of a vector state."""
+"""Draw the arrows of a vector value or the axes of a matrix value on a grid."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,12 +18,14 @@ SEGMENT_FILL = 0.45
 
 
 class AxisVisual(BaseVisual):
-    """A visual that logs the axes of a tensor state or the arrows of a vector state.
+    """A visual that draws the arrows of a vector value or the axes of a matrix value.
 
-    They are logged at every sampled site of a lattice. A tensor state logs one segment without head per sampled site
-    along its principal axis, and a vector state one arrow per sampled site, under `<path>/<state>/axes`. A scalar state
-    logs its image under `<path>/<state>/image`, so one view shows both. A site at the row and column of the lattice
-    sits at the same pixel of the image.
+    It draws one arrow per sampled site for a vector value, or one line along the main axis of a matrix value, on top
+    of an image of a scalar value, such as `AxisVisual('Q', scalar='rho', every=2)` for every second site. A site sits
+    at the same pixel as the image. It shows the flow of a fluid, the direction of the rods of a liquid crystal, and
+    the heading of the cells of a tissue.
+
+    Read more in the user guide, under Observe.
 
     Args:
         state:
@@ -48,6 +50,9 @@ class AxisVisual(BaseVisual):
     Raises:
         ValidationError:
             The state is no tensor or vector state of a two-dimensional lattice, or the spacing is not positive.
+
+    See Also:
+        ImageVisual: Draws scalar values on a grid as images.
 
     Examples:
         >>> from skcomplex.core.engine.viz import AxisVisual

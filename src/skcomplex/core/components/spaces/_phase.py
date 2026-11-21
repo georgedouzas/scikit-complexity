@@ -20,17 +20,13 @@ DEFAULT_LIMIT = 2**26
 class PhaseSpace(LatticeSpace):
     """A space of positions combined with extra axes, such as velocity.
 
-    Each site is one position paired with one value on every extra axis, called a class axis. A class axis is a range
-    cut into equal cells, such as velocities from -6 to 6, and its edges are closed for an interval or joined for a
-    periodic axis. The position axes come first, so the sites of one position come one after the other, and they keep
-    the boundary of the position lattice. A field on it takes the discretization, the scheme, and the symmetry of the
-    position lattice, such as `LatticeSpace(64, discretization='finite-volume')`.
+    Each site pairs one position with one cell of every extra axis, so a density can vary over position and a trait
+    together, such as the 64 positions and 128 velocities of
+    `PhaseSpace(LatticeSpace(64), [AxisSpec('v', 128, -6.0, 6.0)])`. The position axes come first and keep the walls of
+    the lattice, and a field on the space takes the discretization of the lattice. Gas molecules are followed over
+    position and velocity, bacteria over position and swimming direction, and cells over position and age.
 
-    Unlike `LatticeSpace`, whose sites are positions alone, it adds axes of a trait, so a density can vary over position
-    and trait together. Choose it when a kinetic equation follows a distribution over position and a trait.
-
-    It appears in many fields. Kinetic theory follows gas molecules over position and velocity, bacteria are counted
-    over position and swimming direction, and cell populations over position and age.
+    Read more in the user guide, under Spaces.
 
     Args:
         position:
@@ -65,14 +61,15 @@ class PhaseSpace(LatticeSpace):
         PhaseSpaceTooLargeError:
             The product has more sites than the limit.
 
+    See Also:
+        LatticeSpace: Holds the positions alone.
+        AxisSpec: Cuts the range of one extra axis into cells.
+
     Examples:
-        >>> from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
-        >>> from skcomplex.core.components.spaces import AxisSpec
-        >>> space = PhaseSpace(LatticeSpace((64,), spacing=0.2), [AxisSpec('v', 128, -6.0, 6.0)]).prepare()
-        >>> space.size_, space.shape_, space.class_axes_
-        (8192, (64, 128), {'v': 1})
-        >>> space.coordinates_['v'][:2].round(4).tolist()
-        [-5.9531, -5.8594]
+        >>> from skcomplex.core.components.spaces import AxisSpec, LatticeSpace, PhaseSpace
+        >>> space = PhaseSpace(LatticeSpace(64), [AxisSpec('v', 128, -6.0, 6.0)]).prepare()
+        >>> space.size_, space.shape_
+        (8192, (64, 128))
     """
 
     space_tags: ClassVar[tuple[str, ...]] = ('phase space',)

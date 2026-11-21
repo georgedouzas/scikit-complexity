@@ -28,6 +28,12 @@ MIN_PLAUSIBLE = 10
 class VirtualPopulationResult:
     """A result of `virtual_population`, the plausible rows and those selected.
 
+    It holds the sampled parameter rows whose runs look plausible, with their outputs, the share of samples that passed,
+    and the rows selected to match observed values with their chance of selection. It holds virtual patients of a trial,
+    plausible economies, and plausible ecosystems.
+
+    Read more in the user guide, under Calibrate.
+
     Args:
         plausible:
             The plausible rows, with one column per parameter and per output.
@@ -41,12 +47,15 @@ class VirtualPopulationResult:
         inclusion:
             The probability of inclusion of every plausible row, or `None` without a target.
 
+    See Also:
+        virtual_population: Returns this result.
+
     Examples:
         >>> import pandas as pd
         >>> from skcomplex.core.experiments import VirtualPopulationResult
         >>> result = VirtualPopulationResult(pd.DataFrame({'r': [0.5], 'size': [2.0]}), 0.25, None, None)
-        >>> len(result.plausible), result.acceptance
-        (1, 0.25)
+        >>> result.acceptance
+        0.25
     """
 
     plausible: pd.DataFrame
@@ -113,16 +122,13 @@ def virtual_population(
 ) -> VirtualPopulationResult:
     """Return plausible parameter sets of a system, and those matching observed values.
 
-    A virtual population is a set of parameter rows whose runs look like real individuals. The function draws `n` rows
-    from the priors that `bounds` give, runs the system once per row with `sweep`, and computes the outputs of every
-    run. A row is plausible when every constrained output lies in its range. With `target`, the observed values of one
-    output, it selects among the plausible rows with the probability of inclusion of Allen et al. (2016). This is the
-    density of the observed values over the density of the plausible population at the output of the row, scaled so
-    that its largest value is one, so the selected outputs follow the observed distribution.
+    It draws `n` rows of parameters from the priors that `bounds` give, runs the system once per row with `sweep`, and
+    keeps the rows whose outputs all lie in their `constraints` ranges. With `target`, the observed values of one
+    output, it picks among them with the chance of Allen et al. (2016), so the picked outputs follow the observed
+    spread. It samples virtual patients whose tumours look like those of a trial, economies whose growth lies in
+    historical ranges, and ecosystems whose populations stay within observed counts.
 
-    It appears in many fields. It samples virtual patients whose tumours and immune cells look like those of a clinical
-    trial, plausible economies whose growth and inflation lie in historical ranges, and plausible ecosystems whose
-    populations stay within observed counts.
+    Read more in the user guide, under Calibrate.
 
     Args:
         system:
@@ -174,22 +180,17 @@ def virtual_population(
         ExperimentError:
             No row is plausible, or fewer than ten rows are plausible with a target.
 
-    Examples:
-        Populations of logistic growth with a random growth rate are plausible when they reach 50 by time 5.
+    See Also:
+        sweep: Runs a system over rows of values.
+        calibrate: Fits the parameters of a system to data.
 
+    Examples:
         >>> from skcomplex.core.experiments import virtual_population
         >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
-        >>> result = virtual_population(
-        ...     LogisticGrowthSystem(),
-        ...     {'r': (0.1, 1.0)},
-        ...     ['population.x'],
-        ...     {'population.x': (50.0, 100.0)},
-        ...     n=20,
-        ...     until=5.0,
-        ...     random_state=0,
-        ... )
-        >>> result.acceptance, bool(result.plausible['r'].min() > 0.4)
-        (0.65, True)
+        >>> bounds, ranges, system = {'r': (0.1, 1.0)}, {'population.x': (50.0, 100.0)}, LogisticGrowthSystem()
+        >>> result = virtual_population(system, bounds, list(ranges), ranges, n=20, until=5.0, random_state=0)
+        >>> result.acceptance
+        0.65
     """
     _check_count('n', n)
     if design not in DESIGNS:

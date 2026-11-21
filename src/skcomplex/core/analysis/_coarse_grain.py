@@ -22,9 +22,13 @@ TAGS = AnalysisTags(DataKind.AGENTS)
 
 @dataclass(frozen=True)
 class CoarseGrainResult:
-    """A result of `coarse_grain`, agents as a field or members as a density.
+    """A result of `coarse_grain`, agents counted on a grid or spread over values.
 
-    The field lies on a grid, and the density is over the values of a state.
+    It holds the counts of agents in every cell of a grid, one grid per frame, with the positions and the box, or the
+    share of members at every value, which sums to 1. It reports the density of a herd, the spread of wealth, and the
+    density of a fluid.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         positions:
@@ -37,6 +41,14 @@ class CoarseGrainResult:
         field:
             The grid of counts, or of sums with the value components last, with one grid per frame for a trajectory,
             ready for field analyses, or the fractions of members at every value of `over`, one row per frame.
+
+    See Also:
+        coarse_grain: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import coarse_grain
+        >>> coarse_grain([-1.0, 0.4, 0.6, 1.5, 9.0], over=[0.0, 1.0, 2.0]).field.tolist()
+        [0.4, 0.4, 0.2]
     """
 
     positions: Array
@@ -53,19 +65,15 @@ def coarse_grain(
     over: npt.ArrayLike | None = None,
     state: str | None = None,
 ) -> CoarseGrainResult:
-    """Return agents coarse-grained into a field, or members into a density.
+    """Return agents counted on a grid, or members spread over the values of a state.
 
-    The field lies on a grid, and the density is over the values of a state. An array holds one snapshot, one row per
-    agent in the box. A trajectory gives the positions of its first agent or particle group at every frame, in the box
-    of its space unless `box` is set, and one grid per frame.
+    It counts the agents in every cell of a grid of `shape` over the box, one grid per frame, such as two agents in one
+    corner and one in the other of a box of side 1. With `over`, it counts every member at the given value nearest to
+    its own instead, and returns the share at every value. An array holds one snapshot, one row per agent, and a
+    trajectory gives the first group at every frame. It turns animals into the density of a herd, traders into the
+    spread of wealth, and particles into the density of a fluid.
 
-    With `over`, the function coarse-grains in state space instead: every member counts at the given value nearest to
-    its value of a state, and the field is the fraction of members at every value, which sums to 1. An array holds the
-    values of one snapshot, one per member, or one row per frame, and a trajectory gives the values of the state `state`
-    at every frame. The densities are the initial values of a distribution site group with one member per value.
-
-    It appears in many fields. It turns animals into a density of a herd, traders into a distribution of wealth, and
-    particles into a density field of a fluid.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
@@ -95,14 +103,15 @@ def coarse_grain(
         AnalysisError:
             A setting is invalid or missing, or the source holds no positions or values to coarse-grain.
 
+    See Also:
+        distribution: Fits and tests the distribution of values.
+        clusters: Finds the clusters of a grid.
+
     Examples:
         >>> from skcomplex.core.analysis import coarse_grain
         >>> positions = [[0.1, 0.1], [0.2, 0.1], [0.9, 0.9]]
         >>> coarse_grain(positions, shape=[2, 2], box=[1.0, 1.0]).field.tolist()
         [[2.0, 0.0], [0.0, 1.0]]
-        >>> wealth = [-1.0, 0.4, 0.6, 1.5, 9.0]
-        >>> coarse_grain(wealth, over=[0.0, 1.0, 2.0]).field.tolist()
-        [0.4, 0.4, 0.2]
     """
     _check(shape, box, values, over, state)
     if over is not None:

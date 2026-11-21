@@ -32,6 +32,12 @@ type Data = Mapping[str, tuple[npt.ArrayLike, npt.ArrayLike]]
 class IndividualCalibrationResult:
     """A result of `calibrate_individuals`, the calibration of every individual.
 
+    It holds the calibration of every individual and a table of their estimates, one row per individual and one column
+    per parameter, such as the growth rate `r` of the regions `'north'` and `'south'`. It reports the fitted tumour of
+    every patient, the rates of an epidemic in every region, and the demand of every firm.
+
+    Read more in the user guide, under Calibrate.
+
     Args:
         calibrations:
             The calibration of every individual.
@@ -39,11 +45,15 @@ class IndividualCalibrationResult:
         estimates:
             The estimates, with one row per individual and one column per parameter.
 
+    See Also:
+        calibrate_individuals: Returns this result.
+        CalibrationResult: Holds the calibration of one system.
+
     Examples:
         >>> import pandas as pd
         >>> from skcomplex.core.experiments import IndividualCalibrationResult
-        >>> table = pd.DataFrame({'r': [0.5, 0.7]}, index=pd.Index(['a', 'b'], name='individual'))
-        >>> float(IndividualCalibrationResult({}, table).estimates.loc['b', 'r'])
+        >>> table = pd.DataFrame({'r': [0.5, 0.7]}, index=pd.Index(['north', 'south'], name='individual'))
+        >>> float(IndividualCalibrationResult({}, table).estimates.loc['south', 'r'])
         0.7
     """
 
@@ -71,14 +81,13 @@ def calibrate_individuals(
 ) -> IndividualCalibrationResult:
     """Return the fit of the model parameters of a system to each individual's data.
 
-    Each individual has its own data and may have known model parameters, such as the dose a patient received. The
-    function sets the known parameters of an individual on a copy of the system, or passes them to the factory, and
-    calls `calibrate` on that individual's data with the parameters of `bounds`. The fitted system of an individual is
-    its digital twin. The calibrations are independent, so they run on `executor`, and every individual gets its own
-    seed spawned from `random_state`.
+    Each individual has its own data and may have known parameters, such as the dose a patient received. The function
+    sets the known parameters on a copy of the system and calls `calibrate` on the data of that individual, so each
+    fitted copy is the digital twin of one individual. The calibrations run on `executor`, each with its own seed. It
+    fits the tumour of every patient of a trial, the rates of an epidemic in every region, and the demand of every firm
+    of a market.
 
-    It appears in many fields. It fits the growth and the response of the tumour of every patient of a trial, the
-    rates of an epidemic in every region, and the demand of every firm of a market.
+    Read more in the user guide, under Calibrate.
 
     Args:
         system:
@@ -138,21 +147,16 @@ def calibrate_individuals(
         ExperimentError:
             The system is a name.
 
-    Examples:
-        Two populations grow at their own rates from their own known initial sizes.
+    See Also:
+        calibrate: Fits one system to one set of data.
 
-        >>> import numpy as np
+    Examples:
         >>> from skcomplex.core.experiments import calibrate_individuals
         >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
-        >>> times = np.arange(0.0, 21.0)
-        >>> data = {
-        ...     'north': {'population.x': (times, 100 / (1 + 9 * np.exp(-0.4 * times)))},
-        ...     'south': {'population.x': (times, 100 / (1 + 4 * np.exp(-0.7 * times)))},
-        ... }
-        >>> known = {'north': {'n': 10.0}, 'south': {'n': 20.0}}
-        >>> result = calibrate_individuals(LogisticGrowthSystem(), data, {'r': (0.1, 2.0)}, known=known)
-        >>> result.estimates['r'].round(2).to_dict()
-        {'north': 0.4, 'south': 0.7}
+        >>> runs = {k: LogisticGrowthSystem(r=r).prepare().simulate(until=20) for k, r in [('a', 0.4), ('b', 0.7)]}
+        >>> data = {k: {'population.x': (run.times, run.get_values('population.x'))} for k, run in runs.items()}
+        >>> calibrate_individuals(LogisticGrowthSystem(), data, {'r': (0.1, 2.0)}).estimates['r'].round(2).to_dict()
+        {'a': 0.4, 'b': 0.7}
     """
     source = _check_source(system)
     if not data:

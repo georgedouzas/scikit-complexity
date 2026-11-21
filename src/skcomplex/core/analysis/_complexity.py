@@ -24,7 +24,11 @@ TAGS = AnalysisTags(DataKind.SERIES)
 class ComplexityResult:
     """A result of `complexity`, places on the complexity and entropy plane.
 
-    It covers every series of a source, or every frame of a field.
+    It holds the entropy and the complexity of every series or frame, with the lowest and highest complexity that each
+    entropy allows. Noise sits near entropy 1 and complexity 0, and chaos higher up. It tells chaos from noise in heart
+    beats, climate records, and prices.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         values:
@@ -44,6 +48,15 @@ class ComplexityResult:
 
         maximum:
             The curve of largest complexity, one row of entropy and complexity per point.
+
+    See Also:
+        complexity: Returns this result.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.analysis import complexity
+        >>> complexity(np.random.default_rng(0).standard_normal(50_000), dimension=4).entropy.round(2).tolist()
+        [1.0]
     """
 
     values: Array
@@ -63,15 +76,14 @@ def complexity(
     ties: str = 'order',
     random_state: int | None = None,
 ) -> ComplexityResult:
-    """Return the place of series or field frames on Rosso's complexity-entropy plane.
+    """Return the place of series on Rosso's complexity and entropy plane.
 
-    It covers every series of a source, or every frame of a field. The entropy is the normalized permutation entropy of
-    the ordinal patterns, and the complexity is that entropy times the Jensen-Shannon divergence of the patterns from
-    uniform ones, computed with `ordpy`. Noise has entropy near 1 and complexity near 0, regular series both near 0, and
-    chaos lies in between with high complexity.
+    It turns every series, or every frame of a field, into the order patterns of its values and measures how even the
+    patterns are, the entropy, and how far they are from even, times the entropy, the complexity, with `ordpy`. Noise
+    has an entropy near 1 and a complexity near 0, a regular series both near 0, and chaos lies between with a high
+    complexity. It tells chaos from noise in heart beats, climate records, and the prices of a market.
 
-    It appears in many fields. It tells chaos from noise in heart beats, in climate records, and in the prices of a
-    market.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
@@ -100,11 +112,14 @@ def complexity(
         AnalysisError:
             The ties are unknown, or the pattern length, the window, or the delay is below 1.
 
+    See Also:
+        entropy: Measures the entropy of a series.
+        lyapunov: Measures how fast nearby runs drift apart.
+
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.analysis import complexity
-        >>> noise = np.random.default_rng(0).standard_normal(50_000)
-        >>> plane = complexity(noise, dimension=4)
+        >>> plane = complexity(np.random.default_rng(0).standard_normal(50_000), dimension=4)
         >>> plane.entropy.round(2).tolist(), plane.complexity.round(2).tolist()
         ([1.0], [0.0])
     """

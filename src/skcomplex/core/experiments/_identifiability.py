@@ -36,9 +36,13 @@ type Data = Mapping[str, tuple[npt.ArrayLike, npt.ArrayLike]]
 class IdentifiabilityResult:
     """A result of `identifiability`, the best fit and a verdict per parameter.
 
-    A profile gives the profile likelihood and the likelihood-ratio interval of every parameter, and its verdicts are
-    `'identifiable'` and `'not identifiable'`. Refits give the average relative error of every parameter per noise
-    level, and their verdicts are `'strong'`, `'weak'`, and `'none'`.
+    It holds the best fit and whether the data pin down each parameter, such as `{'r': 'strong'}`. A profile also holds
+    the profile and the interval of every parameter, with the verdicts `'identifiable'` and `'not identifiable'`. Refits
+    hold the average error of every parameter per level of noise, with the verdicts `'strong'`, `'weak'`, and `'none'`.
+    It tells whether case counts fix the rates of an epidemic, counts fix the capacity of a population, and blood
+    samples fix the clearance of a drug.
+
+    Read more in the user guide, under Calibrate.
 
     Args:
         estimates:
@@ -58,11 +62,13 @@ class IdentifiabilityResult:
         errors:
             The average relative error of every parameter by noise level, or `None` for a profile.
 
+    See Also:
+        identifiability: Returns this result.
+
     Examples:
         >>> from skcomplex.core.experiments import IdentifiabilityResult
-        >>> result = IdentifiabilityResult({'r': 0.5}, {'r': 'strong'}, None, None, {'r': {0.01: 0.004}})
-        >>> result.verdicts['r'], result.errors['r'][0.01]
-        ('strong', 0.004)
+        >>> IdentifiabilityResult({'r': 0.5}, {'r': 'strong'}, None, None, {'r': {0.01: 0.004}}).verdicts
+        {'r': 'strong'}
     """
 
     estimates: dict[str, float]
@@ -221,26 +227,14 @@ def identifiability(
 ) -> IdentifiabilityResult:
     """Return which model parameters of a system the observed time series determine.
 
-    A calibration returns estimates even when the data cannot pin them down. This function tells practical
-    identifiability, whether the data at hand determine each parameter within its bounds. `method` says how:
+    A calibration returns estimates even when the data cannot pin them down, and this function tells whether they do. A
+    profile fixes each parameter at values around the best fit and fits the others again, and the parameter is
+    identifiable when the fit worsens enough on both sides within its bounds. Refits add noise to the best run, fit
+    again, and judge each parameter by how far its estimates stray. It tells whether counts fix the growth rate and
+    capacity of a population, whether case counts fix the rates of an epidemic, and whether blood samples fix the
+    clearance of a drug.
 
-    - `'profile'`: the profile likelihood with pyPESTO. The best fit is the best of `n_starts` local fits of the
-      Gaussian likelihood with an unknown variance. The profile of a parameter fixes it at values on both sides of the
-      best fit and fits the others again, until the likelihood ratio falls below the threshold of the level or the
-      parameter reaches its bound. The interval holds the values whose ratio stays above the threshold of the
-      chi-square test with one degree of freedom. A parameter is `'identifiable'` when both ends of its interval lie
-      inside its bounds, and `'not identifiable'` otherwise.
-    - `'refits'`: the refits under noise of Liyanage et al. (2025). The best fit is a local fit of `calibrate`. Each of
-      `n` copies of the values it simulates at the data times takes Gaussian noise relative to the values, at every
-      level of `noise`, and is fitted again. The average relative error of a parameter at a level gives the verdict
-      `'strong'` when it is at most the level, `'weak'` when it is at most ten times the level, and `'none'` above. A
-      parameter takes its worst verdict over the levels.
-
-    A profile costs many fits, and refits cost `n` fits per level, each of many runs of the system.
-
-    It appears in many fields. It tells whether the growth rate and the capacity of a population follow from counts,
-    whether the rate of infection and the rate of recovery of an epidemic follow from case counts, and whether the
-    clearance of a drug follows from measured concentrations.
+    Read more in the user guide, under Calibrate.
 
     Args:
         system:
@@ -254,7 +248,13 @@ def identifiability(
             The profiles stop at the bounds.
 
         method:
-            `'profile'` or `'refits'`.
+            `'profile'` or `'refits'`. A profile, with pyPESTO, takes the best of `n_starts` local fits of the
+            Gaussian likelihood, then fixes each parameter on both sides of it and fits the others again until the
+            likelihood ratio falls below the threshold of `level` or the bound is reached. A parameter is
+            `'identifiable'` when both ends of its interval lie inside its bounds. Refits, after Liyanage et al.
+            (2025), add noise at every level of `noise` to `n` copies of the best run and fit each again. A parameter
+            is `'strong'` when its average relative error is at most the level, `'weak'` when it is at most ten times
+            the level, and `'none'` above, taking its worst verdict over the levels.
 
         level:
             The confidence level of the likelihood-ratio intervals of a profile, between 0 and 1.
@@ -292,32 +292,16 @@ def identifiability(
         ExperimentError:
             The system is a name.
 
-    Examples:
-        Logistic growth that reaches its capacity determines both the growth rate and the capacity.
+    See Also:
+        calibrate: Fits the parameters of a system to data.
 
-        >>> import numpy as np
+    Examples:
         >>> from skcomplex.core.experiments import identifiability
         >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
-        >>> times = np.linspace(0.0, 20.0, 30)
-        >>> noise = 1 + 0.02 * np.random.default_rng(0).standard_normal(30)
-        >>> values = 100 / (1 + 9 * np.exp(-0.5 * times)) * noise
-        >>> bounds = {'r': (0.1, 2.0), 'K': (50.0, 500.0)}
-        >>> result = identifiability(LogisticGrowthSystem(), {'population.x': (times, values)}, bounds, random_state=0)
-        >>> result.verdicts
+        >>> trajectory = LogisticGrowthSystem(r=0.5).prepare().simulate(until=20, dt=1.0)
+        >>> data = {'population.x': (trajectory.times, trajectory.get_values('population.x'))}
+        >>> identifiability(LogisticGrowthSystem(), data, {'r': (0.1, 2.0), 'K': (50.0, 500.0)}).verdicts
         {'r': 'identifiable', 'K': 'identifiable'}
-        >>> low, high = result.intervals['K']
-        >>> bool(low < 100 < high)
-        True
-
-        Data that stop while the population is small say little about the capacity.
-
-        >>> early = np.linspace(0.0, 3.0, 30)
-        >>> values = 100 / (1 + 99 * np.exp(-0.5 * early)) * noise
-        >>> result = identifiability(
-        ...     LogisticGrowthSystem(n=1.0), {'population.x': (early, values)}, bounds, random_state=0
-        ... )
-        >>> result.verdicts['K'], result.intervals['K'][1]
-        ('not identifiable', nan)
     """
     source = _check_source(system)
     if method not in METHODS:

@@ -1,4 +1,4 @@
-"""Define the base class of visuals."""
+"""Define the base of the visuals, which draw one element in Rerun."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -74,13 +74,13 @@ PHASE_PALETTE = (
 class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
     """An abstract visual, which logs a component of a system to Rerun at every frame.
 
-    A visual logs the state of one element or agent group to a Rerun recording. A visual follows the common API of the
-    engine. `prepare(problem)` finds the element or agent group of the problem at the entity path `path`, forgets what
-    earlier frames left, and sets the Rerun views that show what the visual logs. `run(frame)` logs the element at one
-    frame to the recording `recording`: a compiled element through the hook `_log`, and agents through the hook
-    `_log_agents` with the snapshot of the frame. Subclasses implement `_log`, `_log_agents`, or both, declare their
-    views with `_views`, and are named by the kind of a `VisualSpec`. `RerunObserver` builds the visual of every element
-    and agent group with their path and its recording.
+    A subclass draws the values of one element or group in the Rerun viewer, such as the prey of a predator and prey
+    system in `ScalarsVisual(path='prey')`. `prepare(problem)` finds the element at `path` and sets the views that show
+    it, and `run(frame)` draws it at one frame. A subclass draws elements with `_log`, agents with `_log_agents`, and
+    names its views with `_views`. `RerunObserver` builds one visual per element. Its subclasses draw the populations of
+    an ecosystem, the spins of a magnet, and the traders of a market.
+
+    Read more in the user guide, under Observe.
 
     Args:
         path:
@@ -104,6 +104,10 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
 
         views_:
             The Rerun views that show what the visual logs, each with an entity path of the element as origin.
+
+    See Also:
+        RerunObserver: Builds the visual of every element and logs the frames of a run.
+        ScalarsVisual: Draws the values of an element as lines over time.
 
     Examples:
         >>> from skcomplex.core.engine.viz import ScalarsVisual

@@ -48,7 +48,13 @@ TAGS = AnalysisTags(DataKind.AGENTS)
 
 @dataclass(frozen=True)
 class AlignmentResult:
-    """A result of `alignment`, the alignment of the members at every frame.
+    """A result of `alignment`, how well the members line up at every frame.
+
+    It holds one order value per frame, 1 when every member points the same way and near 0 when they point at random,
+    such as `[1.0]` for three birds flying north, with the angles, vectors, positions, axes, or mean phase the kind
+    reads. It measures the order of a flock, the line-up of the spins of a magnet, and the synchrony of fireflies.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         angles:
@@ -72,6 +78,14 @@ class AlignmentResult:
 
         phase:
             The mean phase of every frame, for `'mean-phase'`.
+
+    See Also:
+        alignment: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import alignment
+        >>> alignment([0.0, 0.0, 0.0]).order.tolist()
+        [1.0]
     """
 
     angles: Array | None
@@ -91,41 +105,28 @@ def alignment(
     group: str | None = None,
     vectors: bool = False,
 ) -> AlignmentResult:
-    """Return the alignment of the members of a source at every frame, of one kind.
+    """Return how well the members of a source line up at every frame.
 
-    The members are the agents of a group, the sites of a field, or the columns of a set of series, and each holds an
-    angle or a vector. A trajectory gives the agents of a group with their directions or phases, velocities, and
-    positions, else every frame of a field of angles, or of vectors with `vectors=True`, else the series of `variables`
-    or the states with the role `'phase'`, one column per member and one row per sample.
+    Each member holds an angle or a direction, and the order is the length of their mean direction, 1 when every member
+    points the same way and about `1 / sqrt(n)` for `n` random directions, as in `alignment([0.0, 0.0, 0.0])`. The
+    members are the agents of a group, the sites of a field, or the columns of a set of series, and other kinds measure
+    turning around a centre, line-up that ignores the sign, the mean phase, and the main axis of a matrix value. It
+    measures how well the birds of a flock fly together, how the spins of a magnet line up, and how the cells of a
+    tissue orient.
 
-    - `'mean-vector'`: the length of the mean unit vector, 1 when every member points the same way and about
-      `1 / sqrt(n)` for random directions. It reads vectors when the source has them, and angles otherwise.
-    - `'mean-rotation'`: the mean normalized angular momentum of agents about their centre in a plane, 1 when every
-      agent turns the same way and near 0 for a polarized or disordered group. It reads positions and velocities.
-    - `'axial'`: `|<exp(2 i theta)>|` of the angles, which ignores the sign of a direction.
-    - `'mean-phase'`: the modulus `r` and the argument `psi` of the mean `r exp(i psi) = <exp(i theta)>` of the
-      angles, the synchrony and the mean phase.
-    - `'principal-axis'`: the eigenvector of the largest eigenvalue of a symmetric tensor at every site, `axes`, and
-      the scalar order of the tensor at every site, `order`. It reads a field of a symmetric tensor state, or an array
-      of its independent components on the last axis, whose number gives the symmetry and the dimension: 2 and 5 for a
-      symmetric traceless tensor in 2 and 3 dimensions, and 3 and 6 for a symmetric tensor.
-
-    Angles are derived from the first two components of vectors when a source has no angles, and a vector of one
-    component points at the angle 0 or `pi` by its sign. An array of angles holds
-    one snapshot when it has one dimension, and one frame per row of its first axis otherwise, every other axis
-    indexing members. An array of vectors, with `vectors=True`, holds the components along its last axis, and one
-    snapshot when it has two dimensions. An array for `'mean-rotation'` holds the positions followed by the
-    velocities of every agent along its last axis.
-
-    It appears in many fields. It measures how well birds of a flock fly together, how spins of a magnet line up, and
-    how cells of a tissue orient.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
             The trajectory, or an array of angles, vectors, positions and velocities, or tensor components.
 
         kind:
-            The alignment to compute, one of the kinds above.
+            What to measure. `'mean-vector'` is the length of the mean unit vector. `'mean-rotation'` is the mean
+            turning of agents about their centre in a plane, 1 when every agent turns the same way, read from positions
+            followed by velocities. `'axial'` is `|<exp(2 i theta)>|`, which ignores the sign of a direction.
+            `'mean-phase'` gives the modulus `r` and the argument `psi` of `r exp(i psi) = <exp(i theta)>`, the
+            synchrony and the mean phase. `'principal-axis'` gives the main axis of a symmetric matrix value at every
+            site and its order. An array of angles holds one snapshot in one dimension and one frame per row otherwise.
 
         variables:
             The field or the series of a trajectory to read, or `None` for its agents, or else its first field, its
@@ -146,23 +147,16 @@ def alignment(
             The kind is unknown, a setting the kind does not read is changed, the trajectory holds no kind of data the
             function reads, or the source lacks what the kind needs.
 
+    See Also:
+        correlation: Measures how values at two places or times move together.
+        spectrum: Finds the frequencies of a series.
+
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.analysis import alignment
-        >>> alignment([0.0, 0.0, 0.0]).order.tolist()
-        [1.0]
-        >>> alignment([0.0, np.pi], kind='axial').order.round(6).tolist()
-        [1.0]
-        >>> angles = np.linspace(0, 2 * np.pi, 8, endpoint=False)
-        >>> ring = np.column_stack([np.cos(angles), np.sin(angles)])
-        >>> mill = np.hstack([ring, np.column_stack([-ring[:, 1], ring[:, 0]])])
-        >>> alignment(mill, kind='mean-rotation').order.round(6).tolist()
-        [1.0]
         >>> phases = alignment([[0.5, 0.5], [0.0, np.pi]], kind='mean-phase')
-        >>> phases.order.round(6).tolist(), phases.phase.round(6)[:1].tolist()
-        ([1.0, 0.0], [0.5])
-        >>> alignment([[0.5, 0.0], [0.0, 0.5]], kind='principal-axis').order.tolist()
-        [[1.0, 1.0]]
+        >>> phases.order.round(6).tolist()
+        [1.0, 0.0]
     """
     _check_choice('alignment', 'kind', kind, KINDS)
     _check_settings(alignment, 'kind', SETTINGS[kind], kind=kind, variables=variables, group=group, vectors=vectors)

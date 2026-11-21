@@ -16,12 +16,13 @@ from .types import AnySystem
 class ScenarioSpec(BaseSpec):
     """A spec of a named variant of a system, such as an intervention.
 
-    A scenario changes values before the run, changes parameters at given times, or replaces the system. Every scenario
-    of an experiment runs with the same random streams per design row and replicate, so scenarios differ only through
-    what they change.
+    It changes values before the run, changes parameters at given times, or replaces the system, such as
+    `ScenarioSpec('distancing', overrides={'beta': 0.0001})` for a lower rate of infection. Every scenario of an
+    experiment runs with the same random streams, so scenarios differ only through what they change. An epidemic
+    compares early and late lockdowns, a climate model compares paths of emissions, and an economy compares tax
+    policies.
 
-    It appears in many fields. An epidemic compares early and late lockdowns, a climate model compares emission paths,
-    and an economy compares tax policies.
+    Read more in the user guide, under Run experiments.
 
     Args:
         name:
@@ -37,6 +38,9 @@ class ScenarioSpec(BaseSpec):
 
         system:
             A system that replaces the one the factory builds, for structural changes, or `None`.
+
+    See Also:
+        compare_scenarios: Runs the scenarios of a system.
 
     Examples:
         >>> from skcomplex.core.experiments import ScenarioSpec

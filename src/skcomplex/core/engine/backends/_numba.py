@@ -1,4 +1,4 @@
-"""Generate, compile, and cache Numba kernels and stepper loops."""
+"""Define the backend that compiles the functions of a problem with Numba."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -81,13 +81,14 @@ from skcomplex.core.engine.problems._steps import step_count
 
 
 class NumbaBackend(BaseBackend):
-    """A backend that compiles fused kernels and stepper loops with Numba.
+    """A backend that compiles the functions of a problem to machine code with Numba.
 
-    They are cached on disk. Kinds of laws that contain a plain Python callable fall back to the NumPy functions, and
-    the problem then has no compiled stepper loops.
+    It writes the laws as Python source, compiles it with Numba, and keeps it on disk, so a second run starts at once,
+    as in `System(..., backend=NumbaBackend())`. It also compiles the loop that steps the solver, which makes large
+    groups run much faster than NumPy. Laws that hold a plain Python function fall back to NumPy. Long runs of a spin
+    lattice, a sandpile, and an epidemic on a large network all gain from it.
 
-    Choose it for large lattices, networks, and agent groups, where compiled loops run much faster than NumPy. It
-    appears in many fields, such as long runs of spin lattices, sandpiles, and epidemics on large networks.
+    Read more in the user guide, under Backends.
 
     Args:
         cache_dir:
@@ -97,18 +98,17 @@ class NumbaBackend(BaseBackend):
             Whether member and pair loops over groups of at least 1000 members run in parallel threads. Kernels that
             the compiled loops of jump processes and discrete maps call once per event always run serially.
 
+    See Also:
+        NumpyBackend: Writes the functions with NumPy, the default.
+        JaxBackend: Writes functions that JAX differentiates.
+
     Examples:
         >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.engine.backends import NumbaBackend
         >>> from skcomplex.core.systems import System
-        >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction
-        >>> system = System(
-        ...     elements=[Element('herds', values={'x': [1.0, 2.0]}, size=2)],
-        ...     interactions=[ExponentialGrowthInteraction('growth', target='herds', r=3.0)],
-        ...     backend=NumbaBackend(),
-        ... )
-        >>> problem = system.prepare().simulate(until=0).problem
-        >>> problem.drift(0.0, problem.initial_state, problem.initial_parameters).tolist()
-        [3.0, 6.0]
+        >>> system = System(elements=[Element('herd', values={'x': 2.0})], backend=NumbaBackend())
+        >>> system.prepare().simulate(until=0).problem.backend
+        'numba'
     """
 
     @classmethod

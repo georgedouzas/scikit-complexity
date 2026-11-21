@@ -1,4 +1,4 @@
-"""Run compiled problems in NumPy, the default backend."""
+"""Define the backend that evaluates laws with NumPy, the default."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -28,16 +28,24 @@ from ._support_spec import SupportSpec
 
 
 class NumpyBackend(BaseBackend):
-    """A backend that evaluates every kernel with NumPy array operations, the default.
+    """A backend that evaluates every law with NumPy array operations, the default.
 
-    Choose it by default, for small systems, and to check the other backends. It appears in every field, as the
-    reference that runs any law the compiler can lower.
+    It writes the rate function `f(t, x, p)` of `x' = f(t, x, p)`, or the next state of a map, as NumPy operations on
+    whole arrays, so it needs no compiling and runs any law the system can compile, as in
+    `System(..., backend=NumpyBackend())`. It suits small systems and checks the results of the other backends. A
+    reaction network, a predator and its prey, and a small market all run on it by default.
+
+    Read more in the user guide, under Backends.
+
+    See Also:
+        NumbaBackend: Compiles the functions to machine code for large groups.
+        JaxBackend: Writes functions that JAX differentiates.
 
     Examples:
+        >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.engine.backends import NumpyBackend
         >>> from skcomplex.core.systems import System
-        >>> from skcomplex.systems.biology.common.populations import PopulationElement
-        >>> system = System(elements=[PopulationElement('a')], backend=NumpyBackend())
+        >>> system = System(elements=[Element('herd', values={'x': 2.0})], backend=NumpyBackend())
         >>> system.prepare().simulate(until=0).problem.backend
         'numpy'
     """

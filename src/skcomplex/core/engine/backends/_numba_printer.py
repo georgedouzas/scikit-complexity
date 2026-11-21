@@ -1,4 +1,4 @@
-"""Print the kernels and reductions of a problem as the source of Numba functions."""
+"""Print the kernels and sums of a problem as the source of Numba functions."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -44,13 +44,15 @@ COMPONENT_KINDS = {
 
 
 class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, list[LawKernel], bool]]]):
-    """A printer that writes the kernels and reductions of a problem as Numba source.
+    """A printer that writes the kernels and sums of a problem as Numba source.
 
-    `prepare(reductions)` starts an empty source and prints the function that fuses the reductions, or none for `None`,
-    and `run(blocks)` prints the kernels of every law kind into the source lines of `code_`. A block is the label of the
-    entry function, its mode, `'add'`, `'assign'`, or `'concatenate'`, the kernels, and whether they read the
-    reductions. After a run, `functions_` holds the compiled functions the source calls by name, and `layout(entries)`
-    returns the array of the starts and rows of the entries it reads.
+    It turns the compiled laws of a problem into lines of Python that Numba compiles, which `NumbaBackend` then runs.
+    `prepare(reductions)` starts an empty source and prints the function of the sums over members, or none for `None`,
+    and `run(blocks)` adds one entry function per kind of law to `code_`. A block is the label of the entry function,
+    its mode, `'add'`, `'assign'`, or `'concatenate'`, the kernels, and whether they read the sums. It writes the forces
+    of a swarm, the updates of a cellular automaton, and the rates of a reaction network alike.
+
+    Read more in the user guide, under Backends.
 
     Args:
         parallel:
@@ -72,6 +74,14 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
 
         orders_:
             The orders drawn at every step that gather tables read through, by the name of their data.
+
+    See Also:
+        NumbaBackend: Compiles and runs the source it prints.
+
+    Examples:
+        >>> from skcomplex.core.engine.backends._numba_printer import NumbaPrinter
+        >>> NumbaPrinter().prepare(None).code_
+        []
     """
 
     code_: list[str]

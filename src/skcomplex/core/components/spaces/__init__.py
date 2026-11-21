@@ -1,4 +1,4 @@
-"""Define spaces and neighbourhoods, where a system runs.
+"""Define the spaces members live on and the neighbourhoods laws read.
 
 A space places the members of a group and says who neighbours whom, such as a lattice, a network, or a continuous box. A
 neighbourhood picks the members a law reads around a member.

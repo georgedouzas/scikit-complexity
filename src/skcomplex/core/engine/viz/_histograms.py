@@ -1,4 +1,4 @@
-"""Draw the variables of agents and the states of groups without a space."""
+"""Draw the values of agents and of groups with no space as histograms."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,17 +24,15 @@ NUMERIC_KINDS = frozenset('biuf')
 
 
 class HistogramVisual(AgentsVisual):
-    """A visual that logs histograms of agents or of groups without a space.
+    """A visual that draws histograms of the values of agents or of a group.
 
-    It logs the traits of the agents or the states of the group. For every trait of the agents, a number per agent is
-    taken: the value of a numeric trait, the total of a row of numbers such as the ones of a genome, or the size of a
-    collection such as a vocabulary. The visual logs the histogram of these numbers as a `BarChart` under
-    `<path>/<trait>/histogram`, over a range that widens to every value logged so far, with one bar per value when the
-    values are few integers, and their mean and standard deviation as series under `<path>/<trait>/mean` and
-    `<path>/<trait>/std`. Integer numbers, such as type labels, also log their number of distinct values under
-    `<path>/<trait>/distinct`, and a group of at most ten agents logs the number of every agent as its own series under
-    `<path>/<trait>/agents`. Traits of other kinds are left out. The states of the members of a group are logged the
-    same way, one histogram per state.
+    It takes one number per agent for every value, such as a fitness, the total of a genome, or the size of a
+    vocabulary, and draws its histogram with the mean and spread over time, as in `HistogramVisual(color_by='fitness')`.
+    Whole numbers, such as type labels, also show how many distinct values there are, and a group of at most ten agents
+    shows each agent as a line of its own. The members of a group with no space are drawn the same way. It shows the
+    fitness of a population, the wealth of traders, and the opinions of voters.
+
+    Read more in the user guide, under Observe.
 
     Args:
         color_by:
@@ -67,6 +65,10 @@ class HistogramVisual(AgentsVisual):
     Attributes:
         spans_:
             The range of the histogram of every trait logged so far, by entity path.
+
+    See Also:
+        AgentsVisual: Draws the agents themselves where they live.
+        ScalarsVisual: Draws the values of an element as lines over time.
 
     Examples:
         >>> from skcomplex.core.engine.viz import HistogramVisual

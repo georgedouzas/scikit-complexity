@@ -32,7 +32,13 @@ TAGS = AnalysisTags(DataKind.ENSEMBLE)
 
 @dataclass(frozen=True)
 class DataCollapseResult:
-    """A result of `data_collapse`, curves of several sizes collapsed onto one.
+    """A result of `data_collapse`, curves of several sizes laid onto one.
+
+    It holds the rescaled curves, the fitted critical point and exponents with the quality of the collapse, the spreads
+    of aging curves, or the points where the curves of consecutive sizes cross, such as `[2.0]`. It reports the critical
+    point of a magnet, the growth exponents of a rough surface, and the aging of a glass.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         values:
@@ -71,6 +77,15 @@ class DataCollapseResult:
         crossings:
             The first crossing of the curves of every pair of consecutive sizes, `nan` where they do not cross, for
             `'crossings'`.
+
+    See Also:
+        data_collapse: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import data_collapse
+        >>> curves = {8: [0.6, 0.5, 0.2], 16: [0.65, 0.5, 0.1]}
+        >>> data_collapse(curves, kind='crossings', parameters=[1.0, 2.0, 3.0]).crossings.tolist()
+        [2.0]
     """
 
     values: dict[float, Array] | Array
@@ -102,29 +117,23 @@ def data_collapse(
 ) -> DataCollapseResult:
     """Return the collapse of curves or distributions of several sizes or ages.
 
-    The curves or distributions collapse onto one, of one kind. The collapse is of one kind.
+    Curves measured at several sizes or ages often fall onto one curve once their axes are rescaled, and the rescaling
+    that does it gives the exponents of the system, such as `y_L(p) = L^a f((p - p_c) L^(1/nu))` for curves of sizes `L`
+    near a critical point `p_c`. It fits the names of `fit` among `critical`, `nu`, and `exponent`, measures how far
+    aging curves stay apart, or finds where the curves of consecutive sizes cross. It estimates the critical point of a
+    magnet from lattices of several sizes, the growth exponents of a rough surface, and the aging of a glass.
 
-    The kinds read the curves or the samples of every size or age:
-
-    - `'scaling'`: the finite-size scaling collapse of curves `y_L(p) = L^a f((p - p_c) L^(1/nu))` of every size
-      `L`, against the control `parameters`, with the names of `fit` among `'critical'`, `'nu'`, and `'exponent'`
-      fitted by minimizing the quality.
-    - `'aging'`: how far correlation curves of several waiting times stay apart against the lag and against
-      `tau / t_w`, from one curve per waiting time, as the two-time correlation of `correlation` gives them.
-    - `'distribution'`: the densities `t P(tau, t)` of samples of `tau` at several ages `t` against `tau / t`, which
-      collapse under aging.
-    - `'crossings'`: where the curves of consecutive sizes cross against the control `parameters`, by linear
-      interpolation of their difference, such as the Binder cumulants of several lattice sizes at the critical point.
-
-    It appears in many fields. It estimates the critical exponents of a magnet from lattices of several sizes, and the
-    growth exponents of a rough surface.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
             A mapping from size or age to its curve or samples, or an array with one curve per row.
 
         kind:
-            The collapse to compute, one of the kinds above.
+            `'scaling'` fits the collapse of curves of every size against `parameters`. `'aging'` measures how far
+            correlation curves of several waiting times stay apart against the lag and against `tau / t_w`.
+            `'distribution'` lays the densities `t P(tau, t)` of samples at several ages against `tau / t`.
+            `'crossings'` finds where the curves of consecutive sizes cross against `parameters`.
 
         parameters:
             The control parameter values, shared by every curve of `'scaling'` and `'crossings'`.
@@ -160,22 +169,16 @@ def data_collapse(
             The kind or a fitted name is unknown, a setting the kind needs is missing or one it does not read is
             changed, or the source has too few sizes or is not a mapping where the kind needs one.
 
+    See Also:
+        scaling: Fits power laws and exponents.
+
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.analysis import data_collapse
         >>> grid = np.linspace(-1, 1, 401)
         >>> curves = {size: np.tanh(grid * size) for size in (8, 16, 32)}
-        >>> result = data_collapse(curves, parameters=grid, critical=0.2, nu=1.5, fit=('critical', 'nu'))
-        >>> round(result.nu, 1)
+        >>> round(data_collapse(curves, parameters=grid, critical=0.2, nu=1.5, fit=('critical', 'nu')).nu, 1)
         1.0
-        >>> lags = np.linspace(1, 100, 100)
-        >>> curves = [np.exp(-lags / tw) for tw in (10, 100)]
-        >>> aging = data_collapse(curves, kind='aging', waiting=[10, 100], lags=lags)
-        >>> round(aging.ratio_spread, 2), aging.time_spread > 0.5
-        (0.0, True)
-        >>> curves = {8: [0.6, 0.5, 0.2], 16: [0.65, 0.5, 0.1]}
-        >>> data_collapse(curves, kind='crossings', parameters=[1.0, 2.0, 3.0]).crossings.tolist()
-        [2.0]
     """
     _check_choice('data_collapse', 'kind', kind, KINDS)
     for name in fit:

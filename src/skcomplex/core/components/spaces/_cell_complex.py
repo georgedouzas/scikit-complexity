@@ -1,4 +1,4 @@
-"""Define the space of the oriented cells of a lattice, network, or mesh."""
+"""Define the space of sites, links, and faces with directions."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -33,30 +33,17 @@ TETRAHEDRON_SIGNS = (1.0, -1.0, 1.0, -1.0)
 class CellComplexSpace(NetworkSpace):
     """A space of the sites, links, and faces of a lattice, network, or mesh, oriented.
 
-    A cell complex holds cells of several degrees: sites, the links between them, and the faces that the links bound.
-    Its nodes are the sites or nodes of the space it derives from, its edges the oriented links, and its hyperedges the
-    oriented faces in cyclic node order. Every group and neighbourhood of a network space applies to it, so groups on
-    its edges and hyperedges hold states on links and faces. It has no layers.
+    It holds sites, the links between them, and the faces the links enclose, each with a direction, so a value can
+    live on a link or a face, such as the 128 links of `CellComplexSpace(LatticeSpace((8, 8)))`. Its nodes are the
+    sites, its edges the links, and its hyperedges the faces, so groups on edges and hyperedges hold values on links and
+    faces. It derives from a lattice or a network, or it is built from the points and triangles of a mesh, such as the
+    `p` and `t` arrays of a scikit-fem mesh, which fits a domain of any shape and is solved by finite elements. A
+    lattice numbers its links by direction and then by site, each pointing along its axis, and a mesh orients each
+    cell by increasing node number. Angles live on the links of a lattice in gauge theory, the flows of a road network
+    split into a flow that runs downhill and a flow that circulates, and heat flows through a machine piece meshed into
+    triangles.
 
-    It derives from a `LatticeSpace` or a `NetworkSpace`, or it is built from the points and cells of an unstructured
-    mesh of triangles or tetrahedra, such as the `p` and `t` arrays of `skfem.MeshTri.init_lshaped().refined(3)`. A
-    mesh fits domains of any shape, and its nodes hold the members of finite element fields. Its edges are the sides of
-    the cells and its faces their triangles, each oriented by increasing node number. The tetrahedra of a mesh in 3D
-    are its cells of degree 3.
-
-    The links of a lattice are numbered by direction and then by site, and point along the positive direction of their
-    axis. The faces are numbered by plane and then by site, with planes `(0, 1), (0, 2), ...` in increasing order, and
-    turn from the first axis of the plane to the second. Fixed and reflecting edges drop the cells that leave the box. A
-    face of a network is oriented by its node cycle. The faces of a clique complex and the triangles of simplicial
-    hyperedges take their incidence from `xgi.linalg.hodge_matrix.boundary_matrix`.
-
-    Unlike `NetworkSpace`, which knows nodes and edges, it also knows faces and the orientation of each cell, so states
-    on links can have a circulation. Choose it when a state lives on links or faces, as in discrete exterior calculus,
-    or when a partial differential equation on an irregular domain is solved by finite elements.
-
-    It appears in many fields. Lattice gauge theories hold angles on the links of a lattice, discrete exterior calculus
-    models flows on meshes, the Hodge decomposition splits the flows of a network into gradient and cyclic parts, and
-    heat flows through a machine part meshed into triangles.
+    Read more in the user guide, under Spaces.
 
     Args:
         space:
@@ -138,26 +125,15 @@ class CellComplexSpace(NetworkSpace):
         ValidationError:
             Neither or both of a space and a mesh are given, or the points or cells of a mesh do not fit.
 
+    See Also:
+        NetworkSpace: Knows nodes and edges, with no faces and no directions.
+        LatticeSpace: Places members on a grid of sites, from which a complex can derive.
+
     Examples:
-        >>> import networkx as nx
-        >>> import numpy as np
-        >>> import skfem
-        >>> from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace, NetworkSpace
-        >>> grid = skfem.MeshTri.init_tensor(np.linspace(0, 1, 5), np.linspace(0, 1, 4))
-        >>> mesh = CellComplexSpace(points=grid.p, cells=grid.t).prepare()
-        >>> mesh.size_, mesh.n_dim_, mesh.positions_.shape, len(mesh.hyperedges_)
-        (20, 2, (20, 2), 24)
+        >>> from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace
         >>> square = CellComplexSpace(LatticeSpace((8, 8))).prepare()
         >>> [matrix.shape for matrix in square.incidences_]
         [(128, 64), (64, 128)]
-        >>> int((square.incidences_[1] @ square.incidences_[0]).count_nonzero())
-        0
-        >>> chorded = nx.cycle_graph(4)
-        >>> chorded.add_edge(0, 2)
-        >>> CellComplexSpace(NetworkSpace(chorded)).prepare().hyperedges_
-        ((0, 1, 2), (0, 2, 3))
-        >>> square.boundaries_[0].tolist(), square.boundary_signs_[0].tolist()
-        ([0, 72, 1, 64], [1.0, 1.0, -1.0, -1.0])
     """
 
     space_tags: ClassVar[tuple[str, ...]] = ('cell complex',)

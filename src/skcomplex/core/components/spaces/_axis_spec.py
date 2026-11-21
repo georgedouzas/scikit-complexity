@@ -1,4 +1,4 @@
-"""Define the spec of a class axis, a range cut into equal cells."""
+"""Define the spec of an extra axis of a phase space, a range cut into equal cells."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,9 +11,14 @@ from ...errors import ValidationError
 
 @dataclass(frozen=True)
 class AxisSpec(BaseSpec):
-    """A spec of a class axis of a phase space, a range cut into equal cells.
+    """A spec of an extra axis of a phase space, a range cut into equal cells.
 
-    A class axis is a uniform grid of cells over a range of values.
+    It cuts the range from `low` to `high` into `size` cells of width `(high - low) / size`, so
+    `AxisSpec('v', 128, -6.0, 6.0)` gives a phase space a velocity axis of 128 cells. A periodic axis joins its two
+    ends, as an angle does. It holds the velocity of gas molecules, the swimming direction of bacteria, or the age of
+    the cells of a tissue.
+
+    Read more in the user guide, under Spaces.
 
     Args:
         name:
@@ -31,10 +36,14 @@ class AxisSpec(BaseSpec):
         periodic:
             Whether the two ends of the range are joined, as for an angle, rather than edges without flux.
 
+    See Also:
+        PhaseSpace: Combines a lattice of positions with these axes.
+
     Examples:
-        >>> from skcomplex.core.components.spaces import AxisSpec
-        >>> AxisSpec('v', 128, -6.0, 6.0).name
-        'v'
+        >>> from skcomplex.core.components.spaces import AxisSpec, LatticeSpace, PhaseSpace
+        >>> space = PhaseSpace(LatticeSpace(4), [AxisSpec('v', 3, -1.5, 1.5)]).prepare()
+        >>> space.coordinates_['v'].tolist()
+        [-1.0, 0.0, 1.0]
     """
 
     name: str

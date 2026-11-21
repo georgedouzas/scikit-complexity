@@ -20,18 +20,25 @@ from ..base import BaseComponent
 class BaseNeighborhood(BaseComponent[None]):
     """An abstract neighbourhood, the members a law reads around a member of a space.
 
-    A neighbourhood stores its arguments in its `__init__`, and `prepare` checks them and derives what the engine reads,
-    such as the offsets of a lattice neighbourhood. The space that reads it rejects a neighbourhood of another kind.
+    A subclass says which members count as neighbours of a member, such as the eight cells around a site in
+    `RadiusNeighborhood(1, metric='chebyshev')`. It stores its arguments in `__init__`, and `prepare` checks them and
+    derives what the engine reads, such as the offsets on a lattice. A space rejects a neighbourhood of a kind it cannot
+    read. Its subclasses pick the cells around a tree in a forest fire, the contacts of a person in an epidemic, and the
+    birds within sight of a bird in a flock.
 
-    Unlike `BaseSpace`, which places members, it selects some of them around one member. Choose it when a new rule for
-    choosing neighbours is needed, and choose an existing neighbourhood, such as `RadiusNeighborhood`, otherwise.
-
-    It appears in every field through its subclasses, such as the eight cells around a site of a lattice, the contacts
-    of a person in a network, and the birds within sight of a bird in a flock.
+    Read more in the user guide, under Spaces.
 
     Args:
         label:
             The name of the neighbourhood, such as `'moore'`.
+
+    See Also:
+        BaseSpace: Places the members whose neighbours it picks.
+
+    Examples:
+        >>> from skcomplex.core.components.spaces import BaseNeighborhood, RadiusNeighborhood
+        >>> isinstance(RadiusNeighborhood(1), BaseNeighborhood)
+        True
     """
 
     def _get_offsets(self, n_dim: int | None = None) -> tuple[IntTuple, ...] | None:
@@ -143,22 +150,14 @@ class BaseNeighborhood(BaseComponent[None]):
 class BaseSpace(BaseComponent[None]):
     """An abstract space, where the members of a group live and who neighbours whom.
 
-    A space also gives vector states their dimension. It stores its arguments in its `__init__`, `prepare` checks them
-    and derives its facts, such as its size and shape. A
-    space with sites says so with `_has_sites` and answers the hooks the engine reads: `_get_neighbors` gives the sites
-    around a site, `_index_table` the neighbour of every site in every slot of a neighbourhood, `_translation_table` the
-    sites a group space reads at the products of a site and a group element, `_ball` the neighbourhood within a radius,
-    `_neighbor_pairs` the pairs of neighbouring sites, and `_default_neighborhood` the neighbourhood that
-    `_get_neighbors` reads when none is given. A space without sites, such as a continuous one, answers none of them.
-    Every space also answers what the engine asks of its cells: `_get_volumes` gives the fraction of every cell inside
-    the domain, `_get_apertures` the open fraction of every face, and `_supports_operator` whether a field on it takes
-    an operator, such as `laplacian`.
+    A subclass places the members of a group and says which of them are neighbours, such as the 100 sites of
+    `LatticeSpace((10, 10))`. It holds no values, only the structure the members sit on, and it gives vector values
+    their length. It stores its arguments in `__init__`, and `prepare` checks them and derives its size, shape, and
+    positions. A space with sites answers the private hooks the engine reads, such as `_get_neighbors` for the sites
+    around a site, and a space without sites, such as a continuous box, answers none of them. Its subclasses hold the
+    grid of a forest, the contact network of an epidemic, and the box of a gas.
 
-    Unlike `BaseElement`, it holds no states, only the structure that members sit on. Choose it when members live on a
-    new kind of structure, and choose `LatticeSpace`, `NetworkSpace`, or `ContinuousSpace` otherwise.
-
-    It appears in every field through its subclasses, such as a grid of cells in an ecosystem, a contact network in an
-    epidemic, and a box of particles in a gas.
+    Read more in the user guide, under Spaces.
 
     Args:
         label:
@@ -183,6 +182,18 @@ class BaseSpace(BaseComponent[None]):
         default_visual_:
             The name or class of the visual of groups on the space when neither the group nor its element sets one, or
             `None`.
+
+    See Also:
+        LatticeSpace: Places the members on a grid of sites.
+        NetworkSpace: Places the members on the nodes of a graph.
+        ContinuousSpace: Lets the members move to any real position.
+        BaseNeighborhood: Picks the members a law reads around a member.
+
+    Examples:
+        >>> from skcomplex.core.components.spaces import BaseSpace, LatticeSpace
+        >>> space = LatticeSpace((10, 10)).prepare()
+        >>> isinstance(space, BaseSpace), space.size_
+        (True, 100)
     """
 
     space_tags: ClassVar[tuple[str, ...]] = ()

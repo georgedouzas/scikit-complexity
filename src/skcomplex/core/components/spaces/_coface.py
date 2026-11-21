@@ -1,4 +1,4 @@
-"""Define the neighbourhood of the cells of the next degree that contain a cell."""
+"""Define the neighbourhood of the faces around a link."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -9,25 +9,25 @@ from ._base import BaseNeighborhood
 class CofaceNeighborhood(BaseNeighborhood):
     """A neighbourhood of the cells of the next degree that contain a cell.
 
-    The cofaces of an edge are the faces it bounds, and the cofaces of a site are the edges that meet at it. A reduction
-    over the neighbourhood runs over those cells. Inside it, `exterior_derivative` of a state of the reading group is
-    the oriented sum of its values around the one coface, the holonomy of a connection whose values are angles or
-    integers modulo a period. Every coface counts with weight one.
+    On a `CellComplexSpace` a law that reads it sees the faces around a link, or the links that meet at a site, each
+    with weight one. Inside a sum over it, `exterior_derivative` of a value on links adds the values around each face
+    with their directions, such as the total angle around a square of a lattice. Gauge theories sum the squares around
+    each link of a lattice, and flows on a mesh read the faces around each edge.
 
-    Unlike `AdjacencyNeighborhood`, which reads nodes of the same kind, it reads cells of the next degree. Choose it
-    when a state on links depends on the faces around each link.
-
-    It appears in physics and numerical analysis. Lattice gauge theories sum the plaquettes around each link, and
-    discrete exterior calculus reads the faces around each edge of a mesh.
+    Read more in the user guide, under Spaces.
 
     Args:
         label:
             The name of the neighbourhood, such as `'moore'`.
 
+    See Also:
+        AdjacencyNeighborhood: Reads the nodes joined by edges, cells of the same kind.
+        CellComplexSpace: Holds the links and faces it reads.
+
     Examples:
         >>> from skcomplex.core.components.spaces import CofaceNeighborhood
-        >>> CofaceNeighborhood().prepare().label
-        'neighborhood'
+        >>> CofaceNeighborhood(label='plaquettes').prepare().label
+        'plaquettes'
     """
 
     def __init__(self, *, label: str = 'neighborhood') -> None:

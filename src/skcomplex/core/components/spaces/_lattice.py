@@ -1,4 +1,4 @@
-"""Define the space of a box of `Z^d` or of the triangular lattice."""
+"""Define the space of a grid of sites, square or triangular."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -31,15 +31,14 @@ DISCRETIZATIONS = ('finite-difference', 'spectral', 'finite-volume')
 class LatticeSpace(BaseSpace):
     """A space of a box of `Z^d`, or of the triangular lattice in two dimensions.
 
-    `Z^d` is the lattice of points with integer coordinates in `d` dimensions. The sites hold the members of a group and
-    are numbered in row-major order, so site `(i, j)` of a lattice of shape `(n, m)` is member `i * m + j`. A triangular
-    site `(i, j)` sits at `(j + i / 2, i sqrt(3) / 2)` in the plane, so it has six neighbours at unit distance.
+    It places the members of a group on a grid of sites with integer coordinates, one member per site, such as the 200
+    cells of `LatticeSpace((10, 20))`. The sites are numbered row by row, so site `(i, j)` of a grid of shape `(n, m)`
+    is member `i * m + j`. A triangular site `(i, j)` sits at `(j + i / 2, i sqrt(3) / 2)`, so it has six neighbours
+    at distance one. A field on the grid turns operators such as `laplacian` into sums over neighbouring sites. The
+    spins of a magnet sit on a square grid, the trees of a forest fire on a map of cells, and the temperature of a rod
+    on a row of points.
 
-    Unlike `NetworkSpace`, whose links are arbitrary, it has regular neighbours, a shape, and a boundary. Choose it when
-    members sit on a grid of cells, or a field discretizes a partial differential equation.
-
-    It appears in many fields. Spins of a magnet sit on a square lattice, trees of a forest fire on a grid, and the
-    cells of a reaction diffusion model on a mesh of points.
+    Read more in the user guide, under Spaces.
 
     Args:
         shape:
@@ -107,35 +106,16 @@ class LatticeSpace(BaseSpace):
         metric_:
             The metric of the ball agents query.
 
+    See Also:
+        NetworkSpace: Places members on the nodes of any graph.
+        ContinuousSpace: Lets members move to any real position.
+        PhaseSpace: Adds axes such as velocity to a lattice of positions.
+
     Examples:
         >>> from skcomplex.core.components.spaces import LatticeSpace
         >>> space = LatticeSpace((10, 20)).prepare()
         >>> space.size_, space.n_dim_, space.shape_
         (200, 2, (10, 20))
-        >>> LatticeSpace((2, 2), geometry='triangular').prepare().positions_.round(3).tolist()
-        [[0.0, 0.0], [1.0, 0.0], [0.5, 0.866], [1.5, 0.866]]
-
-        A rod of 5 sites whose temperature is held at zero at both ends loses its heat through them.
-
-        >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.interactions import Interaction
-        >>> from skcomplex.core.components.laws import RateLaw
-        >>> from skcomplex.core.components.laws.utils import laplacian
-        >>> from skcomplex.core.types import Role
-        >>> from skcomplex.core.systems import System
-        >>> class Conduction(Interaction):
-        ...     def __init__(self, label, *, target: Role = 'rod'):
-        ...         super().__init__(label)
-        ...         self.target = target
-        ...
-        ...     def _prepare(self, s):
-        ...         super()._prepare(s)
-        ...         self.laws_ = [RateLaw(s.target.T.diff(s.t), laplacian(s.target.T))]
-        >>> space = LatticeSpace(5, boundary={'T': ('fixed', 0.0)})
-        >>> rod = Element('rod', values={'T': [0.0, 0.0, 1.0, 0.0, 0.0]}, space=space)
-        >>> trajectory = System(elements=[rod], interactions=[Conduction('heat')]).prepare().simulate(until=20, dt=10)
-        >>> trajectory.get_values('rod.T').sum(axis=1).round(3).tolist()
-        [1.0, 0.085, 0.006]
     """
 
     space_tags: ClassVar[tuple[str, ...]] = ('lattice',)
