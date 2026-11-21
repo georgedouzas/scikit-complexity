@@ -1,4 +1,4 @@
-"""Define the phases schedule spec."""
+"""Define the spec of a schedule that runs named phases at every step."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,13 +16,20 @@ DEFAULT_PHASE = 'default'
 
 @dataclass(frozen=True)
 class PhasesScheduleSpec(ScheduleSpec):
-    """A spec of a schedule of discrete time that runs named phases each step.
+    """A spec of a schedule that runs named phases in order at every step.
 
-    The phases run in order.
+    An agent model in discrete time may split each step into phases, such as producing goods and then trading them, and
+    this schedule runs them in the order given. It orders the days of a market, the seasons of a farm, and the rounds of
+    a game.
+
+    Read more in the user guide, under Agents.
 
     Args:
         phases:
             The phases, each with its rules and activation policy.
+
+    See Also:
+        PhaseSpec: One named phase with its activation policy.
 
     Examples:
         >>> from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec

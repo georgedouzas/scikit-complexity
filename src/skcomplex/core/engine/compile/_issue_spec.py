@@ -1,4 +1,4 @@
-"""Define the issue spec."""
+"""Define the spec of one problem that checking a system found."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,7 +12,13 @@ from ...errors import SkcomplexError, ValidationError
 
 @dataclass(frozen=True)
 class IssueSpec(BaseSpec):
-    """A spec of a problem that validation found, with where it is and the fix.
+    """A spec of one problem found in a system, with where it is and how to fix it.
+
+    When `prepare` checks a system, it collects every problem it finds as an issue, such as a law that reads a value its
+    element does not hold, with a short code, the path of the component, what is wrong, and how to fix it. The issues go
+    into one report, so a model of an ecosystem, a circuit, or a market shows all its mistakes at once.
+
+    Read more in the user guide, under Troubleshooting.
 
     Args:
         code:
@@ -33,6 +39,15 @@ class IssueSpec(BaseSpec):
         error:
             The class of the error raised for the problem: `ValidationError` or one of its subclasses for the problems
             validation finds, and the class of the original error for a component that fails to declare.
+
+    See Also:
+        ValidationReportSpec: Holds every issue of a system.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile import IssueSpec
+        >>> issue = IssueSpec('empty', 'system', 'It has no element.', 'Add one.')
+        >>> issue.severity.value
+        'error'
     """
 
     code: str

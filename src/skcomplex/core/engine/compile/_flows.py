@@ -1,4 +1,4 @@
-"""Expand flows and delays into laws and check conserved quantities."""
+"""Turn flows and delays into laws and check the conserved quantities."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -45,15 +45,15 @@ FLOW_TERMS = 2
 
 
 class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tuple[KernelSpec, list[BaseLaw]]]]):
-    """A lowering of flows and delays.
+    """A lowering that turns flows and delays into laws and checks what is conserved.
 
-    It checks that conserved quantities change only through flows. `prepare(compilation)` reads the quantity of every
-    tagged state, and `run(laws)` takes the laws of every kernel spec and sets them in `lowered_` with their flows
-    expanded into laws of other kinds, and the terms of each flow of a spec, which share a label, recorded as a flow. A
-    later pass finishes the lowering on the laws of every spec after their complex states and Markov laws are lowered:
-    it checks the conserved quantities and lowers the flows and the delays into the transfer network of the system.
-    The flows of a system that declares discrete time, or that holds update laws, move their amounts once per step. A
-    flow that draws records its expected amount at the state of every frame.
+    A flow moves an amount from one stock to another, such as water from a faucet into a tub. This lowering turns every
+    flow into the laws that remove the amount from its source and add it to its sink, and records each flow under its
+    label. A later pass finishes the work: it checks that a conserved quantity changes only through flows and builds the
+    network of stocks and flows of the system. The flows of a system in discrete time move their amounts once per step.
+    It serves the stocks and flows of a business, the compartments of an epidemic, and the tanks of a plant.
+
+    Read more in the user guide, under Extend the library.
 
     Attributes:
         quantities_:
@@ -76,6 +76,18 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
 
         claimed_:
             The path and the set index of every flow expanded by `run`, which no two flows share.
+
+    See Also:
+        ExpandFlowsPass: The pass that starts this lowering.
+        LowerFlowsPass: The pass that finishes it.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._flows import TransferLowering
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.engineering.processes import BathtubSystem
+        >>> compilation = PassCompiler().prepare(BathtubSystem()).compilation_
+        >>> TransferLowering().prepare(compilation).quantities_
+        {'tub.water': 'water'}
     """
 
     quantities_: dict[str, str]

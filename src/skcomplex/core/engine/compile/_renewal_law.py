@@ -1,4 +1,4 @@
-"""Define the renewal law the compiler runs for a jump on a clock of waiting times."""
+"""Define the law that renews states after random waiting times."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,9 +16,12 @@ from ...components.spaces._continuous_time import _ContinuousTime
 class RenewalLaw(BaseLaw):
     """A law that renews states after waiting times drawn anew at every renewal.
 
-    The compiler runs it for a waiting jump. Every member of a group renews on its own clock. A renewal applies its
-    reset to the states all at once, then draws the next waiting time from the states after the reset. Renewals combine
-    with rate and noise laws, which evolve the states between renewals.
+    The compiler runs it for a jump that waits on a clock, such as a walker that rests for a random time and then jumps.
+    Every member of a group renews on its own clock. A renewal applies its reset to the states all at once, then draws
+    the next waiting time from the states after the reset. Rate and noise laws move the states between renewals. It
+    models the jumps of walkers, the failures and repairs of machines, and the firing of neurons.
+
+    Read more in the user guide, under Laws.
 
     Args:
         waiting:
@@ -29,6 +32,10 @@ class RenewalLaw(BaseLaw):
 
         label:
             The name of the renewal in the trajectory, or the empty string for the path of the element.
+
+    See Also:
+        JumpLaw: Changes states at random times.
+        BoundRenewalSpec: Binds a renewal law to the group it renews.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var

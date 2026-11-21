@@ -1,4 +1,4 @@
-"""Define the array update the compiler runs for an update law of a whole array."""
+"""Define the law that replaces a whole array state by the output of a function."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,9 +24,12 @@ class ArrayUpdateLaw(BaseLaw):
     such as `UpdateLaw(s.target.height, drop, arrays=True, stochastic=True)` with
     `def drop(values, *, random, **kwargs): ...`. At every step the function receives the state of every member as one
     array, shaped like the lattice or with one row per member of a group on the edges or hyperedges of a network. A
-    state of several components per member has its components on a last axis. The function also receives the keywords
-    of every rule of an `UpdateLaw`: the parameters of the element, `time`, `space`, `degree`, which is `None`, and
-    `random`, the generator when the law is stochastic and `None` otherwise.
+    state of several values per member has them on a last axis. The function also receives the keywords of every rule
+    of an `UpdateLaw`: the parameters of the element, `time`, `space`, `degree`, which is `None`, and `random`, the
+    generator when the law is stochastic and `None` otherwise. It topples a sandpile, flips the spins of a lattice, and
+    moves the cells of a tissue.
+
+    Read more in the user guide, under Laws.
 
     Args:
         target:
@@ -45,6 +48,17 @@ class ArrayUpdateLaw(BaseLaw):
 
         stochastic:
             Whether the function draws numbers, so that it receives the random generator as `random`.
+
+    See Also:
+        RelaxationLaw: Relaxes a lattice until it is stable.
+        UpdateLaw: Sets the new value of a state at every step.
+
+    Examples:
+        >>> from sage.all__sagemath_symbolics import var
+        >>> from skcomplex.core.engine.compile._array_update_law import ArrayUpdateLaw
+        >>> law = ArrayUpdateLaw(var('h'), lambda values, **kwargs: values.clip(max=3))
+        >>> law.stochastic, law.score
+        (False, None)
     """
 
     law_tag: ClassVar[str] = 'update'

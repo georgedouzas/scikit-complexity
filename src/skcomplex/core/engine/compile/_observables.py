@@ -1,4 +1,4 @@
-"""Compile the observables of a system tree into one evaluator."""
+"""Compile the observables of a system into one evaluator."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -70,29 +70,28 @@ class _HeldElement(Element):
 
 
 class ObservableEvaluator:
-    """An evaluator of every observable of a problem.
+    """An evaluator that computes every observable of a problem from its values.
 
-    It evaluates them from a state vector, a parameter vector, and the agents. Preparing compiles every observable into
-    a getter, in declaration order, the prepared `getters_`.
+    An observable is a quantity a run records beside the states, such as the total size of a herd. Preparing turns every
+    observable into a function, in the order they are declared, and `evaluate` computes them all from the time, the
+    states, and the parameters. It records the mean wealth of traders, the total of a herd, and the order of a flock.
+
+    Read more in the user guide, under Observe.
 
     Args:
         problem:
             The compiled problem.
 
+    See Also:
+        Observable: Names a quantity a run records.
+        Observer: Gives the values of observables that laws read.
+
     Examples:
-        >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.engine.compile._observables import ObservableEvaluator
-        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-        >>> from skcomplex.core.components import Observable
-        >>> from skcomplex.core.systems import System
-        >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction
-        >>> herd = Element('herd', values={'x': [2.0, 6.0]}, size=2)
-        >>> still = ExponentialGrowthInteraction('growth', target='herd', r=0.0)
-        >>> system = System(elements=[herd], interactions=[still])
-        >>> total = Observable('total', group='herd', reduce='sum', variable='x')
-        >>> problem = PassCompiler(observables=[total]).prepare(system).run().problem_
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+        >>> problem = LogisticGrowthSystem().prepare().simulate(until=0).problem
         >>> ObservableEvaluator(problem).prepare().evaluate(0.0, problem.initial_state, problem.initial_parameters)
-        {'total': 8.0}
+        {}
     """
 
     @staticmethod

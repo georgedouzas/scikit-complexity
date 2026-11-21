@@ -1,4 +1,4 @@
-"""Draws of every component, lowered to values in an extended parameter vector."""
+"""Rewrite the random draws of laws as numbers stored after the parameters."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -47,15 +47,16 @@ DISTRIBUTIONS = tuple(
 
 
 class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tuple[KernelSpec, list[BaseLaw]]]]):
-    """A lowering of the draws of every component to values in a parameter vector.
+    """A lowering that rewrites the random draws of laws as numbers drawn each step.
 
-    The parameter vector is extended with the drawn values. `prepare(compilation)` reads where the parameters end and
-    the time symbol, and `run(laws)` takes the laws of every kernel spec, replaces every draw of their update laws by a
-    drawn value, and places the drawn values after the parameters, by component path, draw name, and member index. A
-    draw read at a member offset reads the value the offset member draws, so the members of a group can share one draw.
-    `_apply_references()` then gives every spec the references of its drawn values. On the JAX backend a Bernoulli or
-    categorical draw with a temperature is lowered to its continuous relaxation of the same uniform value, and with
-    `hard` to the exact value with the gradient of the relaxation, while every other backend draws it exactly.
+    An update law may draw a random number, such as a random turn for every bird of a flock. Before every step the run
+    draws all these numbers at once and stores them after the parameters, and this lowering rewrites every draw of a law
+    as a read of its stored number, ordered by component path, draw name, and member index. A draw read at a member
+    offset reads the number that the other member draws, so the members of a group can share one draw. On the JAX
+    backend a Bernoulli or categorical draw with a temperature becomes a smooth version of itself, so gradients can pass
+    through it. It serves the turns of a flock, the shocks of a market, and the mutations of a population.
+
+    Read more in the user guide, under Extend the library.
 
     Attributes:
         offset_:
@@ -76,6 +77,18 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
 
         relaxes_:
             Whether relaxed draws are lowered to their relaxation, true on the JAX backend.
+
+    See Also:
+        DrawsPass: The pass that runs this lowering.
+        DrawKernel: Draws the numbers before every step.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._draw_lowering import DrawLowering
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.physics.active_matter import VicsekSystem
+        >>> compilation = PassCompiler().prepare(VicsekSystem()).compilation_
+        >>> DrawLowering().prepare(compilation).run(compilation.shifted).draws_.size
+        400
     """
 
     offset_: int

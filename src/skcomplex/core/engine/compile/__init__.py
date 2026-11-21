@@ -1,8 +1,8 @@
-"""Compile systems into problems of one mathematical form, with numeric functions.
+"""Compile systems into problems that solvers run.
 
-A prepared system chooses the compiler of the form it holds. A system package that brings a form of its own writes its
-compiler on `BaseCompiler`, with passes on `BasePass` and lowerings on `BaseLowering`. A compiler receives the
-components of a prepared system.
+A prepared system hands its components to a compiler, which checks them and turns their laws into one problem with
+numeric functions, such as the two equations of `LotkaVolterraSystem`. A system package that brings a kind of problem
+of its own writes its compiler on `BaseCompiler`, with passes on `BasePass` and lowerings on `BaseLowering`.
 """
 
 from ._base import BaseCompiler, BaseLowering, BasePass

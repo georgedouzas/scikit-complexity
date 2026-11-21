@@ -1,4 +1,4 @@
-"""Compile a system through the passes of a compilation."""
+"""Compile a system by running a sequence of passes over a compilation."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -142,16 +142,16 @@ FIELDS = (
 
 
 class PassCompiler(BaseCompiler):
-    """A general compiler of a system that runs passes over a compilation.
+    """A compiler that turns any system into a problem by running a sequence of passes.
 
-    The passes run in the order of the fields they share. `prepare(system)` validates the system: it compares the
-    requirements every law declares with the states it targets, the space it lives on, and the system's time, checks
-    that one solver runs the laws of every partition, and checks the solver and the backend against their declared
-    support. A state of a fractional order needs an order in `(0, 1)`, continuous time, and a solver and a backend that
-    integrate fractional orders. It reports every issue at once in `report_`, each with its path and fix, and keeps the
-    compilation planned so far in `compilation_`, which `run` continues from. Elements and groups are compiled once
-    each, whatever the size of a group. Laws written for one member are evaluated for every member, and pair
-    interactions are evaluated for every pair within their cutoff.
+    Each pass does one step, such as finding the states of every element or writing the equations, and the passes run in
+    the order of the fields they share. `prepare(system)` checks the system: every law against the states it changes,
+    the space, and the time of the system, and the solver and backend against what they support. It lists every problem
+    it finds in `report_`, each with its path and fix, and keeps the compilation so far in `compilation_`, which `run`
+    finishes into `problem_`. A group is compiled once, whatever its size, and a law written for one member runs for
+    every member. It compiles growing populations, networks of reactions, flocks, and markets alike.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         passes:
@@ -200,19 +200,16 @@ class PassCompiler(BaseCompiler):
             words, by the label of the child system, or by `''` for the whole system. A nested system compiled so
             keeps its own time and solver as a partition of a co-simulation.
 
+    See Also:
+        BaseCompiler: The base of every compiler.
+        Compilation: Holds the fields that the passes read and write.
+
     Examples:
-        >>> from skcomplex.core.systems import System
         >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-        >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
-        >>> system = System(
-        ...     elements=[PopulationElement('rabbits', x=10)],
-        ...     interactions=[ExponentialGrowthInteraction('growth', target='rabbits', r=0.5)],
-        ... )
-        >>> compiler = PassCompiler().prepare(system)
-        >>> compiler.report_.ok
-        True
-        >>> compiler.run().problem_.equations
-        {'rabbits.x': r_growth*x_rabbits}
+        >>> from skcomplex.systems.biology.ecology import ExponentialGrowthSystem
+        >>> compiler = PassCompiler().prepare(ExponentialGrowthSystem())
+        >>> compiler.report_.ok, compiler.run().problem_.equations
+        (True, {'population.x': r_growth*x_population})
     """
 
     passes_: tuple[BasePass, ...]

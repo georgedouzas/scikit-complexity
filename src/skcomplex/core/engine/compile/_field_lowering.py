@@ -1,4 +1,4 @@
-"""Lower differential operators on fields to stencils and graph Laplacians."""
+"""Rewrite the operators of fields as sums over neighbouring sites."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -79,11 +79,15 @@ FILTER_MODES = {'periodic': 'wrap', 'zero-flux': 'reflect', 'fixed': 'constant'}
 
 
 class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
-    """A lowering of the differential operators of the laws of a component to stencils.
+    """A lowering that rewrites field operators as sums over neighbouring sites.
 
-    The lowering also returns the symbols the stencils read. `prepare(compilation)` reads the fields and the initial
-    values of the compilation, and `run(laws)` returns the laws with every operator replaced by its stencil, noting the
-    stable steps of the Laplacians of rate laws.
+    A law of a field may apply an operator such as `laplacian(u)`, the spread of heat at every site of a plate. This
+    lowering rewrites every such operator as a weighted sum over the neighbouring sites, a stencil, or as a matrix of a
+    network, a spectral grid, or a mesh. It also notes the largest stable time step of every explicit Laplacian, so a
+    solver can choose its step. It serves the heat of a plate, the concentrations of a reaction and diffusion, and the
+    height of shallow water.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         spec:
@@ -121,6 +125,18 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         applied_:
             The lowered value of every operator call so far, by its name and its lowered operands, so an identical call
             shares one value.
+
+    See Also:
+        LowerFieldsPass: The pass that runs this lowering.
+        LatticeSpace: A grid of sites that fields live on.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._field_lowering import FieldLowering
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.physics.heat import HeatDiffusionSystem
+        >>> compilation = PassCompiler().prepare(HeatDiffusionSystem()).compilation_
+        >>> list(FieldLowering(compilation.specs[0][0]).prepare(compilation).fields_)
+        ['plate.u', 'plate.D']
     """
 
     fields_: Mapping[str, _FieldElement]
