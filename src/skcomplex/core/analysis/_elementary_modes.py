@@ -49,9 +49,13 @@ class _ConeSpec(BaseSpec):
 
 @dataclass(frozen=True)
 class ElementaryModesResult:
-    """A result of `elementary_modes`, the generators of a steady-state cone.
+    """A result of `elementary_modes`, the simplest steady routes through a network.
 
-    They are the elementary modes or the extreme pathways.
+    It holds the names of the variables, the routes, one row per route in exact fractions, and the routes that can run
+    both ways, such as one route through a chain of three reactions. It reports the pathways of a metabolism, the routes
+    of a chemical plant, and the flows of a supply chain.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         labels:
@@ -62,6 +66,15 @@ class ElementaryModesResult:
 
         lines:
             The generators that run in both directions, the lines of a cone that is not pointed, one row per line.
+
+    See Also:
+        elementary_modes: Returns this result.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.analysis import elementary_modes
+        >>> elementary_modes(np.array([[1.0, -1.0, 0.0], [0.0, 1.0, -1.0]]), normalize='v0').modes.tolist()
+        [[Fraction(1, 1), Fraction(1, 1), Fraction(1, 1)]]
     """
 
     labels: tuple[str, ...]
@@ -80,30 +93,26 @@ def elementary_modes(
     irreversible: Sequence[int] | None = None,
     sort: str | None = None,
 ) -> ElementaryModesResult:
-    """Return the exact generators of the steady-state cone of a linear program.
+    """Return the simplest steady routes through a network of flows.
 
-    The cone is `{v : S v = 0, v_irr >= 0}`. A system gives the program of its linear program law at its initial values,
-    whose bounds give the directions: a negative lower bound makes a variable reversible, a nonpositive upper bound
-    reverses its column, and a variable fixed at zero is removed. A matrix gives the cone directly, with the indices of
-    its irreversible columns.
+    A steady route is a set of flows `v` that keeps every amount fixed, `S v = 0`, with every one-way flow running its
+    own way. The simplest routes use as few flows as they can, and every steady state is a mix of them. A system gives
+    the matrix and the directions of its linear program law at its initial values, and a matrix gives them directly with
+    the indices of its one-way columns. It lists the pathways of a metabolism, the routes of a chemical plant, and the
+    ways goods can flow through a supply chain.
 
-    - `'modes'`: the steady-state vectors of minimal support in which every irreversible variable runs in its declared
-      direction. Every reversible column splits in two, the extreme rays of the split cone come from the Parma
-      Polyhedra Library, the two-cycles of split pairs drop, and the rest maps back (Gagneur and Klamt 2004).
-    - `'pathways'`: the generators of the cone with every reversible internal column split and each exchange kept as one
-      column, of either sign when it is reversible (Schilling et al. 2000), and without any generator that is a
-      non-negative combination of the others (Raman 2021, Section 9.8). The generators that run in both directions leave
-      `modes` for `lines`.
-
-    It appears in systems biology, where it lists the pathways of a metabolic network, and in chemical engineering,
-    where it lists the routes of a reaction network.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
             The system, or the matrix.
 
         kind:
-            The generators to enumerate, `'modes'` or `'pathways'`.
+            `'modes'` gives the steady routes of fewest flows with every one-way flow in its own direction, by splitting
+            every two-way column, finding the edges of the cone with the Parma Polyhedra Library, and mapping back
+            (Gagneur and Klamt 2004). `'pathways'` gives the edges of the cone with every two-way internal column split
+            and each exchange kept whole (Schilling et al. 2000), without any route that mixes others (Raman 2021).
+            Routes that run both ways move to `lines`.
 
         normalize:
             The name of a variable to scale every row to one where it is not zero, or `None` for the smallest integer
@@ -137,11 +146,14 @@ def elementary_modes(
         EnumerationLimitError:
             The enumeration does not finish within the time limit.
 
+    See Also:
+        loops: Finds the feedback loops of a network.
+        autocatalytic_sets: Finds sets of reactions that help each other.
+
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.analysis import elementary_modes
-        >>> matrix = np.array([[1.0, -1.0, 0.0], [0.0, 1.0, -1.0]])
-        >>> elementary_modes(matrix, normalize='v0').modes.tolist()
+        >>> elementary_modes(np.array([[1.0, -1.0, 0.0], [0.0, 1.0, -1.0]]), normalize='v0').modes.tolist()
         [[Fraction(1, 1), Fraction(1, 1), Fraction(1, 1)]]
     """
     source = _composite(source)

@@ -28,7 +28,13 @@ TAGS = AnalysisTags(DataKind.SERIES)
 
 @dataclass(frozen=True)
 class EmbeddingResult:
-    """A result of `embedding`, a delay embedding with its delay and dimension.
+    """A result of `embedding`, the delayed copies of a series.
+
+    It holds the delay, the dimension, the points made of delayed copies of the series, and the measures that chose
+    them, the auto mutual information and the share of false neighbours. It reports the rebuilt orbit of a heart beat,
+    of a river flow, or of a price.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         values:
@@ -52,6 +58,14 @@ class EmbeddingResult:
         false_neighbors:
             The fraction of false nearest neighbours in every dimension from 1, or `None` when `'delay'` is given the
             dimension.
+
+    See Also:
+        embedding: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import embedding
+        >>> embedding([0, 1, 2, 3, 4], delay=2, dimension=2).points.tolist()
+        [[0.0, 2.0], [1.0, 3.0], [2.0, 4.0]]
     """
 
     values: Array
@@ -77,28 +91,25 @@ def embedding(
     ratio: float = 10.0,
     escape: float = 2.0,
 ) -> EmbeddingResult:
-    """Return the delay embedding of one series.
+    """Return the points made of delayed copies of one series.
 
-    The delay and the dimension are chosen from the data unless given.
+    It builds the points `(x_t, x_{t+delay}, ..., x_{t+(dimension-1) delay})`, which rebuild the shape of the orbit of a
+    system from one measured series, such as `[[0, 2], [1, 3], [2, 4]]` for `0, 1, 2, 3, 4` with delay 2. Without a
+    delay it takes the first minimum of the auto mutual information, and without a dimension the first one whose share
+    of false neighbours lies below `threshold`. It rebuilds the orbit of a heart rate, of a river flow, and of a stock
+    price.
 
-    The kinds read one series:
-
-    - `'delay'`: the delay vectors `(x_t, x_{t+delay}, ..., x_{t+(dimension-1) delay})`. Without a delay, the delay is
-      the first minimum of the auto mutual information. Without a dimension, the dimension is the first one whose
-      fraction of false nearest neighbours lies below `threshold`.
-    - `'false-nearest-neighbors'`: Kennel's fraction of false nearest neighbours of the embeddings of dimensions 1 to
-      `max_dimension`. A nearest neighbour in dimension `d` is false when the next coordinate moves it away by more
-      than `ratio` times their distance, or by more than `escape` times the standard deviation of the series.
-
-    It appears in many fields. It rebuilds the attractor of a dynamical system from one measured series, such as a heart
-    rate, a river flow, or a stock price.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
             The trajectory, or an array that holds one series.
 
         kind:
-            The embedding measure to compute, one of the kinds above.
+            `'delay'` gives the delayed points. `'false-nearest-neighbors'` gives the share of false neighbours of
+            Kennel for dimensions 1 to `max_dimension`, a neighbour in dimension `d` being false when the next
+            coordinate moves it away by more than `ratio` times their distance or `escape` times the spread of the
+            series.
 
         variables:
             The one variable of a trajectory to read, or `None` for the only scalar series.
@@ -136,14 +147,14 @@ def embedding(
             The kind is unknown, a setting the kind does not read is changed, a size is below 1, the source holds
             several series, or no dimension has few enough false neighbours.
 
+    See Also:
+        recurrence: Finds when an orbit returns near itself.
+        lyapunov: Measures how fast nearby runs part.
+
     Examples:
-        >>> import numpy as np
         >>> from skcomplex.core.analysis import embedding
         >>> embedding([0, 1, 2, 3, 4], delay=2, dimension=2).points.tolist()
         [[0.0, 2.0], [1.0, 3.0], [2.0, 4.0]]
-        >>> result = embedding(np.sin(np.arange(5000) * 0.05), delay=31)
-        >>> result.delay, result.dimension
-        (31, 2)
     """
     _check_choice('embedding', 'kind', kind, KINDS)
     _check_settings(
