@@ -11,9 +11,14 @@ from ...errors import ValidationError
 
 @dataclass(frozen=True)
 class RunSettingsSpec(BaseSpec):
-    """A spec of the run settings of a system file.
+    """A spec of the run settings of a model file: its start, length, and steps.
 
-    They hold where its time starts, how long it runs, its step, and its saving interval.
+    It holds the time a run of the file starts at, how long it runs, its time step, and how often it saves values, such
+    as a run from the year 1900 for 100 years in steps of a quarter. A translator reads it from the control section of
+    the file and writes it as the constants of the system module. It sets the run of a population model, a supply chain,
+    and a climate model alike.
+
+    Read more in the user guide, under Systems.
 
     Args:
         start:
@@ -32,6 +37,9 @@ class RunSettingsSpec(BaseSpec):
         ValidationError:
             The length of the run, the time step, or the saving interval is not positive, raised when its owner checks
             it.
+
+    See Also:
+        SystemDynamicsTranslator: Reads the settings from a model file.
 
     Examples:
         >>> from skcomplex.core.engine.translators import RunSettingsSpec

@@ -406,7 +406,7 @@ def test_run_unsupported_functions(fixtures_folder):
         ('Label = INTEG(1, 0) ~ ~ |\n', ['Label', 'clashes']),
         ('Member = INTEG(1, 0) ~ ~ |\n', ['Member', 'clashes']),
         ('Level = INTEG(Solver, 0) ~ ~ |\nSolver = 2 ~ ~ |\n', ['Solver', 'clashes']),
-        ('Contact Rate = INTEG(1, 0) ~ ~ |\n"Contact-Rate" = 2 ~ ~ |\n', ['share the snake-case name']),
+        ('Contact Rate = INTEG(1, 0) ~ ~ |\n"Contact-Rate" = 2 ~ ~ |\n', ['both become contact_rate in Python']),
         (':MACRO: DOUBLE(x)\nDOUBLE = 2 * x ~ ~ |\n:END OF MACRO:\nLevel = INTEG(1, 0) ~ ~ |\n', ['double', 'macro']),
     ],
 )

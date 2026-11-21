@@ -41,23 +41,16 @@ RESERVED_NAMES = frozenset(
 class SystemDynamicsTranslator(BaseConfig[None, None]):
     """A translator of a Vensim or XMILE file into the source of a system module.
 
-    The module is a system module of the library, with one private function per auxiliary and lookup, the constants
-    `START`, `UNTIL`, `DT`, and `SAVE_EVERY`, and one system class named after the element in CamelCase with the suffix
-    `System`. The system class takes the constants as keyword arguments, with the values of the file as defaults, and
-    holds as tuned run settings `until`, the length of the run, `dt`, the saving interval of the file, and
-    `observables`, one per auxiliary and per goal-seeking stock.
+    It reads a stock and flow model saved by Vensim or Stella and writes the Python source of a system module that
+    builds the same model, with the constants `START`, `UNTIL`, `DT`, and `SAVE_EVERY` and one system class named after
+    the model, such as `GrowthSystem` for `growth.mdl`. The system class takes the constants of the file as keyword
+    arguments, with the values of the file as defaults. A model whose stocks change only through flows becomes a
+    subclass of `StockFlowSystem`, and any other model becomes an element of the stocks and constants with one
+    interaction per flow and per remaining rate. A model whose stocks all run over one subscript range becomes an
+    element with one member per subscript. It brings population models, supply chains, and epidemic models of other
+    tools into the library.
 
-    A file whose stocks are not subscripted and change only through flow variables becomes a subclass of
-    `StockFlowSystem`, imported in the source from `skcomplex.systems.general.dynamics`, which returns the initial
-    stocks from `_get_stocks`, the constants from `_get_parameters`, and the flows from `_get_flows`. A flow variable of
-    two stocks flows from one to the other, and a flow variable of one stock with the environment.
-
-    Any other file becomes one plain element class, whose values are the stocks and the constants of the file, and a
-    system class on `BaseSystem` whose `_prepare` sets `system_` to the `System` of its element and its interactions.
-    A flow variable becomes a `FlowInteraction` of `skcomplex.systems.general.dynamics`, the rate law that maps the
-    stocks it leaves and enters to signs, with no stock for the environment, and what remains of the rate of a stock an
-    `Interaction` that returns its `RateLaw`, with the rate `(goal - stock) / time` for a goal-seeking stock. A system
-    whose stocks are all subscripted over one range becomes an element with one member per subscript.
+    Read more in the user guide, under Systems.
 
     Args:
         path:
@@ -68,7 +61,7 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
 
     Attributes:
         system_:
-            The abstract system PySD reads from the file.
+            The model PySD reads from the file.
 
         source_:
             The Python source of the system module.
@@ -79,30 +72,19 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
     Raises:
         ValidationError:
             The path names no file of a known format, or the name is not an identifier, raised by `prepare`. The file
-            has constructs without a counterpart, or names that clash, all of them listed, raised by `run`.
+            uses features without a counterpart, or names that clash, all of them listed, raised by `run`.
+
+    See Also:
+        RunSettingsSpec: The run settings of the file.
+        StockFlowSystem: The base of the translated stock and flow models.
 
     Examples:
-        >>> import tempfile
-        >>> from pathlib import Path
+        >>> import pathlib, tempfile
         >>> from skcomplex.core.engine.translators import SystemDynamicsTranslator
-        >>> text = '''
-        ... Stock = INTEG(Inflow, 1) ~ ~ |
-        ... Inflow = 2 * Stock ~ ~ |
-        ... INITIAL TIME = 0 ~ ~ |
-        ... FINAL TIME = 4 ~ ~ |
-        ... TIME STEP = 0.25 ~ ~ |
-        ... SAVEPER = 1 ~ ~ |
-        ... '''
-        >>> with tempfile.TemporaryDirectory() as folder:
-        ...     path = Path(folder) / 'growth.mdl'
-        ...     _ = path.write_text(text)
-        ...     translator = SystemDynamicsTranslator(path).prepare().run()
-        >>> translator.settings_.until
-        4.0
-        >>> 'class GrowthSystem(StockFlowSystem):' in translator.source_
+        >>> path = pathlib.Path(tempfile.mkdtemp()) / 'growth.mdl'
+        >>> _ = path.write_text('Stock=INTEG(2*Stock,1)~~|INITIAL TIME=0~~|FINAL TIME=4~~|TIME STEP=1~~|SAVEPER=1~~|')
+        >>> 'class GrowthSystem' in SystemDynamicsTranslator(path).prepare().run().source_
         True
-        >>> 'class GrowthElement(Element):' in translator.source_
-        False
     """
 
     def __init__(self, path: str | Path, *, name: str | None = None) -> None:
@@ -132,7 +114,10 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
             error_msg = f'The file {path} does not exist. Give the path of a system file.'
             raise ValidationError(error_msg)
         if self.name is not None and not self.name.isidentifier():
-            error_msg = f'The name {self.name!r} is not an identifier. Give a snake-case name, or None.'
+            error_msg = (
+                f'The name {self.name!r} is not an identifier. Give a name of lower case letters, digits, and '
+                "underscores, such as 'population', or None."
+            )
             raise ValidationError(error_msg)
         path = Path(self.path)
         reader = VensimFile(path) if path.suffix.lower() == VENSIM_SUFFIX else XmileFile(path)
@@ -276,7 +261,7 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
                     seen.setdefault(_SystemVariablesSpec.get_name(element.name), []).append(element.name)
         for name, originals in seen.items():
             if len(originals) > 1:
-                problems.append(f'{" and ".join(originals)}: names that share the snake-case name {name}')
+                problems.append(f'{" and ".join(originals)}: names that both become {name} in Python')
             if name in RESERVED_NAMES or not name.isidentifier() or keyword.iskeyword(name):
                 problems.append(f'{originals[0]}: a name that clashes with the system module as {name}')
         if label in variables.auxiliaries:
@@ -328,7 +313,10 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
         source = _ModuleWriter(variables, settings, label, stem, expressions).write()
         if problems:
             listed = '\n'.join(f'- {problem}' for problem in dict.fromkeys(problems))
-            error_msg = f'The file {self.path} has constructs that do not translate:\n{listed}'
+            error_msg = (
+                f'The file {self.path} uses features that the library has no counterpart for, so it cannot be '
+                f'translated:\n{listed}'
+            )
             raise ValidationError(error_msg)
         settings._check()
         self.settings_ = settings
