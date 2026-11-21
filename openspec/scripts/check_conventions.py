@@ -101,6 +101,10 @@ LAYOUT_PACKAGES = (
             '_events',
             '_fit',
             '_groups',
+            '_information',
+            '_invariants',
+            '_irreversibility',
+            '_jump_path_spec',
         )
     ),
 )

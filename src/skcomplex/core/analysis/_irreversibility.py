@@ -57,9 +57,14 @@ KIND_TAGS = {
 
 @dataclass(frozen=True)
 class IrreversibilityResult:
-    """A result of `irreversibility`, the irreversibility of a process.
+    """A result of `irreversibility`, how far a process is from its reverse in time.
 
-    It is its entropy production, detailed balance, fluctuation relations, or response.
+    It holds the rates, paths, or samples it read and what the kind measures: the entropy production, the test of
+    detailed balance, the fluctuation relations, or the response, such as an entropy production of `ln 2` for a ring of
+    five states that steps forward twice as often as back. It reports how far molecular motors, heart beats, and the
+    prices of a market are from equilibrium.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         values:
@@ -116,6 +121,14 @@ class IrreversibilityResult:
 
         fluctuation_dissipation_ratio:
             The fluctuation-dissipation ratio, of `'fluctuation-dissipation'`.
+
+    See Also:
+        irreversibility: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import irreversibility
+        >>> irreversibility([0, 1, 2] * 1000, kind='detailed-balance').balanced
+        False
     """
 
     values: npt.NDArray[np.int64] | Array
@@ -160,30 +173,13 @@ def irreversibility(
 ) -> IrreversibilityResult:
     """Return the irreversibility of a process, of one kind.
 
-    The kinds measure its entropy production, detailed balance, fluctuation relations, or response.
+    A process is reversible when a film of it run backwards is as likely as the film run forwards. The kinds read a
+    rate matrix, jump paths, Langevin paths, samples, or ensembles, and give how much entropy the process produces,
+    whether its transitions balance, or how it responds to a field, such as an entropy production of `ln 2` for a ring
+    of five states that steps forward twice as often as back. It measures how far molecular motors, heart beats, and
+    the prices of a market are from equilibrium.
 
-    The kinds read a rate matrix, jump paths, Langevin paths, samples, or ensembles:
-
-    - `'entropy-production'`: the stationary entropy production rate of a jump process from its rate matrix,
-      `Σ_{i<j} (p_i k_ij - p_j k_ji) ln(p_i k_ij / (p_j k_ji))`, 0 under detailed balance.
-    - `'jump-entropy-production'`: the entropy every jump path produces in the medium, `Σ ln(k_ij / k_ji)` over its
-      jumps with the `rates`, and the mean rate over the `duration` of the paths.
-    - `'langevin-entropy-production'`: the entropy every overdamped Langevin path produces, the work of the `drive`
-      times the `intensity`, `b ∫ F(x) ∘ dx`, and the mean rate.
-    - `'count-entropy-production'`: the entropy production rate of a discrete path from its transition counts alone,
-      `Σ_{i<j} (N_ij - N_ji) ln(N_ij / N_ji)` per unit time.
-    - `'detailed-balance'`: the chi-squared test of detailed balance on the transition counts of discrete paths.
-    - `'fluctuation-theorem'`: the log ratio of the probabilities of producing `s` and `-s` from samples of the
-      entropy, and its slope against `s`, 1 when the theorem holds.
-    - `'uncertainty-relation'`: the squared relative fluctuation `Var(J) / ⟨J⟩²` of samples of an integrated current
-      times the mean `entropy` produced over the same duration, at least 2 (Barato and Seifert 2015).
-    - `'response'`: the integrated response `chi(t) = (<x(t)>_h - <x(t)>_0) / h` of an ensemble with the field
-      against the `unperturbed` ensemble.
-    - `'fluctuation-dissipation'`: the response, and the slope of `chi / b` against `C(t_w, t_w) - C(t, t_w)` of the
-      two-time `correlation` over the same lags, 1 in equilibrium and below 1 in an aging system.
-
-    It appears in many fields. It measures how far a process is from equilibrium, in molecular motors, in heart beats,
-    and in the prices of a market.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
@@ -191,7 +187,22 @@ def irreversibility(
             kind measures.
 
         kind:
-            The measure to compute, one of the kinds above.
+            What to return. `'entropy-production'` gives the stationary entropy production rate of a jump process from
+            its rate matrix, `Σ_{i<j} (p_i k_ij - p_j k_ji) ln(p_i k_ij / (p_j k_ji))`, 0 under detailed balance.
+            `'jump-entropy-production'` gives the entropy every jump path produces in the medium, `Σ ln(k_ij / k_ji)`
+            over its jumps with the `rates`, and the mean rate over the `duration` of the paths.
+            `'langevin-entropy-production'` gives the entropy every overdamped Langevin path produces, the work of the
+            `drive` times the `intensity`, `b ∫ F(x) ∘ dx`, and the mean rate. `'count-entropy-production'` gives the
+            entropy production rate of a discrete path from its transition counts alone,
+            `Σ_{i<j} (N_ij - N_ji) ln(N_ij / N_ji)` per unit time. `'detailed-balance'` gives the chi-squared test of
+            detailed balance on the transition counts of discrete paths. `'fluctuation-theorem'` gives the log ratio
+            of the probabilities of producing `s` and `-s` from samples of the entropy, and its slope against `s`, 1
+            when the theorem holds. `'uncertainty-relation'` gives the squared relative fluctuation `Var(J) / ⟨J⟩²` of
+            samples of an integrated current times the mean `entropy` produced over the same duration, at least 2
+            (Barato and Seifert 2015). `'response'` gives the integrated response `chi(t) = (<x(t)>_h - <x(t)>_0) / h`
+            of an ensemble with the field against the `unperturbed` ensemble. `'fluctuation-dissipation'` gives the
+            response and the slope of `chi / b` against `C(t_w, t_w) - C(t, t_w)` of the two-time `correlation` over
+            the same lags, 1 in equilibrium and below 1 in an aging system.
 
         variables:
             The discrete state or the position of a trajectory to read, or `None` for the first one.
@@ -248,6 +259,10 @@ def irreversibility(
             The kind is unknown, a setting the kind does not read is changed, a setting the kind needs is missing, a
             setting is out of range, or the data do not suit the kind.
 
+    See Also:
+        ergodicity: Tells whether one run stands for the whole ensemble.
+        markov: Estimates the Markov chain of a discrete path.
+
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.analysis import irreversibility
@@ -255,11 +270,6 @@ def irreversibility(
         >>> production = irreversibility(ring).entropy_production
         >>> bool(abs(production - np.log(2)) < 1e-12)
         True
-        >>> jumps = irreversibility([0, 1, 0, 1], kind='jump-entropy-production', rates=[[0, 2], [1, 0]], duration=3.0)
-        >>> jumps.entropies.round(3).tolist()
-        [0.693]
-        >>> irreversibility([0, 1, 2] * 1000, kind='detailed-balance').balanced
-        False
     """
     _check_choice('irreversibility', 'kind', kind, KINDS)
     _check_settings(

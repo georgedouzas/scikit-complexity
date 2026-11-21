@@ -31,6 +31,12 @@ TAGS = AnalysisTags(DataKind.SYSTEM)
 class InvariantsResult:
     """A result of `invariants`, the rates of expressions and if they are conserved.
 
+    It holds the system, its equations, and for every expression its rate of change, whether it is conserved, and the
+    method that decided, such as the energy `x² + x'²` of a unit spring with a rate of 0. It reports the conserved
+    energy of a pendulum, the conserved total of an epidemic, and the conserved money of an exchange economy.
+
+    Read more in the user guide, under Analyse.
+
     Args:
         problem:
             The compiled problem.
@@ -53,6 +59,17 @@ class InvariantsResult:
 
         methods:
             A mapping from every label to the method that decided, `'symbolic'` or `'numeric'`.
+
+    See Also:
+        invariants: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import invariants
+        >>> from skcomplex.core.components import Observable
+        >>> from skcomplex.systems.physics.mechanics import HarmonicOscillatorSystem
+        >>> position = Observable('position', lambda s: s.mass.x)
+        >>> invariants(HarmonicOscillatorSystem(), expressions=[position]).rates['position']
+        x_d1_mass
     """
 
     problem: ProblemSpec
@@ -75,12 +92,12 @@ def invariants(
 
     The rate `df/dt` of an expression `f` is its derivative along the equations of the system, `diff(f, t) + sum
     df/dx x'`. An expression is conserved when its rate simplifies to zero, or, when simplification does not decide,
-    when the rate vanishes within a tolerance at random states with the parameters at their values. The expressions
-    are `Observable`s whose expression is a function of the namespace of the system, where `s.<element>.<state>` is the
-    symbol of a state, or a symbolic expression of those symbols.
+    when the rate is zero within a tolerance at random states with the parameters at their values, such as the energy
+    `x² + x'²` of a unit spring. The expressions are `Observable`s whose expression is a function of the namespace of
+    the system, where `s.<element>.<state>` is the symbol of a state. It finds the conserved energy of a pendulum, the
+    conserved total of an epidemic, and the conserved money of an exchange economy.
 
-    It appears in many fields. It finds the conserved energy of a pendulum, the conserved total of an epidemic, and the
-    conserved money of an exchange economy.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
@@ -104,26 +121,17 @@ def invariants(
             The source is not a system, the system is not an ODE, or an expression or the number of samples is
             invalid.
 
+    See Also:
+        stability: Finds the fixed points of a system and whether they are stable.
+        symbolic: Derives the equations of a system as symbolic expressions.
+
     Examples:
         >>> from skcomplex.core.analysis import invariants
         >>> from skcomplex.core.components import Observable
-        >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.interactions import Interaction
-        >>> from skcomplex.core.components.laws import RateLaw
-        >>> from skcomplex.core.systems import System
-        >>> def swing(s):
-        ...     return [RateLaw(s.target.q, s.target.p), RateLaw(s.target.p, -s.target.q)]
-        >>> spring = Interaction('spring', roles={'target': 'mass'}, laws=swing)
-        >>> system = System(elements=[Element('mass', values={'q': 1.0, 'p': 0.0})], interactions=[spring])
-        >>> expressions = [
-        ...     Observable('energy', lambda s: s.mass.q**2 + s.mass.p**2),
-        ...     Observable('position', lambda s: s.mass.q),
-        ... ]
-        >>> result = invariants(system, expressions=expressions)
-        >>> result.conserved
-        {'energy': True, 'position': False}
-        >>> result.rates['position']
-        p_mass
+        >>> from skcomplex.systems.physics.mechanics import HarmonicOscillatorSystem
+        >>> energy = Observable('energy', lambda s: s.mass.x**2 + s.mass.x_d1**2)
+        >>> invariants(HarmonicOscillatorSystem(), expressions=[energy]).conserved
+        {'energy': True}
     """
     _check_inputs(expressions, samples)
     system = _get_system(source)
