@@ -43,7 +43,7 @@ def test_inverse_helmholtz_holds_the_code_and_value_of_its_boundary():
 @pytest.mark.parametrize('boundary', ['fixed', ('zero-flux', 1.0), 'walls'])
 def test_inverse_helmholtz_rejects_an_unknown_boundary(boundary):
     """Test that an inversion rejects an unknown boundary, a fixed one without value, and a value of another one."""
-    with pytest.raises(ValidationError, match='boundary of the inversion'):
+    with pytest.raises(ValidationError, match='boundary of inverse_helmholtz'):
         inverse_helmholtz(var('q'), 1, boundary)
 
 
