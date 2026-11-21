@@ -14,10 +14,9 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import JumpLaw, RateLaw
+from ....core.components.laws import BaseLaw, JumpLaw, RateLaw
 from ....core.components.laws.utils import draw
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
@@ -101,7 +100,7 @@ class ObservedGrowthInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             x = context.target.x
             waiting = draw('wait', 'expon', scale=1 / context.lam)
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 RateLaw(x, context.mu * x),
                 JumpLaw(waiting=waiting, reset={x: context.x0}, label='observations'),
             ]

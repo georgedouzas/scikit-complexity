@@ -12,10 +12,9 @@ from types import SimpleNamespace
 import numpy as np
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import normal, total
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
@@ -108,7 +107,7 @@ class HerdingInteraction(Interaction):
             agent = context.target
             herding = total(agent.other.c, over=agent.other, weights=np.asarray(self.weights, dtype=float))
             choice = herding + agent.gamma * (agent.x + agent.sigma * normal('shock', 0, 1))
-            self.laws_: list[BaseComponent] = [UpdateLaw(agent.c, choice)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(agent.c, choice)]
 
 
 class NetworkHerdingSystem(BaseSystem):

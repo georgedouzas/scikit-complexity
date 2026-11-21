@@ -17,10 +17,9 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import count, hyperedges, total, uniform, where
 from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
@@ -123,7 +122,7 @@ class ExposureInteraction(Interaction):
             dose = hyperedges(context.rate * share**context.exponent)
             draw = uniform('exposure')
             infection = where(draw < 1 - exp(-dose), 1, 0)
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 UpdateLaw(member.infected, where(member.infected == 1, where(draw < member.recovery, 0, 1), infection)),
             ]
 

@@ -14,10 +14,9 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import RateLaw
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import step
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
@@ -169,7 +168,7 @@ class PurchasingPowerInteraction(Interaction):
         s = SimpleNamespace(t=context.t, **vars(context.target))
         A, B = np.asarray(self.A), np.asarray(self.B)
         z, u = [getattr(s, f'z{i}') for i in range(1, SECTORS + 1)], self.get_inputs(s)
-        laws: list[BaseComponent] = [
+        laws: list[BaseLaw] = [
             RateLaw(z[i], sum(A[i, k] * z[k] + B[i, k] * u[k] for k in range(SECTORS))) for i in range(SECTORS)
         ]
         if self.feedback:

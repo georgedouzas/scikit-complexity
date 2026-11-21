@@ -10,10 +10,9 @@ from collections.abc import Sequence
 from types import SimpleNamespace
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import RateLaw
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import fractional
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
@@ -64,7 +63,7 @@ class FractionalRelaxationInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             x = context.target.x
-            self.laws_: list[BaseComponent] = [RateLaw(fractional(x, self.order), -context.lam * x)]
+            self.laws_: list[BaseLaw] = [RateLaw(fractional(x, self.order), -context.lam * x)]
 
 
 class FractionalRelaxationSystem(BaseSystem):
@@ -188,7 +187,7 @@ class FractionalOscillatorInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             x, v = context.target.x, context.target.v
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 RateLaw(fractional(x, self.order), v),
                 RateLaw(fractional(v, self.order), -(context.omega**2) * x - 2 * context.gamma * v),
             ]
@@ -321,7 +320,7 @@ class FractionalVanDerPolInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             x, y = context.target.x, context.target.y
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 RateLaw(fractional(x, self.order), y),
                 RateLaw(fractional(y, self.order), context.mu * (1 - x**2) * y - x),
             ]
@@ -457,7 +456,7 @@ class FractionalLorenzInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             x, y, z = context.target.x, context.target.y, context.target.z
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 RateLaw(fractional(x, self.order), context.sigma * (y - x)),
                 RateLaw(fractional(y, self.order), x * (context.rho - z) - y),
                 RateLaw(fractional(z, self.order), x * y - context.beta * z),

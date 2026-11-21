@@ -14,10 +14,9 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, Quantity
 from ....core.components.interactions import Interaction
-from ....core.components.laws import RateLaw
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import where
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -221,7 +220,7 @@ class RiceFoodBalanceSystem(BaseSystem):
         return where(gap > 0, gap, 0)
 
     @staticmethod
-    def _get_land_flows(s: SimpleNamespace) -> list[BaseComponent]:
+    def _get_land_flows(s: SimpleNamespace) -> list[BaseLaw]:
         """Return the increase of the area cultivated and the land lost to housing, roads, and industry."""
         area = s.target.area_cultivated
         return [
@@ -230,7 +229,7 @@ class RiceFoodBalanceSystem(BaseSystem):
         ]
 
     @staticmethod
-    def _get_people_flows(s: SimpleNamespace) -> list[BaseComponent]:
+    def _get_people_flows(s: SimpleNamespace) -> list[BaseLaw]:
         """Return the births and the deaths of the population."""
         population = s.target.population
         return [

@@ -17,10 +17,9 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import bernoulli, components, where
 from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
@@ -174,7 +173,7 @@ class SignedRegulationInteraction(Interaction):
             positive = where(negatives > position, 0, where(negatives + positives > position, 1, 0))
             silent *= 1 - positive * regulator.active
         allowed = blocked * where(positives > 0, 1 - silent, 1)
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(s.edge.active, bernoulli('retained', s.p) * allowed, phase=self.phase),
         ]
 
@@ -223,7 +222,7 @@ class PercolationInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             giant = components(context.links.active, reduce='giant')
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.nodes.active, giant, phase=self.phase)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(context.nodes.active, giant, phase=self.phase)]
 
 
 class SpatialTriadicPercolationSystem(BaseSystem):

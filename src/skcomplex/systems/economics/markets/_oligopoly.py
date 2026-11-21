@@ -18,10 +18,9 @@ from sage.sets.real_set import RealSet
 
 from ....core.base import BaseSpec
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import ConstraintLaw
+from ....core.components.laws import BaseLaw, ConstraintLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
@@ -125,7 +124,7 @@ class CournotBestResponseInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             s = context.target
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 ConstraintLaw(s.demand - 2 * s.q_i - s.q_j == s.c_i / (1 + s.lambda_i), target=s.q_i),
                 ConstraintLaw(s.demand - 2 * s.q_j - s.q_i == s.c_j / (1 + s.lambda_j), target=s.q_j),
             ]
@@ -233,7 +232,7 @@ class IndifferenceInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             s = context.target
             distribution = 1 - (s.alpha * (1 - s.price) / (s.beta * s.price)) ** (1 / (s.n_firms - 1))
-            self.laws_: list[BaseComponent] = [ConstraintLaw(s.distribution == distribution, target=s.distribution)]
+            self.laws_: list[BaseLaw] = [ConstraintLaw(s.distribution == distribution, target=s.distribution)]
 
 
 class PricingFirmView(AgentViewProtocol, Protocol):

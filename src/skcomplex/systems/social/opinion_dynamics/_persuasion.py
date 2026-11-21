@@ -16,10 +16,9 @@ from sage.all__sagemath_symbolics import NN, ZZ, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction, RandomPartition
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import mean, where
 from ....core.components.spaces import BaseSpace, LatticeSpace, NetworkSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
@@ -272,7 +271,7 @@ class SocialImpactInteraction(Interaction):
         """Set the update of every opinion, from the opinions at the start of the step, as the rule of the system."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self._update)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(context, self._update)]
 
     def _update(self, system: SystemView) -> None:
         """Set the opinion of every agent from the opinions at the start of the step."""

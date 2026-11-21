@@ -12,7 +12,6 @@ from typing import Annotated, ClassVar
 from sage.all__sagemath_symbolics import SR, Expression, exp, oo
 from sage.sets.real_set import RealSet
 
-from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, ConstraintLaw
 from .....core.components.spaces import BaseSpace
@@ -57,7 +56,7 @@ class BranchInteraction(Interaction):
         del s
         return SR.zero()
 
-    def _get_branch_laws(self, s: SimpleNamespace) -> list[BaseComponent]:
+    def _get_branch_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the component, the current into the balances of both nodes by default."""
         current = self._get_current(s)
         return [ConstraintLaw(-current, 0, target=s.a.v), ConstraintLaw(current, 0, target=s.b.v)]
@@ -71,7 +70,7 @@ class BranchInteraction(Interaction):
         """
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = self._get_branch_laws(context)
+            self.laws_: list[BaseLaw] = self._get_branch_laws(context)
 
 
 class ResistorInteraction(BranchInteraction):
@@ -160,7 +159,7 @@ class CapacitorInteraction(BranchInteraction):
         self.branch = branch
         self.C = C
 
-    def _get_branch_laws(self, s: SimpleNamespace) -> list[BaseComponent]:
+    def _get_branch_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the charge balance, the voltage, and the current into the balances of both nodes."""
         u, i = s.branch.u, s.branch.i
         return [
@@ -209,7 +208,7 @@ class InductorInteraction(BranchInteraction):
         self.branch = branch
         self.L = L
 
-    def _get_branch_laws(self, s: SimpleNamespace) -> list[BaseComponent]:
+    def _get_branch_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the voltage of the inductor and its current into the balances of both nodes."""
         i = s.branch.i
         return [
@@ -251,7 +250,7 @@ class VoltageSourceInteraction(BranchInteraction):
         self.branch = branch
         self.V = V
 
-    def _get_branch_laws(self, s: SimpleNamespace) -> list[BaseComponent]:
+    def _get_branch_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the voltage of the source as the equation of its current, and the current into both balances."""
         i = s.branch.i
         return [
@@ -331,7 +330,7 @@ class GroundInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             i = context.branch.i
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 ConstraintLaw(context.node.v, 0, target=i),
                 ConstraintLaw(i, 0, target=context.node.v),
             ]
@@ -468,7 +467,7 @@ class OperationalAmplifierInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             i = context.branch.i
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 ConstraintLaw(context.p.v, context.n.v, target=i),
                 ConstraintLaw(i, 0, target=context.out.v),
             ]

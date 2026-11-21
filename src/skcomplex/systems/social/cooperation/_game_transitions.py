@@ -17,10 +17,9 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
@@ -181,7 +180,7 @@ class GameTransitionsInteraction(Interaction):
             error_msg = f'Unknown update {self.update!r}. Use one of {", ".join(UPDATES)}.'
             raise ValidationError(error_msg)
         if isinstance(s, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(s, self.evolve)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(s, self.evolve)]
 
     def _get_edges(self, players: list[DonorView]) -> tuple[IntArray, IntArray]:
         """Return the two ends of every edge, as indices of the players."""

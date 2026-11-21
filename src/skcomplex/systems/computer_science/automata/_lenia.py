@@ -19,10 +19,9 @@ from sage.all__sagemath_symbolics import Expression, exp, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import both, clip, convolve, displacement, where
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
@@ -172,7 +171,7 @@ class LeniaUpdateInteraction(Interaction):
                 potential = convolve(getattr(context.target, source), kernel, math.ceil(radius))
                 growth += weight / total * (2 * exp(-((potential - mu) ** 2) / (2 * sigma**2)) - 1)
             value = getattr(context.target, self.channel)
-            self.laws_: list[BaseComponent] = [UpdateLaw(value, clip(value + growth / self.T, 0, 1))]
+            self.laws_: list[BaseLaw] = [UpdateLaw(value, clip(value + growth / self.T, 0, 1))]
 
     @staticmethod
     def _get_shell(q: Expression, peaks: Sequence[float]) -> Expression:

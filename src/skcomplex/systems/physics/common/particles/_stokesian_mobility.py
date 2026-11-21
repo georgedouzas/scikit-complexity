@@ -18,7 +18,6 @@ from sage.all__sagemath_symbolics import SR, Expression, fast_callable, oo
 from sage.sets.real_set import RealSet
 
 from .....core.components import Tags
-from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, CallSpec, RateLaw, UpdateLaw
 from .....core.components.spaces import BaseSpace
@@ -431,7 +430,7 @@ class StokesianMobilityInteraction(Interaction):
         symbols = [item for item in slope.variables() if not item.is_trivially_equal(distance)]
         return fast_callable(slope, vars=[distance, *symbols], domain=float), symbols
 
-    def _get_motion_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
+    def _get_motion_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the rate or update laws of the positions and orientations of the members.
 
         Args:

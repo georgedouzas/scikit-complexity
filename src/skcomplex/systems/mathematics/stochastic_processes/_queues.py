@@ -13,10 +13,9 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import NN
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import JumpLaw
+from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
@@ -93,7 +92,7 @@ class ServiceInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             n = context.target.n
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 JumpLaw(context.arrival_rate, {n: 1}),
                 JumpLaw(where(n > 0, context.service_rate, 0), {n: -1}),
             ]

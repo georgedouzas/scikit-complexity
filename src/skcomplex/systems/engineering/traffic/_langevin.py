@@ -15,10 +15,9 @@ from sage.all__sagemath_symbolics import Expression, oo, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import RateLaw
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import divergence, laplacian
 from ....core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
@@ -127,7 +126,7 @@ class TrafficMomentsInteraction(Interaction):
             s, t = context, context.t
             rho, w = s.target.rho, s.target.w
             speed = LangevinDrivingInteraction._get_target_speed(rho, s)
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 RateLaw(rho.diff(t), -divergence([w]) + laplacian(s.D1 * rho**2 / 2)),
                 RateLaw(
                     w.diff(t),

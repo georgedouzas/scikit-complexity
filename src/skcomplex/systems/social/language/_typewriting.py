@@ -15,10 +15,9 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
@@ -134,7 +133,7 @@ class TypingInteraction(Interaction):
         """Set the typing rule."""
         super()._prepare(s)
         if isinstance(s, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(s, self.type_keys)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(s, self.type_keys)]
 
     def type_keys(self, system: SystemView) -> None:
         """Type the keystrokes of one step and count the words they end.

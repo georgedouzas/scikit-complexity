@@ -14,10 +14,9 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import sqrt
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import bernoulli, where
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
@@ -103,7 +102,7 @@ class InverseJuliaInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             z = context.target.z
             root = sqrt(z - context.omega)
-            self.laws_: list[BaseComponent] = [UpdateLaw(z, (2 * bernoulli('branch', context.p) - 1) * root)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(z, (2 * bernoulli('branch', context.p) - 1) * root)]
 
 
 class QuadraticMapElement(Element):
@@ -184,7 +183,7 @@ class QuadraticMapInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             z, n, c = context.target.z, context.target.n, context.target.c
             inside = abs(z) <= context.radius
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 UpdateLaw(z, where(inside, z**2 + c, z)),
                 UpdateLaw(n, n + where(inside, 1, 0)),
             ]

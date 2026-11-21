@@ -14,10 +14,9 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, ZZ, sqrt
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....core.components.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.components.laws.utils import bernoulli, normal
 from ....core.components.spaces import BaseSpace, ContinuousSpace
 from ....core.components.types import AgentViewProtocol
@@ -104,7 +103,7 @@ class MemoryStepInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             x, v = context.target.x, context.target.v
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 UpdateLaw(x, x + v),
                 UpdateLaw(v, context.alpha * v + normal('xi', 0, context.sigma)),
             ]
@@ -183,7 +182,7 @@ class PersistentStepInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             d, x = context.target.d, context.target.x
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 UpdateLaw(d, d * (1 - 2 * bernoulli('turn', 1 - context.persistence))),
                 UpdateLaw(x, x + d),
             ]
@@ -260,7 +259,7 @@ class RandomStepInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             x = context.target.x
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 JumpLaw(context.rate * context.bias, {x: 1}),
                 JumpLaw(context.rate * (1 - context.bias), {x: -1}),
             ]
@@ -347,7 +346,7 @@ class WeakeningForceInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             x = context.target.x
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 RateLaw(x, -context.k * x / (1 + (x / context.ell) ** 2)),
                 NoiseLaw(x, sqrt(2 * context.D)),
             ]
@@ -434,7 +433,7 @@ class AgeingStepInteraction(Interaction):
         """Set the step of every walker as the rule."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self._step)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self._step)]
 
     def _step(self, agent: AgeingWalkerView, system: SystemView) -> None:
         """Step one walker up or down, counting its up steps."""

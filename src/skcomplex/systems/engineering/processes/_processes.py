@@ -14,10 +14,9 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import RateLaw
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import step, where
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
@@ -87,7 +86,7 @@ class FeedInteraction(Interaction):
         """Set the constant feed of the stage."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [RateLaw(context.target.m.diff(context.t), context.feed)]
+            self.laws_: list[BaseLaw] = [RateLaw(context.target.m.diff(context.t), context.feed)]
 
 
 class StageSplitInteraction(Interaction):
@@ -140,7 +139,7 @@ class StageSplitInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             s = context
             m = s.target.m
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 RateLaw({m: -1, s.above.m: +1}, s.k * m, label='up'),
                 RateLaw({m: -1, s.below.m: +1}, (1 - s.k) * m, label='down'),
             ]

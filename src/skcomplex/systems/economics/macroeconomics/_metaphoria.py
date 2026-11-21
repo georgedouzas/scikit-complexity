@@ -19,10 +19,9 @@ from sage.sets.real_set import RealSet
 from ....core.analysis import distribution
 from ....core.base import BaseSpec
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, Member, Quantity
 from ....core.components.interactions import BaseInteraction, Interaction
-from ....core.components.laws import PartnerSpec, UpdateLaw
+from ....core.components.laws import BaseLaw, PartnerSpec, UpdateLaw
 from ....core.components.laws.utils import pairs, transfer
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.components.types import AgentViewProtocol
@@ -458,7 +457,7 @@ class LivingInteraction(Interaction):
         """Set the rule of living of every person."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.live, phase=self.phase)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.live, phase=self.phase)]
 
     def _feed_child(self, agent: SettlerView, system: SystemView) -> None:
         """Take food from the living parent and follow it."""
@@ -683,7 +682,7 @@ class ProductionInteraction(Interaction):
         """Set the rule of production of every firm."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.produce, phase=self.phase)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.produce, phase=self.phase)]
 
     def _borrow(self, agent: BusinessView, bank: CentralBankView, amount: float) -> None:
         """Borrow an amount the bank creates as money and records as a loan."""
@@ -796,7 +795,7 @@ class CommonsInteraction(Interaction):
         """Set the rule of the system in the phase `work`."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self.harvest, phase='work')]
+            self.laws_: list[BaseLaw] = [UpdateLaw(context, self.harvest, phase='work')]
 
     def harvest(self, system: SystemView) -> None:
         """Harvest every occupied patch and share the food among the people on it.
@@ -886,7 +885,7 @@ class EstateInteraction(Interaction):
         """Set the rule of the system in the phase `census`."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self.count, phase='census')]
+            self.laws_: list[BaseLaw] = [UpdateLaw(context, self.count, phase='census')]
 
 
 class FoodMarketInteraction(MatchingInteraction[SystemView]):

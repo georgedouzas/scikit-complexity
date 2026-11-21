@@ -10,10 +10,9 @@ from collections.abc import Sequence
 from types import SimpleNamespace
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import NoiseLaw, RateLaw
+from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver
@@ -60,7 +59,7 @@ class OUDriveInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             y, eta = context.target.y, context.target.eta
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 RateLaw(y, eta),
                 RateLaw(eta, -eta / context.tau),
                 NoiseLaw(eta, context.rho / context.tau),

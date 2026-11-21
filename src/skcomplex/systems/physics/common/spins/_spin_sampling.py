@@ -9,9 +9,8 @@ The Boltzmann weight of the energy of spins is sampled at the temperature the sp
 from collections.abc import Callable
 from types import SimpleNamespace
 
-from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
-from .....core.components.laws import ObjectiveLaw
+from .....core.components.laws import BaseLaw, ObjectiveLaw
 from .....core.components.spaces import BaseSpace
 from .....core.types import Role
 
@@ -70,4 +69,4 @@ class SpinSamplingInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             spins = self._get_member(context, 'target')
             objective = self.energy(context) / spins.temperature
-            self.laws_: list[BaseComponent] = [ObjectiveLaw(objective, getattr(spins, self.state))]
+            self.laws_: list[BaseLaw] = [ObjectiveLaw(objective, getattr(spins, self.state))]

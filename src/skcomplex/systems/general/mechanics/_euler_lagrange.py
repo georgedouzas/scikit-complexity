@@ -10,7 +10,6 @@ from typing import ClassVar
 from sage.all__sagemath_symbolics import SR, Expression, function
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....core.components.base import BaseComponent
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, ConstraintLaw
 from ....core.components.spaces import BaseSpace
@@ -126,7 +125,7 @@ class EulerLagrangeInteraction(Interaction):
                 error_msg = f'The {name} of {self.label!r} is {value!r}. Give a function of the namespace.'
                 raise ValidationError(error_msg)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = self._get_equations(context)
+            self.laws_: list[BaseLaw] = self._get_equations(context)
 
     def _get_lagrangian(self, namespace: SimpleNamespace) -> object:
         """Return the Lagrangian.
@@ -203,7 +202,7 @@ class EulerLagrangeInteraction(Interaction):
         ]
         return {item: SR.var(f'_held_{index}') for index, item in enumerate(dict.fromkeys(values))}
 
-    def _get_equations(self, namespace: SimpleNamespace) -> list[BaseComponent]:
+    def _get_equations(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the Euler-Lagrange equation of every coordinate.
 
         The coordinates, their velocities `q.diff(t)`, and their accelerations `q.diff(t, 2)` take symbols while the
@@ -231,7 +230,7 @@ class EulerLagrangeInteraction(Interaction):
         lagrangian = slotted(self._get_lagrangian(namespace))
         dissipation = slotted(0 if self.dissipation is None else self.dissipation(namespace))
         forces = [slotted(force) for force in self._get_forces(namespace, len(coordinates))]
-        laws: list[BaseComponent] = []
+        laws: list[BaseLaw] = []
         for q, position, slot, force in zip(coordinates, positions, slots, forces, strict=True):
             momentum = lagrangian.diff(slot)
             change = momentum.subs(held).diff(time).subs(released) + sum(

@@ -11,7 +11,6 @@ from sage.all__sagemath_symbolics import Expression, oo, sin
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
@@ -84,7 +83,7 @@ class RoadInteraction(Interaction):
             return
         y1, t = getattr(context.target, self.state), context.t
         force = -context.k1 * (y1 - context.A * sin(context.omega * t))
-        self.laws_: list[BaseComponent] = [RateLaw(y1.diff(t, 2), force / getattr(context.target, self.mass))]
+        self.laws_: list[BaseLaw] = [RateLaw(y1.diff(t, 2), force / getattr(context.target, self.mass))]
 
 
 def _get_piezo_voltage(s: SimpleNamespace) -> Expression:

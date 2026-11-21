@@ -12,7 +12,6 @@ from sage.all__sagemath_symbolics import SR, Expression, oo, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.components import Tags
-from ....core.components.base import BaseComponent
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.components.laws.utils import where
@@ -296,14 +295,14 @@ class ReactionInteraction(Interaction):
             return SR(self.propensity(namespace))
         return self._get_product_propensity(namespace, self._get_parameter_symbol('k', namespace))
 
-    def _get_langevin_laws(self, propensity: Expression, changes: dict[Expression, float]) -> list[BaseComponent]:
+    def _get_langevin_laws(self, propensity: Expression, changes: dict[Expression, float]) -> list[BaseLaw]:
         """Return the drift of the reaction and the noise of its Wiener process.
 
         The noise of its one Wiener process acts on every state it changes.
         """
         amplitude = sqrt(where(propensity > 0, propensity, 0))
-        rates: list[BaseComponent] = [RateLaw(state, change * propensity) for state, change in changes.items()]
-        noises: list[BaseComponent] = [
+        rates: list[BaseLaw] = [RateLaw(state, change * propensity) for state, change in changes.items()]
+        noises: list[BaseLaw] = [
             NoiseLaw(state, change * amplitude, process=self.label) for state, change in changes.items()
         ]
         return rates + noises
@@ -486,9 +485,9 @@ class ReactionInteraction(Interaction):
         super()._prepare(context)
         self._check_jump()
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = self._get_reaction_laws(context)
+            self.laws_: list[BaseLaw] = self._get_reaction_laws(context)
 
-    def _get_reaction_laws(self, namespace: SimpleNamespace) -> list[BaseComponent]:
+    def _get_reaction_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the reaction in its mode, or the rule of its schedule.
 
         The rule of a schedule changes one member, or every member of the target in the order of the schedule.

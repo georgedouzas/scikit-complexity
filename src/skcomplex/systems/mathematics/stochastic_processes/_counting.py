@@ -11,10 +11,9 @@ from sage.all__sagemath_symbolics import NN
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import JumpLaw, UpdateLaw
+from ....core.components.laws import BaseLaw, JumpLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
@@ -77,7 +76,7 @@ class PoissonEventsInteraction(Interaction):
         """Set the event that adds one to the count as the law."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [JumpLaw(context.rate, {context.target.count: 1})]
+            self.laws_: list[BaseLaw] = [JumpLaw(context.rate, {context.target.count: 1})]
 
 
 class BernoulliTrialView(AgentViewProtocol, Protocol):
@@ -157,7 +156,7 @@ class BernoulliTrialInteraction(Interaction):
         """Set the trial of every sequence as the rule."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self._run_trial)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self._run_trial)]
 
     def _run_trial(self, agent: BernoulliTrialView, system: SystemView) -> None:
         """Run one trial of a sequence and count its success."""

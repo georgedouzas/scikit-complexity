@@ -15,10 +15,9 @@ from sage.all__sagemath_symbolics import NN
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
@@ -118,7 +117,7 @@ class WillingMajorityInteraction(Interaction):
         """Set the majority rule."""
         super()._prepare(s)
         if isinstance(s, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(s, self.follow)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(s, self.follow)]
 
     def follow(self, system: SystemView) -> None:
         """Update as many random agents as there are agents.

@@ -15,10 +15,9 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
@@ -149,7 +148,7 @@ class TwoLevelBirthDeathInteraction(Interaction):
         """Set the birth-death rule."""
         super()._prepare(s)
         if isinstance(s, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(s, self.compete)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(s, self.compete)]
 
     def _get_birth_rates(self, punishers: Array) -> tuple[Array, Array]:
         """Return the rates at which the punishers and the defectors reproduce.

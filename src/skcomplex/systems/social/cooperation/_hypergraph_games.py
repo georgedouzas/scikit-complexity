@@ -19,10 +19,9 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import count, hyperedges, total, where
 from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
@@ -126,7 +125,7 @@ class HyperedgeGoodsInteraction(Interaction):
             member = context.target
             pot = member.synergy * total(member.members.strategy, over=member.members)
             share = pot / count(over=member.members) - member.strategy
-            self.laws_: list[BaseComponent] = [UpdateLaw(member.payoff, hyperedges(share), phase=self.phase)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(member.payoff, hyperedges(share), phase=self.phase)]
 
 
 class SimplicialDilemmaInteraction(Interaction):
@@ -204,7 +203,7 @@ class SimplicialDilemmaInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             member = context.target
             games = hyperedges(self._get_games(context, member))
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 UpdateLaw(member.payoff, games / (PAIR * member.triangles), phase=self.phase),
             ]
 

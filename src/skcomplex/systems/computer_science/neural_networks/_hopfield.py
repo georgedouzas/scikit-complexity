@@ -13,10 +13,9 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import ZZ
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
@@ -112,7 +111,7 @@ class HopfieldUpdateInteraction(Interaction):
         """Set the update of every neuron, which the agent solver runs in a new random order every step."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.update)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.update)]
 
     def update(self, agent: NeuronView, system: SystemViewProtocol) -> None:
         """Set a neuron to the sign of its weighted input from the other neurons, or keep it for a zero input.

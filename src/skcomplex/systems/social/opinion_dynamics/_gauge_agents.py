@@ -17,10 +17,9 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import sin
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, Period
 from ....core.components.interactions import Interaction
-from ....core.components.laws import RateLaw
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import BaseSpace, CellComplexSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -66,7 +65,7 @@ class TransportedCouplingInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             source, target = context.source, context.target
             flow = context.K * sin(target.theta - source.theta - context.edge.A)
-            self.laws_: list[BaseComponent] = [RateLaw(source.theta, flow), RateLaw(target.theta, -flow)]
+            self.laws_: list[BaseLaw] = [RateLaw(source.theta, flow), RateLaw(target.theta, -flow)]
 
 
 class PhaseAgentElement(Element):

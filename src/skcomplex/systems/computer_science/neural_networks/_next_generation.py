@@ -16,10 +16,9 @@ from sage.all__sagemath_symbolics import Expression
 
 from ....core.analysis import ReservoirResult, reservoir
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import RateLaw, UpdateLaw
+from ....core.components.laws import BaseLaw, RateLaw, UpdateLaw
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, ScipyODESolver
 from ....core.errors import ValidationError
@@ -249,7 +248,7 @@ class NextGenerationReservoirSystem(BaseSystem):
         *,
         name: str,
         increment: Callable[[SimpleNamespace], Expression],
-    ) -> list[BaseComponent]:
+    ) -> list[BaseLaw]:
         """Return the update that adds the increment of a variable to it."""
         value = getattr(s.target, name)
         return [UpdateLaw(value, value + increment(s), increment=True)]

@@ -16,10 +16,9 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import count, total
 from ....core.components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace
 from ....core.engine.backends import BaseBackend
@@ -188,7 +187,7 @@ class IteratedDilemmaInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             strategy = context.target.strategy
-            self.laws_: list[BaseComponent] = [UpdateLaw(strategy, self._play, neighborhood=DIAMOND, label=self.label)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(strategy, self._play, neighborhood=DIAMOND, label=self.label)]
 
     @staticmethod
     def get_years(
@@ -348,7 +347,7 @@ class PrisonersDilemmaInteraction(Interaction):
             raise ValidationError(error_msg)
         if isinstance(context, SimpleNamespace):
             strategy = context.target.strategy
-            self.laws_: list[BaseComponent] = [UpdateLaw(strategy, self._play, neighborhood=SQUARE, label=self.label)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(strategy, self._play, neighborhood=SQUARE, label=self.label)]
 
     def _play(self, *values: Array, temptation: float | Array, noise: float | Array, random: Array) -> Array:
         """Return the strategies after the play and the imitation.

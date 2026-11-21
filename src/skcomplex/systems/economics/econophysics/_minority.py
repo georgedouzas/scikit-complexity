@@ -14,10 +14,9 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ....core.base import BaseSpec
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
@@ -201,7 +200,7 @@ class MinorityGameInteraction(Interaction):
         """Set the rules of the system as the laws."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self.play, phase=self.phase)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(context, self.play, phase=self.phase)]
 
     def _get_table(self, code: float, system: SystemView) -> IntArray:
         """Return the table of a strategy, cached for the run in the state of the game."""

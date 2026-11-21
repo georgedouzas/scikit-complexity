@@ -15,7 +15,6 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
@@ -94,7 +93,7 @@ class DampingInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             v = context.target.v
-            self.laws_: list[BaseComponent] = [RateLaw(v.diff(context.t), -context.b * v)]
+            self.laws_: list[BaseLaw] = [RateLaw(v.diff(context.t), -context.b * v)]
 
 
 class MagneticLevitationSystem(BaseSystem):

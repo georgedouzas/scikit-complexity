@@ -14,10 +14,9 @@ import numpy as np
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -119,7 +118,7 @@ class EmploymentTakeoverInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             colour, employer = context.target.colour, context.target.employer
             reads = (colour, employer)
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 UpdateLaw(colour, self._follow_employer, neighborhood=NEIGHBORS, reads=reads, label='workers'),
                 UpdateLaw(colour, self._follow_workers, neighborhood=NEIGHBORS, reads=reads, label='employers'),
             ]

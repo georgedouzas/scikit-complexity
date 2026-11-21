@@ -14,7 +14,6 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
@@ -140,7 +139,7 @@ class MemristiveDynamicsInteraction(Interaction):
         if not isinstance(context, SimpleNamespace):
             return
         c, t = context.target, context.t
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             RateLaw(c.x.diff(t), -(c.y + (c.a + 3 * c.b * c.w**2) * c.x) / c.epsilon),
             RateLaw(c.y.diff(t), c.alpha * (c.x - c.R * c.y - c.z + c.e)),
             RateLaw(c.z.diff(t), -c.beta * c.y),

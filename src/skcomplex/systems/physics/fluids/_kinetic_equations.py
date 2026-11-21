@@ -16,10 +16,9 @@ from sage.all__sagemath_symbolics import SR, Expression, vector
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.components import Observable, Tags
-from ....core.components.base import BaseComponent
 from ....core.components.elements import VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import NoiseLaw, RateLaw
+from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.components.laws.utils import coordinate, gradient, inverse_helmholtz, maximum_entropy, moment
 from ....core.components.spaces import AxisSpec, BaseSpace, LatticeSpace, PhaseSpace
 from ....core.engine.backends import BaseBackend
@@ -160,7 +159,7 @@ class RelaxationTimeInteraction(Interaction):
             goal = self._get_goal(context)
             if isinstance(x, FreeModuleElement) and not isinstance(goal, FreeModuleElement):
                 goal = vector(SR, [goal] * len(x))
-            laws: list[BaseComponent] = [RateLaw(x.diff(context.t), (goal - x) / self._get_time(context))]
+            laws: list[BaseLaw] = [RateLaw(x.diff(context.t), (goal - x) / self._get_time(context))]
             noise = self._get_noise(context)
             if noise is not None:
                 laws.append(NoiseLaw(x, noise))

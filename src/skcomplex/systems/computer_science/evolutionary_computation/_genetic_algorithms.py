@@ -14,10 +14,9 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
@@ -150,7 +149,7 @@ class RoomCleaningInteraction(Interaction):
         """Set the rule that scores the strategies, once per step for the whole population."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self._score_agents, phase=self.phase)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(context, self._score_agents, phase=self.phase)]
 
     def score(self, strategies: IntArray, rng: np.random.Generator) -> Array:
         """Return the mean score of strategies in random rooms.
@@ -334,7 +333,7 @@ class CircumstanceInteraction(Interaction):
         """Set the rule of the deaths and births of a generation, once per step for the whole population."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self._advance_generation)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(context, self._advance_generation)]
 
     def _advance_generation(self, system: SystemView) -> None:
         """Age the strategies and replace the old and starving ones.

@@ -9,9 +9,8 @@ the cells or nodes around it.
 
 from types import SimpleNamespace
 
-from ....core.components.base import BaseComponent
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.solvers import SystemView
@@ -55,7 +54,7 @@ class MeetingsInteraction(Interaction):
         """Set the encounters of every step as the rule of the system."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self._run_meetings, phase=self.phase)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(context, self._run_meetings, phase=self.phase)]
 
     def _run_meetings(self, system: SystemView) -> None:
         """Act on every group of one step in random order."""

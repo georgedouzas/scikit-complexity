@@ -7,10 +7,9 @@ from collections.abc import Sequence
 from types import SimpleNamespace
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import RateLaw
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -56,7 +55,7 @@ class SaddleNodeFormInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             x = context.target.x
             mu = context.mu
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 RateLaw(x, mu - x**2),
             ]
 
@@ -167,7 +166,7 @@ class HopfFormInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             x, y = context.target.x, context.target.y
             mu, omega, a = context.mu, context.omega, context.a
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 RateLaw(x, mu * x - omega * y + a * x * (x**2 + y**2)),
                 RateLaw(y, omega * x + mu * y + a * y * (x**2 + y**2)),
             ]
@@ -295,7 +294,7 @@ class TakensBogdanovFormInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             x, y = context.target.x, context.target.y
             beta1, beta2, sign = context.beta1, context.beta2, context.sign
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 RateLaw(x, y),
                 RateLaw(y, beta1 + beta2 * x + x**2 + sign * x * y),
             ]
@@ -425,7 +424,7 @@ class CuspFormInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             x = context.target.x
             beta1, beta2 = context.beta1, context.beta2
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 RateLaw(x, beta1 + beta2 * x - x**3),
             ]
 

@@ -17,10 +17,9 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import RateLaw, TopologyRequestSpec, UpdateLaw
+from ....core.components.laws import BaseLaw, RateLaw, TopologyRequestSpec, UpdateLaw
 from ....core.components.laws.utils import neighbors, total
 from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
@@ -134,7 +133,7 @@ class SimplexAgeingInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             triangles = context.target
-            self.laws_: list[BaseComponent] = [UpdateLaw(triangles.age, triangles.age + 1)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(triangles.age, triangles.age + 1)]
 
 
 class SizeBiasedMoveInteraction(Interaction):
@@ -176,7 +175,7 @@ class SizeBiasedMoveInteraction(Interaction):
         weight = len(s.others)
         member = s.member
         inflow = total(s.members.p / s.members.D, over=s.members) - member.p / member.D
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             RateLaw(member.p.diff(s.t), weight * inflow - weight**2 * member.p / member.D),
         ]
 

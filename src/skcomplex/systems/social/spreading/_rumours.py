@@ -11,10 +11,9 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import JumpLaw
+from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -104,7 +103,7 @@ class RumourContactsInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             ignorants, spreaders, stiflers = context.ignorants.n, context.spreaders.n, context.stiflers.n
             total = ignorants + spreaders + stiflers
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 JumpLaw(context.spread * ignorants * spreaders / total, {ignorants: -1, spreaders: 1}),
                 JumpLaw(
                     context.stifle * spreaders * (spreaders - 1 + stiflers) / total,

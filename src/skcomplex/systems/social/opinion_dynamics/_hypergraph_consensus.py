@@ -18,10 +18,9 @@ from sage.all__sagemath_symbolics import exp, oo, pi, sin
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import RateLaw
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
@@ -153,7 +152,7 @@ class ThreeBodyConsensusInteraction(Interaction):
             first, second = (other.x for other in s.others)
             active = where(sin(2 * pi * s.t / s.period + s.hyperedge.phase) > 0, 1, 0)
             pull = exp(s.reinforcement * abs(first - second)) * (first + second - 2 * x)
-            self.laws_: list[BaseComponent] = [RateLaw(x, active * pull)]
+            self.laws_: list[BaseLaw] = [RateLaw(x, active * pull)]
 
 
 def _spread(s: SimpleNamespace) -> object:

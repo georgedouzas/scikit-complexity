@@ -14,10 +14,9 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import ConstraintLaw, RateLaw
+from ....core.components.laws import BaseLaw, ConstraintLaw, RateLaw
 from ....core.components.laws.utils import step
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
@@ -134,7 +133,7 @@ class TireInteraction(Interaction):
             return
         wheel, t = getattr(context.target, self.state), context.t
         force = context.kt * (step(t, context.at, context.height) - wheel)
-        self.laws_: list[BaseComponent] = [RateLaw(wheel.diff(t, 2), force / getattr(context.target, self.mass))]
+        self.laws_: list[BaseLaw] = [RateLaw(wheel.diff(t, 2), force / getattr(context.target, self.mass))]
 
 
 class MotorCouplingInteraction(BranchInteraction):
@@ -183,7 +182,7 @@ class MotorCouplingInteraction(BranchInteraction):
         self.rotor = rotor
         self.k = k
 
-    def _get_branch_laws(self, s: SimpleNamespace) -> list[BaseComponent]:
+    def _get_branch_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the back electromotive force, the current into both balances, and the torque on the angle."""
         i, phi = s.winding.i, s.rotor.phi
         return [

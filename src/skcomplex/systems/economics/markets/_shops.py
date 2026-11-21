@@ -16,10 +16,9 @@ from sage.all__sagemath_symbolics import SR, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import clip, sign
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
@@ -151,7 +150,7 @@ class PriceAdjustmentInteraction(Interaction):
         if not isinstance(context, SimpleNamespace):
             return
         if self.schedule == 'member':
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self._step_member, phase=self.phase)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self._step_member, phase=self.phase)]
         elif self.schedule is not None:
             self.laws_ = [UpdateLaw(context, self.step_agents, phase=self.phase)]
         else:

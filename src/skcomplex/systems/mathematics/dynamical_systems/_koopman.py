@@ -10,10 +10,9 @@ from collections.abc import Sequence
 from types import SimpleNamespace
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import RateLaw
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -64,7 +63,7 @@ class KoopmanSlowManifoldInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             x1, x2 = context.target.x1, context.target.x2
             mu, lam = context.mu, context.lam
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 RateLaw(x1, mu * x1),
                 RateLaw(x2, lam * (x2 - x1**2)),
             ]

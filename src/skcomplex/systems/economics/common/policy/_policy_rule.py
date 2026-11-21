@@ -10,7 +10,6 @@ from collections.abc import Callable
 from types import SimpleNamespace
 from typing import ClassVar
 
-from .....core.components.base import BaseComponent
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, UpdateLaw
 from .....core.components.spaces import BaseSpace
@@ -61,7 +60,7 @@ class PolicyRuleInteraction[SystemT: SystemViewProtocol](Interaction):
         """Set the rule of the feedback in its phase, a rule of the whole system."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self.act, phase=self.phase)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(context, self.act, phase=self.phase)]
 
     def act(self, system: SystemT) -> None:
         """Read the system and set parameters.

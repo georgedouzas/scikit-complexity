@@ -15,10 +15,9 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import NoiseLaw, RateLaw
+from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.components.laws.utils import total
 from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
@@ -153,18 +152,18 @@ class BouchaudMezardWealthSystem(BaseSystem):
         return member.J / member.degree * (other.W - member.W)
 
     @staticmethod
-    def _get_returns(s: SimpleNamespace) -> list[BaseComponent]:
+    def _get_returns(s: SimpleNamespace) -> list[BaseLaw]:
         """Return the random returns `sigma W dB` of every saver, in the Stratonovich sense."""
         return [NoiseLaw(s.target.W, s.target.sigma * s.target.W, convention='stratonovich')]
 
     @staticmethod
-    def _get_exchange(s: SimpleNamespace) -> list[BaseComponent]:
+    def _get_exchange(s: SimpleNamespace) -> list[BaseLaw]:
         """Return the exchange of every saver with every other saver."""
         saver = s.target
         return [RateLaw(saver.W, total(BouchaudMezardWealthSystem._get_flow(saver, saver.other), over=saver.other))]
 
     @staticmethod
-    def _get_edge_exchange(s: SimpleNamespace) -> list[BaseComponent]:
+    def _get_edge_exchange(s: SimpleNamespace) -> list[BaseLaw]:
         """Return the exchange of both ends of a link."""
         flow = BouchaudMezardWealthSystem._get_flow
         return [RateLaw(s.target.W, flow(s.target, s.source)), RateLaw(s.source.W, flow(s.source, s.target))]

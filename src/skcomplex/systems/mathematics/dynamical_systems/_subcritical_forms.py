@@ -10,10 +10,9 @@ from collections.abc import Sequence
 from types import SimpleNamespace
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import RateLaw
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -83,7 +82,7 @@ class SubcriticalHopfFormInteraction(Interaction):
             radius = x**2 + y**2
             real = context.alpha + radius - context.gamma * radius**2
             imaginary = context.omega + context.q * radius - context.s * radius**2
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 RateLaw(x, real * x - imaginary * y),
                 RateLaw(y, imaginary * x + real * y),
             ]

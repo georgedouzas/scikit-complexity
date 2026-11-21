@@ -14,10 +14,9 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, Quantity
 from ....core.components.interactions import Interaction
-from ....core.components.laws import RateLaw
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import distributed_delay, series, step
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -284,7 +283,7 @@ class CommodityCycleSystem(BaseSystem):
         return distributed_delay(_get_capacity_orders(market), order=3, time=market.construction_delay)
 
     @staticmethod
-    def _get_commodity_flows(s: SimpleNamespace) -> list[BaseComponent]:
+    def _get_commodity_flows(s: SimpleNamespace) -> list[BaseLaw]:
         """Return the production into the inventory and the consumption out of it."""
         inventory = s.target.inventory
         return [
@@ -293,7 +292,7 @@ class CommodityCycleSystem(BaseSystem):
         ]
 
     @staticmethod
-    def _get_capacity_flows(s: SimpleNamespace) -> list[BaseComponent]:
+    def _get_capacity_flows(s: SimpleNamespace) -> list[BaseLaw]:
         """Return the completions of capacity and its retirements over its lifetime."""
         capacity = s.target.capacity
         return [

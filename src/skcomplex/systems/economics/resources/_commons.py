@@ -15,10 +15,9 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, Member, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import transfer
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
@@ -271,7 +270,7 @@ class RegrassingInteraction(Interaction):
         """Set the regrowth rule of every pasture."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.grow, phase=self.phase)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.grow, phase=self.phase)]
 
     def grow(self, agent: PastureView, system: SystemView) -> None:
         """Grow the grass logistically up to the capacity.

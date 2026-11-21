@@ -15,10 +15,9 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import TotalisticSpec, UpdateLaw
+from ....core.components.laws import BaseLaw, TotalisticSpec, UpdateLaw
 from ....core.components.spaces import BaseSpace, LatticeSpace, NetworkSpace, RadiusNeighborhood
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
@@ -200,7 +199,7 @@ class VariantVotingInteraction(Interaction):
         """Set the opinion of the agents, one after the other in a new random order, as the rule of the system."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self._update)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(context, self._update)]
 
     def _update(self, system: SystemView) -> None:
         """Set the opinion of the agents one after the other in a new random order."""
@@ -262,7 +261,7 @@ class VoterImitationInteraction(Interaction):
         """Set the opinion of the agents, one after the other in a new random order, as the rule of the system."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self._update)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(context, self._update)]
 
     def _update(self, system: SystemView) -> None:
         """Set the opinion of the agents one after the other in a new random order."""
@@ -320,7 +319,7 @@ class MajorityRuleInteraction(Interaction):
         if isinstance(context, SimpleNamespace):
             opinion = context.target.opinion
             rule = TotalisticSpec(self._is_majority)
-            self.laws_: list[BaseComponent] = [UpdateLaw(opinion, rule, neighborhood=MOORE, label=self.label)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(opinion, rule, neighborhood=MOORE, label=self.label)]
 
 
 class MajorityRuleSystem(BaseSystem):

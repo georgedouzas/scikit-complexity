@@ -11,7 +11,6 @@ from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
@@ -183,7 +182,7 @@ class ElectrodeKineticsInteraction(Interaction):
         s, eta, c = context, context.target.eta, context.target.c
         faradaic = c * exp(s.alpha * eta) - exp(-(1 - s.alpha) * eta)
         applied = s.current * pulse_train(s.t, self.period, self.width)
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             RateLaw(eta.diff(s.t), (applied - faradaic) / s.C),
             RateLaw(c.diff(s.t), (1 - c) / s.tau - s.kappa * faradaic),
         ]

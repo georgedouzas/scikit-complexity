@@ -10,10 +10,9 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import NN
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import JumpLaw
+from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -90,7 +89,7 @@ class PolyaDrawInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             red, blue = context.target.red, context.target.blue
-            self.laws_: list[BaseComponent] = [
+            self.laws_: list[BaseLaw] = [
                 JumpLaw(red / (red + blue), {red: self.added}),
                 JumpLaw(blue / (red + blue), {blue: self.added}),
             ]

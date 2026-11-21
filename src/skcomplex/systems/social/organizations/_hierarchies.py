@@ -12,10 +12,9 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
@@ -131,7 +130,7 @@ class WanderInteraction(Interaction):
         """Set the wander and fight of every contender as the rule."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.wander)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.wander)]
 
     def _fight(self, agent: ContenderView, occupant: ContenderView, system: SystemView) -> None:
         """Fight the occupant of a cell and take its place on a win."""

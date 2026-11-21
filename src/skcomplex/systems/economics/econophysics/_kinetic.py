@@ -14,10 +14,9 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import PartnerSpec, UpdateLaw
+from ....core.components.laws import BaseLaw, PartnerSpec, UpdateLaw
 from ....core.components.laws.utils import pairs, transfer
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
@@ -117,7 +116,7 @@ class DebtExchangeInteraction(Interaction):
         """Set the trades of every step as the rule of the system."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self.trade, phase=self.phase)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(context, self.trade, phase=self.phase)]
 
     def trade(self, system: SystemViewProtocol) -> None:
         """Let every trader pay the amount to a random trader, in random order, while it stays above the limit.
@@ -182,7 +181,7 @@ class SavingExchangeInteraction(Interaction):
         """Set the trades of every step as the rule of the system."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self.trade, phase=self.phase)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(context, self.trade, phase=self.phase)]
 
     def trade(self, system: SystemViewProtocol) -> None:
         """Let every trader trade a random share of the pooled wealth with a random trader, in random order.

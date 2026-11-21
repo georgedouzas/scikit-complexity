@@ -11,10 +11,9 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import RateLaw
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -99,7 +98,7 @@ class SolowGrowthInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             k = context.target.k
-            self.laws_: list[BaseComponent] = [RateLaw(k, context.s * k**context.alpha - context.delta * k)]
+            self.laws_: list[BaseLaw] = [RateLaw(k, context.s * k**context.alpha - context.delta * k)]
 
 
 class SolowSystem(BaseSystem):

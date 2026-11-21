@@ -15,10 +15,9 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace, ContinuousSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
@@ -138,7 +137,7 @@ class SafeDistanceInteraction(Interaction):
         """Set the speed rule of every car."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.adjust)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.adjust)]
 
     def adjust(self, agent: MotoristView, system: SystemView) -> None:
         """Brake when the car ahead is too close and accelerate otherwise.
@@ -281,7 +280,7 @@ class RingRoadDrivingInteraction(Interaction):
         """Set the driving rule of every driver."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.drive)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.drive)]
 
     def drive(self, agent: DriverView, system: SystemView) -> None:
         """Choose the speed from the distance to the car ahead and move along the ring.
@@ -373,7 +372,7 @@ class CarelessBrakingInteraction(Interaction):
         """Set the rule of random braking and motion of the whole road."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self.drive)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(context, self.drive)]
 
     def drive(self, system: SystemView) -> None:
         """Make a random driver brake, then move every car.

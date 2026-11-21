@@ -11,10 +11,9 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -103,7 +102,7 @@ class CobwebInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             s = context
-            self.laws_: list[BaseComponent] = [UpdateLaw(s.target.price, (s.a - s.c - s.d * s.target.price) / s.b)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(s.target.price, (s.a - s.c - s.d * s.target.price) / s.b)]
 
 
 class CobwebSystem(BaseSystem):

@@ -16,10 +16,9 @@ from sage.all__sagemath_symbolics import exp, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import TopologyRequestSpec, UpdateLaw
+from ....core.components.laws import BaseLaw, TopologyRequestSpec, UpdateLaw
 from ....core.components.laws.utils import neighbors, uniform, where
 from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
@@ -198,7 +197,7 @@ class SeparationInteraction(Interaction):
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
             request = TopologyRequestSpec('rewire', toward=self._get_weight, keep=self.keep)
-            self.laws_: list[BaseComponent] = [UpdateLaw(request, self._get_chance(context))]
+            self.laws_: list[BaseLaw] = [UpdateLaw(request, self._get_chance(context))]
 
     def _get_weight(self, node: SimpleNamespace) -> object:
         """Return the weight of a candidate node as a new end.

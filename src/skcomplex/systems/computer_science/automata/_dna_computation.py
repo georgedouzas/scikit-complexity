@@ -16,10 +16,9 @@ from typing import Protocol, cast
 import numpy as np
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
@@ -129,7 +128,7 @@ class LigationInteraction(Interaction):
         """Set the rule of the ligations of a step, once for the whole tube."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context, self._ligate)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(context, self._ligate)]
 
     def _ligate(self, system: SystemView) -> None:
         """Join the strands of random pairs whose ends meet.

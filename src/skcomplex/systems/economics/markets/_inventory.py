@@ -14,10 +14,9 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, Quantity
 from ....core.components.interactions import Interaction
-from ....core.components.laws import RateLaw
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import distributed_delay, maximum, minimum, step
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -219,7 +218,7 @@ class CarDealerSystem(BaseSystem):
         self.delivery_delay = delivery_delay
 
     @staticmethod
-    def _get_flows(s: SimpleNamespace) -> list[BaseComponent]:
+    def _get_flows(s: SimpleNamespace) -> list[BaseLaw]:
         """Return the deliveries into the lot, the orders through a third-order delay, and the sales out of it."""
         dealer = CarDealerSystem._get_dealer(s)
         deliveries = distributed_delay(_get_orders(dealer), order=3, time=dealer.delivery_delay)

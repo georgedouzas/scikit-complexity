@@ -15,10 +15,9 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import RateLaw
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import advection, laplacian
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
@@ -115,7 +114,7 @@ class CovariantDiffusionInteraction(Interaction):
                 - advection(market.rho, [2 * market.D * connection])
                 + (market.D * connection**2 + market.A_t) * market.rho
             )
-            self.laws_: list[BaseComponent] = [RateLaw(market.rho, rate)]
+            self.laws_: list[BaseLaw] = [RateLaw(market.rho, rate)]
 
 
 class ArbitrageTradersSystem(BaseSystem):

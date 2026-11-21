@@ -17,10 +17,9 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components import Observable
-from ....core.components.base import BaseComponent
 from ....core.components.elements import Element, Period, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import NoiseLaw, RateLaw, UpdateLaw
+from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import BaseSpace, ContinuousSpace
 from ....core.components.types import AgentViewProtocol
@@ -165,7 +164,7 @@ class LightSensitivityInteraction(Interaction):
         )
         speed = s.V_inf + (s.V0 - s.V_inf) * exp(-sensed)
         reach = where(sqrt(x**2 + y**2) > s.R, sqrt(x**2 + y**2), s.R)
-        self.laws_: list[BaseComponent] = [
+        self.laws_: list[BaseLaw] = [
             RateLaw(x.diff(t), speed * cos(phi)),
             RateLaw(y.diff(t), speed * sin(phi)),
             NoiseLaw(phi, sqrt(2 / s.tau)),
@@ -331,7 +330,7 @@ class SwarmtaxisInteraction(Interaction):
         """Set the swarmtaxis rule of every robot."""
         super()._prepare(context)
         if isinstance(context, SimpleNamespace):
-            self.laws_: list[BaseComponent] = [UpdateLaw(context.target, self.move)]
+            self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.move)]
 
     def _is_shadowed(self, agent: SwarmRobotView, neighbors: Sequence[AgentViewProtocol]) -> bool:
         """Return whether a neighbour lies in the cone from the robot towards the beacon."""
