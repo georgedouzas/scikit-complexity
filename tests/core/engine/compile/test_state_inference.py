@@ -48,7 +48,6 @@ from skcomplex.core.components.spaces import (
     RadiusNeighborhood,
 )
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.compile._state_inference import _StateInference
 from skcomplex.core.engine.runtime import ConservationObserver
 from skcomplex.core.engine.solvers import AgentView, ETDRK4Solver, IMEXEulerSolver, RK4Solver, SSPRKSolver
 from skcomplex.core.errors import ValidationError
@@ -1706,9 +1705,9 @@ def test_get_declared_keeps_the_failures_of_the_probe_by_component():
         laws=lambda s: [RateLaw(s.member.x, variance(s.members.x, over=s.members))],
     )
     system = System(elements=[Element('nodes', values={'x': np.zeros(4)}, space=space)], interactions=[rule])
-    inference = _StateInference(PassCompiler()._get_census_of)
-    inference.get_declared(system._get_composite())
-    assert [path for path, _ in inference.errors_] == ['spread']
+    compiler = PassCompiler()
+    compiler._get_declared_system(system._get_composite())
+    assert list(compiler.probed_) == ['spread']
 
 
 def _nodes_on_a_network(laws):

@@ -138,7 +138,7 @@ class BaseSystem(BaseComponent[Sequence[Observable]]):
         tags = declared._get_tags()
         if tags.laws is not None:
             return tags
-        census = compiler._get_census_of(declared).census
+        census = compiler._get_census_of(declared, compiler.nodes_).census
         if census is None or census.errors:
             return tags
         learned = self._get_law_tags([type(record.law) for record in census.records])

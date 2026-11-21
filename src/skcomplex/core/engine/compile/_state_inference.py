@@ -80,7 +80,7 @@ class _StateInference:
     signed links of triadic percolation.
     """
 
-    def __init__(self, census: Callable[[_CompositeSystem], Compilation]) -> None:
+    def __init__(self, census: Callable[[_CompositeSystem, Mapping[str, list[BaseElement]]], Compilation]) -> None:
         self.census = census
 
     @staticmethod
@@ -527,30 +527,32 @@ class _StateInference:
         scope: str = '',
         space: BaseSpace | None = None,
         kinds: frozenset[str] = frozenset(),
-    ) -> _CompositeSystem:
-        """Return a copy of a system tree whose plain elements are declared elements.
+    ) -> tuple[_CompositeSystem, dict[str, list[BaseElement]]]:
+        """Return a copy of a system tree with its plain elements declared.
 
         Every element is declared in the space of its nearest system, which it takes as its own when `_get_placed` says
-        so for the kinds of the changes the laws make to a network. The copy keeps the observables of every system.
+        so for the kinds of the changes the laws make to a network. The copy keeps the observables of every system. The
+        elements that replace an element are also returned by its path, so the nodes of the flat tree take them too.
         """
         space = system.space or space
-        placed = [self._get_placed(element, space, kinds) for element in system.elements]
-        elements = [
-            declared
-            for element in placed
-            for declared in (
-                declare(element, f'{scope}{element.label}', space) if self._is_plain(element) else [element]
-            )
-        ]
-        systems = [
-            (
-                self._replace(nested, declare, f'{scope}{nested.label}/', space, kinds)
-                if isinstance(nested, _CompositeSystem)
-                else nested
-            )
-            for nested in system.systems
-        ]
-        replaced = _CompositeSystem(
+        replaced: dict[str, list[BaseElement]] = {}
+        elements: list[BaseElement] = []
+        for element in system.elements:
+            placed = self._get_placed(element, space, kinds)
+            path = f'{scope}{element.label}'
+            declared = declare(placed, path, space) if self._is_plain(placed) else [placed]
+            if len(declared) != 1 or declared[0] is not element:
+                replaced[path] = declared
+            elements += declared
+        systems = []
+        for nested in system.systems:
+            if not isinstance(nested, _CompositeSystem):
+                systems.append(nested)
+                continue
+            copy, found = self._replace(nested, declare, f'{scope}{nested.label}/', space, kinds)
+            systems.append(copy)
+            replaced.update(found)
+        copied = _CompositeSystem(
             system.label,
             elements=elements,
             interactions=list(system.interactions),
@@ -560,8 +562,8 @@ class _StateInference:
             solver=system.solver,
         )
         if hasattr(system, 'observables'):
-            replaced.observables = list(system.observables)
-        return replaced
+            copied.observables = list(system.observables)
+        return copied, replaced
 
     def _has_plain(self, system: _CompositeSystem, space: BaseSpace | None = None) -> bool:
         """Return whether a system tree holds a plain element."""
@@ -748,7 +750,7 @@ class _StateInference:
                     orders[name] = _StateInference._get_order(name, steps, orders.get(name))
         return orders, lags
 
-    def get_declared(self, system: _CompositeSystem) -> _CompositeSystem:
+    def get_declared(self, system: _CompositeSystem) -> tuple[_CompositeSystem, dict[str, list[BaseElement]]]:
         """Return a system tree whose plain elements declare what their laws show.
 
         A probe declares every value as a state and collects the laws, and `errors_` keeps the failures of its
@@ -763,22 +765,26 @@ class _StateInference:
         Returns:
             system:
                 The system, or a copy whose plain elements are declared elements.
+
+            declared:
+                The declared elements by the path of the element they replace, which the compiler puts in place of
+                that element in the flat tree, so the tree is flattened once.
         """
         self.errors_: list[tuple[str, SkcomplexError]] = []
         if not self._has_plain(system):
-            return system
+            return system, {}
 
         def probe(element: Element, path: str, space: BaseSpace | None) -> list[BaseElement]:
             return self._get_declared_elements(element, lambda name: 1, lambda name: 0, probing=True, space=space)
 
         try:
-            probed = self._replace(system, probe)
+            probed, probes = self._replace(system, probe)
         except SpaceError:
-            return system
+            return system, {}
         try:
-            compilation = self.census(probed)
+            compilation = self.census(probed, probes)
         except SpaceError:
-            return probed
+            return probed, probes
         self.errors_ = list(Compilation._get_required(compilation.census, 'census').errors)
         orders, lags = self._get_orders(compilation)
         orders = dict.fromkeys(self._get_rule_reads(compilation), 1) | orders

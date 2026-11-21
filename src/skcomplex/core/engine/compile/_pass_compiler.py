@@ -20,13 +20,13 @@ from sklearn.base import clone
 
 from ...base import BaseConfig
 from ...components import EntrySpec, Observable, RoleSpec
+from ...components.elements import BaseElement
 from ...components.interactions import (
     BaseInteraction,
     WienerProcessSpec,
 )
 from ...components.laws import (
     ConstraintLaw,
-    EventLaw,
     JumpLaw,
     NoiseLaw,
     ObjectiveLaw,
@@ -102,6 +102,7 @@ from .passes._check_fractional_noise import BROWNIAN_HURST
 from .passes._compile_encounters import CompileEncountersPass
 from .passes._conserved_noise import ConservedNoisePass
 from .passes._core import PASSES
+from .passes._flatten import FlattenPass
 from .passes._fractional_form import FractionalFormPass
 from .passes._kernels import KernelsPass
 from .passes._lattices import LatticeProblemPass
@@ -124,15 +125,6 @@ REPLACEMENTS = {
     DomainKind.HILBERT: 'a generator or dissipator law',
 }
 PARTITIONS = ('plan', 'subsystems')
-LAW_KINDS = (RateLaw, NoiseLaw, JumpLaw, UpdateLaw, ConstraintLaw, EventLaw, ObjectiveLaw)
-LAW_KINDS_BY_TAG = {
-    'rate': RateLaw,
-    'noise': NoiseLaw,
-    'jump': JumpLaw,
-    'update': UpdateLaw,
-    'equation': ConstraintLaw,
-    'objective': ObjectiveLaw,
-}
 POLYGON_COORDINATES = 2
 NONLOCAL_OPERATORS = ('convolve', 'shifted', 'inverse_helmholtz', 'integral_transform', 'cumulative_integral')
 LOCAL_OPERATORS = ('laplacian', 'partial', 'upwind')
@@ -200,6 +192,9 @@ class PassCompiler(BaseCompiler):
         probed_:
             The failures of the probe that infers the states of plain elements, by the path of the component.
 
+        nodes_:
+            The nodes of the declared system, flattened once, or `None` when its tree cannot be flattened.
+
         nested_:
             The prepared compilers of the systems that an element of theirs names a compiler for, such as a system of
             words, by the label of the child system, or by `''` for the whole system. A nested system compiled so
@@ -224,6 +219,7 @@ class PassCompiler(BaseCompiler):
     compilation_: Compilation | None
     learning_: _LearningCompiler | None
     probed_: dict[str, SkcomplexError]
+    nodes_: list[_NodeSpec] | None
     nested_: dict[str, BaseCompiler]
 
     def __init__(
@@ -267,14 +263,14 @@ class PassCompiler(BaseCompiler):
         passes = self.passes if self.passes is not None else [item() for item in PASSES]
         self.passes_ = tuple(clone(item) for item in passes)
 
-    def _get_census_of(self, system: _CompositeSystem) -> Compilation:
+    def _get_census_of(self, system: _CompositeSystem, nodes: list[_NodeSpec] | None = None) -> Compilation:
         """Return a compilation of a system run up to its census of laws and its layout.
 
-        An observable that a role binds and that is read only at synchronisation points is held in an element, as
-        compiling does, so the laws that read it are counted.
+        The system is flattened unless its nodes are given. An observable that a role binds and that is read only at
+        synchronisation points is held in an element, as compiling does, so the laws that read it are counted.
         """
         self._set_passes()
-        compilation = self._run_passes(self._get_new_compilation(system), until='nodes')
+        compilation = self._run_passes(self._get_new_compilation(system, nodes=nodes), until='nodes')
         held = ObservableEvaluator._get_held_observables(system, Compilation._get_required(compilation.nodes, 'nodes'))
         if held:
             tree, paths = ObservableEvaluator._copy_with_held_observables(system, held)
@@ -285,12 +281,28 @@ class PassCompiler(BaseCompiler):
     def _get_declared_system(self, system: _CompositeSystem) -> _CompositeSystem:
         """Return the system with the declarations of its plain elements inferred.
 
-        The failures of the probe that infers them are kept in `probed_` by path.
+        The tree is flattened once, and the elements that the probe and then the inference declare take the place of
+        the plain elements in its nodes, which go to `nodes_`. The failures of the probe are kept in `probed_` by path.
+        A tree that cannot be flattened is left for the compilation to report.
         """
-        inference = _StateInference(self._get_census_of)
-        declared = inference.get_declared(system)
+        self.probed_ = {}
+        try:
+            flat = FlattenPass._flatten_system(system)
+        except SkcomplexError:
+            self.nodes_ = None
+            return system
+
+        def census(tree: _CompositeSystem, declared: Mapping[str, list[BaseElement]]) -> Compilation:
+            return self._get_census_of(tree, FlattenPass._get_declared_nodes(flat, tree, declared))
+
+        inference = _StateInference(census)
+        tree, declared = inference.get_declared(system)
         self.probed_ = dict(inference.errors_)
-        return declared
+        try:
+            self.nodes_ = FlattenPass._get_declared_nodes(flat, tree, declared)
+        except SkcomplexError:
+            self.nodes_ = None
+        return tree
 
     def _get_probed_issues(self, issues: list[IssueSpec]) -> list[IssueSpec]:
         """Return the issues with a failure of the probe in place of a later one.
@@ -378,7 +390,8 @@ class PassCompiler(BaseCompiler):
             self.compilation_ = None
             issues = list(self.nested_[''].report_.issues)
             if not issues:
-                self.compilation_ = self._run_passes(self._get_new_compilation(system), until='nodes')
+                compilation = self._get_new_compilation(system, nodes=self.nodes_ if system is self.system_ else None)
+                self.compilation_ = self._run_passes(compilation, until='nodes')
             return issues
         system, nested = self._get_nested_issues(system)
         if self.nested_ and not system.elements and not system.systems:
@@ -557,10 +570,24 @@ class PassCompiler(BaseCompiler):
                 raise ValidationError(error_msg) from error
         return dataclasses.replace(problem, initial_state=state)
 
-    def _get_new_compilation(self, system: _CompositeSystem, held: tuple[str, ...] = ()) -> Compilation:
-        """Return a new compilation of a system, with no pass run yet."""
+    def _get_new_compilation(
+        self,
+        system: _CompositeSystem,
+        held: tuple[str, ...] = (),
+        nodes: list[_NodeSpec] | None = None,
+    ) -> Compilation:
+        """Return a new compilation of a system, with no pass run yet.
+
+        Given the nodes of the system, the compilation holds them, so the passes that produce the nodes, such as the
+        pass that flattens the tree, do not run.
+        """
         compilation = Compilation(system, self.backend, self.solver, held=held, trained=tuple(self.trained))
         compilation.done = set()
+        if nodes is not None:
+            compilation.nodes = nodes
+            compilation.done = {
+                item for item in self.passes_ if 'nodes' in item._get_writes() and 'nodes' not in item._get_reads()
+            }
         return compilation
 
     @staticmethod
@@ -735,7 +762,7 @@ class PassCompiler(BaseCompiler):
         another compiler compiles. When laws read reductions of agents, the compilation starts again from a system tree
         that holds each of them in an element.
         """
-        compilation = self._get_new_compilation(system)
+        compilation = self._get_new_compilation(system, nodes=self.nodes_ if system is self.system_ else None)
         try:
             self._run_passes(compilation, until='nodes')
             operator = OperatorCompiler._contains_operator(system)
@@ -1938,18 +1965,6 @@ class PassCompiler(BaseCompiler):
         }
 
     @staticmethod
-    def _get_law_kind(law_class: type) -> type:
-        """Return the law kind a user writes that a law class of the engine stands for.
-
-        A class of one of the seven kinds gives that kind, and any other class gives the kind its tag names, such as
-        `UpdateLaw` for a rule an update law runs as Python code. A class with no such tag gives itself.
-        """
-        for kind in LAW_KINDS:
-            if issubclass(law_class, kind):
-                return kind
-        return LAW_KINDS_BY_TAG.get(getattr(law_class, 'law_tag', ''), law_class)
-
-    @staticmethod
     def _get_solver_issues(solver: object, census: _CensusSpec, system: _CompositeSystem) -> list[IssueSpec]:
         """Return the solver arguments rejected and the requirements it does not support.
 
@@ -1968,9 +1983,6 @@ class PassCompiler(BaseCompiler):
         support = BaseCompiler._support_of(stepper)
         for category, terms in needs.items():
             missing = support.get_missing(category, terms)
-            if category == 'laws':
-                kinds = [kind for kind in terms if isinstance(kind, type) and kind.__name__ in missing]
-                missing = sorted({PassCompiler._get_law_kind(kind).__name__ for kind in kinds})
             if missing:
                 message = f'The solver {stepper.__name__} does not support the {category} {", ".join(missing)}.'
                 fix = f'Pass a solver that supports the {category} {", ".join(missing)}.'
@@ -2033,11 +2045,8 @@ class PassCompiler(BaseCompiler):
 
     @staticmethod
     def _get_law_name(record: _CensusRecordSpec) -> str:
-        """Return the name of the law of a record, by its kind for a lowered law."""
-        law = record.law
-        name = law._get_name()
-        name = f'{law.law_tag} law' if name.startswith('_') else name
-        return f'{name} of {record.path}'
+        """Return the name of the law of a record with the path of its component."""
+        return f'{record.law._get_name()} of {record.path}'
 
     @staticmethod
     def _get_process_name(key: ProcessKey) -> str:

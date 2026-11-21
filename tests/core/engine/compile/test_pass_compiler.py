@@ -1437,12 +1437,6 @@ def test_passes_run_only_what_a_field_needs():
     assert log == ['Layout', 'Lower', 'Problem']
 
 
-@pytest.mark.skip(
-    reason=(
-        'Engine gap: the general compiler flattens a `System` twice, once for the census that infers its '
-        'states and once in its passes.'
-    ),
-)
 def test_compiler_flattens_the_system_once(monkeypatch):
     """Test that validating and compiling a system whose values are declared flattens its tree once."""
     calls = []
