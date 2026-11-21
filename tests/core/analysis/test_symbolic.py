@@ -293,7 +293,7 @@ def test_remaining_sign_question_names_parameter():
 
     spring = Element('a', values={'x': 0.1, "x'": 0.0, 'k': 0.0})
     system = _system(spring, lambda s: [RateLaw(s.target.x.diff(s.t, 2), -s.target.k * s.target.x)])
-    with pytest.raises(AnalysisError, match=r'sign of k_a.*domain=RealSet'):
+    with pytest.raises(AnalysisError, match=r'sign of k_a.*Solve the equations numerically'):
         symbolic(system, kind='solve', use_initial_state=True)
 
 
