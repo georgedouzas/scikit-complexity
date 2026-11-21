@@ -15,9 +15,9 @@ class Period(BaseSpec):
     """A spec of a value that wraps around a period, such as `2 * pi` for an angle.
 
     It is written in `Annotated` beside the allowed values, such as `theta: Annotated[float, Period(2 * pi)] = 0.0`. The
-    value is brought back within one period after every step, so `0` and `2 * pi` are the same angle. The analyses read a
-    periodic value as a phase, or as a heading when its element moves in a space. It holds the angle of a pendulum, the
-    phase of a firefly, and the heading of a bird.
+    value is brought back within one period after every step, so `0` and `2 * pi` are the same angle. The analyses read
+    a periodic value as a phase, or as a heading when its element moves in a space. It holds the angle of a pendulum,
+    the phase of a firefly, and the heading of a bird.
 
     Read more in the user guide, under Elements.
 

@@ -33,13 +33,13 @@ class BaseComponent[ContextT](_BaseEstimator[ContextT]):
     """An abstract part of a system, with a label, arguments, and tags.
 
     The parts of a system are its elements, interactions, spaces, and the system itself, such as the ball of
-    `Element('ball', values={'x': 10.0, 'm': 1.0})`. Every part has a label and stores its arguments under their own names,
-    so `get_params`, `set_params`, and `clone` work on it. Its method `prepare(context)` checks the arguments and sets the
-    attributes that end in `_`, such as `laws_` of an interaction. An element is prepared against the space of its system
-    and an interaction against the elements its roles bind. Which values are states and which are parameters follows from
-    the laws. `get_tags` returns what a part can do, read from its arguments alone, so the tags are known before
-    `prepare`. A part whose rules draw random numbers that its laws do not show sets the class attribute `draws`. It is the
-    base of the populations and contacts of an epidemic and of the accounts and payments of an economy.
+    `Element('ball', values={'x': 10.0, 'm': 1.0})`. Every part has a label and stores its arguments under their own
+    names, so `get_params`, `set_params`, and `clone` work on it. Its method `prepare(context)` checks the arguments and
+    sets the attributes that end in `_`, such as `laws_` of an interaction. An element is prepared against the space of
+    its system and an interaction against the elements its roles bind. Which values are states and which are parameters
+    follows from the laws. `get_tags` returns what a part can do, read from its arguments alone, so the tags are known
+    before `prepare`. A part whose rules draw random numbers that its laws do not show sets the class attribute `draws`.
+    It is the base of the populations and contacts of an epidemic and of the accounts and payments of an economy.
 
     Read more in the user guide, under Extend the library.
 

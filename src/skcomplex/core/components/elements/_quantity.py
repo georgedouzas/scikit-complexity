@@ -13,10 +13,10 @@ from ...errors import ValidationError
 class Quantity(BaseSpec):
     """A spec of a value that holds a conserved quantity, such as money.
 
-    It is written in `Annotated` beside the allowed values, such as `stock: Annotated[float, Quantity('money')] = 100.0`.
-    The total of a quantity changes only by its flows to and from the outside, so the conservation observer checks it at
-    every frame, and a law other than a flow cannot change a value that holds it. It holds the money of a bank, the people
-    of an epidemic, and the energy of a reserve.
+    It is written in `Annotated` beside the allowed values, such as
+    `stock: Annotated[float, Quantity('money')] = 100.0`. The total of a quantity changes only by its flows to and from
+    the outside, so the conservation observer checks it at every frame, and a law other than a flow cannot change a
+    value that holds it. It holds the money of a bank, the people of an epidemic, and the energy of a reserve.
 
     Read more in the user guide, under Elements.
 

@@ -13,10 +13,10 @@ from ...errors import ValidationError
 class Member(BaseSpec):
     """A spec of a value that names a member of another group, such as a parent.
 
-    It is written in `Annotated` beside the allowed values, such as `employer: Annotated[int, Member('firms')] = -1`. The
-    value is the index of a member of that group, and -1 names none. When a member of the group is removed, every value that
-    names it becomes -1, so a worker whose firm closes has no employer. A rule reads the member a value names with
-    `agent.get_referenced('employer')`. It links a worker to a firm, a customer to a bank, and a child to a parent.
+    It is written in `Annotated` beside the allowed values, such as `employer: Annotated[int, Member('firms')] = -1`.
+    The value is the index of a member of that group, and -1 names none. When a member of the group is removed, every
+    value that names it becomes -1, so a worker whose firm closes has no employer. A rule reads the member a value names
+    with `agent.get_referenced('employer')`. It links a worker to a firm, a customer to a bank, and a child to a parent.
 
     Read more in the user guide, under Elements.
 

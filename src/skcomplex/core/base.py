@@ -99,13 +99,13 @@ class _BaseEstimator[ContextT](BaseEstimator, ABC):
 class BaseConfig[ContextT, InputT](_BaseEstimator[ContextT]):
     """An abstract engine class, such as a solver, a backend, or an observer.
 
-    It stores every argument unchanged under its own name, as a scikit-learn estimator does, so `get_params`, `set_params`,
-    and `clone` work on it, such as `RK4Solver(dt=0.01).set_params(dt=0.1)`. Its method `prepare(context)` checks the
-    arguments, raising a named error for one it cannot take, and sets the attributes that end in `_`. Its method
-    `run(inputs, final=False)` does the one job of the prepared object, such as a step of a solver, and keeps what it
-    produces in attributes that end in `_`. A last call with `final=True` also frees what `prepare` took, such as an open
-    file. A subclass writes the private methods `_prepare` and `_run`. It is the base of the solvers that step a chemical
-    reactor, the backends that run a forest fire, and the observers that record an epidemic.
+    It stores every argument unchanged under its own name, as a scikit-learn estimator does, so `get_params`,
+    `set_params`, and `clone` work on it, such as `RK4Solver(dt=0.01).set_params(dt=0.1)`. Its method `prepare(context)`
+    checks the arguments, raising a named error for one it cannot take, and sets the attributes that end in `_`. Its
+    method `run(inputs, final=False)` does the one job of the prepared object, such as a step of a solver, and keeps
+    what it produces in attributes that end in `_`. A last call with `final=True` also frees what `prepare` took, such
+    as an open file. A subclass writes the private methods `_prepare` and `_run`. It is the base of the solvers that
+    step a chemical reactor, the backends that run a forest fire, and the observers that record an epidemic.
 
     Read more in the user guide, under Extend the library.
 
@@ -183,8 +183,8 @@ class BaseSpec:
     A spec is a frozen dataclass whose fields are what it is, such as the visual `VisualSpec('points')`. It says what a
     class reads, records what a run produced, or holds what a compiler built. It never changes, so it is changed with
     `dataclasses.replace`, and it has neither `prepare` nor `run`. A subclass that checks its fields writes the private
-    method `_check`, which the class that reads the spec calls. Specs mark the conserved money of an account, the axis of
-    velocities of a gas, and the frames a run of a flock recorded.
+    method `_check`, which the class that reads the spec calls. Specs mark the conserved money of an account, the axis
+    of velocities of a gas, and the frames a run of a flock recorded.
 
     Read more in the user guide, under Extend the library.
 

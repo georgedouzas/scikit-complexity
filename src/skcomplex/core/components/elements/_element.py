@@ -39,12 +39,13 @@ RESERVED_MEANINGS = {
 class Element(BaseElement):
     """An element that holds named values of one thing or of a group of members.
 
-    It holds its values by name, such as the height and mass of a ball in `Element('ball', values={'x': 10.0, 'm': 1.0})`,
-    and the laws of the interactions decide which values change. With `size` it holds a group of members with values of
-    their own, such as 1000 molecules of a gas, and with `space` one member per site, such as the cells of a grid. A
-    subclass may take its values as arguments of `__init__` instead, such as a population class with a growth rate. Members
-    whose values change by agent rules, Python functions run for each member at each step, act as agents, and their values
-    may be any Python object. It holds a prey population, a firm of an economy, and the charge of a capacitor.
+    It holds its values by name, such as the height and mass of a ball in
+    `Element('ball', values={'x': 10.0, 'm': 1.0})`, and the laws of the interactions decide which values change. With
+    `size` it holds a group of members with values of their own, such as 1000 molecules of a gas, and with `space` one
+    member per site, such as the cells of a grid. A subclass may take its values as arguments of `__init__` instead,
+    such as a population class with a growth rate. Members whose values change by agent rules, Python functions run for
+    each member at each step, act as agents, and their values may be any Python object. It holds a prey population, a
+    firm of an economy, and the charge of a capacitor.
 
     Read more in the user guide, under Elements.
 
@@ -53,8 +54,8 @@ class Element(BaseElement):
             The name of the element, unique among the parts of its system, such as `'rabbits'`.
 
         values:
-            Values by name, such as `{'x': 10.0, 'm': 1.0}`. A derivative or a past value that a law reads starts from the
-            value named with primes or a past index, such as `{'x': 10.0, "x'": 3.0}` for a ball thrown upwards or
+            Values by name, such as `{'x': 10.0, 'm': 1.0}`. A derivative or a past value that a law reads starts from
+            the value named with primes or a past index, such as `{'x': 10.0, "x'": 3.0}` for a ball thrown upwards or
             `{'y': 1.0, 'y[-1]': 0.5}` for an economy. A group of members takes one value per member as an array.
 
         size:
