@@ -389,7 +389,7 @@ class System(BaseSystem):
             setattr(self, key, value)
         for head, values in nested.items():
             target = self._get_target(head)
-            accepted = target.get_params(deep=isinstance(target, System))
+            accepted = target.get_params(deep=True)
             for name in values:
                 first = name.partition('__')[0]
                 if first not in accepted and name not in accepted:

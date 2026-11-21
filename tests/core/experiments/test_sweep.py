@@ -106,6 +106,15 @@ def test_sweep_leaves_the_system_of_the_user_unchanged():
     assert result.get_column('henon__a').tolist() == [1.2, 1.4]
 
 
+def test_sweep_of_one_value_of_an_element():
+    """Test that a sweep over the nested name of one value of an element runs each value."""
+    system = logistic_map()
+    result = sweep(system, {'map__r': [2.5, 3.2]}, until=1, outputs=['map.x'])
+    assert result.get_column('map__r').tolist() == [2.5, 3.2]
+    np.testing.assert_allclose(result.get_series('map.x')[:, -1], [2.5 * 0.2 * 0.8, 3.2 * 0.2 * 0.8])
+    assert system.elements[0].values == {'x': 0.2, 'r': 3.0}
+
+
 def test_sweep_of_nested_parameters_matches_the_ready_made_system():
     """Test that the nested parameter `henon__a` of a `System` gives the runs of `HenonMapSystem(a=...)`."""
     result = sweep(henon(), {'henon__a': [1.2, 1.4]}, until=20, outputs=['map.x'])

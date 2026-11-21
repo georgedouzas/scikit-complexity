@@ -9,7 +9,7 @@ import inspect
 import numbers
 from collections.abc import Mapping
 from dataclasses import replace
-from typing import Annotated, ClassVar, get_args, get_origin
+from typing import Annotated, ClassVar, Self, get_args, get_origin
 
 import numpy as np
 from sage.all__sagemath_symbolics import CC, RR, ZZ
@@ -121,6 +121,71 @@ class Element(BaseElement):
         self.size = size
         self.space = space
         self.on: object = on
+
+    def get_params(self, deep: bool = True) -> dict[str, object]:
+        """Return the parameters of the element, with each entry of `values` when deep.
+
+        An entry of `values` whose name is a Python identifier is listed under its own name, so a system lists it as
+        `<element>__<name>` and `set_params(ball__x=2.0)`, grid searches, and sweeps reach it. A primed or past value,
+        such as `"x'"` or `'x[-1]'`, is no identifier and stays inside `values`. An entry that has the name of an
+        argument is not listed twice.
+
+        Args:
+            deep:
+                Whether to add the parameters of nested estimators and the entries of `values`.
+
+        Returns:
+            params:
+                The parameters by name.
+
+        Examples:
+            >>> from skcomplex.core.components.elements import Element
+            >>> params = Element('ball', values={'x': 10.0, "x'": 3.0}).get_params()
+            >>> params['x'], "x'" in params
+            (10.0, False)
+        """
+        params = super().get_params(deep=deep)
+        if deep and isinstance(self.values, Mapping):
+            entries = self._get_value_entries()
+            params.update({name: value for name, value in entries.items() if name not in params})
+        return params
+
+    def set_params(self, **params: object) -> Self:
+        """Set parameters of the element and entries of `values` by name.
+
+        An entry of `values` takes its new value in a new mapping, so the mapping the user gave never changes, as
+        `clone` of scikit-learn leaves the arguments of an estimator unchanged. A new `values` is set first, so the
+        output of `get_params` is accepted as it is.
+
+        Args:
+            **params:
+                The new values, by the name of a parameter or of an entry of `values`, such as `x=2.0`.
+
+        Returns:
+            self:
+                The element.
+
+        Examples:
+            >>> from skcomplex.core.components.elements import Element
+            >>> values = {'x': 10.0}
+            >>> Element('ball', values=values).set_params(x=2.0).values, values
+            ({'x': 2.0}, {'x': 10.0})
+        """
+        arguments = super().get_params(deep=True)
+        if 'values' in params:
+            super().set_params(values=params['values'])
+        entries = self._get_value_entries()
+        changed = {name: value for name, value in params.items() if name in entries and name not in arguments}
+        rest = {name: value for name, value in params.items() if name not in changed and name != 'values'}
+        super().set_params(**rest)
+        if changed:
+            self.values = {**(self.values or {}), **changed}
+        return self
+
+    def _get_value_entries(self) -> dict[str, object]:
+        """Return the entries of `values` whose names are Python identifiers."""
+        values = self.values if isinstance(self.values, Mapping) else {}
+        return {name: value for name, value in values.items() if name.isidentifier()}
 
     def _prepare(self, context: BaseSpace | None = None) -> None:
         """Set `default_visual_`, checking the reserved names.

@@ -60,6 +60,33 @@ def test_set_params_tunes_component() -> None:
     assert system.get_params()['meadow__r'] == pytest.approx(1.5)
 
 
+def ball_system() -> System:
+    """Return a system of a ball thrown upwards under gravity, with its values given as data."""
+    fall = Interaction('fall', roles={'target': 'ball'}, laws=lambda s: [RateLaw(s.target.x.diff(s.t, 2), -s.target.g)])
+    return System(elements=[Element('ball', values={'x': 10.0, "x'": 3.0, 'g': 9.8})], interactions=[fall])
+
+
+def test_set_params_reaches_a_value_of_an_element() -> None:
+    """A nested name `<element>__<value>` sets one value of an element and changes its run."""
+    system = ball_system()
+    given = system.elements[0].values
+    system.set_params(ball__x=2.0)
+    assert system.get_params()['ball__x'] == 2.0
+    assert system.elements[0].values == {'x': 2.0, "x'": 3.0, 'g': 9.8}
+    assert given == {'x': 10.0, "x'": 3.0, 'g': 9.8}
+    assert system.prepare().simulate(until=0.0, dt=0.1).get_values('ball.x')[0] == pytest.approx(2.0)
+
+
+def test_clone_and_deep_parameters_round_trip() -> None:
+    """A clone has the deep parameters of the system, and setting them back leaves the system as it is."""
+    system = ball_system()
+    params = system.get_params()
+    assert clone(system).get_params().keys() == params.keys()
+    assert clone(system).get_params()['ball__values'] == params['ball__values']
+    nested = {name: value for name, value in params.items() if name.startswith('ball__')}
+    assert system.set_params(**nested).get_params()['ball__values'] == params['ball__values']
+
+
 def test_set_params_unknown_component_raises() -> None:
     """A nested name that matches no component raises an error that lists the components."""
     with pytest.raises(ValidationError, match=r"no component labelled 'forest'.*'meadow'"):
