@@ -21,14 +21,14 @@ from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.systems import System
 
 
-def drop(values, *, random):
+def drop(values, *, random, **kwargs):
     following = values.copy()
     following[tuple(random.integers(values.shape))] += 1
     return following
 
 
 pile = Element('pile', values={'height': 0.0}, space=LatticeSpace((5, 5)))
-rain = Interaction('rain', roles={'target': 'pile'}, laws=lambda s: [UpdateLaw(s.target.height, drop, arrays=True)])
+rain = Interaction('rain', roles={'target': 'pile'}, laws=lambda s: [UpdateLaw(s.target.height, drop, arrays=True, stochastic=True)])
 system = System(elements=[pile], interactions=[rain]).prepare()
 heights = system.simulate(until=10, random_state=0).get_lattice('pile.height')
 int(heights[-1].sum()), int(heights[-1].max())
@@ -40,7 +40,7 @@ The same law mutates a genome. Each step one random site of a sequence of 30 bas
 random.
 
 ```python continuation
-def mutate(values, *, random):
+def mutate(values, *, random, **kwargs):
     following = values.copy()
     following[random.integers(values.size)] = random.integers(4)
     return following
@@ -50,7 +50,7 @@ genome = Element('genome', values={'base': 0.0}, space=LatticeSpace(30))
 mutation = Interaction(
     'mutation',
     roles={'target': 'genome'},
-    laws=lambda s: [UpdateLaw(s.target.base, mutate, arrays=True)],
+    laws=lambda s: [UpdateLaw(s.target.base, mutate, arrays=True, stochastic=True)],
 )
 system = System(elements=[genome], interactions=[mutation]).prepare()
 bases = system.simulate(until=20, random_state=1).get_values('genome.base')
@@ -62,11 +62,13 @@ holds.
 
 **How the engine runs it.** The law needs discrete time and a lattice or a network. The lattice solver calls the
 function once per step with the array of the state, shaped like the lattice or with one row per edge, and the array it
-returns becomes the state. The keyword `random` is the generator of the run, so a fixed `random_state` repeats the run.
+returns becomes the state. Every function of an update law receives the same keywords: the parameters of the
+element, `time`, the time of the step, `space`, the space of the element, `degree`, which is `None` here, and `random`.
+A law with `stochastic=True` draws numbers, so `random` is the generator of the run, and a fixed `random_state` repeats
+the run. Without it `random` is `None`. The function takes `**kwargs` for the keywords it ignores.
 
 **How it combines.** It is the drive of a relaxation, `relax(..., drive=...)`, which adds grains before the lattice
-relaxes, and it runs in the same step as the local rules of other states. A function that names `time` reads the time
-of the step, and one that names `space` reads the space of the element.
+relaxes, and it runs in the same step as the local rules of other states.
 
 **Limits and errors.** The law changes one whole state at once, so it cannot read the ordered neighbourhood of a site
 the way a local rule does. The function takes the array as its only positional argument and everything else by
@@ -86,7 +88,7 @@ class GrainDropInteraction(Interaction):
 
     def _prepare(self, context):
         super()._prepare(context)
-        self.laws_ = [UpdateLaw(context.pile.height, drop, arrays=True)]
+        self.laws_ = [UpdateLaw(context.pile.height, drop, arrays=True, stochastic=True)]
 
 
 table = Element('table', values={'height': 0.0}, space=LatticeSpace((3, 3)))
@@ -118,19 +120,19 @@ from skcomplex.core.systems import System
 cross = RadiusNeighborhood(1, metric='manhattan', center=True)
 
 
-def drop(values, *, random):
+def drop(values, *, random, **kwargs):
     following = values.copy()
     following[tuple(random.integers(values.shape))] += 1
     return following
 
 
-def topple(z, *around):
+def topple(z, *around, **kwargs):
     return z - 4 * (z >= 4) + sum(neighbour >= 4 for neighbour in around)
 
 
 def sandpile(s):
     height = s.target.height
-    drive = UpdateLaw(height, drop, arrays=True)
+    drive = UpdateLaw(height, drop, arrays=True, stochastic=True)
     rule = UpdateLaw(height, topple, neighborhood=cross)
     relaxed = relax(height, rule, lambda z: bool((z < 4).all()), drive=drive)
     return [UpdateLaw(height, relaxed, label='avalanche')]
@@ -154,17 +156,17 @@ until the most stressed one reaches 1. A site at 1 or above slips to 0 and passe
 neighbour.
 
 ```python continuation
-def load(values, *, random):
+def load(values, *, random, **kwargs):
     return values + (1.0 - values.max())
 
 
-def slip(z, *around):
+def slip(z, *around, **kwargs):
     return np.where(z >= 1.0, 0.0, z) + 0.2 * sum(np.where(neighbour >= 1.0, neighbour, 0.0) for neighbour in around)
 
 
 def fault(s):
     stress = s.target.stress
-    drive = UpdateLaw(stress, load, arrays=True)
+    drive = UpdateLaw(stress, load, arrays=True, stochastic=True)
     rule = UpdateLaw(stress, slip, neighborhood=cross)
     relaxed = relax(stress, rule, lambda z: bool((z < 1.0).all()), drive=drive)
     return [UpdateLaw(stress, relaxed, label='earthquake')]
@@ -181,14 +183,14 @@ In a forest, fire spreads in one step from a burning tree to the trees beside it
 ash 0. Lightning strikes a random site, and the fire burns until no tree is alight.
 
 ```python continuation
-def strike(values, *, random):
+def strike(values, *, random, **kwargs):
     following = values.copy()
     site = tuple(random.integers(values.shape))
     following[site] = np.where(following[site] == 1.0, 2.0, following[site])
     return following
 
 
-def burn(z, *around):
+def burn(z, *around, **kwargs):
     alight = sum(neighbour == 2.0 for neighbour in around) > 0
     return np.where(z == 2.0, 0.0, np.where((z == 1.0) & alight, 2.0, z))
 
@@ -196,7 +198,7 @@ def burn(z, *around):
 def wildfire(s):
     tree = s.target.tree
     rule = UpdateLaw(tree, burn, neighborhood=cross)
-    drive = UpdateLaw(tree, strike, arrays=True)
+    drive = UpdateLaw(tree, strike, arrays=True, stochastic=True)
     relaxed = relax(tree, rule, lambda z: bool((z < 2.0).all()), drive=drive)
     return [UpdateLaw(tree, relaxed, label='fire')]
 
@@ -214,11 +216,11 @@ neighbour. The drive raises the potential of one neuron of a line, and `activity
 line = LatticeNeighborhood(((-1,), (0,), (1,)))
 
 
-def charge(values, *, random):
+def charge(values, *, random, **kwargs):
     return values + 0.3 * (np.arange(values.size) == random.integers(values.size))
 
 
-def fire(left, value, right):
+def fire(left, value, right, **kwargs):
     return value * (value < 1.0) + 0.5 * (left >= 1.0) + 0.5 * (right >= 1.0)
 
 
@@ -228,7 +230,7 @@ def neurons(s):
         potential,
         UpdateLaw(potential, fire, neighborhood=line),
         lambda v: bool((v < 1.0).all()),
-        drive=UpdateLaw(potential, charge, arrays=True),
+        drive=UpdateLaw(potential, charge, arrays=True, stochastic=True),
         activity=lambda v: v >= 1.0,
     )
     return [UpdateLaw(potential, relaxed, label='avalanche')]
@@ -258,7 +260,7 @@ from skcomplex.core.errors import SolverError
 
 def stuck(s):
     height = s.target.height
-    drive = UpdateLaw(height, drop, arrays=True)
+    drive = UpdateLaw(height, drop, arrays=True, stochastic=True)
     rule = UpdateLaw(height, topple, neighborhood=cross)
     relaxed = relax(height, rule, lambda z: bool((z < 0).all()), drive=drive, max_iterations=50)
     return [UpdateLaw(height, relaxed, label='stuck')]

@@ -562,7 +562,7 @@ from skcomplex.core.systems import System
 
 cells = Element('cells', values={'c': [0, 0, 0, 1, 0, 0, 0]}, space=LatticeSpace(7))
 sides = LatticeNeighborhood([(-1,), (1,)])
-parity = lambda left, right: (left + right) % 2
+parity = lambda left, right, **kwargs: (left + right) % 2
 rule = Interaction(
     'rule', roles={'target': 'cells'}, laws=lambda s: [UpdateLaw(s.target.c, parity, neighborhood=sides)]
 )
@@ -581,7 +581,7 @@ upwind = LatticeNeighborhood([(-1,)])
 flow = Interaction(
     'flow',
     roles={'target': 'river'},
-    laws=lambda s: [UpdateLaw(s.target.c, lambda upstream: upstream, neighborhood=upwind)],
+    laws=lambda s: [UpdateLaw(s.target.c, lambda upstream, **kwargs: upstream, neighborhood=upwind)],
 )
 system = System(elements=[river], interactions=[flow]).prepare()
 system.simulate(until=2).get_values('river.c').astype(int).tolist()
@@ -642,7 +642,7 @@ from skcomplex.core.components.spaces import AdjacencyNeighborhood, LatticeSpace
 from skcomplex.core.systems import System
 
 
-def catch(infected, *contacts):
+def catch(infected, *contacts, **kwargs):
     return np.maximum(infected, sum(contacts) > 0)
 
 
@@ -854,7 +854,7 @@ from skcomplex.core.components.spaces import LatticeSpace, RadiusNeighborhood
 from skcomplex.core.systems import System
 
 
-def topple(height, *neighbours):
+def topple(height, *neighbours, **kwargs):
     return height - 4 * (height >= 4) + sum(neighbour >= 4 for neighbour in neighbours)
 
 
@@ -878,7 +878,7 @@ majority rule a person takes the opinion of more than half of them, and keeps th
 import numpy as np
 
 
-def majority(opinion, *neighbours):
+def majority(opinion, *neighbours, **kwargs):
     votes = sum(neighbours)
     return np.where(votes > 4, 1.0, np.where(votes < 4, 0.0, opinion))
 
