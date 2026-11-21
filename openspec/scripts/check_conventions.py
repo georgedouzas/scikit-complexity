@@ -131,6 +131,8 @@ LAYOUT_PACKAGES = (
             '_signature_spec',
             '_signatures',
             '_snapshots_spec',
+            '_sparse_identification',
+            '_spectrum',
             'types',
         )
     ),
