@@ -1944,13 +1944,14 @@ a right context, a condition on the parameters of a module, or a probability, so
 use the same law.
 
 **Limits and errors.** A word grows at every generation, so the element bounds it with `max_size`. The probability of a
-stochastic production lies in `[0, 1]`, and `prepare` raises a `RewritingError` otherwise.
+stochastic production lies in `[0, 1]`, and preparing a system with it raises a `RewritingError` otherwise.
 
 ```python continuation
 from skcomplex.core.errors import RewritingError
 
+weeds = RewritingInteraction('weeds', target='weed', laws=[ProductionLaw('F', 'FF', probability=1.5)])
 try:
-    ProductionLaw('F', 'FF', probability=1.5).prepare()
+    System(elements=[WordElement('weed', axiom='F')], interactions=[weeds]).prepare()
 except RewritingError as error:
     message = str(error)
 message
@@ -2068,13 +2069,14 @@ one generation per unit of time, and records the number of tiles as the state `s
 tiling of several shapes, as the Penrose tiling does.
 
 **Limits and errors.** Each piece pairs a prototile name with an `AffineSpec`, the map from the frame of the parent
-tile, and `prepare` raises a `RewritingError` for any other piece.
+tile, and preparing a system with it raises a `RewritingError` for any other piece.
 
 ```python continuation
 from skcomplex.core.errors import RewritingError
 
+thirds = RewritingInteraction('thirds', target='tiles', laws=[SubstitutionLaw('square', [('square', 1 / 3)])])
 try:
-    SubstitutionLaw('square', [('square', 1 / 3)]).prepare()
+    System(elements=[PatchElement('tiles', prototiles=[square])], interactions=[thirds]).prepare()
 except RewritingError as error:
     message = str(error)
 message

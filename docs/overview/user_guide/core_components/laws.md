@@ -414,16 +414,19 @@ ends the run.
 interaction returns it with its other laws, so a threshold can read the states of several elements.
 
 **Limits and errors.** A guard that crosses zero again right after its reset raises an error that names the chattering
-event. The direction is `1` for upward crossings, `-1` for downward ones, or `0` for both, and `prepare` raises a
-`ValidationError` for any other value.
+event. The direction is `1` for upward crossings, `-1` for downward ones, or `0` for both, and preparing a system
+with it raises a `ValidationError` for any other value.
 
 ```python continuation
-from sage.all__sagemath_symbolics import var
-
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.errors import ValidationError
+from skcomplex.core.systems import System
 
+ball = Element('ball', values={'h': 1.0})
+bounce = Interaction('bounce', roles={'target': 'ball'}, laws=lambda s: [EventLaw(s.target.h, direction=2)])
 try:
-    EventLaw(var('h'), direction=2).prepare()
+    System(elements=[ball], interactions=[bounce]).prepare()
 except ValidationError as error:
     message = str(error)
 message
@@ -493,10 +496,19 @@ pendulum do through a mass matrix. `EulerLagrangeInteraction` and the balances o
 side can be a function.
 
 ```python continuation
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.errors import ValidationError
+from skcomplex.core.systems import System
 
+pendulum = Element('pendulum', values={'x': 1.0})
+balance = Interaction(
+    'balance',
+    roles={'target': 'pendulum'},
+    laws=lambda s: [ConstraintLaw(lambda t, values: 0.0, 0.0)],
+)
 try:
-    ConstraintLaw(lambda t, values: 0.0, 0.0).prepare()
+    System(elements=[pendulum], interactions=[balance]).prepare()
 except ValidationError as error:
     message = str(error)
 message
@@ -580,12 +592,15 @@ laws hold at the minimum.
 it must name the states it varies.
 
 ```python continuation
-from sage.all__sagemath_symbolics import var
-
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.errors import ValidationError
+from skcomplex.core.systems import System
 
+design = Element('design', values={'x': 1.0})
+cost = Interaction('cost', roles={'target': 'design'}, laws=lambda s: [ObjectiveLaw(lambda values: 0.0, s.target.x)])
 try:
-    ObjectiveLaw(lambda s: 0.0, var('x')).prepare()
+    System(elements=[design], interactions=[cost]).prepare()
 except ValidationError as error:
     message = str(error)
 message
@@ -654,16 +669,22 @@ of service.
 elements returns jump laws that change the states of all of them at once, as a reaction does.
 
 **Limits and errors.** The changes are fixed numbers or functions of the states. A symbol in a change would make its
-size unknown before the run, and `prepare` raises a `ValidationError`.
+size unknown before the run, and preparing a system with it raises a `ValidationError`.
 
 ```python continuation
-from sage.all__sagemath_symbolics import var
-
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.errors import ValidationError
+from skcomplex.core.systems import System
 
-n, k = var('n k')
+pool = Element('pool', values={'n': 5.0, 'k': 1.0})
+draining = Interaction(
+    'draining',
+    roles={'target': 'pool'},
+    laws=lambda s: [JumpLaw(s.target.n, {s.target.n: s.target.k})],
+)
 try:
-    JumpLaw(n, {n: k}).prepare()
+    System(elements=[pool], interactions=[draining]).prepare()
 except ValidationError as error:
     message = str(error)
 message
@@ -736,12 +757,15 @@ of a random flux, and `hurst` makes the process a fractional Brownian motion.
 **Limits and errors.** A Hurst index lies strictly between 0 and 1, and an index of 1/2 gives the Wiener process.
 
 ```python continuation
-from sage.all__sagemath_symbolics import var
-
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.errors import ValidationError
+from skcomplex.core.systems import System
 
+particle = Element('particle', values={'x': 1.0})
+kicks = Interaction('kicks', roles={'target': 'particle'}, laws=lambda s: [NoiseLaw(s.target.x, 1.0, hurst=1.0)])
 try:
-    NoiseLaw(var('x'), 1.0, hurst=1.0).prepare()
+    System(elements=[particle], interactions=[kicks]).prepare()
 except ValidationError as error:
     message = str(error)
 message
@@ -804,16 +828,24 @@ default, and fixed step solvers such as `RK4Solver` take the same problem.
 Interactions of one element, of neighbours, and of pairs return rate laws. A `NoiseLaw` adds a random part.
 
 **Limits and errors.** A rate is deterministic, so a random draw in it raises an `IncompatibleLawsError`. NumPy builds
-an array when a NumPy scalar multiplies a symbolic vector, and `prepare` rejects that array.
+an array when a NumPy scalar multiplies a symbolic vector, and preparing a system with it rejects that array.
 
 ```python continuation
-from sage.all__sagemath_symbolics import var, vector
+from sage.all__sagemath_symbolics import vector
 
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.errors import ValidationError
+from skcomplex.core.systems import System
 
-x, y = var('x y')
+orbit = Element('orbit', values={'x': 1.0, 'y': 0.0})
+rotation = Interaction(
+    'rotation',
+    roles={'target': 'orbit'},
+    laws=lambda s: [RateLaw(vector([s.target.x, s.target.y]), np.float64(0.5) * vector([-s.target.y, s.target.x]))],
+)
 try:
-    RateLaw(vector([x, y]), np.float64(0.5) * vector([-y, x])).prepare()
+    System(elements=[orbit], interactions=[rotation]).prepare()
 except ValidationError as error:
     message = str(error)
 message
@@ -902,17 +934,23 @@ which the lattice solver runs with lookup tables and fused loops.
 adds a change, and a law with a `source` changes only members that hold that value. Update laws take random draws,
 such as `normal`.
 
-**Limits and errors.** An increment changes every value, so it takes no source, and `prepare` raises a
-`ValidationError` for both.
+**Limits and errors.** An increment changes every value, so it takes no source, and preparing a system with it
+raises a `ValidationError` for both.
 
 ```python continuation
-from sage.all__sagemath_symbolics import var
-
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.errors import ValidationError
+from skcomplex.core.systems import System
 
-x = var('x')
+account = Element('account', values={'x': 1.0})
+deposit = Interaction(
+    'deposit',
+    roles={'target': 'account'},
+    laws=lambda s: [UpdateLaw(s.target.x, s.target.x + 1, increment=True, source=0.0)],
+)
 try:
-    UpdateLaw(x, x + 1, increment=True, source=0.0).prepare()
+    System(elements=[account], interactions=[deposit]).prepare()
 except ValidationError as error:
     message = str(error)
 message
@@ -928,8 +966,8 @@ and its [API entry][skcomplex.core.components.laws.UpdateLaw].
 ## BaseLaw
 
 `BaseLaw` is the abstract base of every law. A new kind of dynamics that needs a lowering of its own derives from it,
-and every other model chooses an existing law, such as `RateLaw` or `UpdateLaw`. Its public method `prepare` sets the
-states a law changes and the symbols it reads.
+and every other model chooses an existing law, such as `RateLaw` or `UpdateLaw`. A law is a frozen value equal to any
+law of its class with the same fields, and its private methods give the states it changes and the symbols it reads.
 
 ```python
 from sage.all__sagemath_symbolics import var
@@ -937,11 +975,11 @@ from sage.all__sagemath_symbolics import var
 from skcomplex.core.components.laws import BaseLaw, RateLaw, UpdateLaw
 
 x, k = var('x k')
-law = RateLaw(x, -k * x).prepare('decay')
-issubclass(UpdateLaw, BaseLaw), law.targets_, sorted(map(str, law.reads_))
+law = RateLaw(x, -k * x)
+issubclass(UpdateLaw, BaseLaw), law.target, law == RateLaw(x, -k * x)
 ```
 
-Every law derives from `BaseLaw`. The rate law above changes `x` and reads `k` and `x`.
+Every law derives from `BaseLaw`. The rate law above changes `x` and equals a law with the same fields.
 
 See its [fact sheet](../../../components/laws.md#baselaw)
 and its [API entry][skcomplex.core.components.laws.BaseLaw].

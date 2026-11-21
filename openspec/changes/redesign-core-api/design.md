@@ -206,8 +206,8 @@ class Gravity(Interaction):
 ### 4. Laws are seven kinds of value
 
 `RateLaw`, `NoiseLaw`, `JumpLaw`, `UpdateLaw`, `ConstraintLaw`, `EventLaw`, and `ObjectiveLaw` are frozen values that interactions set in `laws_`.
-A law is not a component: it has no label, no parameters of its own, and no `prepare` or `run`. It is the mathematics an
-interaction states, so the components are elements, interactions, spaces, and systems. The kinds stay as values rather
+A law is not a component: it has no component label, no parameters of its own, and no `prepare` or `run`. It is the
+mathematics an interaction states, so the components are elements, interactions, spaces, and systems. The kinds stay as values rather
 than bare Sage equations, since several laws add into one derivative where two equations would read as a contradiction,
 and Sage has no form for noise, jumps, events, or objectives. Contributions of several laws to one state add up, for
 every kind where adding means something: rates, noises, jump channels, and constraint balances.
@@ -486,8 +486,10 @@ signature of a rule.
 
 ### Laws are values
 
-A law is a frozen value with its fields, not a component. It has no `prepare`, label, or cloning, and private methods
-give its targets and requirements. Interactions return laws in `laws_`.
+A law is a frozen value with its fields, not a component. It has no `prepare`, component label, or cloning, and private
+methods give its targets, requirements, reads, and value. Its `label`, when it takes one, is a field like any other: the
+name a trajectory records a flow, a crossing, or a renewal under. Its checks run in `_check`, which the compiler calls,
+and the compiler changes a law with `dataclasses.replace`. Interactions return laws in `laws_`.
 
 ### Element values as parameters
 
