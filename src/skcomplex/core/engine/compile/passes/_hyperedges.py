@@ -1,4 +1,4 @@
-"""Build the gather tables of the hyperedges of a network and expand reductions."""
+"""Build the tables of the members of the hyperedges of a network."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -36,13 +36,24 @@ type Tables = tuple[Indices, list[Indices], Indices, Indices | None]
 
 
 class HyperedgeTables:
-    """A table of the members of the hyperedges of one size, for gathering.
+    """A table of the members of the hyperedges of a network, by hyperedge size.
 
-    The laws of a hyperedge interaction read them. The laws of the focal member run over one row per member of every
-    hyperedge, and the laws of the member of a group on hyperedges or edges over one row per hyperedge. Every symbol of
-    the laws reads its value through the table of its slot: the focal member, one of the other members, the hyperedge,
-    or the edge. On a network whose hyperedges are the rows of a variable group, the tables of the members hold
-    positions in the parameter entry of the members of every row, which topology requests rewrite during a run.
+    A hyperedge joins any number of nodes, such as a group of friends who meet together. A law of a hyperedge runs once
+    per member of every hyperedge, and every symbol of the law reads its value through a table: the member itself, one
+    of the other members, or the hyperedge. On a network whose hyperedges grow and shrink, the tables follow the changes
+    during a run. They serve contagion in groups, consensus in committees, and reactions of several molecules.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        NetworkSpace: A space of nodes, edges, and hyperedges.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.social.spreading import SimplicialContagionSystem
+        >>> compilation = PassCompiler().prepare(SimplicialContagionSystem()).compilation_
+        >>> [spec.rows for spec, _ in compilation.specs if spec.hyperedge == 'hyperedge']
+        [1918, 414]
     """
 
     @staticmethod

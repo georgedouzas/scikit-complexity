@@ -1,4 +1,4 @@
-"""Read the random draws of update laws from values drawn after the parameters."""
+"""Rewrite the random draws of update laws as numbers drawn at every step."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -10,9 +10,23 @@ from .._draw_lowering import DrawLowering
 
 
 class DrawsPass(BasePass):
-    """A pass that replaces the draws of update laws by values drawn.
+    """A pass that rewrites the random draws of update laws as numbers drawn each step.
 
-    The values are drawn after the parameters.
+    An update law may draw a random number, such as a random turn for every bird of a flock. The pass rewrites every
+    draw as a read of a number that the run draws before every step and stores after the parameters.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        DrawLowering: Rewrites the draws.
+        DrawKernel: Draws the numbers before every step.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.physics.active_matter import VicsekSystem
+        >>> compilation = PassCompiler().prepare(VicsekSystem()).run().compilation_
+        >>> compilation.draws.size
+        400
     """
 
     def _get_reads(self) -> tuple[str, ...]:

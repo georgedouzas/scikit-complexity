@@ -1,4 +1,4 @@
-"""Pass that adds the fractional noise rows and the state orders to the problem."""
+"""Add the fractional noise and the orders of the states to the problem."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -27,9 +27,22 @@ from ._fractional_form import FractionalFormPass
 
 
 class FractionalProblemPass(BasePass):
-    """A pass that adds the fractional noise rows and the state orders to the problem.
+    """A pass that adds the fractional noise and the state orders to the problem.
 
-    The noise rows are those of noise laws with a Hurst index.
+    It adds the rows that every fractional noise law drives and the order of every state, which a fractional solver
+    reads.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        FractionalFormPass: Makes the problem fractional.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.mathematics.fractional_dynamics import FractionalRelaxationSystem
+        >>> compilation = PassCompiler().prepare(FractionalRelaxationSystem()).run().compilation_
+        >>> compilation.problem.orders.tolist()
+        [0.6]
     """
 
     def _get_reads(self) -> tuple[str, ...]:

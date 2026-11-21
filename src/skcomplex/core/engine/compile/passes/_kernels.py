@@ -1,4 +1,4 @@
-"""Lower the laws of every kernel spec into kernels."""
+"""Turn the laws of every component into kernels that evaluate them."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -41,7 +41,23 @@ ASSIGNED_KINDS = (UpdateLaw, _BoundaryLaw)
 
 
 class KernelsPass(BasePass):
-    """A pass that lowers the reduced laws into the kernels of every law kind."""
+    """A pass that turns the laws of every component into kernels that evaluate them.
+
+    A kernel evaluates the laws of one kind of one component for all its members at once, such as the growth rates of
+    every population. The pass builds the kernels of every kind of law.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        FunctionsPass: Joins the kernels into the functions of the problem.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+        >>> compilation = PassCompiler().prepare(LotkaVolterraSystem()).run().compilation_
+        >>> [kernel.owner for kernels in compilation.kernels.kernels.values() for kernel in kernels]
+        ['growth', 'predation', 'death']
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""

@@ -1,4 +1,4 @@
-"""Replace the reductions of laws by placeholders compiled once each."""
+"""Compute every sum, mean, or other reduction of the laws once per evaluation."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,9 +16,22 @@ from ._reduction_lowering import ReductionLowering
 
 
 class ReductionsPass(BasePass):
-    """A pass that lowers the reductions of the laws, the laws set apart, and events.
+    """A pass that makes every reduction of the laws computed once per evaluation.
 
-    They are lowered in that order.
+    A law may read a sum or a mean over a group, such as the mean phase of the oscillators that pulls every oscillator.
+    The pass replaces every reduction by a symbol, so it is computed once and then read by every member.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        ReductionLowering: Rewrites the reductions.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.physics.synchronization import KuramotoSystem
+        >>> compilation = PassCompiler().prepare(KuramotoSystem()).run().compilation_
+        >>> [(reduction.group, reduction.kind) for reduction in compilation.reductions.reductions]
+        [('oscillators', 'count'), ('oscillators', 'sum'), ('oscillators', 'sum')]
     """
 
     def _get_reads(self) -> tuple[str, ...]:

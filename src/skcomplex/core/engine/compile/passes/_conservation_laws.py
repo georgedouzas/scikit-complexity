@@ -1,4 +1,4 @@
-"""Pass that reads the conservation laws of finite-volume fields."""
+"""Read the rates of finite volume fields as conservation laws."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,11 +18,24 @@ from .._flux_law import _FluxLaw
 
 
 class ConservationLawsPass(BasePass):
-    """A pass that reads the conservation laws of finite-volume fields.
+    """A pass that reads the rates of finite volume fields as conservation laws.
 
-    A rate law of a state of a finite-volume field whose rate holds `-divergence(flux)` is a conservation law. The pass
-    replaces it by a flux law with the scheme of the field, which the finite-volume kernel reads, and a rate law of the
-    other terms, which are sources.
+    A rate of a field on finite volumes that holds `-divergence(flux)`, such as the transport of Burgers' equation, says
+    that the field moves only by its flux. The pass splits such a rate into the flux, which the finite volume solver
+    moves between cells, and a rate of the other terms, which are sources.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        FieldFunctionsPass: Adds the finite volumes to the equations.
+        LowerFieldsPass: Rewrites the other operators of fields.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.physics.fluids import BurgersSystem
+        >>> compilation = PassCompiler().prepare(BurgersSystem()).compilation_
+        >>> [law.flux for _, laws, _ in compilation.collected for law in laws]
+        [[1/2*u_line^2]]
     """
 
     def _get_reads(self) -> tuple[str, ...]:

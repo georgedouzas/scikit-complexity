@@ -1,4 +1,4 @@
-"""Plan the partitions of a system from the census of its laws."""
+"""Split a system into the partitions that one solver each can run."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,9 +23,24 @@ from ._kernels import KernelsPass
 
 
 class PlanPass(BasePass):
-    """A pass that plans the partitions of the system.
+    """A pass that splits a system into the partitions that one solver each can run.
 
-    It uses the registered forms and solvers.
+    Most systems form one partition that one solver runs as a whole. A system whose components need different solvers,
+    such as a field of rates beside agents that follow rules, is split into partitions that advance side by side, and a
+    system that no solver can run is reported.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        CensusPass: Lists the laws the plan is made from.
+        FormPass: Finds the kind of problem of a partition.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+        >>> compilation = PassCompiler().prepare(LotkaVolterraSystem()).compilation_
+        >>> [partition.name for partition in compilation.plan.partitions]
+        ['system']
     """
 
     def _get_reads(self) -> tuple[str, ...]:

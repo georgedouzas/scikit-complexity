@@ -1,4 +1,4 @@
-"""Pass that checks the Hurst index and amplitude of noise laws with one."""
+"""Check the Hurst index and amplitude of fractional noise laws."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,9 +22,23 @@ BROWNIAN_HURST = 0.5
 
 
 class CheckFractionalNoisePass(BasePass):
-    """A pass that checks the Hurst index and amplitude of noise laws with one.
+    """A pass that checks the Hurst index and amplitude of fractional noise laws.
 
-    Laws of Hurst index 1/2 become noise laws without one.
+    A noise law with a Hurst index `H` drives a state with fractional Brownian motion, such as the walk of a molecule in
+    a crowded cell. The pass checks that `H` lies in `(0, 1)`, and a law of `H = 1/2`, plain Brownian motion, becomes a
+    noise law without an index.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        FractionalProblemPass: Adds the fractional noise to the problem.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.physics.soft_matter import FractionalBrownianMotionSystem
+        >>> compilation = PassCompiler().prepare(FractionalBrownianMotionSystem()).compilation_
+        >>> [law.hurst for _, laws, _ in compilation.lowered for law in laws]
+        [H_noise]
     """
 
     def _get_reads(self) -> tuple[str, ...]:

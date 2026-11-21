@@ -1,4 +1,4 @@
-"""Declare the states and parameters of every component of a system."""
+"""Find the states and parameters of every component of a system."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -44,9 +44,24 @@ MAX_SHOWN_COMPONENTS = 10
 
 
 class LayoutPass(BasePass):
-    """A pass that declares every component in tree order.
+    """A pass that finds the states and parameters of every component.
 
-    It checks that no two variables share a symbol.
+    A state is a value that a law changes and a parameter is a value that no law changes. The pass gives every value its
+    place in the vector of states or of parameters, in the order of the tree, and checks that no two values share a
+    name.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        SpecsPass: Ties the symbols of the laws to these places.
+        Compilation: Holds the layout in `layout`.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+        >>> compilation = PassCompiler().prepare(LotkaVolterraSystem()).compilation_
+        >>> [entry.name for entry in compilation.layout.parameters]
+        ['growth.r', 'predation.a', 'predation.b', 'death.d']
     """
 
     def _get_reads(self) -> tuple[str, ...]:

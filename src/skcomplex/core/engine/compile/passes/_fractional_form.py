@@ -1,4 +1,4 @@
-"""Pass that gives an ODE problem with a fractional state the fractional form."""
+"""Give a problem with a state of fractional order the fractional kind."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,9 +21,23 @@ from .._issue_spec import IssueSpec
 
 
 class FractionalFormPass(BasePass):
-    """A pass that gives an ODE problem with a fractional state the fractional form.
+    """A pass that makes a problem with a state of fractional order fractional.
 
-    The fractional state is a state of a fractional order among its owners.
+    A state of order `alpha` in `(0, 1)` changes with a memory of its whole past, such as the relaxation of a
+    viscoelastic material. The pass checks the order, the time, and the solver and backend, and makes the problem
+    fractional.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        FormPass: Finds the kind of other problems.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.mathematics.fractional_dynamics import FractionalRelaxationSystem
+        >>> compilation = PassCompiler().prepare(FractionalRelaxationSystem()).run().compilation_
+        >>> compilation.form.value
+        'fractional differential equations'
     """
 
     def _get_reads(self) -> tuple[str, ...]:

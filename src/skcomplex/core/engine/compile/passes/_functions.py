@@ -1,4 +1,4 @@
-"""Lower the kernels of a problem into the numeric functions of its form."""
+"""Join the kernels of a problem into the numeric functions its solver calls."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -45,9 +45,23 @@ from .._phases_schedule_spec import DEFAULT_PHASE, PhasesScheduleSpec
 
 
 class FunctionsPass(BasePass):
-    """A pass that lowers the kernels into the numeric functions and form equations.
+    """A pass that joins the kernels into the numeric functions that a solver calls.
 
-    The equations are those of the form.
+    It builds the functions of the kind of problem, such as the drift of a set of rates, and writes the equations of
+    every state in readable form, as `equations_` of a prepared system shows them.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        KernelsPass: Builds the kernels.
+        JacobianPass: Derives the Jacobian of the drift.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.biology.ecology import ExponentialGrowthSystem
+        >>> compilation = PassCompiler().prepare(ExponentialGrowthSystem()).run().compilation_
+        >>> compilation.functions.equations
+        {'population.x': r_growth*x_population}
     """
 
     def _get_reads(self) -> tuple[str, ...]:

@@ -1,4 +1,4 @@
-"""Compile agent-based systems."""
+"""Find the elements and groups that run as agents."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,13 +20,23 @@ MEMBER_SUFFIX = re.compile(r'\[-?\d+\]$')
 
 
 class AgentsPass(BasePass):
-    """A pass that marks the nodes of the elements and groups of the agent stepper.
+    """A pass that finds the elements and groups that run as agents.
 
-    They are the elements and groups that run on the agent stepper. An agent is a member of a variable group, or of an
-    element or group whose own laws include an agent rule. When the tree holds rules, of components or of interactions,
-    the groups whose element type has no laws of its own are agents too, as passive agents that rules read and change,
-    unless an interaction whose laws are not all rules or matchings binds them through a role. Single elements, such as
-    the holders of reductions, and groups on the sites, edges, or hyperedges of a space are never passive agents.
+    An agent is a member of a group that runs rules, such as a trader that gives a coin to another trader. Groups that
+    the rules only read and change are agents too, as passive agents. A single element, or a group on the sites or edges
+    of a space, is never a passive agent.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        AgentsProblemPass: Adds the agents to the problem.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.economics.econophysics import BoltzmannWealthSystem
+        >>> compilation = PassCompiler().prepare(BoltzmannWealthSystem()).compilation_
+        >>> [node.path for node in compilation.nodes if node.agent]
+        ['traders']
     """
 
     def _get_reads(self) -> tuple[str, ...]:

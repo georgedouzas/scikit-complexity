@@ -1,4 +1,4 @@
-"""Collect the laws every component declares for its kernel spec."""
+"""Gather the laws that every component states."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,9 +11,23 @@ from ._census import CensusPass
 
 
 class CollectPass(BasePass):
-    """A pass that collects the declared laws of every kernel spec.
+    """A pass that gathers the laws of every component.
 
-    No laws are set apart yet.
+    It takes the laws the census found and groups them by the component that states them, and keeps the linear programs
+    aside, since they are solved apart from the other laws.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        CensusPass: Finds the laws.
+        LinearProgramsPass: Solves the linear programs.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+        >>> compilation = PassCompiler().prepare(LotkaVolterraSystem()).compilation_
+        >>> [(spec.owner, len(laws)) for spec, laws, _ in compilation.collected]
+        [('prey', 0), ('predators', 0), ('growth', 1), ('predation', 2), ('death', 1)]
     """
 
     def _get_reads(self) -> tuple[str, ...]:

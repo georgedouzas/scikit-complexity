@@ -1,4 +1,4 @@
-"""Read delayed states through hidden parameters and take events aside."""
+"""Read delayed states through hidden parameters and set the events aside."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -31,9 +31,23 @@ DELAYED_READS = frozenset({ReadKind.SINGLE, ReadKind.MEMBER, ReadKind.OTHER, Rea
 
 
 class DelaysPass(BasePass):
-    """A pass that reads delayed states through hidden parameters.
+    """A pass that reads states at a past time through hidden parameters.
 
-    It takes the events of the laws aside.
+    A law may read a state some time ago, such as the blood cells of Mackey and Glass a maturation delay back. The pass
+    replaces every such read by a hidden parameter that the solver fills from the history of the run at every step. It
+    also sets the events of the laws aside, for the solver to locate.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        OrdersPass: Rewrites derivatives and past values of maps.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.biology.physiology import MackeyGlassSystem
+        >>> compilation = PassCompiler().prepare(MackeyGlassSystem()).compilation_
+        >>> compilation.layout.parameters[-1].name
+        '__delayed_0'
     """
 
     def _get_reads(self) -> tuple[str, ...]:

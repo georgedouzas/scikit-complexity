@@ -1,4 +1,4 @@
-"""Pass that adds the field parts to the problem."""
+"""Add the time step, linear terms, and finite volumes of fields to the problem."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,11 +20,22 @@ from .._field_lowering import FieldLowering
 
 
 class FieldProblemPass(BasePass):
-    """A pass that adds the field parts to the problem.
+    """A pass that adds what fields need to the problem.
 
-    They are the stable step, the linear terms, the finite volumes, the fixed nodes, and the observed fields. An
-    observable of a field whose expression applies field operators, such as `inverse_helmholtz` or `gradient`, is
-    lowered like a law of the field, into a kernel that gives its value at every site.
+    It adds the largest stable time step, the linear terms, the finite volumes, the fixed nodes, and the observables of
+    fields that apply an operator, such as the gradient of a temperature.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        LowerFieldsPass: Finds the stable time step.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.physics.heat import HeatDiffusionSystem
+        >>> compilation = PassCompiler().prepare(HeatDiffusionSystem()).run().compilation_
+        >>> compilation.problem.stable_step
+        0.25
     """
 
     def _get_reads(self) -> tuple[str, ...]:

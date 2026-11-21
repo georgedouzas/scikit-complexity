@@ -1,4 +1,4 @@
-"""Pass that sets the topology request update laws apart from the kernel laws."""
+"""Set apart the update laws that change the shape of a network."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,9 +11,22 @@ from .._compilation import BlockLaws, Compilation
 
 
 class SplitRequestsPass(BasePass):
-    """A pass that sets the topology request update laws apart from the kernel laws.
+    """A pass that sets apart the update laws that change the shape of a network.
 
-    They are the update laws that request topology changes, and the kernel laws are those lowered into kernels.
+    An update law may ask for a new node or edge, such as a newcomer to a network who links to popular nodes. The pass
+    sets such laws apart, since they change the network and not a value.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        TopologyFunctionsPass: Compiles the changes of the network.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.mathematics.networks import BarabasiAlbertSystem
+        >>> compilation = PassCompiler().prepare(BarabasiAlbertSystem()).compilation_
+        >>> [spec.owner for spec, _ in compilation.apart]
+        ['growth']
     """
 
     def _get_reads(self) -> tuple[str, ...]:

@@ -1,4 +1,4 @@
-"""Merge, lower, and solve the linear program laws."""
+"""Join, rewrite, and solve the linear programs of a system."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -62,9 +62,23 @@ class _LinearPartsSpec(BaseSpec):
 
 
 class LinearProgramsPass(BasePass):
-    """A pass that lowers the linear program laws of the owners of a compilation.
+    """A pass that turns the linear programs of a system into programs a solver solves.
 
-    It solves them in its functions.
+    A linear program finds the values that maximize a linear objective under linear constraints, such as the fluxes of
+    a cell that maximize its growth. The pass joins the laws of every program into one table of the program and adds it
+    to the problem, which solves it at every step.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        CollectPass: Keeps the programs aside.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.biology.systems_biology import FluxBalanceSystem
+        >>> compilation = PassCompiler().prepare(FluxBalanceSystem()).run().compilation_
+        >>> [program.program.path for program in compilation.problem.programs]
+        ['cell']
     """
 
     def _get_reads(self) -> tuple[str, ...]:

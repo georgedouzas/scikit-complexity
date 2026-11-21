@@ -1,4 +1,4 @@
-"""Pass that adds the transfer network to the problem."""
+"""Add the network of stocks and flows to the problem."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -10,9 +10,21 @@ from .._compilation import Compilation
 
 
 class FlowsProblemPass(BasePass):
-    """A pass that adds the transfer network to the problem.
+    """A pass that adds the network of stocks and flows to the problem.
 
-    It adds the quantities, flows, and records of the network.
+    A run then records the amount every flow moves, such as the water that leaves a tub through its drain.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        LowerFlowsPass: Builds the network.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.engineering.processes import BathtubSystem
+        >>> compilation = PassCompiler().prepare(BathtubSystem()).run().compilation_
+        >>> compilation.problem.transfer_network.quantities
+        {'water': ('tub.water',)}
     """
 
     def _get_reads(self) -> tuple[str, ...]:

@@ -1,4 +1,4 @@
-"""Pass that sets apart the weights and scores of the candidate nodes of requests."""
+"""Set apart the weights by which network requests choose their nodes."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,9 +21,22 @@ from ._topology_functions import TopologyFunctionsPass
 
 
 class TowardsPass(BasePass):
-    """A pass that sets apart the weights and scores of the candidates of requests.
+    """A pass that sets apart the weights by which network requests choose their nodes.
 
-    They are read like laws, for every request.
+    A request may choose the nodes it links to by a weight, such as the degree of every node, so a newcomer links to
+    popular nodes more often. The pass reads every weight as a law of the nodes, for every request.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        MaskRequestsPass: Silences the requests of free rows.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.mathematics.networks import BarabasiAlbertSystem
+        >>> compilation = PassCompiler().prepare(BarabasiAlbertSystem()).run().compilation_
+        >>> [spec.owner for spec, _ in compilation.drawn_apart]
+        ['growth', 'nodes']
     """
 
     def _get_reads(self) -> tuple[str, ...]:

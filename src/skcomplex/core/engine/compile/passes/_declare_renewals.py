@@ -1,4 +1,4 @@
-"""Pass that declares the hidden state that counts the renewals of renewal laws."""
+"""Add the hidden state that counts the renewals of every renewal law."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,9 +22,22 @@ from ._layout import LayoutPass
 
 
 class DeclareRenewalsPass(BasePass):
-    """A pass that declares the hidden state that counts the renewals of renewal laws.
+    """A pass that adds the hidden state that counts the renewals of every renewal law.
 
-    It runs once delays are lowered, for every renewal law.
+    Every member renews on its own clock, and the pass adds a state that counts its renewals, which a trajectory
+    records.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        BoundRenewalSpec: Binds a renewal law to its count.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.physics.soft_matter import ContinuousTimeRandomWalkSystem
+        >>> compilation = PassCompiler().prepare(ContinuousTimeRandomWalkSystem()).compilation_
+        >>> [entry.name for entry in compilation.layout.states]
+        ['walkers.x', 'walkers.jumps~renewals']
     """
 
     def _get_reads(self) -> tuple[str, ...]:
