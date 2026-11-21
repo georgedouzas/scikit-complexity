@@ -1,4 +1,4 @@
-"""Infer the form of a problem from the classes of the laws of its components."""
+"""Find the kind of problem that the laws of a system make."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,7 +15,23 @@ from .._laws import FORMLESS_LAWS
 
 
 class FormPass(BasePass):
-    """A pass that infers the form of the problem from the law classes of its owners."""
+    """A pass that finds the kind of problem that the classes of the laws make.
+
+    Rate laws make ordinary differential equations, rate and noise laws make stochastic ones, and update laws make a
+    map, so the population of the logistic map makes a map. The kind of problem chooses the default solver.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        FractionalFormPass: Gives a problem with a fractional state its kind.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
+        >>> compilation = PassCompiler().prepare(LogisticMapSystem()).run().compilation_
+        >>> compilation.form.value
+        'discrete map'
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""

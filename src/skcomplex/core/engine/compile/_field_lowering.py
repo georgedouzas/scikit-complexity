@@ -1,4 +1,4 @@
-"""Lower differential operators on fields to stencils and graph Laplacians."""
+"""Rewrite the operators of fields as sums over neighbouring sites."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -79,11 +79,15 @@ FILTER_MODES = {'periodic': 'wrap', 'zero-flux': 'reflect', 'fixed': 'constant'}
 
 
 class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
-    """A lowering of the differential operators of the laws of a component to stencils.
+    """A lowering that rewrites field operators as sums over neighbouring sites.
 
-    The lowering also returns the symbols the stencils read. `prepare(compilation)` reads the fields and the initial
-    values of the compilation, and `run(laws)` returns the laws with every operator replaced by its stencil, noting the
-    stable steps of the Laplacians of rate laws.
+    A law of a field may apply an operator such as `laplacian(u)`, the spread of heat at every site of a plate. This
+    lowering rewrites every such operator as a weighted sum over the neighbouring sites, a stencil, or as a matrix of a
+    network, a spectral grid, or a mesh. It also notes the largest stable time step of every explicit Laplacian, so a
+    solver can choose its step. It serves the heat of a plate, the concentrations of a reaction and diffusion, and the
+    height of shallow water.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         spec:
@@ -121,6 +125,18 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         applied_:
             The lowered value of every operator call so far, by its name and its lowered operands, so an identical call
             shares one value.
+
+    See Also:
+        LowerFieldsPass: The pass that runs this lowering.
+        LatticeSpace: A grid of sites that fields live on.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._field_lowering import FieldLowering
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.physics.heat import HeatDiffusionSystem
+        >>> compilation = PassCompiler().prepare(HeatDiffusionSystem()).compilation_
+        >>> list(FieldLowering(compilation.specs[0][0]).prepare(compilation).fields_)
+        ['plate.u', 'plate.D']
     """
 
     fields_: Mapping[str, _FieldElement]
@@ -151,7 +167,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         super()._prepare(context)
         declarations = self.compilation_.layout
         if declarations is None:
-            error_msg = 'The compilation has no layout yet. Lower differential operators after the layout pass.'
+            error_msg = 'The compilation has no layout yet. Run the layout pass before rewriting operators.'
             raise ValidationError(error_msg)
         self.fields_ = self._get_field_entries(declarations)
         self.initial_ = self._get_initial_values(self.spec, declarations)
@@ -230,7 +246,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         """
         reference = self._get_reference_of(item, self.spec)
         if reference is None:
-            error_msg = f'A law of {self.spec.owner} reads {item}, which is not a state or parameter of its namespace.'
+            error_msg = f'A law of {self.spec.owner} reads {item}, which is not a state or parameter it can read.'
             raise ValidationError(error_msg)
         return reference
 
@@ -507,8 +523,8 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             isinstance(space, CellComplexSpace) and space._is_mesh()
         ):
             error_msg = (
-                f'A law of {self.spec.owner} applies a stencil to {expression}, which lives on a mesh. Use the '
-                'finite-element discretization.'
+                f'A law of {self.spec.owner} applies a finite difference operator to {expression}, which lives on a '
+                'mesh. Use the finite-element discretization.'
             )
             raise ValidationError(error_msg)
         return space

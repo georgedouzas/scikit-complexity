@@ -1,4 +1,4 @@
-"""Read derivatives and lags of states and solve for highest derivatives."""
+"""Rewrite derivatives and past values of states as states of their own."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -37,9 +37,24 @@ EQUATION_UNKNOWNS = 6
 
 
 class OrdersPass(BasePass):
-    """A pass that reads derivatives and lags through companion states.
+    """A pass that rewrites derivatives and past values as states of their own.
 
-    It also adds their chains and solves equations.
+    The solvers step first derivatives only, so a law of a second derivative, such as the acceleration of a mass on a
+    spring, becomes two laws: the position moves with the velocity, a new state, and the velocity moves with the force.
+    A past value of a map becomes a state that keeps it. The pass also solves the equations that fix algebraic states.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        EquationBlocksLowering: Solves the equations of algebraic states.
+        DelaysPass: Reads states in the past by a delay.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.physics.mechanics import HarmonicOscillatorSystem
+        >>> compilation = PassCompiler().prepare(HarmonicOscillatorSystem()).compilation_
+        >>> [law.target for _, laws in compilation.ordered for law in laws]
+        [x_mass, x_d1_mass]
     """
 
     def _get_reads(self) -> tuple[str, ...]:
@@ -197,7 +212,7 @@ class OrdersPass(BasePass):
                 and (str(other).rpartition('__')[2] if '__' in str(other) else '') == alias
             ):
                 return other
-        error_msg = f'A law of {spec.owner} reads {name}, which the namespace does not hold.'
+        error_msg = f'A law of {spec.owner} reads {name}, which is not a state or parameter it can read.'
         raise ValidationError(error_msg)
 
     @staticmethod

@@ -1,4 +1,4 @@
-"""Take the census of the laws every component of a system declares."""
+"""List the laws that every component of a system states."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -88,9 +88,24 @@ SYMMETRY_TRIALS = 3
 
 
 class CensusPass(BasePass):
-    """A pass that takes the census of the laws of the system.
+    """A pass that lists the laws of every component with the element each one changes.
 
-    It keeps going past failing components.
+    It asks every interaction for its laws and notes the element or group that each law changes, such as the growth of
+    the prey. A component that fails to give its laws is noted, and the pass goes on with the others, so the report
+    lists every failure at once.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        FlattenPass: Lists the components of the system.
+        PlanPass: Splits the system by the laws it finds.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+        >>> compilation = PassCompiler().prepare(LotkaVolterraSystem()).compilation_
+        >>> [(record.path, record.owner) for record in compilation.census.records]
+        [('growth', 'prey'), ('predation', 'prey'), ('predation', 'predators'), ('death', 'predators')]
     """
 
     def _get_reads(self) -> tuple[str, ...]:
@@ -1284,6 +1299,6 @@ class CensusPass(BasePass):
             group = node.component
             return group.element(group.label).set_params(**(group.values or {})).prepare()
         if not isinstance(node.component, BaseComponent):
-            error_msg = f'The node {node.path} holds a {type(node.component).__name__}, which declares no laws.'
+            error_msg = f'The component {node.path} is a {type(node.component).__name__}, which declares no laws.'
             raise TypeError(error_msg)
         return node.component

@@ -1,4 +1,4 @@
-"""Pass that writes operators back into the equations and adds field terms."""
+"""Write the operators of fields back into the equations and add the field terms."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -39,9 +39,22 @@ PAIR = 2
 
 
 class FieldFunctionsPass(BasePass):
-    """A pass that writes operators back into the equations and adds field terms.
+    """A pass that writes the operators back into the equations and adds field terms.
 
-    It adds flux differences, symmetries, and fixed nodes.
+    The equations show `laplacian(u)` as written, not its sum over neighbours. The pass also adds the flux differences
+    of finite volumes, the mirror symmetries of fields, and the fixed nodes of meshes.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        LowerFieldsPass: Rewrites the operators first.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.physics.heat import HeatDiffusionSystem
+        >>> compilation = PassCompiler().prepare(HeatDiffusionSystem()).run().compilation_
+        >>> compilation.functions.equations
+        {'plate.u[i]': D_plate*laplacian(u_plate)}
     """
 
     def _get_reads(self) -> tuple[str, ...]:

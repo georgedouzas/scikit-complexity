@@ -1,4 +1,4 @@
-"""Pass that adds the agents, the rules, and the agent space to the problem."""
+"""Add the agents, their rules, and the space they live in to the problem."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -50,9 +50,22 @@ AGENT_RESERVED_NAMES = AGENT_VIEW_NAMES | MESA_AGENT_NAMES
 
 
 class AgentsProblemPass(BasePass):
-    """A pass that adds the agents, the rules, and the agent space to the problem.
+    """A pass that adds the agents, their rules, and their space to the problem.
 
-    The rules are those of the agents and of other components.
+    It gathers every agent group with its states and rules, and the rules of the other components, such as a market that
+    clears after the traders act, and checks that every agent group lives in one space.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        AgentsPass: Finds the agents.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.economics.econophysics import BoltzmannWealthSystem
+        >>> compilation = PassCompiler().prepare(BoltzmannWealthSystem()).run().compilation_
+        >>> [agents.path for agents in compilation.problem.agents]
+        ['traders']
     """
 
     def _get_reads(self) -> tuple[str, ...]:

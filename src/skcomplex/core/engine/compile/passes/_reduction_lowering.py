@@ -1,4 +1,4 @@
-"""Lower the reductions of laws to placeholders compiled once each."""
+"""Rewrite the reductions of laws as symbols computed once each."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -70,12 +70,15 @@ PAIRWISE_KINDS = ('sum', 'mean', 'count', 'max', 'min')
 
 
 class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tuple[KernelSpec, list[BaseLaw]]]]):
-    """A lowering of the reductions of laws to placeholders compiled once each.
+    """A lowering that rewrites the reductions of laws as symbols computed once each.
 
-    Neighbourhood reductions are lowered too. `prepare(compilation)` reads the layout and the drawn values of the
-    compilation, and `run(laws)` takes the laws of every kernel spec and sets them in `lowered_` with every reduction
-    replaced by the placeholder that kernels read, collecting the reductions, deduplicated, with their hidden entries.
-    `_apply_references()` then gives every spec the references of its placeholders.
+    A law may read a sum or a mean over a group, such as the mean phase of the oscillators that pulls every oscillator,
+    or a sum over the neighbours of every site. `run(laws)` replaces every such reduction by a symbol, collects the
+    reductions without repeats, and gives each a hidden entry where its value is stored, so it is computed once per
+    evaluation and read by every member. It serves the mean field of oscillators, the infected neighbours of a person,
+    and the total demand of a market.
+
+    Read more in the user guide, under Extend the library.
 
     Attributes:
         declarations_:
@@ -104,6 +107,17 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
 
         cells_:
             The degree and the cell complex of the value of every placeholder of the exterior calculus.
+
+    See Also:
+        ReductionsPass: The pass that runs this lowering.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.core.engine.compile.passes._reduction_lowering import ReductionLowering
+        >>> from skcomplex.systems.physics.synchronization import KuramotoSystem
+        >>> compilation = PassCompiler().prepare(KuramotoSystem()).compilation_
+        >>> len(ReductionLowering().prepare(compilation).run(compilation.drawn).found_)
+        3
     """
 
     declarations_: DeclarationsSpec
@@ -147,7 +161,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
                 No laws are passed.
         """
         if inputs is None:
-            error_msg = 'The reduction lowering runs on the laws of every kernel spec. Pass them to `run`.'
+            error_msg = 'The reductions are rewritten in the laws of every component. Pass them to `run`.'
             raise PipelineError(error_msg)
         self.lowered_ = [(spec, [self._lower_law(law, spec) for law in laws]) for spec, laws in inputs]
 
@@ -286,7 +300,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         if reference is None or reference.source not in {ReadKind.MEMBER, ReadKind.SINGLE, ReadKind.OTHER}:
             error_msg = (
                 f'A reduction of {spec.owner} reads {item}, which is not a state or parameter of an element, a group '
-                'member, or another reduction. Reductions read the namespace `s` of the law.'
+                'member, or another reduction. Reductions read the values that the law reaches through `s`.'
             )
             raise ValidationError(error_msg)
         entry = reference.entry
@@ -536,8 +550,8 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         if reference is None or side is None or (side == 'reader' and owner != readers):
             error_msg = (
                 f'A reduction of {spec.owner} reads {item}, which is not a state or parameter of an element, of the '
-                f'reading member of {readers or "no group"}, or of the other member. Reductions read the namespaces '
-                '`s` and `s.other` of the law.'
+                f'reading member of {readers or "no group"}, or of the other member. Reductions read the values that '
+                'the law reaches through `s` and `s.other`.'
             )
             raise ValidationError(error_msg)
         entry = reference.entry
@@ -953,8 +967,8 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         if reference is None or reference.source not in {ReadKind.MEMBER, ReadKind.SINGLE, ReadKind.OTHER}:
             error_msg = (
                 f'A neighbourhood reduction of {spec.owner} reads {item}, which is not a state or parameter of a '
-                'member, of its neighbour, or of an element. Neighbourhood reductions read the namespaces `s` and '
-                '`s.other` of the law.'
+                'member, of its neighbour, or of an element. Neighbourhood reductions read the values that the law '
+                'reaches through `s` and `s.other`.'
             )
             raise ValidationError(error_msg)
         if reference.source is ReadKind.SINGLE:
@@ -967,7 +981,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         if owner != group:
             error_msg = (
                 f'A neighbourhood reduction of {spec.owner} over the members of {group} reads {item} of another group. '
-                '_ReadSpec the other group through a reduction over its members.'
+                'Read the other group through a reduction over its members.'
             )
             raise RoleError(error_msg)
         indices = (entry.start + np.arange(entry.rows) * entry.columns + reference.column).astype(np.intp)

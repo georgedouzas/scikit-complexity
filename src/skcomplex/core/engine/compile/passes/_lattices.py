@@ -1,4 +1,4 @@
-"""Compile the laws of lattices."""
+"""Compile the laws that update the sites of a lattice."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -75,9 +75,22 @@ type LoweredObjective = tuple[
 
 
 class LatticeProblemPass(BasePass):
-    """A pass that adds the steps of lattice laws.
+    """A pass that adds the steps of the laws of a lattice to the problem.
 
-    They are local rules, drives, cascades, and Monte Carlo sampling.
+    It compiles the local rules of a lattice, such as the rule of the Game of Life, the drives and cascades of a
+    sandpile, and the Monte Carlo moves of a lattice of spins, into the steps that the lattice solver runs.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        RelaxationLaw: Relaxes a lattice until it is stable.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.physics.statistical_mechanics import IsingSystem
+        >>> compilation = PassCompiler().prepare(IsingSystem()).run().compilation_
+        >>> [type(step).__name__ for step in compilation.problem.lattice]
+        ['MonteCarloKernel']
     """
 
     def _get_reads(self) -> tuple[str, ...]:

@@ -1,4 +1,4 @@
-"""Keep the laws of the owners a compilation compiles."""
+"""Keep the laws of the components that a compilation compiles."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,9 +23,24 @@ from ._mask_requests import MaskRequestsPass
 
 
 class OwnersPass(BasePass):
-    """A pass that keeps the laws of the compiled owners.
+    """A pass that keeps the laws of the components that a compilation compiles.
 
-    It masks them to the rows present and finds their kinds.
+    A system split into partitions compiles each partition apart, and the pass keeps the laws of the elements and groups
+    of the partition. A group that grows and shrinks keeps free rows, and the pass makes its laws leave them unchanged.
+    It also notes the classes of the laws of every element, which choose the kind of problem.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        PlanPass: Splits the system into partitions.
+        FormPass: Reads the classes of the laws.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+        >>> compilation = PassCompiler().prepare(LotkaVolterraSystem()).compilation_
+        >>> {owner: [kind.__name__ for kind in kinds] for owner, kinds in compilation.kinds.items()}
+        {'prey': ['RateLaw'], 'predators': ['RateLaw']}
     """
 
     def _get_reads(self) -> tuple[str, ...]:

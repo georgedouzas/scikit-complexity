@@ -1,4 +1,4 @@
-"""Pass that compiles and takes out the encounter laws."""
+"""Compile the encounter laws of densities of classes."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -29,9 +29,22 @@ from .._compilation import Compilation, Laws
 
 
 class CompileEncountersPass(BasePass):
-    """A pass that compiles and takes out the encounter laws.
+    """A pass that compiles the encounter laws and sets them apart.
 
-    It runs before reductions prune the groups the laws read.
+    An encounter law says how members of two classes that meet change class, such as two people whose opinions move
+    towards each other. The pass turns every encounter law into sums over the densities of the classes.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        EncounterFunctionsPass: Adds the encounters to the rates.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.social.opinion_dynamics import KineticOpinionSystem
+        >>> compilation = PassCompiler().prepare(KineticOpinionSystem()).run().compilation_
+        >>> [encounter.kind for encounter in compilation.encounters]
+        ['transition']
     """
 
     def _get_reads(self) -> tuple[str, ...]:

@@ -1,4 +1,4 @@
-"""Pass that compiles a system of operator elements into an operator problem."""
+"""Compile a system of operator elements into an operator problem."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -56,11 +56,14 @@ DEFAULT_MAX_DIMENSION = 2**20
 
 
 class OperatorCompiler(BaseCompiler):
-    """A compiler of a system holding operator elements into an operator problem.
+    """A compiler that turns a system of operator elements into an operator problem.
 
-    An operator element takes the space of its states, a value whose class names the compiler of the field that runs
-    it. A subclass in that field adds the laws of its elements to the generator or the dissipators in `_add_law`, and it
-    names the default solver of its problems.
+    An operator element holds the space of its states, such as the two levels of a qubit, and a value whose class names
+    the compiler of the field that runs it. The compiler builds the joint space of all elements, and a subclass in that
+    field adds the laws of its elements to the generator or the dissipators in `_add_law` and names the default solver.
+    It compiles qubits, spins, and modes of light.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         backend:
@@ -75,12 +78,16 @@ class OperatorCompiler(BaseCompiler):
         max_dimension:
             The largest dimension of the Hilbert space, for a solver without a largest dimension of its own.
 
+    See Also:
+        BaseCompiler: The base of every compiler.
+        HilbertSpaceError: Raised for a space past its limit.
+
     Examples:
         >>> from skcomplex.core.systems import System
-        >>> from skcomplex.core.engine.compile import OperatorCompiler
-        >>> from skcomplex.systems.biology.common.populations import PopulationElement
-        >>> OperatorCompiler().prepare(System(elements=[PopulationElement('rabbits')])).report_.ok
-        False
+        >>> from skcomplex.systems.physics.common.quantum import QubitElement
+        >>> problem = System(elements=[QubitElement('a'), QubitElement('b')]).prepare().simulate(until=0).problem
+        >>> problem.dimensions
+        (2, 2)
     """
 
     def __init__(

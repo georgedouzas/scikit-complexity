@@ -66,32 +66,7 @@ FAMILY_PAGES = {
 GALLERY = Path('docs') / 'examples'
 OWN_RECEIVERS = ('self', 'cls', 'super()')
 DOCTESTS = doctest.DocTestParser()
-LAYOUT_PACKAGES = (
-    'skcomplex.core.experiments.',
-    'skcomplex.core.components.spaces.',
-    'skcomplex.core.engine.backends.',
-    'skcomplex.core.engine.viz.',
-    'skcomplex.core.enums.',
-    'skcomplex.core.errors.',
-    'skcomplex.core.types.',
-    'skcomplex.core.analysis.',
-    'skcomplex.core.components.elements.',
-    'skcomplex.core.base.',
-    'skcomplex.core.components.base.',
-    'skcomplex.core.systems.',
-    'skcomplex.core.engine.runtime.',
-    'skcomplex.core.engine.solvers.',
-    'skcomplex.core.engine.problems.',
-    'skcomplex.core.components.interactions.',
-    'skcomplex.core.engine.translators.',
-    'skcomplex.core.components._',
-    'skcomplex.core.components.types.',
-    'skcomplex.core.engine.enums.',
-    'skcomplex.core.engine.types.',
-    'skcomplex.core.engine._utils.',
-    'skcomplex.core.components.laws.utils.',
-    'skcomplex.core.components.laws._',
-)
+LAYOUT_PACKAGES = ('skcomplex.core.',)
 LAYOUT_HEAD = ('summary', 'paragraph', 'user guide')
 LAYOUT_SECTIONS = ('Args:', 'Attributes:', 'Returns:', 'Raises:', 'Warns:', 'See Also:', 'Examples:')
 REQUIRED_SECTIONS = ('See Also:', 'Examples:')

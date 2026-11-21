@@ -1,4 +1,4 @@
-"""Define the validation report spec."""
+"""Define the spec of the report of every problem a compiler found."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,21 +14,27 @@ from ._issue_spec import IssueSpec
 
 @dataclass(frozen=True)
 class ValidationReportSpec(BaseSpec):
-    """A spec of every issue a compiler found in a system, solver, and backend.
+    """A spec of the report of every problem a compiler found in a system.
 
-    Its check emits the warnings of the report and raises one error that lists its errors, so a valid report passes
-    its check.
+    `prepare` checks the system, its solver, and its backend, and gathers every problem it finds in this report, such as
+    a law that reads a value its element does not hold. Its check shows the warnings and raises one error that lists all
+    the errors, so a model of an ecosystem, a circuit, or a market shows every mistake at once and a valid report
+    passes.
+
+    Read more in the user guide, under Troubleshooting.
 
     Args:
         issues:
             The issues, in the order they were found.
 
+    See Also:
+        IssueSpec: One problem of the report.
+
     Examples:
         >>> from skcomplex.core.engine.compile import IssueSpec, ValidationReportSpec
-        >>> ValidationReportSpec().ok
-        True
-        >>> ValidationReportSpec((IssueSpec('empty', 'system', 'It has no element.', 'Add one.'),)).ok
-        False
+        >>> report = ValidationReportSpec((IssueSpec('empty', 'system', 'It has no element.', 'Add one.'),))
+        >>> ValidationReportSpec().ok, report.ok
+        (True, False)
     """
 
     issues: tuple[IssueSpec, ...] = ()

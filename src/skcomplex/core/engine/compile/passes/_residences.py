@@ -1,4 +1,4 @@
-"""Read the residence of states through hidden states."""
+"""Count how long the states of a map keep their values."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,9 +25,24 @@ RESIDENCE_PREFIX = '__residence'
 
 
 class ResidencesPass(BasePass):
-    """A pass that reads the residence of states through hidden states.
+    """A pass that counts how long the states of a map keep their values.
 
-    The hidden states keep their previous values and counts.
+    A law may read `residence(x)`, the number of steps a state has kept its value, such as the time a cell has stayed
+    alive. The pass adds two hidden states per state read, its previous value and the count, and laws that update them
+    at every step.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        OrdersPass: Rewrites derivatives and past values.
+
+    Examples:
+        >>> from skcomplex.core.components.laws.utils import residence
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.general.dynamics import DynamicalSystem
+        >>> system = DynamicalSystem({'x': 0.0}, {'x': lambda s: residence(s.target.x)}, time='discrete')
+        >>> [entry.name for entry in PassCompiler().prepare(system).compilation_.layout.states]
+        ['state.x', '__residence_0.previous', '__residence_0.count']
     """
 
     def _get_reads(self) -> tuple[str, ...]:

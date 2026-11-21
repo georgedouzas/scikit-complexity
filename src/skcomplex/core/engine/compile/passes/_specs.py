@@ -1,4 +1,4 @@
-"""Build the kernel spec of every component of a system."""
+"""Tie the symbols of the laws of every component to the places of their values."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -59,9 +59,24 @@ SECOND_PARTS = ('edges', 'hyperedges')
 
 
 class SpecsPass(BasePass):
-    """A pass that builds the kernel specs of every component.
+    """A pass that ties the symbols of the laws of every component to their values.
 
-    There is one spec per element set entry of an interaction.
+    For every component it records where each symbol of its laws, such as `x_prey`, finds its value among the states and
+    parameters, and the groups the laws run over. An interaction that binds several sets of elements gets one record per
+    set.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        LayoutPass: Places the states and parameters.
+        CollectPass: Gathers the laws of every component.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+        >>> compilation = PassCompiler().prepare(LotkaVolterraSystem()).compilation_
+        >>> [spec.owner for spec, _ in compilation.specs]
+        ['prey', 'predators', 'growth', 'predation', 'death']
     """
 
     def _get_reads(self) -> tuple[str, ...]:
@@ -1147,7 +1162,7 @@ class SpecsPass(BasePass):
         if clashes:
             error_msg = (
                 f'Interaction {block.node.path} declares the parameters {", ".join(clashes)}, whose names its laws '
-                'read as the slots of a hyperedge or a group. Rename them.'
+                'read as the members of a hyperedge or a group. Rename them.'
             )
             raise LabelError(error_msg)
 

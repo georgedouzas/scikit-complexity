@@ -1,4 +1,4 @@
-"""Pass that compiles the topology changes."""
+"""Compile the changes of the shape of networks."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -36,9 +36,22 @@ from ._specs import SpecsPass
 
 
 class TopologyFunctionsPass(BasePass):
-    """A pass that compiles the topology changes.
+    """A pass that compiles the changes of the shape of networks.
 
-    It leaves out the compiled stepper loops when laws request them.
+    It compiles every request for a new or removed node or edge into the functions that apply it during a run, such as
+    the newcomer of a growing network who links to popular nodes.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        TopologyProblemPass: Adds the changes to the problem.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.mathematics.networks import BarabasiAlbertSystem
+        >>> compilation = PassCompiler().prepare(BarabasiAlbertSystem()).run().compilation_
+        >>> [request.owner for request in compilation.topology.requests]
+        ['growth']
     """
 
     def _get_reads(self) -> tuple[str, ...]:
@@ -222,7 +235,7 @@ class TopologyFunctionsPass(BasePass):
             for law in laws:
                 request = TopologyKernel._request_of(law)
                 if request is None or not isinstance(law, UpdateLaw):
-                    error_msg = f'A law of {spec.owner} set apart for the networks requests no topology change.'
+                    error_msg = f'A law of {spec.owner} set apart as a change of a network requests no change.'
                     raise PipelineError(error_msg)
                 item = TopologyFunctionsPass._get_compiled_request(spec, request, networks, weights, declarations)
                 requests.append(

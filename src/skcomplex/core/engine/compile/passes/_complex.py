@@ -49,9 +49,23 @@ STAND_IN = '_split_part_'
 
 
 class LowerComplexPass(BasePass):
-    """A pass that splits every law of a complex state into laws of its parts.
+    """A pass that splits every law of a complex state into real and imaginary parts.
 
-    The parts are the real and imaginary parts.
+    The solvers step real numbers, so a state that holds complex numbers, such as the amplitude of a wave, is stored as
+    two real values, and every law of it becomes one law of the real part and one of the imaginary part.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        OrdersPass: Rewrites derivatives and past values.
+
+    Examples:
+        >>> from sage.all__sagemath_symbolics import I
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.general.dynamics import DynamicalSystem
+        >>> system = DynamicalSystem({'z': 0.5 + 0.2j}, {'z': lambda s: I * s.target.z})
+        >>> [law.target for _, laws, _ in PassCompiler().prepare(system).compilation_.lowered for law in laws]
+        [z_state_re, z_state_im]
     """
 
     @staticmethod

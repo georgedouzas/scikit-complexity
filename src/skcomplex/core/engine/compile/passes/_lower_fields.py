@@ -1,4 +1,4 @@
-"""Pass that lowers the differential operators of laws to stencils."""
+"""Rewrite the operators of the laws of fields as sums over neighbouring sites."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -27,9 +27,23 @@ from .._field_lowering import FieldLowering
 
 
 class LowerFieldsPass(BasePass):
-    """A pass that lowers the differential operators of laws to stencils.
+    """A pass that rewrites the operators of fields as sums over neighbouring sites.
 
-    It notes stable steps and linear terms.
+    A law of a field may apply an operator, such as the Laplacian of heat that spreads over a plate. The pass rewrites
+    every operator as a sum over the neighbouring sites, and notes the largest stable time step of every explicit
+    Laplacian and the linear terms that some solvers treat apart.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        FieldLowering: Rewrites the operators of one component.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.physics.heat import HeatDiffusionSystem
+        >>> compilation = PassCompiler().prepare(HeatDiffusionSystem()).run().compilation_
+        >>> compilation.limits
+        [0.25]
     """
 
     def _get_reads(self) -> tuple[str, ...]:

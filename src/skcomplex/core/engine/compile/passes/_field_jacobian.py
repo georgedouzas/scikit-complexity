@@ -1,4 +1,4 @@
-"""Pass that adds the field terms to the exact Jacobian."""
+"""Add the terms of fields to the exact Jacobian."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -9,9 +9,22 @@ from .._base import BasePass
 
 
 class FieldJacobianPass(BasePass):
-    """A pass that adds the field terms to the exact Jacobian.
+    """A pass that adds the terms of fields to the exact Jacobian.
 
-    The terms are the conservation laws, symmetries, and fixed nodes of the fields.
+    The terms are the fluxes of finite volumes, the mirror symmetries, and the fixed nodes of the fields, so an implicit
+    solver of a stiff field sees them too.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        JacobianPass: Derives the Jacobian of the rates.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.physics.fluids import BurgersSystem
+        >>> compilation = PassCompiler().prepare(BurgersSystem()).run().compilation_
+        >>> len(compilation.jacobian.volumes)
+        1
     """
 
     def _get_reads(self) -> tuple[str, ...]:

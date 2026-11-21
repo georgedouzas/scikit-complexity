@@ -1,4 +1,4 @@
-"""Pass that makes the requests of update laws vanish on free rows."""
+"""Make the network requests of free rows of a growing group ask for nothing."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,9 +18,22 @@ from .._compilation import Compilation
 
 
 class MaskRequestsPass(BasePass):
-    """A pass that makes the requests of update laws vanish on free rows.
+    """A pass that silences the network requests of the free rows of a group.
 
-    The free rows are those of capacity layouts.
+    A group that grows keeps free rows for members not born yet, and the pass makes the requests of these rows vanish,
+    so only members present add nodes or edges.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        SplitRequestsPass: Sets the requests apart.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.mathematics.networks import BarabasiAlbertSystem
+        >>> compilation = PassCompiler().prepare(BarabasiAlbertSystem()).run().compilation_
+        >>> [spec.owner for spec, _ in compilation.drawn_apart]
+        ['growth', 'nodes']
     """
 
     def _get_reads(self) -> tuple[str, ...]:

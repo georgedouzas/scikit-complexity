@@ -1,4 +1,4 @@
-"""Lower the laws of every kernel spec into kernels."""
+"""Turn the laws of every component into kernels that evaluate them."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -41,7 +41,23 @@ ASSIGNED_KINDS = (UpdateLaw, _BoundaryLaw)
 
 
 class KernelsPass(BasePass):
-    """A pass that lowers the reduced laws into the kernels of every law kind."""
+    """A pass that turns the laws of every component into kernels that evaluate them.
+
+    A kernel evaluates the laws of one kind of one component for all its members at once, such as the growth rates of
+    every population. The pass builds the kernels of every kind of law.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        FunctionsPass: Joins the kernels into the functions of the problem.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+        >>> compilation = PassCompiler().prepare(LotkaVolterraSystem()).run().compilation_
+        >>> [kernel.owner for kernels in compilation.kernels.kernels.values() for kernel in kernels]
+        ['growth', 'predation', 'death']
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
@@ -232,8 +248,8 @@ class KernelsPass(BasePass):
             return lowered[id(law)]
         if isinstance(law, NoiseLaw) and law.conserved:
             error_msg = (
-                f'A conserved noise law of {spec.owner} has no lowering. Declare its state on a `Field` of the fields '
-                'formalism, or remove `conserved=True`.'
+                f'A conserved noise law of {spec.owner} drives a state that is not on a lattice. Declare the state on '
+                'an element whose space is a `LatticeSpace`, or remove `conserved=True`.'
             )
             raise ValidationError(error_msg)
         outputs = KernelsPass._get_outputs_of(law.value, targets, f'{law._get_name()} of {spec.owner}')

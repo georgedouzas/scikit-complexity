@@ -1,4 +1,4 @@
-"""Add to the drift the correction of every non-Itô noise law."""
+"""Add to the drift the correction of every noise law that is not in the Itô form."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -27,9 +27,22 @@ from .._compilation import Compilation
 
 
 class NoisePass(BasePass):
-    """A pass that adds the drift correction of every noise law of a convention.
+    """A pass that adds the drift correction of every noise law of another convention.
 
-    The correction follows the law, in the Itô form.
+    The solvers integrate noise in the Itô form. A noise law in the Stratonovich form, whose amplitude depends on the
+    state, adds a drift, and the pass writes that drift as a rate law, so the solver gives the same paths.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        ConservedNoisePass: Writes noise that conserves a field.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.mathematics.stochastic_processes import OnOffIntermittencySystem
+        >>> compilation = PassCompiler().prepare(OnOffIntermittencySystem()).compilation_
+        >>> [law.value for _, laws in compilation.corrected for law in laws][-1]
+        1.0*D_drift*x_variables
     """
 
     def _get_reads(self) -> tuple[str, ...]:

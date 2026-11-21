@@ -1,4 +1,4 @@
-"""Lower reads of group members at an offset to neighbour reads."""
+"""Rewrite reads of other members of a group as reads of their positions."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -28,13 +28,14 @@ SHIFT = 'shift_member'
 
 
 class MemberLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
-    """A lowering of the member offset reads of the laws of one component.
+    """A lowering that rewrites reads of other members of a group by their offset.
 
-    They are lowered to neighbour reads of the index table of its group. `prepare(compilation)` reads the time of the
-    compilation, and `run(laws)` sets `lowered_`, the laws with every member offset read replaced by a symbol that reads
-    the offset member, whose reference it notes for the spec. A parameter of a single element or interaction is the same
-    at every member and stays as it is. A draw read at an offset stays a member offset read of the draw, which the
-    lowering of draws reads at the offset member.
+    A law of a group may read the member next to the one it changes, such as the car ahead on a road or the next site of
+    a ring of oscillators. This lowering rewrites every such read as a read through a table that gives, for every
+    member, the position of the member at that offset. A parameter of a single element or interaction is the same for
+    every member and stays as it is. It serves the cars of a road, the sites of a ring, and the neurons of a chain.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         spec:
@@ -46,6 +47,18 @@ class MemberLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
 
         shifted_:
             The member symbol, offset, boundary, and fill that every offset read reads.
+
+    See Also:
+        MemberShiftPass: The pass that runs this lowering.
+        DrawLowering: Reads draws of other members too.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._members import MemberLowering
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+        >>> compilation = PassCompiler().prepare(LotkaVolterraSystem()).compilation_
+        >>> MemberLowering(compilation.specs[0][0]).prepare(compilation).time_
+        t
     """
 
     time_: Expression
@@ -68,7 +81,7 @@ class MemberLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         super()._prepare(context)
         layout = self.compilation_.layout
         if layout is None:
-            error_msg = 'The compilation has no layout yet. Lower member offsets after the layout pass.'
+            error_msg = 'The compilation has no layout yet. Run the layout pass before rewriting member offsets.'
             raise ValidationError(error_msg)
         self.time_ = layout.time
         self.shifted_ = {}

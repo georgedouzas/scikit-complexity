@@ -1,4 +1,4 @@
-"""Pass that lowers every conserved noise law to the divergence of random fluxes."""
+"""Write every conserved noise law as random fluxes between neighbouring sites."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -26,9 +26,23 @@ from .._issue_spec import IssueSpec
 
 
 class ConservedNoisePass(BasePass):
-    """A pass that lowers every conserved noise law to the divergence of random fluxes.
+    """A pass that writes every conserved noise law as random fluxes between sites.
 
-    There is one random flux per link of its field.
+    A conserved noise moves an amount between neighbouring sites and never creates it, such as thermal noise in a
+    mixture that separates. The pass draws one random flux per link of the lattice and adds to every site what flows in
+    minus what flows out.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        NoisePass: Corrects the drift of other noise laws.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.physics.pattern_formation import CahnHilliardSystem
+        >>> compilation = PassCompiler().prepare(CahnHilliardSystem(temperature=0.01)).run().compilation_
+        >>> len(compilation.outputs)
+        1
     """
 
     def _get_reads(self) -> tuple[str, ...]:

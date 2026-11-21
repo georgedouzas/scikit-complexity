@@ -1,4 +1,4 @@
-"""Match, order into blocks, and solve the equations of a system."""
+"""Match, order, and solve the equations of algebraic states."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -54,14 +54,16 @@ class _NumericBlockSpec(BaseSpec):
 
 
 class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[BaseLaw | _RelationSpec]]]]):
-    """A lowering of equations into rate and algebraic laws.
+    """A lowering that solves the equations of a system for its algebraic states.
 
-    The equations are in highest derivatives and algebraic states. `run(specs)` matches the relations of the specs to
-    their unknowns, orders the matched pairs into blocks, and solves every block: a block linear in its unknowns
-    symbolically up to six unknowns and by a linear solve above, and any other block by `scipy.optimize.root` with the
-    Jacobian Sage derives, from the values of the last evaluation. The laws that read algebraic states read their
-    solutions. `lowered_` holds the specs without their relations, and a last spec with a rate law per highest
-    derivative and an algebraic law per algebraic state.
+    An algebraic state is fixed at every moment by equations, such as the currents of a circuit that Kirchhoff's laws
+    fix. `run(specs)` matches every equation to the unknown it solves, orders the matched pairs into blocks that can be
+    solved one after the other, and solves every block: a small linear block by hand, a large linear block by a linear
+    solve, and any other block numerically by `scipy.optimize.root`. The laws that read algebraic states then read their
+    solutions, and `lowered_` holds a rate law per highest derivative and an algebraic law per algebraic state. It
+    solves circuits, motors, and networks of pipes.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         relations:
@@ -86,6 +88,17 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
 
         solve_:
             The function of time and `arguments_` that returns the values of `numeric_`.
+
+    See Also:
+        AlgebraicLaw: Gives an algebraic state its value.
+        OrdersPass: The pass that runs this lowering.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.engineering.mechatronics import DcMotorSystem
+        >>> compilation = PassCompiler().prepare(DcMotorSystem()).compilation_
+        >>> [type(law).__name__ for _, laws in compilation.ordered for law in laws].count('AlgebraicLaw')
+        7
     """
 
     guesses_: dict[Expression, float]

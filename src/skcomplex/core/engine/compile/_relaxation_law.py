@@ -1,4 +1,4 @@
-"""Define the relaxation law the compiler runs for an update law of a relaxation."""
+"""Define the law that drives a lattice and relaxes it until it is stable."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,9 +16,13 @@ from ...components.spaces._discrete_time import _DiscreteTime
 class RelaxationLaw(BaseLaw):
     """A law that drives a lattice once per step and relaxes it until it is stable.
 
-    The compiler runs it for an `UpdateLaw` whose value is a call of `relax`. The drive laws run once per step. Then
-    the rules run again and again until `stable` holds, which is one cascade. Each cascade that changes the lattice is
-    recorded as an event with its size, its duration, and its area.
+    The compiler runs it for an `UpdateLaw` whose value calls `relax`, such as a sandpile that gets one grain per step
+    and then topples until no site holds four grains. The drive laws run once per step, then the relaxing rules run
+    again and again until `stable` holds, which makes one cascade. Each cascade that changes the lattice is recorded as
+    an event with its size, its duration, and its area. It models avalanches of sand, earthquakes along a fault, and
+    forest fires.
+
+    Read more in the user guide, under Laws.
 
     Args:
         drive:
@@ -41,16 +45,16 @@ class RelaxationLaw(BaseLaw):
         label:
             The name of the cascade events, or the empty string for the path of the element.
 
+    See Also:
+        ArrayUpdateLaw: Replaces a whole array state by a function of it.
+        CascadeKernel: Runs the cascades of a lattice.
+
     Examples:
-        >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws import UpdateLaw
-        >>> from skcomplex.core.components.spaces import RadiusNeighborhood
-        >>> from skcomplex.core.engine.compile._relaxation_law import RelaxationLaw
-        >>> height = var('height')
-        >>> cross = RadiusNeighborhood(1, metric='manhattan', center=True)
-        >>> topple = UpdateLaw(height, lambda z, *n, **kwargs: z - 4 * (z >= 4), neighborhood=cross)
-        >>> RelaxationLaw([], [topple], lambda z: bool((z < 4).all())).relax[0] is topple
-        True
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.physics.criticality import SandpileSystem
+        >>> compilation = PassCompiler().prepare(SandpileSystem()).compilation_
+        >>> [type(law).__name__ for _, laws, _ in compilation.collected for law in laws]
+        ['RelaxationLaw']
     """
 
     law_tag: ClassVar[str] = 'update'

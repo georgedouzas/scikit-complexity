@@ -1,4 +1,4 @@
-"""Define the bound renewal spec."""
+"""Define the spec of a renewal law with the group it renews."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,9 +17,14 @@ from ._renewal_law import RenewalLaw
 
 @dataclass(frozen=True)
 class BoundRenewalSpec(BaseSpec):
-    """A spec of a renewal law of a component with its label, group, and hidden state.
+    """A spec of a renewal law with the group it renews and the state that counts it.
 
-    The group is the one the law renews, and the hidden state is the one that counts it.
+    A renewal law restarts the members of a group after waiting times, such as a walker that rests for a random time and
+    then jumps. The compiler binds every renewal law to the group it renews and adds a hidden state that counts the
+    renewals of every member, which this spec holds. It describes the jumps of walkers, the failures and repairs of
+    machines, and the firing of neurons.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         spec:
@@ -39,6 +44,17 @@ class BoundRenewalSpec(BaseSpec):
 
         symbol:
             The symbol of the count.
+
+    See Also:
+        RenewalLaw: Renews states after random waiting times.
+        DeclareRenewalsPass: Adds the state that counts the renewals.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.physics.soft_matter import ContinuousTimeRandomWalkSystem
+        >>> compilation = PassCompiler().prepare(ContinuousTimeRandomWalkSystem()).compilation_
+        >>> [(renewal.label, renewal.group) for renewal in compilation.renewals]
+        [('jumps', 'walkers')]
     """
 
     spec: KernelSpec

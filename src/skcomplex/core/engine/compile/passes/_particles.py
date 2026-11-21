@@ -1,4 +1,4 @@
-"""Compile particles."""
+"""Add the laws by which the boundary of a continuous space acts on positions."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,9 +19,22 @@ from .._compilation import Compilation
 
 
 class BoundaryLawsPass(BasePass):
-    """A pass that adds the laws of the boundary of a continuous space.
+    """A pass that adds the laws by which the edge of a space acts on positions.
 
-    By these laws the boundary acts on the positions of components.
+    A periodic box wraps a particle that leaves it back in at the other side, and a wall reflects it. The pass adds
+    these laws to every element or group with positions in a continuous space.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        ContinuousSpace: A space of real positions with its boundary.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.physics.statistical_mechanics import LennardJonesFluidSystem
+        >>> compilation = PassCompiler().prepare(LennardJonesFluidSystem()).compilation_
+        >>> [str(law.value) for _, laws, _ in compilation.collected for law in laws][0]
+        'mod(x_fluid_0, 28.284271247461902)'
     """
 
     def _get_reads(self) -> tuple[str, ...]:

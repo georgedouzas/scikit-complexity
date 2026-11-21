@@ -1,4 +1,4 @@
-"""Define the algebraic law of the value of an algebraic state at a frame."""
+"""Define the law that gives an algebraic state its value."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -10,10 +10,14 @@ from ...components.laws._boundary import _BoundaryLaw
 
 @dataclass(frozen=True)
 class AlgebraicLaw(_BoundaryLaw):
-    """A law that gives the value of an algebraic state at a frame.
+    """A law that gives an algebraic state its value at every recorded frame.
 
-    It is the solution of the equations the state appears in. The solvers integrate no algebraic state, so the law
-    applies only to the state a frame records.
+    An algebraic state is a value that no rate moves and that equations fix at every moment, such as the current through
+    a resistor that Ohm's law sets from the voltage. The compiler solves those equations and writes the solution as this
+    law. No solver integrates the state, so the law only fills in its value at the frames a run records. It gives the
+    currents of a circuit, the torque of a motor, and the flows of a network of pipes.
+
+    Read more in the user guide, under Laws.
 
     Args:
         target:
@@ -24,6 +28,10 @@ class AlgebraicLaw(_BoundaryLaw):
 
         label:
             The name of the law, or the empty string for a law without one.
+
+    See Also:
+        EquationBlocksLowering: Solves the equations that give algebraic states.
+        RelaxationLaw: Relaxes a lattice until it is stable.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var

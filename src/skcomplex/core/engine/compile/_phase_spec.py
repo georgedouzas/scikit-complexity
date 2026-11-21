@@ -1,4 +1,4 @@
-"""Define the phase spec."""
+"""Define the spec of a named phase of a step of agents."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,18 +11,18 @@ from ...base import BaseSpec
 
 @dataclass(frozen=True)
 class PhaseSpec(BaseSpec):
-    """A spec of a named phase of a step, in which agents run some rules.
+    """A spec of a named phase of a step, in which agents run some of their rules.
 
-    In it agents run the rules of the phase under an activation policy. The policies are `'random'`, every agent in a
-    new random order, `'sequential'`, every agent in the order of creation, `'simultaneous'`, every agent in random
-    order reading the states of the start of the phase while its writes apply at the end of the phase, `'by-type'`,
-    group after group in the order of `groups` or of declaration, each group in random order, and `'visits'`, as many
-    visits as `visits` times the number of agents of `groups` at the start of the phase, each to an agent drawn at
-    random with replacement, which runs its rules of the phase at the time `k + i / n` of visit `i` of `n` in step `k`.
-    The rules of interactions and institutions in the phase run once after the agents. A phase with `repeat` above one
-    runs that many rounds, such as intraday rounds within a day. A phase runs in the steps `k`, counted from one, for
-    which `k - offset` is a multiple of `period`, so the default period of one runs it every step and a period of seven
-    runs it once a week.
+    A step of an agent model can be split into phases, such as producing and then trading, and each rule names its
+    phase. In a phase the agents run their rules in the order its activation policy gives: `'random'`, every agent in a
+    new random order, `'sequential'`, every agent in the order of creation, `'simultaneous'`, every agent reading the
+    states of the start of the phase while its changes apply at its end, `'by-type'`, group after group, each in random
+    order, and `'visits'`, visits to agents drawn at random with replacement, `visits` times the number of agents. The
+    rules of interactions run once after the agents. A phase repeats `repeat` times per step, such as rounds of trading
+    within a day, and runs in the steps `k` for which `k - offset` is a multiple of `period`, so a period of seven runs
+    it once a week. Phases order the days of a market, the seasons of a farm, and the rounds of a game.
+
+    Read more in the user guide, under Agents.
 
     Args:
         name:
@@ -46,6 +46,9 @@ class PhaseSpec(BaseSpec):
 
         offset:
             The step, modulo the period, in which the phase runs.
+
+    See Also:
+        PhasesScheduleSpec: Runs the phases in order at every step.
 
     Examples:
         >>> from skcomplex.core.engine.compile import PhaseSpec

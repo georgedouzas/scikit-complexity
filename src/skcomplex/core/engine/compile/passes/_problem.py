@@ -40,7 +40,23 @@ from ._events import RELATIONS, SWITCHES
 
 
 class ProblemPass(BasePass):
-    """A pass that assembles the problem of the general parts of a compilation."""
+    """A pass that assembles the problem from what the earlier passes found.
+
+    It puts the states, the parameters, the functions, the Jacobian, the reductions, the events, and the delays into one
+    problem, which the passes after it complete with agents, fields, flows, or other laws.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        FunctionsPass: Builds the functions of the problem.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+        >>> compilation = PassCompiler().prepare(LotkaVolterraSystem()).run().compilation_
+        >>> compilation.problem.states.names
+        ['prey.x', 'predators.x']
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
@@ -433,7 +449,7 @@ class ProblemPass(BasePass):
         unknown = [item for item in arguments if spec.references.get(item) is None]
         if unknown:
             error_msg = (
-                f'An event of {spec.owner} uses {", ".join(map(str, unknown))}, which the namespace does not hold.'
+                f'An event of {spec.owner} uses {", ".join(map(str, unknown))}, which are not values it can read.'
             )
             raise ValidationError(error_msg)
         reads = [
@@ -479,7 +495,7 @@ class ProblemPass(BasePass):
         unknown = [item for item in arguments if spec.references.get(item) is None]
         if unknown:
             error_msg = (
-                f'An event of {spec.owner} uses {", ".join(map(str, unknown))}, which the namespace does not hold.'
+                f'An event of {spec.owner} uses {", ".join(map(str, unknown))}, which are not values it can read.'
             )
             raise ValidationError(error_msg)
         reads = [

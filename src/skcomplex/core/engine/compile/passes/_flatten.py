@@ -1,4 +1,4 @@
-"""Flatten the system tree into the nodes of its components."""
+"""List every component of a nested system in one flat list."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -27,7 +27,25 @@ TOPOLOGY_PARTS = ('sites', 'edges', 'hyperedges')
 
 
 class FlattenPass(BasePass):
-    """A pass that flattens the system tree into its nodes."""
+    """A pass that lists every component of a nested system in one flat list.
+
+    A system may nest other systems, such as villages inside a country, and this pass walks the tree once and lists
+    every element, group, and interaction with its full path, such as `village.households`. The passes after it read
+    this list in place of the tree.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        CensusPass: Lists the laws of the components.
+        PassCompiler: Runs the passes over a compilation.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+        >>> compilation = PassCompiler().prepare(LotkaVolterraSystem()).compilation_
+        >>> [node.path for node in compilation.nodes]
+        ['prey', 'predators', 'growth', 'predation', 'death']
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""

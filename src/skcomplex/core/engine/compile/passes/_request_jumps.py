@@ -1,4 +1,4 @@
-"""Pass that turns the topology request jumps into jumps of no state change."""
+"""Turn the jumps that change a network into jumps that change no value."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,9 +12,22 @@ from .._compilation import Compilation, Laws
 
 
 class RequestJumpsPass(BasePass):
-    """A pass that turns the topology request jumps into jumps of no state change.
+    """A pass that turns jumps that change a network into jumps that change no value.
 
-    They are the jumps that request topology changes, and the requests are noted.
+    A jump law may ask for a new node or edge at random times, such as a contact made between two people. The pass keeps
+    the jump with no change of value and notes the request, which the run applies when the jump fires.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        TopologyFunctionsPass: Compiles the changes of the network.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.mathematics.networks import BarabasiAlbertSystem
+        >>> compilation = PassCompiler().prepare(BarabasiAlbertSystem()).run().compilation_
+        >>> compilation.request_jumps
+        {}
     """
 
     def _get_reads(self) -> tuple[str, ...]:

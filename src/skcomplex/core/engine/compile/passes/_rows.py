@@ -1,4 +1,4 @@
-"""Settle the rows every kernel spec is evaluated over."""
+"""Settle the rows that the laws of every component run over."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -33,9 +33,23 @@ RANDOM_FIELDS = ('value', 'rate', 'changes', 'lhs', 'rhs', 'guard', 'reset', 'wa
 
 
 class RowsPass(BasePass):
-    """A pass that checks the draws of the laws and settles the rows of every spec.
+    """A pass that settles how many rows the laws of every component run over.
 
-    The specs are kernel specs, with their laws set apart.
+    A law written for one member runs once per member of the groups it reads, such as once per oscillator of a ring. The
+    pass finds that number for every component and checks that the random draws of the laws are placed where they can
+    be drawn.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        SpecsPass: Records the groups the laws read.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.physics.synchronization import KuramotoSystem
+        >>> compilation = PassCompiler().prepare(KuramotoSystem()).compilation_
+        >>> [(spec.owner, spec.rows) for spec, _, _ in compilation.lowered]
+        [('oscillators', 50), ('rotation', 50), ('coupling', 50)]
     """
 
     def _get_reads(self) -> tuple[str, ...]:

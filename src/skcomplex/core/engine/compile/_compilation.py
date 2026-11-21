@@ -1,4 +1,4 @@
-"""Hold the state of one compilation."""
+"""Hold what one compilation of a system has found so far."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -53,13 +53,15 @@ type BlockLaws = list[tuple[KernelSpec, list[BaseLaw], BlockSpec]]
 
 
 class Compilation:
-    """A state of one compilation of a system, which passes read and write.
+    """A record of one compilation of a system, which passes read and write.
 
-    Its passes read and write its fields in order. The constructor stores the inputs of the compilation, and the passes
-    set every other field, from `nodes` to `problem` in the order they are listed. A field that no pass has set yet is
-    `None`. A pass may also declare hidden states and parameters on the layout, which only grows. Kernel specs are
-    frozen: a pass that adds references to a spec builds a copy, which `_replace_specs` puts in every field that holds
-    the spec.
+    The constructor stores the system and its settings, and the passes fill in every other field in turn, from `nodes`,
+    the components of the system in a flat list, to `problem`, the finished problem. A field that no pass has set yet is
+    `None`. For a population model the compilation holds the states of its elements in `layout`, their laws in
+    `collected`, and the equations in `functions`. A pass may also add hidden states and parameters to the layout, which
+    only grows.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         system:
@@ -210,6 +212,17 @@ class Compilation:
 
         done:
             The passes that ran.
+
+    See Also:
+        BasePass: The base of the steps that read and write a compilation.
+        PassCompiler: Runs the passes over a compilation.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+        >>> compilation = PassCompiler().prepare(LotkaVolterraSystem()).compilation_
+        >>> [entry.name for entry in compilation.layout.states]
+        ['prey.x', 'predators.x']
     """
 
     nodes: list[_NodeSpec] | None = None

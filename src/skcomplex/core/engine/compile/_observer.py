@@ -1,4 +1,4 @@
-"""Values of the observables that laws read at the current state."""
+"""Give the values of the observables that laws read at the current state."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -35,11 +35,14 @@ REDUCERS: dict[str, Callable[..., Expression]] = {
 
 
 class Observer(BaseConfig[None, tuple[_NodeSpec, object]]):
-    """An observer of the values of the observables that laws read at a state.
+    """An observer that gives the values of the observables that laws read.
 
-    They are built from the blocks of a system. `prepare()` starts with no observable evaluated, and `run((node,
-    label))` sets `observed_`, the namespace of the observable a role of a component binds to, evaluating every
-    observable once.
+    A law may read an observable of the system, such as the mean opinion of a crowd that pulls every person towards it.
+    The observer evaluates every such observable once, from the states and parameters of the system, and gives the law
+    the symbols of its value. It serves the mean field of a crowd, the total demand of a market, and the order of a
+    flock.
+
+    Read more in the user guide, under Observe.
 
     Args:
         declarations:
@@ -55,6 +58,17 @@ class Observer(BaseConfig[None, tuple[_NodeSpec, object]]):
         observed_:
             The namespace of the observable the last run's role binds to with the references of its symbols, or `None`
             for a role bound to no live observable.
+
+    See Also:
+        ObservableEvaluator: Computes the observables a run records.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._observer import Observer
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+        >>> compilation = PassCompiler().prepare(LotkaVolterraSystem()).compilation_
+        >>> Observer(compilation.layout, {}).prepare().values_
+        {}
     """
 
     values_: dict[str, tuple[object, dict[Expression, ReferenceSpec]]]

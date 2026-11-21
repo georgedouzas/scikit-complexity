@@ -1,4 +1,4 @@
-"""Define the bases of compilation."""
+"""Define the bases of compilers, passes, and lowerings."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -59,12 +59,15 @@ type _Composite = _CompositeSystem
 
 
 class BaseCompiler(BaseConfig[_Composite, Mapping[str, object]]):
-    """An abstract compiler of a system into a problem of one mathematical form.
+    """An abstract compiler that turns a system into a problem that a solver runs.
 
-    `prepare(system)` validates the settings and the system and sets `report_`, the issues it finds,
-    and `run(initial_state)` raises the errors of the report and sets `problem_`, the compiled problem, and `solver_`,
-    the solver the problem runs on. A subclass implements the hooks `_issues` and `_compile`, and a compiler of a form
-    the engine does not know names the solver of its problems in `_get_solver`.
+    `prepare(system)` checks the settings and the system and lists what is wrong in `report_`, and `run(initial_state)`
+    raises the errors of the report and sets `problem_`, the compiled problem, and `solver_`, the solver that runs it.
+    A subclass fills in the hooks `_issues` and `_compile`, and a compiler of a kind of problem that the engine does not
+    know names the solver of its problems in `_get_solver`. `PassCompiler` compiles every system of the catalog, and a
+    field package writes its own compiler on this base, as the quantum package does for operators.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         backend:
@@ -91,6 +94,16 @@ class BaseCompiler(BaseConfig[_Composite, Mapping[str, object]]):
         solver_:
             The solver the compiled problem runs on: the solver setting, the solver the compiler names, or `None` for
             the default solver of the problem's form.
+
+    See Also:
+        PassCompiler: Compiles a system through a sequence of passes.
+        OperatorCompiler: Compiles a system of operator elements.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile import BaseCompiler
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> issubclass(PassCompiler, BaseCompiler)
+        True
     """
 
     system_: _Composite
@@ -448,16 +461,28 @@ class BaseCompiler(BaseConfig[_Composite, Mapping[str, object]]):
 
 
 class BasePass(BaseConfig[Compilation, None]):
-    """An abstract pass, a step of a compilation that reads fields and writes others.
+    """An abstract pass, one step of a compilation that reads fields and writes others.
 
-    A pass declares the fields it reads and writes through the hooks `_get_reads` and `_get_writes`, which order the
-    passes of a compilation. `prepare(compilation)` takes the compilation the pass serves, and `run()` calls the hook
-    `_run`, which reads the fields the pass reads from `compilation_` and writes the fields it writes. A pass takes no
-    input to `run`: the compilation it changes is its prepared target.
+    A compilation turns a system into a problem in small steps, and each step is a pass, such as the pass that finds
+    the states of every element or the pass that writes the equations. A pass names the fields of the compilation it
+    reads and writes in the hooks `_get_reads` and `_get_writes`, which set the order in which the passes run.
+    `prepare(compilation)` takes the compilation, and `run()` calls the hook `_run`, which reads its fields from
+    `compilation_` and writes the new ones. A field package adds a pass on this base to compile laws of its own.
+
+    Read more in the user guide, under Extend the library.
 
     Attributes:
         compilation_:
             The compilation the pass reads and writes.
+
+    See Also:
+        Compilation: Holds the fields that passes read and write.
+        PassCompiler: Runs the passes over a compilation.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile import BasePass, FlattenPass
+        >>> issubclass(FlattenPass, BasePass)
+        True
     """
 
     compilation_: Compilation
@@ -570,16 +595,17 @@ class BasePass(BaseConfig[Compilation, None]):
 
 
 class BaseLowering[LoweredT, InputT](BaseConfig[Compilation, InputT]):
-    """An abstract lowering of one family of laws.
+    """An abstract lowering, a helper that rewrites one family of laws.
 
-    One pass creates the lowering, later passes finish it, and the compilation keeps it. The constructor stores what the
-    lowering reads, `prepare(compilation)` sets the prepared attributes the lowering gathers, and `run(laws)` sets
-    `lowered_`, the laws lowered. A subclass implements the hooks `_prepare` and `_run`, and names the type of the laws
-    it lowers and of the laws it runs on, which are the same for most lowerings.
+    To lower a law is to rewrite it in simpler terms that the numeric functions can evaluate, such as a random draw read
+    as a number stored after the parameters, or a Laplacian read as the values of the neighbouring sites. One pass
+    creates the lowering, later passes may finish it, and the compilation keeps it. The constructor stores what the
+    lowering reads, `prepare(compilation)` gathers what it needs from the compilation, and `run(laws)` sets `lowered_`,
+    the rewritten laws. A subclass fills in the hooks `_prepare` and `_run`. A lowering that adds new symbols to the
+    laws notes where they read their values with `_add_reference`, and `_apply_references` gives every changed component
+    the new references, in every field of the compilation.
 
-    A lowering that reads new symbols into laws notes their references with `_add_reference`, reads them back with
-    `_reference_of`, and `_apply_references` replaces every spec it noted references for by a copy that holds them, in
-    every field of the compilation.
+    Read more in the user guide, under Extend the library.
 
     Attributes:
         compilation_:
@@ -590,6 +616,16 @@ class BaseLowering[LoweredT, InputT](BaseConfig[Compilation, InputT]):
 
         lowered_:
             The laws the last run lowered, in the shape of its input.
+
+    See Also:
+        BasePass: The base of the steps of a compilation.
+        DrawLowering: Rewrites random draws as stored numbers.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile import BaseLowering
+        >>> from skcomplex.core.engine.compile._draw_lowering import DrawLowering
+        >>> issubclass(DrawLowering, BaseLowering)
+        True
     """
 
     compilation_: Compilation

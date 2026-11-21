@@ -1,4 +1,4 @@
-"""Read the degree of the groups on a cell complex and its sparse matrices."""
+"""Build the matrices of a cell complex that its operators apply."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,7 +19,25 @@ STAR_PARAMETER = 'weight'
 
 
 class CellTables:
-    """A table of the degrees of the groups on a cell complex and their matrices."""
+    """A table of the matrices of a cell complex, which its operators apply.
+
+    A cell complex is made of sites, edges, and faces, and the operators of exterior calculus, such as the change of a
+    value along every edge, are matrices between them. These methods build those matrices and find the group on the
+    cells of every degree. They serve the flows on a mesh, the phases of linked oscillators, and the prices around
+    cycles of trades.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        CellComplexSpace: A space of sites, edges, and faces.
+
+    Examples:
+        >>> from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace
+        >>> from skcomplex.core.engine.compile.passes._cells import CellTables
+        >>> square = CellComplexSpace(LatticeSpace((4, 4))).prepare()
+        >>> CellTables.get_exterior_derivative_of(square, 0).shape
+        (32, 16)
+    """
 
     @staticmethod
     def _get_star(space: CellComplexSpace, degree: int, declarations: DeclarationsSpec) -> Array:
