@@ -14,8 +14,6 @@ when the system binds it. Here susceptible people become infected at a rate prop
 compartments, the mass action of epidemiology.
 
 ```python
-from types import SimpleNamespace
-
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
@@ -30,12 +28,11 @@ class ConversionInteraction(Interaction):
         self.source = source
         self.a = a
 
-    def _prepare(self, context=None):
+    def _prepare(self, context):
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            target, source = context.target.x, context.source.x
-            flow = context.a * target * source
-            self.laws_ = [RateLaw(target.diff(context.t), -flow), RateLaw(source.diff(context.t), flow)]
+        target, source = context.target.x, context.source.x
+        flow = context.a * target * source
+        self.laws_ = [RateLaw(target.diff(context.t), -flow), RateLaw(source.diff(context.t), flow)]
 
 
 people = [Element('susceptible', values={'x': 99.0}), Element('infected', values={'x': 1.0})]
@@ -107,15 +104,14 @@ class PredationInteraction(Interaction):
         self.a = a
         self.b = b
 
-    def _prepare(self, context=None):
+    def _prepare(self, context):
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            prey, predator = context.prey.x, context.predator.x
-            meetings = prey * predator
-            self.laws_ = [
-                RateLaw(prey.diff(context.t), -context.a * meetings),
-                RateLaw(predator.diff(context.t), context.b * meetings),
-            ]
+        prey, predator = context.prey.x, context.predator.x
+        meetings = prey * predator
+        self.laws_ = [
+            RateLaw(prey.diff(context.t), -context.a * meetings),
+            RateLaw(predator.diff(context.t), context.b * meetings),
+        ]
 
 
 PredationInteraction('hunting', prey='rabbits', predator='foxes').get_params()

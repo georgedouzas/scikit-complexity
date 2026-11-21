@@ -76,8 +76,6 @@ keyword. A function `f(t, values)` of two positional arguments gives instead the
 role.
 
 ```python continuation
-from types import SimpleNamespace
-
 from skcomplex.core.types import Role
 
 
@@ -86,10 +84,9 @@ class GrainDropInteraction(Interaction):
         super().__init__(label)
         self.pile = pile
 
-    def _prepare(self, context=None):
+    def _prepare(self, context):
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context.pile.height, drop, arrays=True)]
+        self.laws_ = [UpdateLaw(context.pile.height, drop, arrays=True)]
 
 
 table = Element('table', values={'height': 0.0}, space=LatticeSpace((3, 3)))
@@ -292,8 +289,6 @@ Here a state relaxes as `D^0.5 x = -k x` from 1.0. The exact solution is the Mit
 `E_0.5(-k t^0.5)`, which equals `erfcx(k t^0.5)` for this order.
 
 ```python
-from types import SimpleNamespace
-
 import numpy as np
 from scipy.special import erfcx
 
@@ -312,11 +307,10 @@ class AnomalousRelaxation(Interaction):
         self.k = k
         self.alpha = alpha
 
-    def _prepare(self, context=None):
+    def _prepare(self, context):
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x = context.target.x
-            self.laws_ = [RateLaw(fractional(x, self.alpha), -context.k * x)]
+        x = context.target.x
+        self.laws_ = [RateLaw(fractional(x, self.alpha), -context.k * x)]
 
 
 system = System(
@@ -518,8 +512,6 @@ mass hung on a spring of stiffness `k` comes to rest where its potential energy 
 `x = m g / k`.
 
 ```python
-from types import SimpleNamespace
-
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import ConstraintLaw, ObjectiveLaw
@@ -534,11 +526,10 @@ class HangingInteraction(Interaction):
         self.k = k
         self.m = m
 
-    def _prepare(self, context=None):
+    def _prepare(self, context):
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x = context.target.x
-            self.laws_ = [ObjectiveLaw(context.k * x**2 / 2 - context.m * 9.81 * x, x)]
+        x = context.target.x
+        self.laws_ = [ObjectiveLaw(context.k * x**2 / 2 - context.m * 9.81 * x, x)]
 
 
 mass = Element('mass', values={'x': 0.0})
@@ -825,8 +816,6 @@ The message says that the value of the rate law is a NumPy array and asks to con
 **A field realization.** A field names a rate in an interaction class of its own, such as the recovery of an epidemic.
 
 ```python continuation
-from types import SimpleNamespace
-
 from skcomplex.core.types import Role
 
 
@@ -836,11 +825,10 @@ class RecoveryInteraction(Interaction):
         self.infected = infected
         self.gamma = gamma
 
-    def _prepare(self, context=None):
+    def _prepare(self, context):
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            x = context.infected.x
-            self.laws_ = [RateLaw(x.diff(context.t), -context.gamma * x)]
+        x = context.infected.x
+        self.laws_ = [RateLaw(x.diff(context.t), -context.gamma * x)]
 
 
 infected = Element('infected', values={'x': 100.0})

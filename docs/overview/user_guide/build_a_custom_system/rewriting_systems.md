@@ -46,8 +46,6 @@ of one-character symbols, and a `ModuleSpec` gives a symbol parameters, such as 
 a parameter of the interaction, which sets its production in `_prepare`.
 
 ```python
-from types import SimpleNamespace
-
 from sage.all__sagemath_symbolics import var
 
 from skcomplex.core.components.interactions import Interaction
@@ -64,11 +62,10 @@ class Shrinking(Interaction):
         self.target = target
         self.ratio = ratio
 
-    def _prepare(self, context=None):
+    def _prepare(self, context):
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            successor = [ModuleSpec('F', (x,)), ModuleSpec('A', (context.ratio * x,))]
-            self.laws_ = [ProductionLaw(ModuleSpec('A', (x,)), successor, condition=x > 0.1)]
+        successor = [ModuleSpec('F', (x,)), ModuleSpec('A', (context.ratio * x,))]
+        self.laws_ = [ProductionLaw(ModuleSpec('A', (x,)), successor, condition=x > 0.1)]
 
 
 word = WordElement('plant', axiom=[ModuleSpec('A', (1.0,))], alphabet={'A': 1, 'F': 1})

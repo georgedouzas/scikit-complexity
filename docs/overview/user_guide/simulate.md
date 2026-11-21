@@ -486,8 +486,6 @@ are updates steps once per unit of time, and one whose laws are rates runs in co
 heater that a thermostat switches once a minute is a discrete controller next to a continuous room.
 
 ```python
-from types import SimpleNamespace
-
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, UpdateLaw
@@ -502,11 +500,10 @@ class Heating(Interaction):
         self.heater = heater
         self.k = k
 
-    def _prepare(self, context=None):
+    def _prepare(self, context):
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            room, t = context.room, context.t
-            self.laws_ = [RateLaw(room.T.diff(t), -context.k * room.T + context.heater.power)]
+        room, t = context.room, context.t
+        self.laws_ = [RateLaw(room.T.diff(t), -context.k * room.T + context.heater.power)]
 
 
 class Thermostat(Interaction):
@@ -515,10 +512,9 @@ class Thermostat(Interaction):
         self.heater = heater
         self.room = room
 
-    def _prepare(self, context=None):
+    def _prepare(self, context):
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context.heater.power, (context.room.T < 5) * 1.0)]
+        self.laws_ = [UpdateLaw(context.heater.power, (context.room.T < 5) * 1.0)]
 
 
 house = System(

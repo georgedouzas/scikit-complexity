@@ -44,8 +44,6 @@ outer totalistic rule, which reads the cell and the sum of its neighbours. An in
 and a glider of five live cells starts in the corner of a periodic grid of 20 by 20.
 
 ```python
-from types import SimpleNamespace
-
 import numpy as np
 
 from skcomplex.core.components.elements import Element
@@ -66,8 +64,7 @@ class LifeInteraction(Interaction):
 
     def _prepare(self, context):
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            self.laws_ = [UpdateLaw(context.target.alive, LIFE, neighborhood=MOORE)]
+        self.laws_ = [UpdateLaw(context.target.alive, LIFE, neighborhood=MOORE)]
 
 
 glider = np.zeros((20, 20))
@@ -196,8 +193,6 @@ This section gives every site six neighbours, as hexagonal cells and lattice gas
 to its six neighbours at every step, and the rule `spread` takes the largest value of the neighbourhood.
 
 ```python
-from types import SimpleNamespace
-
 import numpy as np
 
 from skcomplex.core.components.elements import Element
@@ -219,9 +214,8 @@ class SpreadInteraction(Interaction):
 
     def _prepare(self, context):
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            hexagonal = RadiusNeighborhood(1, metric='hexagonal', center=True)
-            self.laws_ = [UpdateLaw(context.target.fire, spread, neighborhood=hexagonal)]
+        hexagonal = RadiusNeighborhood(1, metric='hexagonal', center=True)
+        self.laws_ = [UpdateLaw(context.target.fire, spread, neighborhood=hexagonal)]
 
 
 fire = np.zeros((40, 40))

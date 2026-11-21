@@ -185,8 +185,6 @@ such as the force `cart.force` below, or adaptive parameters. A cart on a rail, 
 and its position is the output.
 
 ```python
-from types import SimpleNamespace
-
 from skcomplex.core.analysis import linearization
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
@@ -200,11 +198,10 @@ class Push(Interaction):
         super().__init__(label)
         self.target = target
 
-    def _prepare(self, context=None):
+    def _prepare(self, context):
         super()._prepare(context)
-        if isinstance(context, SimpleNamespace):
-            cart, t = context.target, context.t
-            self.laws_ = [RateLaw(cart.x.diff(t, 2), cart.force)]
+        cart, t = context.target, context.t
+        self.laws_ = [RateLaw(cart.x.diff(t, 2), cart.force)]
 
 
 cart = System(elements=[Element('cart', values={'x': 0.0, 'force': 0.0})], interactions=[Push('push', target='cart')])
