@@ -41,8 +41,13 @@ KIND_ORDER = (DataKind.AGENTS, DataKind.FIELD, DataKind.NETWORK, DataKind.PATH, 
 def bind_analysis[ResultT](analysis: Callable[..., ResultT], **settings: object) -> partial[ResultT]:
     """Return an analysis with fixed settings, in the role of `make_scorer`.
 
-    The bound analysis is a callable that takes the source alone. The bound analysis keeps the function in `func` and
-    the settings in `keywords`, so experiments name their outputs after the function and pass it to other processes.
+    It fixes the settings of an analysis so the result takes the source alone, such as
+    `bind_analysis(rolling, kind='variance', window=3)`, which an experiment applies to every run and names after the
+    function. The bound analysis keeps the function in `func` and the settings in `keywords`, so it travels to other
+    processes. It measures the variance before the collapse of a fishery, the entropy of every run of a market, and the
+    peak of every run of an epidemic.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         analysis:
@@ -59,11 +64,13 @@ def bind_analysis[ResultT](analysis: Callable[..., ResultT], **settings: object)
         AnalysisError:
             The analysis is not callable, or it takes no setting of a given name.
 
+    See Also:
+        sweep: Runs a system over values and applies bound analyses to every run.
+
     Examples:
-        >>> import numpy as np
         >>> from skcomplex.core.analysis import bind_analysis, rolling
         >>> variance = bind_analysis(rolling, kind='variance', window=3)
-        >>> variance(np.array([0.0, 1.0, 0.0, 1.0])).statistic.round(2).tolist()
+        >>> variance([0.0, 1.0, 0.0, 1.0]).statistic.round(2).tolist()
         [[nan, nan, 0.22, 0.22]]
     """
     if not callable(analysis):

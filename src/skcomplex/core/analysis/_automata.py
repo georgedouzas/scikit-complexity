@@ -131,7 +131,11 @@ class _Clauses:
 class AutomatonResult:
     """A result of `automaton`, a decision or a measure of a cellular automaton.
 
-    The cellular automaton is on a finite universe.
+    It holds the answer the kind asks for, such as whether no two grids share their next grid, a grid that no grid leads
+    to, an automaton that undoes another, or the number of allowed grids, and leaves the other fields `None`. It answers
+    whether a model of traffic, of growth, or of a crystal loses information.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         automaton:
@@ -181,6 +185,15 @@ class AutomatonResult:
 
         sample:
             The admissible configuration.
+
+    See Also:
+        automaton: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import automaton
+        >>> from skcomplex.systems.computer_science.automata import ElementaryAutomatonSystem
+        >>> automaton(ElementaryAutomatonSystem(rule=170, size=8)).injective
+        True
     """
 
     automaton: System
@@ -252,53 +265,29 @@ def automaton(
 ) -> AutomatonResult:
     """Return a decision or a measure of a cellular automaton or subshift of a system.
 
-    The function reads a `System` or a ready-made system. An automaton is a group of cells,
-    such as `Element('cells', values={'alive': 0}, space=LatticeSpace(20))`, with one synchronous and deterministic
-    local rule, an interaction that sets an `UpdateLaw` with a neighbourhood, and it is
-    linear when the rule is a `LinearRuleSpec`. The number of values of a cell comes
-    from the finite domain of the state, or else from the rule. A subshift is a group whose value has a
-    `SubshiftSpec` as its allowed values, such as `alive: Annotated[int, SubshiftSpec(...)]`.
+    An automaton is a group of cells on a grid with one rule that updates every cell at once from its neighbours, such
+    as `ElementaryAutomatonSystem(rule=170, size=8)`, which shifts every cell left. A subshift is a group whose value
+    lists forbidden patterns. The function decides whether the rule loses information, finds a grid no grid leads to,
+    builds the rule that undoes it, and counts or samples the allowed grids. Small grids are checked one by one and
+    larger ones with a SAT solver. It tells whether a model of traffic, of crystal growth, or of a computer loses
+    information, and reversible rules model physics that keeps energy.
 
-    - `'injective'`, `'surjective'`, and `'pre-injective'`: whether two different configurations never share their
-      image, whether every configuration has a preimage, which on a finite universe holds exactly when it is
-      injective, and whether two configurations that differ only inside a window never share their image. Small
-      universes are decided by enumerating every configuration, and larger ones by a SAT encoding solved by PySAT. A
-      linear automaton is decided from its matrix, all three holding exactly when the matrix is invertible, or on
-      `Z^d` from its Laurent polynomial, injective when it is a monomial and surjective and pre-injective when it is
-      not zero.
-    - `'garden-of-eden'`: a pattern on a window that no configuration maps to. Small universes enumerate the images of
-      every configuration, and larger ones draw random patterns and keep the first one whose preimage constraints a
-      SAT solver finds unsatisfiable.
-    - `'inverse'`: an automaton whose composition with a reversible automaton is the identity, with the smallest
-      memory. The search tries the neighbourhoods of every radius up to `max_radius`, a box of offsets on a lattice or
-      the ball of group elements on a group space, and keeps the first on which the image determines every cell.
-    - `'compose'`: the automaton that applies the automaton and then `second` on the same space, whose neighbourhood
-      holds the composite `t s` of every element `t` read by the second and `s` read by the first.
-    - `'difference'`: where two runs differ when one starts from `configuration` and the other from it with the cell
-      at `site` changed to its next value modulo the number of states.
-    - `'entropy'`: the entropy `log |X_F| / |F|` of the configurations of a subshift, or of the image of an automaton
-      whose rule and neighbourhood are applied on every window. `X_F` is the set of admissible configurations of a
-      window `F`, or the set of images on the sites of `F` whose cells lie inside it. Along a Følner sequence of
-      windows the values approach the topological entropy.
-    - `'matrix'`: the square matrix of a linear automaton over its field, whose row `g` gives the image at `g`.
-    - `'polynomial'`: the Laurent polynomial `sum a_s x^s` of a linear automaton on a lattice, its symbol on `Z^d`.
-    - `'admissible'` and `'violations'`: whether no forbidden pattern appears in `configuration`, and the sites at
-      which one appears.
-    - `'count'`: the number of admissible configurations of the space of a subshift, by dynamic programming over its
-      sites. The counts of completions are shared between assignments that agree on the earlier sites that later
-      patterns read, so a window of a one-dimensional subshift costs linear time.
-    - `'sample'`: an admissible configuration drawn by a Markov chain of single-cell moves that keep it admissible,
-      from `configuration`, or from every cell at 0.
-
-    It appears in mathematics and computer science, where it decides whether a cellular automaton loses information, and
-    in physics, where reversible automata model conservative dynamics.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
             The system of the automaton or of the subshift.
 
         kind:
-            The decision or measure, one of the kinds above.
+            What to decide or measure. `'injective'`, `'surjective'`, and `'pre-injective'` ask whether no two grids
+            share their next grid, whether every grid has a grid before it, and whether two grids that differ in a
+            window never share their next grid. `'garden-of-eden'` finds a pattern no grid leads to. `'inverse'` finds
+            the rule that undoes a reversible rule, trying radii up to `max_radius`. `'compose'` applies the rule and
+            then `second`. `'difference'` shows where two runs part when one cell of `configuration` at `site` changes.
+            `'entropy'` is `log |X_F| / |F|` of the allowed patterns of each window `F`. `'matrix'` and `'polynomial'`
+            give a linear rule as a matrix or a Laurent polynomial. `'admissible'` and `'violations'` check
+            `configuration` against the forbidden patterns. `'count'` counts the allowed grids of a subshift and
+            `'sample'` draws one.
 
         method:
             `'enumeration'`, `'sat'`, or `'auto'` to enumerate up to `MAX_CONFIGURATIONS` configurations.
@@ -350,47 +339,14 @@ def automaton(
             states, a linear automaton has a matrix on a ball or a polynomial without offsets, or the initial
             configuration of a sample is not admissible.
 
+    See Also:
+        symbolic: Turns a series into symbols and measures their patterns.
+
     Examples:
-        >>> from typing import Annotated
-        >>> from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
         >>> from skcomplex.core.analysis import automaton
-        >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.interactions import Interaction
-        >>> from skcomplex.core.components.laws import TableSpec, TotalisticSpec, UpdateLaw
-        >>> from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
-        >>> from skcomplex.core.components import SubshiftSpec
-        >>> from skcomplex.core.systems import System
-        >>> class CellElement(Element):
-        ...     def __init__(self, label, alive: Annotated[int, FiniteEnumeratedSet([0, 1])] = 0, space=None):
-        ...         super().__init__(label, space=space)
-        ...         self.alive = alive
-        >>> def build(size, rule, neighborhood):
-        ...     def laws(s):
-        ...         return [UpdateLaw(s.target.alive, rule, neighborhood=neighborhood)]
-        ...     interaction = Interaction('rule', roles={'target': 'cells'}, laws=laws)
-        ...     return System(elements=[CellElement('cells', space=LatticeSpace(size))], interactions=[interaction])
-        >>> shift = build(8, TableSpec({(1,): 1}), LatticeNeighborhood(((1,),)))
-        >>> automaton(shift).injective
-        True
-        >>> back = automaton(shift, kind='inverse').inverse
-        >>> back.prepare().simulate(until=1, initial_state={'cells.alive': [1, 1, 0, 0, 0, 0, 0, 0]}).get_values(
-        ...     'cells.alive'
-        ... )[-1].astype(int).tolist()
-        [0, 1, 1, 0, 0, 0, 0, 0]
-        >>> majority = build(5, TotalisticSpec(lambda total: total >= 2), LatticeNeighborhood(((-1,), (0,), (1,))))
-        >>> automaton(majority, kind='garden-of-eden').pattern.tolist()
-        [0, 0, 1, 0, 1]
-        >>> golden_mean = SubshiftSpec(LatticeNeighborhood(((0,), (1,))), ((1, 1),))
-        >>> class GoldenCellElement(Element):
-        ...     def __init__(self, label, alive: Annotated[int, golden_mean] = 0, space=None):
-        ...         super().__init__(label, space=space)
-        ...         self.alive = alive
-        >>> golden = System(elements=[GoldenCellElement('cells', space=LatticeSpace(6, boundary='fixed'))])
-        >>> automaton(golden, kind='count').count
-        21
-        >>> windows = [LatticeSpace(20, boundary='fixed')]
-        >>> automaton(golden, kind='entropy', windows=windows).entropy.round(3).tolist()
-        [0.706]
+        >>> from skcomplex.systems.computer_science.automata import ElementaryAutomatonSystem
+        >>> automaton(ElementaryAutomatonSystem(rule=30, size=8), kind='injective').injective
+        False
     """
     system = _get_system(source)
     source = _get_declared(system)

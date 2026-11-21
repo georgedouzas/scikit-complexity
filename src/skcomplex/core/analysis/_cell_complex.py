@@ -27,10 +27,14 @@ TAGS = AnalysisTags(DataKind.FIELD)
 
 @dataclass(frozen=True)
 class CellComplexResult:
-    """A result of `cell_complex`, a Hodge decomposition or Betti numbers.
+    """A result of `cell_complex`, a split of flows, counts of holes, or curved faces.
 
-    They are the Hodge decomposition of an edge state, the Betti numbers of a complex, or the curved faces of an angle
-    state.
+    It holds, one row per frame, the three parts of a flow on links, the counts of holes of each dimension of a complex,
+    or the faces around which an angle winds. A grid of 4 by 4 sites joined at its edges has one piece, two loops, and
+    one hollow, the Betti numbers `(1, 2, 1)`. It reports the cycles of a road network, the holes of a pattern, and the
+    vortices of a gauge field.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         complex:
@@ -63,6 +67,15 @@ class CellComplexResult:
         energy:
             The sum over the faces of every frame of one minus the cosine of the oriented sum, for the kind
             `'curvature'`.
+
+    See Also:
+        cell_complex: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import cell_complex
+        >>> from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace
+        >>> cell_complex(None, kind='betti', space=CellComplexSpace(LatticeSpace((4, 4))).prepare()).betti
+        (1, 2, 1)
     """
 
     complex: CellComplexSpace
@@ -84,19 +97,16 @@ def cell_complex(
     space: CellComplexSpace | None = None,
     variables: str | None = None,
 ) -> CellComplexResult:
-    """Return the Hodge decomposition, Betti numbers, or curved faces of a complex.
+    """Return the split of a flow, the holes, or the curved faces of a complex.
 
-    The decomposition is of an edge state and the curved faces are those of angles. It reads a state of a group on a
-    cell complex from a trajectory, or an array with the complex passed as `space`. An array of one dimension holds one
-    snapshot, and an array of two dimensions one frame per row. Every result has one row per frame.
+    It reads a value on the links of a `CellComplexSpace` from a trajectory, or an array with the complex passed as
+    `space`, one row per frame. The kind `'hodge'` splits a flow on links into a part that runs downhill from site to
+    site, a part that circulates around faces, and a part that does neither, three parts at right angles. The kind
+    `'betti'` counts the pieces, loops, and hollows of the complex, and `'curvature'` finds the faces around which an
+    angle winds a whole turn. It splits the flows of a network, counts the holes of a pattern, and finds the vortices of
+    a gauge field.
 
-    The kind `'hodge'` writes an edge state as the sum of the exterior derivative of a site potential, the transposed
-    incidence of a face potential, and a remainder that both incidences map to 0. The three parts are orthogonal. The
-    kind `'betti'` reads the complex alone. The kind `'curvature'` compares the oriented sum of an angle state around
-    every face with the multiples of the period of the state, or of `2 pi` for an array.
-
-    It appears in many fields. It splits the flows of a network into gradient and cyclic parts, counts the holes of a
-    pattern in topology, and finds the vortices of a lattice gauge field.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
@@ -119,17 +129,15 @@ def cell_complex(
         AnalysisError:
             The kind is unknown, the source names no state of a cell complex, or the values do not fit the complex.
 
+    See Also:
+        network_measures: Measures the structure of a graph.
+
     Examples:
-        >>> import numpy as np
         >>> from skcomplex.core.analysis import cell_complex
         >>> from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace
         >>> space = CellComplexSpace(LatticeSpace((4, 4))).prepare()
         >>> cell_complex(None, kind='betti', space=space).betti
         (1, 2, 1)
-        >>> uniform = np.r_[np.ones(16), np.zeros(16)]
-        >>> hodge = cell_complex(uniform, kind='hodge', space=space)
-        >>> bool(np.allclose(hodge.harmonic[0], uniform))
-        True
     """
     _check_choice('cell_complex', 'kind', kind, KINDS)
     if space is not None and not isinstance(space, CellComplexSpace):
