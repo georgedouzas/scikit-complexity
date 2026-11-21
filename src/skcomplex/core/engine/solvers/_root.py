@@ -20,11 +20,15 @@ from ._solver import Solver
 
 
 class RootSolver(Solver):
-    """A solver of the equations of a static system.
+    """A solver of the equations of a static system, solved once.
 
-    It solves them once for the one frame of the run. The compiled solution gives the states when Sage finds a unique
-    explicit one. Otherwise `scipy.optimize.root` solves the residuals of the equations with their exact Jacobian, from
-    the initial state as the guess. A system without equations solves to its initial state.
+    It solves the constraint laws once for the one frame of the run, such as the outputs 3.33 and 2.33 at which two
+    firms of a market both make their best reply. It takes the exact solution when Sage finds a unique one, and
+    otherwise solves the equations with `scipy.optimize.root` and their exact Jacobian from the starting values. A
+    system without equations keeps its starting values. It finds the equilibria of markets, the balance of forces in a
+    truss, and the steady state of a reaction.
+
+    Read more in the user guide, under Solvers.
 
     Args:
         method:
@@ -43,19 +47,14 @@ class RootSolver(Solver):
         initial_state_:
             The solved state vector, the one frame of the run.
 
+    See Also:
+        MinimizeSolver: Finds the minimum of an objective.
+
     Examples:
-        >>> from sage.all__sagemath_symbolics import cos
-        >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.interactions import Interaction
-        >>> from skcomplex.core.components.laws import ConstraintLaw
-        >>> from skcomplex.core.systems import System
-        >>> def fix(s):
-        ...     return [ConstraintLaw(s.target.x == cos(s.target.x), target=s.target.x)]
-        >>> fixed = Interaction('fixed', roles={'target': 'a'}, laws=fix)
-        >>> system = System(elements=[Element('a', values={'x': 1.0})], interactions=[fixed])
-        >>> trajectory = system.prepare().simulate(until=1.0)
-        >>> round(float(trajectory.get_values('a.x')[0]), 7)
-        0.7390851
+        >>> from skcomplex.systems.economics.markets import OligopolyEquilibriaSystem
+        >>> trajectory = OligopolyEquilibriaSystem().prepare().simulate()
+        >>> [round(float(trajectory.get_values(name)[0]), 4) for name in ('cournot.q_i', 'cournot.q_j')]
+        [3.3333, 2.3333]
     """
 
     def __init__(

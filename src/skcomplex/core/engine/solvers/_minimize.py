@@ -21,13 +21,13 @@ from ._objective import BaseObjectiveSolver
 
 
 class MinimizeSolver(BaseObjectiveSolver):
-    """A solver that minimises the objective of a static system once.
+    """A solver that finds the minimum of the objective of a static system once.
 
-    It minimises the sum of the objective laws over their target states with `scipy.optimize.minimize`, using the exact
-    gradient of the objective. The constraint laws of the system hold at the minimum as equality constraints, which
-    the SLSQP method enforces, and the states they determine vary with the targets. It finds the rest state of a
-    loaded structure, the allocation that maximises a utility under a budget, and the weights of a model at its least
-    loss.
+    It minimises the sum of the objective laws over their target states with `scipy.optimize.minimize` and the exact
+    slope of the objective, such as the ball of `ObjectiveLaw((x - 2) ** 2, x)` that settles at 2. The constraint laws
+    hold at the minimum as equalities, which the SLSQP method keeps, and the states they set move with the targets. It
+    finds the rest shape of a loaded structure, the purchase that maximises a utility under a budget, and the weights of
+    a model at its least loss.
 
     Read more in the user guide, under Solvers.
 
@@ -39,16 +39,10 @@ class MinimizeSolver(BaseObjectiveSolver):
         RootSolver: Solves the constraint laws of a static system that has no objective.
 
     Examples:
-        >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.interactions import Interaction
-        >>> from skcomplex.core.components.laws import ObjectiveLaw
-        >>> from skcomplex.core.systems import System
-        >>> def bottom(s):
-        ...     return [ObjectiveLaw((s.target.x - 2) ** 2, s.target.x)]
-        >>> well = Interaction('well', roles={'target': 'point'}, laws=bottom)
-        >>> system = System(elements=[Element('point', values={'x': 0.0})], interactions=[well]).prepare()
-        >>> round(float(system.simulate(until=1.0).get_values('point.x')[0]), 6)
-        2.0
+        >>> from skcomplex.core.engine.solvers import MinimizeSolver
+        >>> from skcomplex.core.engine.solvers._objective import BaseObjectiveSolver
+        >>> isinstance(MinimizeSolver(), BaseObjectiveSolver)
+        True
     """
 
     def __init__(

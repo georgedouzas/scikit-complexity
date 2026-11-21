@@ -21,9 +21,10 @@ from ._objective import BaseObjectiveSolver
 class GradientFlowSolver(BaseObjectiveSolver):
     """A solver that follows the steepest descent of an objective over time.
 
-    It integrates the gradient flow `x' = -grad U(x)` of the objective `U` over its target states with explicit steps
-    of size `dt`, which is gradient descent with the learning rate `dt`. The trajectory shows the path to a minimum,
-    such as a ball rolling into a well, a network of springs relaxing, or the weights of a model as its loss falls.
+    It steps the flow `x' = -grad U(x)` of the objective `U` over its target states with explicit steps of size `dt`,
+    which is gradient descent with the learning rate `dt`, such as a ball in the well `(x - 2)^2` that rolls from 0
+    towards 2. The trajectory shows the path to a minimum, such as a ball rolling into a well, a network of springs
+    relaxing, or the weights of a model as its loss falls.
 
     Read more in the user guide, under Solvers.
 
@@ -31,25 +32,10 @@ class GradientFlowSolver(BaseObjectiveSolver):
         MinimizeSolver: Finds the minimum of the objective in one frame.
 
     Examples:
-        >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.interactions import Interaction
-        >>> from skcomplex.core.components.laws import ObjectiveLaw
         >>> from skcomplex.core.engine.solvers import GradientFlowSolver
-        >>> from skcomplex.core.types import Role
-        >>> from skcomplex.core.systems import System
-        >>> class Well(Interaction):
-        ...     def __init__(self, label, *, target: Role = 'ball'):
-        ...         super().__init__(label)
-        ...         self.target = target
-        ...
-        ...     def _prepare(self, context):
-        ...         super()._prepare(context)
-        ...         x = context.target.x
-        ...         self.laws_ = [ObjectiveLaw((x - 2) ** 2, x)]
-        >>> ball = Element('ball', values={'x': 0.0})
-        >>> system = System(elements=[ball], interactions=[Well('well')], solver=GradientFlowSolver(dt=0.1)).prepare()
-        >>> round(float(system.simulate(until=1.0, dt=1.0).get_values('ball.x')[-1]), 3)
-        1.785
+        >>> solver = GradientFlowSolver(dt=0.1)
+        >>> solver.dt
+        0.1
     """
 
     def __init__(

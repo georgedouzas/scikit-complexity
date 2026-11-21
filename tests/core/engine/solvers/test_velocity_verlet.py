@@ -52,6 +52,14 @@ class SoftSphereInteraction(Interaction):
             self.laws_ = [RateLaw(x.diff(s.t, 2), force)]
 
 
+def test_a_free_ball_moves_at_its_constant_speed():
+    ball = Element('ball', values={'x': [0.0], "x'": [2.0]}, space=ContinuousSpace(n_dim=1))
+    problem = System(elements=[ball]).prepare().simulate(until=0).problem
+    stepper = VelocityVerletSolver(dt=0.1, random_state=0).prepare(problem)
+    step = StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)
+    assert stepper.run(step).state_.round(10).tolist() == [2.0, 2.0]
+
+
 @pytest.mark.benchmark
 def test_interacting_gas_of_100000_runs_in_real_time():
     """Test that 100000 soft spheres with velocity Verlet keep a real-time clock within 0.2 seconds."""

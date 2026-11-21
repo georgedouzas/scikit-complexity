@@ -19,20 +19,24 @@ from ._solver import Solver
 
 
 class LatticeSolver(Solver):
-    """A solver that applies every lattice law once per step.
+    """A solver that applies every law of a lattice once per step.
 
-    The laws are local rules, drives, and relaxations. Steps apply in the order the laws are declared, and the boundary
-    laws apply after every step. Relaxations record the size, duration, and area of every cascade as events.
+    The laws are local rules, drives, and relaxations, such as rule 30 that sets each cell from itself and its two
+    neighbours. They apply in the order they are declared, the boundary laws after every step, and a relaxation records
+    the size, duration, and area of every cascade as an event. It runs cellular automata, the sandpiles of earthquakes,
+    and the fires of a forest.
+
+    Read more in the user guide, under Solvers.
+
+    See Also:
+        MonteCarloSolver: Samples the sites of a lattice at random.
+        IterationSolver: Applies a map without a lattice.
 
     Examples:
-        >>> import numpy as np
-        >>> from skcomplex.systems.computer_science.automata import ElementaryAutomatonSystem
         >>> from skcomplex.core.engine.solvers import LatticeSolver
-        >>> from skcomplex.core.engine.solvers import StepSpec
-        >>> problem = ElementaryAutomatonSystem(30, size=11).prepare().simulate(until=0).problem
-        >>> stepper = LatticeSolver(random_state=0).prepare(problem)
-        >>> step = StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)
-        >>> stepper.run(step).state_.astype(int).tolist()
+        >>> from skcomplex.systems.computer_science.automata import ElementaryAutomatonSystem
+        >>> system = ElementaryAutomatonSystem(30, size=11, solver=LatticeSolver()).prepare()
+        >>> system.simulate(until=1).get_values('cells.alive')[-1].astype(int).tolist()
         [0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0]
     """
 
