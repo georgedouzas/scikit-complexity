@@ -62,7 +62,7 @@ def test_pulse_train_with_a_count_stops_after_its_last_pulse(backend):
 @pytest.mark.parametrize('count', [0, 1.5, True])
 def test_pulse_train_rejects_a_count_that_is_not_a_positive_integer(count):
     """Test that a pulse train with a count that is not a positive integer raises an error."""
-    with pytest.raises(ValidationError, match='positive integer'):
+    with pytest.raises(ValidationError, match='positive whole number'):
         pulse_train(var('t'), 4, 1, count=count)
 
 
@@ -100,3 +100,20 @@ def test_series_of_a_state_interpolates_and_stays_flat():
     assert trajectory.get_values('f.fertility') == pytest.approx(expected)
     assert trajectory.get_values('f.fertility')[0] == 0.0
     assert trajectory.get_values('f.fertility')[-1] == 3.0
+
+
+def test_pulse_train_with_a_count_is_off_after_its_last_pulse_symbolically():
+    """Test that a train of two pulses is on in its second pulse and off where a third would be."""
+    t = var('t')
+    train = pulse_train(t, 10, 1, count=2)
+    assert [float(train.subs({t: time})) for time in (10.5, 20.5)] == [1.0, 0.0]
+
+
+@pytest.mark.parametrize(
+    ('points', 'values', 'kind', 'message'),
+    [((0, 0), (1, 2), 'linear', 'must increase'), ((0, 1), (1,), 'linear', 'one value'), ((0,), (1,), 'cubic', 'kind')],
+)
+def test_series_rejects_bad_points_or_kind(points, values, kind, message):
+    """Test that points that do not increase, a missing value, or an unknown kind raise an error in plain words."""
+    with pytest.raises(ValueError, match=message):
+        series(var('t'), points, values, kind)

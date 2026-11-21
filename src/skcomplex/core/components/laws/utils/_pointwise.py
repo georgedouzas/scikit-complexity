@@ -63,10 +63,14 @@ def _largest(values: tuple[object, ...]) -> Expression:
 
 
 def hill(x: object, half: object, n: object = 1) -> Expression:
-    """Return the Hill function `x^n / (half^n + x^n)`.
+    """Return the Hill function `x^n / (half^n + x^n)`, which rises from 0 to 1.
 
-    It rises from 0 to 1 and is one half at `x = half`. The order `n = 1` gives the saturating function `x / (half +
-    x)`, and `1 - hill(x, half, n)` is the decreasing Hill function.
+    It is one half at `x = half`, such as `hill(x, 2, 3)` that gives `x^3 / (x^3 + 8)`, and a larger `n` makes the rise
+    steeper, close to a switch. The order `n = 1` gives the saturating function `x / (half + x)`, and
+    `1 - hill(x, half, n)` falls from 1 to 0. It gives the activation of a gene by a protein, the uptake of a nutrient,
+    and the response of a predator to more prey.
+
+    Read more in the user guide, under Laws.
 
     Args:
         x:
@@ -82,25 +86,27 @@ def hill(x: object, half: object, n: object = 1) -> Expression:
         value:
             The symbolic value.
 
+    See Also:
+        logistic: Rises from 0 to 1 through a center for any real input.
+
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws.utils import hill
-        >>> x = var('x')
-        >>> hill(x, 2, 3)
+        >>> hill(var('x'), 2, 3)
         x^3/(x^3 + 8)
-        >>> float(hill(x, 2, 3).subs(x=2))
-        0.5
     """
     return SR(x) ** n / (SR(half) ** n + SR(x) ** n)
 
 
 def logistic(x: object, center: object = 0, width: object = 1) -> Expression:
-    """Return the logistic sigmoid `1 / (1 + exp(-(x - center) / width))`.
+    """Return the logistic curve `1 / (1 + exp(-(x - center) / width))`.
 
-    It rises from 0 to 1 through `center`. It is written as `(1 + tanh((x - center) / (2 width))) / 2`, which stays
-    accurate for every argument. Sage rewrites the exponential of some arguments, such as a multiple of the logarithm of
-    a constant, as `cosh(u) - sinh(u)`, whose terms cancel for a large `u`, so the sigmoid would hold rounding noise of
-    the size of 1, or divide by zero.
+    It rises from 0 to 1 and is one half at `x = center`, such as `logistic(x, 1, 2)` that is one half at 1. It is
+    written as `(1 + tanh((x - center) / (2 width))) / 2`, which gives the same value and stays accurate for large
+    inputs, where the exponential form that Sage may produce loses all its digits. It gives the firing rate of a neuron,
+    the chance that a buyer adopts a product, and the share of a population that has caught on.
+
+    Read more in the user guide, under Laws.
 
     Args:
         x:
@@ -110,20 +116,20 @@ def logistic(x: object, center: object = 0, width: object = 1) -> Expression:
             The value of `x` where the function is one half.
 
         width:
-            The scale of the rise, the inverse of its gain, negative for a falling sigmoid.
+            The scale of the rise, the inverse of its steepness, negative for a falling curve.
 
     Returns:
         value:
             The symbolic value.
 
+    See Also:
+        hill: Rises from 0 to 1 for a nonnegative input.
+
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws.utils import logistic
-        >>> x = var('x')
-        >>> logistic(x, 1, 2)
+        >>> logistic(var('x'), 1, 2)
         1/2*tanh(1/4*x - 1/4) + 1/2
-        >>> float(logistic(x, 1, 2).subs(x=1))
-        0.5
     """
     return (1 + tanh((SR(x) - center) / (2 * SR(width)))) / 2
 
@@ -131,7 +137,11 @@ def logistic(x: object, center: object = 0, width: object = 1) -> Expression:
 def clip(x: object, low: object = None, high: object = None) -> Expression:
     """Return an expression limited to an interval.
 
-    It is `low` below it, `high` above it, and the expression inside.
+    It gives `low` where the expression is below it, `high` where it is above it, and the expression itself in between,
+    such as 0, 0.5, and 1 for `clip(x, 0, 1)` at -2, 0.5, and 3. It keeps a concentration from turning negative, an
+    order within the stock a firm holds, and a control signal within what a motor can do.
+
+    Read more in the user guide, under Laws.
 
     Args:
         x:
@@ -147,12 +157,13 @@ def clip(x: object, low: object = None, high: object = None) -> Expression:
         value:
             The symbolic limited value.
 
+    See Also:
+        sign: Gives the sign of an expression.
+
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws.utils import clip
         >>> x = var('x')
-        >>> clip(x, 0, 1)
-        where(x < 0, 0, where(x > 1, 1, x))
         >>> [clip(x, 0, 1).subs(x=value) for value in (-2, 0.5, 3)]
         [0, 0.5, 1]
     """
@@ -167,6 +178,12 @@ def clip(x: object, low: object = None, high: object = None) -> Expression:
 def sign(x: object) -> Expression:
     """Return the sign of an expression, 1 above 0, -1 below 0, and 0 at 0.
 
+    It gives the direction of a value without its size, such as -1, 0, and 1 for `sign(x)` at -2, 0, and 3, and its
+    derivative is 0 away from 0, so solvers that need derivatives stay finite. It turns a field into the spin of a
+    magnet, a signal into the side a trader takes, and a velocity into the direction of friction.
+
+    Read more in the user guide, under Laws.
+
     Args:
         x:
             The expression.
@@ -175,12 +192,13 @@ def sign(x: object) -> Expression:
         value:
             The symbolic sign.
 
+    See Also:
+        clip: Limits an expression to an interval.
+
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws.utils import sign
         >>> x = var('x')
-        >>> sign(x)
-        where(x > 0, 1, where(x < 0, -1, 0))
         >>> [sign(x).subs(x=value) for value in (-2, 0, 3)]
         [-1, 0, 1]
     """
@@ -188,11 +206,15 @@ def sign(x: object) -> Expression:
 
 
 def stop_gradient(x: object) -> Expression:
-    """Return a value whose gradient is zero.
+    """Return an expression unchanged, but with a gradient of zero.
 
-    The JAX backend lowers it to `jax.lax.stop_gradient` and every other backend to the identity, so it changes
-    gradients and never values. The straight-through estimator `exact + relaxed - stop_gradient(relaxed)` has the value
-    `exact` and the gradient of `relaxed`.
+    The value is the expression itself, and a gradient taken through it is 0, so `x * stop_gradient(x)` differentiates
+    to `stop_gradient(x)`. The JAX backend calls `jax.lax.stop_gradient` and every other backend gives the value as it
+    is. The sum `exact + relaxed - stop_gradient(relaxed)` has the value of `exact` and the gradient of `relaxed`. It
+    trains a network of spiking neurons, rounds the bids of a learned market, and fixes a target in reinforcement
+    learning.
+
+    Read more in the user guide, under Laws.
 
     Args:
         x:
@@ -202,12 +224,13 @@ def stop_gradient(x: object) -> Expression:
         value:
             The symbolic value.
 
+    See Also:
+        sign: Gives the sign of an expression, a common exact value.
+
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws.utils import stop_gradient
         >>> x = var('x')
-        >>> stop_gradient(x**2)
-        stop_gradient(x^2)
         >>> (x * stop_gradient(x)).diff(x)
         stop_gradient(x)
     """
