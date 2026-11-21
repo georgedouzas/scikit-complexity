@@ -54,6 +54,8 @@ class GeometryVisual(BaseVisual):
         GeometryVisual(filled=True)
     """
 
+    numeric_options = ('resolution',)
+
     def __init__(
         self,
         filled: bool | None = None,

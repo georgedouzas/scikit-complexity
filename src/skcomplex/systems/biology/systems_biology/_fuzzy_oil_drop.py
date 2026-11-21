@@ -96,6 +96,8 @@ class BackboneVisual(PointsVisual):
         True
     """
 
+    numeric_options = ('radius', 'trail')
+
     def __init__(
         self,
         position: str,

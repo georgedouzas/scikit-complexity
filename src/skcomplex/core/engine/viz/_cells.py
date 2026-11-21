@@ -59,6 +59,8 @@ class CellVisual(BaseVisual):
         (0, 2)
     """
 
+    numeric_options = ('plane', 'section')
+
     def __init__(
         self,
         state: str | None = None,

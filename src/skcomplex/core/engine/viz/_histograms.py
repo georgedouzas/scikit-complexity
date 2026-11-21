@@ -76,6 +76,8 @@ class HistogramVisual(AgentsVisual):
         20
     """
 
+    numeric_options = ('color_range', 'radius', 'bins')
+
     def __init__(
         self,
         color_by: str | None = None,

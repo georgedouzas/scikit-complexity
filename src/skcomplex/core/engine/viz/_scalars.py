@@ -47,6 +47,8 @@ class ScalarsVisual(BaseVisual):
         ScalarsVisual(path='prey')
     """
 
+    numeric_options = ('components',)
+
     def __init__(
         self,
         components: Sequence[int] | None = None,

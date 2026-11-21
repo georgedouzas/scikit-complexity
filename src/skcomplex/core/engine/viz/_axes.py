@@ -60,6 +60,8 @@ class AxisVisual(BaseVisual):
         AxisVisual(every=2, scalar='rho', state='Q')
     """
 
+    numeric_options = ('every',)
+
     def __init__(
         self,
         state: str,

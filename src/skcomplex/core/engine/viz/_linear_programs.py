@@ -69,6 +69,8 @@ class LinearProgramVisual(BaseVisual):
         LinearProgramVisual(graph=False)
     """
 
+    numeric_options = ('seed',)
+
     def __init__(
         self,
         variables: Sequence[str] | None = None,

@@ -714,3 +714,29 @@ def test_rerun_observer_reads_a_radius_from_the_parameters_of_an_element():
     problem = System(elements=[cells], space=ContinuousSpace(n_dim=2)).prepare().simulate(until=0).problem
     visual = RerunObserver().prepare(problem).visuals_[0]
     assert visual.radius == pytest.approx(1.5)
+
+
+def test_rerun_observer_evaluates_an_expression_only_for_a_numeric_option():
+    """Test that an expression of a parameter is evaluated for a listed numeric option and kept for the others."""
+
+    class LabelledPointsVisual(PointsVisual):
+        """Points visual with a text option that is not numeric."""
+
+        def __init__(self, position: str, *, title: str = '', **options: object) -> None:
+            super().__init__(position, **options)
+            self.title = title
+
+    class CellElement(Element):
+        """Cell drawn with an expression for both its radius and its title."""
+
+        visual = VisualSpec(LabelledPointsVisual, {'position': 'x', 'radius': 'R_0 / 2', 'title': 'R_0 / 2'})
+
+        def __init__(self, label: str, x: object = 0.0, R_0: float = 1.0, size: int | None = None) -> None:
+            super().__init__(label, size=size)
+            self.x = x
+            self.R_0 = R_0
+
+    cells = CellElement('cells', x=np.zeros((2, 2)), R_0=3.0, size=2)
+    problem = System(elements=[cells], space=ContinuousSpace(n_dim=2)).prepare().simulate(until=0).problem
+    visual = RerunObserver().prepare(problem).visuals_[0]
+    assert (visual.radius, visual.title) == (pytest.approx(1.5), 'R_0 / 2')

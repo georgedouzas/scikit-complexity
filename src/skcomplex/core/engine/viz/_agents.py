@@ -4,6 +4,8 @@
 # License: MIT
 
 
+from typing import ClassVar
+
 import numpy as np
 import numpy.typing as npt
 import rerun as rr
@@ -67,6 +69,8 @@ class AgentsVisual(BaseVisual):
         >>> AgentsVisual(color_by='opinion').color_by
         'opinion'
     """
+
+    numeric_options: ClassVar[tuple[str, ...]] = ('color_range', 'radius')
 
     def __init__(
         self,
