@@ -11,14 +11,15 @@ from ...errors import ValidationError
 
 @dataclass(frozen=True)
 class WienerProcessSpec(BaseSpec):
-    """A spec of a set of Wiener processes with correlated increments.
+    """A spec of a set of Wiener processes whose random steps are correlated.
 
-    Their increments over a step `h` have the covariance `h C`. An interaction binds the processes through an argument
-    whose value is the spec, such as `process=market`, and its noise laws name them through the handle
-    `namespace.<argument>.dW`, a symbol for one process and a vector of symbols for several, so
-    `namespace.<argument>.dW[k]` names process `k`.
-    Interactions of one system that bind processes of one label share them, so laws that name one process share its
-    increment.
+    A Wiener process adds a random step of variance `h` over a time step `h`, and the steps of these processes have the
+    covariance `h C`. An interaction takes the spec as an argument, such as `process=market`, and its noise laws name
+    the steps as `s.process.dW`, or `s.process.dW[k]` for process `k` of several. Interactions that take processes of
+    one label share them, so their laws move with the same random steps. Shared shocks move the prices of a market, a
+    common current moves particles, and one weather pattern moves the yields of many farms.
+
+    Read more in the user guide, under Laws.
 
     Args:
         label:
@@ -30,6 +31,9 @@ class WienerProcessSpec(BaseSpec):
         covariance:
             The constant covariance matrix `C` of the processes, symmetric and positive semidefinite of size
             `dimension`, or `None` for the identity.
+
+    See Also:
+        Interaction: Takes the spec as an argument.
 
     Examples:
         >>> from skcomplex.core.components.interactions import WienerProcessSpec

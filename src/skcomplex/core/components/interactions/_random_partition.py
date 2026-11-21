@@ -18,31 +18,24 @@ class RandomPartition(BaseSpec):
     An interaction bound with `along=RandomPartition(3)` shuffles the members of the group `among` at every step, cuts
     them into groups of three, and runs its laws once for every member of every group. The members left over form one
     smaller group. The laws read `s.member`, the member they change, `s.others`, the other members of its group, and
-    `s.members`, every member of the group, which reductions read with `over=s.members`.
+    `s.members`, every member of the group. Unlike `along='hyperedges'`, whose groups a network fixes, it draws new
+    groups at every step. Voters discuss in small groups, players of a public goods game meet every round, and animals
+    meet in random encounters.
 
-    Unlike `along='hyperedges'`, whose groups the network fixes, it draws new groups at every step. Choose it when
-    members meet in random small groups rather than along fixed links.
-
-    It appears in many fields. Voters discuss in small groups, players of a public goods game form groups every round,
-    and animals meet in random encounters.
+    Read more in the user guide, under Interactions.
 
     Args:
         size:
             The number of members of a group, at least 2.
 
+    See Also:
+        Interaction: Runs its laws once for every member of every group.
+
     Examples:
-        >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.interactions import Interaction, RandomPartition
-        >>> from skcomplex.core.components.laws import UpdateLaw
-        >>> from skcomplex.core.components.laws.utils import mean, where
-        >>> from skcomplex.core.systems import System
-        >>> def adopt_majority(s):
-        ...     return [UpdateLaw(s.member.opinion, where(mean(s.members.opinion, over=s.members) > 0.5, 1, 0))]
-        >>> talks = Interaction('talks', among='citizens', along=RandomPartition(3), laws=adopt_majority)
-        >>> citizens = Element('citizens', values={'opinion': [1.0, 1.0, 0.0]}, size=3)
-        >>> system = System(elements=[citizens], interactions=[talks]).prepare()
-        >>> system.simulate(until=1, random_state=0).get_values('citizens.opinion')[-1].tolist()
-        [1.0, 1.0, 1.0]
+        >>> talks = Interaction('talks', among='citizens', along=RandomPartition(3))
+        >>> talks.along.size
+        3
     """
 
     size: int

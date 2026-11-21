@@ -25,38 +25,16 @@ PAIR_ROLES = ('first', 'second')
 class Interaction(BaseInteraction):
     """An interaction whose laws run once for the elements its roles bind.
 
-    When a role binds a group, the laws run once for every member of the group, as arrays. A subclass takes its roles,
-    typed `Role`, and its parameters as arguments of its `__init__`, and sets its laws in `laws_` from its `_prepare`,
-    or takes them from `laws`.
+    It states the laws that change the values of the elements its roles bind, such as gravity on a ball in
+    `Interaction('gravity', roles={'target': 'ball'}, laws=lambda s: [RateLaw(s.target.x.diff(s.t, 2), -9.81)])`. When a
+    role binds a group, the laws run once for every member, as arrays. With `among` and `along`, they run once for every
+    edge of a network and read `s.source` and `s.target`, the members at its two ends, or once for every hyperedge or
+    random small group and read `s.member`, `s.others`, and `s.members`. With `within`, they run once for every pair of
+    members closer than a radius and read `s.first` and `s.second`. A subclass takes its roles, typed `Role`, and its
+    parameters as arguments of its `__init__` and sets `laws_` in its `_prepare`. It states predation between two
+    populations, a reaction between two chemicals, and an infection along the contacts of a network.
 
-    Unlike `BaseInteraction`, it fixes how the laws run: once per bound element or member, or once per edge with
-    `along`. Choose it when a law reads the elements it binds, such as predation between two populations, or the two
-    ends of a link, such as a contact that passes on an infection.
-
-    It appears in many fields. Predation between two populations, a reaction between two chemical species, and a payment
-    from a firm to its workers are each a subclass of it.
-
-    With `among` and `along`, the laws run once for every edge of a network instead, and read `s.source` and
-    `s.target`, the members at the two ends. A subclass lists both in its own `__init__` and passes them on, such as an
-    infection along the contacts of a network, `Infection('infect', among='people', along=True, beta=0.3)`. When an
-    element sits on those edges, such as `Element('links', values={'sign': 1}, space=network, on='edges')`, the laws
-    read its member on the edge as `s.edge`, such as `s.edge.sign`.
-
-    With `along='hyperedges'`, the laws run once for every hyperedge of the network and read `s.member`, the member
-    the laws change, `s.others`, the other members in the order of the hyperedge, and `s.members`, all of them. They
-    read the element on the hyperedges as `s.hyperedge`, or else the element on the edges as `s.edge`, the link that
-    joins the first two members, as the regulated links of triadic percolation do. With `along=('hyperedges', 3)`,
-    they run only on the hyperedges of three members, such as the triangles of a simplicial complex.
-
-    With `along=RandomPartition(3)`, the members of the group `among` form random groups of three anew at every step,
-    and the laws run once for every member of every group, reading `s.member`, `s.others`, and `s.members` as on a
-    hyperedge, such as voters who discuss in small groups. With `along='neighborhoods'`, every member of a group on a
-    lattice or a network forms one group with the members around it, such as the players of a public goods game with
-    their neighbours. A member then belongs to several groups, and its updates from them add up.
-
-    A rule used once needs no class. `roles` binds each role to an element and `laws` is a function of the namespace
-    that returns the laws, such as gravity on a ball,
-    `Interaction('gravity', roles={'target': 'ball'}, laws=lambda s: [RateLaw(s.target.x.diff(s.t, 2), -9.81)])`.
+    Read more in the user guide, under Interactions.
 
     Args:
         label:
@@ -68,8 +46,8 @@ class Interaction(BaseInteraction):
 
         laws:
             The function of the namespace that returns the laws of a rule written without a class, such as
-            `lambda s: [RateLaw(s.target.n.diff(s.t), s.target.n)]`, the laws themselves when they read no element,
-            or `None`.
+            `lambda s: [RateLaw(s.target.n.diff(s.t), s.target.n)]`, the laws themselves when they read no element, or
+            `None`.
 
         among:
             The group whose members sit at the ends of the edges, such as `'people'`, or `None` to bind elements by
@@ -77,45 +55,29 @@ class Interaction(BaseInteraction):
 
         along:
             `True` for the edges of the network the group lives on, the name of a layer of a network with several, such
-            as `'contacts'`, `'hyperedges'` for its hyperedges, `('hyperedges', k)` for its hyperedges of `k`
-            members, `RandomPartition(k)` for random groups of `k` members drawn at every step, `'neighborhoods'` for
-            every member with the members around it, or `None` for no edges.
+            as `'contacts'`, `'hyperedges'` for its hyperedges, `('hyperedges', k)` for its hyperedges of `k` members,
+            `RandomPartition(k)` for random groups of `k` members drawn at every step, `'neighborhoods'` for every
+            member with the members around it, or `None` for no edges. On the edges, the laws read the member of an
+            element that sits on them as `s.edge`, and on the hyperedges as `s.hyperedge`.
 
         within:
-            A `RadiusNeighborhood(r)` for laws that run once for every pair of members of the roles `first` and
-            `second` closer than `r`, which read `s.first` and `s.second` and give the laws of both, such as the
-            repulsion of walkers of two crowds, or `None` for no pairs. With `among`, both members come from that
-            group. The laws may give the energy of the pair as `ObjectiveLaw(V)` in place of its forces, and each
-            member then feels the force `-dV/dx` on its position `x`.
+            A `RadiusNeighborhood(r)` for laws that run once for every pair of members of the roles `first` and `second`
+            closer than `r`, which read `s.first` and `s.second` and give the laws of both, such as the repulsion of
+            walkers of two crowds, or `None` for no pairs. With `among`, both members come from that group. The laws may
+            give the energy of the pair as `ObjectiveLaw(V)` in place of its forces, and each member then feels the
+            force `-dV/dx` on its position `x`.
+
+    See Also:
+        BaseInteraction: The base of every interaction.
+        RandomPartition: Groups the members of a group at random at every step.
+        TrainingInteraction: Trains the parameters of a nested system.
 
     Examples:
-        >>> from typing import Annotated
-        >>> from sage.all__sagemath_symbolics import oo
-        >>> from sage.sets.real_set import RealSet
         >>> from skcomplex.core.components.interactions import Interaction
-        >>> from skcomplex.core.types import Role
-        >>> class PredationInteraction(Interaction):
-        ...     def __init__(self, label, predator: Role, prey: Role, a: Annotated[float, RealSet.open(0, oo)] = 0.1):
-        ...         super().__init__(label)
-        ...         self.predator = predator
-        ...         self.prey = prey
-        ...         self.a = a
-        >>> PredationInteraction('predation', predator='foxes', prey='rabbits')
-        PredationInteraction(label='predation', predator='foxes', prey='rabbits')
-
-        Growth of a population, written without a class:
-
-        >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.laws import RateLaw
-        >>> from skcomplex.core.systems import System
-        >>> growth = Interaction(
-        ...     'growth',
-        ...     roles={'target': 'rabbits'},
-        ...     laws=lambda s: [RateLaw(s.target.n.diff(s.t), 0.5 * s.target.n)],
-        ... )
-        >>> system = System(elements=[Element('rabbits', values={'n': 10.0})], interactions=[growth]).prepare()
-        >>> system.equations_
-        {'rabbits.n': '0.5*rabbits.n'}
+        >>> birth = Interaction('birth', roles={'target': 'fish'}, laws=lambda s: [RateLaw(s.target.n.diff(s.t), 1)])
+        >>> birth.roles
+        {'target': 'fish'}
     """
 
     def __init__(
@@ -189,8 +151,8 @@ class Interaction(BaseInteraction):
             raise ValidationError(error_msg)
         if self.laws is not None and not callable(self.laws) and not isinstance(self.laws, list | tuple):
             error_msg = (
-                f'The laws of {self.label!r} are {self.laws!r}. Give a function of the namespace that returns them, '
-                'such as `laws=lambda s: [RateLaw(s.target.n.diff(s.t), s.target.n)]`.'
+                f'The laws of {self.label!r} are {self.laws!r}. Give a function that takes the bound elements as '
+                '`s` and returns the laws, such as `laws=lambda s: [RateLaw(s.target.n.diff(s.t), s.target.n)]`.'
             )
             raise ValidationError(error_msg)
         if isinstance(self.along, tuple) and not self._is_sized(self.along):

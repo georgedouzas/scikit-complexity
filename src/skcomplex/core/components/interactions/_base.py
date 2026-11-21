@@ -60,27 +60,17 @@ class _RealFunction(SymbolicFunction):
 
 
 class BaseInteraction(BaseComponent[SimpleNamespace]):
-    """An abstract interaction, the component that changes the states of elements.
+    """An abstract interaction, the component that changes the values of elements.
 
-    An interaction binds elements through roles, such as `'source'` and `'target'`, reads their states, and returns laws
-    that change them. It holds no state of its own. A state on a coupling, such as the weight of an edge, lives in a
-    group on the edges or hyperedges of a network. A subclass takes each role, typed `Role`, and each parameter as an
-    argument of its `__init__`, and stores it under the same name, as a scikit-learn estimator does. Its `_prepare`
-    sets `laws_` when the context is the namespace of a binding, where `context.<role>` reads the states of the element
-    a role binds and `context.<parameter>` is a symbol.
+    An interaction binds elements through roles, such as `'source'` and `'target'`, reads their values, and returns the
+    laws that change them in `laws_` when it is prepared. It holds no values of its own, and a value on a link, such as
+    the weight of an edge, lives in an element on the edges of a network. A subclass takes each role, typed `Role`, and
+    each parameter as a plain argument of its `__init__` and stores it under the same name, as a scikit-learn estimator
+    does, and lists the laws it may return in `law_classes`, so that `get_requirements` and `get_tags` name them before
+    a run. Its subclasses spread an infection in an epidemic, run a chemical reaction, and pay wages from a firm to its
+    workers.
 
-    A role states the element kinds and states it needs in its `RoleSpec`, and the class lists the laws it may return in
-    `law_classes`, so that `get_requirements` and `get_tags` can name them before a run. A subclass whose arguments
-    choose among its laws overrides `_get_tags`. A subclass that names its roles or parameters otherwise returns their
-    names from `_get_role` and `_get_parameter`. An interaction that draws a random order of agents, breaks ties at
-    random, or picks members at random is stochastic whatever its laws.
-
-    Unlike `BaseComponent`, it changes the states of other components and holds none of its own. Choose it when a new
-    kind of interaction runs its laws in a way of its own. Choose `Interaction` for laws that run for the elements the
-    roles bind, once per pair within a neighbourhood, or once per edge of a network.
-
-    It appears in every field through its subclasses, such as infection in an epidemic, a chemical reaction, a payment
-    between accounts, and the coupling of oscillators.
+    Read more in the user guide, under Interactions.
 
     Args:
         label:
@@ -88,18 +78,17 @@ class BaseInteraction(BaseComponent[SimpleNamespace]):
 
     Attributes:
         laws_:
-            The laws the interaction states for the namespace it was last prepared against.
+            The laws the interaction states for the elements it was last prepared against.
+
+    See Also:
+        Interaction: Runs its laws once for the elements its roles bind.
+        BaseElement: The base of the components that hold values.
 
     Examples:
-        >>> from skcomplex.core.components.interactions import BaseInteraction
-        >>> from skcomplex.core.types import Role
-        >>> class GrowthInteraction(BaseInteraction):
-        ...     def __init__(self, label, target: Role, r=1.0):
-        ...         super().__init__(label)
-        ...         self.target = target
-        ...         self.r = r
-        >>> GrowthInteraction('growth', target='rabbits', r=0.5).get_params()
-        {'label': 'growth', 'r': 0.5, 'target': 'rabbits'}
+        >>> from skcomplex.core.components.interactions import BaseInteraction, Interaction
+        >>> growth = Interaction('growth', roles={'target': 'rabbits'})
+        >>> isinstance(growth, BaseInteraction), growth.label
+        (True, 'growth')
     """
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = ()
@@ -543,7 +532,10 @@ class BaseInteraction(BaseComponent[SimpleNamespace]):
     def _get_laws_of(self, inputs: object) -> Sequence[BaseLaw]:
         """Return the laws for a namespace, from a copy prepared on it."""
         if not isinstance(inputs, SimpleNamespace):
-            error_msg = f'{type(self).__name__} learns its laws from a namespace of symbols, but got {inputs!r}.'
+            error_msg = (
+                f'{type(self).__name__} states its laws for the elements its roles bind, which its system gives it '
+                f'when the system is prepared, not for {inputs!r}. Prepare the system that holds it.'
+            )
             raise ValidationError(error_msg)
         time = getattr(inputs, 't', SR.var('t'))
         functions: dict[str, Expression] = {}
@@ -915,8 +907,8 @@ class BaseInteraction(BaseComponent[SimpleNamespace]):
                 The error that names the variant and the method.
         """
         error_msg = (
-            f'{type(self).__name__} {self.label!r} has no way to run the {name} {value!r}. Override `{method}` in a '
-            'subclass to run it.'
+            f'{type(self).__name__} {self.label!r} cannot run the {name} {value!r}. Write a subclass whose method '
+            f'`{method}` runs it.'
         )
         return ValidationError(error_msg)
 
@@ -1024,14 +1016,15 @@ class BaseInteraction(BaseComponent[SimpleNamespace]):
         ]
         if adaptive:
             error_msg = (
-                f'{type(self).__name__} declares the adaptive parameters {", ".join(adaptive)}, which laws change as '
-                'states, but interactions hold no state. Declare them on the element whose parameters they are.'
+                f'{type(self).__name__} declares {", ".join(adaptive)} as parameters that laws change, but an '
+                'interaction holds no values that change. Declare them on the element that holds them.'
             )
             raise ValidationError(error_msg)
         if states:
             error_msg = (
-                f'{type(self).__name__} declares the states {", ".join(states)}, but interactions hold no state. Put '
-                'state on couplings in an element on the edges of a network space, `Element(..., on="edges")`.'
+                f'{type(self).__name__} declares the states {", ".join(states)}, but an interaction holds no values '
+                'that change. Put a value of a link, such as its weight, in an element on the edges of a network, '
+                '`Element(..., on="edges")`.'
             )
             raise ValidationError(error_msg)
 

@@ -1,4 +1,4 @@
-"""Define the interaction that trains the adaptive parameters of a nested system."""
+"""Define the interaction that trains the parameters of a nested system."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,25 +21,14 @@ from ._interaction import Interaction
 class TrainingInteraction(Interaction):
     """An interaction that trains the parameters of a nested system by gradient steps.
 
-    The role `system` binds a nested system, which the training runs over the sequences of a dataset from its initial
-    states and differentiates. One step of the outer system is one epoch: shuffled batches, each followed by one update
-    of the optimizer on the adaptive parameters named in `trained`. The hyperparameters of the optimizer are parameters
-    of the interaction, so a schedule of `simulate` can change them between epochs. The `optimizer` reads them as
-    follows:
+    The role `system` binds a nested system, which the training runs over the sequences of a dataset and differentiates.
+    One step of the outer system is one epoch: shuffled batches, each followed by one step of the optimizer on the
+    parameters named in `trained`. The settings of the optimizer are parameters of the interaction, so a schedule of
+    `simulate` can change them between epochs. It states no laws of its own, and `GradientDescentSolver` reads its
+    settings. A recurrent neural network learns to predict a time series, an echo state network fits its readout, and a
+    learning agent improves its policy between rounds.
 
-    - `'sgd'`: the learning rate.
-    - `'momentum'`: the learning rate and `momentum`.
-    - `'rmsprop'`: the learning rate and `beta2`, the decay of its mean squared gradient.
-    - `'adam'`: the learning rate, `beta1`, and `beta2`.
-
-    It states no laws of its own. The compiler finds the training in the system and `GradientDescentSolver` reads its
-    settings, so the update of every epoch is the step of the optimizer on the trained parameters.
-
-    Unlike a gradient flow, which moves states down a potential in the time of the system, it fits parameters of
-    another system to data, one epoch per step. Choose it when a component of the model learns from data during the run.
-
-    It appears in many fields. A recurrent neural network learns to predict a time series, an echo state network fits
-    its readout, and a learning agent improves its policy between rounds.
+    Read more in the user guide, under Interactions.
 
     Args:
         label:
@@ -49,7 +38,7 @@ class TrainingInteraction(Interaction):
             The path of the nested system whose parameters the interaction trains.
 
         trained:
-            The dotted paths of the adaptive parameters of the nested system to train, such as `readout.W`.
+            The dotted paths of the parameters of the nested system to train, such as `readout.W`.
 
         loss:
             The observable of the nested system whose weighted mean over the steps of a batch is minimized.
@@ -58,7 +47,8 @@ class TrainingInteraction(Interaction):
             The sequences of the parameters of the nested system that set its inputs and targets at every step.
 
         optimizer:
-            The name of the optimizer, one of `OptimizerKind`.
+            The name of the optimizer, one of `OptimizerKind`. `'sgd'` reads the learning rate, `'momentum'` also
+            `momentum`, `'rmsprop'` also `beta2`, and `'adam'` also `beta1` and `beta2`.
 
         learning_rate:
             The learning rate of the optimizer.
@@ -76,8 +66,8 @@ class TrainingInteraction(Interaction):
             The number of sequences of a batch.
 
         truncation:
-            The number of inner steps the gradient flows back through the inner states, or `None` for the whole run.
-            A truncation of 1 holds the previous inner states as constant inputs, as Elman's original training does.
+            The number of inner steps the gradient flows back through the inner states, or `None` for the whole run. A
+            truncation of 1 holds the previous inner states as constant inputs, as Elman's original training does.
 
         metrics:
             The observables of the nested system recorded at the end of every epoch.
@@ -87,16 +77,16 @@ class TrainingInteraction(Interaction):
             The optimizer is unknown, the batch size or the truncation is not a positive integer, no parameter is
             trained, or the loss, the data, or a metric has the wrong type or label.
 
+    See Also:
+        Interaction: Runs its laws once for the elements its roles bind.
+        GradientDescentSolver: Runs the epochs of a training.
+
     Examples:
-        >>> import numpy as np
-        >>> from skcomplex.core.components.interactions import TrainingInteraction
         >>> from skcomplex.core.components import Observable
+        >>> from skcomplex.core.components.interactions import TrainingInteraction
         >>> from skcomplex.core.components.laws import DatasetSpec
-        >>> data = DatasetSpec({'inputs.x': np.zeros((4, 3, 1))})
-        >>> training = TrainingInteraction(
-        ...     'training', system='net', trained=['readout.W'], loss=Observable('error', 0.0), data=data
-        ... )
-        >>> training.optimizer
+        >>> data = DatasetSpec({'inputs.x': [[[0.0]], [[1.0]]]})
+        >>> TrainingInteraction('fit', system='net', trained=['W'], loss=Observable('error', 0), data=data).optimizer
         'adam'
     """
 
@@ -160,7 +150,10 @@ class TrainingInteraction(Interaction):
         The loss, the data, and the metrics must be of the right type.
         """
         if isinstance(self.trained, str) or not self.trained or not all(isinstance(p, str) for p in self.trained):
-            error_msg = f'{self.label!r} trains {self.trained!r}. Give the dotted paths of adaptive parameters.'
+            error_msg = (
+                f'{self.label!r} trains {self.trained!r}. Give the dotted paths of the parameters to train, such as '
+                "['readout.W']."
+            )
             raise ValidationError(error_msg)
         if not isinstance(self.data, DatasetSpec):
             error_msg = f'The data of {self.label!r} is a {type(self.data).__name__}. Give a `DatasetSpec`.'

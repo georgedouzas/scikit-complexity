@@ -393,7 +393,7 @@ UNHANDLED_VARIANTS = {
 def test_dispatch_raises_for_a_spec_variant_without_an_override(case):
     """Test that a spec variant no subclass handles raises an error naming the method to override."""
     run, method = UNHANDLED_VARIANTS[case]
-    with pytest.raises(ValidationError, match=f'Override `{method}`'):
+    with pytest.raises(ValidationError, match=f'method `{method}` runs it'):
         run()
 
 
