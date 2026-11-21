@@ -173,7 +173,7 @@ a little on every turn of the cycle, so a smaller step or a solver of higher ord
 
 ### One model, two solvers
 
-The solver is a setting of the system, not of its parts, so the same laws can run in two ways. In the reaction
+The solver is a setting of the system, not of its components, so the same laws can run in two ways. In the reaction
 `A + B -> C` of the [running examples](index.md#the-running-examples), a `JumpLaw` fires at the rate `0.01 a b` and
 turns one molecule of `A` and one of `B` into one of `C`. By default the system is a jump process, run molecule by
 molecule by `GillespieSolver`. Given `ScipyODESolver()`, the same system runs the rate equations of the mean, which

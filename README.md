@@ -142,10 +142,10 @@ pdm install
 
 ## Usage
 
-The library follows the conventions of scikit-learn. A system is built from parts that hold parameters, it is prepared
-once, as a model is fitted, and it is simulated many times, as a fitted model predicts:
+The library follows the conventions of scikit-learn. A system is built from components that hold parameters. It is
+prepared once, as a model is fitted, and simulated many times, as a fitted model predicts:
 
-- `prepare()` checks every part, works out the equations, chooses a solver, and returns the system.
+- `prepare()` checks every component, works out the equations, chooses a solver, and returns the system.
 - `simulate(until=...)` runs the prepared system and returns a trajectory, the values at every recorded time.
 - `get_params`, `set_params`, and `clone` read, change, and copy the parameters, with nested names such as
   `gravity__g`.
@@ -203,7 +203,7 @@ and the page of each system shows the classes it is built from.
 
 ### Build a custom system
 
-A system of your own has three kinds of part:
+A custom system has three kinds of component:
 
 - An `Element` holds values, such as `Element('ball', values={'x': 10.0, 'm': 1.0})` for a ball at the height 10 with
   the mass 1.
@@ -452,7 +452,7 @@ trajectory.get_values('ball.x').round(2).tolist()
 The ball falls to 7.6 metres in the first 0.7 seconds. It then gains speed more slowly and ends at 2.55 metres, where
 full gravity would have brought it to 0.39.
 
-### Find out which parts fit
+### Find out which components fit
 
 `prepare` checks that every element bound to a role carries the values its interaction reads. Here the role `target`
 of `Gravity` is bound to a tank, which carries a level and no height.
