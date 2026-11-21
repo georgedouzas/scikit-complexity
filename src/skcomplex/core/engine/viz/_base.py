@@ -4,7 +4,7 @@
 # License: MIT
 
 
-from typing import Self
+from typing import ClassVar, Self
 
 import networkx as nx
 import numpy as np
@@ -77,8 +77,10 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
     A subclass draws the values of one element or group in the Rerun viewer, such as the prey of a predator and prey
     system in `ScalarsVisual(path='prey')`. `prepare(problem)` finds the element at `path` and sets the views that show
     it, and `run(frame)` draws it at one frame. A subclass draws elements with `_log`, agents with `_log_agents`, and
-    names its views with `_views`. `RerunObserver` builds one visual per element. Its subclasses draw the populations of
-    an ecosystem, the spins of a magnet, and the traders of a market.
+    names its views with `_views`. A subclass lists the options that take numbers in `numeric_options`, so that
+    `RerunObserver` evaluates such an option given as an expression of parameters, such as `'R_0 / 2'`.
+    `RerunObserver` builds one visual per element. Its subclasses draw the populations of an ecosystem, the spins of a
+    magnet, and the traders of a market.
 
     Read more in the user guide, under Observe.
 
@@ -117,6 +119,8 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
         >>> visual.element_.path, str(visual.views_[0].origin)
         ('prey', 'prey')
     """
+
+    numeric_options: ClassVar[tuple[str, ...]] = ()
 
     def __init__(self, *, path: str | None = None, recording: rr.RecordingStream | None = None) -> None:
         self.path = path

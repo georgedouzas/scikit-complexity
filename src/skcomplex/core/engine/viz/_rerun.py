@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import inspect
 import math
 import os
 import re
@@ -275,23 +274,16 @@ class RerunObserver(BaseObserver):
     ) -> BaseVisual:
         """Return the visual the spec of an element names.
 
-        It is built with the options of the spec. A numeric option given as an expression of the parameters of the
-        element, such as `'R_0 / 2'`, takes its value at the start of the run.
+        It is built with the options of the spec. An option the visual lists in `numeric_options`, given as an
+        expression of the parameters of the element, such as `'R_0 / 2'`, takes its value at the start of the run.
         """
         spec = (self.visuals or {}).get(element.path, element.visual)
-        visual = VISUALS[spec.kind] if isinstance(spec.kind, str) else spec.kind
-        accepted = inspect.signature(visual).parameters
+        visual: type[BaseVisual] = VISUALS[spec.kind] if isinstance(spec.kind, str) else spec.kind
         options = {
-            name: self._get_option_value(value, element, problem) if self._is_numeric(accepted.get(name)) else value
+            name: self._get_option_value(value, element, problem) if name in visual.numeric_options else value
             for name, value in spec.options.items()
         }
         return visual(**options, path=element.path, recording=self.recording_)
-
-    @staticmethod
-    def _is_numeric(parameter: inspect.Parameter | None) -> bool:
-        """Return whether an option of a visual takes a number."""
-        annotation = str(parameter.annotation) if parameter is not None else ''
-        return ('float' in annotation or 'int' in annotation) and 'str' not in annotation
 
     @staticmethod
     def _get_option_value(

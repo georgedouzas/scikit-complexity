@@ -92,6 +92,8 @@ class BodiesVisual(BaseVisual):
         50
     """
 
+    numeric_options = ('pivot', 'traced', 'trail', 'radius')
+
     def __init__(
         self,
         positions: Positions,

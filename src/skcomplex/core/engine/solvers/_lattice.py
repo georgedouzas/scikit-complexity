@@ -22,9 +22,9 @@ class LatticeSolver(Solver):
     """A solver that applies every law of a lattice once per step.
 
     The laws are local rules, drives, and relaxations, such as rule 30 that sets each cell from itself and its two
-    neighbours. They apply in the order they are declared, the boundary laws after every step, and a relaxation records
-    the size, duration, and area of every cascade as an event. It runs cellular automata, the sandpiles of earthquakes,
-    and the fires of a forest.
+    neighbours. They apply in the order they are declared and read the time at the start of the step, as maps do. The
+    boundary laws apply after every step at its end time, and a relaxation records the size, duration, and area of every
+    cascade as an event. It runs cellular automata, the sandpiles of earthquakes, and the fires of a forest.
 
     Read more in the user guide, under Solvers.
 
@@ -77,7 +77,7 @@ class LatticeSolver(Solver):
         """
         state = x.copy()
         for step in range(round(t), math.floor(until + 1e-9)):
-            current = RunStateSpec(float(step + 1), state, p, self.rng_)
+            current = RunStateSpec(float(step), state, p, self.rng_)
             for item in self.problem_.lattice:
                 result = item.run(current).values_
                 if isinstance(result, _CascadeRecordSpec):

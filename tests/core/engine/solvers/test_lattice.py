@@ -234,6 +234,23 @@ def test_rule_reads_parameters_by_keyword():
     assert trajectory.states[-1].tolist() == [7.0, 7.0]
 
 
+def test_rule_reads_the_start_time_of_its_step():
+    """Test that a lattice rule reads the time at the start of its step, as a map does."""
+
+    def laws(s):
+        """Return the rule that sets every cell to the time it reads."""
+        return [
+            UpdateLaw(
+                s.target.value,
+                lambda value, time, **kwargs: value * 0 + time,
+                neighborhood=LatticeNeighborhood(((0,),)),
+            ),
+        ]
+
+    trajectory = _cells(LatticeSpace(2), laws, value=[-1.0, -1.0]).prepare().simulate(until=3, dt=1)
+    assert [state.tolist() for state in trajectory.states] == [[-1.0, -1.0], [0.0, 0.0], [1.0, 1.0], [2.0, 2.0]]
+
+
 def test_relaxation_records_avalanches():
     """Test that a relaxation records the size, duration, and area of a toppling avalanche."""
 
@@ -260,7 +277,7 @@ def test_relaxation_records_avalanches():
     pile = _cells(LatticeSpace(5, boundary='fixed'), laws, label='pile', height=[1, 1, 1, 1, 1])
     trajectory = pile.prepare().simulate(until=1, dt=1)
     (record,) = trajectory.events
-    assert (record.label, record.time) == ('rule', 1.0)
+    assert (record.label, record.time) == ('rule', 0.0)
     assert (record.size, record.duration, record.area) == (9, 5, 5)
     assert np.all(trajectory.states[-1] < 2)
 

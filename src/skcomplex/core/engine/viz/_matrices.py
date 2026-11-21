@@ -60,6 +60,8 @@ class MatrixVisual(BaseVisual):
         'net/recurrence.A'
     """
 
+    numeric_options = ('color_range',)
+
     name_: str
     shape_: tuple[int, ...]
 

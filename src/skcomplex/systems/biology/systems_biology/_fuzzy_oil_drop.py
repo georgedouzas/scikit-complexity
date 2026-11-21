@@ -96,6 +96,8 @@ class BackboneVisual(PointsVisual):
         True
     """
 
+    numeric_options = ('radius', 'trail')
+
     def __init__(
         self,
         position: str,
@@ -241,8 +243,8 @@ class EnsembleReplayInteraction(Interaction):
         self.ensemble = ensemble
 
     def _read_member(self, values: Array, *, time: float, **kwargs: object) -> Array:
-        """Return the member of the time of a step."""
-        return self.ensemble[min(int(time), len(self.ensemble) - 1)].reshape(values.shape)
+        """Return the member of the time at the end of a step."""
+        return self.ensemble[min(int(time) + 1, len(self.ensemble) - 1)].reshape(values.shape)
 
     def _prepare(self, context: SimpleNamespace) -> None:
         """Set the drive of the state.

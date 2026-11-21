@@ -54,6 +54,8 @@ class MeshVisual(BaseVisual):
         MeshVisual(low=0.0)
     """
 
+    numeric_options = ('low', 'high')
+
     def __init__(
         self,
         states: Sequence[str] | None = None,

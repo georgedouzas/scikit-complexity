@@ -66,6 +66,8 @@ class SiteVisual(BaseVisual):
         SiteVisual(high=2, low=0)
     """
 
+    numeric_options = ('low', 'high')
+
     def __init__(
         self,
         states: Sequence[str] | None = None,

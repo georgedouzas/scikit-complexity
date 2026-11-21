@@ -202,6 +202,8 @@ class CayleyVisual(BaseVisual):
         CayleyVisual(high=1, low=0)
     """
 
+    numeric_options = ('low', 'high')
+
     def __init__(
         self,
         states: Sequence[str] | None = None,

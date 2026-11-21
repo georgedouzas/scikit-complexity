@@ -5,6 +5,7 @@
 
 from collections import deque
 from collections.abc import Sequence
+from typing import ClassVar
 
 import numpy as np
 import numpy.typing as npt
@@ -80,6 +81,8 @@ class PointsVisual(BaseVisual):
         >>> PointsVisual(position='x', color_by='v').color_by
         'v'
     """
+
+    numeric_options: ClassVar[tuple[str, ...]] = ('radius', 'color_range', 'trail')
 
     def __init__(
         self,
