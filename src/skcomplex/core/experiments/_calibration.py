@@ -235,13 +235,13 @@ class _CalibrationObjective:
         """Fixed streams of the replicates, so the loss is smooth in the parameters."""
         return np.random.SeedSequence(self.random_state).spawn(self.replicates)
 
-    def build(self, values: Sequence[float]) -> AnySystem:
+    def build(self, values: Sequence[float] | Array) -> AnySystem:
         """Return the candidate system of a parameter vector."""
         return build_system(self.source, dict(zip(self.names, map(float, values), strict=True)), self.solver)
 
     def simulate(
         self,
-        values: Sequence[float],
+        values: Sequence[float] | Array,
         seeds: Sequence[np.random.SeedSequence] | None = None,
     ) -> dict[str, Array]:
         """Return the simulated values at the data times by path, averaged over runs.
@@ -270,7 +270,7 @@ class _CalibrationObjective:
             for path, (times, _) in self.series.items()
         }
 
-    def _replay(self, values: Sequence[float]) -> Trajectory:
+    def _replay(self, values: Sequence[float] | Array) -> Trajectory:
         """Return the replay of the recorded draws under a parameter vector."""
         recorded = self.recorded
         if recorded is None:
@@ -285,16 +285,16 @@ class _CalibrationObjective:
             replay=recorded,
         )
 
-    def get_replayed(self, values: Sequence[float]) -> dict[str, Array]:
+    def get_replayed(self, values: Sequence[float] | Array) -> dict[str, Array]:
         """Return the replayed values at the data times by path."""
         return self._get_at_times(self._replay(values))
 
-    def get_residuals(self, values: Sequence[float]) -> Array:
+    def get_residuals(self, values: Sequence[float] | Array) -> Array:
         """Return the simulated minus the observed values of every path, concatenated."""
         simulated = self.simulate(values)
         return np.concatenate([simulated[path] - observed for path, (_, observed) in self.series.items()])
 
-    def log_likelihood(self, values: Sequence[float]) -> float:
+    def log_likelihood(self, values: Sequence[float] | Array) -> float:
         """Return the Gaussian log-likelihood with the variance profiled out.
 
         It is exact up to a constant.
@@ -302,7 +302,7 @@ class _CalibrationObjective:
         residuals = self.get_residuals(values)
         return float(-0.5 * residuals.size * np.log(np.sum(residuals**2)))
 
-    def get_event_log_likelihood(self, values: Sequence[float]) -> float:
+    def get_event_log_likelihood(self, values: Sequence[float] | Array) -> float:
         """Return the log-probability of the recorded draws replayed under parameters.
 
         A replay whose draws do not match the recording, such as a group that grows otherwise, has probability 0.
@@ -313,7 +313,7 @@ class _CalibrationObjective:
             return -np.inf
         return -np.inf if probability is None else float(probability)
 
-    def get_loss(self, values: Sequence[float], loss: str) -> float:
+    def get_loss(self, values: Sequence[float] | Array, loss: str) -> float:
         """Return the loss of a parameter vector to minimise.
 
         It is half the sum of squares, the negative Gaussian log-likelihood, or the negative event log-likelihood.
@@ -330,7 +330,7 @@ class _CalibrationObjective:
             return np.concatenate([np.asarray(simulated[path], dtype=float) for path in self.series])
         return np.atleast_1d(np.asarray(self.summary(simulated), dtype=float))
 
-    def _get_compiled(self, values: Sequence[float]) -> tuple[ProblemSpec, TracedFunction]:
+    def _get_compiled(self, values: Sequence[float] | Array) -> tuple[ProblemSpec, TracedFunction]:
         """Return the JAX problem of the candidate of a parameter vector, and its function.
 
         Args:
@@ -763,7 +763,7 @@ def _fit_mcmc(
         else:
             evaluate = objective.log_likelihood if loss == 'likelihood' else objective.get_event_log_likelihood
 
-            def host(theta: Array) -> Array:
+            def host(theta: Array) -> npt.NDArray[np.float32]:
                 return np.asarray(evaluate(np.asarray(theta, dtype=float)), dtype=np.float32)
 
             def model() -> None:
@@ -879,7 +879,8 @@ def _result(
 ) -> CalibrationResult:
     """Return the result of a calibration at an estimate, with its goodness of fit."""
     simulated = objective.get_replayed(estimate) if objective.recorded is not None else objective.simulate(estimate)
-    final = np.concatenate([simulated[path] - observed for path, (_, observed) in objective.series.items()] or [[]])
+    differences = [simulated[path] - observed for path, (_, observed) in objective.series.items()]
+    final = np.concatenate(differences or [np.zeros(0)])
     observed = objective.observed if objective.series else np.zeros(0)
     nonzero = observed != 0
     with np.errstate(divide='ignore', invalid='ignore'):

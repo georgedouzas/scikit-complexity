@@ -10,7 +10,7 @@ import numpy as np
 
 from ...base import BaseSpec
 from ...errors import ValidationError
-from ...types import Array
+from ...types import Array, IntArray
 from ._draw_record_spec import _DrawRecordSpec
 
 
@@ -37,7 +37,7 @@ class _DrawLogSpec(BaseSpec):
 
     draws: Mapping[str, _DrawRecordSpec]
     firing_times: Array
-    firing_laws: Array
+    firing_laws: IntArray
     log_probability: float
 
     def _check(self) -> None:

@@ -8,6 +8,7 @@ import re
 from collections.abc import Callable, Mapping
 
 import numpy as np
+import numpy.typing as npt
 from sage.all__sagemath_symbolics import RR, SR, Expression, log
 from sage.modules.free_module_element import FreeModuleElement
 from scipy import stats
@@ -336,7 +337,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
         self,
         request: _RequestSpec,
         draw: DrawSpec,
-    ) -> Callable[[float, Array, Array], list[Array]] | None:
+    ) -> Callable[[float, Array, Array], list[npt.ArrayLike]] | None:
         """Return the function of the values of the arguments of a draw.
 
         It is `None` when they read a symbol that is not a state or a parameter of the member, or reduce over other
@@ -360,7 +361,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
             error_msg = f'A compiled printer returns a function, not a {type(function).__name__}.'
             raise TypeError(error_msg)
 
-        def evaluate(t: float, x: Array, q: Array) -> list[Array]:
+        def evaluate(t: float, x: Array, q: Array) -> list[npt.ArrayLike]:
             return list(function(t, *(reader.get_column_of(x, q) for reader in readers)))
 
         return evaluate

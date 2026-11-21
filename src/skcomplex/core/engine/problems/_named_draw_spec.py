@@ -6,6 +6,8 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 
+import numpy.typing as npt
+
 from ...base import BaseSpec
 from ...components.laws import DrawSpec
 from ...types import Array
@@ -38,4 +40,4 @@ class _NamedDrawSpec(BaseSpec):
     draw: DrawSpec
     start: int
     rows: int
-    arguments: Callable[[float, Array, Array], list[Array]] | None
+    arguments: Callable[[float, Array, Array], list[npt.ArrayLike]] | None

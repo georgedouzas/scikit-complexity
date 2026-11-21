@@ -203,10 +203,13 @@ class JaxBackend(BaseBackend):
         drawn = JaxBackend._get_drawn(draws, form)
 
         def run(x0: TracedArray, p: TracedArray, key: TracedArray | None = None) -> TracedArray:
-            if drawn is not None and key is None:
+            if drawn is None:
+                keys = jnp.zeros(starts.size)
+            elif key is None:
                 error_msg = 'The map draws at every step, so its run takes a JAX key, `run(x0, p, key)`.'
                 raise ValidationError(error_msg)
-            keys = jax.random.split(key, starts.size) if drawn is not None else jnp.zeros(starts.size)
+            else:
+                keys = jax.random.split(key, starts.size)
 
             def body(x: TracedArray, item: tuple[TracedArray, ...]) -> tuple[TracedArray, TracedArray]:
                 t, t1, step_key = item

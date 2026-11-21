@@ -72,8 +72,8 @@ def _interval(values: Array, weights: Array, level: float) -> tuple[float, float
     cumulative = np.cumsum(weights[order]) / np.sum(weights)
     tail = (1 - level) / 2
     ordered = values[order]
-    low = ordered[min(np.searchsorted(cumulative, tail), ordered.size - 1)]
-    high = ordered[min(np.searchsorted(cumulative, 1 - tail), ordered.size - 1)]
+    low = ordered[min(int(np.searchsorted(cumulative, tail)), ordered.size - 1)]
+    high = ordered[min(int(np.searchsorted(cumulative, 1 - tail)), ordered.size - 1)]
     return float(low), float(high)
 
 
