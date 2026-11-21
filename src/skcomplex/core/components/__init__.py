@@ -1,8 +1,8 @@
-"""Define the parts of a system and the specs of the values they read.
+"""Define the components of a system and the specs of the values they read.
 
 An element holds values, such as `Element('ball', values={'x': 10.0, 'm': 1.0})`, an interaction reads them through its
 roles and states its laws in `laws_` when it is prepared, a law is one equation or rule for one value, and a space
-places the members of a group. The specs here name observables, tensors, and the other values parts read.
+places the members of a group. The specs here name observables, tensors, and the other values components read.
 """
 
 from ._entry_spec import EntrySpec

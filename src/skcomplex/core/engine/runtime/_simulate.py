@@ -198,11 +198,12 @@ def compile_problem(
         run_problem: Runs a system from the problem it returns.
 
     Examples:
-        >>> from skcomplex.core.engine.runtime import compile_problem
+        `System.prepare` compiles its components with it and keeps the solver of the runs.
+
         >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
-        >>> problem, solver = compile_problem(LogisticGrowthSystem()._get_composite())
-        >>> problem.states.names, type(solver).__name__
-        (['population.x'], 'ScipyODESolver')
+        >>> system = LogisticGrowthSystem().prepare().system_
+        >>> system.states_, type(system.solver_).__name__
+        (('population.x',), 'ScipyODESolver')
     """
     composite, stepper, runner, form, observed = _prepare_runners(system, solver, backend, observables)
     simulation = Simulation(composite, compiler=form, solver=stepper, backend=runner, observables=observed).prepare()
@@ -298,10 +299,11 @@ def run_problem(
         compile_problem: Compiles the problem it starts from.
 
     Examples:
-        >>> from skcomplex.core.engine.runtime import run_problem
+        `System.simulate` runs the problem it prepared with it.
+
         >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
-        >>> composite = LogisticGrowthSystem()._get_composite()
-        >>> run_problem(composite, None, until=2, dt=1, initial_state={'population.x': 2.0}).times.tolist()
+        >>> system = LogisticGrowthSystem().prepare()
+        >>> system.simulate(until=2, dt=1, initial_state={'population.x': 2.0}).times.tolist()
         [0.0, 1.0, 2.0]
     """
     if not isinstance(system, _CompositeSystem):

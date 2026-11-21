@@ -54,21 +54,21 @@ class ScipyODESolver(Solver):
 
     It runs one integrator of `scipy.integrate` across the frames of a run with steps it picks to meet the tolerances,
     and reads each frame from the smooth curve of the step that covers its time, such as `e` for a population that grows
-    at rate 1 over one time unit. The methods `BDF`, `Radau`, and `LSODA` suit stiff problems, whose fast and slow parts
-    force explicit steps to be tiny, and they receive the pattern of the Jacobian that the compiler derives from the
-    laws. With delays, a step is at most the shortest delay. It is the default solver of continuous flows, in epidemics,
-    chemical reactions, and circuits.
+    at rate 1 over one time unit. The methods `BDF`, `Radau`, and `LSODA` suit stiff problems, whose fast and slow
+    changes force explicit steps to be tiny, and they receive the pattern of the Jacobian that the compiler derives from
+    the laws. With delays, a step is at most the shortest delay. It is the default solver of continuous flows, in
+    epidemics, chemical reactions, and circuits.
 
     Read more in the user guide, under Solvers.
 
     Args:
         method:
-            The integration method: `RK45`, `RK23`, or `DOP853` for non-stiff systems, `BDF` or `Radau` for stiff
-            ones, `LSODA`, which starts with Adams methods and switches to BDF methods while the system is stiff, or
-            the default `'auto'`. It chooses `LSODA` when its dense work array fits, for at most 4096 states or a
-            Jacobian with a narrow band, since `LSODA` stores a dense matrix of the size of the state squared.
-            Larger systems get `BDF` with the sparsity pattern of the Jacobian when fields limit the stable step by
-            diffusion, and `RK45` otherwise.
+            The integration method: `RK45`, `RK23`, or `DOP853` for non-stiff systems, `BDF` or `Radau` for stiff ones,
+            `LSODA`, which starts with Adams methods and switches to BDF methods while the system is stiff, or the
+            default `'auto'`. It chooses `LSODA` when its dense work array fits, for at most 4096 states or a Jacobian
+            with a narrow band, since `LSODA` stores a dense matrix of the size of the state squared. Larger systems get
+            `BDF` with the sparsity pattern of the Jacobian when fields limit the stable step by diffusion, and `RK45`
+            otherwise.
 
         rtol:
             The relative tolerance.
@@ -77,8 +77,8 @@ class ScipyODESolver(Solver):
             The absolute tolerance.
 
         jacobian:
-            How implicit methods obtain the Jacobian. `'auto'` passes the sparsity pattern to `BDF` and `Radau` and
-            the half bandwidths of a pattern narrower than a tenth of the size to `LSODA`, and passes nothing when the
+            How implicit methods obtain the Jacobian. `'auto'` passes the sparsity pattern to `BDF` and `Radau` and the
+            half bandwidths of a pattern narrower than a tenth of the size to `LSODA`, and passes nothing when the
             pattern is denser than one half. `'exact'` passes the exact sparse Jacobian of the laws, which needs laws
             with a symbolic form. `'dense'` passes nothing, so the Jacobian is estimated densely. Explicit methods
             ignore it.
@@ -97,8 +97,8 @@ class ScipyODESolver(Solver):
             The sparsity pattern of the Jacobian that an implicit method uses, or `None`.
 
         jacobian_options_:
-            The keyword arguments of the pattern or the half bandwidths that the integrator receives. The exact
-            Jacobian is passed as `jac` at every start of the integrator, with the parameters of the call.
+            The keyword arguments of the pattern or the half bandwidths that the integrator receives. The exact Jacobian
+            is passed as `jac` at every start of the integrator, with the parameters of the call.
 
     See Also:
         RK4Solver: Steps with a fixed step.

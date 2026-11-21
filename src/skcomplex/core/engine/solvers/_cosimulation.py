@@ -44,14 +44,14 @@ SCHEMES = ('gauss-seidel', 'jacobi')
 
 
 class CoSimulationSolver(Solver):
-    """A solver that moves every part of a system with a solver of its own.
+    """A solver that moves every component of a system with a solver of its own.
 
-    Every part is moved to each meeting time, every `sync_dt`, and between meeting times it holds the values of the
-    other parts at their last values, so the split adds an error of the order of `sync_dt`. Gauss-Seidel moves the parts
-    in order, each reading what the parts before it already moved, and Jacobi moves every part from the same values. A
-    law that reads a total over the agents of another part reads the value at the last meeting time. Choose it when
-    parts need different solvers, such as cars on a road beside their exhaust, cells beside the food they eat, or
-    farmers beside their crops.
+    Every component is moved to each meeting time, every `sync_dt`, and between meeting times it holds the values of the
+    other components at their last values, so the split adds an error of the order of `sync_dt`. Gauss-Seidel moves the
+    components in order, each reading what the components before it already moved, and Jacobi moves every component from
+    the same values. A law that reads a total over the agents of another component reads the value at the last meeting
+    time. Choose it when components need different solvers, such as cars on a road beside their exhaust, cells beside
+    the food they eat, or farmers beside their crops.
 
     Read more in the user guide, under Solvers.
 
@@ -81,7 +81,7 @@ class CoSimulationSolver(Solver):
             The stepper of every partition by partition name.
 
     See Also:
-        Solver: The base of the solvers each part may take.
+        Solver: The base of the solvers each component may take.
 
     Examples:
         >>> from skcomplex.core.engine.solvers import CoSimulationSolver

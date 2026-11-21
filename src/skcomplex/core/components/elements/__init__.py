@@ -1,4 +1,4 @@
-"""Define elements, the parts of a system that hold its values.
+"""Define elements, the components of a system that hold its values.
 
 An element holds the values of one thing or of a group of members, such as the height and mass of a ball in
 `Element('ball', values={'x': 10.0, 'm': 1.0})`, and says how a visualisation observer draws it. Specs written in

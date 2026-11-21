@@ -51,7 +51,7 @@ class Element(BaseElement):
 
     Args:
         label:
-            The name of the element, unique among the parts of its system, such as `'rabbits'`.
+            The name of the element, unique among the components of its system, such as `'rabbits'`.
 
         values:
             Values by name, such as `{'x': 10.0, 'm': 1.0}`. A derivative or a past value that a law reads starts from

@@ -17,9 +17,9 @@ class RenewalClock:
     """A clock of the next renewal time of every member of every renewal law.
 
     It holds the renewals that fire as time passes, such as the next jump of each walker of a random walk, and `inf`
-    when nothing renews. Members of one part renew in time order across its renewal laws, and every firing pass draws
-    for all the members it renews at once, so the random numbers depend only on the random state. The renewal solvers
-    use it for walkers in a glass, firing neurons, and failing machines.
+    when nothing renews. Members of one component renew in time order across its renewal laws, and every firing pass
+    draws for all the members it renews at once, so the random numbers depend only on the random state. The renewal
+    solvers use it for walkers in a glass, firing neurons, and failing machines.
 
     Read more in the user guide, under Solvers.
 

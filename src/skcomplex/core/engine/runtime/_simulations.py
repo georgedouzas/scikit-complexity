@@ -181,7 +181,8 @@ class Simulation(BaseConfig[None, float]):
     Examples:
         >>> from skcomplex.core.engine.runtime._simulations import Simulation
         >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
-        >>> simulation = Simulation(LogisticGrowthSystem()._get_composite(), dt=1.0).prepare().run(2.0)
+        >>> problem = LogisticGrowthSystem().prepare().simulate(until=0).problem
+        >>> simulation = Simulation(problem, dt=1.0).prepare().run(2.0)
         >>> simulation.trajectory_.times.tolist()
         [0.0, 1.0, 2.0]
     """

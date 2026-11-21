@@ -1,4 +1,4 @@
-"""Define what a system compiles to: a problem, its kernels, and the frames of a run.
+"""Define what a system compiles to: a problem, its kernels, and run frames.
 
 A problem holds the values of a system in flat vectors and the compiled functions of its laws, such as the one state
 `'population.x'` of a logistic growth. The bases, the problems of the general compiler and of operator systems, and the

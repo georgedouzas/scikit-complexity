@@ -34,19 +34,19 @@ LEARNED = ('states_', 'parameters_', 'equations_', 'form_', 'solver_', 'backend_
 class BaseSystem(BaseComponent[Sequence[Observable]]):
     """An abstract system, which is prepared once and simulated many times.
 
-    `prepare` checks the parts of the system and turns them into a problem once, as `fit` does for a scikit-learn
+    `prepare` checks the components of the system and turns them into a problem once, as `fit` does for a scikit-learn
     estimator. `simulate` then solves that problem from a starting point and returns its trajectory, as `predict` does,
     so one prepared system runs many times, such as `LotkaVolterraSystem().prepare().simulate(until=5.0)`. A ready-made
     system takes the parameters of its model as arguments of `__init__`, with `solver` and `backend`, and its `_prepare`
-    builds `system_`, the `System` of its parts. Class attributes may set the end time, the time between frames, the
-    observables, and the starting values that `simulate` uses when a call leaves them out. It is the base of the
+    builds `system_`, the `System` of its components. Class attributes may set the end time, the time between frames,
+    the observables, and the starting values that `simulate` uses when a call leaves them out. It is the base of the
     ready-made systems of predators and prey, of reactions in a cell, and of prices in a market.
 
     Read more in the user guide, under Systems.
 
     Attributes:
         system_:
-            The prepared `System` of the parts built from the parameters of the model.
+            The prepared `System` of the components built from the parameters of the model.
 
         observables_:
             The observables compiled with the problem, the class attribute `observables` unless `_prepare` sets them
@@ -57,7 +57,7 @@ class BaseSystem(BaseComponent[Sequence[Observable]]):
             `_prepare` sets them from the parameters of the model, such as the ground state of a chain of spins.
 
     See Also:
-        System: The system of parts that every ready-made system builds.
+        System: The system of components that every ready-made system builds.
 
     Examples:
         >>> from skcomplex.core.systems import BaseSystem

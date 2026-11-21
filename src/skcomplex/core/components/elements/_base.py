@@ -15,7 +15,7 @@ from ._visual_spec import VisualSpec
 
 
 class BaseElement(BaseComponent[BaseSpace]):
-    """An abstract element, the part of a system that holds its values.
+    """An abstract element, the component of a system that holds its values.
 
     An element holds the values of one thing or of a group of members, such as the height and mass of a ball in
     `Element('ball', values={'x': 10.0, 'm': 1.0})`. A value that a law changes is a state, and every other value is a
@@ -27,7 +27,7 @@ class BaseElement(BaseComponent[BaseSpace]):
 
     Args:
         label:
-            The name of the element, unique among the parts of its system, such as `'rabbits'`.
+            The name of the element, unique among the components of its system, such as `'rabbits'`.
 
     Attributes:
         default_visual_:

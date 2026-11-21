@@ -110,7 +110,7 @@ class BaseConfig[ContextT, InputT](_BaseEstimator[ContextT]):
     Read more in the user guide, under Extend the library.
 
     See Also:
-        BaseComponent: The base of the parts of a system, which have no `run`.
+        BaseComponent: The base of the components of a system, which have no `run`.
         BaseSpec: The base of frozen values that classes read.
 
     Examples:
