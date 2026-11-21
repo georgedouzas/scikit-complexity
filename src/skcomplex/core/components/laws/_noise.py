@@ -100,7 +100,7 @@ class NoiseLaw(BaseLaw):
         return None
 
     def _check_process(self) -> None:
-        """Raise an error for a process that is no label, tuple of labels, or random steps of a spec.
+        """Raise an error for a process that is not a label, labels, or shared steps.
 
         It also raises it for a conserved noise that names a process.
         """
@@ -145,7 +145,7 @@ class NoiseLaw(BaseLaw):
             raise ValidationError(error_msg)
 
     def _check(self) -> None:
-        """Raise an error for a NumPy array value, an unknown convention, or an invalid process.
+        """Raise an error for a NumPy array, an unknown convention, or an invalid process.
 
         It also raises it for an invalid Hurst index.
         """

@@ -361,7 +361,7 @@ def test_update_check_rejects_stochastic_without_a_function_of_cells_or_arrays(v
 @pytest.mark.parametrize(
     ('settings', 'message'),
     [
-        ({'neighborhood': 'moore'}, 'Give one'),
+        ({'neighborhood': 'moore'}, 'Give a neighbourhood'),
         ({'neighborhood': AROUND, 'schedule': 'sometimes'}, 'Unknown schedule'),
         ({'schedule': 'checkerboard'}, 'no neighbourhood'),
         ({'reads': [var('y')]}, 'no neighbourhood'),

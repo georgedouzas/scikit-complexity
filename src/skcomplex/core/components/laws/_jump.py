@@ -128,7 +128,7 @@ class JumpLaw(BaseLaw):
                 raise ValidationError(error_msg)
 
     def _check(self) -> None:
-        """Raise an error for a bad rate or waiting time, a NumPy array, or a symbolic increment."""
+        """Raise an error for bad timing, a NumPy array, or a symbolic increment."""
         super()._check()
         self._check_clock()
         self._check_reset()

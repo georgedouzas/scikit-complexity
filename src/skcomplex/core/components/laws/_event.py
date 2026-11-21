@@ -17,30 +17,28 @@ from ._requirement_spec import RequirementSpec
 
 @dataclass(frozen=True)
 class EventLaw(BaseLaw):
-    """A law that resets states or ends the run when a guard crosses zero.
+    """A law that sets values or ends the run when an expression crosses zero.
 
-    The guard is an expression of the states whose sign change marks an event. At the event the states in `reset` take
-    new values, or the run ends when `terminal` is true. Solvers locate the crossing within their tolerance. A crossing
-    leaves the equations of a system as they are, so it combines with rate laws, and the trajectory records every
-    crossing with its time and the states before and after it.
+    It watches an expression of the values and acts when it crosses zero, such as `EventLaw(s.ball.x, {s.ball.v: -0.8 *
+    s.ball.v}, direction=-1)` inside the interaction of a bouncing ball, which turns and slows the speed `v` when the
+    height `x` falls through zero. At the crossing the values of `reset` take their new values, or the run ends when
+    `terminal` is true. The solver finds the time of the crossing within its tolerance, which a step of an `UpdateLaw`
+    cannot, and the trajectory records every crossing with its time and the values before and after it. The rate laws
+    of the system stay as they are. A ball bounces off the floor, a neuron fires when its voltage reaches a threshold,
+    and a thermostat switches a heater at a set temperature.
 
-    Unlike an `UpdateLaw` on a state that rate laws change, which corrects the state once per step, it finds the time
-    of the event within the tolerance of the solver. Choose it when the time of the event matters, such as an impact or
-    a threshold.
-
-    It appears in many fields. A ball bounces off the floor, a neuron fires when its potential reaches a threshold, and
-    a thermostat switches a heater at a set temperature.
+    Read more in the user guide, under Laws.
 
     Args:
         guard:
-            A symbolic expression of states and time whose crossing of zero triggers the event, or a function
-            `f(t, values)` of time and the mapping from the dotted name of every state and parameter to its value, or
+            A symbolic expression of values and time whose crossing of zero sets off the event, a function
+            `f(t, values)` of time and the mapping from the dotted name of every value and parameter to its value, or
             `CallSpec(f, relative=True)` to read the names of the component. Over a group it returns one value per
-            member. It runs in Python, and a function does not lower the order of derivatives or read delays.
+            member. It runs in Python, and a function reads no derivatives or past values.
 
         reset:
-            A mapping from state symbol to its new value, applied all at once, or `None` to keep the states. A value
-            may be a function like the guard's.
+            A mapping from the symbol of a value to its new value, all set at once, or `None` to keep the values. A
+            new value may be a function like the guard.
 
         direction:
             `1` for crossings from negative to positive, `-1` for the opposite, and `0` for both.
@@ -51,12 +49,16 @@ class EventLaw(BaseLaw):
         label:
             The name of the crossing in the trajectory, or the empty string for the path of the element.
 
+    See Also:
+        JumpLaw: Changes values at random times.
+        UpdateLaw: Gives the next value after one step of discrete time.
+
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws import EventLaw
-        >>> y, z = var('y'), var('z')
-        >>> EventLaw(y, {z: -0.8 * z}, direction=-1).reset
-        {z: -0.8*z}
+        >>> x, v = var('x v')
+        >>> EventLaw(x, {v: -0.8 * v}, direction=-1).reset
+        {v: -0.8*v}
     """
 
     law_tag: ClassVar[str] = 'update'
@@ -85,9 +87,7 @@ class EventLaw(BaseLaw):
             raise ValidationError(error_msg)
 
     def _get_value(self, inputs: object) -> object:
-        """Return the new values of the states at given symbol values.
-
-        The symbols are those the reset reads.
+        """Return the new values at given values of the symbols the reset reads.
 
         Args:
             inputs:

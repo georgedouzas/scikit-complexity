@@ -23,17 +23,15 @@ SHIFT = 'shift_member'
 class FlowTermLaw(_OrderedRateLaw):
     """A law of the rate `sign * f` that a flow adds to one of its stocks.
 
-    It keeps the sign the stock has in the flow. A flow `RateLaw({s.alive: -1, s.dead: +1}, f, label='deaths')`
-    becomes the term `-f` on `alive` with the sign `-1` and the term `f` on `dead` with the sign `+1`, so the compiler
-    knows which stock the flow leaves and which it enters without reading the sign of `f`. In discrete time a flow is
-    an increment, `UpdateLaw({s.lane: +1}, f, increment=True, label='entry')`, and its terms are increments too.
+    The compiler splits a flow into one term per stock and keeps the sign of each, so it knows which stock the flow
+    leaves and which it enters without reading the sign of `f`. A flow `RateLaw({s.alive: -1, s.dead: +1}, f,
+    label='deaths')` becomes the term `-f` on `alive` with the sign `-1` and the term `f` on `dead` with the sign `+1`,
+    and the analysis of feedback loops draws the flow from the living to the dead. In discrete time a flow is an
+    increment, such as `UpdateLaw({s.lane: +1}, f, increment=True, label='entry')`, and its terms are increments too.
+    Models write the flow itself and never this law. People die out of the living, water drains from a tank into a
+    river, and capital wears out of an economy.
 
-    Unlike a `RateLaw` on one state, it is one side of a flow, so the loops analysis and the flow matrix draw the flow
-    from the stock it leaves to the stock it enters. Choose it when a pass of the compiler needs one side of a flow,
-    and write the flow itself in a model.
-
-    It appears in many fields. People die from the living into the dead, water drains from a tank, and capital
-    depreciates out of an economy.
+    Read more in the user guide, under Laws.
 
     Args:
         target:
@@ -57,6 +55,16 @@ class FlowTermLaw(_OrderedRateLaw):
         shifted:
             Whether the stock is a member at an offset, such as the next site of `{s.n: -1, shift_member(s.n, 1): +1}`,
             so every member takes the term of the member behind it.
+
+    See Also:
+        RateLaw: Writes a flow as a mapping from each stock to the sign of its change.
+
+    Examples:
+        >>> from sage.all__sagemath_symbolics import var
+        >>> from skcomplex.core.components.laws._flow_term import FlowTermLaw
+        >>> alive, d = var('alive d')
+        >>> FlowTermLaw(alive, -d * alive, label='deaths', sign=-1).sign
+        -1
     """
 
     order: float | None = 1
