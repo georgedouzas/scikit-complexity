@@ -2,6 +2,7 @@
 
 import itertools
 import math
+from collections.abc import Callable
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -540,7 +541,7 @@ def test_vicsek_agrees_across_backends():
 class PairwiseInteraction(Interaction):
     """Rate of every member given by a reduction over its group that reads the member and the other member."""
 
-    def __init__(self, label: str, *, group: Role, reduction: object = None) -> None:
+    def __init__(self, label: str, *, group: Role, reduction: Callable[[SimpleNamespace], object]) -> None:
         super().__init__(label)
         self.group = group
         self.reduction = reduction

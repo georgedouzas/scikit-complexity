@@ -108,7 +108,7 @@ class HoldingElement(Element):
         self.n = n
 
 
-def _summed(inputs: str | Sequence[str], weights: float | Sequence[float] = 1.0) -> System:
+def _summed(inputs: tuple[Role, ...], weights: float | Sequence[float] = 1.0) -> System:
     """Return the system of a weighted sum of inputs read from three elements and a group of ten nodes."""
     elements = [
         NodeElement('a', x=1.0),

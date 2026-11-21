@@ -78,16 +78,16 @@ class PairNoiseInteraction(Interaction):
             ]
 
 
-def pair_system(size: int | None = None, **settings: object) -> System:
+def pair_system(size: int | None = None, conventions: tuple[str, str] = ('ito', 'ito')) -> System:
     """Return a pair, or a group of pairs, whose values `x` and `y` take noise on one local process."""
     values: dict[str, object] = {'x': 1.0, 'y': 1.0, 'sigma': 0.5}
     if size is not None:
         values = {name: np.full(size, value) for name, value in values.items()}
     pair = Element('pair', values=values, size=size)
-    return System(elements=[pair], interactions=[PairNoiseInteraction('noise', **settings)])
+    return System(elements=[pair], interactions=[PairNoiseInteraction('noise', conventions=conventions)])
 
 
-def phase_system(z: complex = 1.0 + 0j, omega: object = 2.0, **settings: object) -> System:
+def phase_system(z: complex = 1.0 + 0j, omega: float = 2.0, **settings: object) -> System:
     """Return a complex amplitude `osc.z` that turns as `dz/dt = i omega z`."""
     turn = Interaction(
         'turn',

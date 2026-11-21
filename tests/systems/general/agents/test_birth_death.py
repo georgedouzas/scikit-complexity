@@ -1,5 +1,7 @@
 """Test the `_birth_death` module of `skcomplex.systems.general.agents`."""
 
+from typing import Protocol, runtime_checkable
+
 import networkx as nx
 import numpy as np
 import pytest
@@ -8,6 +10,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import PartnerSpec, UpdateLaw
 from skcomplex.core.components.spaces import BaseSpace, LatticeSpace, NetworkSpace
+from skcomplex.core.components.types import AgentViewProtocol, SystemViewProtocol
 from skcomplex.core.engine.compile import PhaseSpec
 from skcomplex.core.engine.runtime import Trajectory
 from skcomplex.core.engine.solvers import MesaSolver
@@ -16,6 +19,19 @@ from skcomplex.core.systems import System
 from skcomplex.systems.general.agents import BirthDeathInteraction
 
 LATTICE = LatticeSpace((3, 3))
+
+
+@runtime_checkable
+class CellView(AgentViewProtocol, Protocol):
+    """View of a cell, with its resource."""
+
+    resource: float
+
+
+class ForagerView(AgentViewProtocol, Protocol):
+    """View of a forager, with its reserve."""
+
+    reserve: float
 
 
 class ReserveElement(Element):
@@ -75,12 +91,13 @@ def _feeding(uptake: float, gain: float, regrowth: float = 0.0) -> Interaction:
     The resource of every cell grows back by `regrowth` each step.
     """
 
-    def regrow(cell: object, system: object) -> None:
+    def regrow(cell: CellView, system: SystemViewProtocol) -> None:
         cell.resource += regrowth
 
-    def feed(forager: object, system: object) -> None:
+    def feed(forager: ForagerView, system: SystemViewProtocol) -> None:
         groups = set(system.get_groups('cells'))
         for cell in [other for other in forager.get_agents_here() if other.group in groups]:
+            assert isinstance(cell, CellView)
             if forager.alive and cell.alive:
                 taken = min(cell.resource, uptake)
                 cell.resource -= taken
@@ -96,7 +113,7 @@ def _feeding(uptake: float, gain: float, regrowth: float = 0.0) -> Interaction:
 def _upkeep(amount: float) -> Interaction:
     """Return the upkeep every forager pays from its reserve every step."""
 
-    def pay(forager: object, system: object) -> None:
+    def pay(forager: ForagerView, system: SystemViewProtocol) -> None:
         forager.reserve -= amount
 
     return Interaction('upkeep', roles={'target': 'foragers'}, laws=lambda s: [UpdateLaw(s.target, pay)])

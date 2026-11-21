@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Any, Protocol
 
 import networkx as nx
 import numpy as np
@@ -47,9 +47,10 @@ from skcomplex.core.components.spaces import (
     NetworkSpace,
     RadiusNeighborhood,
 )
+from skcomplex.core.components.types import AgentViewProtocol
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import ConservationObserver
-from skcomplex.core.engine.solvers import AgentView, ETDRK4Solver, IMEXEulerSolver, RK4Solver, SSPRKSolver
+from skcomplex.core.engine.solvers import AgentView, BaseSolver, ETDRK4Solver, IMEXEulerSolver, RK4Solver, SSPRKSolver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.systems import System
 from skcomplex.core.types import Role
@@ -59,7 +60,7 @@ from ....conftest import _queue_run
 
 SITES = 16
 WAVE = 1.0 + 0.5 * np.sin(2 * np.pi * np.arange(SITES) / SITES) + np.eye(SITES)[3]
-FIELDS = {
+FIELDS: dict[str, tuple[dict[str, Any], bool, BaseSolver]] = {
     'zero-flux': ({'boundary': {'u': 'zero-flux'}}, False, RK4Solver(dt=0.01)),
     'fixed': ({'boundary': {'u': ('fixed', 2.0)}}, False, RK4Solver(dt=0.01)),
     'periodic': ({'boundary': {'u': 'periodic'}}, False, RK4Solver(dt=0.01)),
@@ -763,6 +764,13 @@ def test_get_declared_maps_a_complex_value():
     assert system.simulate(until=3, dt=1).get_values('point.z') == pytest.approx(expected)
 
 
+class WandererView(AgentViewProtocol, Protocol):
+    """View of a wanderer, with its position and speed."""
+
+    x: float
+    speed: float
+
+
 class Wander(Interaction):
     """Interaction whose rule moves every member of its target by its speed."""
 
@@ -776,7 +784,7 @@ class Wander(Interaction):
         if isinstance(context, SimpleNamespace):
             self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.wander)]
 
-    def wander(self, agent: object, system: object) -> None:
+    def wander(self, agent: WandererView, system: object) -> None:
         """Move an agent by its speed, or remove it once it passes ten."""
         agent.x += agent.speed
         if agent.x > 10:

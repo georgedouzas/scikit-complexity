@@ -1,6 +1,7 @@
 """Test the `_random_partition` module of `skcomplex.core.components.interactions`."""
 
 import numpy as np
+import numpy.typing as npt
 import pytest
 
 from skcomplex.core.components.elements import Element
@@ -29,7 +30,13 @@ def _majority(size: int = 3) -> Interaction:
     )
 
 
-def _run(opinions: object, interaction: Interaction, until: int, backend: object = 'auto', seed: int = 0) -> np.ndarray:
+def _run(
+    opinions: npt.ArrayLike,
+    interaction: Interaction,
+    until: int,
+    backend: object = 'auto',
+    seed: int = 0,
+) -> np.ndarray:
     """Return the opinions of the voters at every frame of a run."""
     voters = Element('voters', values={'opinion': opinions}, size=len(np.atleast_1d(opinions)))
     system = System(elements=[voters], interactions=[interaction], backend=backend).prepare()

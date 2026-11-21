@@ -67,7 +67,9 @@ def _first_frame(system: System | BaseSystem) -> tuple[BaseProblemSpec, FrameSpe
 
 def _radius(archetype: rr.Points2D | rr.Points3D) -> float:
     """Return the first radius of logged points."""
-    return archetype.radii.as_arrow_array().to_pylist()[0]
+    radii = archetype.radii
+    assert radii is not None
+    return radii.as_arrow_array().to_pylist()[0]
 
 
 def _problem_of(system: System | BaseSystem) -> BaseProblemSpec:
@@ -89,8 +91,8 @@ def default_blueprint(system: System | BaseSystem | BaseProblemSpec, **settings:
 
 def _views(blueprint: rrb.Blueprint) -> list[rrb.View]:
     """Return the views of a blueprint in layout order."""
-    found = []
-    stack = [blueprint.root_container]
+    found: list[rrb.View] = []
+    stack: list[rrb.Container | rrb.View] = [blueprint.root_container]
     while stack:
         part = stack.pop(0)
         if isinstance(part, rrb.View):

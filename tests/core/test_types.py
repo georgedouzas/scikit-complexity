@@ -2,7 +2,7 @@
 
 import typing
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Any
 
 import pytest
 
@@ -54,7 +54,7 @@ class PullInteraction(Interaction):
                 self.laws_.append(RateLaw(s.target.x, -s.switch.level))
 
 
-def _prepare(*elements: Element, **roles: object) -> System:
+def _prepare(*elements: Element, **roles: Any) -> System:
     """Return the prepared system of a ball, the given elements, and one pull with the given roles."""
     return System(
         elements=[Element('ball', values={'x': 1.0}), *elements],

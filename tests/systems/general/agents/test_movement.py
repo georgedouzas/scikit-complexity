@@ -1,6 +1,7 @@
 """Test the `_movement` module of `skcomplex.systems.general.agents`."""
 
 from collections.abc import Callable, Sequence
+from typing import Protocol, runtime_checkable
 
 import networkx as nx
 import numpy as np
@@ -9,6 +10,7 @@ import pytest
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import PartnerSpec
 from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace, NetworkSpace
+from skcomplex.core.components.types import AgentViewProtocol, SystemViewProtocol
 from skcomplex.core.engine.runtime import Trajectory
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.systems import System
@@ -62,11 +64,19 @@ def _lattice_walk(until: int, walk: MovementInteraction, size: int = 4) -> Traje
     return _run(walkers, walk, until)
 
 
-def _cost(amount: float) -> Callable[[object, object], None]:
+@runtime_checkable
+class BudgetView(Protocol):
+    """View of a walker, with the level its steps cost."""
+
+    level: float
+
+
+def _cost(amount: float) -> Callable[[AgentViewProtocol, SystemViewProtocol], None]:
     """Return the cost of a step, which takes an amount of the level of a walker."""
 
-    def pay(agent: object, system: object) -> None:
+    def pay(agent: AgentViewProtocol, system: SystemViewProtocol) -> None:
         del system
+        assert isinstance(agent, BudgetView)
         agent.level -= amount
 
     return pay

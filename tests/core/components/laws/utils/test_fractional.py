@@ -1,6 +1,7 @@
 """Test the `_fractional` module of `skcomplex.core.components.laws.utils`."""
 
 from types import SimpleNamespace
+from typing import Any
 
 import numpy as np
 import pytest
@@ -50,7 +51,7 @@ class AnomalousRelaxation(Interaction):
             self.laws_ = laws
 
 
-def relaxation(**params: object) -> System:
+def relaxation(**params: Any) -> System:
     """Return a system of one state that relaxes anomalously."""
     return System(elements=[Element('cell', values={'x': 1.0})], interactions=[AnomalousRelaxation('relax', **params)])
 
