@@ -4,6 +4,7 @@ Each page has a table of the capability tags of its classes, and executed exampl
 """
 
 import inspect
+import re
 import sys
 from collections.abc import Callable, Iterable
 from types import ModuleType
@@ -32,6 +33,9 @@ from skcomplex.systems.general.reactions import ReactionNetworkSystem
 FAMILIES = 'components'
 REFERENCE = '../overview/user_guide/core_components'
 SHOWN = 10
+SECTIONS = ('Args:', 'Attributes:', 'Returns:', 'Raises:', 'Warns:', 'See Also:', 'Examples:')
+USER_GUIDE = 'Read more in the user guide, under '
+LAYOUT_HEAD = ('summary', 'paragraph', 'user guide')
 EXPERIMENT_NEEDS = {
     'ensemble': 'the randomness `stochastic`, or a solver that draws',
 }
@@ -108,21 +112,39 @@ def _declares_support(runner: type[BaseSolver] | type[BaseBackend]) -> bool:
     return True
 
 
-def _paragraphs(item: type) -> list[str]:
-    """Return the paragraphs of the docstring of a class before its sections, each on one line."""
-    text = inspect.getdoc(item) or ''
-    paragraphs = [' '.join(paragraph.split()) for paragraph in text.split('\n\n')]
-    return [paragraph for paragraph in paragraphs if paragraph and not paragraph.endswith(':')]
+def _head_and_neighbours(item: type) -> tuple[list[str], list[str]]:
+    """Return the paragraphs of the docstring of a class before its sections, and the names under See Also.
+
+    Each paragraph is on one line, the summary line first.
+    """
+    lines = (inspect.getdoc(item) or '').splitlines()
+    headers = [index for index, line in enumerate(lines) if line in SECTIONS]
+    head = '\n'.join(lines[: headers[0]] if headers else lines)
+    paragraphs = [' '.join(paragraph.split()) for paragraph in head.split('\n\n') if paragraph.strip()]
+    neighbours = []
+    if 'See Also:' in lines:
+        for line in lines[lines.index('See Also:') + 1 :]:
+            if line and not line.startswith(' '):
+                break
+            if line.startswith('    ') and line[4] != ' ' and ':' in line:
+                neighbours.append(line.split(':')[0].strip())
+    return paragraphs, neighbours
 
 
 def _comparison(item: type) -> list[str]:
-    """Return what a class adds, when to choose it, and its uses, read from its docstring."""
-    paragraphs = _paragraphs(item)
-    compare = next((paragraph for paragraph in paragraphs if paragraph.startswith('Unlike')), '')
-    adds, _, choose = compare.partition(' Choose it when ')
-    uses = next((paragraph for paragraph in paragraphs if paragraph.startswith('It appears in')), '')
-    uses = uses.removeprefix('It appears in many fields. ')
-    return [adds, choose[:1].upper() + choose[1:], uses]
+    """Return the summary, the uses, and the neighbours of a class, read from its docstring.
+
+    The uses are the last sentence of the paragraph between the summary and the link to the user guide. A docstring
+    not yet written in that layout gives its paragraph of uses when it has one.
+    """
+    paragraphs, neighbours = _head_and_neighbours(item)
+    summary = paragraphs[0] if paragraphs else ''
+    if len(paragraphs) == len(LAYOUT_HEAD) and paragraphs[-1].startswith(USER_GUIDE):
+        uses = re.split(r'(?<=\.) (?=[A-Z`])', paragraphs[1])[-1]
+    else:
+        old = next((paragraph for paragraph in paragraphs if paragraph.startswith('It appears in')), '')
+        uses = old.removeprefix('It appears in many fields. ')
+    return [summary, uses, ', '.join(f'`{name}`' for name in neighbours)]
 
 
 def _sections(item: type) -> dict[str, list[tuple[str, str]]]:
@@ -242,7 +264,7 @@ def _facts(items: list[type[BaseComponent]], family: str) -> str:
     """Return the comparison table and the fact sheets of the classes of a family."""
     catalog = _catalog_classes()
     rows = [[f'[`{item.__name__}`](#{item.__name__.lower()})', *_comparison(item)] for item in items]
-    lines = ['## Comparison', '', *_table(['Class', 'What it adds', 'Choose it when', 'Uses'], rows), '']
+    lines = ['## Comparison', '', *_table(['Class', 'Summary', 'Uses', 'See also'], rows), '']
     lines += ['## Fact sheets', '']
     for item in items:
         lines += _fact_sheet(item, catalog, family)
