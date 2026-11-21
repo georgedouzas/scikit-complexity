@@ -118,6 +118,9 @@ LAYOUT_PACKAGES = (
             '_neighbors',
             '_networks',
             '_partial_information',
+            '_passage',
+            '_recurrence',
+            '_renormalization',
         )
     ),
 )
