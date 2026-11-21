@@ -708,7 +708,7 @@ class BaseInteraction(BaseComponent[SimpleNamespace]):
         return True
 
     def prepare(self, context: BaseSpace | SimpleNamespace | None = None) -> Self:
-        """Check the interaction, and set its laws in `laws_` on the namespace of a binding.
+        """Check the interaction, and set its laws in `laws_` on a namespace.
 
         The engine prepares a copy of the interaction on the namespace of every binding of its roles. Only a namespace
         reaches the hook `_prepare`, so a subclass reads its roles, the time, and its parameters there. On the space

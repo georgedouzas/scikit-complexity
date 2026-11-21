@@ -193,6 +193,39 @@ def test_interaction_stores_its_roles_and_parameters():
     }
 
 
+class CheckedDecayInteraction(Interaction):
+    """Decay `x' = -k x` that rejects a negative rate and reads its namespace without testing it."""
+
+    def __init__(self, label: str, *, target: Role = 'ball', k: float = 1.0) -> None:
+        super().__init__(label)
+        self.target = target
+        self.k = k
+
+    def _check_arguments(self) -> None:
+        """Raise an error for a negative rate."""
+        super()._check_arguments()
+        if self.k < 0:
+            error_msg = f'The rate of {self.label!r} is negative.'
+            raise ValidationError(error_msg)
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the decay of the target."""
+        super()._prepare(context)
+        self.laws_ = [RateLaw(context.target.x, -context.k * context.target.x)]
+
+
+def test_prepare_checks_arguments_on_every_context_and_learns_laws_on_a_namespace():
+    """Test that `prepare` checks the arguments always and reaches `_prepare` only with a namespace."""
+    x = var('x')
+    namespace = SimpleNamespace(target=SimpleNamespace(x=x), t=var('t'), k=2.0)
+    assert not hasattr(CheckedDecayInteraction('decay').prepare(), 'laws_')
+    assert not hasattr(CheckedDecayInteraction('decay').prepare(LatticeSpace((2,))), 'laws_')
+    assert [law.value for law in CheckedDecayInteraction('decay').prepare(namespace).laws_] == [-2.0 * x]
+    for context in (None, LatticeSpace((2,)), namespace):
+        with pytest.raises(ValidationError, match='negative'):
+            CheckedDecayInteraction('decay', k=-1.0).prepare(context)
+
+
 def test_interaction_prepares_into_itself():
     """Test that a checked interaction has nothing to prepare and sets its laws when prepared on a namespace."""
     growth = GrowthInteraction('growth', target='rabbits')

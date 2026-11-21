@@ -90,7 +90,7 @@ class SpeedAdaptationInteraction(Interaction):
         return self._get_variant_tags((RateLaw, NoiseLaw) if noisy else (RateLaw,))
 
     def _check_arguments(self) -> None:
-        """Raise an error for a goal, a time, or a noise that is neither callable nor a number.
+        """Raise an error for a goal, a time, or a noise that is no function or number.
 
         Raises:
             ValidationError:
