@@ -61,7 +61,7 @@ def test_relax_needs_laws():
 
 
 def test_relax_records_a_neuronal_avalanche():
-    """Test that a neuron driven past its threshold fires an avalanche that the run records at the start of its step, with its size."""
+    """Test that a driven neuron fires an avalanche, recorded at the start of its step with its size."""
     trajectory = _run('neurons', LatticeSpace(4, boundary='fixed'), _avalanche, 2)
     (record,) = trajectory.events
     assert (record.label, record.time) == ('avalanche', 1.0)
